@@ -1,88 +1,37 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-File      : CMP_Result.h
-Module    : Shared/Protocol
-
-Description:
-CMP operation result codes.
-
-Release   : 0.1.0
-Build     : 002A
-Package   : 01.3
-==========================================================
-*/
-
 #ifndef CMP_RESULT_H
 #define CMP_RESULT_H
 
 #include <stdint.h>
 
-enum class CMP_Result : uint8_t
+namespace CMP
 {
-    //------------------------------------------------------
-    // Success
-    //------------------------------------------------------
+enum class Result : uint8_t
+{
+    Ok = 0U,
 
-    OK = 0,
+    Error,
+    InvalidArgument,
+    NotInitialized,
+    NotSupported,
+    Busy,
+    Timeout,
 
-    //------------------------------------------------------
-    // General
-    //------------------------------------------------------
+    BufferEmpty,
+    BufferFull,
+    BufferOverflow,
 
-    ERROR,
+    PacketIncomplete,
+    InvalidPacket,
+    InvalidStartWord,
+    InvalidVersion,
+    InvalidFlags,
+    InvalidLength,
+    InvalidCRC,
 
-    TIMEOUT,
-
-    //------------------------------------------------------
-    // Transport
-    //------------------------------------------------------
-
-    SERIAL_NOT_INITIALIZED,
-
-    RX_BUFFER_EMPTY,
-
-    RX_BUFFER_OVERFLOW,
-
-    TX_BUFFER_OVERFLOW,
-
-    //------------------------------------------------------
-    // Packet
-    //------------------------------------------------------
-
-    INVALID_START_WORD,
-
-    INVALID_VERSION,
-
-    INVALID_FLAGS,
-
-    INVALID_LENGTH,
-
-    INVALID_CRC,
-
-    PACKET_TOO_LARGE,
-
-    PACKET_INCOMPLETE,
-
-    //------------------------------------------------------
-    // Protocol
-    //------------------------------------------------------
-
-    UNKNOWN_COMMAND,
-
-    NOT_SUPPORTED,
-
-    BUSY,
-
-    //------------------------------------------------------
-    // Application
-    //------------------------------------------------------
-
-    INVALID_PARAMETER,
-
-    INTERNAL_ERROR
+    UnknownCommand,
+    TxFailed,
+    RxFailed
 };
+}
 
-#endif
+#endif // CMP_RESULT_H

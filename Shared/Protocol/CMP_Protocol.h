@@ -1,92 +1,53 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-File      : CMP_Protocol.h
-Module    : Shared/Protocol
-
-Description:
-Protocol Engine
-==========================================================
-*/
-
 #ifndef CMP_PROTOCOL_H
 #define CMP_PROTOCOL_H
 
-#include <Arduino.h>
+#include <stdint.h>
 
 #include "CMP_Buffer.h"
-#include "CMP_Command.h"
-#include "CMP_CRC.h"
+#include "CMP_Flags.h"
 #include "CMP_Packet.h"
+#include "CMP_Parser.h"
+#include "CMP_Result.h"
 
-class CMP_Protocol
+namespace CMP
+{
+class Protocol
 {
 public:
+    Protocol();
 
-    //------------------------------------------------------
-    // Initialization
-    //------------------------------------------------------
+    Protocol(const Protocol&) = delete;
+    Protocol& operator=(const Protocol&) = delete;
 
-    static void begin(HardwareSerial& serial);
+    void reset();
 
-    //------------------------------------------------------
-    // Poll serial port
-    //------------------------------------------------------
+    Result receive(uint8_t byte);
+    Result receive(const uint8_t* data, uint16_t length);
 
-    static void update();
+    Result read(Packet& packet);
 
-    //------------------------------------------------------
-    // Send
-    //------------------------------------------------------
+    Result createPacket(Command command,
+                        Flags flags,
+                        const uint8_t* payload,
+                        uint16_t payloadLength,
+                        Packet& packet);
 
-    static bool send(
-        CMP_Command command,
-        const uint8_t* payload = nullptr,
-        uint16_t payloadLength = 0);
+    Result encode(const Packet& packet,
+                  uint8_t* output,
+                  uint16_t outputCapacity,
+                  uint16_t& bytesWritten) const;
 
-    //------------------------------------------------------
-    // Receive
-    //------------------------------------------------------
-
-    static bool available();
-
-    static bool read(CMP_Packet& packet);
+    uint16_t bufferedBytes() const;
+    uint16_t nextCounter() const;
 
 private:
+    static void writeUInt16LE(uint8_t* output,
+                              uint16_t offset,
+                              uint16_t value);
 
-    //------------------------------------------------------
-    // UART
-    //------------------------------------------------------
-
-    static HardwareSerial* _serial;
-
-    //------------------------------------------------------
-    // RX Buffer
-    //------------------------------------------------------
-
-    static CMP_Buffer _rxBuffer;
-
-    //------------------------------------------------------
-    // Packet Counter
-    //------------------------------------------------------
-
-    static uint16_t _packetCounter;
-
-    //------------------------------------------------------
-    // Last Packet
-    //------------------------------------------------------
-
-    static CMP_Packet _packet;
-
-    static bool _packetReady;
-
-    //------------------------------------------------------
-    // Parser
-    //------------------------------------------------------
-
-    static bool parsePacket();
+    Buffer m_rxBuffer;
+    uint16_t m_nextCounter;
 };
+}
 
-#endif
+#endif // CMP_PROTOCOL_H

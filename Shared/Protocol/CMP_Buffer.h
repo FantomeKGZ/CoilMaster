@@ -1,91 +1,52 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-File      : CMP_Buffer.h
-Module    : Shared/Protocol
-
-Description:
-Ring Buffer
-==========================================================
-*/
-
 #ifndef CMP_BUFFER_H
 #define CMP_BUFFER_H
 
 #include <stdint.h>
 
 #include "CMP_Defines.h"
+#include "CMP_Result.h"
 
-class CMP_Buffer
+namespace CMP
+{
+class Buffer
 {
 public:
+    Buffer();
 
-    CMP_Buffer();
-
-    //------------------------------------------------------
-    // Control
-    //------------------------------------------------------
+    Buffer(const Buffer&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
 
     void clear();
 
-    //------------------------------------------------------
-    // Write
-    //------------------------------------------------------
+    Result push(uint8_t value);
+    Result push(const uint8_t* data, uint16_t length);
 
-    bool push(uint8_t value);
+    Result pop(uint8_t& value);
+    Result pop(uint8_t* data, uint16_t length);
 
-    //------------------------------------------------------
-    // Read
-    //------------------------------------------------------
+    Result peek(uint16_t offset, uint8_t& value) const;
+    Result peek(uint16_t offset,
+                uint8_t* data,
+                uint16_t length) const;
 
-    bool pop(uint8_t& value);
-
-    //------------------------------------------------------
-    // Peek
-    //------------------------------------------------------
-
-    bool peek(uint16_t index,
-              uint8_t& value) const;
-
-    bool peek(uint8_t* data,
-              uint16_t length) const;
-
-    //------------------------------------------------------
-    // Read block
-    //------------------------------------------------------
-
-    bool read(uint8_t* data,
-              uint16_t length);
-
-    //------------------------------------------------------
-    // Skip bytes
-    //------------------------------------------------------
-
-    bool discard(uint16_t count);
-
-    //------------------------------------------------------
-    // Information
-    //------------------------------------------------------
-
-    uint16_t available() const;
-
-    uint16_t size() const;
+    Result discard(uint16_t length);
 
     bool empty() const;
-
     bool full() const;
+    bool contains(uint16_t length) const;
+
+    uint16_t size() const;
+    uint16_t freeSpace() const;
+    uint16_t capacity() const;
 
 private:
+    static constexpr uint16_t Capacity = RxBufferSize;
 
-    uint8_t buffer[CMP_RX_BUFFER_SIZE];
-
-    uint16_t head;
-
-    uint16_t tail;
-
-    uint16_t count;
+    uint8_t m_data[Capacity];
+    uint16_t m_head;
+    uint16_t m_tail;
+    uint16_t m_count;
 };
+}
 
-#endif
+#endif // CMP_BUFFER_H

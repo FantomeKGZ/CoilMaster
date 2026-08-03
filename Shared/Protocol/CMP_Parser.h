@@ -1,19 +1,3 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-File      : CMP_Parser.h
-Module    : Shared/Protocol
-
-Description:
-Packet Parser
-
-Converts incoming byte stream from CMP_Buffer
-into validated CMP_Packet objects.
-==========================================================
-*/
-
 #ifndef CMP_PARSER_H
 #define CMP_PARSER_H
 
@@ -24,53 +8,25 @@ into validated CMP_Packet objects.
 #include "CMP_Packet.h"
 #include "CMP_Result.h"
 
-class CMP_Parser
+namespace CMP
+{
+class Parser
 {
 public:
+    Parser() = delete;
 
-    //------------------------------------------------------
-    // Parse packet
-    //------------------------------------------------------
-
-    static CMP_Result parse(
-        CMP_Buffer& buffer,
-        CMP_Packet& packet);
+    static Result parse(Buffer& buffer, Packet& packet);
 
 private:
+    static Result synchronize(Buffer& buffer);
+    static Result decodeHeader(const Buffer& buffer, Header& header);
+    static Result validateHeader(const Header& header);
+    static uint16_t calculatePacketCRC(const Buffer& buffer,
+                                       uint16_t payloadLength);
 
-    //------------------------------------------------------
-    // Synchronization
-    //------------------------------------------------------
-
-    static bool findStartWord(
-        CMP_Buffer& buffer);
-
-    //------------------------------------------------------
-    // Reading
-    //------------------------------------------------------
-
-    static bool readHeader(
-        CMP_Buffer& buffer,
-        CMP_Header& header);
-
-    static bool readPayload(
-        CMP_Buffer& buffer,
-        uint8_t* payload,
-        uint16_t length);
-
-    static bool readCRC(
-        CMP_Buffer& buffer,
-        uint16_t& crc);
-
-    //------------------------------------------------------
-    // Validation
-    //------------------------------------------------------
-
-    static CMP_Result validateHeader(
-        const CMP_Header& header);
-
-    static CMP_Result validateCRC(
-        const CMP_Packet& packet);
+    static uint16_t readUInt16LE(const Buffer& buffer,
+                                 uint16_t offset);
 };
+}
 
-#endif
+#endif // CMP_PARSER_H

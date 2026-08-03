@@ -1,0 +1,28 @@
+name: CMP Protocol Tests
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+  pull_request:
+    paths:
+      - "Shared/Protocol/**"
+      - "Tests/Protocol/**"
+      - ".github/workflows/cmp-protocol-tests.yml"
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S Tests/Protocol -B build/cmp-protocol
+
+      - name: Build
+        run: cmake --build build/cmp-protocol --parallel
+
+      - name: Test
+        run: ctest --test-dir build/cmp-protocol --output-on-failure

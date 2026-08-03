@@ -1,0 +1,94 @@
+# ==========================================================
+# CoilMaster OS
+# Project Manifest
+# ==========================================================
+
+Project:
+  Name: CoilMaster OS
+  Description: Motor Winding Control Platform
+
+Release:
+  Version: 0.1.0
+  Build: 002A
+  Package: 01.1
+  Status: Development
+
+Repository:
+  Name: CoilMaster
+  Branch: main
+
+Protocol:
+  Name: CMP
+  Version: 1.0
+
+Hardware:
+
+  Arduino:
+    Board: Arduino UNO R3
+    Role: Realtime Controller
+
+  ESP32:
+    Board: ESP32 DevKit V1
+    Role: Service Controller
+
+Storage:
+
+  SDCard:
+    Enabled: true
+
+  Database:
+    Type: JSON
+
+Network:
+
+  WiFi: true
+  HTTP: true
+  FTP: true
+  OTA: false
+
+Display:
+
+  LCD1602: true
+
+Input:
+
+  Keypad4x4: true
+  HallSensor: true
+
+Output:
+
+  SSR: true
+  Buzzer: true
+
+RTC:
+
+  DS3231: true
+
+Modules:
+
+  CM_System: true
+  CM_Version: true
+  CM_Config: true
+  CM_Settings: false
+  CM_Logger: false
+
+Features:
+
+  Backup: true
+  Handbook: true
+  MotorDatabase: true
+  EventLog: true
+  WebInterface: true
+
+Author:
+
+  ProjectOwner: Alexey Morozov
+  Architecture: OpenAI ChatGPT
+
+License:
+
+  Type: Proprietary
+
+Created:
+
+  Date: 2026-08-03

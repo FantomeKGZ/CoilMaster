@@ -1,82 +1,24 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-File      : CMP_Header.h
-Module    : Shared/Protocol
-
-Description:
-CMP Packet Header
-
-This file defines the binary header format used
-by all CMP packets.
-
-WARNING:
-Changing this structure changes the protocol.
-==========================================================
-*/
-
 #ifndef CMP_HEADER_H
 #define CMP_HEADER_H
 
 #include <stdint.h>
 
-#include "CMP_Defines.h"
+#include "CMP_Command.h"
+#include "CMP_Flags.h"
 
-#pragma pack(push,1)
-
-struct CMP_Header
+namespace CMP
 {
-    //------------------------------------------------------
-    // Packet Signature
-    //------------------------------------------------------
-
+struct Header
+{
     uint16_t startWord;
-
-    //------------------------------------------------------
-    // Protocol Version
-    //------------------------------------------------------
-
     uint8_t versionMajor;
-
     uint8_t versionMinor;
-
-    //------------------------------------------------------
-    // Packet Flags
-    //------------------------------------------------------
-
-    uint8_t flags;
-
-    //------------------------------------------------------
-    // Reserved
-    //------------------------------------------------------
-
+    Flags flags;
     uint8_t reserved;
-
-    //------------------------------------------------------
-    // Command
-    //------------------------------------------------------
-
-    uint16_t command;
-
-    //------------------------------------------------------
-    // Packet Counter
-    //------------------------------------------------------
-
+    Command command;
     uint16_t counter;
-
-    //------------------------------------------------------
-    // Payload Length
-    //------------------------------------------------------
-
     uint16_t payloadLength;
 };
+}
 
-#pragma pack(pop)
-
-static_assert(
-    sizeof(CMP_Header) == 12,
-    "CMP_Header must be exactly 12 bytes");
-
-#endif
+#endif // CMP_HEADER_H

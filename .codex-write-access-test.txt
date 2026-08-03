@@ -1,0 +1,4 @@
+CoilMaster GitHub write-access test
+Date: 2026-08-03
+Purpose: verify isolated branch create/write/read capability.
+Safe to delete with the test branch.

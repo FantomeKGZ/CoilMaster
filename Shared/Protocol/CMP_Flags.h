@@ -1,72 +1,56 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-Packet Flags
-==========================================================
-*/
-
 #ifndef CMP_FLAGS_H
 #define CMP_FLAGS_H
 
 #include <stdint.h>
 
-enum CMP_Flags : uint8_t
+namespace CMP
 {
-    //------------------------------------------------------
-    // No flags
-    //------------------------------------------------------
-
-    CMP_FLAG_NONE = 0x00,
-
-    //------------------------------------------------------
-    // Packet requires ACK
-    //------------------------------------------------------
-
-    CMP_FLAG_ACK_REQUIRED = 0x01,
-
-    //------------------------------------------------------
-    // Packet is ACK
-    //------------------------------------------------------
-
-    CMP_FLAG_ACK = 0x02,
-
-    //------------------------------------------------------
-    // Packet is NACK
-    //------------------------------------------------------
-
-    CMP_FLAG_NACK = 0x04,
-
-    //------------------------------------------------------
-    // Response packet
-    //------------------------------------------------------
-
-    CMP_FLAG_RESPONSE = 0x08,
-
-    //------------------------------------------------------
-    // Broadcast
-    //------------------------------------------------------
-
-    CMP_FLAG_BROADCAST = 0x10,
-
-    //------------------------------------------------------
-    // Payload compressed
-    //------------------------------------------------------
-
-    CMP_FLAG_COMPRESSED = 0x20,
-
-    //------------------------------------------------------
-    // Payload encrypted
-    //------------------------------------------------------
-
-    CMP_FLAG_ENCRYPTED = 0x40,
-
-    //------------------------------------------------------
-    // Reserved
-    //------------------------------------------------------
-
-    CMP_FLAG_RESERVED = 0x80
+enum class Flags : uint8_t
+{
+    None        = 0x00U,
+    AckRequired = 0x01U,
+    Ack         = 0x02U,
+    Nack        = 0x04U,
+    Response    = 0x08U,
+    Broadcast   = 0x10U,
+    Compressed  = 0x20U,
+    Encrypted   = 0x40U,
+    Reserved    = 0x80U
 };
 
-#endif
+constexpr Flags operator|(Flags lhs, Flags rhs)
+{
+    return static_cast<Flags>(
+        static_cast<uint8_t>(lhs) | static_cast<uint8_t>(rhs));
+}
+
+constexpr Flags operator&(Flags lhs, Flags rhs)
+{
+    return static_cast<Flags>(
+        static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs));
+}
+
+inline Flags& operator|=(Flags& lhs, Flags rhs)
+{
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+inline Flags& operator&=(Flags& lhs, Flags rhs)
+{
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+constexpr bool hasFlag(Flags value, Flags flag)
+{
+    return (static_cast<uint8_t>(value) & static_cast<uint8_t>(flag)) != 0U;
+}
+
+constexpr uint8_t toByte(Flags value)
+{
+    return static_cast<uint8_t>(value);
+}
+}
+
+#endif // CMP_FLAGS_H

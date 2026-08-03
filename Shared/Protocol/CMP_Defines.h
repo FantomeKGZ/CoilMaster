@@ -1,17 +1,18 @@
 /*
 ==========================================================
 CoilMaster OS
-CMP (CoilMaster Protocol)
 
-File      : CMP_Defines.h
-Module    : Shared/Protocol
+File        : CMP_Defines.h
+Module      : Shared/Protocol
+Version     : 1.0.0
+Status      : RC1
 
-Release   : 0.1.0
-Build     : 002A
-Package   : 01.3
+Description :
+Global protocol constants and configuration.
+This file is the foundation of the CMP protocol and
+contains only compile-time constants.
 
-Description:
-Global protocol constants.
+Copyright (c) CoilMaster Project
 ==========================================================
 */
 
@@ -20,59 +21,78 @@ Global protocol constants.
 
 #include <stdint.h>
 
+namespace CMP
+{
+    //======================================================
+    // Protocol Version
+    //======================================================
+
+    constexpr uint8_t ProtocolVersionMajor = 1;
+    constexpr uint8_t ProtocolVersionMinor = 0;
+
+    //======================================================
+    // Packet Format
+    //======================================================
+
+    constexpr uint16_t StartWord = 0xAA55;
+
+    //======================================================
+    // Payload
+    //======================================================
+
+    constexpr uint16_t MaxPayloadSize = 128;
+
+    //======================================================
+    // Buffers
+    //======================================================
+
+    constexpr uint16_t RxBufferSize = 256;
+    constexpr uint16_t TxBufferSize = 256;
+
+    //======================================================
+    // CRC16-CCITT
+    //======================================================
+
+    constexpr uint16_t CRCInitialValue = 0xFFFF;
+    constexpr uint16_t CRCPolynomial   = 0x1021;
+
+    //======================================================
+    // UART
+    //======================================================
+
+    constexpr uint32_t DefaultBaudRate = 115200UL;
+
+    //======================================================
+    // Packet Limits
+    //======================================================
+
+    constexpr uint16_t HeaderSize = 12;
+    constexpr uint16_t CRCSize    = 2;
+
+    constexpr uint16_t MaxPacketSize =
+        HeaderSize +
+        MaxPayloadSize +
+        CRCSize;
+}
+
 //==========================================================
-// Protocol Version
+// Compile-Time Validation
 //==========================================================
 
-#define CMP_PROTOCOL_VERSION_MAJOR     1
-#define CMP_PROTOCOL_VERSION_MINOR     0
+static_assert(
+    CMP::HeaderSize == 12,
+    "Invalid CMP header size.");
 
-//==========================================================
-// Packet Signature
-//==========================================================
+static_assert(
+    CMP::MaxPayloadSize > 0,
+    "Payload size must be greater than zero.");
 
-#define CMP_START_WORD                 0xAA55
+static_assert(
+    CMP::RxBufferSize >= CMP::MaxPacketSize,
+    "RX buffer is too small for one complete packet.");
 
-//==========================================================
-// Payload
-//==========================================================
+static_assert(
+    CMP::TxBufferSize >= CMP::MaxPacketSize,
+    "TX buffer is too small for one complete packet.");
 
-#define CMP_MAX_PAYLOAD_SIZE           128
-
-//==========================================================
-// Communication
-//==========================================================
-
-#define CMP_DEFAULT_BAUDRATE           115200
-
-//==========================================================
-// Timeouts
-//==========================================================
-
-#define CMP_RX_TIMEOUT_MS              100
-#define CMP_TX_TIMEOUT_MS              100
-
-//==========================================================
-// Buffer Sizes
-//==========================================================
-
-#define CMP_RX_BUFFER_SIZE             256
-#define CMP_TX_BUFFER_SIZE             256
-
-//==========================================================
-// Protocol Limits
-//==========================================================
-
-#define CMP_MAX_PACKET_SIZE \
-(
-    sizeof(uint16_t) +     /* Start Word      */
-    sizeof(uint8_t)  +     /* Version Major   */
-    sizeof(uint8_t)  +     /* Version Minor   */
-    sizeof(uint16_t) +     /* Command         */
-    sizeof(uint16_t) +     /* Counter         */
-    sizeof(uint16_t) +     /* Payload Length  */
-    CMP_MAX_PAYLOAD_SIZE +
-    sizeof(uint16_t)       /* CRC16           */
-)
-
-#endif
+#endif // CMP_DEFINES_H

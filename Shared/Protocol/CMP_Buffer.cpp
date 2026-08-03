@@ -1,136 +1,195 @@
-/*
-==========================================================
-CoilMaster OS
-CMP (CoilMaster Protocol)
-
-File      : CMP_Buffer.cpp
-==========================================================
-*/
-
 #include "CMP_Buffer.h"
 
-CMP_Buffer::CMP_Buffer()
+namespace CMP
 {
-    clear();
+Buffer::Buffer()
+    : m_head(0U),
+      m_tail(0U),
+      m_count(0U)
+{
 }
 
-void CMP_Buffer::clear()
+void Buffer::clear()
 {
-    head = 0;
-    tail = 0;
-    count = 0;
+    m_head = 0U;
+    m_tail = 0U;
+    m_count = 0U;
 }
 
-bool CMP_Buffer::push(uint8_t value)
+Result Buffer::push(uint8_t value)
 {
     if (full())
-        return false;
+    {
+        return Result::BufferFull;
+    }
 
-    buffer[head] = value;
+    m_data[m_head] = value;
+    ++m_head;
 
-    head++;
+    if (m_head >= Capacity)
+    {
+        m_head = 0U;
+    }
 
-    if (head >= CMP_RX_BUFFER_SIZE)
-        head = 0;
-
-    count++;
-
-    return true;
+    ++m_count;
+    return Result::Ok;
 }
 
-bool CMP_Buffer::pop(uint8_t& value)
+Result Buffer::push(const uint8_t* data, uint16_t length)
+{
+    if ((data == nullptr) && (length > 0U))
+    {
+        return Result::InvalidArgument;
+    }
+
+    if (freeSpace() < length)
+    {
+        return Result::BufferFull;
+    }
+
+    for (uint16_t index = 0U; index < length; ++index)
+    {
+        const Result result = push(data[index]);
+        if (result != Result::Ok)
+        {
+            return result;
+        }
+    }
+
+    return Result::Ok;
+}
+
+Result Buffer::pop(uint8_t& value)
 {
     if (empty())
-        return false;
-
-    value = buffer[tail];
-
-    tail++;
-
-    if (tail >= CMP_RX_BUFFER_SIZE)
-        tail = 0;
-
-    count--;
-
-    return true;
-}
-
-bool CMP_Buffer::peek(uint16_t index,
-                      uint8_t& value) const
-{
-    if (index >= count)
-        return false;
-
-    uint16_t pos = tail + index;
-
-    if (pos >= CMP_RX_BUFFER_SIZE)
-        pos -= CMP_RX_BUFFER_SIZE;
-
-    value = buffer[pos];
-
-    return true;
-}
-
-bool CMP_Buffer::peek(uint8_t* data,
-                      uint16_t length) const
-{
-    if (length > count)
-        return false;
-
-    for (uint16_t i = 0; i < length; i++)
     {
-        if (!peek(i, data[i]))
-            return false;
+        return Result::BufferEmpty;
     }
 
-    return true;
-}
+    value = m_data[m_tail];
+    ++m_tail;
 
-bool CMP_Buffer::read(uint8_t* data,
-                      uint16_t length)
-{
-    if (length > count)
-        return false;
-
-    for (uint16_t i = 0; i < length; i++)
+    if (m_tail >= Capacity)
     {
-        pop(data[i]);
+        m_tail = 0U;
     }
 
-    return true;
+    --m_count;
+    return Result::Ok;
 }
 
-bool CMP_Buffer::discard(uint16_t length)
+Result Buffer::pop(uint8_t* data, uint16_t length)
 {
-    if (length > count)
-        return false;
-
-    uint8_t dummy;
-
-    while (length--)
+    if ((data == nullptr) && (length > 0U))
     {
-        pop(dummy);
+        return Result::InvalidArgument;
     }
 
-    return true;
+    if (!contains(length))
+    {
+        return Result::BufferEmpty;
+    }
+
+    for (uint16_t index = 0U; index < length; ++index)
+    {
+        const Result result = pop(data[index]);
+        if (result != Result::Ok)
+        {
+            return result;
+        }
+    }
+
+    return Result::Ok;
 }
 
-uint16_t CMP_Buffer::available() const
+Result Buffer::peek(uint16_t offset, uint8_t& value) const
 {
-    return count;
+    if (offset >= m_count)
+    {
+        return Result::BufferEmpty;
+    }
+
+    uint16_t position = static_cast<uint16_t>(m_tail + offset);
+    if (position >= Capacity)
+    {
+        position = static_cast<uint16_t>(position - Capacity);
+    }
+
+    value = m_data[position];
+    return Result::Ok;
 }
 
-uint16_t CMP_Buffer::size() const
+Result Buffer::peek(uint16_t offset,
+                    uint8_t* data,
+                    uint16_t length) const
 {
-    return count;
+    if ((data == nullptr) && (length > 0U))
+    {
+        return Result::InvalidArgument;
+    }
+
+    if ((offset > m_count) || (length > static_cast<uint16_t>(m_count - offset)))
+    {
+        return Result::BufferEmpty;
+    }
+
+    for (uint16_t index = 0U; index < length; ++index)
+    {
+        const Result result = peek(static_cast<uint16_t>(offset + index),
+                                   data[index]);
+        if (result != Result::Ok)
+        {
+            return result;
+        }
+    }
+
+    return Result::Ok;
 }
 
-bool CMP_Buffer::empty() const
+Result Buffer::discard(uint16_t length)
 {
-    return count == 0;
+    if (!contains(length))
+    {
+        return Result::BufferEmpty;
+    }
+
+    m_tail = static_cast<uint16_t>(m_tail + length);
+    while (m_tail >= Capacity)
+    {
+        m_tail = static_cast<uint16_t>(m_tail - Capacity);
+    }
+
+    m_count = static_cast<uint16_t>(m_count - length);
+    return Result::Ok;
 }
 
-bool CMP_Buffer::full() const
+bool Buffer::empty() const
 {
-    return count >= CMP_RX_BUFFER_SIZE;
+    return m_count == 0U;
+}
+
+bool Buffer::full() const
+{
+    return m_count == Capacity;
+}
+
+bool Buffer::contains(uint16_t length) const
+{
+    return m_count >= length;
+}
+
+uint16_t Buffer::size() const
+{
+    return m_count;
+}
+
+uint16_t Buffer::freeSpace() const
+{
+    return static_cast<uint16_t>(Capacity - m_count);
+}
+
+uint16_t Buffer::capacity() const
+{
+    return Capacity;
+}
 }

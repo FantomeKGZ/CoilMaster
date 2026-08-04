@@ -16,6 +16,7 @@ struct WindingJob
     uint8_t coilCount;
     uint8_t currentCoil;
     uint16_t currentTurns;
+    uint16_t completedRuns;
     uint16_t targetTurns[MaxCoilsPerJob];
 
     void clear()
@@ -27,6 +28,7 @@ struct WindingJob
         coilCount = 0U;
         currentCoil = 0U;
         currentTurns = 0U;
+        completedRuns = 0U;
 
         for (uint8_t index = 0U; index < MaxCoilsPerJob; ++index)
         {

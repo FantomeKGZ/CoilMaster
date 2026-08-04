@@ -22,12 +22,6 @@ enum class UiScreen : uint8_t
     Fault
 };
 
-/**
- * @brief Hardware-independent data required to render the 16x2 LCD.
- *
- * Text and LCD character encoding are intentionally kept outside Core.
- * The Arduino LCD adapter converts this model into the required 16x2 lines.
- */
 struct UiModel
 {
     UiScreen screen;
@@ -37,6 +31,7 @@ struct UiModel
     uint8_t coilCount;
     uint16_t currentTurns;
     uint16_t targetTurns;
+    uint16_t completedRuns;
     WindingType windingType;
     JobSource jobSource;
 

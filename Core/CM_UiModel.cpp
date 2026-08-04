@@ -11,6 +11,7 @@ UiModel::UiModel()
       coilCount(0U),
       currentTurns(0U),
       targetTurns(0U),
+      completedRuns(0U),
       windingType(WindingType::Working),
       jobSource(JobSource::LocalKeypad)
 {
@@ -27,6 +28,7 @@ UiModel UiModelBuilder::build(const StateMachine& stateMachine,
     model.coilCount = job.coilCount;
     model.currentTurns = job.currentTurns;
     model.targetTurns = job.activeTarget();
+    model.completedRuns = job.completedRuns;
     model.windingType = job.type;
     model.jobSource = job.source;
 

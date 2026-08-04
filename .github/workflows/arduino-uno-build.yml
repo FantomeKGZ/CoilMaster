@@ -6,12 +6,14 @@ on:
       - main
       - cmp-protocol-v1
     paths:
+      - "firmware/arduino/**"
       - "Arduino/**"
       - "Core/**"
       - "platformio.ini"
       - ".github/workflows/arduino-uno-build.yml"
   pull_request:
     paths:
+      - "firmware/arduino/**"
       - "Arduino/**"
       - "Core/**"
       - "platformio.ini"

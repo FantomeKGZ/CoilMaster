@@ -99,12 +99,6 @@ bool StateMachine::startOrResume()
         {
             return false;
         }
-
-        // The last completed coil finishes the whole job and must not restart.
-        if (m_state == MachineState::JobComplete)
-        {
-            return true;
-        }
     }
 
     if (m_state == MachineState::Ready ||
@@ -220,6 +214,18 @@ void StateMachine::setFault()
 
 void StateMachine::finishActiveCoil()
 {
+    const bool isLastCoil =
+        static_cast<uint8_t>(m_job.currentCoil + 1U) >= m_job.coilCount;
+
+    if (isLastCoil)
+    {
+        m_job.currentCoil = m_job.coilCount;
+        m_job.currentTurns = 0U;
+        m_job.status = JobStatus::Completed;
+        m_state = MachineState::JobComplete;
+        return;
+    }
+
     m_job.status = JobStatus::Paused;
     m_state = MachineState::CoilComplete;
 }

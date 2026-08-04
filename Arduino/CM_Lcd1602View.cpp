@@ -129,8 +129,9 @@ void Lcd1602View::buildLines(const UiModel& model,
             break;
 
         case UiScreen::JobComplete:
-            snprintf(buffer1, sizeof(buffer1), "NAMOTKA GOTOVA");
-            snprintf(buffer2, sizeof(buffer2), "B=V MENYU");
+            snprintf(buffer1, sizeof(buffer1), "GOTOVO: %u RAZ",
+                     static_cast<unsigned int>(model.completedRuns));
+            snprintf(buffer2, sizeof(buffer2), "A=POVTOR B=MENU");
             break;
 
         case UiScreen::Fault:

@@ -40,18 +40,22 @@ byte ColPins[4] = {
 };
 
 Keypad keypad = Keypad(makeKeymap(KeyMap), RowPins, ColPins, 4, 4);
-LiquidCrystal_I2C lcd(CM::Pins::LcdI2cAddress, 16, 2);
+LiquidCrystal_I2C lcd(CM::Defaults::LcdI2cAddress, 16, 2);
 
 CM::StateMachine machine;
 CM::InputController input(machine);
 CM::Lcd1602View lcdView(lcd);
-CM::DebouncedButton startButton(CM::Pins::StartButton, true, 40U);
+CM::DebouncedButton startButton(CM::Pins::StartButton,
+                                true,
+                                CM::Defaults::StartDebounceMs);
 CM::BuzzerService buzzer(CM::Pins::Buzzer, true);
 CM::SsrController ssr(CM::Pins::Ssr, true);
-CM::HallTurnSource hall(CM::Pins::Hall, 590U, 50U);
-CM::SimulatedTurnSource simulator(250U);
+CM::HallTurnSource hall(CM::Pins::Hall,
+                        CM::Defaults::HallThreshold,
+                        CM::Defaults::HallHysteresis);
+CM::SimulatedTurnSource simulator(CM::Defaults::SimulatedTurnIntervalMs);
 
-CM::MachineState previousState = CM::MachineState::EnterCoilCount;
+CM::MachineState previousState = CM::MachineState::Fault;
 
 CM::ITurnSource& activeTurnSource()
 {
@@ -190,7 +194,8 @@ void setup()
 #endif
 
     machine.resetToHome();
-    previousState = machine.state();
+    previousState = CM::MachineState::Fault;
+    processStateTransitions(millis());
     updateOutputs();
 }
 
@@ -200,9 +205,13 @@ void loop()
 
     processKeypad();
     processExternalStart(nowMs);
+    processStateTransitions(nowMs);
+
     processTurnSource(nowMs);
     processStateTransitions(nowMs);
+
     processBuzzer(nowMs);
     processStateTransitions(nowMs);
+
     updateOutputs();
 }

@@ -11,7 +11,13 @@ public:
     explicit BuzzerService(uint8_t pin, bool activeHigh = true);
 
     void begin();
-    void startCompletionSignal(uint32_t nowMs);
+
+    /** One medium signal after an individual coil is completed. */
+    void startCoilCompleteSignal(uint32_t nowMs);
+
+    /** Three short signals after the whole winding program is completed. */
+    void startProgramCompleteSignal(uint32_t nowMs);
+
     void update(uint32_t nowMs);
     void stop();
 
@@ -19,6 +25,10 @@ public:
     bool takeFinishedEvent();
 
 private:
+    void startPattern(uint32_t nowMs,
+                      uint8_t signalCount,
+                      uint16_t onDurationMs,
+                      uint16_t offDurationMs);
     void writeOutput(bool enabled);
 
     uint8_t m_pin;
@@ -27,6 +37,9 @@ private:
     bool m_outputOn;
     bool m_finishedEvent;
     uint8_t m_phase;
+    uint8_t m_phaseCount;
+    uint16_t m_onDurationMs;
+    uint16_t m_offDurationMs;
     uint32_t m_phaseStartedMs;
 };
 }

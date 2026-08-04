@@ -127,12 +127,16 @@ void processStateTransitions(uint32_t nowMs)
         activeTurnSource().reset(nowMs);
     }
 
+#if CM_FEATURE_BUZZER
     if (currentState == CM::MachineState::CoilComplete)
     {
-#if CM_FEATURE_BUZZER
-        buzzer.startCompletionSignal(nowMs);
-#endif
+        buzzer.startCoilCompleteSignal(nowMs);
     }
+    else if (currentState == CM::MachineState::JobComplete)
+    {
+        buzzer.startProgramCompleteSignal(nowMs);
+    }
+#endif
 
     if (currentState == CM::MachineState::EnterCoilCount ||
         currentState == CM::MachineState::Fault)

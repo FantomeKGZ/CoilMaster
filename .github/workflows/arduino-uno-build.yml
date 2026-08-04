@@ -1,0 +1,37 @@
+name: Arduino Uno Build
+
+on:
+  push:
+    branches:
+      - main
+      - cmp-protocol-v1
+    paths:
+      - "Arduino/**"
+      - "Core/**"
+      - "platformio.ini"
+      - ".github/workflows/arduino-uno-build.yml"
+  pull_request:
+    paths:
+      - "Arduino/**"
+      - "Core/**"
+      - "platformio.ini"
+      - ".github/workflows/arduino-uno-build.yml"
+
+jobs:
+  build-uno:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build Arduino Uno firmware
+        run: pio run -e uno

@@ -67,6 +67,7 @@ bool StateMachine::setCoilTurns(uint8_t index, uint16_t turns)
 
     m_job.currentCoil = 0U;
     m_job.currentTurns = 0U;
+    m_job.completedRuns = 0U;
     m_job.status = JobStatus::Ready;
     m_state = MachineState::Ready;
     return true;
@@ -87,12 +88,28 @@ bool StateMachine::loadRemoteJob(const WindingJob& remoteJob)
     m_job.status = JobStatus::Ready;
     m_job.currentCoil = 0U;
     m_job.currentTurns = 0U;
+    m_job.completedRuns = 0U;
     m_state = MachineState::Ready;
     return true;
 }
 
 bool StateMachine::startOrResume()
 {
+    if (m_state == MachineState::JobComplete)
+    {
+        if (!m_job.isValid())
+        {
+            return false;
+        }
+
+        // Keep the same program active and begin a new factual run.
+        m_job.currentCoil = 0U;
+        m_job.currentTurns = 0U;
+        m_job.status = JobStatus::Running;
+        m_state = MachineState::Winding;
+        return true;
+    }
+
     if (m_state == MachineState::CoilComplete)
     {
         if (!acknowledgeCoilComplete())
@@ -182,6 +199,7 @@ bool StateMachine::acknowledgeCoilComplete()
 
     if (m_job.currentCoil >= m_job.coilCount)
     {
+        ++m_job.completedRuns;
         m_job.status = JobStatus::Completed;
         m_state = MachineState::JobComplete;
     }
@@ -221,6 +239,7 @@ void StateMachine::finishActiveCoil()
     {
         m_job.currentCoil = m_job.coilCount;
         m_job.currentTurns = 0U;
+        ++m_job.completedRuns;
         m_job.status = JobStatus::Completed;
         m_state = MachineState::JobComplete;
         return;

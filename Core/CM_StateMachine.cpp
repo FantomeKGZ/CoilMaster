@@ -93,9 +93,22 @@ bool StateMachine::loadRemoteJob(const WindingJob& remoteJob)
 
 bool StateMachine::startOrResume()
 {
+    if (m_state == MachineState::CoilComplete)
+    {
+        if (!acknowledgeCoilComplete())
+        {
+            return false;
+        }
+
+        // The last completed coil finishes the whole job and must not restart.
+        if (m_state == MachineState::JobComplete)
+        {
+            return true;
+        }
+    }
+
     if (m_state == MachineState::Ready ||
-        m_state == MachineState::Paused ||
-        m_state == MachineState::CoilComplete)
+        m_state == MachineState::Paused)
     {
         if (!m_job.hasMoreCoils())
         {

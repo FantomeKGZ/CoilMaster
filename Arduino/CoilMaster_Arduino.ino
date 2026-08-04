@@ -131,9 +131,9 @@ void processStateTransitions(uint32_t nowMs)
     {
 #if CM_FEATURE_BUZZER
         buzzer.startCompletionSignal(nowMs);
-#else
-        machine.acknowledgeCoilComplete();
 #endif
+        // Остаёмся в CoilComplete. Следующая катушка запускается только
+        // клавишей A или внешней кнопкой START.
     }
 
     if (currentState == CM::MachineState::EnterCoilCount ||
@@ -149,11 +149,8 @@ void processBuzzer(uint32_t nowMs)
 {
 #if CM_FEATURE_BUZZER
     buzzer.update(nowMs);
-    if (buzzer.takeFinishedEvent() &&
-        machine.state() == CM::MachineState::CoilComplete)
-    {
-        machine.acknowledgeCoilComplete();
-    }
+    // Сигнал только оповещает об окончании. Автопереход запрещён.
+    buzzer.takeFinishedEvent();
 #else
     (void)nowMs;
 #endif

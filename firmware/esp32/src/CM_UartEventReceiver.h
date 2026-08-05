@@ -27,7 +27,7 @@ public:
 
     void begin(uint32_t baud, int8_t rxPin, int8_t txPin);
     bool poll(RemoteWindingEvent& event);
-    void sendAck(const RemoteWindingEvent& event);
+    void sendAck(uint32_t runId, const char* status);
     void sendNack(uint32_t runId, const char* reason);
 
 private:

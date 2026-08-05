@@ -1,4 +1,7 @@
 #include "CM_MaterialLedgerWeb.h"
+#include <SD.h>
+#include "CM_RepairCosting.h"
+#include "CM_RepairCostingWeb.h"
 
 namespace CM
 {
@@ -12,6 +15,11 @@ void MaterialLedgerWeb::begin()
     m_server.on("/api/materials", HTTP_GET, [this]() { handleList(); });
     m_server.on("/api/materials", HTTP_POST, [this]() { handleCreate(); });
     m_server.on("/api/materials/usage", HTTP_POST, [this]() { handleUsage(); });
+
+    static RepairCosting repairCosting(SD);
+    static RepairCostingWeb repairCostingWeb(m_server, repairCosting);
+    repairCosting.begin();
+    repairCostingWeb.begin();
 }
 
 void MaterialLedgerWeb::handleList()

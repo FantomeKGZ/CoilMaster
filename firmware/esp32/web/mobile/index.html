@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CoilMaster Mobile</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa;--green:#18864b;--warn:#b86d00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:78px}header{position:sticky;top:0;z-index:2;background:#142536;color:#fff;padding:14px 16px}header b{font-size:21px}.health{float:right;background:#20415d;border-radius:999px;padding:6px 9px;font-size:12px}main{padding:12px}.card{background:var(--card);border-radius:15px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px #17212b14}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric strong{display:block;font-size:25px;margin-top:7px}.muted{color:var(--muted)}.program{font-size:20px;font-weight:bold;word-break:break-word}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #edf1f4}.row:last-child{border:0}.progress{height:15px;background:#dfe7ee;border-radius:999px;overflow:hidden;margin:14px 0}.progress i{display:block;height:100%;width:0;background:var(--blue)}button,input,select{width:100%;min-height:48px;padding:12px;border-radius:10px;border:1px solid #cbd5df;font-size:17px;margin-top:8px}button{background:var(--blue);color:#fff;border:0;font-weight:bold}.note{background:#f3f7fa;padding:12px;border-radius:10px;margin-top:10px}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea;padding-bottom:env(safe-area-inset-bottom);z-index:3}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px;margin-bottom:3px}nav a.active{color:var(--blue);font-weight:bold}@media(max-width:350px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><b>CoilMaster</b><span id="health" class="health">Система: проверка</span></header>
+<main>
+<div class="grid">
+ <section class="card metric"><span class="muted">Станок</span><strong id="machine">—</strong></section>
+ <section class="card metric"><span class="muted">Повторов</span><strong id="runs">0</strong></section>
+</div>
+<section class="card">
+ <h2>Намотка</h2>
+ <div class="row"><span class="muted">Тип</span><b id="type">—</b></div>
+ <div class="row"><span class="muted">Программа</span><span id="program" class="program">Нет задания</span></div>
+ <div class="row"><span class="muted">Последний проход</span><b id="runid">—</b></div>
+ <div class="progress"><i id="bar"></i></div>
+ <div id="hint" class="note">Ожидание данных ESP32.</div>
+</section>
+<section class="card">
+ <h2>Быстрая отправка</h2>
+ <form id="jobForm">
+  <select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select>
+  <input name="turns" inputmode="numeric" placeholder="140/100/80/40" required>
+  <button type="submit">Отправить на Arduino</button>
+ </form>
+ <div id="result" class="note">Физический запуск выполняется только кнопкой START.</div>
+</section>
+</main>
+<nav>
+<a class="active" href="/mobile/"><b>⚙️</b>Намотка</a><a href="#"><b>🏠</b>Главная</a><a href="#"><b>🔎</b>Поиск</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="#"><b>☰</b>Ещё</a>
+</nav>
+<script>
+localStorage.setItem('cm-ui-version','mobile');const $=id=>document.getElementById(id);
+async function refresh(){try{const r=await fetch('/api/status',{cache:'no-store'}),s=await r.json();$('machine').textContent=s.machine_status;$('runs').textContent=s.completed_runs;$('runid').textContent=s.last_run_id||'—';$('type').textContent=s.job_id?(s.job_type==='STARTING'?'Пусковая':'Рабочая'):'—';$('program').textContent=s.program||'Нет задания';$('bar').style.width=s.run_active?'55%':s.job_status==='ACCEPTED_READY'?'12%':s.completed_runs>0?'100%':'0%';$('hint').textContent=s.run_active?'Намотка выполняется.':s.job_status==='ACCEPTED_READY'?'Arduino готова. Нажмите A или внешнюю START.':s.job_status==='WAITING_ARDUINO_ACK'?'Передача задания…':'Станок ожидает программу.';$('health').textContent=s.storage_ready?'Система: норма':'Система: внимание';}catch(e){$('machine').textContent='Нет связи';$('health').textContent='Система: ошибка';}}
+$('jobForm').addEventListener('submit',async e=>{e.preventDefault();$('result').textContent='Отправка…';try{const r=await fetch('/api/jobs',{method:'POST',body:new FormData(e.target)}),j=await r.json();$('result').textContent=r.ok?`Задание №${j.job_id} передано.`:`Ошибка: ${j.error||'unknown'}`;}catch(e){$('result').textContent='Нет связи с ESP32';}refresh();});refresh();setInterval(refresh,1200);
+</script>
+</body></html>

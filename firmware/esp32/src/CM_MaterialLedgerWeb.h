@@ -18,6 +18,7 @@ private:
     void handleList();
     void handleCreate();
     void handleAdjust();
+    void handleAdjustmentHistory();
     void handleUsage();
     static bool parseUnsigned(WebServer& server,
                               const char* name,

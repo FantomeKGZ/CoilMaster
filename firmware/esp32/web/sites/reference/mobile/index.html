@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Справочник CoilMaster</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text)}header{background:#142536;color:#fff;padding:15px 16px;position:sticky;top:0}main{padding:12px;padding-bottom:76px}.card{background:var(--card);border-radius:15px;padding:16px;margin-bottom:12px;box-shadow:0 2px 12px #17212b14}.card a{display:block;padding:13px 0;border-bottom:1px solid #edf1f4;color:var(--blue);text-decoration:none;font-weight:bold}.card a:last-child{border:0}.muted{color:var(--muted)}.back{color:#fff;text-decoration:none;margin-right:10px}
+</style>
+</head>
+<body>
+<header><a class="back" href="/mobile/">←</a><b>Справочник</b></header>
+<main>
+<section class="card"><h2>Справочные материалы</h2><p class="muted">Мобильная версия материалов, размещённых на microSD.</p><a href="#">Таблицы обмоточных проводов</a><a href="#">Схемы укладки</a><a href="#">Инструкции по станку</a><a href="#">Диагностика оборудования</a></section>
+<section class="card"><a href="/sites/reference/desktop/" onclick="localStorage.setItem('cm-ui-version','desktop')">Открыть версию для ПК</a></section>
+</main>
+<script>localStorage.setItem('cm-ui-version','mobile');</script>
+</body>
+</html>

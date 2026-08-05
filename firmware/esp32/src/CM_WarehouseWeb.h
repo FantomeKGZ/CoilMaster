@@ -15,6 +15,7 @@ public:
 
     void begin();
     void beginSpoolList();
+    void beginWriteOff();
 
 private:
     void handleSummary();

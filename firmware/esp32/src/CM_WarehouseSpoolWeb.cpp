@@ -5,6 +5,7 @@
 #include "CM_MaterialLedgerWeb.h"
 #include "CM_RepairRegistry.h"
 #include "CM_RepairRegistryWeb.h"
+#include "CM_MotorSimilarityWeb.h"
 
 namespace CM
 {
@@ -19,6 +20,7 @@ void WarehouseWeb::beginSpoolList()
     static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
     static RepairRegistry repairRegistry(m_store.storage());
     static RepairRegistryWeb repairRegistryWeb(m_server, repairRegistry);
+    static MotorSimilarityWeb motorSimilarityWeb(m_server, repairRegistry);
 
     calculatorWeb.begin();
     conductorSettingsWeb.begin();
@@ -26,6 +28,7 @@ void WarehouseWeb::beginSpoolList()
     materialLedgerWeb.begin();
     repairRegistry.begin();
     repairRegistryWeb.begin();
+    motorSimilarityWeb.begin();
 }
 
 void WarehouseWeb::handleListSpools()

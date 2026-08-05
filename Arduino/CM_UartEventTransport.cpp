@@ -20,8 +20,11 @@ UartEventTransport::UartEventTransport(uint8_t rxPin,
       m_reply(),
       m_replyLength(0U),
       m_deliveryEvent(),
-      m_hasDeliveryEvent(false)
+      m_hasDeliveryEvent(false),
+      m_remoteJob(),
+      m_hasRemoteJob(false)
 {
+    m_remoteJob.clear();
 }
 
 void UartEventTransport::begin()
@@ -72,6 +75,31 @@ bool UartEventTransport::takeDeliveryEvent(UartDeliveryEvent& event)
     return true;
 }
 
+bool UartEventTransport::takeRemoteJob(WindingJob& job)
+{
+    if (!m_hasRemoteJob)
+    {
+        return false;
+    }
+
+    job = m_remoteJob;
+    m_remoteJob.clear();
+    m_hasRemoteJob = false;
+    return true;
+}
+
+void UartEventTransport::sendJobResult(uint32_t jobId,
+                                       bool accepted,
+                                       const char* reason)
+{
+    m_serial.print(F("CMP1|JOB_ACK|"));
+    m_serial.print(jobId);
+    m_serial.print('|');
+    m_serial.print(accepted ? F("ACCEPTED") : F("REJECTED"));
+    m_serial.print('|');
+    m_serial.println(reason != nullptr ? reason : "NONE");
+}
+
 uint8_t UartEventTransport::queuedCount() const
 {
     return m_count;
@@ -112,7 +140,6 @@ bool UartEventTransport::writeFrame(const WindingEvent& event)
         return false;
     }
 
-    // Must match the ESP32 receiver: CRC-16/Modbus, polynomial 0xA001.
     const uint16_t crc = crc16Modbus(
         reinterpret_cast<const uint8_t*>(payload),
         static_cast<size_t>(payloadLength));
@@ -171,6 +198,18 @@ void UartEventTransport::pollReplies(uint32_t nowMs)
 
 void UartEventTransport::processReply(char* line, uint32_t nowMs)
 {
+    if (strncmp(line, "CMP1|JOB|", 9U) == 0)
+    {
+        WindingJob parsed;
+        parsed.clear();
+        if (parseRemoteJob(line, parsed))
+        {
+            m_remoteJob = parsed;
+            m_hasRemoteJob = true;
+        }
+        return;
+    }
+
     char* save = nullptr;
     char* version = strtok_r(line, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
@@ -219,6 +258,78 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
         m_retryIntervalMs = NackRetryIntervalMs;
         m_lastSendMs = nowMs;
     }
+}
+
+bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
+{
+    char* lastSeparator = strrchr(line, '|');
+    if (lastSeparator == nullptr)
+    {
+        return false;
+    }
+
+    uint16_t receivedCrc = 0U;
+    if (!parseHex16(lastSeparator + 1, receivedCrc))
+    {
+        return false;
+    }
+
+    const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
+    if (crc16Modbus(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
+        receivedCrc)
+    {
+        return false;
+    }
+
+    *lastSeparator = '\0';
+
+    char* save = nullptr;
+    char* version = strtok_r(line, "|", &save);
+    char* category = strtok_r(nullptr, "|", &save);
+    char* jobId = strtok_r(nullptr, "|", &save);
+    char* sessionId = strtok_r(nullptr, "|", &save);
+    char* type = strtok_r(nullptr, "|", &save);
+    char* count = strtok_r(nullptr, "|", &save);
+    char* turns = strtok_r(nullptr, "|", &save);
+
+    if (version == nullptr || category == nullptr || jobId == nullptr ||
+        sessionId == nullptr || type == nullptr || count == nullptr ||
+        turns == nullptr || strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "JOB") != 0)
+    {
+        return false;
+    }
+
+    job.clear();
+    job.jobId = strtoul(jobId, nullptr, 10);
+    job.sessionId = strtoul(sessionId, nullptr, 10);
+    job.type = strcmp(type, "STARTING") == 0 ? WindingType::Starting
+                                             : WindingType::Working;
+    job.source = JobSource::Esp32Web;
+    job.coilCount = static_cast<uint8_t>(strtoul(count, nullptr, 10));
+
+    if (job.jobId == 0UL || job.coilCount == 0U ||
+        job.coilCount > MaxCoilsPerJob)
+    {
+        return false;
+    }
+
+    char* turnsSave = nullptr;
+    char* token = strtok_r(turns, ",", &turnsSave);
+    uint8_t index = 0U;
+    while (token != nullptr && index < job.coilCount)
+    {
+        const unsigned long value = strtoul(token, nullptr, 10);
+        if (value == 0UL || value > MaxTurnsPerCoil)
+        {
+            return false;
+        }
+
+        job.targetTurns[index++] = static_cast<uint16_t>(value);
+        token = strtok_r(nullptr, ",", &turnsSave);
+    }
+
+    return index == job.coilCount && token == nullptr && job.isValid();
 }
 
 void UartEventTransport::removeFront()
@@ -272,5 +383,23 @@ uint16_t UartEventTransport::crc16Modbus(const uint8_t* data, size_t length)
     }
 
     return crc;
+}
+
+bool UartEventTransport::parseHex16(const char* text, uint16_t& value)
+{
+    if (text == nullptr || strlen(text) != 4U)
+    {
+        return false;
+    }
+
+    char* end = nullptr;
+    const unsigned long parsed = strtoul(text, &end, 16);
+    if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL)
+    {
+        return false;
+    }
+
+    value = static_cast<uint16_t>(parsed);
+    return true;
 }
 }

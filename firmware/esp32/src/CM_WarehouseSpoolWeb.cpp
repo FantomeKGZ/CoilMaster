@@ -3,6 +3,8 @@
 #include "CM_ConductorSettingsWeb.h"
 #include "CM_MaterialLedger.h"
 #include "CM_MaterialLedgerWeb.h"
+#include "CM_RepairRegistry.h"
+#include "CM_RepairRegistryWeb.h"
 
 namespace CM
 {
@@ -15,11 +17,15 @@ void WarehouseWeb::beginSpoolList()
     static ConductorSettingsWeb conductorSettingsWeb(m_server, m_store);
     static MaterialLedger materialLedger(m_store.storage());
     static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
+    static RepairRegistry repairRegistry(m_store.storage());
+    static RepairRegistryWeb repairRegistryWeb(m_server, repairRegistry);
 
     calculatorWeb.begin();
     conductorSettingsWeb.begin();
     materialLedger.begin();
     materialLedgerWeb.begin();
+    repairRegistry.begin();
+    repairRegistryWeb.begin();
 }
 
 void WarehouseWeb::handleListSpools()

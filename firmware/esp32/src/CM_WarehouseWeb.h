@@ -20,6 +20,7 @@ private:
     void handleSummary();
     void handleCreateSpool();
     void handleListSpools();
+    void handleConfirmWriteOff();
     void handleGetPrice();
     void handleSetPrice();
     static bool validMonth(const String& month);

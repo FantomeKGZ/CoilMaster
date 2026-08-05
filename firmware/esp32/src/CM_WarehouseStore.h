@@ -69,6 +69,14 @@ struct SpoolWriteOffResult
           pricePerKgMinor(0UL), currency("KGS") {}
 };
 
+struct KnownWireDiameter
+{
+    uint16_t diameterHundredthsMm;
+    uint32_t availableGrams;
+
+    KnownWireDiameter() : diameterHundredthsMm(0U), availableGrams(0UL) {}
+};
+
 class WarehouseStore
 {
 public:
@@ -87,6 +95,11 @@ public:
     bool appendActiveSpoolsJson(String& json,
                                 uint16_t diameterHundredthsMm,
                                 uint16_t& appendedCount) const;
+
+    // Returns every diameter ever entered in the spool database. Active spool
+    // weights are summed; inactive or empty diameters remain with zero stock so
+    // the calculator can recommend them for purchase.
+    uint8_t loadKnownWireDiameters(KnownWireDiameter* items, uint8_t capacity) const;
 
     uint8_t summaryCount() const;
     bool summaryAt(uint8_t index, WireStockSummary& summary) const;

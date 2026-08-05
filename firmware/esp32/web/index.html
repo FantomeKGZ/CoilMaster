@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CoilMaster</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#64717d;--blue:#1769aa}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:var(--bg);font-family:Arial,sans-serif;color:var(--text)}
+main{width:min(760px,100%)}h1{margin:0 0 8px;font-size:34px}.lead{color:var(--muted);margin:0 0 24px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:var(--card);border-radius:16px;padding:24px;box-shadow:0 3px 18px #17212b18;text-decoration:none;color:inherit}.card strong{display:block;font-size:23px;margin:10px 0}.card span{color:var(--muted);line-height:1.45}.icon{font-size:38px}.card:hover{outline:2px solid #b9d7ee}.remember{margin-top:18px;color:var(--muted);font-size:14px}@media(max-width:620px){.grid{grid-template-columns:1fr}h1{font-size:29px}}
+</style>
+</head>
+<body>
+<main>
+<h1>CoilMaster</h1>
+<p class="lead">Выберите удобную версию интерфейса.</p>
+<div class="grid">
+<a class="card" href="/mobile/"><div class="icon">📱</div><strong>Мобильная версия</strong><span>Крупные кнопки, карточки и быстрая работа возле станка.</span></a>
+<a class="card" href="/desktop/"><div class="icon">🖥️</div><strong>Версия для ПК</strong><span>Боковое меню, таблицы, статистика и состояние системы.</span></a>
+</div>
+<p class="remember">Выбор будет запоминаться на устройстве. Переключить версию можно в меню интерфейса.</p>
+</main>
+<script>
+const saved=localStorage.getItem('cm-ui-version');
+if(saved==='mobile'||saved==='desktop') location.replace('/'+saved+'/');
+</script>
+</body>
+</html>

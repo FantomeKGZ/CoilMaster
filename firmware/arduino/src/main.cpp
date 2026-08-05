@@ -16,6 +16,7 @@
 #include "../../../Arduino/CM_HallTurnSource.h"
 #include "../../../Arduino/CM_Lcd1602View.h"
 #include "../../../Arduino/CM_SsrController.h"
+#include "../../../Arduino/CM_UartEventTransport.h"
 
 namespace
 {
@@ -55,6 +56,9 @@ CM::HallTurnSource hall(CM::Pins::Hall,
                         CM::Defaults::HallThreshold,
                         CM::Defaults::HallHysteresis);
 CM::SimulatedTurnSource simulator(CM::Defaults::SimulatedTurnIntervalMs);
+CM::UartEventTransport espTransport(CM::Pins::EspRx,
+                                    CM::Pins::EspTx,
+                                    CM::Defaults::EspUartBaud);
 
 CM::MachineState previousState = CM::MachineState::Fault;
 
@@ -153,9 +157,12 @@ void processCoreEvents()
     CM::WindingEvent event;
     while (machine.takeEvent(event))
     {
-        // Temporary diagnostic output. The UART/CMP adapter will consume the
-        // same events and send them to ESP32 in the next integration stage.
-        Serial.print(F("CM_EVENT type="));
+        const bool sent = espTransport.send(event);
+
+        // USB Serial remains a diagnostic mirror only.
+        Serial.print(F("CM_UART "));
+        Serial.print(sent ? F("TX_OK") : F("TX_FAIL"));
+        Serial.print(F(" type="));
         Serial.print(event.type == CM::WindingEventType::RunStarted
                          ? F("RUN_STARTED")
                          : F("RUN_COMPLETED"));
@@ -192,6 +199,7 @@ void updateOutputs()
 void setup()
 {
     Serial.begin(115200);
+    espTransport.begin();
 
 #if CM_FEATURE_SSR
     ssr.begin();

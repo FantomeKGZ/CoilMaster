@@ -35,6 +35,8 @@ struct MaterialAdjustment
     uint32_t addQuantityMilli;
     uint32_t newPricePerUnitMinor;
     String currency;
+    String timestamp;
+    String comment;
 
     MaterialAdjustment()
         : materialId(0UL), addQuantityMilli(0UL),
@@ -43,12 +45,14 @@ struct MaterialAdjustment
 
 struct MaterialAdjustmentResult
 {
+    uint32_t adjustmentId;
     uint32_t stockQuantityMilli;
     uint32_t pricePerUnitMinor;
     String currency;
 
     MaterialAdjustmentResult()
-        : stockQuantityMilli(0UL), pricePerUnitMinor(0UL), currency("KGS") {}
+        : adjustmentId(0UL), stockQuantityMilli(0UL),
+          pricePerUnitMinor(0UL), currency("KGS") {}
 };
 
 struct RepairMaterialUsage
@@ -87,6 +91,10 @@ public:
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);
     bool appendMaterialsJson(String& json, uint16_t& count) const;
+    bool appendAdjustmentHistoryJson(String& json,
+                                     uint32_t materialId,
+                                     uint16_t limit,
+                                     uint16_t& count) const;
     bool confirmUsage(const RepairMaterialUsage& usage,
                       RepairMaterialUsageResult& result);
 
@@ -94,6 +102,7 @@ private:
     static constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
     static constexpr const char* MaterialsTempPath = "/data/materials/materials.tmp";
     static constexpr const char* UsagePath = "/data/materials/usage.ndjson";
+    static constexpr const char* AdjustmentsPath = "/data/materials/adjustments.ndjson";
 
     bool ensureDirectories();
     bool nextId(const char* path, const char* key, uint32_t& id) const;

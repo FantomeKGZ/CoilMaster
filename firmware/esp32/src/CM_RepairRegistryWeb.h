@@ -16,6 +16,8 @@ public:
 private:
     void handleListClients();
     void handleCreateClient();
+    void handleListMotors();
+    void handleCreateMotor();
     void handleListRepairs();
     void handleCreateRepair();
     static bool parseUnsigned(WebServer& server, const char* name,

@@ -34,14 +34,23 @@ struct NewWireSpool
     String manufacturer;
     String supplier;
     String batch;
-    uint32_t pricePerKgMinor;
     String storageLocation;
     String comment;
 
     NewWireSpool()
         : diameterHundredthsMm(0U),
-          currentWeightGrams(0UL),
-          pricePerKgMinor(0UL)
+          currentWeightGrams(0UL)
+    {
+    }
+};
+
+struct WarehousePrice
+{
+    uint32_t pricePerKgMinor;
+    String currency;
+
+    WarehousePrice()
+        : pricePerKgMinor(0UL), currency("KGS")
     {
     }
 };
@@ -62,6 +71,11 @@ public:
     // weight are required; all descriptive fields may remain empty.
     bool addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId);
 
+    // One common price is used for all active wire spools. It is stored
+    // separately from spool records, so operators do not enter it repeatedly.
+    bool setWarehousePrice(const WarehousePrice& price);
+    bool loadWarehousePrice(WarehousePrice& price) const;
+
     uint8_t summaryCount() const;
     bool summaryAt(uint8_t index, WireStockSummary& summary) const;
 
@@ -72,6 +86,7 @@ public:
 private:
     static constexpr const char* SpoolsPath = "/data/warehouse/spools.ndjson";
     static constexpr const char* MovementsPath = "/data/warehouse/movements.ndjson";
+    static constexpr const char* PricePath = "/data/warehouse/price.ndjson";
 
     bool ensureDirectories();
     void clearSummary();

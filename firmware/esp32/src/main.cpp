@@ -15,12 +15,10 @@ namespace
 constexpr int8_t ArduinoRxPin = 16;
 constexpr int8_t ArduinoTxPin = 17;
 constexpr uint32_t ArduinoBaud = 9600UL;
-
 constexpr int8_t SdCsPin = 5;
 constexpr int8_t SdSckPin = 18;
 constexpr int8_t SdMisoPin = 19;
 constexpr int8_t SdMosiPin = 23;
-
 constexpr char AccessPointName[] = "CoilMaster";
 constexpr char AccessPointPassword[] = "CoilMaster123";
 constexpr uint8_t MaxWebCoils = 10U;
@@ -146,16 +144,13 @@ bool parseTurns(const String& source, CM::OutgoingWindingJob& job)
     {
         while (start < normalized.length() && normalized[start] == ',') ++start;
         if (start >= normalized.length()) break;
-
         int end = normalized.indexOf(',', start);
         if (end < 0) end = normalized.length();
         const long value = normalized.substring(start, end).toInt();
         if (count >= MaxWebCoils || value < 1L || value > MaxTurnsPerCoil) return false;
-
         job.turns[count++] = static_cast<uint16_t>(value);
         start = end + 1;
     }
-
     job.coilCount = count;
     return count > 0U;
 }
@@ -164,7 +159,6 @@ void sendJsonStatus()
 {
     const bool arduinoOnline = lastArduinoEventMs > 0UL &&
         static_cast<uint32_t>(millis() - lastArduinoEventMs) < 15000UL;
-
     String response = F("{\"job_id\":"); response += activeJobId;
     response += F(",\"session_id\":"); response += activeSessionId;
     response += F(",\"job_status\":\""); response += jobStatusText();
@@ -191,14 +185,10 @@ void handleCreateJob()
         webServer.send(400, "application/json", "{\"error\":\"turns_required\"}");
         return;
     }
-
     CM::OutgoingWindingJob job;
     job.jobId = nextJobId++;
     job.sessionId = nextSessionId++;
-    job.type = webServer.arg("type") == "starting"
-                   ? CM::RemoteJobType::Starting
-                   : CM::RemoteJobType::Working;
-
+    job.type = webServer.arg("type") == "starting" ? CM::RemoteJobType::Starting : CM::RemoteJobType::Working;
     if (!parseTurns(webServer.arg("turns"), job))
     {
         webServer.send(400, "application/json", "{\"error\":\"invalid_turns\"}");
@@ -209,7 +199,6 @@ void handleCreateJob()
         webServer.send(409, "application/json", "{\"error\":\"sender_busy\"}");
         return;
     }
-
     activeJobId = job.jobId;
     activeSessionId = job.sessionId;
     activeJobType = job.type;
@@ -220,7 +209,6 @@ void handleCreateJob()
     runActive = false;
     lastJobResult = CM::JobDeliveryResult::None;
     jobAwaitingAck = true;
-
     String response = F("{\"accepted\":true,\"job_id\":"); response += job.jobId;
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);
@@ -230,26 +218,23 @@ void configureWebServer()
 {
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
-
     warehouseWeb.begin();
+    warehouseWeb.beginSpoolList();
     staticSites.begin("/web");
 
     webServer.onNotFound([]()
     {
         if (staticSites.serveCurrentRequest()) return;
-
         if (webServer.uri() == "/" && !staticSites.storageReady())
         {
             webServer.send_P(503, "text/html; charset=utf-8", FallbackPage);
             return;
         }
-
         if (webServer.uri().startsWith("/api/"))
         {
             webServer.send(404, "application/json", "{\"error\":\"not_found\"}");
             return;
         }
-
         webServer.send(404, "text/plain; charset=utf-8", "Страница не найдена");
     });
     webServer.begin();
@@ -266,9 +251,7 @@ void processJobDelivery()
         lastArduinoEventMs = millis();
         Serial.print(F("JOB_ACK id=")); Serial.print(delivery.jobId);
         Serial.print(F(" result="));
-        Serial.println(delivery.result == CM::JobDeliveryResult::Accepted
-                           ? F("ACCEPTED_READY")
-                           : F("REJECTED"));
+        Serial.println(delivery.result == CM::JobDeliveryResult::Accepted ? F("ACCEPTED_READY") : F("REJECTED"));
     }
 }
 }
@@ -277,29 +260,18 @@ void setup()
 {
     Serial.begin(115200);
     receiver.begin(ArduinoBaud, ArduinoRxPin, ArduinoTxPin);
-
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);
     const bool sdReady = SD.begin(SdCsPin, SPI);
     journalReady = sdReady && journal.begin();
     warehouseReady = sdReady && warehouse.begin();
-
     WiFi.mode(WIFI_AP);
     const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);
     configureWebServer();
-
     Serial.println(F("CoilMaster ESP32 web portal ready"));
-    Serial.println(journalReady
-                       ? F("microSD winding journal ready")
-                       : F("WARNING: microSD winding journal unavailable"));
-    Serial.println(warehouseReady
-                       ? F("microSD warehouse store ready")
-                       : F("WARNING: microSD warehouse store unavailable"));
-    Serial.println(staticSites.storageReady()
-                       ? F("microSD web root /web ready")
-                       : F("WARNING: microSD web root /web unavailable"));
-    Serial.println(accessPointReady
-                       ? F("Wi-Fi AP CoilMaster ready")
-                       : F("WARNING: Wi-Fi AP failed"));
+    Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
+    Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
+    Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
+    Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));
     Serial.print(F("Open http://")); Serial.println(WiFi.softAPIP());
 }
 
@@ -308,7 +280,6 @@ void loop()
     const uint32_t nowMs = millis();
     webServer.handleClient();
     receiver.update(nowMs);
-
     CM::RemoteWindingEvent event{};
     while (receiver.poll(event)) handleEvent(event);
     processJobDelivery();

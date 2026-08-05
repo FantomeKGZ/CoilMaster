@@ -10,6 +10,8 @@ namespace CM
 struct WindingJob
 {
     uint32_t jobId;
+    uint32_t sessionId;
+    uint32_t currentRunId;
     WindingType type;
     JobSource source;
     JobStatus status;
@@ -22,6 +24,8 @@ struct WindingJob
     void clear()
     {
         jobId = 0UL;
+        sessionId = 0UL;
+        currentRunId = 0UL;
         type = WindingType::Working;
         source = JobSource::LocalKeypad;
         status = JobStatus::Empty;

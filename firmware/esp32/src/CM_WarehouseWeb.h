@@ -17,7 +17,13 @@ public:
 
 private:
     void handleSummary();
+    void handleCreateSpool();
     static bool validMonth(const String& month);
+    static bool parseUnsignedArg(WebServer& server,
+                                 const char* name,
+                                 uint32_t minimum,
+                                 uint32_t maximum,
+                                 uint32_t& value);
 
     WebServer& m_server;
     WarehouseStore& m_store;

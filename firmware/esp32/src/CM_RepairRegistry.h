@@ -16,6 +16,9 @@ struct NewClient
 struct NewMotor
 {
     String name;
+    String model;
+    String manufacturer;
+    String tags;
     String coilProgram;
     String comment;
 };
@@ -45,7 +48,7 @@ public:
 
     bool appendClientsJson(String& json, const String& phoneQuery,
                            uint16_t& count) const;
-    bool appendMotorsJson(String& json, const String& nameQuery,
+    bool appendMotorsJson(String& json, const String& query,
                           uint16_t& count) const;
     bool appendRepairsJson(String& json, uint32_t clientId,
                            uint16_t& count) const;

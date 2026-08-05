@@ -157,11 +157,10 @@ void processCoreEvents()
     CM::WindingEvent event;
     while (machine.takeEvent(event))
     {
-        const bool sent = espTransport.send(event);
+        const bool queued = espTransport.enqueue(event);
 
-        // USB Serial remains a diagnostic mirror only.
         Serial.print(F("CM_UART "));
-        Serial.print(sent ? F("TX_OK") : F("TX_FAIL"));
+        Serial.print(queued ? F("QUEUED") : F("QUEUE_FULL"));
         Serial.print(F(" type="));
         Serial.print(event.type == CM::WindingEventType::RunStarted
                          ? F("RUN_STARTED")
@@ -170,8 +169,41 @@ void processCoreEvents()
         Serial.print(event.sessionId);
         Serial.print(F(" run="));
         Serial.print(event.runId);
-        Serial.print(F(" completed="));
-        Serial.println(event.completedRuns);
+        Serial.print(F(" pending="));
+        Serial.println(espTransport.queuedCount());
+    }
+}
+
+void processUart(uint32_t nowMs)
+{
+    espTransport.update(nowMs);
+
+    CM::UartDeliveryEvent delivery;
+    while (espTransport.takeDeliveryEvent(delivery))
+    {
+        Serial.print(F("CM_UART RX run="));
+        Serial.print(delivery.runId);
+        Serial.print(F(" result="));
+
+        switch (delivery.result)
+        {
+            case CM::UartDeliveryResult::Acknowledged:
+                Serial.println(F("ACK"));
+                break;
+
+            case CM::UartDeliveryResult::Duplicate:
+                Serial.println(F("DUPLICATE"));
+                break;
+
+            case CM::UartDeliveryResult::NegativeAcknowledgement:
+                Serial.println(F("NACK_RETRY"));
+                break;
+
+            case CM::UartDeliveryResult::None:
+            default:
+                Serial.println(F("NONE"));
+                break;
+        }
     }
 }
 
@@ -240,6 +272,7 @@ void loop()
     processStateTransitions(nowMs);
     processCoreEvents();
 
+    processUart(nowMs);
     processBuzzer(nowMs);
     processStateTransitions(nowMs);
 

@@ -9,6 +9,7 @@
 #include "../../../Core/CM_StateMachine.h"
 #include "../../../Core/CM_TurnSource.h"
 #include "../../../Core/CM_UiModel.h"
+#include "../../../Core/CM_WindingEvent.h"
 
 #include "../../../Arduino/CM_BuzzerService.h"
 #include "../../../Arduino/CM_DebouncedButton.h"
@@ -147,6 +148,26 @@ void processStateTransitions(uint32_t nowMs)
     previousState = currentState;
 }
 
+void processCoreEvents()
+{
+    CM::WindingEvent event;
+    while (machine.takeEvent(event))
+    {
+        // Temporary diagnostic output. The UART/CMP adapter will consume the
+        // same events and send them to ESP32 in the next integration stage.
+        Serial.print(F("CM_EVENT type="));
+        Serial.print(event.type == CM::WindingEventType::RunStarted
+                         ? F("RUN_STARTED")
+                         : F("RUN_COMPLETED"));
+        Serial.print(F(" session="));
+        Serial.print(event.sessionId);
+        Serial.print(F(" run="));
+        Serial.print(event.runId);
+        Serial.print(F(" completed="));
+        Serial.println(event.completedRuns);
+    }
+}
+
 void processBuzzer(uint32_t nowMs)
 {
 #if CM_FEATURE_BUZZER
@@ -170,6 +191,8 @@ void updateOutputs()
 
 void setup()
 {
+    Serial.begin(115200);
+
 #if CM_FEATURE_SSR
     ssr.begin();
 #endif
@@ -203,9 +226,11 @@ void loop()
     processKeypad();
     processExternalStart(nowMs);
     processStateTransitions(nowMs);
+    processCoreEvents();
 
     processTurnSource(nowMs);
     processStateTransitions(nowMs);
+    processCoreEvents();
 
     processBuzzer(nowMs);
     processStateTransitions(nowMs);

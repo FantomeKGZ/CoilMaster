@@ -47,9 +47,12 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
     File file = m_storage.open(MotorsPath, FILE_APPEND);
     if (!file) return false;
     String line;
-    line.reserve(360U);
+    line.reserve(560U);
     line = F("{\"motor_id\":"); line += motorId;
     line += F(",\"name\":\""); line += jsonEscape(motor.name);
+    line += F("\",\"model\":\""); line += jsonEscape(motor.model);
+    line += F("\",\"manufacturer\":\""); line += jsonEscape(motor.manufacturer);
+    line += F("\",\"tags\":\""); line += jsonEscape(motor.tags);
     line += F("\",\"coil_program\":\""); line += jsonEscape(motor.coilProgram);
     line += F("\",\"status\":\"ACTIVE\"");
     if (motor.comment.length() > 0U)
@@ -119,13 +122,14 @@ bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
     return true;
 }
 
-bool RepairRegistry::appendMotorsJson(String& json, const String& nameQuery,
+bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
                                       uint16_t& count) const
 {
     count = 0U;
     if (!m_ready) return false;
     if (!m_storage.exists(MotorsPath)) return true;
-    String query = nameQuery;
+    String query = searchQuery;
+    query.trim();
     query.toLowerCase();
     File file = m_storage.open(MotorsPath, FILE_READ);
     if (!file) return false;
@@ -135,10 +139,15 @@ bool RepairRegistry::appendMotorsJson(String& json, const String& nameQuery,
         const String line = file.readStringUntil('\n');
         if (query.length() > 0U)
         {
-            String name;
-            if (!findString(line, "name", name)) continue;
-            name.toLowerCase();
-            if (name.indexOf(query) < 0) continue;
+            String searchable;
+            String field;
+            if (findString(line, "name", field)) searchable += field + ' ';
+            if (findString(line, "model", field)) searchable += field + ' ';
+            if (findString(line, "manufacturer", field)) searchable += field + ' ';
+            if (findString(line, "tags", field)) searchable += field + ' ';
+            if (findString(line, "coil_program", field)) searchable += field;
+            searchable.toLowerCase();
+            if (searchable.indexOf(query) < 0) continue;
         }
         if (!first) json += ',';
         first = false;

@@ -107,12 +107,23 @@ private:
     static constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
     static constexpr const char* MaterialsTempPath = "/data/materials/materials.tmp";
     static constexpr const char* UsagePath = "/data/materials/usage.ndjson";
+    static constexpr const char* UsagePendingPath = "/data/materials/usage.pending";
     static constexpr const char* AdjustmentsPath = "/data/materials/adjustments.ndjson";
 
     bool ensureDirectories();
+    bool recoverPendingUsage();
+    bool writePendingUsage(uint32_t usageId,
+                           uint32_t materialId,
+                           uint32_t stockBefore,
+                           uint32_t stockAfter,
+                           const String& usageLine);
+    bool usageExists(uint32_t usageId) const;
+    bool readStockQuantity(uint32_t materialId, uint32_t& quantityMilli) const;
+    bool appendUsageLine(const String& line);
     bool nextId(const char* path, const char* key, uint32_t& id) const;
     bool rewriteQuantity(uint32_t materialId,
                          uint32_t consumeMilli,
+                         uint32_t& stockBeforeMilli,
                          uint32_t& remainingMilli,
                          uint32_t& unitPriceMinor,
                          String& currency);

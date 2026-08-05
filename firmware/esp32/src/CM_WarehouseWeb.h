@@ -14,10 +14,12 @@ public:
     WarehouseWeb(WebServer& server, WarehouseStore& store);
 
     void begin();
+    void beginSpoolList();
 
 private:
     void handleSummary();
     void handleCreateSpool();
+    void handleListSpools();
     void handleGetPrice();
     void handleSetPrice();
     static bool validMonth(const String& month);

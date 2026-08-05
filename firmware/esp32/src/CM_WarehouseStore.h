@@ -43,6 +43,32 @@ struct WarehousePrice
     WarehousePrice() : pricePerKgMinor(0UL), currency("KGS") {}
 };
 
+struct ConfirmedSpoolWriteOff
+{
+    uint32_t spoolId;
+    uint32_t repairId;
+    uint32_t weightBeforeGrams;
+    uint32_t weightAfterGrams;
+    String timestamp;
+    String comment;
+
+    ConfirmedSpoolWriteOff()
+        : spoolId(0UL), repairId(0UL), weightBeforeGrams(0UL), weightAfterGrams(0UL) {}
+};
+
+struct SpoolWriteOffResult
+{
+    uint32_t movementId;
+    uint16_t diameterHundredthsMm;
+    uint32_t consumedGrams;
+    uint32_t pricePerKgMinor;
+    String currency;
+
+    SpoolWriteOffResult()
+        : movementId(0UL), diameterHundredthsMm(0U), consumedGrams(0UL),
+          pricePerKgMinor(0UL), currency("KGS") {}
+};
+
 class WarehouseStore
 {
 public:
@@ -52,11 +78,12 @@ public:
     bool ready() const;
     bool loadSummary(const char* monthPrefix);
     bool addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId);
+    bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,
+                              SpoolWriteOffResult& result);
+
     bool setWarehousePrice(const WarehousePrice& price);
     bool loadWarehousePrice(WarehousePrice& price) const;
 
-    // Appends active spool objects to an existing JSON array body. A zero
-    // diameter returns every active spool; otherwise only the chosen diameter.
     bool appendActiveSpoolsJson(String& json,
                                 uint16_t diameterHundredthsMm,
                                 uint16_t& appendedCount) const;
@@ -69,6 +96,7 @@ public:
 
 private:
     static constexpr const char* SpoolsPath = "/data/warehouse/spools.ndjson";
+    static constexpr const char* SpoolsTempPath = "/data/warehouse/spools.tmp";
     static constexpr const char* MovementsPath = "/data/warehouse/movements.ndjson";
     static constexpr const char* PricePath = "/data/warehouse/price.ndjson";
 
@@ -78,6 +106,17 @@ private:
     bool readSpools();
     bool readMovements(const char* monthPrefix);
     bool nextSpoolId(uint32_t& id) const;
+    bool nextMovementId(uint32_t& id) const;
+    bool rewriteSpoolWeight(uint32_t spoolId,
+                            uint32_t expectedWeightGrams,
+                            uint32_t newWeightGrams,
+                            uint16_t& diameterHundredthsMm);
+    bool appendWriteOffRecord(uint32_t movementId,
+                              const ConfirmedSpoolWriteOff& operation,
+                              uint16_t diameterHundredthsMm,
+                              uint32_t consumedGrams,
+                              const WarehousePrice& price,
+                              const char* status);
 
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);

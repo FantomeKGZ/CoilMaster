@@ -26,6 +26,26 @@ struct WireStockSummary
     }
 };
 
+struct NewWireSpool
+{
+    uint16_t diameterHundredthsMm;
+    uint32_t currentWeightGrams;
+    String wireType;
+    String manufacturer;
+    String supplier;
+    String batch;
+    uint32_t pricePerKgMinor;
+    String storageLocation;
+    String comment;
+
+    NewWireSpool()
+        : diameterHundredthsMm(0U),
+          currentWeightGrams(0UL),
+          pricePerKgMinor(0UL)
+    {
+    }
+};
+
 class WarehouseStore
 {
 public:
@@ -37,6 +57,10 @@ public:
     // Reads spool balances and confirmed repair write-offs from microSD.
     // monthPrefix must be YYYY-MM, for example "2026-08".
     bool loadSummary(const char* monthPrefix);
+
+    // Appends a new active spool to spools.ndjson. Diameter and current
+    // weight are required; all descriptive fields may remain empty.
+    bool addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId);
 
     uint8_t summaryCount() const;
     bool summaryAt(uint8_t index, WireStockSummary& summary) const;
@@ -54,9 +78,11 @@ private:
     WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools();
     bool readMovements(const char* monthPrefix);
+    bool nextSpoolId(uint32_t& id) const;
 
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);
+    static String jsonEscape(const String& value);
 
     fs::FS& m_storage;
     WireStockSummary m_summary[WarehouseMaxDiameters];

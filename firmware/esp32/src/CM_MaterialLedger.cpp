@@ -10,6 +10,7 @@ MaterialLedger::MaterialLedger(fs::FS& storage)
 bool MaterialLedger::begin()
 {
     m_ready = ensureDirectories();
+    if (m_ready) m_ready = recoverPendingUsage();
     return m_ready;
 }
 
@@ -84,7 +85,8 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
 {
     result = RepairMaterialUsageResult();
     if (!m_ready || usage.repairId == 0UL || usage.materialId == 0UL ||
-        usage.quantityMilli == 0UL || usage.timestamp.length() < 10U)
+        usage.quantityMilli == 0UL || usage.timestamp.length() < 10U ||
+        m_storage.exists(UsagePendingPath))
     {
         return false;
     }
@@ -92,21 +94,36 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     uint32_t usageId = 0UL;
     if (!nextId(UsagePath, "usage_id", usageId)) return false;
 
-    uint32_t remaining = 0UL;
+    uint32_t stockBefore = 0UL;
     uint32_t price = 0UL;
     String currency;
-    if (!rewriteQuantity(usage.materialId, usage.quantityMilli,
-                         remaining, price, currency))
+    if (!readStockQuantity(usage.materialId, stockBefore) ||
+        stockBefore < usage.quantityMilli)
     {
         return false;
     }
+    const uint32_t remaining = stockBefore - usage.quantityMilli;
 
-    File file = m_storage.open(UsagePath, FILE_APPEND);
-    if (!file)
+    File materialFile = m_storage.open(MaterialsPath, FILE_READ);
+    if (!materialFile) return false;
+    bool materialFound = false;
+    while (materialFile.available())
     {
-        restoreQuantity(usage.materialId, usage.quantityMilli);
-        return false;
+        const String materialLine = materialFile.readStringUntil('\n');
+        uint32_t materialId = 0UL;
+        String status;
+        if (findUnsigned(materialLine, "material_id", materialId) &&
+            materialId == usage.materialId &&
+            findUnsigned(materialLine, "price_per_unit_minor", price) &&
+            findString(materialLine, "currency", currency) &&
+            (!findString(materialLine, "status", status) || status == "ACTIVE"))
+        {
+            materialFound = true;
+            break;
+        }
     }
+    materialFile.close();
+    if (!materialFound) return false;
 
     const uint64_t cost =
         static_cast<uint64_t>(usage.quantityMilli) * price / 1000ULL;
@@ -130,20 +147,43 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     }
     line += F("}\n");
 
-    const size_t written = file.print(line);
-    file.flush();
-    file.close();
-    if (written != line.length())
+    if (!writePendingUsage(usageId, usage.materialId,
+                           stockBefore, remaining, line))
     {
-        restoreQuantity(usage.materialId, usage.quantityMilli);
+        return false;
+    }
+
+    uint32_t rewrittenBefore = 0UL;
+    uint32_t rewrittenRemaining = 0UL;
+    uint32_t rewrittenPrice = 0UL;
+    String rewrittenCurrency;
+    if (!rewriteQuantity(usage.materialId, usage.quantityMilli,
+                         rewrittenBefore, rewrittenRemaining,
+                         rewrittenPrice, rewrittenCurrency))
+    {
+        m_storage.remove(UsagePendingPath);
+        return false;
+    }
+
+    if (!appendUsageLine(line))
+    {
+        // Leave the pending transaction in place. begin() will finish it after reboot.
+        m_ready = false;
+        return false;
+    }
+
+    if (!m_storage.remove(UsagePendingPath))
+    {
+        // The usage is already durable. Recovery will only remove the stale marker.
+        m_ready = false;
         return false;
     }
 
     result.usageId = usageId;
-    result.remainingQuantityMilli = remaining;
-    result.unitPriceMinor = price;
+    result.remainingQuantityMilli = rewrittenRemaining;
+    result.unitPriceMinor = rewrittenPrice;
     result.lineCostMinor = cost;
-    result.currency = currency;
+    result.currency = rewrittenCurrency;
     return true;
 }
 
@@ -153,6 +193,129 @@ bool MaterialLedger::ensureDirectories()
     if (!m_storage.exists("/data/materials") &&
         !m_storage.mkdir("/data/materials")) return false;
     return true;
+}
+
+bool MaterialLedger::recoverPendingUsage()
+{
+    if (!m_storage.exists(UsagePendingPath)) return true;
+
+    File pending = m_storage.open(UsagePendingPath, FILE_READ);
+    if (!pending) return false;
+    const String metadata = pending.readStringUntil('\n');
+    String usageLine = pending.readStringUntil('\n');
+    pending.close();
+    if (usageLine.length() == 0U) return false;
+    usageLine += '\n';
+
+    uint32_t usageId = 0UL;
+    uint32_t materialId = 0UL;
+    uint32_t stockBefore = 0UL;
+    uint32_t stockAfter = 0UL;
+    if (!findUnsigned(metadata, "usage_id", usageId) ||
+        !findUnsigned(metadata, "material_id", materialId) ||
+        !findUnsigned(metadata, "stock_before_milli", stockBefore) ||
+        !findUnsigned(metadata, "stock_after_milli", stockAfter))
+    {
+        return false;
+    }
+
+    if (usageExists(usageId))
+    {
+        return m_storage.remove(UsagePendingPath);
+    }
+
+    uint32_t currentStock = 0UL;
+    if (!readStockQuantity(materialId, currentStock)) return false;
+
+    if (currentStock == stockBefore)
+    {
+        // Stock was never changed; discard the prepared transaction.
+        return m_storage.remove(UsagePendingPath);
+    }
+    if (currentStock != stockAfter) return false;
+
+    if (!appendUsageLine(usageLine)) return false;
+    return m_storage.remove(UsagePendingPath);
+}
+
+bool MaterialLedger::writePendingUsage(uint32_t usageId,
+                                       uint32_t materialId,
+                                       uint32_t stockBefore,
+                                       uint32_t stockAfter,
+                                       const String& usageLine)
+{
+    m_storage.remove(UsagePendingPath);
+    File file = m_storage.open(UsagePendingPath, FILE_WRITE);
+    if (!file) return false;
+    String metadata;
+    metadata.reserve(160U);
+    metadata = F("{\"usage_id\":"); metadata += usageId;
+    metadata += F(",\"material_id\":"); metadata += materialId;
+    metadata += F(",\"stock_before_milli\":"); metadata += stockBefore;
+    metadata += F(",\"stock_after_milli\":"); metadata += stockAfter;
+    metadata += F("}\n");
+    const size_t expected = metadata.length() + usageLine.length();
+    const size_t written = file.print(metadata) + file.print(usageLine);
+    file.flush();
+    file.close();
+    if (written != expected)
+    {
+        m_storage.remove(UsagePendingPath);
+        return false;
+    }
+    return true;
+}
+
+bool MaterialLedger::usageExists(uint32_t usageId) const
+{
+    if (!m_storage.exists(UsagePath)) return false;
+    File file = m_storage.open(UsagePath, FILE_READ);
+    if (!file) return false;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t existing = 0UL;
+        if (findUnsigned(line, "usage_id", existing) && existing == usageId)
+        {
+            file.close();
+            return true;
+        }
+    }
+    file.close();
+    return false;
+}
+
+bool MaterialLedger::readStockQuantity(uint32_t materialId,
+                                       uint32_t& quantityMilli) const
+{
+    quantityMilli = 0UL;
+    if (!m_storage.exists(MaterialsPath)) return false;
+    File file = m_storage.open(MaterialsPath, FILE_READ);
+    if (!file) return false;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t currentId = 0UL;
+        if (findUnsigned(line, "material_id", currentId) &&
+            currentId == materialId &&
+            findUnsigned(line, "stock_quantity_milli", quantityMilli))
+        {
+            file.close();
+            return true;
+        }
+    }
+    file.close();
+    return false;
+}
+
+bool MaterialLedger::appendUsageLine(const String& line)
+{
+    File file = m_storage.open(UsagePath, FILE_APPEND);
+    if (!file) return false;
+    const size_t written = file.print(line);
+    file.flush();
+    file.close();
+    return written == line.length();
 }
 
 bool MaterialLedger::nextId(const char* path, const char* key, uint32_t& id) const
@@ -177,10 +340,12 @@ bool MaterialLedger::nextId(const char* path, const char* key, uint32_t& id) con
 
 bool MaterialLedger::rewriteQuantity(uint32_t materialId,
                                      uint32_t consumeMilli,
+                                     uint32_t& stockBeforeMilli,
                                      uint32_t& remainingMilli,
                                      uint32_t& unitPriceMinor,
                                      String& currency)
 {
+    stockBeforeMilli = 0UL;
     if (!m_storage.exists(MaterialsPath)) return false;
     File source = m_storage.open(MaterialsPath, FILE_READ);
     if (!source) return false;
@@ -207,6 +372,7 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
                 valid = false;
                 break;
             }
+            stockBeforeMilli = stock;
             remainingMilli = stock - consumeMilli;
             const String marker = F("\"stock_quantity_milli\":");
             const int markerPos = line.indexOf(marker);

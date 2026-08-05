@@ -11,6 +11,8 @@ void WarehouseWeb::begin()
 {
     m_server.on("/api/warehouse/summary", HTTP_GET, [this]() { handleSummary(); });
     m_server.on("/api/warehouse/spools", HTTP_POST, [this]() { handleCreateSpool(); });
+    m_server.on("/api/warehouse/price", HTTP_GET, [this]() { handleGetPrice(); });
+    m_server.on("/api/warehouse/price", HTTP_POST, [this]() { handleSetPrice(); });
 }
 
 void WarehouseWeb::handleSummary()
@@ -30,8 +32,11 @@ void WarehouseWeb::handleSummary()
         return;
     }
 
+    WarehousePrice price;
+    const bool priceConfigured = m_store.loadWarehousePrice(price);
+
     String response;
-    response.reserve(2300U);
+    response.reserve(2400U);
     response = F("{\"month\":\"");
     response += month;
     response += F("\",\"total_remaining_g\":");
@@ -42,6 +47,16 @@ void WarehouseWeb::handleSummary()
     response += m_store.totalConsumedAllTimeGrams();
     response += F(",\"diameter_count\":");
     response += m_store.summaryCount();
+    response += F(",\"price_configured\":");
+    response += priceConfigured ? F("true") : F("false");
+    response += F(",\"price_per_kg_minor\":");
+    response += priceConfigured ? price.pricePerKgMinor : 0UL;
+    response += F(",\"currency\":\"");
+    response += price.currency;
+    response += F("\",\"stock_value_minor\":");
+    response += priceConfigured
+                    ? static_cast<uint64_t>(m_store.totalRemainingGrams()) * price.pricePerKgMinor / 1000ULL
+                    : 0ULL;
     response += F(",\"diameters\":[");
 
     bool first = true;
@@ -62,6 +77,10 @@ void WarehouseWeb::handleSummary()
         response += item.consumedMonthGrams;
         response += F(",\"consumed_all_time_g\":");
         response += item.consumedAllTimeGrams;
+        response += F(",\"remaining_value_minor\":");
+        response += priceConfigured
+                        ? static_cast<uint64_t>(item.remainingGrams) * price.pricePerKgMinor / 1000ULL
+                        : 0ULL;
         response += '}';
     }
 
@@ -80,7 +99,6 @@ void WarehouseWeb::handleCreateSpool()
 
     uint32_t diameter = 0UL;
     uint32_t weight = 0UL;
-    uint32_t price = 0UL;
 
     if (!parseUnsignedArg(m_server, "diameter_hundredths_mm", 1UL, 500UL, diameter))
     {
@@ -96,19 +114,9 @@ void WarehouseWeb::handleCreateSpool()
         return;
     }
 
-    if (m_server.hasArg("price_per_kg_minor") &&
-        m_server.arg("price_per_kg_minor").length() > 0U &&
-        !parseUnsignedArg(m_server, "price_per_kg_minor", 0UL, 100000000UL, price))
-    {
-        m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"invalid_price_per_kg_minor\"}");
-        return;
-    }
-
     NewWireSpool spool;
     spool.diameterHundredthsMm = static_cast<uint16_t>(diameter);
     spool.currentWeightGrams = weight;
-    spool.pricePerKgMinor = price;
     spool.wireType = m_server.arg("wire_type");
     spool.manufacturer = m_server.arg("manufacturer");
     spool.supplier = m_server.arg("supplier");
@@ -132,6 +140,68 @@ void WarehouseWeb::handleCreateSpool()
     response += spool.currentWeightGrams;
     response += F("}");
     m_server.send(201, "application/json; charset=utf-8", response);
+}
+
+void WarehouseWeb::handleGetPrice()
+{
+    WarehousePrice price;
+    if (!m_store.ready() || !m_store.loadWarehousePrice(price))
+    {
+        m_server.send(200, "application/json; charset=utf-8",
+                      "{\"configured\":false,\"price_per_kg_minor\":0,\"currency\":\"KGS\"}");
+        return;
+    }
+
+    String response = F("{\"configured\":true,\"price_per_kg_minor\":");
+    response += price.pricePerKgMinor;
+    response += F(",\"currency\":\"");
+    response += price.currency;
+    response += F("\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void WarehouseWeb::handleSetPrice()
+{
+    uint32_t value = 0UL;
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
+    if (!parseUnsignedArg(m_server, "price_per_kg_minor", 1UL, 100000000UL, value))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_price_per_kg_minor\"}");
+        return;
+    }
+
+    String currency = m_server.hasArg("currency") ? m_server.arg("currency") : String("KGS");
+    currency.toUpperCase();
+    if (currency.length() != 3U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_currency\"}");
+        return;
+    }
+
+    WarehousePrice price;
+    price.pricePerKgMinor = value;
+    price.currency = currency;
+    if (!m_store.setWarehousePrice(price))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"price_write_failed\"}");
+        return;
+    }
+
+    String response = F("{\"saved\":true,\"price_per_kg_minor\":");
+    response += price.pricePerKgMinor;
+    response += F(",\"currency\":\"");
+    response += price.currency;
+    response += F("\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 bool WarehouseWeb::validMonth(const String& month)

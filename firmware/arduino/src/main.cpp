@@ -190,9 +190,29 @@ void processCoreEvents()
     }
 }
 
+void processRemoteJobs()
+{
+    CM::WindingJob remoteJob;
+    while (espTransport.takeRemoteJob(remoteJob))
+    {
+        const bool accepted = machine.loadRemoteJob(remoteJob);
+        espTransport.sendJobResult(remoteJob.jobId,
+                                   accepted,
+                                   accepted ? "READY" : "BUSY_OR_INVALID");
+
+        Serial.print(F("CM_JOB RX id="));
+        Serial.print(remoteJob.jobId);
+        Serial.print(F(" coils="));
+        Serial.print(remoteJob.coilCount);
+        Serial.print(F(" result="));
+        Serial.println(accepted ? F("ACCEPTED") : F("REJECTED"));
+    }
+}
+
 void processUart(uint32_t nowMs)
 {
     espTransport.update(nowMs);
+    processRemoteJobs();
 
     CM::UartDeliveryEvent delivery;
     while (espTransport.takeDeliveryEvent(delivery))

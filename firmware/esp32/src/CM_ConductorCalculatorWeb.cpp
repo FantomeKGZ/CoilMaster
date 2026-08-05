@@ -4,9 +4,7 @@ namespace CM
 {
 ConductorCalculatorWeb::ConductorCalculatorWeb(WebServer& server,
                                                WarehouseStore& warehouse)
-    : m_server(server), m_warehouse(warehouse)
-{
-}
+    : m_server(server), m_warehouse(warehouse) {}
 
 void ConductorCalculatorWeb::begin()
 {
@@ -88,6 +86,11 @@ void ConductorCalculatorWeb::handleCalculate()
         }
         settings.maxTargetStrands = static_cast<uint8_t>(parsed);
     }
+    if (m_server.hasArg("allow_mixed_diameters"))
+    {
+        const String value = m_server.arg("allow_mixed_diameters");
+        settings.allowMixedDiameters = value != "0" && value != "false" && value != "FALSE";
+    }
 
     KnownWireDiameter known[WarehouseMaxDiameters];
     const uint8_t knownCount =
@@ -117,22 +120,17 @@ void ConductorCalculatorWeb::handleCalculate()
         source, targetMaterial, settings, candidates, knownCount, options);
 
     String response;
-    response.reserve(2200U);
-    response = F("{\"source_material\":\"");
-    response += materialText(sourceMaterial);
-    response += F("\",\"target_material\":\"");
-    response += materialText(targetMaterial);
-    response += F("\",\"source_diameter_hundredths_mm\":");
-    response += source.diameterHundredthsMm;
-    response += F(",\"source_parallel_strands\":");
-    response += source.parallelStrands;
+    response.reserve(3000U);
+    response = F("{\"source_material\":\""); response += materialText(sourceMaterial);
+    response += F("\",\"target_material\":\""); response += materialText(targetMaterial);
+    response += F("\",\"source_diameter_hundredths_mm\":"); response += source.diameterHundredthsMm;
+    response += F(",\"source_parallel_strands\":"); response += source.parallelStrands;
     response += F(",\"required_target_area_um2\":");
-    response += ConductorCalculator::requiredTargetAreaMicrometre2(
-        source, targetMaterial, settings);
-    response += F(",\"catalogue_diameter_count\":");
-    response += knownCount;
-    response += F(",\"recommendation_count\":");
-    response += optionCount;
+    response += ConductorCalculator::requiredTargetAreaMicrometre2(source, targetMaterial, settings);
+    response += F(",\"catalogue_diameter_count\":"); response += knownCount;
+    response += F(",\"mixed_diameters_enabled\":");
+    response += settings.allowMixedDiameters ? F("true") : F("false");
+    response += F(",\"recommendation_count\":"); response += optionCount;
     response += F(",\"recommendations\":[");
 
     for (uint8_t i = 0U; i < optionCount; ++i)
@@ -140,19 +138,25 @@ void ConductorCalculatorWeb::handleCalculate()
         if (i > 0U) response += ',';
         const ConversionOption& option = options[i];
         response += F("{\"rank\":"); response += static_cast<uint8_t>(i + 1U);
-        response += F(",\"diameter_hundredths_mm\":");
-        response += option.targetDiameterHundredthsMm;
-        response += F(",\"parallel_strands\":");
-        response += option.targetParallelStrands;
-        response += F(",\"target_area_um2\":");
-        response += option.targetAreaMicrometre2;
-        response += F(",\"deviation_permille\":");
-        response += option.deviationPermille;
-        response += F(",\"available_g\":");
-        response += option.availableGrams;
-        response += F(",\"availability\":\"");
-        response += availabilityText(option.availability);
-        response += F("\"}");
+        response += F(",\"parallel_strands\":"); response += option.targetParallelStrands;
+        response += F(",\"target_area_um2\":"); response += option.targetAreaMicrometre2;
+        response += F(",\"deviation_permille\":"); response += option.deviationPermille;
+        response += F(",\"availability\":\""); response += availabilityText(option.availability);
+        response += F("\",\"component_count\":"); response += option.componentCount;
+        response += F(",\"components\":[");
+        for (uint8_t componentIndex = 0U;
+             componentIndex < option.componentCount;
+             ++componentIndex)
+        {
+            if (componentIndex > 0U) response += ',';
+            const ConversionComponent& component = option.components[componentIndex];
+            response += F("{\"diameter_hundredths_mm\":");
+            response += component.diameterHundredthsMm;
+            response += F(",\"parallel_strands\":"); response += component.parallelStrands;
+            response += F(",\"available_g\":"); response += component.availableGrams;
+            response += '}';
+        }
+        response += F("]}");
     }
 
     response += F("]}");
@@ -188,8 +192,7 @@ bool ConductorCalculatorWeb::parseMaterial(const String& value,
         material = ConductorMaterial::Copper;
         return true;
     }
-    if (normalized == "AL" || normalized == "ALUMINIUM" ||
-        normalized == "ALUMINUM")
+    if (normalized == "AL" || normalized == "ALUMINIUM" || normalized == "ALUMINUM")
     {
         material = ConductorMaterial::Aluminium;
         return true;
@@ -202,8 +205,7 @@ const char* ConductorCalculatorWeb::materialText(ConductorMaterial material)
     return material == ConductorMaterial::Copper ? "CU" : "AL";
 }
 
-const char* ConductorCalculatorWeb::availabilityText(
-    ConversionAvailability availability)
+const char* ConductorCalculatorWeb::availabilityText(ConversionAvailability availability)
 {
     return availability == ConversionAvailability::InStock
                ? "IN_STOCK"

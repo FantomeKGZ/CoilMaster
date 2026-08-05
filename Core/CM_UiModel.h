@@ -22,6 +22,13 @@ enum class UiScreen : uint8_t
     Fault
 };
 
+enum class UiSyncState : uint8_t
+{
+    Synchronized = 0U,
+    Pending,
+    Error
+};
+
 struct UiModel
 {
     UiScreen screen;
@@ -32,6 +39,8 @@ struct UiModel
     uint16_t currentTurns;
     uint16_t targetTurns;
     uint16_t completedRuns;
+    uint8_t pendingSyncCount;
+    UiSyncState syncState;
     WindingType windingType;
     JobSource jobSource;
 

@@ -25,12 +25,30 @@ struct NewMaterial
     String comment;
 
     NewMaterial()
-        : unit(MaterialUnit::Piece),
-          stockQuantityMilli(0UL),
-          pricePerUnitMinor(0UL),
-          currency("KGS")
-    {
-    }
+        : unit(MaterialUnit::Piece), stockQuantityMilli(0UL),
+          pricePerUnitMinor(0UL), currency("KGS") {}
+};
+
+struct MaterialAdjustment
+{
+    uint32_t materialId;
+    uint32_t addQuantityMilli;
+    uint32_t newPricePerUnitMinor;
+    String currency;
+
+    MaterialAdjustment()
+        : materialId(0UL), addQuantityMilli(0UL),
+          newPricePerUnitMinor(0UL), currency("KGS") {}
+};
+
+struct MaterialAdjustmentResult
+{
+    uint32_t stockQuantityMilli;
+    uint32_t pricePerUnitMinor;
+    String currency;
+
+    MaterialAdjustmentResult()
+        : stockQuantityMilli(0UL), pricePerUnitMinor(0UL), currency("KGS") {}
 };
 
 struct RepairMaterialUsage
@@ -42,9 +60,7 @@ struct RepairMaterialUsage
     String comment;
 
     RepairMaterialUsage()
-        : repairId(0UL), materialId(0UL), quantityMilli(0UL)
-    {
-    }
+        : repairId(0UL), materialId(0UL), quantityMilli(0UL) {}
 };
 
 struct RepairMaterialUsageResult
@@ -56,13 +72,8 @@ struct RepairMaterialUsageResult
     String currency;
 
     RepairMaterialUsageResult()
-        : usageId(0UL),
-          remainingQuantityMilli(0UL),
-          unitPriceMinor(0UL),
-          lineCostMinor(0ULL),
-          currency("KGS")
-    {
-    }
+        : usageId(0UL), remainingQuantityMilli(0UL),
+          unitPriceMinor(0UL), lineCostMinor(0ULL), currency("KGS") {}
 };
 
 class MaterialLedger
@@ -72,8 +83,9 @@ public:
 
     bool begin();
     bool ready() const;
-
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
+    bool adjustMaterial(const MaterialAdjustment& adjustment,
+                        MaterialAdjustmentResult& result);
     bool appendMaterialsJson(String& json, uint16_t& count) const;
     bool confirmUsage(const RepairMaterialUsage& usage,
                       RepairMaterialUsageResult& result);
@@ -93,6 +105,8 @@ private:
 
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);
+    static String replaceUnsigned(const String& line, const char* key, uint32_t value);
+    static String replaceString(const String& line, const char* key, const String& value);
     static String jsonEscape(const String& value);
     static const char* unitText(MaterialUnit unit);
 

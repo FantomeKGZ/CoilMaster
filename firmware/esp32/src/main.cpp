@@ -6,6 +6,7 @@
 
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
+#include "CM_WarehouseStore.h"
 #include "CM_WindingJournal.h"
 
 namespace
@@ -27,6 +28,7 @@ constexpr uint16_t MaxTurnsPerCoil = 9999U;
 HardwareSerial arduinoSerial(2);
 CM::UartEventReceiver receiver(arduinoSerial);
 CM::WindingJournal journal(SD);
+CM::WarehouseStore warehouse(SD);
 WebServer webServer(80);
 CM::StaticSiteServer staticSites(webServer, SD);
 
@@ -44,6 +46,7 @@ CM::JobDeliveryResult lastJobResult = CM::JobDeliveryResult::None;
 bool jobAwaitingAck = false;
 bool runActive = false;
 bool journalReady = false;
+bool warehouseReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -88,6 +91,18 @@ String activeProgramText()
         result += activeTurns[i];
     }
     return result;
+}
+
+bool validMonthPrefix(const String& month)
+{
+    if (month.length() != 7U || month[4] != '-') return false;
+    for (uint8_t i = 0U; i < month.length(); ++i)
+    {
+        if (i == 4U) continue;
+        if (!isDigit(month[i])) return false;
+    }
+    const int number = month.substring(5).toInt();
+    return number >= 1 && number <= 12;
 }
 
 void printEvent(const CM::RemoteWindingEvent& event)
@@ -173,8 +188,54 @@ void sendJsonStatus()
     response += F(",\"arduino_ack_pending\":"); response += jobAwaitingAck ? F("true") : F("false");
     response += F(",\"arduino_online\":"); response += arduinoOnline ? F("true") : F("false");
     response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");
+    response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
     response += F(",\"web_storage_ready\":"); response += staticSites.storageReady() ? F("true") : F("false");
     response += F("}");
+    webServer.send(200, "application/json; charset=utf-8", response);
+}
+
+void sendWarehouseSummary()
+{
+    if (!warehouseReady)
+    {
+        webServer.send(503, "application/json", "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
+    const String month = webServer.hasArg("month") ? webServer.arg("month") : String("0000-00");
+    if (!validMonthPrefix(month))
+    {
+        webServer.send(400, "application/json", "{\"error\":\"invalid_month\"}");
+        return;
+    }
+
+    if (!warehouse.loadSummary(month.c_str()))
+    {
+        webServer.send(500, "application/json", "{\"error\":\"warehouse_read_failed\"}");
+        return;
+    }
+
+    String response;
+    response.reserve(512U + static_cast<size_t>(warehouse.summaryCount()) * 120U);
+    response = F("{\"month\":\""); response += month;
+    response += F("\",\"total_remaining_g\":"); response += warehouse.totalRemainingGrams();
+    response += F(",\"total_consumed_month_g\":"); response += warehouse.totalConsumedMonthGrams();
+    response += F(",\"total_consumed_all_time_g\":"); response += warehouse.totalConsumedAllTimeGrams();
+    response += F(",\"diameters\":[");
+
+    CM::WireStockSummary item;
+    for (uint8_t i = 0U; i < warehouse.summaryCount(); ++i)
+    {
+        if (!warehouse.summaryAt(i, item)) continue;
+        if (i > 0U) response += ',';
+        response += F("{\"diameter_hundredths_mm\":"); response += item.diameterHundredthsMm;
+        response += F(",\"remaining_g\":"); response += item.remainingGrams;
+        response += F(",\"active_spools\":"); response += item.activeSpoolCount;
+        response += F(",\"consumed_month_g\":"); response += item.consumedMonthGrams;
+        response += F(",\"consumed_all_time_g\":"); response += item.consumedAllTimeGrams;
+        response += '}';
+    }
+    response += F("]}");
     webServer.send(200, "application/json; charset=utf-8", response);
 }
 
@@ -224,6 +285,7 @@ void configureWebServer()
 {
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
+    webServer.on("/api/warehouse/summary", HTTP_GET, sendWarehouseSummary);
 
     staticSites.begin("/web");
 
@@ -274,6 +336,7 @@ void setup()
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);
     const bool sdReady = SD.begin(SdCsPin, SPI);
     journalReady = sdReady && journal.begin();
+    warehouseReady = sdReady && warehouse.begin();
 
     WiFi.mode(WIFI_AP);
     const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);
@@ -283,6 +346,9 @@ void setup()
     Serial.println(journalReady
                        ? F("microSD winding journal ready")
                        : F("WARNING: microSD winding journal unavailable"));
+    Serial.println(warehouseReady
+                       ? F("microSD warehouse store ready")
+                       : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady()
                        ? F("microSD web root /web ready")
                        : F("WARNING: microSD web root /web unavailable"));

@@ -13,6 +13,7 @@
 
 #include "../../../Arduino/CM_BuzzerService.h"
 #include "../../../Arduino/CM_DebouncedButton.h"
+#include "../../../Arduino/CM_EepromPersistence.h"
 #include "../../../Arduino/CM_HallTurnSource.h"
 #include "../../../Arduino/CM_Lcd1602View.h"
 #include "../../../Arduino/CM_SsrController.h"
@@ -59,6 +60,7 @@ CM::SimulatedTurnSource simulator(CM::Defaults::SimulatedTurnIntervalMs);
 CM::UartEventTransport espTransport(CM::Pins::EspRx,
                                     CM::Pins::EspTx,
                                     CM::Defaults::EspUartBaud);
+CM::EepromPersistence persistence;
 
 CM::MachineState previousState = CM::MachineState::Fault;
 
@@ -157,10 +159,20 @@ void processCoreEvents()
     CM::WindingEvent event;
     while (machine.takeEvent(event))
     {
-        const bool queued = espTransport.enqueue(event);
+        // Preserve monotonic IDs before any possible loss of power.
+        persistence.saveNextIdentifiers(machine.nextSessionId(),
+                                        machine.nextRunId());
+
+        bool persisted = true;
+        if (event.type == CM::WindingEventType::RunCompleted)
+        {
+            persisted = persistence.addPendingCompleted(event);
+        }
+
+        const bool queued = persisted && espTransport.enqueue(event);
 
         Serial.print(F("CM_UART "));
-        Serial.print(queued ? F("QUEUED") : F("QUEUE_FULL"));
+        Serial.print(queued ? F("QUEUED") : F("QUEUE_OR_EEPROM_FULL"));
         Serial.print(F(" type="));
         Serial.print(event.type == CM::WindingEventType::RunStarted
                          ? F("RUN_STARTED")
@@ -188,10 +200,12 @@ void processUart(uint32_t nowMs)
         switch (delivery.result)
         {
             case CM::UartDeliveryResult::Acknowledged:
+                persistence.removePendingCompleted(delivery.runId);
                 Serial.println(F("ACK"));
                 break;
 
             case CM::UartDeliveryResult::Duplicate:
+                persistence.removePendingCompleted(delivery.runId);
                 Serial.println(F("DUPLICATE"));
                 break;
 
@@ -205,6 +219,29 @@ void processUart(uint32_t nowMs)
                 break;
         }
     }
+}
+
+void restorePersistentState()
+{
+    persistence.begin();
+    machine.setNextIdentifiers(persistence.nextSessionId(),
+                               persistence.nextRunId());
+
+    CM::WindingEvent event;
+    for (uint8_t index = 0U; index < persistence.pendingCount(); ++index)
+    {
+        if (persistence.pendingAt(index, event))
+        {
+            espTransport.enqueue(event);
+        }
+    }
+
+    Serial.print(F("CM_EEPROM restored_pending="));
+    Serial.print(persistence.pendingCount());
+    Serial.print(F(" next_session="));
+    Serial.print(machine.nextSessionId());
+    Serial.print(F(" next_run="));
+    Serial.println(machine.nextRunId());
 }
 
 void processBuzzer(uint32_t nowMs)
@@ -232,6 +269,7 @@ void setup()
 {
     Serial.begin(115200);
     espTransport.begin();
+    restorePersistentState();
 
 #if CM_FEATURE_SSR
     ssr.begin();

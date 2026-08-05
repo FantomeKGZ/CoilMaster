@@ -9,6 +9,8 @@ void RepairRegistryWeb::begin()
 {
     m_server.on("/api/clients", HTTP_GET, [this]() { handleListClients(); });
     m_server.on("/api/clients", HTTP_POST, [this]() { handleCreateClient(); });
+    m_server.on("/api/motors", HTTP_GET, [this]() { handleListMotors(); });
+    m_server.on("/api/motors", HTTP_POST, [this]() { handleCreateMotor(); });
     m_server.on("/api/repairs", HTTP_GET, [this]() { handleListRepairs(); });
     m_server.on("/api/repairs", HTTP_POST, [this]() { handleCreateRepair(); });
 }
@@ -61,6 +63,48 @@ void RepairRegistryWeb::handleCreateClient()
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 
+void RepairRegistryWeb::handleListMotors()
+{
+    String response = F("{\"items\":[");
+    response.reserve(4096U);
+    uint16_t count = 0U;
+    const String query = m_server.hasArg("name") ? m_server.arg("name") : String();
+    if (!m_registry.appendMotorsJson(response, query, count))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motors_read_failed\"}");
+        return;
+    }
+    response += F("],\"count\":"); response += count; response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryWeb::handleCreateMotor()
+{
+    if (!m_server.hasArg("name") || m_server.arg("name").length() == 0U ||
+        !m_server.hasArg("coil_program") ||
+        m_server.arg("coil_program").length() == 0U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"name_and_coil_program_required\"}");
+        return;
+    }
+    NewMotor motor;
+    motor.name = m_server.arg("name");
+    motor.coilProgram = m_server.arg("coil_program");
+    motor.comment = m_server.arg("comment");
+    uint32_t motorId = 0UL;
+    if (!m_registry.addMotor(motor, motorId))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_write_failed\"}");
+        return;
+    }
+    String response = F("{\"created\":true,\"motor_id\":");
+    response += motorId; response += '}';
+    m_server.send(201, "application/json; charset=utf-8", response);
+}
+
 void RepairRegistryWeb::handleListRepairs()
 {
     uint32_t clientId = 0UL;
@@ -87,8 +131,9 @@ void RepairRegistryWeb::handleListRepairs()
 void RepairRegistryWeb::handleCreateRepair()
 {
     uint32_t clientId = 0UL;
+    uint32_t motorId = 0UL;
     if (!parseUnsigned(m_server, "client_id", 1UL, 0xFFFFFFFFUL, clientId) ||
-        !m_server.hasArg("motor_name") || m_server.arg("motor_name").length() == 0U ||
+        !parseUnsigned(m_server, "motor_id", 1UL, 0xFFFFFFFFUL, motorId) ||
         !m_server.hasArg("received_at") || m_server.arg("received_at").length() < 10U)
     {
         m_server.send(400, "application/json; charset=utf-8",
@@ -97,7 +142,7 @@ void RepairRegistryWeb::handleCreateRepair()
     }
     NewRepair repair;
     repair.clientId = clientId;
-    repair.motorName = m_server.arg("motor_name");
+    repair.motorId = motorId;
     repair.receivedAt = m_server.arg("received_at");
     repair.complaint = m_server.arg("complaint");
     repair.comment = m_server.arg("comment");
@@ -111,6 +156,7 @@ void RepairRegistryWeb::handleCreateRepair()
     String response = F("{\"created\":true,\"repair_id\":");
     response += repairId;
     response += F(",\"client_id\":"); response += clientId;
+    response += F(",\"motor_id\":"); response += motorId;
     response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
 }

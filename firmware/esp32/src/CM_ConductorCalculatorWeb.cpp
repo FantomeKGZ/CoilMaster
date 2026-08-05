@@ -45,51 +45,11 @@ void ConductorCalculatorWeb::handleCalculate()
     }
 
     ConversionSettings settings;
-    uint32_t parsed = 0UL;
-    if (m_server.hasArg("al_to_cu_permille"))
+    if (!m_warehouse.loadConversionSettings(settings))
     {
-        if (!parseUnsignedArg(m_server, "al_to_cu_permille", 100UL, 3000UL, parsed))
-        {
-            m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_al_to_cu_permille\"}");
-            return;
-        }
-        settings.aluminiumToCopperPermille = static_cast<uint16_t>(parsed);
-    }
-    if (m_server.hasArg("cu_to_al_permille"))
-    {
-        if (!parseUnsignedArg(m_server, "cu_to_al_permille", 100UL, 3000UL, parsed))
-        {
-            m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_cu_to_al_permille\"}");
-            return;
-        }
-        settings.copperToAluminiumPermille = static_cast<uint16_t>(parsed);
-    }
-    if (m_server.hasArg("allowed_deviation_permille"))
-    {
-        if (!parseUnsignedArg(m_server, "allowed_deviation_permille", 1UL, 500UL, parsed))
-        {
-            m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_allowed_deviation_permille\"}");
-            return;
-        }
-        settings.allowedDeviationPermille = static_cast<uint16_t>(parsed);
-    }
-    if (m_server.hasArg("max_target_strands"))
-    {
-        if (!parseUnsignedArg(m_server, "max_target_strands", 1UL, 8UL, parsed))
-        {
-            m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_max_target_strands\"}");
-            return;
-        }
-        settings.maxTargetStrands = static_cast<uint8_t>(parsed);
-    }
-    if (m_server.hasArg("allow_mixed_diameters"))
-    {
-        const String value = m_server.arg("allow_mixed_diameters");
-        settings.allowMixedDiameters = value != "0" && value != "false" && value != "FALSE";
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"calculator_not_configured\"}");
+        return;
     }
 
     KnownWireDiameter known[WarehouseMaxDiameters];
@@ -120,7 +80,7 @@ void ConductorCalculatorWeb::handleCalculate()
         source, targetMaterial, settings, candidates, knownCount, options);
 
     String response;
-    response.reserve(3000U);
+    response.reserve(3200U);
     response = F("{\"source_material\":\""); response += materialText(sourceMaterial);
     response += F("\",\"target_material\":\""); response += materialText(targetMaterial);
     response += F("\",\"source_diameter_hundredths_mm\":"); response += source.diameterHundredthsMm;
@@ -128,6 +88,11 @@ void ConductorCalculatorWeb::handleCalculate()
     response += F(",\"required_target_area_um2\":");
     response += ConductorCalculator::requiredTargetAreaMicrometre2(source, targetMaterial, settings);
     response += F(",\"catalogue_diameter_count\":"); response += knownCount;
+    response += F(",\"settings_source\":\"PERSISTED\"");
+    response += F(",\"aluminium_to_copper_permille\":"); response += settings.aluminiumToCopperPermille;
+    response += F(",\"copper_to_aluminium_permille\":"); response += settings.copperToAluminiumPermille;
+    response += F(",\"allowed_deviation_permille\":"); response += settings.allowedDeviationPermille;
+    response += F(",\"max_target_strands\":"); response += settings.maxTargetStrands;
     response += F(",\"mixed_diameters_enabled\":");
     response += settings.allowMixedDiameters ? F("true") : F("false");
     response += F(",\"recommendation_count\":"); response += optionCount;

@@ -13,15 +13,22 @@ struct NewClient
     String comment;
 };
 
+struct NewMotor
+{
+    String name;
+    String coilProgram;
+    String comment;
+};
+
 struct NewRepair
 {
     uint32_t clientId;
-    String motorName;
+    uint32_t motorId;
     String receivedAt;
     String complaint;
     String comment;
 
-    NewRepair() : clientId(0UL) {}
+    NewRepair() : clientId(0UL), motorId(0UL) {}
 };
 
 class RepairRegistry
@@ -31,20 +38,31 @@ public:
 
     bool begin();
     bool ready() const;
+
     bool addClient(const NewClient& client, uint32_t& clientId);
+    bool addMotor(const NewMotor& motor, uint32_t& motorId);
     bool addRepair(const NewRepair& repair, uint32_t& repairId);
-    bool appendClientsJson(String& json, const String& phoneQuery, uint16_t& count) const;
-    bool appendRepairsJson(String& json, uint32_t clientId, uint16_t& count) const;
+
+    bool appendClientsJson(String& json, const String& phoneQuery,
+                           uint16_t& count) const;
+    bool appendMotorsJson(String& json, const String& nameQuery,
+                          uint16_t& count) const;
+    bool appendRepairsJson(String& json, uint32_t clientId,
+                           uint16_t& count) const;
+
     bool clientExists(uint32_t clientId) const;
+    bool motorExists(uint32_t motorId) const;
 
     static String normalizePhone(const String& phone);
 
 private:
     static constexpr const char* ClientsPath = "/data/workshop/clients.ndjson";
+    static constexpr const char* MotorsPath = "/data/workshop/motors.ndjson";
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 
     bool ensureDirectories();
     bool nextId(const char* path, const char* key, uint32_t& id) const;
+    bool idExists(const char* path, const char* key, uint32_t id) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);
     static String jsonEscape(const String& value);

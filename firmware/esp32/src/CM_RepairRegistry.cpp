@@ -38,11 +38,36 @@ bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
     return written == line.length();
 }
 
+bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
+{
+    motorId = 0UL;
+    if (!m_ready || motor.name.length() == 0U || motor.coilProgram.length() == 0U ||
+        !nextId(MotorsPath, "motor_id", motorId)) return false;
+
+    File file = m_storage.open(MotorsPath, FILE_APPEND);
+    if (!file) return false;
+    String line;
+    line.reserve(360U);
+    line = F("{\"motor_id\":"); line += motorId;
+    line += F(",\"name\":\""); line += jsonEscape(motor.name);
+    line += F("\",\"coil_program\":\""); line += jsonEscape(motor.coilProgram);
+    line += F("\",\"status\":\"ACTIVE\"");
+    if (motor.comment.length() > 0U)
+    {
+        line += F(",\"comment\":\""); line += jsonEscape(motor.comment); line += '"';
+    }
+    line += F("}\n");
+    const size_t written = file.print(line);
+    file.flush(); file.close();
+    return written == line.length();
+}
+
 bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
 {
     repairId = 0UL;
-    if (!m_ready || repair.clientId == 0UL || repair.motorName.length() == 0U ||
+    if (!m_ready || repair.clientId == 0UL || repair.motorId == 0UL ||
         repair.receivedAt.length() < 10U || !clientExists(repair.clientId) ||
+        !motorExists(repair.motorId) ||
         !nextId(RepairsPath, "repair_id", repairId)) return false;
 
     File file = m_storage.open(RepairsPath, FILE_APPEND);
@@ -51,8 +76,8 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
     line.reserve(420U);
     line = F("{\"repair_id\":"); line += repairId;
     line += F(",\"client_id\":"); line += repair.clientId;
-    line += F(",\"motor_name\":\""); line += jsonEscape(repair.motorName);
-    line += F("\",\"received_at\":\""); line += jsonEscape(repair.receivedAt);
+    line += F(",\"motor_id\":"); line += repair.motorId;
+    line += F(",\"received_at\":\""); line += jsonEscape(repair.receivedAt);
     line += F("\",\"status\":\"OPEN\"");
     if (repair.complaint.length() > 0U)
     {
@@ -83,8 +108,38 @@ bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
         const String line = file.readStringUntil('\n');
         String normalized;
         if (query.length() > 0U &&
-            (!findString(line, "phone_normalized", normalized) || normalized.indexOf(query) < 0))
-            continue;
+            (!findString(line, "phone_normalized", normalized) ||
+             normalized.indexOf(query) < 0)) continue;
+        if (!first) json += ',';
+        first = false;
+        json += line;
+        ++count;
+    }
+    file.close();
+    return true;
+}
+
+bool RepairRegistry::appendMotorsJson(String& json, const String& nameQuery,
+                                      uint16_t& count) const
+{
+    count = 0U;
+    if (!m_ready) return false;
+    if (!m_storage.exists(MotorsPath)) return true;
+    String query = nameQuery;
+    query.toLowerCase();
+    File file = m_storage.open(MotorsPath, FILE_READ);
+    if (!file) return false;
+    bool first = true;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (query.length() > 0U)
+        {
+            String name;
+            if (!findString(line, "name", name)) continue;
+            name.toLowerCase();
+            if (name.indexOf(query) < 0) continue;
+        }
         if (!first) json += ',';
         first = false;
         json += line;
@@ -121,14 +176,24 @@ bool RepairRegistry::appendRepairsJson(String& json, uint32_t clientId,
 
 bool RepairRegistry::clientExists(uint32_t clientId) const
 {
-    if (!m_ready || !m_storage.exists(ClientsPath)) return false;
-    File file = m_storage.open(ClientsPath, FILE_READ);
+    return idExists(ClientsPath, "client_id", clientId);
+}
+
+bool RepairRegistry::motorExists(uint32_t motorId) const
+{
+    return idExists(MotorsPath, "motor_id", motorId);
+}
+
+bool RepairRegistry::idExists(const char* path, const char* key, uint32_t id) const
+{
+    if (!m_ready || id == 0UL || !m_storage.exists(path)) return false;
+    File file = m_storage.open(path, FILE_READ);
     if (!file) return false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         uint32_t current = 0UL;
-        if (findUnsigned(line, "client_id", current) && current == clientId)
+        if (findUnsigned(line, key, current) && current == id)
         {
             file.close();
             return true;

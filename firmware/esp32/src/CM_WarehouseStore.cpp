@@ -50,7 +50,7 @@ bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpool
     }
 
     String line;
-    line.reserve(420U);
+    line.reserve(380U);
     line = F("{\"spool_id\":");
     line += assignedSpoolId;
     line += F(",\"diameter_hundredths_mm\":");
@@ -75,10 +75,6 @@ bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpool
     {
         line += F(",\"batch\":\""); line += jsonEscape(spool.batch); line += '"';
     }
-    if (spool.pricePerKgMinor > 0UL)
-    {
-        line += F(",\"price_per_kg_minor\":"); line += spool.pricePerKgMinor;
-    }
     if (spool.storageLocation.length() > 0U)
     {
         line += F(",\"storage_location\":\""); line += jsonEscape(spool.storageLocation); line += '"';
@@ -100,6 +96,57 @@ bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpool
     }
 
     return true;
+}
+
+bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
+{
+    if (!m_ready || price.pricePerKgMinor == 0UL || price.currency.length() != 3U)
+    {
+        return false;
+    }
+
+    File file = m_storage.open(PricePath, FILE_APPEND);
+    if (!file) return false;
+
+    String line;
+    line.reserve(96U);
+    line = F("{\"price_per_kg_minor\":");
+    line += price.pricePerKgMinor;
+    line += F(",\"currency\":\"");
+    line += jsonEscape(price.currency);
+    line += F("\"}\n");
+
+    const size_t written = file.print(line);
+    file.flush();
+    file.close();
+    return written == line.length();
+}
+
+bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const
+{
+    price = WarehousePrice();
+    if (!m_ready || !m_storage.exists(PricePath))
+    {
+        return false;
+    }
+
+    File file = m_storage.open(PricePath, FILE_READ);
+    if (!file) return false;
+
+    bool found = false;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t value = 0UL;
+        String currency;
+        if (!findUnsigned(line, "price_per_kg_minor", value)) continue;
+        if (!findString(line, "currency", currency)) currency = "KGS";
+        price.pricePerKgMinor = value;
+        price.currency = currency;
+        found = true;
+    }
+    file.close();
+    return found;
 }
 
 uint8_t WarehouseStore::summaryCount() const
@@ -255,16 +302,10 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
             continue;
         }
 
-        if (type != "WRITE_OFF")
-        {
-            continue;
-        }
+        if (type != "WRITE_OFF") continue;
 
         findString(line, "status", confirmed);
-        if (confirmed.length() > 0U && confirmed != "CONFIRMED")
-        {
-            continue;
-        }
+        if (confirmed.length() > 0U && confirmed != "CONFIRMED") continue;
 
         WireStockSummary* summary = findOrCreate(static_cast<uint16_t>(diameter));
         if (summary == nullptr) continue;
@@ -283,10 +324,7 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
 bool WarehouseStore::nextSpoolId(uint32_t& id) const
 {
     id = 1UL;
-    if (!m_storage.exists(SpoolsPath))
-    {
-        return true;
-    }
+    if (!m_storage.exists(SpoolsPath)) return true;
 
     File file = m_storage.open(SpoolsPath, FILE_READ);
     if (!file) return false;

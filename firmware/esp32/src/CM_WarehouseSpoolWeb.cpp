@@ -5,6 +5,7 @@ namespace CM
 void WarehouseWeb::beginSpoolList()
 {
     m_server.on("/api/warehouse/spools", HTTP_GET, [this]() { handleListSpools(); });
+    beginWriteOff();
 }
 
 void WarehouseWeb::handleListSpools()

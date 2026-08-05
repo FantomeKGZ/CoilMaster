@@ -258,6 +258,23 @@ bool StateMachine::takeEvent(WindingEvent& event)
     return true;
 }
 
+void StateMachine::setNextIdentifiers(uint32_t nextSessionId,
+                                      uint32_t nextRunId)
+{
+    m_nextSessionId = nextSessionId == 0UL ? 1UL : nextSessionId;
+    m_nextRunId = nextRunId == 0UL ? 1UL : nextRunId;
+}
+
+uint32_t StateMachine::nextSessionId() const
+{
+    return m_nextSessionId;
+}
+
+uint32_t StateMachine::nextRunId() const
+{
+    return m_nextRunId;
+}
+
 bool StateMachine::beginRun()
 {
     if (!m_job.hasMoreCoils())

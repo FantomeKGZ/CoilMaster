@@ -102,7 +102,11 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     }
 
     File file = m_storage.open(UsagePath, FILE_APPEND);
-    if (!file) return false;
+    if (!file)
+    {
+        restoreQuantity(usage.materialId, usage.quantityMilli);
+        return false;
+    }
 
     const uint64_t cost =
         static_cast<uint64_t>(usage.quantityMilli) * price / 1000ULL;
@@ -129,7 +133,11 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     const size_t written = file.print(line);
     file.flush();
     file.close();
-    if (written != line.length()) return false;
+    if (written != line.length())
+    {
+        restoreQuantity(usage.materialId, usage.quantityMilli);
+        return false;
+    }
 
     result.usageId = usageId;
     result.remainingQuantityMilli = remaining;
@@ -206,6 +214,54 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
             int end = start;
             while (end < line.length() && isDigit(line[end])) ++end;
             line = line.substring(0, start) + String(remainingMilli) + line.substring(end);
+            found = true;
+        }
+        if (target.println(line) == 0U) { valid = false; break; }
+    }
+
+    source.close();
+    target.flush();
+    target.close();
+    if (!valid || !found)
+    {
+        m_storage.remove(MaterialsTempPath);
+        return false;
+    }
+    m_storage.remove(MaterialsPath);
+    return m_storage.rename(MaterialsTempPath, MaterialsPath);
+}
+
+bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli)
+{
+    if (!m_storage.exists(MaterialsPath)) return false;
+    File source = m_storage.open(MaterialsPath, FILE_READ);
+    if (!source) return false;
+    m_storage.remove(MaterialsTempPath);
+    File target = m_storage.open(MaterialsTempPath, FILE_WRITE);
+    if (!target) { source.close(); return false; }
+
+    bool found = false;
+    bool valid = true;
+    while (source.available())
+    {
+        String line = source.readStringUntil('\n');
+        uint32_t currentId = 0UL;
+        if (findUnsigned(line, "material_id", currentId) && currentId == materialId)
+        {
+            uint32_t stock = 0UL;
+            if (!findUnsigned(line, "stock_quantity_milli", stock) ||
+                stock > 0xFFFFFFFFUL - quantityMilli)
+            {
+                valid = false;
+                break;
+            }
+            const uint32_t restored = stock + quantityMilli;
+            const String marker = F("\"stock_quantity_milli\":");
+            const int markerPos = line.indexOf(marker);
+            int start = markerPos + marker.length();
+            int end = start;
+            while (end < line.length() && isDigit(line[end])) ++end;
+            line = line.substring(0, start) + String(restored) + line.substring(end);
             found = true;
         }
         if (target.println(line) == 0U) { valid = false; break; }

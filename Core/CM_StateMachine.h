@@ -34,6 +34,10 @@ public:
 
     bool takeEvent(WindingEvent& event);
 
+    void setNextIdentifiers(uint32_t nextSessionId, uint32_t nextRunId);
+    uint32_t nextSessionId() const;
+    uint32_t nextRunId() const;
+
 private:
     bool beginRun();
     void finishActiveCoil();

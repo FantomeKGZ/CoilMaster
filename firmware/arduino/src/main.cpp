@@ -63,6 +63,7 @@ CM::UartEventTransport espTransport(CM::Pins::EspRx,
 CM::EepromPersistence persistence;
 
 CM::MachineState previousState = CM::MachineState::Fault;
+bool synchronizationError = false;
 
 CM::ITurnSource& activeTurnSource()
 {
@@ -159,7 +160,6 @@ void processCoreEvents()
     CM::WindingEvent event;
     while (machine.takeEvent(event))
     {
-        // Preserve monotonic IDs before any possible loss of power.
         persistence.saveNextIdentifiers(machine.nextSessionId(),
                                         machine.nextRunId());
 
@@ -170,6 +170,10 @@ void processCoreEvents()
         }
 
         const bool queued = persisted && espTransport.enqueue(event);
+        if (!queued)
+        {
+            synchronizationError = true;
+        }
 
         Serial.print(F("CM_UART "));
         Serial.print(queued ? F("QUEUED") : F("QUEUE_OR_EEPROM_FULL"));
@@ -201,15 +205,18 @@ void processUart(uint32_t nowMs)
         {
             case CM::UartDeliveryResult::Acknowledged:
                 persistence.removePendingCompleted(delivery.runId);
+                synchronizationError = false;
                 Serial.println(F("ACK"));
                 break;
 
             case CM::UartDeliveryResult::Duplicate:
                 persistence.removePendingCompleted(delivery.runId);
+                synchronizationError = false;
                 Serial.println(F("DUPLICATE"));
                 break;
 
             case CM::UartDeliveryResult::NegativeAcknowledgement:
+                synchronizationError = true;
                 Serial.println(F("NACK_RETRY"));
                 break;
 
@@ -230,9 +237,10 @@ void restorePersistentState()
     CM::WindingEvent event;
     for (uint8_t index = 0U; index < persistence.pendingCount(); ++index)
     {
-        if (persistence.pendingAt(index, event))
+        if (persistence.pendingAt(index, event) &&
+            !espTransport.enqueue(event))
         {
-            espTransport.enqueue(event);
+            synchronizationError = true;
         }
     }
 
@@ -260,7 +268,23 @@ void updateOutputs()
 #endif
 
 #if CM_FEATURE_LCD1602
-    lcdView.render(CM::UiModelBuilder::build(machine, input));
+    CM::UiModel model = CM::UiModelBuilder::build(machine, input);
+    model.pendingSyncCount = persistence.pendingCount();
+
+    if (synchronizationError)
+    {
+        model.syncState = CM::UiSyncState::Error;
+    }
+    else if (model.pendingSyncCount > 0U || espTransport.queuedCount() > 0U)
+    {
+        model.syncState = CM::UiSyncState::Pending;
+    }
+    else
+    {
+        model.syncState = CM::UiSyncState::Synchronized;
+    }
+
+    lcdView.render(model);
 #endif
 }
 } // namespace

@@ -48,6 +48,14 @@ void MaterialLedgerWeb::handleAdjust()
         return;
     }
 
+    const String timestamp = m_server.arg("timestamp");
+    if (timestamp.length() < 10U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"timestamp_required\"}");
+        return;
+    }
+
     String currency = m_server.hasArg("currency")
                           ? m_server.arg("currency")
                           : String("KGS");
@@ -64,6 +72,8 @@ void MaterialLedgerWeb::handleAdjust()
     adjustment.addQuantityMilli = addQuantity;
     adjustment.newPricePerUnitMinor = newPrice;
     adjustment.currency = currency;
+    adjustment.timestamp = timestamp;
+    adjustment.comment = m_server.arg("comment");
 
     MaterialAdjustmentResult result;
     if (!m_ledger.adjustMaterial(adjustment, result))
@@ -73,8 +83,9 @@ void MaterialLedgerWeb::handleAdjust()
         return;
     }
 
-    String response = F("{\"updated\":true,\"material_id\":");
-    response += materialId;
+    String response = F("{\"updated\":true,\"adjustment_id\":");
+    response += result.adjustmentId;
+    response += F(",\"material_id\":"); response += materialId;
     response += F(",\"stock_quantity_milli\":");
     response += result.stockQuantityMilli;
     response += F(",\"price_per_unit_minor\":");

@@ -12,6 +12,8 @@ UiModel::UiModel()
       currentTurns(0U),
       targetTurns(0U),
       completedRuns(0U),
+      pendingSyncCount(0U),
+      syncState(UiSyncState::Synchronized),
       windingType(WindingType::Working),
       jobSource(JobSource::LocalKeypad)
 {

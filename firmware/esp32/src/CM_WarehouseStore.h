@@ -17,13 +17,8 @@ struct WireStockSummary
     uint32_t consumedAllTimeGrams;
 
     WireStockSummary()
-        : diameterHundredthsMm(0U),
-          remainingGrams(0UL),
-          activeSpoolCount(0U),
-          consumedMonthGrams(0UL),
-          consumedAllTimeGrams(0UL)
-    {
-    }
+        : diameterHundredthsMm(0U), remainingGrams(0UL), activeSpoolCount(0U),
+          consumedMonthGrams(0UL), consumedAllTimeGrams(0UL) {}
 };
 
 struct NewWireSpool
@@ -37,11 +32,7 @@ struct NewWireSpool
     String storageLocation;
     String comment;
 
-    NewWireSpool()
-        : diameterHundredthsMm(0U),
-          currentWeightGrams(0UL)
-    {
-    }
+    NewWireSpool() : diameterHundredthsMm(0U), currentWeightGrams(0UL) {}
 };
 
 struct WarehousePrice
@@ -49,10 +40,7 @@ struct WarehousePrice
     uint32_t pricePerKgMinor;
     String currency;
 
-    WarehousePrice()
-        : pricePerKgMinor(0UL), currency("KGS")
-    {
-    }
+    WarehousePrice() : pricePerKgMinor(0UL), currency("KGS") {}
 };
 
 class WarehouseStore
@@ -62,23 +50,19 @@ public:
 
     bool begin();
     bool ready() const;
-
-    // Reads spool balances and confirmed repair write-offs from microSD.
-    // monthPrefix must be YYYY-MM, for example "2026-08".
     bool loadSummary(const char* monthPrefix);
-
-    // Appends a new active spool to spools.ndjson. Diameter and current
-    // weight are required; all descriptive fields may remain empty.
     bool addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId);
-
-    // One common price is used for all active wire spools. It is stored
-    // separately from spool records, so operators do not enter it repeatedly.
     bool setWarehousePrice(const WarehousePrice& price);
     bool loadWarehousePrice(WarehousePrice& price) const;
 
+    // Appends active spool objects to an existing JSON array body. A zero
+    // diameter returns every active spool; otherwise only the chosen diameter.
+    bool appendActiveSpoolsJson(String& json,
+                                uint16_t diameterHundredthsMm,
+                                uint16_t& appendedCount) const;
+
     uint8_t summaryCount() const;
     bool summaryAt(uint8_t index, WireStockSummary& summary) const;
-
     uint32_t totalRemainingGrams() const;
     uint32_t totalConsumedMonthGrams() const;
     uint32_t totalConsumedAllTimeGrams() const;

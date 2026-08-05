@@ -1,6 +1,8 @@
 #include "CM_WarehouseWeb.h"
 #include "CM_ConductorCalculatorWeb.h"
 #include "CM_ConductorSettingsWeb.h"
+#include "CM_MaterialLedger.h"
+#include "CM_MaterialLedgerWeb.h"
 
 namespace CM
 {
@@ -11,8 +13,13 @@ void WarehouseWeb::beginSpoolList()
 
     static ConductorCalculatorWeb calculatorWeb(m_server, m_store);
     static ConductorSettingsWeb conductorSettingsWeb(m_server, m_store);
+    static MaterialLedger materialLedger(m_store.storage());
+    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
+
     calculatorWeb.begin();
     conductorSettingsWeb.begin();
+    materialLedger.begin();
+    materialLedgerWeb.begin();
 }
 
 void WarehouseWeb::handleListSpools()

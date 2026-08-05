@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "CM_Types.h"
+#include "CM_WindingEvent.h"
 #include "CM_WindingJob.h"
 
 namespace CM
@@ -31,11 +32,21 @@ public:
     bool cancel();
     void setFault();
 
+    bool takeEvent(WindingEvent& event);
+
 private:
+    bool beginRun();
     void finishActiveCoil();
+    void publishEvent(WindingEventType type);
+    uint32_t allocateSessionId();
+    uint32_t allocateRunId();
 
     MachineState m_state;
     WindingJob m_job;
+    WindingEvent m_pendingEvent;
+    bool m_hasPendingEvent;
+    uint32_t m_nextSessionId;
+    uint32_t m_nextRunId;
 };
 }
 

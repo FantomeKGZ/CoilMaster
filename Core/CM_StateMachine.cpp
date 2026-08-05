@@ -4,7 +4,11 @@ namespace CM
 {
 StateMachine::StateMachine()
     : m_state(MachineState::EnterCoilCount),
-      m_job()
+      m_job(),
+      m_pendingEvent(),
+      m_hasPendingEvent(false),
+      m_nextSessionId(1UL),
+      m_nextRunId(1UL)
 {
     m_job.clear();
 }
@@ -14,6 +18,7 @@ void StateMachine::resetToHome()
     m_job.clear();
     m_job.status = JobStatus::Editing;
     m_state = MachineState::EnterCoilCount;
+    m_hasPendingEvent = false;
 }
 
 MachineState StateMachine::state() const
@@ -65,6 +70,8 @@ bool StateMachine::setCoilTurns(uint8_t index, uint16_t turns)
         }
     }
 
+    m_job.sessionId = allocateSessionId();
+    m_job.currentRunId = 0UL;
     m_job.currentCoil = 0U;
     m_job.currentTurns = 0U;
     m_job.completedRuns = 0U;
@@ -84,8 +91,14 @@ bool StateMachine::loadRemoteJob(const WindingJob& remoteJob)
     }
 
     m_job = remoteJob;
+    if (m_job.sessionId == 0UL)
+    {
+        m_job.sessionId = allocateSessionId();
+    }
+
     m_job.source = JobSource::Esp32Web;
     m_job.status = JobStatus::Ready;
+    m_job.currentRunId = 0UL;
     m_job.currentCoil = 0U;
     m_job.currentTurns = 0U;
     m_job.completedRuns = 0U;
@@ -102,12 +115,9 @@ bool StateMachine::startOrResume()
             return false;
         }
 
-        // Keep the same program active and begin a new factual run.
         m_job.currentCoil = 0U;
         m_job.currentTurns = 0U;
-        m_job.status = JobStatus::Running;
-        m_state = MachineState::Winding;
-        return true;
+        return beginRun();
     }
 
     if (m_state == MachineState::CoilComplete)
@@ -118,8 +128,12 @@ bool StateMachine::startOrResume()
         }
     }
 
-    if (m_state == MachineState::Ready ||
-        m_state == MachineState::Paused)
+    if (m_state == MachineState::Ready)
+    {
+        return beginRun();
+    }
+
+    if (m_state == MachineState::Paused)
     {
         if (!m_job.hasMoreCoils())
         {
@@ -202,6 +216,7 @@ bool StateMachine::acknowledgeCoilComplete()
         ++m_job.completedRuns;
         m_job.status = JobStatus::Completed;
         m_state = MachineState::JobComplete;
+        publishEvent(WindingEventType::RunCompleted);
     }
     else
     {
@@ -230,6 +245,33 @@ void StateMachine::setFault()
     m_state = MachineState::Fault;
 }
 
+bool StateMachine::takeEvent(WindingEvent& event)
+{
+    if (!m_hasPendingEvent)
+    {
+        return false;
+    }
+
+    event = m_pendingEvent;
+    m_pendingEvent = WindingEvent();
+    m_hasPendingEvent = false;
+    return true;
+}
+
+bool StateMachine::beginRun()
+{
+    if (!m_job.hasMoreCoils())
+    {
+        return false;
+    }
+
+    m_job.currentRunId = allocateRunId();
+    m_job.status = JobStatus::Running;
+    m_state = MachineState::Winding;
+    publishEvent(WindingEventType::RunStarted);
+    return true;
+}
+
 void StateMachine::finishActiveCoil()
 {
     const bool isLastCoil =
@@ -242,10 +284,42 @@ void StateMachine::finishActiveCoil()
         ++m_job.completedRuns;
         m_job.status = JobStatus::Completed;
         m_state = MachineState::JobComplete;
+        publishEvent(WindingEventType::RunCompleted);
         return;
     }
 
     m_job.status = JobStatus::Paused;
     m_state = MachineState::CoilComplete;
+}
+
+void StateMachine::publishEvent(WindingEventType type)
+{
+    m_pendingEvent.type = type;
+    m_pendingEvent.sessionId = m_job.sessionId;
+    m_pendingEvent.runId = m_job.currentRunId;
+    m_pendingEvent.completedRuns = m_job.completedRuns;
+    m_hasPendingEvent = true;
+}
+
+uint32_t StateMachine::allocateSessionId()
+{
+    const uint32_t result = m_nextSessionId;
+    ++m_nextSessionId;
+    if (m_nextSessionId == 0UL)
+    {
+        m_nextSessionId = 1UL;
+    }
+    return result;
+}
+
+uint32_t StateMachine::allocateRunId()
+{
+    const uint32_t result = m_nextRunId;
+    ++m_nextRunId;
+    if (m_nextRunId == 0UL)
+    {
+        m_nextRunId = 1UL;
+    }
+    return result;
 }
 }

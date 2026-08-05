@@ -50,6 +50,10 @@ public:
                            uint16_t& count) const;
     bool appendMotorsJson(String& json, const String& query,
                           uint16_t& count) const;
+    bool appendSimilarMotorsJson(String& json,
+                                 const NewMotor& candidate,
+                                 uint16_t& sameProgramCount,
+                                 uint16_t& identityMatchCount) const;
     bool appendRepairsJson(String& json, uint32_t clientId,
                            uint16_t& count) const;
 

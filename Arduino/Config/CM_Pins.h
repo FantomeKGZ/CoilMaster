@@ -19,6 +19,10 @@ constexpr uint8_t StartButton = 10U;
 constexpr uint8_t Buzzer = 11U;
 constexpr uint8_t Ssr = 12U;
 constexpr uint8_t Hall = A0;
+
+// SoftwareSerial: constructor order is RX, TX.
+// Arduino A1 (TX) -> LLC -> ESP32 GPIO16 (RX2)
+// Arduino A2 (RX) <- LLC <- ESP32 GPIO17 (TX2)
 constexpr uint8_t EspTx = A1;
 constexpr uint8_t EspRx = A2;
 }
@@ -30,6 +34,7 @@ constexpr uint16_t HallThreshold = 590U;
 constexpr uint16_t HallHysteresis = 50U;
 constexpr uint16_t StartDebounceMs = 40U;
 constexpr uint16_t SimulatedTurnIntervalMs = 250U;
+constexpr uint32_t EspUartBaud = 9600UL;
 }
 }
 

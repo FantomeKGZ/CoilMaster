@@ -209,7 +209,7 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
 
 bool WarehouseStore::findUnsigned(const String& line, const char* key, uint32_t& value)
 {
-    String marker = '"' + String(key) + F("\":");
+    const String marker = String("\"") + key + F("\":");
     const int start = line.indexOf(marker);
     if (start < 0) return false;
 
@@ -225,7 +225,7 @@ bool WarehouseStore::findUnsigned(const String& line, const char* key, uint32_t&
 
 bool WarehouseStore::findString(const String& line, const char* key, String& value)
 {
-    String marker = '"' + String(key) + F("\":\"");
+    const String marker = String("\"") + key + F("\":\"");
     const int start = line.indexOf(marker);
     if (start < 0) return false;
 

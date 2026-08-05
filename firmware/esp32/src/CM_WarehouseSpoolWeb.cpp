@@ -1,4 +1,5 @@
 #include "CM_WarehouseWeb.h"
+#include "CM_ConductorCalculatorWeb.h"
 
 namespace CM
 {
@@ -6,6 +7,9 @@ void WarehouseWeb::beginSpoolList()
 {
     m_server.on("/api/warehouse/spools", HTTP_GET, [this]() { handleListSpools(); });
     beginWriteOff();
+
+    static ConductorCalculatorWeb calculatorWeb(m_server, m_store);
+    calculatorWeb.begin();
 }
 
 void WarehouseWeb::handleListSpools()

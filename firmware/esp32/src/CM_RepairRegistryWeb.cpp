@@ -68,7 +68,9 @@ void RepairRegistryWeb::handleListMotors()
     String response = F("{\"items\":[");
     response.reserve(4096U);
     uint16_t count = 0U;
-    const String query = m_server.hasArg("name") ? m_server.arg("name") : String();
+    String query;
+    if (m_server.hasArg("q")) query = m_server.arg("q");
+    else if (m_server.hasArg("name")) query = m_server.arg("name");
     if (!m_registry.appendMotorsJson(response, query, count))
     {
         m_server.send(500, "application/json; charset=utf-8",
@@ -91,6 +93,9 @@ void RepairRegistryWeb::handleCreateMotor()
     }
     NewMotor motor;
     motor.name = m_server.arg("name");
+    motor.model = m_server.arg("model");
+    motor.manufacturer = m_server.arg("manufacturer");
+    motor.tags = m_server.arg("tags");
     motor.coilProgram = m_server.arg("coil_program");
     motor.comment = m_server.arg("comment");
     uint32_t motorId = 0UL;

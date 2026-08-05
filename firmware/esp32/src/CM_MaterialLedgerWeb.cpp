@@ -13,6 +13,8 @@ void MaterialLedgerWeb::begin()
     m_server.on("/api/materials", HTTP_GET, [this]() { handleList(); });
     m_server.on("/api/materials", HTTP_POST, [this]() { handleCreate(); });
     m_server.on("/api/materials/adjust", HTTP_POST, [this]() { handleAdjust(); });
+    m_server.on("/api/materials/adjustments", HTTP_GET,
+                [this]() { handleAdjustmentHistory(); });
     m_server.on("/api/materials/usage", HTTP_POST, [this]() { handleUsage(); });
     static RepairCosting repairCosting(SD);
     static RepairCostingWeb repairCostingWeb(m_server, repairCosting);

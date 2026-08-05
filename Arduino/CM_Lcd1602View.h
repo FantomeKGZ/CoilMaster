@@ -34,6 +34,8 @@ private:
     static void clearLine(char (&line)[Columns + 1U]);
     static void copyPadded(char (&destination)[Columns + 1U],
                            const char* source);
+    static void applySyncMarker(char (&line)[Columns + 1U],
+                                const UiModel& model);
     void writeLine(uint8_t row, const char* line);
 
     LiquidCrystal_I2C& m_lcd;

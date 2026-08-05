@@ -29,6 +29,79 @@ bool WarehouseStore::loadSummary(const char* monthPrefix)
     return readSpools() && readMovements(monthPrefix);
 }
 
+bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId)
+{
+    assignedSpoolId = 0UL;
+    if (!m_ready || spool.diameterHundredthsMm == 0U || spool.currentWeightGrams == 0UL)
+    {
+        return false;
+    }
+
+    if (!nextSpoolId(assignedSpoolId))
+    {
+        return false;
+    }
+
+    File file = m_storage.open(SpoolsPath, FILE_APPEND);
+    if (!file)
+    {
+        assignedSpoolId = 0UL;
+        return false;
+    }
+
+    String line;
+    line.reserve(420U);
+    line = F("{\"spool_id\":");
+    line += assignedSpoolId;
+    line += F(",\"diameter_hundredths_mm\":");
+    line += spool.diameterHundredthsMm;
+    line += F(",\"current_weight_g\":");
+    line += spool.currentWeightGrams;
+    line += F(",\"status\":\"ACTIVE\"");
+
+    if (spool.wireType.length() > 0U)
+    {
+        line += F(",\"wire_type\":\""); line += jsonEscape(spool.wireType); line += '"';
+    }
+    if (spool.manufacturer.length() > 0U)
+    {
+        line += F(",\"manufacturer\":\""); line += jsonEscape(spool.manufacturer); line += '"';
+    }
+    if (spool.supplier.length() > 0U)
+    {
+        line += F(",\"supplier\":\""); line += jsonEscape(spool.supplier); line += '"';
+    }
+    if (spool.batch.length() > 0U)
+    {
+        line += F(",\"batch\":\""); line += jsonEscape(spool.batch); line += '"';
+    }
+    if (spool.pricePerKgMinor > 0UL)
+    {
+        line += F(",\"price_per_kg_minor\":"); line += spool.pricePerKgMinor;
+    }
+    if (spool.storageLocation.length() > 0U)
+    {
+        line += F(",\"storage_location\":\""); line += jsonEscape(spool.storageLocation); line += '"';
+    }
+    if (spool.comment.length() > 0U)
+    {
+        line += F(",\"comment\":\""); line += jsonEscape(spool.comment); line += '"';
+    }
+
+    line += F("}\n");
+    const size_t written = file.print(line);
+    file.flush();
+    file.close();
+
+    if (written != line.length())
+    {
+        assignedSpoolId = 0UL;
+        return false;
+    }
+
+    return true;
+}
+
 uint8_t WarehouseStore::summaryCount() const
 {
     return m_summaryCount;
@@ -207,6 +280,34 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
     return true;
 }
 
+bool WarehouseStore::nextSpoolId(uint32_t& id) const
+{
+    id = 1UL;
+    if (!m_storage.exists(SpoolsPath))
+    {
+        return true;
+    }
+
+    File file = m_storage.open(SpoolsPath, FILE_READ);
+    if (!file) return false;
+
+    uint32_t maximum = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t candidate = 0UL;
+        if (findUnsigned(line, "spool_id", candidate) && candidate > maximum)
+        {
+            maximum = candidate;
+        }
+    }
+    file.close();
+
+    if (maximum == 0xFFFFFFFFUL) return false;
+    id = maximum + 1UL;
+    return true;
+}
+
 bool WarehouseStore::findUnsigned(const String& line, const char* key, uint32_t& value)
 {
     const String marker = String("\"") + key + F("\":");
@@ -235,5 +336,27 @@ bool WarehouseStore::findString(const String& line, const char* key, String& val
 
     value = line.substring(valueStart, valueEnd);
     return true;
+}
+
+String WarehouseStore::jsonEscape(const String& value)
+{
+    String escaped;
+    escaped.reserve(value.length() + 8U);
+    for (size_t i = 0U; i < value.length(); ++i)
+    {
+        const char ch = value[i];
+        switch (ch)
+        {
+            case '\\': escaped += F("\\\\"); break;
+            case '"': escaped += F("\\\""); break;
+            case '\n': escaped += F("\\n"); break;
+            case '\r': escaped += F("\\r"); break;
+            case '\t': escaped += F("\\t"); break;
+            default:
+                if (static_cast<uint8_t>(ch) >= 0x20U) escaped += ch;
+                break;
+        }
+    }
+    return escaped;
 }
 }

@@ -1,0 +1,35 @@
+name: ESP32 Build
+
+on:
+  push:
+    branches:
+      - main
+      - cmp-protocol-v1
+    paths:
+      - "firmware/esp32/**"
+      - "platformio.ini"
+      - ".github/workflows/esp32-build.yml"
+  pull_request:
+    paths:
+      - "firmware/esp32/**"
+      - "platformio.ini"
+      - ".github/workflows/esp32-build.yml"
+
+jobs:
+  build-esp32:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build ESP32 firmware
+        run: pio run -e esp32

@@ -95,6 +95,11 @@ public:
                                      uint32_t materialId,
                                      uint16_t limit,
                                      uint16_t& count) const;
+    bool appendUsageHistoryJson(String& json,
+                                uint32_t repairId,
+                                uint32_t materialId,
+                                uint16_t limit,
+                                uint16_t& count) const;
     bool confirmUsage(const RepairMaterialUsage& usage,
                       RepairMaterialUsageResult& result);
 

@@ -2,6 +2,16 @@
 
 namespace CM
 {
+namespace
+{
+void appendUnsigned64(String& target, uint64_t value)
+{
+    char buffer[24];
+    snprintf(buffer, sizeof(buffer), "%llu", static_cast<unsigned long long>(value));
+    target += buffer;
+}
+}
+
 WarehouseWeb::WarehouseWeb(WebServer& server, WarehouseStore& store)
     : m_server(server), m_store(store)
 {
@@ -54,9 +64,11 @@ void WarehouseWeb::handleSummary()
     response += F(",\"currency\":\"");
     response += price.currency;
     response += F("\",\"stock_value_minor\":");
-    response += priceConfigured
-                    ? static_cast<uint64_t>(m_store.totalRemainingGrams()) * price.pricePerKgMinor / 1000ULL
-                    : 0ULL;
+    const uint64_t stockValue = priceConfigured
+                                    ? static_cast<uint64_t>(m_store.totalRemainingGrams()) *
+                                          price.pricePerKgMinor / 1000ULL
+                                    : 0ULL;
+    appendUnsigned64(response, stockValue);
     response += F(",\"diameters\":[");
 
     bool first = true;
@@ -78,9 +90,11 @@ void WarehouseWeb::handleSummary()
         response += F(",\"consumed_all_time_g\":");
         response += item.consumedAllTimeGrams;
         response += F(",\"remaining_value_minor\":");
-        response += priceConfigured
-                        ? static_cast<uint64_t>(item.remainingGrams) * price.pricePerKgMinor / 1000ULL
-                        : 0ULL;
+        const uint64_t remainingValue = priceConfigured
+                                            ? static_cast<uint64_t>(item.remainingGrams) *
+                                                  price.pricePerKgMinor / 1000ULL
+                                            : 0ULL;
+        appendUnsigned64(response, remainingValue);
         response += '}';
     }
 

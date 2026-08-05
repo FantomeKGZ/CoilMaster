@@ -18,6 +18,8 @@ public:
 private:
     void handleSummary();
     void handleCreateSpool();
+    void handleGetPrice();
+    void handleSetPrice();
     static bool validMonth(const String& month);
     static bool parseUnsignedArg(WebServer& server,
                                  const char* name,

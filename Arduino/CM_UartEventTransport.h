@@ -5,6 +5,7 @@
 #include <SoftwareSerial.h>
 
 #include "../Core/CM_WindingEvent.h"
+#include "../Core/CM_WindingJob.h"
 
 namespace CM
 {
@@ -36,13 +37,15 @@ public:
     bool enqueue(const WindingEvent& event);
     void update(uint32_t nowMs);
     bool takeDeliveryEvent(UartDeliveryEvent& event);
+    bool takeRemoteJob(WindingJob& job);
+    void sendJobResult(uint32_t jobId, bool accepted, const char* reason);
 
     uint8_t queuedCount() const;
     bool waitingForAck() const;
 
 private:
     static constexpr uint8_t QueueCapacity = 4U;
-    static constexpr size_t MaxReplyLength = 64U;
+    static constexpr size_t MaxReplyLength = 128U;
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;
 
@@ -50,11 +53,13 @@ private:
     bool writeFrame(const WindingEvent& event);
     void pollReplies(uint32_t nowMs);
     void processReply(char* line, uint32_t nowMs);
+    bool parseRemoteJob(char* line, WindingJob& job) const;
     void removeFront();
     void publishDelivery(UartDeliveryResult result, uint32_t runId);
 
     static const char* eventName(WindingEventType type);
     static uint16_t crc16Modbus(const uint8_t* data, size_t length);
+    static bool parseHex16(const char* text, uint16_t& value);
 
     SoftwareSerial m_serial;
     uint32_t m_baudRate;
@@ -68,6 +73,8 @@ private:
     size_t m_replyLength;
     UartDeliveryEvent m_deliveryEvent;
     bool m_hasDeliveryEvent;
+    WindingJob m_remoteJob;
+    bool m_hasRemoteJob;
 };
 }
 

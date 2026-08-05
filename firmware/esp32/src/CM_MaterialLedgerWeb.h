@@ -20,6 +20,7 @@ private:
     void handleAdjust();
     void handleAdjustmentHistory();
     void handleUsage();
+    void handleUsageHistory();
     static bool parseUnsigned(WebServer& server,
                               const char* name,
                               uint32_t minimum,

@@ -21,6 +21,7 @@ class WarehouseStore
 public:
     explicit WarehouseStore(fs::FS& storage);
     bool begin(); bool ready() const; bool loadSummary(const char* monthPrefix);
+    fs::FS& storage() { return m_storage; }
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
     bool setWarehousePrice(const WarehousePrice& price); bool loadWarehousePrice(WarehousePrice& price) const;

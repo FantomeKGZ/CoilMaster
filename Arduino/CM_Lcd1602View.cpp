@@ -143,6 +143,7 @@ void Lcd1602View::buildLines(const UiModel& model,
 
     copyPadded(line1, buffer1);
     copyPadded(line2, buffer2);
+    applySyncMarker(line1, model);
 }
 
 void Lcd1602View::clearLine(char (&line)[Columns + 1U])
@@ -167,6 +168,32 @@ void Lcd1602View::copyPadded(char (&destination)[Columns + 1U],
     const size_t length = strlen(source);
     const size_t copyLength = length < Columns ? length : Columns;
     memcpy(destination, source, copyLength);
+}
+
+void Lcd1602View::applySyncMarker(char (&line)[Columns + 1U],
+                                  const UiModel& model)
+{
+    const uint8_t displayedCount = model.pendingSyncCount > 9U
+                                       ? 9U
+                                       : model.pendingSyncCount;
+
+    line[13] = ' ';
+    if (model.syncState == UiSyncState::Error)
+    {
+        line[14] = 'E';
+        line[15] = static_cast<char>('0' + displayedCount);
+    }
+    else if (model.syncState == UiSyncState::Pending ||
+             model.pendingSyncCount > 0U)
+    {
+        line[14] = 'P';
+        line[15] = static_cast<char>('0' + displayedCount);
+    }
+    else
+    {
+        line[14] = 'O';
+        line[15] = 'K';
+    }
 }
 
 void Lcd1602View::writeLine(uint8_t row, const char* line)

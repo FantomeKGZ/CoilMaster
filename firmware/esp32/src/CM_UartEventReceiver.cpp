@@ -47,14 +47,12 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
     return false;
 }
 
-void UartEventReceiver::sendAck(const RemoteWindingEvent& event)
+void UartEventReceiver::sendAck(uint32_t runId, const char* status)
 {
     m_serial.print(F("CMP1|ACK|"));
-    m_serial.print(event.runId);
+    m_serial.print(runId);
     m_serial.print('|');
-    m_serial.println(event.type == RemoteEventType::RunCompleted
-                         ? F("SAVED")
-                         : F("RECEIVED"));
+    m_serial.println(status != nullptr ? status : "RECEIVED");
 }
 
 void UartEventReceiver::sendNack(uint32_t runId, const char* reason)

@@ -27,6 +27,7 @@ bool WindingJournalHealth::inspect(WindingJournalHealthReport& report) const
 
     uint32_t activeRunId = 0UL;
     uint32_t activeSessionId = 0UL;
+    uint32_t counterSessionId = 0UL;
     uint16_t lastCompletedRuns = 0U;
 
     while (file.available())
@@ -66,6 +67,12 @@ bool WindingJournalHealth::inspect(WindingJournalHealthReport& report) const
                 continue;
             }
 
+            if (counterSessionId != sessionId)
+            {
+                counterSessionId = sessionId;
+                lastCompletedRuns = 0U;
+            }
+
             activeRunId = runId;
             activeSessionId = sessionId;
             continue;
@@ -73,7 +80,8 @@ bool WindingJournalHealth::inspect(WindingJournalHealthReport& report) const
 
         ++report.completedCount;
         if (activeRunId == 0UL || runId != activeRunId ||
-            sessionId != activeSessionId || completedRuns == 0UL ||
+            sessionId != activeSessionId || sessionId != counterSessionId ||
+            completedRuns == 0UL ||
             completedRuns != static_cast<uint32_t>(lastCompletedRuns) + 1UL)
         {
             report.sequenceConsistent = false;

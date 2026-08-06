@@ -25,8 +25,9 @@ public:
     fs::FS& storage() { return m_storage; }
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
     bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
+    bool repairExists(uint32_t repairId) const;
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
-    bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams,uint64_t& totalValueMinor,WriteOffMaterialTotals& materialTotals) const;
+    bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams,uint64_t& totalConsumedValueMinor,WriteOffMaterialTotals& materialTotals) const;
     bool setWarehousePrice(const WarehousePrice& price); bool loadWarehousePrice(WarehousePrice& price) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;
@@ -43,6 +44,7 @@ private:
     static constexpr const char* SpoolsTempPath="/data/warehouse/spools.tmp";
     static constexpr const char* MovementsPath="/data/warehouse/movements.ndjson";
     static constexpr const char* PricePath="/data/warehouse/price.ndjson";
+    static constexpr const char* RepairsPath="/data/workshop/repairs.ndjson";
     static constexpr const char* ConversionSettingsPath="/data/settings/conductor.json";
     bool ensureDirectories(); void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;

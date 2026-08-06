@@ -204,9 +204,17 @@ void RepairCostingWeb::handleSavePricing()
         return;
     }
 
-    const String currency = m_server.hasArg("currency") ? m_server.arg("currency") : String("KGS");
+    String currency = m_server.hasArg("currency") ? m_server.arg("currency") : String("KGS");
+    currency.trim();
+    currency.toUpperCase();
     const String timestamp = m_server.arg("timestamp");
-    if (currency.length() != 3U || timestamp.length() < 10U)
+    if (currency != "KGS")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"unsupported_currency\",\"supported_currency\":\"KGS\"}");
+        return;
+    }
+    if (timestamp.length() < 10U)
     {
         m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_costing_fields\"}");
         return;
@@ -216,12 +224,19 @@ void RepairCostingWeb::handleSavePricing()
         clientPrice == current.clientPriceMinor &&
         currency == current.currency)
     {
-        String unchanged = F("{\"saved\":false,\"unchanged\":true,\"current_revision\":");
+        String unchanged = F("{\"saved\":false,\"unchanged\":true,\"write_performed\":false,\"current_revision\":");
         unchanged += current.pricingRevisionCount;
         unchanged += F(",\"new_revision\":");
         unchanged += current.pricingRevisionCount;
-        unchanged += F(",\"revision_source\":\"APPEND_ONLY_LOG\"}");
+        unchanged += F(",\"revision_advanced\":false,\"revision_source\":\"APPEND_ONLY_LOG\"}");
         m_server.send(200, "application/json; charset=utf-8", unchanged);
+        return;
+    }
+
+    if (current.pricingRevisionCount == 0xFFFFU)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"pricing_revision_limit_reached\",\"current_revision\":65535,\"revision_limit\":65535,\"write_performed\":false}");
         return;
     }
 
@@ -231,11 +246,11 @@ void RepairCostingWeb::handleSavePricing()
         return;
     }
 
-    String response = F("{\"saved\":true,\"unchanged\":false,\"previous_revision\":");
+    String response = F("{\"saved\":true,\"unchanged\":false,\"write_performed\":true,\"previous_revision\":");
     response += current.pricingRevisionCount;
     response += F(",\"new_revision\":");
     response += static_cast<uint32_t>(current.pricingRevisionCount) + 1UL;
-    response += F(",\"revision_source\":\"APPEND_ONLY_LOG\"}");
+    response += F(",\"revision_advanced\":true,\"revision_source\":\"APPEND_ONLY_LOG\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

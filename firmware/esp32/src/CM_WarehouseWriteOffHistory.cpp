@@ -6,10 +6,12 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
                                                    uint32_t repairId,
                                                    uint16_t& appendedCount,
                                                    uint32_t& totalConsumedGrams,
+                                                   uint64_t& totalValueMinor,
                                                    WriteOffMaterialTotals& materialTotals) const
 {
     appendedCount = 0U;
     totalConsumedGrams = 0UL;
+    totalValueMinor = 0ULL;
     materialTotals = WriteOffMaterialTotals();
     if (!m_ready || repairId == 0UL) return false;
     if (!m_storage.exists(MovementsPath)) return true;
@@ -56,6 +58,12 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
         findString(line, "timestamp", timestamp);
         findString(line, "comment", comment);
 
+        const uint64_t consumedValueMinor =
+            (static_cast<uint64_t>(mass) * static_cast<uint64_t>(price) + 500ULL) / 1000ULL;
+        char valueBuffer[24];
+        snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+                 static_cast<unsigned long long>(consumedValueMinor));
+
         if (!first) json += ',';
         first = false;
         json += F("{\"movement_id\":"); json += movementId;
@@ -74,6 +82,7 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
         json += F(",\"weight_after_g\":"); json += after;
         json += F(",\"consumed_g\":"); json += mass;
         json += F(",\"price_per_kg_minor\":"); json += price;
+        json += F(",\"consumed_value_minor\":"); json += valueBuffer;
         json += F(",\"currency\":\""); json += jsonEscape(currency.length() > 0U ? currency : String("KGS")); json += '"';
         json += F(",\"timestamp\":\""); json += jsonEscape(timestamp); json += '"';
         if (comment.length() > 0U)
@@ -84,19 +93,23 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
 
         ++appendedCount;
         totalConsumedGrams += mass;
+        totalValueMinor += consumedValueMinor;
         if (wireType == "CU")
         {
             materialTotals.copperGrams += mass;
+            materialTotals.copperValueMinor += consumedValueMinor;
             if (materialTotals.copperCount < 0xFFFFU) ++materialTotals.copperCount;
         }
         else if (wireType == "AL")
         {
             materialTotals.aluminiumGrams += mass;
+            materialTotals.aluminiumValueMinor += consumedValueMinor;
             if (materialTotals.aluminiumCount < 0xFFFFU) ++materialTotals.aluminiumCount;
         }
         else
         {
             materialTotals.unknownGrams += mass;
+            materialTotals.unknownValueMinor += consumedValueMinor;
             if (materialTotals.unknownCount < 0xFFFFU) ++materialTotals.unknownCount;
         }
     }

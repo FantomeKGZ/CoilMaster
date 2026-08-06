@@ -53,12 +53,15 @@ void ConductorCalculatorWeb::handleCalculate()
     }
 
     KnownWireDiameter known[WarehouseMaxDiameters];
-    const uint8_t knownCount =
-        m_warehouse.loadKnownWireDiameters(known, WarehouseMaxDiameters);
+    const char* targetWireType = materialText(targetMaterial);
+    const uint8_t knownCount = m_warehouse.loadKnownWireDiameters(
+        targetWireType, known, WarehouseMaxDiameters);
     if (knownCount == 0U)
     {
-        m_server.send(404, "application/json; charset=utf-8",
-                      "{\"error\":\"wire_catalogue_empty\"}");
+        String error = F("{\"error\":\"wire_catalogue_empty_for_material\",\"target_material\":\"");
+        error += targetWireType;
+        error += F("\"}");
+        m_server.send(404, "application/json; charset=utf-8", error);
         return;
     }
 
@@ -82,12 +85,14 @@ void ConductorCalculatorWeb::handleCalculate()
     String response;
     response.reserve(3200U);
     response = F("{\"source_material\":\""); response += materialText(sourceMaterial);
-    response += F("\",\"target_material\":\""); response += materialText(targetMaterial);
+    response += F("\",\"target_material\":\""); response += targetWireType;
     response += F("\",\"source_diameter_hundredths_mm\":"); response += source.diameterHundredthsMm;
     response += F(",\"source_parallel_strands\":"); response += source.parallelStrands;
     response += F(",\"required_target_area_um2\":");
     response += ConductorCalculator::requiredTargetAreaMicrometre2(source, targetMaterial, settings);
-    response += F(",\"catalogue_diameter_count\":"); response += knownCount;
+    response += F(",\"catalogue_material\":\""); response += targetWireType;
+    response += F("\",\"catalogue_diameter_count\":"); response += knownCount;
+    response += F(",\"legacy_unknown_material_excluded\":true");
     response += F(",\"settings_source\":\"PERSISTED\"");
     response += F(",\"aluminium_to_copper_permille\":"); response += settings.aluminiumToCopperPermille;
     response += F(",\"copper_to_aluminium_permille\":"); response += settings.copperToAluminiumPermille;

@@ -15,6 +15,7 @@ public:
 
 private:
     void handleGet();
+    void handlePricingHistory();
     void handleSavePricing();
     static bool parseUnsigned(WebServer& server,const char* name,uint32_t minValue,uint32_t maxValue,uint32_t& value);
     static bool parseUnsigned64(WebServer& server,const char* name,uint64_t& value);

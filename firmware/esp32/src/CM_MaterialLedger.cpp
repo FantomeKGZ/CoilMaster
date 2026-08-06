@@ -126,7 +126,8 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     if (!materialFound) return false;
 
     const uint64_t cost =
-        static_cast<uint64_t>(usage.quantityMilli) * price / 1000ULL;
+        (static_cast<uint64_t>(usage.quantityMilli) *
+         static_cast<uint64_t>(price) + 500ULL) / 1000ULL;
     char costBuffer[24];
     snprintf(costBuffer, sizeof(costBuffer), "%llu",
              static_cast<unsigned long long>(cost));

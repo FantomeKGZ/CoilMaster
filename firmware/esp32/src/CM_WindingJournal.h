@@ -31,8 +31,10 @@ private:
     static constexpr const char* JournalPath = "/data/winding-runs/events.ndjson";
 
     bool ensureDirectories();
-    bool containsRunEvent(uint32_t runId, RemoteEventType type) const;
-    bool loadRunStartSession(uint32_t runId, uint32_t& sessionId) const;
+    bool containsRunEvent(uint32_t sessionId,
+                          uint32_t runId,
+                          RemoteEventType type) const;
+    bool hasRunStart(uint32_t sessionId, uint32_t runId) const;
     bool loadSessionCompletedRuns(uint32_t sessionId,
                                   uint16_t& completedRuns) const;
     bool loadActiveRun(uint32_t sessionId,

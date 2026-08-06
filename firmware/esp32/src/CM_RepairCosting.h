@@ -49,6 +49,7 @@ public:
     bool begin();
     bool ready() const;
     bool load(uint32_t repairId, RepairCostSummary& summary) const;
+    bool appendPricingRevisionsJson(String& json,uint32_t repairId,uint16_t& appendedCount) const;
     bool savePricing(uint32_t repairId,
                      uint64_t labourCostMinor,
                      uint64_t clientPriceMinor,

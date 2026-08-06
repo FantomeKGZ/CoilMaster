@@ -33,9 +33,19 @@ void RepairCostingWeb::handleGet()
     const uint32_t materialWireLines = static_cast<uint32_t>(summary.copperWireLineCount) +
                                        static_cast<uint32_t>(summary.aluminiumWireLineCount) +
                                        static_cast<uint32_t>(summary.unknownWireLineCount);
+    const uint64_t lossMinor = summary.totalCostMinor > summary.clientPriceMinor
+                                   ? summary.totalCostMinor - summary.clientPriceMinor
+                                   : 0ULL;
+    const char* pricingStatus = "NOT_SET";
+    if (summary.clientPriceMinor > 0ULL)
+    {
+        if (summary.clientPriceMinor > summary.totalCostMinor) pricingStatus = "PROFIT";
+        else if (summary.clientPriceMinor == summary.totalCostMinor) pricingStatus = "BREAK_EVEN";
+        else pricingStatus = "LOSS";
+    }
 
     String response;
-    response.reserve(1160U);
+    response.reserve(1280U);
     response = F("{\"repair_id\":"); response += repairId;
     response += F(",\"wire_line_count\":"); response += summary.wireLineCount;
     response += F(",\"material_line_count\":"); response += summary.materialLineCount;
@@ -59,7 +69,11 @@ void RepairCostingWeb::handleGet()
     response += F(",\"labour_cost_minor\":"); appendUInt64(response, summary.labourCostMinor);
     response += F(",\"total_cost_minor\":"); appendUInt64(response, summary.totalCostMinor);
     response += F(",\"client_price_minor\":"); appendUInt64(response, summary.clientPriceMinor);
+    response += F(",\"client_price_set\":");
+    response += summary.clientPriceMinor > 0ULL ? F("true") : F("false");
     response += F(",\"margin_minor\":"); appendUInt64(response, summary.marginMinor);
+    response += F(",\"loss_minor\":"); appendUInt64(response, lossMinor);
+    response += F(",\"pricing_status\":\""); response += pricingStatus; response += '"';
     response += F(",\"currency\":\""); response += summary.currency; response += F("\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }

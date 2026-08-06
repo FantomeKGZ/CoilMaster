@@ -32,7 +32,9 @@ bool WarehouseStore::loadSummary(const char* monthPrefix)
 bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId)
 {
     assignedSpoolId = 0UL;
-    if (!m_ready || spool.diameterHundredthsMm == 0U || spool.currentWeightGrams == 0UL)
+    if (!m_ready || spool.diameterHundredthsMm == 0U ||
+        spool.currentWeightGrams == 0UL ||
+        (spool.wireType != "CU" && spool.wireType != "AL"))
     {
         return false;
     }
@@ -57,12 +59,10 @@ bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpool
     line += spool.diameterHundredthsMm;
     line += F(",\"current_weight_g\":");
     line += spool.currentWeightGrams;
-    line += F(",\"status\":\"ACTIVE\"");
+    line += F(",\"wire_type\":\"");
+    line += spool.wireType;
+    line += F("\",\"status\":\"ACTIVE\"");
 
-    if (spool.wireType.length() > 0U)
-    {
-        line += F(",\"wire_type\":\""); line += jsonEscape(spool.wireType); line += '"';
-    }
     if (spool.manufacturer.length() > 0U)
     {
         line += F(",\"manufacturer\":\""); line += jsonEscape(spool.manufacturer); line += '"';

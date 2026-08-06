@@ -39,7 +39,7 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
         return JournalSaveResult::InvalidTransition;
     }
 
-    if (containsRunEvent(event.runId, event.type))
+    if (containsRunEvent(event.sessionId, event.runId, event.type))
     {
         return JournalSaveResult::Duplicate;
     }
@@ -64,9 +64,8 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
 
     if (event.type == RemoteEventType::RunCompleted)
     {
-        uint32_t startedSessionId = 0UL;
-        if (!loadRunStartSession(event.runId, startedSessionId) ||
-            startedSessionId != event.sessionId || event.completedRuns == 0U)
+        if (!hasRunStart(event.sessionId, event.runId) ||
+            event.completedRuns == 0U)
         {
             return JournalSaveResult::InvalidTransition;
         }
@@ -109,27 +108,27 @@ bool WindingJournal::ensureDirectories()
     return true;
 }
 
-bool WindingJournal::containsRunEvent(uint32_t runId,
+bool WindingJournal::containsRunEvent(uint32_t sessionId,
+                                      uint32_t runId,
                                       RemoteEventType type) const
 {
+    if (!m_fileSystem.exists(JournalPath)) return false;
+
     File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file)
-    {
-        return false;
-    }
+    if (!file) return false;
 
-    char needle[72];
-    snprintf(needle,
-             sizeof(needle),
-             "\"run_id\":%lu,\"event\":\"%s\"",
-             static_cast<unsigned long>(runId),
-             eventTypeName(type));
-
-    String line;
     while (file.available())
     {
-        line = file.readStringUntil('\n');
-        if (line.indexOf(needle) >= 0)
+        const String line = file.readStringUntil('\n');
+        if (line.indexOf(String("\"event\":\"") + eventTypeName(type) + '"') < 0)
+            continue;
+
+        uint32_t lineSessionId = 0UL;
+        uint32_t lineRunId = 0UL;
+        if (findUnsigned(line, "session_id", lineSessionId) &&
+            lineSessionId == sessionId &&
+            findUnsigned(line, "run_id", lineRunId) &&
+            lineRunId == runId)
         {
             file.close();
             return true;
@@ -140,30 +139,9 @@ bool WindingJournal::containsRunEvent(uint32_t runId,
     return false;
 }
 
-bool WindingJournal::loadRunStartSession(uint32_t runId,
-                                         uint32_t& sessionId) const
+bool WindingJournal::hasRunStart(uint32_t sessionId, uint32_t runId) const
 {
-    sessionId = 0UL;
-    File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
-
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        uint32_t lineRunId = 0UL;
-        String eventMarker = F("\"event\":\"RUN_STARTED\"");
-        if (line.indexOf(eventMarker) < 0 ||
-            !findUnsigned(line, "run_id", lineRunId) || lineRunId != runId ||
-            !findUnsigned(line, "session_id", sessionId))
-        {
-            continue;
-        }
-        file.close();
-        return sessionId > 0UL;
-    }
-
-    file.close();
-    return false;
+    return containsRunEvent(sessionId, runId, RemoteEventType::RunStarted);
 }
 
 bool WindingJournal::loadSessionCompletedRuns(uint32_t sessionId,

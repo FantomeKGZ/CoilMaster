@@ -28,7 +28,7 @@ void WarehouseWeb::handleListWriteOffs()
     }
 
     String response;
-    response.reserve(4350U);
+    response.reserve(4480U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
@@ -45,6 +45,14 @@ void WarehouseWeb::handleListWriteOffs()
                       "{\"error\":\"write_off_history_read_failed\"}");
         return;
     }
+
+    const uint32_t materialConsumed = materialTotals.copperGrams +
+                                      materialTotals.aluminiumGrams +
+                                      materialTotals.unknownGrams;
+    const uint32_t materialCount = static_cast<uint32_t>(materialTotals.copperCount) +
+                                   static_cast<uint32_t>(materialTotals.aluminiumCount) +
+                                   static_cast<uint32_t>(materialTotals.unknownCount);
+
     response += F("],\"count\":"); response += count;
     response += F(",\"total_consumed_g\":"); response += totalConsumed;
     response += F(",\"material_totals\":{");
@@ -54,7 +62,12 @@ void WarehouseWeb::handleListWriteOffs()
     response += F(",\"count\":"); response += materialTotals.aluminiumCount;
     response += F("},\"UNKNOWN\":{\"consumed_g\":"); response += materialTotals.unknownGrams;
     response += F(",\"count\":"); response += materialTotals.unknownCount;
-    response += F("}},\"material_totals_source\":\"SERVER\"}");
+    response += F("}},\"material_totals_source\":\"SERVER\"");
+    response += F(",\"material_totals_match_total\":");
+    response += materialConsumed == totalConsumed ? F("true") : F("false");
+    response += F(",\"material_count_match_count\":");
+    response += materialCount == static_cast<uint32_t>(count) ? F("true") : F("false");
+    response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

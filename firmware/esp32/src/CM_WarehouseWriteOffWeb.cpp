@@ -26,6 +26,12 @@ void WarehouseWeb::handleListWriteOffs()
                       "{\"error\":\"repair_id_required\"}");
         return;
     }
+    if (!m_store.repairExists(repairId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_not_found\"}");
+        return;
+    }
 
     String response;
     response.reserve(4800U);
@@ -114,6 +120,12 @@ void WarehouseWeb::handleConfirmWriteOff()
                       "{\"error\":\"invalid_write_off_fields\"}");
         return;
     }
+    if (!m_store.repairExists(repairId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_not_found\"}");
+        return;
+    }
 
     if (after >= before)
     {
@@ -146,8 +158,15 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
+    const uint64_t consumedValueMinor =
+        (static_cast<uint64_t>(result.consumedGrams) * result.pricePerKgMinor + 500ULL) /
+        1000ULL;
+    char valueBuffer[24];
+    snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+             static_cast<unsigned long long>(consumedValueMinor));
+
     String response;
-    response.reserve(320U);
+    response.reserve(390U);
     response = F("{\"confirmed\":true,\"movement_id\":");
     response += result.movementId;
     response += F(",\"spool_id\":"); response += spoolId;
@@ -163,11 +182,12 @@ void WarehouseWeb::handleConfirmWriteOff()
     response += F(",\"legacy_unknown_material\":");
     response += result.wireType.length() > 0U ? F("false") : F("true");
     response += F(",\"consumed_g\":"); response += result.consumedGrams;
+    response += F(",\"consumed_value_minor\":"); response += valueBuffer;
     response += F(",\"current_weight_g\":"); response += after;
     response += F(",\"price_per_kg_minor\":");
     response += result.pricePerKgMinor;
     response += F(",\"currency\":\""); response += result.currency;
-    response += F("\"}");
+    response += F("\",\"value_rounding\":\"NEAREST_MINOR_UNIT\"}");
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 }

@@ -53,6 +53,13 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
         {
             return JournalSaveResult::InvalidTransition;
         }
+
+        uint32_t highestRunId = 0UL;
+        if (!loadSessionHighestRunId(event.sessionId, highestRunId) ||
+            event.runId <= highestRunId)
+        {
+            return JournalSaveResult::InvalidTransition;
+        }
     }
 
     if (event.type == RemoteEventType::RunCompleted)
@@ -231,6 +238,37 @@ bool WindingJournal::loadActiveRun(uint32_t sessionId,
             runId = 0UL;
             found = false;
         }
+    }
+
+    file.close();
+    return true;
+}
+
+bool WindingJournal::loadSessionHighestRunId(uint32_t sessionId,
+                                             uint32_t& highestRunId) const
+{
+    highestRunId = 0UL;
+    if (!m_fileSystem.exists(JournalPath)) return true;
+
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.indexOf(F("\"event\":\"RUN_STARTED\"")) < 0)
+            continue;
+
+        uint32_t lineSessionId = 0UL;
+        uint32_t lineRunId = 0UL;
+        if (!findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId != sessionId ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL)
+        {
+            continue;
+        }
+
+        if (lineRunId > highestRunId) highestRunId = lineRunId;
     }
 
     file.close();

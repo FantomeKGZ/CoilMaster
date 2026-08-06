@@ -12,6 +12,8 @@ namespace CM
 void WarehouseWeb::beginSpoolList()
 {
     m_server.on("/api/warehouse/spools", HTTP_GET, [this]() { handleListSpools(); });
+    m_server.on("/api/warehouse/spools/material", HTTP_POST,
+                [this]() { handleAssignLegacySpoolMaterial(); });
     m_server.on("/api/warehouse/material-summary", HTTP_GET,
                 [this]() { handleMaterialSummary(); });
     beginWriteOff();
@@ -31,6 +33,49 @@ void WarehouseWeb::beginSpoolList()
     repairRegistry.begin();
     repairRegistryWeb.begin();
     motorSimilarityWeb.begin();
+}
+
+void WarehouseWeb::handleAssignLegacySpoolMaterial()
+{
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
+    uint32_t spoolId = 0UL;
+    if (!parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_spool_id\"}");
+        return;
+    }
+
+    String material = m_server.hasArg("wire_type")
+                          ? m_server.arg("wire_type")
+                          : String();
+    material.toUpperCase();
+    if (material != "CU" && material != "AL")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"wire_type_required_cu_or_al\"}");
+        return;
+    }
+
+    if (!m_store.assignLegacySpoolMaterial(spoolId, material))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"legacy_spool_material_not_assigned\"}");
+        return;
+    }
+
+    String response = F("{\"updated\":true,\"spool_id\":");
+    response += spoolId;
+    response += F(",\"wire_type\":\"");
+    response += material;
+    response += F("\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void WarehouseWeb::handleMaterialSummary()

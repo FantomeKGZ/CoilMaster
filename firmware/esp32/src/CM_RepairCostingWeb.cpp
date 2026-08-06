@@ -22,6 +22,12 @@ void RepairCostingWeb::handlePricingHistory()
                       "{\"error\":\"invalid_repair_id\"}");
         return;
     }
+    if (!m_costing.repairExists(repairId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_not_found\"}");
+        return;
+    }
 
     RepairCostSummary current;
     if (!m_costing.load(repairId, current))
@@ -88,6 +94,12 @@ void RepairCostingWeb::handleGet()
     if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
     {
         m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_repair_id\"}");
+        return;
+    }
+    if (!m_costing.repairExists(repairId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_not_found\"}");
         return;
     }
 
@@ -184,6 +196,12 @@ void RepairCostingWeb::handleSavePricing()
         !parseUnsigned64(m_server, "client_price_minor", clientPrice))
     {
         m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_costing_fields\"}");
+        return;
+    }
+    if (!m_costing.repairExists(repairId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_not_found\"}");
         return;
     }
 

@@ -14,7 +14,7 @@ struct NewWireSpool{uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;St
 struct WarehousePrice{uint32_t pricePerKgMinor;String currency;WarehousePrice():pricePerKgMinor(0UL),currency("KGS") {}};
 struct ConfirmedSpoolWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t weightBeforeGrams;uint32_t weightAfterGrams;String timestamp;String comment;ConfirmedSpoolWriteOff():spoolId(0UL),repairId(0UL),weightBeforeGrams(0UL),weightAfterGrams(0UL){}};
 struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;String wireType;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
-struct WriteOffMaterialTotals{uint32_t copperGrams;uint32_t aluminiumGrams;uint32_t unknownGrams;uint16_t copperCount;uint16_t aluminiumCount;uint16_t unknownCount;WriteOffMaterialTotals():copperGrams(0UL),aluminiumGrams(0UL),unknownGrams(0UL),copperCount(0U),aluminiumCount(0U),unknownCount(0U){}};
+struct WriteOffMaterialTotals{uint32_t copperGrams;uint32_t aluminiumGrams;uint32_t unknownGrams;uint64_t copperValueMinor;uint64_t aluminiumValueMinor;uint64_t unknownValueMinor;uint16_t copperCount;uint16_t aluminiumCount;uint16_t unknownCount;WriteOffMaterialTotals():copperGrams(0UL),aluminiumGrams(0UL),unknownGrams(0UL),copperValueMinor(0ULL),aluminiumValueMinor(0ULL),unknownValueMinor(0ULL),copperCount(0U),aluminiumCount(0U),unknownCount(0U){}};
 struct KnownWireDiameter{uint16_t diameterHundredthsMm;uint32_t availableGrams;KnownWireDiameter():diameterHundredthsMm(0U),availableGrams(0UL){}};
 
 class WarehouseStore
@@ -26,7 +26,7 @@ public:
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
     bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
-    bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams,WriteOffMaterialTotals& materialTotals) const;
+    bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams,uint64_t& totalValueMinor,WriteOffMaterialTotals& materialTotals) const;
     bool setWarehousePrice(const WarehousePrice& price); bool loadWarehousePrice(WarehousePrice& price) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;

@@ -31,14 +31,15 @@ bool OutgoingWindingJob::isValid() const
 }
 
 JobDeliveryEvent::JobDeliveryEvent()
-    : result(JobDeliveryResult::None), jobId(0UL)
+    : result(JobDeliveryResult::None), jobId(0UL), sendAttempts(0U)
 {
 }
 
 UartEventReceiver::UartEventReceiver(HardwareSerial& serial)
     : m_serial(serial), m_line(), m_length(0U), m_pendingJob(),
       m_hasPendingJob(false), m_waitingJobAck(false),
-      m_lastJobSendMs(0UL), m_jobDelivery(), m_hasJobDelivery(false)
+      m_lastJobSendMs(0UL), m_jobSendAttempts(0U),
+      m_jobDelivery(), m_hasJobDelivery(false)
 {
 }
 
@@ -84,11 +85,28 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
 void UartEventReceiver::update(uint32_t nowMs)
 {
     if (!m_hasPendingJob) return;
-    if (!m_waitingJobAck ||
-        static_cast<uint32_t>(nowMs - m_lastJobSendMs) >= JobRetryIntervalMs)
+
+    if (!m_waitingJobAck)
     {
         sendPendingJob(nowMs);
+        return;
     }
+
+    if (static_cast<uint32_t>(nowMs - m_lastJobSendMs) < JobRetryIntervalMs)
+        return;
+
+    if (m_jobSendAttempts >= MaxJobSendAttempts)
+    {
+        publishJobDelivery(JobDeliveryResult::TimedOut,
+                           m_pendingJob.jobId,
+                           m_jobSendAttempts);
+        m_hasPendingJob = false;
+        m_waitingJobAck = false;
+        m_jobSendAttempts = 0U;
+        return;
+    }
+
+    sendPendingJob(nowMs);
 }
 
 bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
@@ -97,6 +115,7 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
     m_pendingJob = job;
     m_hasPendingJob = true;
     m_waitingJobAck = false;
+    m_jobSendAttempts = 0U;
     return true;
 }
 
@@ -211,18 +230,29 @@ bool UartEventReceiver::processJobAck(char* line)
     if (!parseDecimal32(jobText, jobId) || jobId != m_pendingJob.jobId)
         return false;
 
-    const bool accepted = strcmp(status, "ACCEPTED") == 0;
-    publishJobDelivery(accepted ? JobDeliveryResult::Accepted
-                                : JobDeliveryResult::Rejected,
-                       jobId);
+    JobDeliveryResult result = JobDeliveryResult::None;
+    if (strcmp(status, "ACCEPTED") == 0)
+        result = JobDeliveryResult::Accepted;
+    else if (strcmp(status, "REJECTED") == 0)
+        result = JobDeliveryResult::Rejected;
+    else
+        return false;
+
+    publishJobDelivery(result, jobId, m_jobSendAttempts);
     m_hasPendingJob = false;
     m_waitingJobAck = false;
+    m_jobSendAttempts = 0U;
     return true;
 }
 
 bool UartEventReceiver::sendPendingJob(uint32_t nowMs)
 {
-    if (!m_hasPendingJob || !writeJobFrame(m_pendingJob)) return false;
+    if (!m_hasPendingJob || m_jobSendAttempts >= MaxJobSendAttempts ||
+        !writeJobFrame(m_pendingJob))
+    {
+        return false;
+    }
+    ++m_jobSendAttempts;
     m_waitingJobAck = true;
     m_lastJobSendMs = nowMs;
     return true;
@@ -266,10 +296,12 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
 }
 
 void UartEventReceiver::publishJobDelivery(JobDeliveryResult result,
-                                           uint32_t jobId)
+                                           uint32_t jobId,
+                                           uint8_t sendAttempts)
 {
     m_jobDelivery.result = result;
     m_jobDelivery.jobId = jobId;
+    m_jobDelivery.sendAttempts = sendAttempts;
     m_hasJobDelivery = true;
 }
 

@@ -28,17 +28,19 @@ void WarehouseWeb::handleListWriteOffs()
     }
 
     String response;
-    response.reserve(4480U);
+    response.reserve(4800U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
     uint16_t count = 0U;
     uint32_t totalConsumed = 0UL;
+    uint64_t totalValueMinor = 0ULL;
     WriteOffMaterialTotals materialTotals;
     if (!m_store.appendConfirmedWriteOffsJson(response,
                                                repairId,
                                                count,
                                                totalConsumed,
+                                               totalValueMinor,
                                                materialTotals))
     {
         m_server.send(500, "application/json; charset=utf-8",
@@ -52,22 +54,40 @@ void WarehouseWeb::handleListWriteOffs()
     const uint32_t materialCount = static_cast<uint32_t>(materialTotals.copperCount) +
                                    static_cast<uint32_t>(materialTotals.aluminiumCount) +
                                    static_cast<uint32_t>(materialTotals.unknownCount);
+    const uint64_t materialValue = materialTotals.copperValueMinor +
+                                   materialTotals.aluminiumValueMinor +
+                                   materialTotals.unknownValueMinor;
+    char valueBuffer[24];
 
     response += F("],\"count\":"); response += count;
     response += F(",\"total_consumed_g\":"); response += totalConsumed;
+    snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+             static_cast<unsigned long long>(totalValueMinor));
+    response += F(",\"total_consumed_value_minor\":"); response += valueBuffer;
     response += F(",\"material_totals\":{");
     response += F("\"CU\":{\"consumed_g\":"); response += materialTotals.copperGrams;
     response += F(",\"count\":"); response += materialTotals.copperCount;
+    snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+             static_cast<unsigned long long>(materialTotals.copperValueMinor));
+    response += F(",\"consumed_value_minor\":"); response += valueBuffer;
     response += F("},\"AL\":{\"consumed_g\":"); response += materialTotals.aluminiumGrams;
     response += F(",\"count\":"); response += materialTotals.aluminiumCount;
+    snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+             static_cast<unsigned long long>(materialTotals.aluminiumValueMinor));
+    response += F(",\"consumed_value_minor\":"); response += valueBuffer;
     response += F("},\"UNKNOWN\":{\"consumed_g\":"); response += materialTotals.unknownGrams;
     response += F(",\"count\":"); response += materialTotals.unknownCount;
+    snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+             static_cast<unsigned long long>(materialTotals.unknownValueMinor));
+    response += F(",\"consumed_value_minor\":"); response += valueBuffer;
     response += F("}},\"material_totals_source\":\"SERVER\"");
     response += F(",\"material_totals_match_total\":");
     response += materialConsumed == totalConsumed ? F("true") : F("false");
     response += F(",\"material_count_match_count\":");
     response += materialCount == static_cast<uint32_t>(count) ? F("true") : F("false");
-    response += '}';
+    response += F(",\"material_values_match_total\":");
+    response += materialValue == totalValueMinor ? F("true") : F("false");
+    response += F(",\"value_rounding\":\"NEAREST_MINOR_UNIT\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

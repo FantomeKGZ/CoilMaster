@@ -23,8 +23,16 @@ void RepairCostingWeb::handlePricingHistory()
         return;
     }
 
+    RepairCostSummary current;
+    if (!m_costing.load(repairId, current))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"pricing_history_unavailable\"}");
+        return;
+    }
+
     String response;
-    response.reserve(4096U);
+    response.reserve(4352U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
@@ -39,6 +47,25 @@ void RepairCostingWeb::handlePricingHistory()
     response += count;
     response += F(",\"latest_revision\":");
     response += count;
+    response += F(",\"current_pricing\":{\"labour_cost_minor\":");
+    appendUInt64(response, current.labourCostMinor);
+    response += F(",\"client_price_minor\":");
+    appendUInt64(response, current.clientPriceMinor);
+    response += F(",\"currency\":\"");
+    response += current.currency;
+    response += F("\",\"updated_at\":");
+    if (current.pricingUpdatedAt.length() > 0U)
+    {
+        response += '"'; response += current.pricingUpdatedAt; response += '"';
+    }
+    else response += F("null");
+    response += F("},\"history_count_matches_current\":");
+    response += count == current.pricingRevisionCount ? F("true") : F("false");
+    response += F(",\"history_latest_timestamp_matches_current\":");
+    const bool timestampMatches = (count == 0U && current.pricingUpdatedAt.length() == 0U) ||
+                                  (count > 0U && current.pricingUpdatedAt.length() > 0U);
+    response += timestampMatches ? F("true") : F("false");
+    response += F(",\"current_pricing_source\":\"LATEST_APPEND_ONLY_REVISION\"");
     response += F(",\"source\":\"APPEND_ONLY_LOG\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }

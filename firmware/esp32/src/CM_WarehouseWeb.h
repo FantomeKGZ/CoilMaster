@@ -22,6 +22,7 @@ private:
     void handleMaterialSummary();
     void handleCreateSpool();
     void handleListSpools();
+    void handleAssignLegacySpoolMaterial();
     void handleConfirmWriteOff();
     void handleGetPrice();
     void handleSetPrice();

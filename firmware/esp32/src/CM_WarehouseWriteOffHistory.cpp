@@ -5,10 +5,12 @@ namespace CM
 bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
                                                    uint32_t repairId,
                                                    uint16_t& appendedCount,
-                                                   uint32_t& totalConsumedGrams) const
+                                                   uint32_t& totalConsumedGrams,
+                                                   WriteOffMaterialTotals& materialTotals) const
 {
     appendedCount = 0U;
     totalConsumedGrams = 0UL;
+    materialTotals = WriteOffMaterialTotals();
     if (!m_ready || repairId == 0UL) return false;
     if (!m_storage.exists(MovementsPath)) return true;
 
@@ -82,6 +84,21 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
 
         ++appendedCount;
         totalConsumedGrams += mass;
+        if (wireType == "CU")
+        {
+            materialTotals.copperGrams += mass;
+            if (materialTotals.copperCount < 0xFFFFU) ++materialTotals.copperCount;
+        }
+        else if (wireType == "AL")
+        {
+            materialTotals.aluminiumGrams += mass;
+            if (materialTotals.aluminiumCount < 0xFFFFU) ++materialTotals.aluminiumCount;
+        }
+        else
+        {
+            materialTotals.unknownGrams += mass;
+            if (materialTotals.unknownCount < 0xFFFFU) ++materialTotals.unknownCount;
+        }
     }
     file.close();
     return true;

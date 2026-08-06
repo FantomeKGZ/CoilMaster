@@ -26,6 +26,8 @@ struct RepairCostSummary
     uint16_t aluminiumWireLineCount;
     uint16_t unknownWireLineCount;
     uint16_t materialLineCount;
+    uint16_t pricingRevisionCount;
+    String pricingUpdatedAt;
     String currency;
 
     RepairCostSummary()
@@ -35,7 +37,8 @@ struct RepairCostSummary
           clientPriceMinor(0ULL), marginMinor(0ULL), copperWireGrams(0UL),
           aluminiumWireGrams(0UL), unknownWireGrams(0UL), wireLineCount(0U),
           copperWireLineCount(0U), aluminiumWireLineCount(0U),
-          unknownWireLineCount(0U), materialLineCount(0U), currency("KGS") {}
+          unknownWireLineCount(0U), materialLineCount(0U), pricingRevisionCount(0U),
+          currency("KGS") {}
 };
 
 class RepairCosting

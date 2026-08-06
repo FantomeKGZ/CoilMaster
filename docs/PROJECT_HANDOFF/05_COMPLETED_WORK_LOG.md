@@ -392,7 +392,7 @@ ae58c1908d570f4489a0d58cd9167fd7e6b4c257 monotonic run declaration
 5d8dcea4800485f5dcecd8357fa43b96cfed5ff5 monotonic run implementation
 ```
 
-Последние два коммита на момент создания handoff ещё требуют подтверждения сборкой.
+Последние два коммита на момент создания исходного handoff требовали подтверждения сборкой.
 
 ## 20. Надёжность доставки задания
 
@@ -436,3 +436,52 @@ d790bae05532b71f1a828be47ec1f2cb12c1f622
 ```
 
 Они не должны случайно объявляться уже реализованными.
+
+## 2026-08-06 — Составная идентичность события и семантика session_id
+
+Цель:
+
+- сверить handoff с актуальным кодом ветки;
+- закрыть риск дедупликации только по `run_id`;
+- определить следующую точку разработки.
+
+Изменено:
+
+- подтверждено по актуальному коду, что `containsRunEvent()` уже принимает `sessionId`, `runId` и тип;
+- подтверждено, что `hasRunStart()` проверяет точную пару session/run;
+- создан документ составной идентичности события;
+- создан контракт семантики `session_id` для следующей реализации;
+- обновлены текущее состояние и точка продолжения.
+
+Файлы:
+
+```text
+docs/80_COMPOSITE_WINDING_EVENT_IDENTITY.md
+docs/81_WINDING_SESSION_ID_SEMANTICS.md
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
+docs/PROJECT_HANDOFF/05_COMPLETED_WORK_LOG.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+```
+
+Коммиты:
+
+```text
+7235f1e7e54e8603191685035e38eaeb333fef2e  composite event identity
+0aa21ae9b3f6ee0fe5871eb500846d99732e882b  session semantics
+5d8fc943c2b0c82af98b9f945df6ccb4370e2659  current state
+c4d71262850e112386808857149a3f58b4ce1408  active next steps
+```
+
+Проверка:
+
+`NOT VERIFIED` — подключённый GitHub API не вернул workflow runs/status checks для прямых коммитов. Не заявлять GREEN до явной проверки `ESP32 Build` и `CMP Protocol Tests`.
+
+Ограничения:
+
+- устойчивый allocator `session_id` ещё не реализован;
+- неизменяемый job snapshot ещё не реализован;
+- текущий протокол событий ещё не связывает `RUN_STARTED/RUN_COMPLETED` с `job_id`.
+
+Следующий шаг:
+
+Найти фактический путь создания `OutgoingWindingJob`, существующий генератор `jobId/sessionId` и вызов `queueJob()`, затем спроектировать и реализовать минимальный устойчивый allocator без дублирования текущей логики.

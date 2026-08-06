@@ -218,6 +218,8 @@ void RepairCostingWeb::handleSavePricing()
     {
         String unchanged = F("{\"saved\":false,\"unchanged\":true,\"current_revision\":");
         unchanged += current.pricingRevisionCount;
+        unchanged += F(",\"new_revision\":");
+        unchanged += current.pricingRevisionCount;
         unchanged += F(",\"revision_source\":\"APPEND_ONLY_LOG\"}");
         m_server.send(200, "application/json; charset=utf-8", unchanged);
         return;

@@ -19,6 +19,7 @@ public:
 
 private:
     void handleSummary();
+    void handleMaterialSummary();
     void handleCreateSpool();
     void handleListSpools();
     void handleConfirmWriteOff();

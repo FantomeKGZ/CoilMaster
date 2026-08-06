@@ -25,6 +25,7 @@ public:
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
     bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
+    bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams) const;
     bool setWarehousePrice(const WarehousePrice& price); bool loadWarehousePrice(WarehousePrice& price) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;

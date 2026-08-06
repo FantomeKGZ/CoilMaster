@@ -135,6 +135,23 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
     return true;
 }
 
+bool UartEventReceiver::cancelPendingJob(const char* detail)
+{
+    if (!m_hasPendingJob || m_hasJobDelivery || !isValidJobAckDetail(detail))
+        return false;
+
+    publishJobDelivery(JobDeliveryResult::Cancelled,
+                       m_pendingJob.jobId,
+                       m_jobSendAttempts,
+                       detail != nullptr ? detail : "CANCELLED");
+    m_pendingJob = OutgoingWindingJob();
+    m_hasPendingJob = false;
+    m_waitingJobAck = false;
+    m_lastJobSendMs = 0UL;
+    m_jobSendAttempts = 0U;
+    return true;
+}
+
 bool UartEventReceiver::takeJobDelivery(JobDeliveryEvent& event)
 {
     if (!m_hasJobDelivery) return false;

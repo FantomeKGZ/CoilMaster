@@ -16,7 +16,7 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
 {
     summary = RepairCostSummary();
     summary.repairId = repairId;
-    if (!m_ready || repairId == 0UL) return false;
+    if (!m_ready || repairId == 0UL || !repairExists(repairId)) return false;
 
     if (m_storage.exists(WireMovementsPath))
     {
@@ -118,7 +118,8 @@ bool RepairCosting::savePricing(uint32_t repairId,
                                 const String& currency,
                                 const String& timestamp)
 {
-    if (!m_ready || repairId == 0UL || currency.length() != 3U || timestamp.length() < 10U)
+    if (!m_ready || repairId == 0UL || !repairExists(repairId) ||
+        currency.length() != 3U || timestamp.length() < 10U)
         return false;
     File file = m_storage.open(PricingPath, FILE_APPEND);
     if (!file) return false;

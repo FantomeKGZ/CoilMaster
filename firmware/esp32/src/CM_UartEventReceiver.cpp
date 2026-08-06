@@ -111,7 +111,7 @@ void UartEventReceiver::update(uint32_t nowMs)
 
 bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 {
-    if (m_hasPendingJob || !job.isValid()) return false;
+    if (m_hasPendingJob || m_hasJobDelivery || !job.isValid()) return false;
     m_pendingJob = job;
     m_hasPendingJob = true;
     m_waitingJobAck = false;

@@ -206,13 +206,30 @@ void RepairCostingWeb::handleSavePricing()
 
     const String currency = m_server.hasArg("currency") ? m_server.arg("currency") : String("KGS");
     const String timestamp = m_server.arg("timestamp");
+    if (currency.length() != 3U || timestamp.length() < 10U)
+    {
+        m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_costing_fields\"}");
+        return;
+    }
+
+    if (labour == current.labourCostMinor &&
+        clientPrice == current.clientPriceMinor &&
+        currency == current.currency)
+    {
+        String unchanged = F("{\"saved\":false,\"unchanged\":true,\"current_revision\":");
+        unchanged += current.pricingRevisionCount;
+        unchanged += F(",\"revision_source\":\"APPEND_ONLY_LOG\"}");
+        m_server.send(200, "application/json; charset=utf-8", unchanged);
+        return;
+    }
+
     if (!m_costing.savePricing(repairId, labour, clientPrice, currency, timestamp))
     {
         m_server.send(500, "application/json; charset=utf-8", "{\"error\":\"pricing_write_failed\"}");
         return;
     }
 
-    String response = F("{\"saved\":true,\"previous_revision\":");
+    String response = F("{\"saved\":true,\"unchanged\":false,\"previous_revision\":");
     response += current.pricingRevisionCount;
     response += F(",\"new_revision\":");
     response += static_cast<uint32_t>(current.pricingRevisionCount) + 1UL;

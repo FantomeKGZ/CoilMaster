@@ -29,6 +29,7 @@ public:
     bool loadConversionSettings(ConversionSettings& settings) const;
     bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,uint16_t& appendedCount) const;
     uint8_t loadKnownWireDiameters(KnownWireDiameter* items,uint8_t capacity) const;
+    uint8_t loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity) const;
     uint8_t summaryCount() const; bool summaryAt(uint8_t index,WireStockSummary& summary) const;
     uint32_t totalRemainingGrams() const; uint32_t totalConsumedMonthGrams() const; uint32_t totalConsumedAllTimeGrams() const;
 

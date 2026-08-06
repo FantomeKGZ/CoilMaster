@@ -24,6 +24,7 @@ private:
     void handleListSpools();
     void handleAssignLegacySpoolMaterial();
     void handleConfirmWriteOff();
+    void handleListWriteOffs();
     void handleGetPrice();
     void handleSetPrice();
     static bool validMonth(const String& month);

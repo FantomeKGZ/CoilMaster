@@ -175,12 +175,32 @@ void RepairCostingWeb::handleGet()
 void RepairCostingWeb::handleSavePricing()
 {
     uint32_t repairId = 0UL;
-    uint64_t labour = 0ULL, clientPrice = 0ULL;
+    uint32_t expectedRevision = 0UL;
+    uint64_t labour = 0ULL;
+    uint64_t clientPrice = 0ULL;
     if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId) ||
+        !parseUnsigned(m_server, "expected_revision", 0UL, 0xFFFFUL, expectedRevision) ||
         !parseUnsigned64(m_server, "labour_cost_minor", labour) ||
         !parseUnsigned64(m_server, "client_price_minor", clientPrice))
     {
         m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_costing_fields\"}");
+        return;
+    }
+
+    RepairCostSummary current;
+    if (!m_costing.load(repairId, current))
+    {
+        m_server.send(503, "application/json; charset=utf-8", "{\"error\":\"costing_unavailable\"}");
+        return;
+    }
+    if (expectedRevision != current.pricingRevisionCount)
+    {
+        String conflict = F("{\"error\":\"pricing_revision_conflict\",\"expected_revision\":");
+        conflict += expectedRevision;
+        conflict += F(",\"current_revision\":");
+        conflict += current.pricingRevisionCount;
+        conflict += F(",\"reload_required\":true}");
+        m_server.send(409, "application/json; charset=utf-8", conflict);
         return;
     }
 
@@ -191,7 +211,13 @@ void RepairCostingWeb::handleSavePricing()
         m_server.send(500, "application/json; charset=utf-8", "{\"error\":\"pricing_write_failed\"}");
         return;
     }
-    m_server.send(200, "application/json; charset=utf-8", "{\"saved\":true}");
+
+    String response = F("{\"saved\":true,\"previous_revision\":");
+    response += current.pricingRevisionCount;
+    response += F(",\"new_revision\":");
+    response += static_cast<uint32_t>(current.pricingRevisionCount) + 1UL;
+    response += F(",\"revision_source\":\"APPEND_ONLY_LOG\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 bool RepairCostingWeb::parseUnsigned(WebServer& server,const char* name,uint32_t minValue,uint32_t maxValue,uint32_t& value)
@@ -205,9 +231,13 @@ bool RepairCostingWeb::parseUnsigned(WebServer& server,const char* name,uint32_t
 
 bool RepairCostingWeb::parseUnsigned64(WebServer& server,const char* name,uint64_t& value)
 {
-    if(!server.hasArg(name))return false; const String source=server.arg(name); if(source.length()==0U)return false;
-    for(size_t i=0U;i<source.length();++i)if(!isDigit(source[i]))return false;
-    value=strtoull(source.c_str(),nullptr,10); return true;
+    if (!server.hasArg(name)) return false;
+    const String source = server.arg(name);
+    if (source.length() == 0U) return false;
+    for (size_t i = 0U; i < source.length(); ++i)
+        if (!isDigit(source[i])) return false;
+    value = strtoull(source.c_str(), nullptr, 10);
+    return true;
 }
 
 void RepairCostingWeb::appendUInt64(String& target,uint64_t value)

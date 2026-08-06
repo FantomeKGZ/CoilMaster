@@ -6,6 +6,44 @@ void WarehouseWeb::beginWriteOff()
 {
     m_server.on("/api/warehouse/write-offs", HTTP_POST,
                 [this]() { handleConfirmWriteOff(); });
+    m_server.on("/api/warehouse/write-offs", HTTP_GET,
+                [this]() { handleListWriteOffs(); });
+}
+
+void WarehouseWeb::handleListWriteOffs()
+{
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
+    uint32_t repairId = 0UL;
+    if (!parseUnsignedArg(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_id_required\"}");
+        return;
+    }
+
+    String response;
+    response.reserve(4096U);
+    response = F("{\"repair_id\":");
+    response += repairId;
+    response += F(",\"items\":[");
+    uint16_t count = 0U;
+    uint32_t totalConsumed = 0UL;
+    if (!m_store.appendConfirmedWriteOffsJson(response, repairId, count, totalConsumed))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"write_off_history_read_failed\"}");
+        return;
+    }
+    response += F("],\"count\":"); response += count;
+    response += F(",\"total_consumed_g\":"); response += totalConsumed;
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void WarehouseWeb::handleConfirmWriteOff()
@@ -76,10 +114,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     {
         response += '"'; response += result.wireType; response += '"';
     }
-    else
-    {
-        response += F("null");
-    }
+    else response += F("null");
     response += F(",\"legacy_unknown_material\":");
     response += result.wireType.length() > 0U ? F("false") : F("true");
     response += F(",\"consumed_g\":"); response += result.consumedGrams;

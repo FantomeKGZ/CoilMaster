@@ -59,6 +59,7 @@ public:
 
     bool begin();
     bool ready() const;
+    bool repairExists(uint32_t repairId) const;
     bool load(uint32_t repairId, RepairCostSummary& summary) const;
     bool appendPricingRevisionsJson(String& json,
                                     uint32_t repairId,
@@ -74,6 +75,7 @@ private:
     static constexpr const char* WireMovementsPath = "/data/warehouse/movements.ndjson";
     static constexpr const char* MaterialUsagePath = "/data/materials/usage.ndjson";
     static constexpr const char* PricingPath = "/data/repairs/pricing.ndjson";
+    static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 
     bool ensureDirectories();
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);

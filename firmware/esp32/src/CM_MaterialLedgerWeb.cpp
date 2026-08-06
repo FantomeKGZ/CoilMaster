@@ -49,12 +49,22 @@ void MaterialLedgerWeb::handleUsage()
     uint32_t repairId=0UL,materialId=0UL,quantity=0UL;
     if(!parseUnsigned(m_server,"repair_id",1UL,0xFFFFFFFFUL,repairId)||!parseUnsigned(m_server,"material_id",1UL,0xFFFFFFFFUL,materialId)||!parseUnsigned(m_server,"quantity_milli",1UL,0xFFFFFFFFUL,quantity)||!m_server.hasArg("timestamp")||m_server.arg("timestamp").length()<10U){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_usage_fields\"}");return;}
     if(!m_ledger.repairExists(repairId)){m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}");return;}
+    String materialCurrency;
+    if(!m_ledger.loadActiveMaterialCurrency(materialId,materialCurrency)){m_server.send(404,"application/json; charset=utf-8","{\"error\":\"material_not_found\"}");return;}
+    if(materialCurrency!="KGS")
+    {
+        String error=F("{\"error\":\"unsupported_material_currency\",\"material_id\":");
+        error+=materialId;
+        error+=F(",\"material_currency\":\"");error+=materialCurrency;
+        error+=F("\",\"supported_currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\",\"write_performed\":false}");
+        m_server.send(409,"application/json; charset=utf-8",error);return;
+    }
     RepairMaterialUsage usage;usage.repairId=repairId;usage.materialId=materialId;usage.quantityMilli=quantity;usage.timestamp=m_server.arg("timestamp");usage.comment=m_server.arg("comment");RepairMaterialUsageResult result;
     if(!m_ledger.confirmUsage(usage,result)){m_server.send(409,"application/json; charset=utf-8","{\"error\":\"usage_not_committed\"}");return;}
     const uint64_t expectedCost=(static_cast<uint64_t>(quantity)*static_cast<uint64_t>(result.unitPriceMinor)+500ULL)/1000ULL;
     const bool costMatches=result.lineCostMinor==expectedCost;
-    const bool currencyMatches=result.currency=="KGS";
-    char cost[24];snprintf(cost,sizeof(cost),"%llu",static_cast<unsigned long long>(result.lineCostMinor));String response=F("{\"confirmed\":true,\"usage_id\":");response+=result.usageId;response+=F(",\"repair_id\":");response+=repairId;response+=F(",\"material_id\":");response+=materialId;response+=F(",\"quantity_milli\":");response+=quantity;response+=F(",\"remaining_quantity_milli\":");response+=result.remainingQuantityMilli;response+=F(",\"unit_price_minor\":");response+=result.unitPriceMinor;response+=F(",\"line_cost_minor\":");response+=cost;response+=F(",\"currency\":\"");response+=result.currency;response+=F("\",\"repair_reference_validated\":true,\"line_cost_source\":\"PERSISTED_USAGE_SNAPSHOT\",\"line_cost_formula\":\"ROUND(quantity_milli*unit_price_minor/1000)\",\"value_rounding\":\"NEAREST_MINOR_UNIT\",\"historical_cost_policy\":\"USE_PERSISTED_LINE_COST\",\"line_cost_matches_formula\":");response+=costMatches?F("true"):F("false");response+=F(",\"currency_matches_policy\":");response+=currencyMatches?F("true"):F("false");response+=F(",\"currency_policy\":\"KGS_ONLY\"}");m_server.send(201,"application/json; charset=utf-8",response);
+    const bool currencyMatches=result.currency=="KGS"&&result.currency==materialCurrency;
+    char cost[24];snprintf(cost,sizeof(cost),"%llu",static_cast<unsigned long long>(result.lineCostMinor));String response=F("{\"confirmed\":true,\"usage_id\":");response+=result.usageId;response+=F(",\"repair_id\":");response+=repairId;response+=F(",\"material_id\":");response+=materialId;response+=F(",\"quantity_milli\":");response+=quantity;response+=F(",\"remaining_quantity_milli\":");response+=result.remainingQuantityMilli;response+=F(",\"unit_price_minor\":");response+=result.unitPriceMinor;response+=F(",\"line_cost_minor\":");response+=cost;response+=F(",\"currency\":\"");response+=result.currency;response+=F("\",\"repair_reference_validated\":true,\"material_currency_prevalidated\":true,\"line_cost_source\":\"PERSISTED_USAGE_SNAPSHOT\",\"line_cost_formula\":\"ROUND(quantity_milli*unit_price_minor/1000)\",\"value_rounding\":\"NEAREST_MINOR_UNIT\",\"historical_cost_policy\":\"USE_PERSISTED_LINE_COST\",\"line_cost_matches_formula\":");response+=costMatches?F("true"):F("false");response+=F(",\"currency_matches_policy\":");response+=currencyMatches?F("true"):F("false");response+=F(",\"currency_policy\":\"KGS_ONLY\"}");m_server.send(201,"application/json; charset=utf-8",response);
 }
 
 bool MaterialLedgerWeb::parseUnsigned(WebServer& server,const char* name,uint32_t minimum,uint32_t maximum,uint32_t& value)

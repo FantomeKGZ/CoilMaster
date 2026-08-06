@@ -53,17 +53,30 @@ void WarehouseWeb::handleListSpools()
         diameter = static_cast<uint16_t>(parsed);
     }
 
+    String material = m_server.hasArg("material") ? m_server.arg("material") : String("ALL");
+    material.toUpperCase();
+    if (material != "ALL" && material != "CU" && material != "AL" && material != "UNKNOWN")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_material_filter\"}");
+        return;
+    }
+
     String response;
     response.reserve(4096U);
     response = F("{\"diameter_hundredths_mm\":"); response += diameter;
-    response += F(",\"items\":[");
+    response += F(",\"material_filter\":\""); response += material;
+    response += F("\",\"items\":[");
     uint16_t count = 0U;
-    if (!m_store.appendActiveSpoolsJson(response, diameter, count))
+    if (!m_store.appendActiveSpoolsJson(response, diameter, material.c_str(), count))
     {
         m_server.send(500,"application/json; charset=utf-8","{\"error\":\"spool_read_failed\"}");
         return;
     }
-    response += F("],\"count\":"); response += count; response += '}';
+    response += F("],\"count\":"); response += count;
+    response += F(",\"legacy_unknown_material_included\":");
+    response += (material == "ALL" || material == "UNKNOWN") ? F("true") : F("false");
+    response += '}';
     m_server.send(200,"application/json; charset=utf-8",response);
 }
 }

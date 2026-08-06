@@ -137,12 +137,18 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 
 bool UartEventReceiver::cancelPendingJob(const char* detail)
 {
-    if (!m_hasPendingJob || m_hasJobDelivery || !isValidJobAckDetail(detail))
+    // Cancellation is local only. Once a frame has been transmitted, Arduino may
+    // already have accepted it even when its acknowledgement has not arrived.
+    // Refuse to report a misleading cancellation after the first send attempt.
+    if (!m_hasPendingJob || m_hasJobDelivery || m_waitingJobAck ||
+        m_jobSendAttempts != 0U || !isValidJobAckDetail(detail))
+    {
         return false;
+    }
 
     publishJobDelivery(JobDeliveryResult::Cancelled,
                        m_pendingJob.jobId,
-                       m_jobSendAttempts,
+                       0U,
                        detail != nullptr ? detail : "CANCELLED");
     m_pendingJob = OutgoingWindingJob();
     m_hasPendingJob = false;

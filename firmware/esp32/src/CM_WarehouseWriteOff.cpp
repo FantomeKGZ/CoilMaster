@@ -14,22 +14,18 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     }
 
     WarehousePrice price;
-    if (!loadWarehousePrice(price))
-    {
-        return false;
-    }
+    if (!loadWarehousePrice(price)) return false;
 
     uint32_t movementId = 0UL;
-    if (!nextMovementId(movementId))
-    {
-        return false;
-    }
+    if (!nextMovementId(movementId)) return false;
 
     const uint32_t consumed = operation.weightBeforeGrams - operation.weightAfterGrams;
     uint16_t diameter = 0U;
+    String wireType;
 
-    // A pending record is harmless because statistics only count CONFIRMED.
-    if (!appendWriteOffRecord(movementId, operation, 0U, consumed, price, "PENDING"))
+    // PENDING is ignored by statistics. Material is written on CONFIRMED.
+    if (!appendWriteOffRecord(movementId, operation, 0U, consumed, price,
+                              "PENDING", String()))
     {
         return false;
     }
@@ -37,18 +33,22 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     if (!rewriteSpoolWeight(operation.spoolId,
                             operation.weightBeforeGrams,
                             operation.weightAfterGrams,
-                            diameter))
+                            diameter,
+                            wireType))
     {
         return false;
     }
 
-    if (!appendWriteOffRecord(movementId, operation, diameter, consumed, price, "CONFIRMED"))
+    if (!appendWriteOffRecord(movementId, operation, diameter, consumed, price,
+                              "CONFIRMED", wireType))
     {
-        uint16_t ignored = 0U;
+        uint16_t ignoredDiameter = 0U;
+        String ignoredWireType;
         rewriteSpoolWeight(operation.spoolId,
                            operation.weightAfterGrams,
                            operation.weightBeforeGrams,
-                           ignored);
+                           ignoredDiameter,
+                           ignoredWireType);
         return false;
     }
 
@@ -74,9 +74,7 @@ bool WarehouseStore::nextMovementId(uint32_t& id) const
         const String line = file.readStringUntil('\n');
         uint32_t candidate = 0UL;
         if (findUnsigned(line, "movement_id", candidate) && candidate > maximum)
-        {
             maximum = candidate;
-        }
     }
     file.close();
     if (maximum == 0xFFFFFFFFUL) return false;
@@ -87,9 +85,11 @@ bool WarehouseStore::nextMovementId(uint32_t& id) const
 bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
                                          uint32_t expectedWeightGrams,
                                          uint32_t newWeightGrams,
-                                         uint16_t& diameterHundredthsMm)
+                                         uint16_t& diameterHundredthsMm,
+                                         String& wireType)
 {
     diameterHundredthsMm = 0U;
+    wireType = String();
     File source = m_storage.open(SpoolsPath, FILE_READ);
     if (!source) return false;
 
@@ -127,8 +127,10 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
             int digitsStart = valueStart + marker.length();
             int digitsEnd = digitsStart;
             while (digitsEnd < line.length() && isDigit(line[digitsEnd])) ++digitsEnd;
-            line = line.substring(0, digitsStart) + String(newWeightGrams) + line.substring(digitsEnd);
+            line = line.substring(0, digitsStart) + String(newWeightGrams) +
+                   line.substring(digitsEnd);
             diameterHundredthsMm = static_cast<uint16_t>(diameter);
+            findString(line, "wire_type", wireType);
             found = true;
         }
 
@@ -150,11 +152,7 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
     }
 
     m_storage.remove(SpoolsPath);
-    if (!m_storage.rename(SpoolsTempPath, SpoolsPath))
-    {
-        return false;
-    }
-    return true;
+    return m_storage.rename(SpoolsTempPath, SpoolsPath);
 }
 
 bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
@@ -162,18 +160,23 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
                                            uint16_t diameterHundredthsMm,
                                            uint32_t consumedGrams,
                                            const WarehousePrice& price,
-                                           const char* status)
+                                           const char* status,
+                                           const String& wireType)
 {
     File file = m_storage.open(MovementsPath, FILE_APPEND);
     if (!file) return false;
 
     String line;
-    line.reserve(420U);
+    line.reserve(450U);
     line = F("{\"movement_id\":"); line += movementId;
     line += F(",\"type\":\"WRITE_OFF\",\"status\":\""); line += status;
     line += F("\",\"spool_id\":"); line += operation.spoolId;
     line += F(",\"repair_id\":"); line += operation.repairId;
     line += F(",\"diameter_hundredths_mm\":"); line += diameterHundredthsMm;
+    if (wireType.length() > 0U)
+    {
+        line += F(",\"wire_type\":\""); line += jsonEscape(wireType); line += '"';
+    }
     line += F(",\"weight_before_g\":"); line += operation.weightBeforeGrams;
     line += F(",\"weight_after_g\":"); line += operation.weightAfterGrams;
     line += F(",\"mass_g\":"); line += consumedGrams;

@@ -10,6 +10,26 @@ void appendUnsigned64(String& target, uint64_t value)
     snprintf(buffer, sizeof(buffer), "%llu", static_cast<unsigned long long>(value));
     target += buffer;
 }
+
+bool normalizeWireType(const String& source, String& normalized)
+{
+    normalized = source;
+    normalized.trim();
+    normalized.toUpperCase();
+    if (normalized == "CU" || normalized == "COPPER" || normalized == "МЕДЬ")
+    {
+        normalized = "CU";
+        return true;
+    }
+    if (normalized == "AL" || normalized == "ALUMINIUM" ||
+        normalized == "ALUMINUM" || normalized == "АЛЮМИНИЙ")
+    {
+        normalized = "AL";
+        return true;
+    }
+    normalized = String();
+    return false;
+}
 }
 
 WarehouseWeb::WarehouseWeb(WebServer& server, WarehouseStore& store)
@@ -128,10 +148,19 @@ void WarehouseWeb::handleCreateSpool()
         return;
     }
 
+    String wireType;
+    if (!m_server.hasArg("wire_type") ||
+        !normalizeWireType(m_server.arg("wire_type"), wireType))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"wire_type_required_cu_or_al\"}");
+        return;
+    }
+
     NewWireSpool spool;
     spool.diameterHundredthsMm = static_cast<uint16_t>(diameter);
     spool.currentWeightGrams = weight;
-    spool.wireType = m_server.arg("wire_type");
+    spool.wireType = wireType;
     spool.manufacturer = m_server.arg("manufacturer");
     spool.supplier = m_server.arg("supplier");
     spool.batch = m_server.arg("batch");
@@ -152,7 +181,9 @@ void WarehouseWeb::handleCreateSpool()
     response += spool.diameterHundredthsMm;
     response += F(",\"current_weight_g\":");
     response += spool.currentWeightGrams;
-    response += F("}");
+    response += F(",\"wire_type\":\"");
+    response += spool.wireType;
+    response += F("\"}");
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 

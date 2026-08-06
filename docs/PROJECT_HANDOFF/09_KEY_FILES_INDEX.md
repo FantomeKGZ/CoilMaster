@@ -111,6 +111,36 @@ firmware/esp32/web/desktop/writeoff.html
 
 Также искать страницы ремонта, выбора двигателя и калькуляции по текущей структуре каталога.
 
+## Планируемые Wi-Fi и FTP настройки
+
+Подробная спецификация планов:
+
+```text
+docs/82_WIFI_MANAGER_AND_FTP_CONFIGURATION.md
+```
+
+Будущие страницы:
+
+```text
+firmware/esp32/web/mobile/settings-wifi.html
+firmware/esp32/web/desktop/settings-wifi.html
+firmware/esp32/web/mobile/settings-ftp.html
+firmware/esp32/web/desktop/settings-ftp.html
+```
+
+Будущие основные компоненты ESP32 должны покрывать:
+
+- хранение нескольких Wi-Fi сетей;
+- приоритеты, DHCP/static IP и восстановление подключения;
+- fallback access point при отсутствии доступной сети;
+- API и UI настройки Wi-Fi;
+- отключаемый FTP-сервер для microSD;
+- защищённое хранение учётных данных;
+- запрет записи в критические файлы во время активной намотки;
+- API и UI настройки FTP.
+
+Этот блок имеет статус `PLANNED`. Наличие текущей фиксированной точки доступа не означает, что Wi-Fi manager и FTP уже реализованы.
+
 ## Хранилища на SD
 
 Журнал намотки:
@@ -143,6 +173,7 @@ firmware/esp32/web/desktop/writeoff.html
 
 ```text
 docs/46_DEFERRED_UNASSIGNED_WINDINGS_AND_ANALOGUE_MOTORS.md
+docs/82_WIFI_MANAGER_AND_FTP_CONFIGURATION.md
 ```
 
 Калькулятор и материалы:
@@ -223,6 +254,7 @@ docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/07_BACKLOG_AND_DEFERRED.md
 docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
 docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
+docs/PROJECT_HANDOFF/11_FULL_BRANCH_AUDIT.md
 ```
 
 После значимой работы обновлять минимум файлы `01`, `05` и `06`.

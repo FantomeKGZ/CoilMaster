@@ -52,10 +52,7 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
     while (m_serial.available() > 0)
     {
         const char value = static_cast<char>(m_serial.read());
-        if (value == '\r')
-        {
-            continue;
-        }
+        if (value == '\r') continue;
 
         if (value == '\n')
         {
@@ -64,19 +61,12 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
             if (m_length > 0U)
             {
                 if (strncmp(m_line, "CMP1|JOB_ACK|", 13U) == 0)
-                {
                     processJobAck(m_line);
-                }
                 else
-                {
                     eventReady = parseEventLine(m_line, event);
-                }
             }
             m_length = 0U;
-            if (eventReady)
-            {
-                return true;
-            }
+            if (eventReady) return true;
             continue;
         }
 
@@ -93,11 +83,7 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
 
 void UartEventReceiver::update(uint32_t nowMs)
 {
-    if (!m_hasPendingJob)
-    {
-        return;
-    }
-
+    if (!m_hasPendingJob) return;
     if (!m_waitingJobAck ||
         static_cast<uint32_t>(nowMs - m_lastJobSendMs) >= JobRetryIntervalMs)
     {
@@ -107,11 +93,7 @@ void UartEventReceiver::update(uint32_t nowMs)
 
 bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 {
-    if (m_hasPendingJob || !job.isValid())
-    {
-        return false;
-    }
-
+    if (m_hasPendingJob || !job.isValid()) return false;
     m_pendingJob = job;
     m_hasPendingJob = true;
     m_waitingJobAck = false;
@@ -120,10 +102,7 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 
 bool UartEventReceiver::takeJobDelivery(JobDeliveryEvent& event)
 {
-    if (!m_hasJobDelivery)
-    {
-        return false;
-    }
+    if (!m_hasJobDelivery) return false;
     event = m_jobDelivery;
     m_jobDelivery = JobDeliveryEvent();
     m_hasJobDelivery = false;
@@ -155,22 +134,13 @@ bool UartEventReceiver::parseEventLine(char* line,
                                        RemoteWindingEvent& event) const
 {
     char* lastSeparator = strrchr(line, '|');
-    if (lastSeparator == nullptr)
-    {
-        return false;
-    }
+    if (lastSeparator == nullptr) return false;
 
     uint16_t receivedCrc = 0U;
-    if (!parseHex16(lastSeparator + 1, receivedCrc))
-    {
-        return false;
-    }
+    if (!parseHex16(lastSeparator + 1, receivedCrc)) return false;
 
     const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
-    if (crc16(line, payloadLength) != receivedCrc)
-    {
-        return false;
-    }
+    if (crc16(line, payloadLength) != receivedCrc) return false;
     *lastSeparator = '\0';
 
     char* save = nullptr;
@@ -180,31 +150,45 @@ bool UartEventReceiver::parseEventLine(char* line,
     char* session = strtok_r(nullptr, "|", &save);
     char* run = strtok_r(nullptr, "|", &save);
     char* completed = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
 
     if (version == nullptr || category == nullptr || type == nullptr ||
         session == nullptr || run == nullptr || completed == nullptr ||
-        strcmp(version, "CMP1") != 0 || strcmp(category, "EVT") != 0)
+        extra != nullptr || strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "EVT") != 0)
     {
         return false;
     }
 
+    RemoteEventType parsedType = RemoteEventType::None;
     if (strcmp(type, "RUN_STARTED") == 0)
-    {
-        event.type = RemoteEventType::RunStarted;
-    }
+        parsedType = RemoteEventType::RunStarted;
     else if (strcmp(type, "RUN_COMPLETED") == 0)
-    {
-        event.type = RemoteEventType::RunCompleted;
-    }
+        parsedType = RemoteEventType::RunCompleted;
     else
+        return false;
+
+    uint32_t parsedSession = 0UL;
+    uint32_t parsedRun = 0UL;
+    uint16_t parsedCompleted = 0U;
+    if (!parseDecimal32(session, parsedSession) || parsedSession == 0UL ||
+        !parseDecimal32(run, parsedRun) || parsedRun == 0UL ||
+        !parseDecimal16(completed, parsedCompleted))
     {
         return false;
     }
 
-    event.sessionId = strtoul(session, nullptr, 10);
-    event.runId = strtoul(run, nullptr, 10);
-    event.completedRuns = static_cast<uint16_t>(strtoul(completed, nullptr, 10));
-    return event.sessionId > 0UL && event.runId > 0UL;
+    if ((parsedType == RemoteEventType::RunStarted && parsedCompleted != 0U) ||
+        (parsedType == RemoteEventType::RunCompleted && parsedCompleted == 0U))
+    {
+        return false;
+    }
+
+    event.type = parsedType;
+    event.sessionId = parsedSession;
+    event.runId = parsedRun;
+    event.completedRuns = parsedCompleted;
+    return true;
 }
 
 bool UartEventReceiver::processJobAck(char* line)
@@ -214,7 +198,7 @@ bool UartEventReceiver::processJobAck(char* line)
     char* category = strtok_r(nullptr, "|", &save);
     char* jobText = strtok_r(nullptr, "|", &save);
     char* status = strtok_r(nullptr, "|", &save);
-    (void)strtok_r(nullptr, "|", &save); // optional reason/state
+    (void)strtok_r(nullptr, "|", &save);
 
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || strcmp(version, "CMP1") != 0 ||
@@ -223,11 +207,9 @@ bool UartEventReceiver::processJobAck(char* line)
         return false;
     }
 
-    const uint32_t jobId = strtoul(jobText, nullptr, 10);
-    if (jobId != m_pendingJob.jobId)
-    {
+    uint32_t jobId = 0UL;
+    if (!parseDecimal32(jobText, jobId) || jobId != m_pendingJob.jobId)
         return false;
-    }
 
     const bool accepted = strcmp(status, "ACCEPTED") == 0;
     publishJobDelivery(accepted ? JobDeliveryResult::Accepted
@@ -240,10 +222,7 @@ bool UartEventReceiver::processJobAck(char* line)
 
 bool UartEventReceiver::sendPendingJob(uint32_t nowMs)
 {
-    if (!m_hasPendingJob || !writeJobFrame(m_pendingJob))
-    {
-        return false;
-    }
+    if (!m_hasPendingJob || !writeJobFrame(m_pendingJob)) return false;
     m_waitingJobAck = true;
     m_lastJobSendMs = nowMs;
     return true;
@@ -261,9 +240,7 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
                                      index == 0U ? "%u" : ",%u",
                                      static_cast<unsigned int>(job.turns[index]));
         if (written <= 0 || static_cast<size_t>(written) >= sizeof(turnsText) - used)
-        {
             return false;
-        }
         used += static_cast<size_t>(written);
     }
 
@@ -276,9 +253,7 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
         static_cast<unsigned int>(job.coilCount), turnsText);
 
     if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(payload))
-    {
         return false;
-    }
 
     const uint16_t crc = crc16(payload, static_cast<size_t>(payloadLength));
     m_serial.print(payload);
@@ -316,16 +291,33 @@ uint16_t UartEventReceiver::crc16(const char* data, size_t length)
 
 bool UartEventReceiver::parseHex16(const char* text, uint16_t& value)
 {
-    if (text == nullptr || strlen(text) != 4U)
-    {
-        return false;
-    }
+    if (text == nullptr || strlen(text) != 4U) return false;
     char* end = nullptr;
     const unsigned long parsed = strtoul(text, &end, 16);
-    if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL)
+    if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL) return false;
+    value = static_cast<uint16_t>(parsed);
+    return true;
+}
+
+bool UartEventReceiver::parseDecimal32(const char* text, uint32_t& value)
+{
+    value = 0UL;
+    if (text == nullptr || *text == '\0') return false;
+    uint64_t parsed = 0ULL;
+    for (const char* cursor = text; *cursor != '\0'; ++cursor)
     {
-        return false;
+        if (*cursor < '0' || *cursor > '9') return false;
+        parsed = parsed * 10ULL + static_cast<uint8_t>(*cursor - '0');
+        if (parsed > 0xFFFFFFFFULL) return false;
     }
+    value = static_cast<uint32_t>(parsed);
+    return true;
+}
+
+bool UartEventReceiver::parseDecimal16(const char* text, uint16_t& value)
+{
+    uint32_t parsed = 0UL;
+    if (!parseDecimal32(text, parsed) || parsed > 0xFFFFUL) return false;
     value = static_cast<uint16_t>(parsed);
     return true;
 }

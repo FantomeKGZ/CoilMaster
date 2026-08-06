@@ -106,6 +106,8 @@ private:
     bool m_waitingJobAck;
     uint32_t m_lastJobSendMs;
     uint8_t m_jobSendAttempts;
+    uint32_t m_lastQueuedJobId;
+    bool m_hasLastQueuedJobId;
     JobDeliveryEvent m_jobDelivery;
     bool m_hasJobDelivery;
 };

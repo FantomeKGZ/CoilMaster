@@ -33,7 +33,8 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
                 !findUnsigned(line, "mass_g", mass) ||
                 !findUnsigned(line, "price_per_kg_minor", price)) continue;
 
-            const uint64_t lineCost = static_cast<uint64_t>(mass) * price / 1000ULL;
+            const uint64_t lineCost =
+                (static_cast<uint64_t>(mass) * static_cast<uint64_t>(price) + 500ULL) / 1000ULL;
             summary.wireCostMinor += lineCost;
             if (summary.wireLineCount < 0xFFFFU) ++summary.wireLineCount;
 

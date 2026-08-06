@@ -41,6 +41,17 @@ struct RepairCostSummary
           currency("KGS") {}
 };
 
+struct PricingRevisionSnapshot
+{
+    uint64_t labourCostMinor;
+    uint64_t clientPriceMinor;
+    String currency;
+    String timestamp;
+
+    PricingRevisionSnapshot()
+        : labourCostMinor(0ULL), clientPriceMinor(0ULL), currency("KGS") {}
+};
+
 class RepairCosting
 {
 public:
@@ -49,7 +60,10 @@ public:
     bool begin();
     bool ready() const;
     bool load(uint32_t repairId, RepairCostSummary& summary) const;
-    bool appendPricingRevisionsJson(String& json,uint32_t repairId,uint16_t& appendedCount) const;
+    bool appendPricingRevisionsJson(String& json,
+                                    uint32_t repairId,
+                                    uint16_t& appendedCount,
+                                    PricingRevisionSnapshot& latest) const;
     bool savePricing(uint32_t repairId,
                      uint64_t labourCostMinor,
                      uint64_t clientPriceMinor,

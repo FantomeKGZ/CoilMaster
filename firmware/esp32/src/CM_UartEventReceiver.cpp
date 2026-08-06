@@ -6,6 +6,28 @@
 
 namespace CM
 {
+namespace
+{
+bool isValidJobAckDetail(const char* detail)
+{
+    if (detail == nullptr) return true;
+
+    const size_t length = strlen(detail);
+    if (length == 0U || length > JobDeliveryEvent::MaxDetailLength)
+        return false;
+
+    for (size_t index = 0U; index < length; ++index)
+    {
+        const char value = detail[index];
+        const bool upper = value >= 'A' && value <= 'Z';
+        const bool digit = value >= '0' && value <= '9';
+        if (!upper && !digit && value != '_' && value != '-')
+            return false;
+    }
+    return true;
+}
+}
+
 OutgoingWindingJob::OutgoingWindingJob()
     : jobId(0UL), sessionId(0UL), type(RemoteJobType::Working),
       coilCount(0U), turns()
@@ -198,7 +220,8 @@ bool UartEventReceiver::processJobAck(char* line)
 
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
-        strcmp(category, "JOB_ACK") != 0 || !m_hasPendingJob)
+        strcmp(category, "JOB_ACK") != 0 || !m_hasPendingJob ||
+        !isValidJobAckDetail(detail))
         return false;
 
     uint32_t jobId = 0UL;
@@ -210,7 +233,7 @@ bool UartEventReceiver::processJobAck(char* line)
         result = JobDeliveryResult::Accepted;
     else if (strcmp(status, "REJECTED") == 0)
     {
-        if (detail == nullptr || *detail == '\0') return false;
+        if (detail == nullptr) return false;
         result = JobDeliveryResult::Rejected;
     }
     else

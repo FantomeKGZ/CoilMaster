@@ -10,20 +10,32 @@ struct RepairCostSummary
 {
     uint32_t repairId;
     uint64_t wireCostMinor;
+    uint64_t copperWireCostMinor;
+    uint64_t aluminiumWireCostMinor;
+    uint64_t unknownWireCostMinor;
     uint64_t materialCostMinor;
     uint64_t labourCostMinor;
     uint64_t totalCostMinor;
     uint64_t clientPriceMinor;
     uint64_t marginMinor;
+    uint32_t copperWireGrams;
+    uint32_t aluminiumWireGrams;
+    uint32_t unknownWireGrams;
     uint16_t wireLineCount;
+    uint16_t copperWireLineCount;
+    uint16_t aluminiumWireLineCount;
+    uint16_t unknownWireLineCount;
     uint16_t materialLineCount;
     String currency;
 
     RepairCostSummary()
-        : repairId(0UL), wireCostMinor(0ULL), materialCostMinor(0ULL),
-          labourCostMinor(0ULL), totalCostMinor(0ULL), clientPriceMinor(0ULL),
-          marginMinor(0ULL), wireLineCount(0U), materialLineCount(0U),
-          currency("KGS") {}
+        : repairId(0UL), wireCostMinor(0ULL), copperWireCostMinor(0ULL),
+          aluminiumWireCostMinor(0ULL), unknownWireCostMinor(0ULL),
+          materialCostMinor(0ULL), labourCostMinor(0ULL), totalCostMinor(0ULL),
+          clientPriceMinor(0ULL), marginMinor(0ULL), copperWireGrams(0UL),
+          aluminiumWireGrams(0UL), unknownWireGrams(0UL), wireLineCount(0U),
+          copperWireLineCount(0U), aluminiumWireLineCount(0U),
+          unknownWireLineCount(0U), materialLineCount(0U), currency("KGS") {}
 };
 
 class RepairCosting

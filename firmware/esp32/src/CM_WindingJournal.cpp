@@ -44,11 +44,30 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
         return JournalSaveResult::Duplicate;
     }
 
+    if (event.type == RemoteEventType::RunStarted)
+    {
+        uint32_t activeRunId = 0UL;
+        bool activeRunFound = false;
+        if (!loadActiveRun(event.sessionId, activeRunId, activeRunFound) ||
+            activeRunFound)
+        {
+            return JournalSaveResult::InvalidTransition;
+        }
+    }
+
     if (event.type == RemoteEventType::RunCompleted)
     {
         uint32_t startedSessionId = 0UL;
         if (!loadRunStartSession(event.runId, startedSessionId) ||
             startedSessionId != event.sessionId || event.completedRuns == 0U)
+        {
+            return JournalSaveResult::InvalidTransition;
+        }
+
+        uint32_t activeRunId = 0UL;
+        bool activeRunFound = false;
+        if (!loadActiveRun(event.sessionId, activeRunId, activeRunFound) ||
+            !activeRunFound || activeRunId != event.runId)
         {
             return JournalSaveResult::InvalidTransition;
         }
@@ -167,6 +186,51 @@ bool WindingJournal::loadSessionCompletedRuns(uint32_t sessionId,
 
         const uint16_t candidate = static_cast<uint16_t>(lineCompletedRuns);
         if (candidate > completedRuns) completedRuns = candidate;
+    }
+
+    file.close();
+    return true;
+}
+
+bool WindingJournal::loadActiveRun(uint32_t sessionId,
+                                   uint32_t& runId,
+                                   bool& found) const
+{
+    runId = 0UL;
+    found = false;
+    if (!m_fileSystem.exists(JournalPath)) return true;
+
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t lineSessionId = 0UL;
+        uint32_t lineRunId = 0UL;
+        if (!findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId != sessionId ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL)
+        {
+            continue;
+        }
+
+        if (line.indexOf(F("\"event\":\"RUN_STARTED\"")) >= 0)
+        {
+            if (found && runId != lineRunId)
+            {
+                file.close();
+                return false;
+            }
+            runId = lineRunId;
+            found = true;
+        }
+        else if (line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0 &&
+                 found && runId == lineRunId)
+        {
+            runId = 0UL;
+            found = false;
+        }
     }
 
     file.close();

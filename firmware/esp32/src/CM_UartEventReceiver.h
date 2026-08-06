@@ -50,9 +50,12 @@ enum class JobDeliveryResult : uint8_t
 
 struct JobDeliveryEvent
 {
+    static constexpr size_t MaxDetailLength = 23U;
+
     JobDeliveryResult result;
     uint32_t jobId;
     uint8_t sendAttempts;
+    char detail[MaxDetailLength + 1U];
 
     JobDeliveryEvent();
 };
@@ -84,7 +87,8 @@ private:
     bool writeJobFrame(const OutgoingWindingJob& job);
     void publishJobDelivery(JobDeliveryResult result,
                             uint32_t jobId,
-                            uint8_t sendAttempts);
+                            uint8_t sendAttempts,
+                            const char* detail);
 
     static bool parseDecimal32(const char* text, uint32_t& value);
     static bool parseDecimal16(const char* text, uint16_t& value);

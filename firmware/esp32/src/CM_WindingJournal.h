@@ -17,6 +17,20 @@ enum class JournalSaveResult : uint8_t
     InvalidTransition
 };
 
+struct WindingSessionState
+{
+    uint32_t sessionId;
+    uint32_t activeRunId;
+    uint32_t highestRunId;
+    uint16_t completedRuns;
+    bool activeRunFound;
+    bool journalConsistent;
+
+    WindingSessionState()
+        : sessionId(0UL), activeRunId(0UL), highestRunId(0UL),
+          completedRuns(0U), activeRunFound(false), journalConsistent(false) {}
+};
+
 class WindingJournal
 {
 public:
@@ -25,6 +39,8 @@ public:
     bool begin();
     bool isReady() const;
     JournalSaveResult save(const RemoteWindingEvent& event);
+    bool loadSessionState(uint32_t sessionId,
+                          WindingSessionState& state) const;
 
 private:
     static constexpr const char* DirectoryPath = "/data/winding-runs";

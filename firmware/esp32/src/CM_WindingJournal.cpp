@@ -93,6 +93,43 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
                : JournalSaveResult::WriteFailed;
 }
 
+bool WindingJournal::loadSessionState(uint32_t sessionId,
+                                      WindingSessionState& state) const
+{
+    state = WindingSessionState();
+    state.sessionId = sessionId;
+
+    if (!m_ready || sessionId == 0UL)
+    {
+        return false;
+    }
+
+    uint32_t activeRunId = 0UL;
+    bool activeRunFound = false;
+    uint32_t highestRunId = 0UL;
+    uint16_t completedRuns = 0U;
+
+    if (!loadActiveRun(sessionId, activeRunId, activeRunFound) ||
+        !loadSessionHighestRunId(sessionId, highestRunId) ||
+        !loadSessionCompletedRuns(sessionId, completedRuns))
+    {
+        return false;
+    }
+
+    if ((activeRunFound && (activeRunId == 0UL || activeRunId > highestRunId)) ||
+        (!activeRunFound && activeRunId != 0UL))
+    {
+        return false;
+    }
+
+    state.activeRunId = activeRunId;
+    state.highestRunId = highestRunId;
+    state.completedRuns = completedRuns;
+    state.activeRunFound = activeRunFound;
+    state.journalConsistent = true;
+    return true;
+}
+
 bool WindingJournal::ensureDirectories()
 {
     if (!m_fileSystem.exists("/data") && !m_fileSystem.mkdir("/data"))

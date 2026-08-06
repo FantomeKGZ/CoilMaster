@@ -27,8 +27,15 @@ void RepairCostingWeb::handleGet()
         return;
     }
 
+    const uint64_t materialWireCost = summary.copperWireCostMinor +
+                                      summary.aluminiumWireCostMinor +
+                                      summary.unknownWireCostMinor;
+    const uint32_t materialWireLines = static_cast<uint32_t>(summary.copperWireLineCount) +
+                                       static_cast<uint32_t>(summary.aluminiumWireLineCount) +
+                                       static_cast<uint32_t>(summary.unknownWireLineCount);
+
     String response;
-    response.reserve(1040U);
+    response.reserve(1160U);
     response = F("{\"repair_id\":"); response += repairId;
     response += F(",\"wire_line_count\":"); response += summary.wireLineCount;
     response += F(",\"material_line_count\":"); response += summary.materialLineCount;
@@ -44,6 +51,10 @@ void RepairCostingWeb::handleGet()
     response += F(",\"line_count\":"); response += summary.unknownWireLineCount;
     response += F(",\"cost_minor\":"); appendUInt64(response, summary.unknownWireCostMinor);
     response += F("}},\"wire_materials_source\":\"CONFIRMED_WRITE_OFFS\"");
+    response += F(",\"wire_material_costs_match_wire_cost\":");
+    response += materialWireCost == summary.wireCostMinor ? F("true") : F("false");
+    response += F(",\"wire_material_counts_match_wire_count\":");
+    response += materialWireLines == summary.wireLineCount ? F("true") : F("false");
     response += F(",\"material_cost_minor\":"); appendUInt64(response, summary.materialCostMinor);
     response += F(",\"labour_cost_minor\":"); appendUInt64(response, summary.labourCostMinor);
     response += F(",\"total_cost_minor\":"); appendUInt64(response, summary.totalCostMinor);

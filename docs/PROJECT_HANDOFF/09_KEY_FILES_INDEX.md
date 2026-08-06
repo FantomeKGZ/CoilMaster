@@ -19,7 +19,8 @@ firmware/esp32/src/CM_WindingJournal.cpp
 - повторные отправки;
 - строгий парсинг;
 - журнал `RUN_STARTED` и `RUN_COMPLETED`;
-- защита последовательности событий.
+- защита последовательности событий;
+- составная идентичность `session_id + run_id + event_type`.
 
 ## Склад провода
 
@@ -185,12 +186,17 @@ docs/75_STRICT_UART_EVENT_FIELD_VALIDATION.md
 docs/76_BOUNDED_WINDING_JOB_DELIVERY_RETRIES.md
 docs/77_UNCONSUMED_JOB_DELIVERY_RESULT_GUARD.md
 docs/78_SINGLE_ACTIVE_WINDING_RUN_PER_SESSION.md
+docs/79_MONOTONIC_WINDING_RUN_IDS_PER_SESSION.md
+docs/80_COMPOSITE_WINDING_EVENT_IDENTITY.md
+docs/81_WINDING_SESSION_ID_SEMANTICS.md
 ```
 
-Следующий планируемый документ:
+Следующая активная тема:
 
 ```text
-docs/79_MONOTONIC_WINDING_RUN_IDS_PER_SESSION.md
+Persistent session allocator
+Immutable winding job snapshot
+job_id + session_id + run_id linkage
 ```
 
 ## CI и тесты

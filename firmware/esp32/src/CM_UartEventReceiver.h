@@ -45,7 +45,8 @@ enum class JobDeliveryResult : uint8_t
     None = 0U,
     Accepted,
     Rejected,
-    TimedOut
+    TimedOut,
+    Cancelled
 };
 
 struct JobDeliveryEvent
@@ -70,6 +71,7 @@ public:
     void update(uint32_t nowMs);
 
     bool queueJob(const OutgoingWindingJob& job);
+    bool cancelPendingJob(const char* detail = "CANCELLED");
     bool takeJobDelivery(JobDeliveryEvent& event);
     bool jobPending() const;
 

@@ -63,12 +63,25 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
-    String response = F("{\"confirmed\":true,\"movement_id\":");
+    String response;
+    response.reserve(320U);
+    response = F("{\"confirmed\":true,\"movement_id\":");
     response += result.movementId;
     response += F(",\"spool_id\":"); response += spoolId;
     response += F(",\"repair_id\":"); response += repairId;
     response += F(",\"diameter_hundredths_mm\":");
     response += result.diameterHundredthsMm;
+    response += F(",\"wire_type\":");
+    if (result.wireType.length() > 0U)
+    {
+        response += '"'; response += result.wireType; response += '"';
+    }
+    else
+    {
+        response += F("null");
+    }
+    response += F(",\"legacy_unknown_material\":");
+    response += result.wireType.length() > 0U ? F("false") : F("true");
     response += F(",\"consumed_g\":"); response += result.consumedGrams;
     response += F(",\"current_weight_g\":"); response += after;
     response += F(",\"price_per_kg_minor\":");

@@ -33,6 +33,12 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
         return JournalSaveResult::InvalidTransition;
     }
 
+    if (event.type == RemoteEventType::RunStarted &&
+        event.completedRuns != 0U)
+    {
+        return JournalSaveResult::InvalidTransition;
+    }
+
     if (containsRunEvent(event.runId, event.type))
     {
         return JournalSaveResult::Duplicate;
@@ -43,6 +49,14 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
         uint32_t startedSessionId = 0UL;
         if (!loadRunStartSession(event.runId, startedSessionId) ||
             startedSessionId != event.sessionId || event.completedRuns == 0U)
+        {
+            return JournalSaveResult::InvalidTransition;
+        }
+
+        uint16_t previousCompletedRuns = 0U;
+        if (!loadSessionCompletedRuns(event.sessionId, previousCompletedRuns) ||
+            previousCompletedRuns == 0xFFFFU ||
+            event.completedRuns != static_cast<uint16_t>(previousCompletedRuns + 1U))
         {
             return JournalSaveResult::InvalidTransition;
         }
@@ -124,6 +138,39 @@ bool WindingJournal::loadRunStartSession(uint32_t runId,
 
     file.close();
     return false;
+}
+
+bool WindingJournal::loadSessionCompletedRuns(uint32_t sessionId,
+                                              uint16_t& completedRuns) const
+{
+    completedRuns = 0U;
+    if (!m_fileSystem.exists(JournalPath)) return true;
+
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) < 0)
+            continue;
+
+        uint32_t lineSessionId = 0UL;
+        uint32_t lineCompletedRuns = 0UL;
+        if (!findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId != sessionId ||
+            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
+            lineCompletedRuns > 0xFFFFUL)
+        {
+            continue;
+        }
+
+        const uint16_t candidate = static_cast<uint16_t>(lineCompletedRuns);
+        if (candidate > completedRuns) completedRuns = candidate;
+    }
+
+    file.close();
+    return true;
 }
 
 bool WindingJournal::appendRecord(const RemoteWindingEvent& event)

@@ -13,7 +13,7 @@ struct WireStockSummary{uint16_t diameterHundredthsMm;uint32_t remainingGrams;ui
 struct NewWireSpool{uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;String wireType;String manufacturer;String supplier;String batch;String storageLocation;String comment;NewWireSpool():diameterHundredthsMm(0U),currentWeightGrams(0UL){}};
 struct WarehousePrice{uint32_t pricePerKgMinor;String currency;WarehousePrice():pricePerKgMinor(0UL),currency("KGS") {}};
 struct ConfirmedSpoolWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t weightBeforeGrams;uint32_t weightAfterGrams;String timestamp;String comment;ConfirmedSpoolWriteOff():spoolId(0UL),repairId(0UL),weightBeforeGrams(0UL),weightAfterGrams(0UL){}};
-struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
+struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;String wireType;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
 struct KnownWireDiameter{uint16_t diameterHundredthsMm;uint32_t availableGrams;KnownWireDiameter():diameterHundredthsMm(0U),availableGrams(0UL){}};
 
 class WarehouseStore

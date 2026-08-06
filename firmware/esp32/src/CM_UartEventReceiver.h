@@ -44,13 +44,15 @@ enum class JobDeliveryResult : uint8_t
 {
     None = 0U,
     Accepted,
-    Rejected
+    Rejected,
+    TimedOut
 };
 
 struct JobDeliveryEvent
 {
     JobDeliveryResult result;
     uint32_t jobId;
+    uint8_t sendAttempts;
 
     JobDeliveryEvent();
 };
@@ -74,17 +76,20 @@ public:
 private:
     static constexpr size_t MaxLineLength = 128U;
     static constexpr uint32_t JobRetryIntervalMs = 2000UL;
+    static constexpr uint8_t MaxJobSendAttempts = 5U;
 
     bool parseEventLine(char* line, RemoteWindingEvent& event) const;
     bool processJobAck(char* line);
     bool sendPendingJob(uint32_t nowMs);
     bool writeJobFrame(const OutgoingWindingJob& job);
-    void publishJobDelivery(JobDeliveryResult result, uint32_t jobId);
+    void publishJobDelivery(JobDeliveryResult result,
+                            uint32_t jobId,
+                            uint8_t sendAttempts);
 
+    static bool parseUnsigned32(const char* text, uint32_t& value);
+    static bool parseUnsigned16(const char* text, uint16_t& value);
     static uint16_t crc16(const char* data, size_t length);
     static bool parseHex16(const char* text, uint16_t& value);
-    static bool parseDecimal32(const char* text, uint32_t& value);
-    static bool parseDecimal16(const char* text, uint16_t& value);
 
     HardwareSerial& m_serial;
     char m_line[MaxLineLength];
@@ -94,6 +99,7 @@ private:
     bool m_hasPendingJob;
     bool m_waitingJobAck;
     uint32_t m_lastJobSendMs;
+    uint8_t m_jobSendAttempts;
     JobDeliveryEvent m_jobDelivery;
     bool m_hasJobDelivery;
 };

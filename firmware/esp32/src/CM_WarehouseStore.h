@@ -29,6 +29,7 @@ public:
     bool loadConversionSettings(ConversionSettings& settings) const;
     bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,uint16_t& appendedCount) const;
     bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,const char* materialFilter,uint16_t& appendedCount) const;
+    bool appendMaterialSummaryJson(String& json,const char* monthPrefix) const;
     uint8_t loadKnownWireDiameters(KnownWireDiameter* items,uint8_t capacity) const;
     uint8_t loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity) const;
     uint8_t summaryCount() const; bool summaryAt(uint8_t index,WireStockSummary& summary) const;

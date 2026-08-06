@@ -32,17 +32,27 @@ void RepairCostingWeb::handlePricingHistory()
     }
 
     String response;
-    response.reserve(4352U);
+    response.reserve(4480U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
     uint16_t count = 0U;
-    if (!m_costing.appendPricingRevisionsJson(response, repairId, count))
+    PricingRevisionSnapshot latest;
+    if (!m_costing.appendPricingRevisionsJson(response, repairId, count, latest))
     {
         m_server.send(503, "application/json; charset=utf-8",
                       "{\"error\":\"pricing_history_unavailable\"}");
         return;
     }
+    const bool countMatches = count == current.pricingRevisionCount;
+    const bool latestValuesMatch = (count == 0U && current.pricingRevisionCount == 0U &&
+                                    current.labourCostMinor == 0ULL && current.clientPriceMinor == 0ULL) ||
+                                   (count > 0U && latest.labourCostMinor == current.labourCostMinor &&
+                                    latest.clientPriceMinor == current.clientPriceMinor &&
+                                    latest.currency == current.currency);
+    const bool latestTimestampMatches = (count == 0U && current.pricingUpdatedAt.length() == 0U) ||
+                                        (count > 0U && latest.timestamp == current.pricingUpdatedAt);
+
     response += F("],\"count\":");
     response += count;
     response += F(",\"latest_revision\":");
@@ -60,11 +70,13 @@ void RepairCostingWeb::handlePricingHistory()
     }
     else response += F("null");
     response += F("},\"history_count_matches_current\":");
-    response += count == current.pricingRevisionCount ? F("true") : F("false");
+    response += countMatches ? F("true") : F("false");
+    response += F(",\"history_latest_values_match_current\":");
+    response += latestValuesMatch ? F("true") : F("false");
     response += F(",\"history_latest_timestamp_matches_current\":");
-    const bool timestampMatches = (count == 0U && current.pricingUpdatedAt.length() == 0U) ||
-                                  (count > 0U && current.pricingUpdatedAt.length() > 0U);
-    response += timestampMatches ? F("true") : F("false");
+    response += latestTimestampMatches ? F("true") : F("false");
+    response += F(",\"history_matches_current_pricing\":");
+    response += countMatches && latestValuesMatch && latestTimestampMatches ? F("true") : F("false");
     response += F(",\"current_pricing_source\":\"LATEST_APPEND_ONLY_REVISION\"");
     response += F(",\"source\":\"APPEND_ONLY_LOG\"}");
     m_server.send(200, "application/json; charset=utf-8", response);

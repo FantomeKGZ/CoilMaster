@@ -16,23 +16,17 @@ bool OutgoingWindingJob::isValid() const
 {
     if (jobId == 0UL || sessionId == 0UL ||
         coilCount == 0U || coilCount > MaxCoils)
-    {
         return false;
-    }
 
     for (uint8_t index = 0U; index < coilCount; ++index)
-    {
-        if (turns[index] == 0U || turns[index] > 9999U)
-        {
-            return false;
-        }
-    }
+        if (turns[index] == 0U || turns[index] > 9999U) return false;
     return true;
 }
 
 JobDeliveryEvent::JobDeliveryEvent()
-    : result(JobDeliveryResult::None), jobId(0UL), sendAttempts(0U)
+    : result(JobDeliveryResult::None), jobId(0UL), sendAttempts(0U), detail()
 {
+    detail[0] = '\0';
 }
 
 UartEventReceiver::UartEventReceiver(HardwareSerial& serial)
@@ -54,7 +48,6 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
     {
         const char value = static_cast<char>(m_serial.read());
         if (value == '\r') continue;
-
         if (value == '\n')
         {
             m_line[m_length] = '\0';
@@ -70,7 +63,6 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
             if (eventReady) return true;
             continue;
         }
-
         if (m_length + 1U >= MaxLineLength)
         {
             m_length = 0U;
@@ -85,27 +77,24 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
 void UartEventReceiver::update(uint32_t nowMs)
 {
     if (!m_hasPendingJob) return;
-
     if (!m_waitingJobAck)
     {
         sendPendingJob(nowMs);
         return;
     }
-
     if (static_cast<uint32_t>(nowMs - m_lastJobSendMs) < JobRetryIntervalMs)
         return;
-
     if (m_jobSendAttempts >= MaxJobSendAttempts)
     {
         publishJobDelivery(JobDeliveryResult::TimedOut,
                            m_pendingJob.jobId,
-                           m_jobSendAttempts);
+                           m_jobSendAttempts,
+                           "NO_ACK");
         m_hasPendingJob = false;
         m_waitingJobAck = false;
         m_jobSendAttempts = 0U;
         return;
     }
-
     sendPendingJob(nowMs);
 }
 
@@ -128,10 +117,7 @@ bool UartEventReceiver::takeJobDelivery(JobDeliveryEvent& event)
     return true;
 }
 
-bool UartEventReceiver::jobPending() const
-{
-    return m_hasPendingJob;
-}
+bool UartEventReceiver::jobPending() const { return m_hasPendingJob; }
 
 void UartEventReceiver::sendAck(uint32_t runId, const char* status)
 {
@@ -154,10 +140,8 @@ bool UartEventReceiver::parseEventLine(char* line,
 {
     char* lastSeparator = strrchr(line, '|');
     if (lastSeparator == nullptr) return false;
-
     uint16_t receivedCrc = 0U;
     if (!parseHex16(lastSeparator + 1, receivedCrc)) return false;
-
     const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
     if (crc16(line, payloadLength) != receivedCrc) return false;
     *lastSeparator = '\0';
@@ -170,14 +154,11 @@ bool UartEventReceiver::parseEventLine(char* line,
     char* run = strtok_r(nullptr, "|", &save);
     char* completed = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
-
     if (version == nullptr || category == nullptr || type == nullptr ||
         session == nullptr || run == nullptr || completed == nullptr ||
         extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "EVT") != 0)
-    {
         return false;
-    }
 
     RemoteEventType parsedType = RemoteEventType::None;
     if (strcmp(type, "RUN_STARTED") == 0)
@@ -193,15 +174,10 @@ bool UartEventReceiver::parseEventLine(char* line,
     if (!parseDecimal32(session, parsedSession) || parsedSession == 0UL ||
         !parseDecimal32(run, parsedRun) || parsedRun == 0UL ||
         !parseDecimal16(completed, parsedCompleted))
-    {
         return false;
-    }
-
     if ((parsedType == RemoteEventType::RunStarted && parsedCompleted != 0U) ||
         (parsedType == RemoteEventType::RunCompleted && parsedCompleted == 0U))
-    {
         return false;
-    }
 
     event.type = parsedType;
     event.sessionId = parsedSession;
@@ -217,14 +193,13 @@ bool UartEventReceiver::processJobAck(char* line)
     char* category = strtok_r(nullptr, "|", &save);
     char* jobText = strtok_r(nullptr, "|", &save);
     char* status = strtok_r(nullptr, "|", &save);
-    (void)strtok_r(nullptr, "|", &save);
+    char* detail = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
 
     if (version == nullptr || category == nullptr || jobText == nullptr ||
-        status == nullptr || strcmp(version, "CMP1") != 0 ||
+        status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "JOB_ACK") != 0 || !m_hasPendingJob)
-    {
         return false;
-    }
 
     uint32_t jobId = 0UL;
     if (!parseDecimal32(jobText, jobId) || jobId != m_pendingJob.jobId)
@@ -234,11 +209,18 @@ bool UartEventReceiver::processJobAck(char* line)
     if (strcmp(status, "ACCEPTED") == 0)
         result = JobDeliveryResult::Accepted;
     else if (strcmp(status, "REJECTED") == 0)
+    {
+        if (detail == nullptr || *detail == '\0') return false;
         result = JobDeliveryResult::Rejected;
+    }
     else
         return false;
 
-    publishJobDelivery(result, jobId, m_jobSendAttempts);
+    publishJobDelivery(result,
+                       jobId,
+                       m_jobSendAttempts,
+                       detail != nullptr ? detail :
+                       (result == JobDeliveryResult::Accepted ? "ACCEPTED" : "REJECTED"));
     m_hasPendingJob = false;
     m_waitingJobAck = false;
     m_jobSendAttempts = 0U;
@@ -249,9 +231,7 @@ bool UartEventReceiver::sendPendingJob(uint32_t nowMs)
 {
     if (!m_hasPendingJob || m_jobSendAttempts >= MaxJobSendAttempts ||
         !writeJobFrame(m_pendingJob))
-    {
         return false;
-    }
     ++m_jobSendAttempts;
     m_waitingJobAck = true;
     m_lastJobSendMs = nowMs;
@@ -263,7 +243,6 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
     char turnsText[64];
     size_t used = 0U;
     turnsText[0] = '\0';
-
     for (uint8_t index = 0U; index < job.coilCount; ++index)
     {
         const int written = snprintf(turnsText + used, sizeof(turnsText) - used,
@@ -281,7 +260,6 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
         static_cast<unsigned long>(job.sessionId),
         job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",
         static_cast<unsigned int>(job.coilCount), turnsText);
-
     if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(payload))
         return false;
 
@@ -297,11 +275,15 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
 
 void UartEventReceiver::publishJobDelivery(JobDeliveryResult result,
                                            uint32_t jobId,
-                                           uint8_t sendAttempts)
+                                           uint8_t sendAttempts,
+                                           const char* detail)
 {
     m_jobDelivery.result = result;
     m_jobDelivery.jobId = jobId;
     m_jobDelivery.sendAttempts = sendAttempts;
+    const char* source = detail != nullptr ? detail : "";
+    strncpy(m_jobDelivery.detail, source, JobDeliveryEvent::MaxDetailLength);
+    m_jobDelivery.detail[JobDeliveryEvent::MaxDetailLength] = '\0';
     m_hasJobDelivery = true;
 }
 
@@ -312,11 +294,9 @@ uint16_t UartEventReceiver::crc16(const char* data, size_t length)
     {
         crc ^= static_cast<uint8_t>(data[index]);
         for (uint8_t bit = 0U; bit < 8U; ++bit)
-        {
             crc = (crc & 1U) != 0U
                       ? static_cast<uint16_t>((crc >> 1U) ^ 0xA001U)
                       : static_cast<uint16_t>(crc >> 1U);
-        }
     }
     return crc;
 }

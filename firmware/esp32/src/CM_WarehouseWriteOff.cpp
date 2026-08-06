@@ -57,6 +57,7 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     result.consumedGrams = consumed;
     result.pricePerKgMinor = price.pricePerKgMinor;
     result.currency = price.currency;
+    result.wireType = wireType;
     return true;
 }
 

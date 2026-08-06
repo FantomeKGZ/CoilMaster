@@ -12,6 +12,7 @@ WindingJournal::WindingJournal(fs::FS& fileSystem)
 bool WindingJournal::begin()
 {
     m_ready = ensureDirectories();
+    if (m_ready) m_ready = validateJournalStructure();
     return m_ready;
 }
 
@@ -105,6 +106,57 @@ bool WindingJournal::ensureDirectories()
         return false;
     }
 
+    return true;
+}
+
+bool WindingJournal::validateJournalStructure() const
+{
+    if (!m_fileSystem.exists(JournalPath)) return true;
+
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U || line[0] != '{' ||
+            line[line.length() - 1U] != '}')
+        {
+            file.close();
+            return false;
+        }
+
+        uint32_t schemaVersion = 0UL;
+        uint32_t runId = 0UL;
+        uint32_t sessionId = 0UL;
+        uint32_t completedRuns = 0UL;
+        uint32_t uptimeMs = 0UL;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            schemaVersion != 1UL ||
+            !findUnsigned(line, "run_id", runId) || runId == 0UL ||
+            !findUnsigned(line, "session_id", sessionId) || sessionId == 0UL ||
+            !findUnsigned(line, "completed_runs", completedRuns) ||
+            completedRuns > 0xFFFFUL ||
+            !findUnsigned(line, "uptime_ms", uptimeMs))
+        {
+            file.close();
+            return false;
+        }
+
+        const bool started =
+            line.indexOf(F("\"event\":\"RUN_STARTED\"")) >= 0;
+        const bool completed =
+            line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0;
+        if (started == completed ||
+            (started && completedRuns != 0UL) ||
+            (completed && completedRuns == 0UL))
+        {
+            file.close();
+            return false;
+        }
+    }
+
+    file.close();
     return true;
 }
 

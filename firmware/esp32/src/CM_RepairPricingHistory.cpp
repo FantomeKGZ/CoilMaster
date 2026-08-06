@@ -4,9 +4,11 @@ namespace CM
 {
 bool RepairCosting::appendPricingRevisionsJson(String& json,
                                                uint32_t repairId,
-                                               uint16_t& appendedCount) const
+                                               uint16_t& appendedCount,
+                                               PricingRevisionSnapshot& latest) const
 {
     appendedCount = 0U;
+    latest = PricingRevisionSnapshot();
     if (!m_ready || repairId == 0UL) return false;
     if (!m_storage.exists(PricingPath)) return true;
 
@@ -33,6 +35,7 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
 
         findString(line, "currency", currency);
         findString(line, "timestamp", timestamp);
+        if (currency.length() != 3U) currency = "KGS";
 
         if (!first) json += ',';
         first = false;
@@ -49,11 +52,15 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
                  static_cast<unsigned long long>(clientPrice));
         json += clientBuffer;
         json += F(",\"currency\":\"");
-        json += jsonEscape(currency.length() == 3U ? currency : String("KGS"));
+        json += jsonEscape(currency);
         json += F("\",\"timestamp\":\"");
         json += jsonEscape(timestamp);
         json += F("\"}");
 
+        latest.labourCostMinor = labour;
+        latest.clientPriceMinor = clientPrice;
+        latest.currency = currency;
+        latest.timestamp = timestamp;
         if (appendedCount < 0xFFFFU) ++appendedCount;
     }
     file.close();

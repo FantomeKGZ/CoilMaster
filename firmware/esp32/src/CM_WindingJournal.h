@@ -38,6 +38,8 @@ private:
     bool loadActiveRun(uint32_t sessionId,
                        uint32_t& runId,
                        bool& found) const;
+    bool loadSessionHighestRunId(uint32_t sessionId,
+                                 uint32_t& highestRunId) const;
     bool appendRecord(const RemoteWindingEvent& event);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static const char* eventTypeName(RemoteEventType type);

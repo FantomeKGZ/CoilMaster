@@ -28,13 +28,18 @@ void WarehouseWeb::handleListWriteOffs()
     }
 
     String response;
-    response.reserve(4096U);
+    response.reserve(4350U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
     uint16_t count = 0U;
     uint32_t totalConsumed = 0UL;
-    if (!m_store.appendConfirmedWriteOffsJson(response, repairId, count, totalConsumed))
+    WriteOffMaterialTotals materialTotals;
+    if (!m_store.appendConfirmedWriteOffsJson(response,
+                                               repairId,
+                                               count,
+                                               totalConsumed,
+                                               materialTotals))
     {
         m_server.send(500, "application/json; charset=utf-8",
                       "{\"error\":\"write_off_history_read_failed\"}");
@@ -42,7 +47,14 @@ void WarehouseWeb::handleListWriteOffs()
     }
     response += F("],\"count\":"); response += count;
     response += F(",\"total_consumed_g\":"); response += totalConsumed;
-    response += '}';
+    response += F(",\"material_totals\":{");
+    response += F("\"CU\":{\"consumed_g\":"); response += materialTotals.copperGrams;
+    response += F(",\"count\":"); response += materialTotals.copperCount;
+    response += F("},\"AL\":{\"consumed_g\":"); response += materialTotals.aluminiumGrams;
+    response += F(",\"count\":"); response += materialTotals.aluminiumCount;
+    response += F("},\"UNKNOWN\":{\"consumed_g\":"); response += materialTotals.unknownGrams;
+    response += F(",\"count\":"); response += materialTotals.unknownCount;
+    response += F("}},\"material_totals_source\":\"SERVER\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

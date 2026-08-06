@@ -97,6 +97,9 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
             String currency;
             if (findString(line, "currency", currency) && currency.length() == 3U)
                 summary.currency = currency;
+            String timestamp;
+            if (findString(line, "timestamp", timestamp)) summary.pricingUpdatedAt = timestamp;
+            if (summary.pricingRevisionCount < 0xFFFFU) ++summary.pricingRevisionCount;
         }
         file.close();
     }

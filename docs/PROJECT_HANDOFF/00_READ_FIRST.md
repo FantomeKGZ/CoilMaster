@@ -1,6 +1,6 @@
 # CoilMaster — продолжение проекта
 
-Дата: 2026-08-06
+Дата: 2026-08-07
 
 Репозиторий: `FantomeKGZ/CoilMaster`
 
@@ -10,26 +10,28 @@
 
 ## Запрос для нового чата
 
-> Открой репозиторий `FantomeKGZ/CoilMaster`, выбери ветку `cmp-protocol-v1`, прочитай все файлы каталога `docs/PROJECT_HANDOFF/` по порядку и проверь актуальные версии упомянутых исходников. Продолжи с точки из `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. После работы обнови handoff-файлы.
+> Открой репозиторий `FantomeKGZ/CoilMaster`, выбери ветку `cmp-protocol-v1`, прочитай все файлы каталога `docs/PROJECT_HANDOFF/` по порядку, включая `11_FULL_BRANCH_AUDIT.md`, и проверь актуальные версии упомянутых исходников. Продолжи с точки из `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. После работы обнови handoff-файлы.
 
 ## Порядок чтения
 
-1. `01_CURRENT_STATE.md`
-2. `02_ARCHITECTURE_AND_HARDWARE.md`
-3. `03_PROTOCOL_AND_WINDING_FLOW.md`
-4. `04_DATA_STORAGE_API_UI.md`
-5. `05_COMPLETED_WORK_LOG.md`
-6. `06_ACTIVE_WORK_AND_NEXT_STEPS.md`
-7. `07_BACKLOG_AND_DEFERRED.md`
-8. `08_WORK_RULES_AND_VERIFICATION.md`
-9. `09_KEY_FILES_INDEX.md`
+1. `11_FULL_BRANCH_AUDIT.md` — полная карта того, что реализовано и что не завершено.
+2. `01_CURRENT_STATE.md`
+3. `02_ARCHITECTURE_AND_HARDWARE.md`
+4. `03_PROTOCOL_AND_WINDING_FLOW.md`
+5. `04_DATA_STORAGE_API_UI.md`
+6. `05_COMPLETED_WORK_LOG.md`
+7. `06_ACTIVE_WORK_AND_NEXT_STEPS.md`
+8. `07_BACKLOG_AND_DEFERRED.md`
+9. `08_WORK_RULES_AND_VERIFICATION.md`
+10. `09_KEY_FILES_INDEX.md`
+11. `10_SESSION_LOG.md`
 
 ## Источник истины
 
 1. Текущий код ветки `cmp-protocol-v1`.
 2. Результаты актуальной сборки и тестов.
 3. Зафиксированные правила безопасности и архитектуры.
-4. Этот каталог.
+4. `11_FULL_BRANCH_AUDIT.md` и остальные файлы этого каталога.
 5. Тематические документы в `docs/`.
 6. История чатов.
 
@@ -38,3 +40,11 @@
 В репозитории могут существовать контекстные файлы для ветки `main` и ранней архитектуры. Они не являются актуальной точкой продолжения этой ветки.
 
 После каждого значимого этапа обновлять текущее состояние, журнал выполненного, точку продолжения и статус проверки.
+
+## Критические напоминания
+
+- Не проверять только `main`: активная реализация находится в `cmp-protocol-v1`.
+- Не начинать повторно уже существующие WEB, склад, реестр, калькуляцию, Arduino-модули и CMP Core.
+- Не считать документацию доказательством успешной сборки.
+- Не считать backlog реализованным.
+- Не разрешать ESP32 или WEB напрямую управлять SSR.

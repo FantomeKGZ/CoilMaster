@@ -83,6 +83,8 @@ private:
 
     static uint16_t crc16(const char* data, size_t length);
     static bool parseHex16(const char* text, uint16_t& value);
+    static bool parseDecimal32(const char* text, uint32_t& value);
+    static bool parseDecimal16(const char* text, uint16_t& value);
 
     HardwareSerial& m_serial;
     char m_line[MaxLineLength];

@@ -55,6 +55,7 @@ UartEventReceiver::UartEventReceiver(HardwareSerial& serial)
     : m_serial(serial), m_line(), m_length(0U), m_pendingJob(),
       m_hasPendingJob(false), m_waitingJobAck(false),
       m_lastJobSendMs(0UL), m_jobSendAttempts(0U),
+      m_lastQueuedJobId(0UL), m_hasLastQueuedJobId(false),
       m_jobDelivery(), m_hasJobDelivery(false)
 {
 }
@@ -123,10 +124,14 @@ void UartEventReceiver::update(uint32_t nowMs)
 bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 {
     if (m_hasPendingJob || m_hasJobDelivery || !job.isValid()) return false;
+    if (m_hasLastQueuedJobId && job.jobId <= m_lastQueuedJobId) return false;
+
     m_pendingJob = job;
     m_hasPendingJob = true;
     m_waitingJobAck = false;
     m_jobSendAttempts = 0U;
+    m_lastQueuedJobId = job.jobId;
+    m_hasLastQueuedJobId = true;
     return true;
 }
 

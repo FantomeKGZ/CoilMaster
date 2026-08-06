@@ -1,17 +1,18 @@
 /*
 ==========================================================
 CoilMaster OS
-CMP (CoilMaster Protocol)
 
-File      : CMP_Result.h
-Module    : Shared/Protocol
+File        : CMP_Result.h
+Module      : Shared/Protocol
+Version     : 1.0.0
+Status      : RC1
 
-Description:
-CMP operation result codes.
+Description :
+Result codes returned by CMP public operations.
+The type is platform-independent, allocation-free and
+safe to use on Arduino UNO and ESP32.
 
-Release   : 0.1.0
-Build     : 002A
-Package   : 01.3
+Copyright (c) CoilMaster Project
 ==========================================================
 */
 
@@ -20,69 +21,57 @@ Package   : 01.3
 
 #include <stdint.h>
 
-enum class CMP_Result : uint8_t
+#include "CMP_Defines.h"
+
+namespace CMP
 {
-    //------------------------------------------------------
-    // Success
-    //------------------------------------------------------
+    enum class Result : uint8_t
+    {
+        Ok = 0x00,
 
-    OK = 0,
+        NeedMoreData      = 0x01,
+        NoPacketAvailable = 0x02,
 
-    //------------------------------------------------------
-    // General
-    //------------------------------------------------------
+        InvalidArgument    = 0x10,
+        InvalidStartWord   = 0x11,
+        UnsupportedVersion = 0x12,
+        InvalidFlags       = 0x13,
+        InvalidCommand     = 0x14,
+        InvalidLength      = 0x15,
+        PayloadTooLarge    = 0x16,
+        CRCMismatch        = 0x17,
 
-    ERROR,
+        BufferEmpty = 0x20,
+        BufferFull  = 0x21,
 
-    TIMEOUT,
+        Timeout        = 0x30,
+        TransportError = 0x31,
 
-    //------------------------------------------------------
-    // Transport
-    //------------------------------------------------------
+        HandlerNotFound = 0x40,
+        CommandRejected = 0x41,
 
-    SERIAL_NOT_INITIALIZED,
+        InternalError = 0xFF
+    };
 
-    RX_BUFFER_EMPTY,
+    constexpr bool succeeded(const Result result)
+    {
+        return result == Result::Ok;
+    }
 
-    RX_BUFFER_OVERFLOW,
+    constexpr bool failed(const Result result)
+    {
+        return !succeeded(result);
+    }
 
-    TX_BUFFER_OVERFLOW,
+    constexpr bool isPending(const Result result)
+    {
+        return result == Result::NeedMoreData ||
+               result == Result::NoPacketAvailable;
+    }
+}
 
-    //------------------------------------------------------
-    // Packet
-    //------------------------------------------------------
+static_assert(
+    sizeof(CMP::Result) == sizeof(uint8_t),
+    "CMP::Result must remain one byte wide.");
 
-    INVALID_START_WORD,
-
-    INVALID_VERSION,
-
-    INVALID_FLAGS,
-
-    INVALID_LENGTH,
-
-    INVALID_CRC,
-
-    PACKET_TOO_LARGE,
-
-    PACKET_INCOMPLETE,
-
-    //------------------------------------------------------
-    // Protocol
-    //------------------------------------------------------
-
-    UNKNOWN_COMMAND,
-
-    NOT_SUPPORTED,
-
-    BUSY,
-
-    //------------------------------------------------------
-    // Application
-    //------------------------------------------------------
-
-    INVALID_PARAMETER,
-
-    INTERNAL_ERROR
-};
-
-#endif
+#endif // CMP_RESULT_H

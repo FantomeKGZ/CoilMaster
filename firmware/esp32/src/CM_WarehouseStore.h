@@ -43,8 +43,8 @@ private:
     static constexpr const char* ConversionSettingsPath="/data/settings/conductor.json";
     bool ensureDirectories(); void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
-    bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm);
-    bool appendWriteOffRecord(uint32_t movementId,const ConfirmedSpoolWriteOff& operation,uint16_t diameterHundredthsMm,uint32_t consumedGrams,const WarehousePrice& price,const char* status);
+    bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);
+    bool appendWriteOffRecord(uint32_t movementId,const ConfirmedSpoolWriteOff& operation,uint16_t diameterHundredthsMm,uint32_t consumedGrams,const WarehousePrice& price,const char* status,const String& wireType);
     static bool findUnsigned(const String& line,const char* key,uint32_t& value); static bool findString(const String& line,const char* key,String& value); static String jsonEscape(const String& value);
     fs::FS& m_storage; WireStockSummary m_summary[WarehouseMaxDiameters]; uint8_t m_summaryCount; bool m_ready;
 };

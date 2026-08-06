@@ -86,7 +86,7 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     result = RepairMaterialUsageResult();
     if (!m_ready || usage.repairId == 0UL || usage.materialId == 0UL ||
         usage.quantityMilli == 0UL || usage.timestamp.length() < 10U ||
-        m_storage.exists(UsagePendingPath))
+        !repairExists(usage.repairId) || m_storage.exists(UsagePendingPath))
     {
         return false;
     }
@@ -123,7 +123,7 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
         }
     }
     materialFile.close();
-    if (!materialFound) return false;
+    if (!materialFound || currency != "KGS") return false;
 
     const uint64_t cost =
         (static_cast<uint64_t>(usage.quantityMilli) *

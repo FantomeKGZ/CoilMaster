@@ -261,18 +261,24 @@ bool WindingJournal::appendRecord(const RemoteWindingEvent& event)
         return false;
     }
 
-    const size_t written = file.printf(
-        "{\"schema_version\":1,\"run_id\":%lu,\"event\":\"%s\","
-        "\"session_id\":%lu,\"completed_runs\":%u,\"uptime_ms\":%lu}\n",
-        static_cast<unsigned long>(event.runId),
-        eventTypeName(event.type),
-        static_cast<unsigned long>(event.sessionId),
-        static_cast<unsigned int>(event.completedRuns),
-        static_cast<unsigned long>(millis()));
+    String record;
+    record.reserve(160U);
+    record = F("{\"schema_version\":1,\"run_id\":");
+    record += event.runId;
+    record += F(",\"event\":\"");
+    record += eventTypeName(event.type);
+    record += F("\",\"session_id\":");
+    record += event.sessionId;
+    record += F(",\"completed_runs\":");
+    record += event.completedRuns;
+    record += F(",\"uptime_ms\":");
+    record += millis();
+    record += F("}\n");
 
+    const size_t written = file.print(record);
     file.flush();
     file.close();
-    return written > 0U;
+    return written == record.length();
 }
 
 bool WindingJournal::findUnsigned(const String& line,

@@ -26,14 +26,37 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
         {
             const String line = file.readStringUntil('\n');
             uint32_t lineRepairId = 0UL, mass = 0UL, price = 0UL;
-            String type, status, currency;
+            String type, status, currency, wireType;
             if (!findUnsigned(line, "repair_id", lineRepairId) || lineRepairId != repairId ||
                 !findString(line, "type", type) || type != "WRITE_OFF" ||
                 !findString(line, "status", status) || status != "CONFIRMED" ||
                 !findUnsigned(line, "mass_g", mass) ||
                 !findUnsigned(line, "price_per_kg_minor", price)) continue;
-            summary.wireCostMinor += static_cast<uint64_t>(mass) * price / 1000ULL;
+
+            const uint64_t lineCost = static_cast<uint64_t>(mass) * price / 1000ULL;
+            summary.wireCostMinor += lineCost;
             if (summary.wireLineCount < 0xFFFFU) ++summary.wireLineCount;
+
+            findString(line, "wire_type", wireType);
+            if (wireType == "CU")
+            {
+                summary.copperWireCostMinor += lineCost;
+                summary.copperWireGrams += mass;
+                if (summary.copperWireLineCount < 0xFFFFU) ++summary.copperWireLineCount;
+            }
+            else if (wireType == "AL")
+            {
+                summary.aluminiumWireCostMinor += lineCost;
+                summary.aluminiumWireGrams += mass;
+                if (summary.aluminiumWireLineCount < 0xFFFFU) ++summary.aluminiumWireLineCount;
+            }
+            else
+            {
+                summary.unknownWireCostMinor += lineCost;
+                summary.unknownWireGrams += mass;
+                if (summary.unknownWireLineCount < 0xFFFFU) ++summary.unknownWireLineCount;
+            }
+
             if (findString(line, "currency", currency) && currency.length() == 3U)
                 summary.currency = currency;
         }

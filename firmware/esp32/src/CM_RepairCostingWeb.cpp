@@ -9,6 +9,38 @@ void RepairCostingWeb::begin()
 {
     m_server.on("/api/repairs/costing", HTTP_GET, [this]() { handleGet(); });
     m_server.on("/api/repairs/costing", HTTP_POST, [this]() { handleSavePricing(); });
+    m_server.on("/api/repairs/pricing-history", HTTP_GET,
+                [this]() { handlePricingHistory(); });
+}
+
+void RepairCostingWeb::handlePricingHistory()
+{
+    uint32_t repairId = 0UL;
+    if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_repair_id\"}");
+        return;
+    }
+
+    String response;
+    response.reserve(4096U);
+    response = F("{\"repair_id\":");
+    response += repairId;
+    response += F(",\"items\":[");
+    uint16_t count = 0U;
+    if (!m_costing.appendPricingRevisionsJson(response, repairId, count))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"pricing_history_unavailable\"}");
+        return;
+    }
+    response += F("],\"count\":");
+    response += count;
+    response += F(",\"latest_revision\":");
+    response += count;
+    response += F(",\"source\":\"APPEND_ONLY_LOG\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void RepairCostingWeb::handleGet()

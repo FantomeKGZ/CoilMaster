@@ -87,6 +87,7 @@ public:
 
     bool begin();
     bool ready() const;
+    bool repairExists(uint32_t repairId) const;
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);
@@ -109,6 +110,7 @@ private:
     static constexpr const char* UsagePath = "/data/materials/usage.ndjson";
     static constexpr const char* UsagePendingPath = "/data/materials/usage.pending";
     static constexpr const char* AdjustmentsPath = "/data/materials/adjustments.ndjson";
+    static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 
     bool ensureDirectories();
     bool recoverPendingUsage();

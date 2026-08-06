@@ -13,7 +13,8 @@ enum class JournalSaveResult : uint8_t
     Saved = 0U,
     Duplicate,
     StorageUnavailable,
-    WriteFailed
+    WriteFailed,
+    InvalidTransition
 };
 
 class WindingJournal
@@ -31,7 +32,9 @@ private:
 
     bool ensureDirectories();
     bool containsRunEvent(uint32_t runId, RemoteEventType type) const;
+    bool loadRunStartSession(uint32_t runId, uint32_t& sessionId) const;
     bool appendRecord(const RemoteWindingEvent& event);
+    static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static const char* eventTypeName(RemoteEventType type);
 
     fs::FS& m_fileSystem;

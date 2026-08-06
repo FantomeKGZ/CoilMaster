@@ -28,11 +28,22 @@ void RepairCostingWeb::handleGet()
     }
 
     String response;
-    response.reserve(640U);
+    response.reserve(1040U);
     response = F("{\"repair_id\":"); response += repairId;
     response += F(",\"wire_line_count\":"); response += summary.wireLineCount;
     response += F(",\"material_line_count\":"); response += summary.materialLineCount;
     response += F(",\"wire_cost_minor\":"); appendUInt64(response, summary.wireCostMinor);
+    response += F(",\"wire_materials\":{");
+    response += F("\"CU\":{\"consumed_g\":"); response += summary.copperWireGrams;
+    response += F(",\"line_count\":"); response += summary.copperWireLineCount;
+    response += F(",\"cost_minor\":"); appendUInt64(response, summary.copperWireCostMinor);
+    response += F("},\"AL\":{\"consumed_g\":"); response += summary.aluminiumWireGrams;
+    response += F(",\"line_count\":"); response += summary.aluminiumWireLineCount;
+    response += F(",\"cost_minor\":"); appendUInt64(response, summary.aluminiumWireCostMinor);
+    response += F("},\"UNKNOWN\":{\"consumed_g\":"); response += summary.unknownWireGrams;
+    response += F(",\"line_count\":"); response += summary.unknownWireLineCount;
+    response += F(",\"cost_minor\":"); appendUInt64(response, summary.unknownWireCostMinor);
+    response += F("}},\"wire_materials_source\":\"CONFIRMED_WRITE_OFFS\"");
     response += F(",\"material_cost_minor\":"); appendUInt64(response, summary.materialCostMinor);
     response += F(",\"labour_cost_minor\":"); appendUInt64(response, summary.labourCostMinor);
     response += F(",\"total_cost_minor\":"); appendUInt64(response, summary.totalCostMinor);

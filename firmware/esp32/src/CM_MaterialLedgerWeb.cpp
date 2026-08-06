@@ -29,17 +29,18 @@ void MaterialLedgerWeb::handleList()
     if (!m_ledger.ready()) { m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}"); return; }
     String response=F("{\"items\":["); response.reserve(4096U); uint16_t count=0U;
     if(!m_ledger.appendMaterialsJson(response,count)){m_server.send(500,"application/json; charset=utf-8","{\"error\":\"materials_read_failed\"}");return;}
-    response+=F("],\"count\":");response+=count;response+='}';m_server.send(200,"application/json; charset=utf-8",response);
+    response+=F("],\"count\":");response+=count;response+=F(",\"currency_policy\":\"KGS_ONLY\",\"supported_currency\":\"KGS\"}");m_server.send(200,"application/json; charset=utf-8",response);
 }
 
 void MaterialLedgerWeb::handleCreate()
 {
     if(!m_ledger.ready()){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");return;}
-    MaterialUnit unit;uint32_t stock=0UL,price=0UL;String currency=m_server.hasArg("currency")?m_server.arg("currency"):String("KGS");currency.toUpperCase();
-    if(!m_server.hasArg("name")||m_server.arg("name").length()==0U||!parseUnit(m_server.arg("unit"),unit)||!parseUnsigned(m_server,"stock_quantity_milli",0UL,0xFFFFFFFFUL,stock)||!parseUnsigned(m_server,"price_per_unit_minor",1UL,100000000UL,price)||currency.length()!=3U){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_material_fields\"}");return;}
+    MaterialUnit unit;uint32_t stock=0UL,price=0UL;String currency=m_server.hasArg("currency")?m_server.arg("currency"):String("KGS");currency.trim();currency.toUpperCase();
+    if(currency!="KGS"){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"unsupported_currency\",\"supported_currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\"}");return;}
+    if(!m_server.hasArg("name")||m_server.arg("name").length()==0U||!parseUnit(m_server.arg("unit"),unit)||!parseUnsigned(m_server,"stock_quantity_milli",0UL,0xFFFFFFFFUL,stock)||!parseUnsigned(m_server,"price_per_unit_minor",1UL,100000000UL,price)){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_material_fields\"}");return;}
     NewMaterial material;material.name=m_server.arg("name");material.unit=unit;material.stockQuantityMilli=stock;material.pricePerUnitMinor=price;material.currency=currency;material.comment=m_server.arg("comment");uint32_t materialId=0UL;
     if(!m_ledger.addMaterial(material,materialId)){m_server.send(500,"application/json; charset=utf-8","{\"error\":\"material_write_failed\"}");return;}
-    String response=F("{\"created\":true,\"material_id\":");response+=materialId;response+='}';m_server.send(201,"application/json; charset=utf-8",response);
+    String response=F("{\"created\":true,\"material_id\":");response+=materialId;response+=F(",\"currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\"}");m_server.send(201,"application/json; charset=utf-8",response);
 }
 
 void MaterialLedgerWeb::handleUsage()

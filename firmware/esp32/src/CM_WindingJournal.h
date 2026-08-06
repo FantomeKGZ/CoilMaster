@@ -35,6 +35,9 @@ private:
     bool loadRunStartSession(uint32_t runId, uint32_t& sessionId) const;
     bool loadSessionCompletedRuns(uint32_t sessionId,
                                   uint16_t& completedRuns) const;
+    bool loadActiveRun(uint32_t sessionId,
+                       uint32_t& runId,
+                       bool& found) const;
     bool appendRecord(const RemoteWindingEvent& event);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static const char* eventTypeName(RemoteEventType type);

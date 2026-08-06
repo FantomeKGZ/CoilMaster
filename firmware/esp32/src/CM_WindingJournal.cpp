@@ -27,9 +27,25 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
         return JournalSaveResult::StorageUnavailable;
     }
 
+    if (event.runId == 0UL || event.sessionId == 0UL ||
+        event.type == RemoteEventType::None)
+    {
+        return JournalSaveResult::InvalidTransition;
+    }
+
     if (containsRunEvent(event.runId, event.type))
     {
         return JournalSaveResult::Duplicate;
+    }
+
+    if (event.type == RemoteEventType::RunCompleted)
+    {
+        uint32_t startedSessionId = 0UL;
+        if (!loadRunStartSession(event.runId, startedSessionId) ||
+            startedSessionId != event.sessionId || event.completedRuns == 0U)
+        {
+            return JournalSaveResult::InvalidTransition;
+        }
     }
 
     return appendRecord(event)
@@ -84,6 +100,32 @@ bool WindingJournal::containsRunEvent(uint32_t runId,
     return false;
 }
 
+bool WindingJournal::loadRunStartSession(uint32_t runId,
+                                         uint32_t& sessionId) const
+{
+    sessionId = 0UL;
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t lineRunId = 0UL;
+        String eventMarker = F("\"event\":\"RUN_STARTED\"");
+        if (line.indexOf(eventMarker) < 0 ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId != runId ||
+            !findUnsigned(line, "session_id", sessionId))
+        {
+            continue;
+        }
+        file.close();
+        return sessionId > 0UL;
+    }
+
+    file.close();
+    return false;
+}
+
 bool WindingJournal::appendRecord(const RemoteWindingEvent& event)
 {
     File file = m_fileSystem.open(JournalPath, FILE_APPEND);
@@ -104,6 +146,25 @@ bool WindingJournal::appendRecord(const RemoteWindingEvent& event)
     file.flush();
     file.close();
     return written > 0U;
+}
+
+bool WindingJournal::findUnsigned(const String& line,
+                                  const char* key,
+                                  uint32_t& value)
+{
+    const String marker = String("\"") + key + F("\":");
+    const int position = line.indexOf(marker);
+    if (position < 0) return false;
+
+    int start = position + marker.length();
+    while (start < line.length() && line[start] == ' ') ++start;
+    int end = start;
+    while (end < line.length() && isDigit(line[end])) ++end;
+    if (end == start) return false;
+
+    value = static_cast<uint32_t>(
+        strtoul(line.substring(start, end).c_str(), nullptr, 10));
+    return true;
 }
 
 const char* WindingJournal::eventTypeName(RemoteEventType type)

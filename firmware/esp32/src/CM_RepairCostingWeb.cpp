@@ -33,9 +33,7 @@ void RepairCostingWeb::handleGet()
     const uint32_t materialWireLines = static_cast<uint32_t>(summary.copperWireLineCount) +
                                        static_cast<uint32_t>(summary.aluminiumWireLineCount) +
                                        static_cast<uint32_t>(summary.unknownWireLineCount);
-    const uint64_t componentTotal = summary.wireCostMinor +
-                                    summary.materialCostMinor +
-                                    summary.labourCostMinor;
+    const uint64_t componentCost = summary.wireCostMinor + summary.materialCostMinor + summary.labourCostMinor;
     const uint64_t lossMinor = summary.totalCostMinor > summary.clientPriceMinor
                                    ? summary.totalCostMinor - summary.clientPriceMinor
                                    : 0ULL;
@@ -46,29 +44,18 @@ void RepairCostingWeb::handleGet()
         else if (summary.clientPriceMinor == summary.totalCostMinor) pricingStatus = "BREAK_EVEN";
         else pricingStatus = "LOSS";
     }
-
-    bool pricingDeltaMatches = false;
-    if (summary.clientPriceMinor == 0ULL)
+    bool pricingDeltaMatches = summary.clientPriceMinor == 0ULL &&
+                               summary.marginMinor == 0ULL && lossMinor == 0ULL;
+    if (summary.clientPriceMinor > 0ULL)
     {
-        pricingDeltaMatches = summary.marginMinor == 0ULL && lossMinor == 0ULL;
-    }
-    else if (summary.clientPriceMinor > summary.totalCostMinor)
-    {
-        pricingDeltaMatches = summary.clientPriceMinor == summary.totalCostMinor + summary.marginMinor &&
-                              lossMinor == 0ULL;
-    }
-    else if (summary.clientPriceMinor == summary.totalCostMinor)
-    {
-        pricingDeltaMatches = summary.marginMinor == 0ULL && lossMinor == 0ULL;
-    }
-    else
-    {
-        pricingDeltaMatches = summary.totalCostMinor == summary.clientPriceMinor + lossMinor &&
-                              summary.marginMinor == 0ULL;
+        if (summary.clientPriceMinor >= summary.totalCostMinor)
+            pricingDeltaMatches = summary.clientPriceMinor == summary.totalCostMinor + summary.marginMinor && lossMinor == 0ULL;
+        else
+            pricingDeltaMatches = summary.totalCostMinor == summary.clientPriceMinor + lossMinor && summary.marginMinor == 0ULL;
     }
 
     String response;
-    response.reserve(1440U);
+    response.reserve(1450U);
     response = F("{\"repair_id\":"); response += repairId;
     response += F(",\"wire_line_count\":"); response += summary.wireLineCount;
     response += F(",\"material_line_count\":"); response += summary.materialLineCount;
@@ -92,7 +79,7 @@ void RepairCostingWeb::handleGet()
     response += F(",\"labour_cost_minor\":"); appendUInt64(response, summary.labourCostMinor);
     response += F(",\"total_cost_minor\":"); appendUInt64(response, summary.totalCostMinor);
     response += F(",\"cost_components_match_total\":");
-    response += componentTotal == summary.totalCostMinor ? F("true") : F("false");
+    response += componentCost == summary.totalCostMinor ? F("true") : F("false");
     response += F(",\"client_price_minor\":"); appendUInt64(response, summary.clientPriceMinor);
     response += F(",\"client_price_set\":");
     response += summary.clientPriceMinor > 0ULL ? F("true") : F("false");
@@ -102,6 +89,14 @@ void RepairCostingWeb::handleGet()
     response += F(",\"pricing_status_source\":\"SERVER\"");
     response += F(",\"pricing_delta_matches_price\":");
     response += pricingDeltaMatches ? F("true") : F("false");
+    response += F(",\"pricing_revision_count\":"); response += summary.pricingRevisionCount;
+    response += F(",\"pricing_updated_at\":");
+    if (summary.pricingUpdatedAt.length() > 0U)
+    {
+        response += '"'; response += summary.pricingUpdatedAt; response += '"';
+    }
+    else response += F("null");
+    response += F(",\"pricing_revision_source\":\"APPEND_ONLY_LOG\"");
     response += F(",\"currency\":\""); response += summary.currency; response += F("\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }

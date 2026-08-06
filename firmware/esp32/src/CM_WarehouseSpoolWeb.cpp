@@ -12,6 +12,8 @@ namespace CM
 void WarehouseWeb::beginSpoolList()
 {
     m_server.on("/api/warehouse/spools", HTTP_GET, [this]() { handleListSpools(); });
+    m_server.on("/api/warehouse/material-summary", HTTP_GET,
+                [this]() { handleMaterialSummary(); });
     beginWriteOff();
 
     static ConductorCalculatorWeb calculatorWeb(m_server, m_store);
@@ -29,6 +31,38 @@ void WarehouseWeb::beginSpoolList()
     repairRegistry.begin();
     repairRegistryWeb.begin();
     motorSimilarityWeb.begin();
+}
+
+void WarehouseWeb::handleMaterialSummary()
+{
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
+    const String month = m_server.hasArg("month") ? m_server.arg("month") : String();
+    if (!validMonth(month))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"month_required_yyyy_mm\"}");
+        return;
+    }
+
+    String response;
+    response.reserve(6400U);
+    response = F("{\"month\":\"");
+    response += month;
+    response += F("\",\"legacy_unknown_material_separate\":true,");
+    if (!m_store.appendMaterialSummaryJson(response, month.c_str()))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"material_summary_read_failed\"}");
+        return;
+    }
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void WarehouseWeb::handleListSpools()

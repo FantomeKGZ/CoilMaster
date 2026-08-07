@@ -4,6 +4,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "CM_JobDisplayRecovery.h"
 #include "CM_JobRecovery.h"
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobStateStore.h"
@@ -133,6 +134,8 @@ void restoreLatestJobState()
     recoveryEvaluated = true;
     recoveryInfo = CM::JobRecoveryInfo();
     stateRecovered = false;
+    activeCoilCount = 0U;
+    for (uint8_t i = 0U; i < MaxWebCoils; ++i) activeTurns[i] = 0U;
 
     if (!jobStateStoreReady ||
         !jobSnapshotStoreReady ||
@@ -150,9 +153,25 @@ void restoreLatestJobState()
         return;
     }
 
+    CM::RecoveredJobDisplay display;
+    if (!CM::JobDisplayRecovery::load(jobSnapshots,
+                                      recoveryInfo.state.jobId,
+                                      recoveryInfo.state.sessionId,
+                                      display))
+    {
+        jobStateStoreReady = false;
+        recoveryInfo.mayCreateNewJob = false;
+        Serial.println(F("ERROR: immutable job display recovery failed; job creation blocked"));
+        return;
+    }
+
     stateRecovered = true;
     activeJobId = recoveryInfo.state.jobId;
     activeSessionId = recoveryInfo.state.sessionId;
+    activeJobType = display.type;
+    activeCoilCount = display.coilCount;
+    for (uint8_t i = 0U; i < activeCoilCount; ++i)
+        activeTurns[i] = display.turns[i];
     lastRunId = recoveryInfo.state.lastRunId;
     completedRuns = recoveryInfo.state.completedRuns;
     lastJobResult = deliveryResultFor(recoveryInfo.state.deliveryState);
@@ -163,6 +182,7 @@ void restoreLatestJobState()
 
     Serial.print(F("Recovered job state job=")); Serial.print(activeJobId);
     Serial.print(F(" session=")); Serial.print(activeSessionId);
+    Serial.print(F(" program=")); Serial.print(activeProgramText());
     Serial.print(F(" run=")); Serial.print(lastRunId);
     Serial.print(F(" completed=")); Serial.println(completedRuns);
     if (manualReviewRequired())

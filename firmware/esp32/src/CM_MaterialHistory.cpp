@@ -8,7 +8,7 @@ bool MaterialLedger::appendAdjustmentHistoryJson(String& json,
                                                  uint16_t& count) const
 {
     count = 0U;
-    if (!m_ready) return false;
+    if (!ready()) return false;
     if (!m_storage.exists(AdjustmentsPath)) return true;
     if (limit == 0U) limit = 20U;
 

@@ -3,6 +3,35 @@
 
 namespace CM
 {
+namespace
+{
+bool addChecked64(uint64_t& target, uint64_t value)
+{
+    if (target > 0xFFFFFFFFFFFFFFFFULL - value) return false;
+    target += value;
+    return true;
+}
+
+bool addChecked32(uint32_t& target, uint32_t value)
+{
+    if (target > 0xFFFFFFFFUL - value) return false;
+    target += value;
+    return true;
+}
+
+bool acceptCurrency(const String& value, String& current, bool& set)
+{
+    if (value.length() != 3U) return false;
+    if (!set)
+    {
+        current = value;
+        set = true;
+        return true;
+    }
+    return current == value;
+}
+}
+
 RepairCosting::RepairCosting(fs::FS& storage) : m_storage(storage), m_ready(false) {}
 
 bool RepairCosting::begin()
@@ -11,76 +40,261 @@ bool RepairCosting::begin()
     return m_ready;
 }
 
-bool RepairCosting::ready() const { return m_ready; }
+bool RepairCosting::ready() const
+{
+    if (!m_ready || !m_storage.exists("/data/repairs")) return false;
+    File probe = m_storage.open("/data/repairs");
+    if (!probe) return false;
+    const bool directory = probe.isDirectory();
+    probe.close();
+    return directory;
+}
 
 bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
 {
     summary = RepairCostSummary();
     summary.repairId = repairId;
-    if (!m_ready || repairId == 0UL || !repairExists(repairId)) return false;
+    if (!ready() || repairId == 0UL || !repairExists(repairId)) return false;
+
+    bool currencySet = false;
 
     if (m_storage.exists(WireMovementsPath))
     {
         File file = m_storage.open(WireMovementsPath, FILE_READ);
         if (!file) return false;
+
+        uint32_t maximumMovementId = 0UL;
+        uint32_t pendingMovementId = 0UL;
+        uint32_t pendingSpoolId = 0UL;
+        uint32_t pendingRepairId = 0UL;
+        uint32_t pendingBefore = 0UL;
+        uint32_t pendingAfter = 0UL;
+        uint32_t pendingMass = 0UL;
+        uint32_t pendingPrice = 0UL;
+        String pendingCurrency;
+        String pendingTimestamp;
+        String pendingComment;
+
         while (file.available())
         {
             const String line = file.readStringUntil('\n');
-            uint32_t lineRepairId = 0UL, mass = 0UL, price = 0UL;
-            String type, status, currency, wireType;
-            if (!findUnsigned(line, "repair_id", lineRepairId) || lineRepairId != repairId ||
+            if (line.length() == 0U) continue;
+
+            uint32_t movementId = 0UL;
+            uint32_t spoolId = 0UL;
+            uint32_t lineRepairId = 0UL;
+            uint32_t diameter = 0UL;
+            uint32_t before = 0UL;
+            uint32_t after = 0UL;
+            uint32_t mass = 0UL;
+            uint32_t price = 0UL;
+            String type, status, currency, timestamp, comment, wireType;
+
+            const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
+            const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+            if (!line.startsWith("{") || !line.endsWith("}") ||
+                !findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
                 !findString(line, "type", type) || type != "WRITE_OFF" ||
-                !findString(line, "status", status) || status != "CONFIRMED" ||
-                !findUnsigned(line, "mass_g", mass) ||
-                !findUnsigned(line, "price_per_kg_minor", price)) continue;
-
-            const uint64_t lineCost =
-                (static_cast<uint64_t>(mass) * static_cast<uint64_t>(price) + 500ULL) / 1000ULL;
-            summary.wireCostMinor += lineCost;
-            if (summary.wireLineCount < 0xFFFFU) ++summary.wireLineCount;
-
-            findString(line, "wire_type", wireType);
-            if (wireType == "CU")
+                !findString(line, "status", status) ||
+                !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+                !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter > 0xFFFFUL ||
+                !findUnsigned(line, "weight_before_g", before) || before == 0UL ||
+                !findUnsigned(line, "weight_after_g", after) || after >= before ||
+                !findUnsigned(line, "mass_g", mass) || mass != before - after ||
+                !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
+                !findString(line, "currency", currency) || currency.length() != 3U ||
+                !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
+                (hasComment && !findString(line, "comment", comment)) ||
+                (hasWireType && !findString(line, "wire_type", wireType)))
             {
-                summary.copperWireCostMinor += lineCost;
-                summary.copperWireGrams += mass;
-                if (summary.copperWireLineCount < 0xFFFFU) ++summary.copperWireLineCount;
+                file.close();
+                return false;
             }
-            else if (wireType == "AL")
+
+            if (status == "PENDING")
             {
-                summary.aluminiumWireCostMinor += lineCost;
-                summary.aluminiumWireGrams += mass;
-                if (summary.aluminiumWireLineCount < 0xFFFFU) ++summary.aluminiumWireLineCount;
+                if (pendingMovementId != 0UL || movementId <= maximumMovementId ||
+                    diameter != 0UL || hasWireType)
+                {
+                    file.close();
+                    return false;
+                }
+                maximumMovementId = movementId;
+                pendingMovementId = movementId;
+                pendingSpoolId = spoolId;
+                pendingRepairId = lineRepairId;
+                pendingBefore = before;
+                pendingAfter = after;
+                pendingMass = mass;
+                pendingPrice = price;
+                pendingCurrency = currency;
+                pendingTimestamp = timestamp;
+                pendingComment = comment;
+                continue;
+            }
+
+            if (status != "CONFIRMED" && status != "ABORTED")
+            {
+                file.close();
+                return false;
+            }
+
+            if (pendingMovementId == 0UL || movementId != pendingMovementId ||
+                spoolId != pendingSpoolId || lineRepairId != pendingRepairId ||
+                before != pendingBefore || after != pendingAfter || mass != pendingMass ||
+                price != pendingPrice || currency != pendingCurrency ||
+                timestamp != pendingTimestamp || comment != pendingComment)
+            {
+                file.close();
+                return false;
+            }
+
+            if (status == "ABORTED")
+            {
+                if (diameter != 0UL || hasWireType)
+                {
+                    file.close();
+                    return false;
+                }
             }
             else
             {
-                summary.unknownWireCostMinor += lineCost;
-                summary.unknownWireGrams += mass;
-                if (summary.unknownWireLineCount < 0xFFFFU) ++summary.unknownWireLineCount;
+                if (diameter == 0UL ||
+                    (hasWireType && wireType != "CU" && wireType != "AL"))
+                {
+                    file.close();
+                    return false;
+                }
+
+                if (lineRepairId == repairId)
+                {
+                    const uint64_t product = static_cast<uint64_t>(mass) *
+                                             static_cast<uint64_t>(price);
+                    if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL)
+                    {
+                        file.close();
+                        return false;
+                    }
+                    const uint64_t lineCost = (product + 500ULL) / 1000ULL;
+
+                    if (!addChecked64(summary.wireCostMinor, lineCost) ||
+                        summary.wireLineCount == 0xFFFFU ||
+                        !acceptCurrency(currency, summary.currency, currencySet))
+                    {
+                        file.close();
+                        return false;
+                    }
+                    ++summary.wireLineCount;
+
+                    if (wireType == "CU")
+                    {
+                        if (!addChecked64(summary.copperWireCostMinor, lineCost) ||
+                            !addChecked32(summary.copperWireGrams, mass) ||
+                            summary.copperWireLineCount == 0xFFFFU)
+                        {
+                            file.close();
+                            return false;
+                        }
+                        ++summary.copperWireLineCount;
+                    }
+                    else if (wireType == "AL")
+                    {
+                        if (!addChecked64(summary.aluminiumWireCostMinor, lineCost) ||
+                            !addChecked32(summary.aluminiumWireGrams, mass) ||
+                            summary.aluminiumWireLineCount == 0xFFFFU)
+                        {
+                            file.close();
+                            return false;
+                        }
+                        ++summary.aluminiumWireLineCount;
+                    }
+                    else
+                    {
+                        if (!addChecked64(summary.unknownWireCostMinor, lineCost) ||
+                            !addChecked32(summary.unknownWireGrams, mass) ||
+                            summary.unknownWireLineCount == 0xFFFFU)
+                        {
+                            file.close();
+                            return false;
+                        }
+                        ++summary.unknownWireLineCount;
+                    }
+                }
             }
 
-            if (findString(line, "currency", currency) && currency.length() == 3U)
-                summary.currency = currency;
+            pendingMovementId = 0UL;
+            pendingSpoolId = 0UL;
+            pendingRepairId = 0UL;
+            pendingBefore = 0UL;
+            pendingAfter = 0UL;
+            pendingMass = 0UL;
+            pendingPrice = 0UL;
+            pendingCurrency = String();
+            pendingTimestamp = String();
+            pendingComment = String();
         }
         file.close();
+        if (pendingMovementId != 0UL) return false;
     }
 
     if (m_storage.exists(MaterialUsagePath))
     {
         File file = m_storage.open(MaterialUsagePath, FILE_READ);
         if (!file) return false;
+
+        uint32_t previousUsageId = 0UL;
         while (file.available())
         {
             const String line = file.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+
+            uint32_t usageId = 0UL;
             uint32_t lineRepairId = 0UL;
-            uint64_t cost = 0ULL;
-            String currency;
-            if (!findUnsigned(line, "repair_id", lineRepairId) || lineRepairId != repairId ||
-                !findUnsigned64(line, "line_cost_minor", cost)) continue;
-            summary.materialCostMinor += cost;
-            if (summary.materialLineCount < 0xFFFFU) ++summary.materialLineCount;
-            if (findString(line, "currency", currency) && currency.length() == 3U)
-                summary.currency = currency;
+            uint32_t materialId = 0UL;
+            uint32_t quantity = 0UL;
+            uint32_t unitPrice = 0UL;
+            uint64_t lineCost = 0ULL;
+            String currency, timestamp, comment;
+            const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
+
+            if (!line.startsWith("{") || !line.endsWith("}") ||
+                !findUnsigned(line, "usage_id", usageId) || usageId == 0UL ||
+                usageId <= previousUsageId ||
+                !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
+                !findUnsigned(line, "material_id", materialId) || materialId == 0UL ||
+                !findUnsigned(line, "quantity_milli", quantity) || quantity == 0UL ||
+                !findUnsigned(line, "price_per_unit_minor", unitPrice) || unitPrice == 0UL ||
+                !findUnsigned64(line, "line_cost_minor", lineCost) ||
+                !findString(line, "currency", currency) || currency.length() != 3U ||
+                !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
+                (hasComment && !findString(line, "comment", comment)))
+            {
+                file.close();
+                return false;
+            }
+            previousUsageId = usageId;
+
+            const uint64_t product = static_cast<uint64_t>(quantity) *
+                                     static_cast<uint64_t>(unitPrice);
+            if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL ||
+                lineCost != (product + 500ULL) / 1000ULL)
+            {
+                file.close();
+                return false;
+            }
+
+            if (lineRepairId == repairId)
+            {
+                if (!addChecked64(summary.materialCostMinor, lineCost) ||
+                    summary.materialLineCount == 0xFFFFU ||
+                    !acceptCurrency(currency, summary.currency, currencySet))
+                {
+                    file.close();
+                    return false;
+                }
+                ++summary.materialLineCount;
+            }
         }
         file.close();
     }
@@ -92,39 +306,45 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
         while (file.available())
         {
             const String line = file.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+
             uint32_t lineRepairId = 0UL;
-            if (!findUnsigned(line, "repair_id", lineRepairId) || lineRepairId != repairId) continue;
-            if (!findUnsigned64(line, "labour_cost_minor", summary.labourCostMinor) ||
-                !findUnsigned64(line, "client_price_minor", summary.clientPriceMinor))
+            uint64_t labour = 0ULL;
+            uint64_t client = 0ULL;
+            String currency, timestamp;
+            if (!line.startsWith("{") || !line.endsWith("}") ||
+                !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
+                !findUnsigned64(line, "labour_cost_minor", labour) ||
+                !findUnsigned64(line, "client_price_minor", client) ||
+                !findString(line, "currency", currency) || currency.length() != 3U ||
+                !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
             {
                 file.close();
                 return false;
             }
-            String currency;
-            if (!findString(line, "currency", currency) || currency.length() != 3U)
+
+            if (lineRepairId != repairId) continue;
+            if (summary.pricingRevisionCount == 0xFFFFU ||
+                !acceptCurrency(currency, summary.currency, currencySet))
             {
                 file.close();
                 return false;
             }
-            summary.currency = currency;
-            String timestamp;
-            if (!findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
-            {
-                file.close();
-                return false;
-            }
+            ++summary.pricingRevisionCount;
+            summary.labourCostMinor = labour;
+            summary.clientPriceMinor = client;
             summary.pricingUpdatedAt = timestamp;
-            if (summary.pricingRevisionCount < 0xFFFFU) ++summary.pricingRevisionCount;
-            else
-            {
-                file.close();
-                return false;
-            }
         }
         file.close();
     }
 
-    summary.totalCostMinor = summary.wireCostMinor + summary.materialCostMinor + summary.labourCostMinor;
+    uint64_t total = summary.wireCostMinor;
+    if (!addChecked64(total, summary.materialCostMinor) ||
+        !addChecked64(total, summary.labourCostMinor))
+    {
+        return false;
+    }
+    summary.totalCostMinor = total;
     summary.marginMinor = summary.clientPriceMinor > summary.totalCostMinor
                               ? summary.clientPriceMinor - summary.totalCostMinor
                               : 0ULL;
@@ -137,7 +357,7 @@ bool RepairCosting::savePricing(uint32_t repairId,
                                 const String& currency,
                                 const String& timestamp)
 {
-    if (!m_ready || repairId == 0UL || !repairExists(repairId) ||
+    if (!ready() || repairId == 0UL || !repairExists(repairId) ||
         currency.length() != 3U || timestamp.length() < 10U)
         return false;
 

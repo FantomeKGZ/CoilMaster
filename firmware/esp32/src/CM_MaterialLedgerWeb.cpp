@@ -119,3 +119,4 @@ bool MaterialLedgerWeb::parseUnit(const String& source,MaterialUnit& unit)
 {
     String value=source;value.toUpperCase();if(value=="PIECE")unit=MaterialUnit::Piece;else if(value=="GRAM")unit=MaterialUnit::Gram;else if(value=="MILLILITRE"||value=="MILLILITER")unit=MaterialUnit::Millilitre;else if(value=="METRE"||value=="METER")unit=MaterialUnit::Metre;else if(value=="SQUARE_METRE"||value=="SQUARE_METER")unit=MaterialUnit::SquareMetre;else return false;return true;
 }
+}

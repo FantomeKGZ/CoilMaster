@@ -32,7 +32,25 @@ bool WarehouseStore::loadSummary(const char* monthPrefix)
     }
 
     clearSummary();
-    return readSpools() && readMovements(monthPrefix);
+    if (!readSpools() || !readMovements(monthPrefix)) return false;
+
+    uint64_t totalRemaining = 0ULL;
+    uint64_t totalConsumedMonth = 0ULL;
+    uint64_t totalConsumedAllTime = 0ULL;
+    for (uint8_t i = 0U; i < m_summaryCount; ++i)
+    {
+        totalRemaining += static_cast<uint64_t>(m_summary[i].remainingGrams);
+        totalConsumedMonth += static_cast<uint64_t>(m_summary[i].consumedMonthGrams);
+        totalConsumedAllTime += static_cast<uint64_t>(m_summary[i].consumedAllTimeGrams);
+        if (totalRemaining > 0xFFFFFFFFULL ||
+            totalConsumedMonth > 0xFFFFFFFFULL ||
+            totalConsumedAllTime > 0xFFFFFFFFULL)
+        {
+            clearSummary();
+            return false;
+        }
+    }
+    return true;
 }
 
 bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId)
@@ -98,6 +116,7 @@ bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpool
     if (written != line.length())
     {
         assignedSpoolId = 0UL;
+        m_ready = false;
         return false;
     }
 
@@ -129,7 +148,12 @@ bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
     const size_t written = file.print(line);
     file.flush();
     file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
 }
 
 bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const

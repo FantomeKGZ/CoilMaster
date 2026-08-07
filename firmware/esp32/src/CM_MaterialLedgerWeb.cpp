@@ -85,12 +85,18 @@ void MaterialLedgerWeb::handleUsage()
     if(!RepairLifecycle::isOpen(SD,repairId,repairOpen)){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"repair_lifecycle_unavailable\"}");return;}
     if(!repairOpen){m_server.send(409,"application/json; charset=utf-8","{\"error\":\"repair_closed\",\"write_performed\":false}");return;}
     String materialCurrency;
-    if(!m_ledger.loadActiveMaterialCurrency(materialId,materialCurrency))
+    bool materialFound=false;
+    if(!m_ledger.loadActiveMaterialCurrency(materialId,materialCurrency,materialFound))
     {
         if(!m_ledger.ready())
             m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
         else
-            m_server.send(404,"application/json; charset=utf-8","{\"error\":\"material_not_found\"}");
+            m_server.send(500,"application/json; charset=utf-8","{\"error\":\"material_reference_read_failed\"}");
+        return;
+    }
+    if(!materialFound)
+    {
+        m_server.send(404,"application/json; charset=utf-8","{\"error\":\"material_not_found\"}");
         return;
     }
     if(materialCurrency!="KGS")

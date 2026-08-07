@@ -27,7 +27,31 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
     String& json,
     uint16_t& count) const
 {
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    return appendHistoryJson(sessionId,
+                             repairId,
+                             0UL,
+                             limit,
+                             json,
+                             count,
+                             nextCursor,
+                             hasMore);
+}
+
+WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
+    uint32_t sessionId,
+    uint32_t repairId,
+    uint32_t cursor,
+    uint16_t limit,
+    String& json,
+    uint16_t& count,
+    uint32_t& nextCursor,
+    bool& hasMore) const
+{
     count = 0U;
+    nextCursor = cursor;
+    hasMore = false;
     if (!m_ready)
         return WindingJournalQueryResult::StorageUnavailable;
     if ((sessionId == 0UL) == (repairId == 0UL))
@@ -41,7 +65,8 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
     if (!file) return WindingJournalQueryResult::ReadFailed;
 
     bool first = true;
-    while (file.available() && count < limit)
+    uint32_t matchedIndex = 0UL;
+    while (file.available())
     {
         const String line = file.readStringUntil('\n');
         uint32_t lineSessionId = 0UL;
@@ -55,13 +80,27 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
             : linked && lineRepairId == repairId;
         if (!matches) continue;
 
+        if (matchedIndex < cursor)
+        {
+            ++matchedIndex;
+            continue;
+        }
+
+        if (count >= limit)
+        {
+            hasMore = true;
+            break;
+        }
+
         if (!first) json += ',';
         first = false;
         json += line;
         ++count;
+        ++matchedIndex;
     }
 
     file.close();
+    nextCursor = cursor + static_cast<uint32_t>(count);
     return WindingJournalQueryResult::Ok;
 }
 

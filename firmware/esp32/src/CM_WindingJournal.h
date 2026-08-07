@@ -17,6 +17,24 @@ enum class JournalSaveResult : uint8_t
     InvalidTransition
 };
 
+struct WindingEventContext
+{
+    uint32_t jobId;
+    bool linked;
+    uint32_t repairId;
+    uint32_t motorId;
+
+    WindingEventContext()
+        : jobId(0UL), linked(false), repairId(0UL), motorId(0UL) {}
+
+    bool isValid() const
+    {
+        return jobId != 0UL &&
+               ((!linked && repairId == 0UL && motorId == 0UL) ||
+                (linked && repairId != 0UL && motorId != 0UL));
+    }
+};
+
 struct WindingSessionState
 {
     uint32_t sessionId;
@@ -38,7 +56,12 @@ public:
 
     bool begin();
     bool isReady() const;
-    JournalSaveResult save(const RemoteWindingEvent& event);
+
+    // New records require immutable job context resolved from the session
+    // snapshot. No request-provided linkage is accepted here.
+    JournalSaveResult save(const RemoteWindingEvent& event,
+                           const WindingEventContext& context);
+
     bool loadSessionState(uint32_t sessionId,
                           WindingSessionState& state) const;
 
@@ -59,8 +82,10 @@ private:
                        bool& found) const;
     bool loadSessionHighestRunId(uint32_t sessionId,
                                  uint32_t& highestRunId) const;
-    bool appendRecord(const RemoteWindingEvent& event);
+    bool appendRecord(const RemoteWindingEvent& event,
+                      const WindingEventContext& context);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
+    static bool fieldIsNull(const String& line, const char* key);
     static const char* eventTypeName(RemoteEventType type);
 
     fs::FS& m_fileSystem;

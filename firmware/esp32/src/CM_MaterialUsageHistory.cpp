@@ -17,18 +17,50 @@ bool MaterialLedger::appendUsageHistoryJson(String& json,
     if (!file) return false;
 
     bool first = true;
-    while (file.available() && count < limit)
+    uint32_t previousUsageId = 0UL;
+    while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        if (!line.startsWith("{") || !line.endsWith("}"))
+        {
+            file.close();
+            return false;
+        }
+
+        uint32_t usageId = 0UL;
         uint32_t currentRepairId = 0UL;
         uint32_t currentMaterialId = 0UL;
-        if (!findUnsigned(line, "repair_id", currentRepairId) ||
-            !findUnsigned(line, "material_id", currentMaterialId))
+        uint32_t quantity = 0UL;
+        uint32_t unitPrice = 0UL;
+        String currency, timestamp;
+        if (!findUnsigned(line, "usage_id", usageId) || usageId == 0UL ||
+            usageId <= previousUsageId ||
+            !findUnsigned(line, "repair_id", currentRepairId) || currentRepairId == 0UL ||
+            !findUnsigned(line, "material_id", currentMaterialId) || currentMaterialId == 0UL ||
+            !findUnsigned(line, "quantity_milli", quantity) || quantity == 0UL ||
+            !findUnsigned(line, "price_per_unit_minor", unitPrice) || unitPrice == 0UL ||
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
-            continue;
+            file.close();
+            return false;
         }
+        previousUsageId = usageId;
+
+        if (line.indexOf(F("\"comment\":")) >= 0)
+        {
+            String comment;
+            if (!findString(line, "comment", comment))
+            {
+                file.close();
+                return false;
+            }
+        }
+
         if (repairId > 0UL && currentRepairId != repairId) continue;
         if (materialId > 0UL && currentMaterialId != materialId) continue;
+        if (count >= limit) continue;
         if (!first) json += ',';
         json += line;
         first = false;

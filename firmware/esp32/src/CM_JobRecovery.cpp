@@ -34,12 +34,16 @@ bool JobRecovery::evaluate(const JobStateStore& store,
 
     recovery.disposition = JobRecoveryDisposition::RestoredForDisplay;
     recovery.mayCreateNewJob = isTerminalDelivery(latest.deliveryState) ||
-        latest.executionState == JobExecutionState::ProgramCompleted;
+        latest.executionState == JobExecutionState::ProgramCompleted ||
+        latest.executionState == JobExecutionState::ClosedAfterReview;
     return true;
 }
 
 bool JobRecovery::requiresManualReview(const JobRuntimeState& state)
 {
+    if (state.executionState == JobExecutionState::ClosedAfterReview)
+        return false;
+
     if (state.executionState == JobExecutionState::Running ||
         state.executionState == JobExecutionState::Fault)
     {

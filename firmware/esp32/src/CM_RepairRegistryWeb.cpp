@@ -1,4 +1,6 @@
 #include "CM_RepairRegistryWeb.h"
+#include <SD.h>
+#include "CM_RepairClosureGuard.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -245,6 +247,20 @@ void RepairRegistryWeb::handleCloseRepair()
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_repair_close_request\"}");
+        return;
+    }
+
+    bool closureAllowed = false;
+    if (!RepairClosureGuard::canClose(SD, repairId, closureAllowed))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_closure_state_unavailable\"}");
+        return;
+    }
+    if (!closureAllowed)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_has_unfinished_winding_job\",\"write_performed\":false}");
         return;
     }
 

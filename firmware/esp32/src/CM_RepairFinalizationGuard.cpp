@@ -9,38 +9,38 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
                                                        uint32_t repairId)
 {
     if (repairId == 0UL)
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::CostingIntegrityFailed;
 
     RepairCosting costing(storage);
     if (!costing.begin() || !costing.ready())
-        return RepairFinalizationCheck::StorageUnavailable;
+        return RepairFinalizationCheck::CostingStorageUnavailable;
 
     RepairCostSummary summary;
     if (!costing.load(repairId, summary))
     {
         return costing.ready()
-                   ? RepairFinalizationCheck::IntegrityFailed
-                   : RepairFinalizationCheck::StorageUnavailable;
+                   ? RepairFinalizationCheck::CostingIntegrityFailed
+                   : RepairFinalizationCheck::CostingStorageUnavailable;
     }
 
     if (summary.repairId != repairId ||
         summary.wireCostMinor > 0xFFFFFFFFFFFFFFFFULL - summary.materialCostMinor)
     {
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::CostingIntegrityFailed;
     }
 
     const uint64_t directCost = summary.wireCostMinor + summary.materialCostMinor;
     if (directCost > 0xFFFFFFFFFFFFFFFFULL - summary.labourCostMinor ||
         directCost + summary.labourCostMinor != summary.totalCostMinor)
     {
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::CostingIntegrityFailed;
     }
 
     if (summary.copperWireCostMinor > 0xFFFFFFFFFFFFFFFFULL - summary.aluminiumWireCostMinor)
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::CostingIntegrityFailed;
     const uint64_t knownWireCost = summary.copperWireCostMinor + summary.aluminiumWireCostMinor;
     if (knownWireCost > 0xFFFFFFFFFFFFFFFFULL - summary.unknownWireCostMinor)
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::CostingIntegrityFailed;
     const uint64_t materialWireCost = knownWireCost + summary.unknownWireCostMinor;
 
     const uint32_t knownWireLines = static_cast<uint32_t>(summary.copperWireLineCount) +
@@ -50,12 +50,12 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
     if (materialWireCost != summary.wireCostMinor ||
         materialWireLines != static_cast<uint32_t>(summary.wireLineCount))
     {
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::CostingIntegrityFailed;
     }
 
     WindingJournalQuery history(storage);
     if (!history.begin() || !history.isReady())
-        return RepairFinalizationCheck::StorageUnavailable;
+        return RepairFinalizationCheck::WindingStorageUnavailable;
 
     uint32_t cursor = 0UL;
     for (;;)
@@ -75,21 +75,21 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
                                       nextCursor,
                                       hasMore);
         if (result == WindingJournalQueryResult::StorageUnavailable)
-            return RepairFinalizationCheck::StorageUnavailable;
+            return RepairFinalizationCheck::WindingStorageUnavailable;
         if (result != WindingJournalQueryResult::Ok)
-            return RepairFinalizationCheck::IntegrityFailed;
+            return RepairFinalizationCheck::WindingIntegrityFailed;
         if (!hasMore) break;
         if (count == 0U || nextCursor <= cursor)
-            return RepairFinalizationCheck::IntegrityFailed;
+            return RepairFinalizationCheck::WindingIntegrityFailed;
         cursor = nextCursor;
     }
 
     const WindingJournalTransitionAuditResult transitionAudit =
         WindingJournalTransitionAudit::validate(storage);
     if (transitionAudit == WindingJournalTransitionAuditResult::StorageUnavailable)
-        return RepairFinalizationCheck::StorageUnavailable;
+        return RepairFinalizationCheck::WindingStorageUnavailable;
     if (transitionAudit != WindingJournalTransitionAuditResult::Ok)
-        return RepairFinalizationCheck::IntegrityFailed;
+        return RepairFinalizationCheck::WindingIntegrityFailed;
 
     return RepairFinalizationCheck::Ready;
 }

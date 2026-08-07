@@ -319,13 +319,33 @@ bool parseTurns(const String& source, CM::OutgoingWindingJob& job)
         if (start >= normalized.length()) break;
         int end = normalized.indexOf(',', start);
         if (end < 0) end = normalized.length();
-        const long value = normalized.substring(start, end).toInt();
-        if (count >= MaxWebCoils || value < 1L || value > MaxTurnsPerCoil) return false;
+        if (count >= MaxWebCoils || end <= start) return false;
+
+        uint32_t value = 0UL;
+        for (int index = start; index < end; ++index)
+        {
+            if (!isDigit(normalized[index])) return false;
+            const uint8_t digit = static_cast<uint8_t>(normalized[index] - '0');
+            if (value > (MaxTurnsPerCoil - digit) / 10UL) return false;
+            value = value * 10UL + digit;
+        }
+        if (value == 0UL || value > MaxTurnsPerCoil) return false;
         job.turns[count++] = static_cast<uint16_t>(value);
         start = end + 1;
     }
     job.coilCount = count;
     return count > 0U;
+}
+
+bool sameProgram(const CM::OutgoingWindingJob& left,
+                 const CM::OutgoingWindingJob& right)
+{
+    if (left.coilCount != right.coilCount) return false;
+    for (uint8_t index = 0U; index < left.coilCount; ++index)
+    {
+        if (left.turns[index] != right.turns[index]) return false;
+    }
+    return true;
 }
 
 void sendJsonStatus()
@@ -468,10 +488,27 @@ void handleCreateJob()
             webServer.send(503, "application/json", "{\"error\":\"repair_store_unavailable\"}");
             return;
         }
+
         CM::JobLinkage resolved;
-        if (!jobLinkageResolver.resolve(linkage.repairId, linkage.motorId, resolved))
+        String catalogProgram;
+        if (!jobLinkageResolver.resolveWithProgram(linkage.repairId,
+                                                   linkage.motorId,
+                                                   resolved,
+                                                   catalogProgram))
         {
-            webServer.send(409, "application/json", "{\"error\":\"repair_motor_mismatch_or_not_found\"}");
+            webServer.send(409, "application/json", "{\"error\":\"repair_motor_program_not_found_or_ambiguous\"}");
+            return;
+        }
+
+        CM::OutgoingWindingJob catalogJob;
+        if (!parseTurns(catalogProgram, catalogJob))
+        {
+            webServer.send(409, "application/json", "{\"error\":\"invalid_motor_coil_program\"}");
+            return;
+        }
+        if (!sameProgram(job, catalogJob))
+        {
+            webServer.send(409, "application/json", "{\"error\":\"turns_do_not_match_motor_program\"}");
             return;
         }
         linkage = resolved;

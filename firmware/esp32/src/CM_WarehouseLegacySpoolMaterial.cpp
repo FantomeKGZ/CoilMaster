@@ -5,7 +5,7 @@ namespace CM
 bool WarehouseStore::assignLegacySpoolMaterial(uint32_t spoolId,
                                                 const String& wireType)
 {
-    if (!m_ready || spoolId == 0UL ||
+    if (!ready() || spoolId == 0UL ||
         (wireType != "CU" && wireType != "AL") ||
         !m_storage.exists(SpoolsPath))
     {

@@ -66,7 +66,8 @@ public:
             }
 
             const uint8_t digit = static_cast<uint8_t>(ch - '0');
-            if (value > (static_cast<uint32_t>(maximumTurns) - digit) / 10UL)
+            if (digit > maximumTurns ||
+                value > (static_cast<uint32_t>(maximumTurns) - digit) / 10UL)
             {
                 count = 0U;
                 return false;

@@ -374,8 +374,13 @@ bool RepairCosting::savePricing(uint32_t repairId,
         return false;
 
     RepairCostSummary current;
-    if (!load(repairId, current) || currency != current.currency)
+    if (!load(repairId, current) || currency != current.currency ||
+        current.pricingRevisionCount == 0xFFFFU ||
+        (labourCostMinor == current.labourCostMinor &&
+         clientPriceMinor == current.clientPriceMinor))
+    {
         return false;
+    }
 
     File file = m_storage.open(PricingPath, FILE_APPEND);
     if (!file) return false;

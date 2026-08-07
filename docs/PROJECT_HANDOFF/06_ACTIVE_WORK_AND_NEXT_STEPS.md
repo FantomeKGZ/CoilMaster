@@ -18,6 +18,7 @@
 → история намотки
 → ручные списания провода/материалов
 → итог ремонта
+→ read-only finalization preflight
 → finalization audit
 → CLOSED
 → read-only архив
@@ -39,17 +40,27 @@
 
 ## Последние функциональные изменения
 
-- finalization result разделён на costing storage/integrity и winding storage/integrity;
-- `/api/repairs/close` возвращает точную причину отказа вместо общего finalization error;
-- mobile/desktop показывают оператору понятное объяснение finalization-блокировки;
-- mobile/desktop отчёты по закрытым ремонтам добавлены без новой БД;
-- отчёт фильтруется по месяцу `closed_at`;
-- для каждого ремонта отчёт повторно читает server-authoritative costing;
-- общий финансовый итог показывается только если все ремонты выборки успешно подтверждены;
-- desktop старая заглушка `Статистика` заменена рабочим `Отчёты`;
-- mobile `Разделы` содержит прямой переход в отчёты.
+- `GET /api/repairs/finalization?repair_id=...` выполняет read-only preflight без записи статуса;
+- preflight возвращает `ready_to_close`, `already_closed` и точный `reason`;
+- mobile/desktop карточка OPEN ремонта не запускает массовый аудит автоматически;
+- оператор явно нажимает `Проверить готовность`, после успешного preflight становится доступна кнопка `Закрыть ремонт`;
+- `POST /api/repairs/close` независимо повторяет все server-side проверки и остаётся authoritative safety boundary;
+- mobile/desktop отчёты по закрытым ремонтам имеют поиск по клиенту, телефону, двигателю, модели и номеру ремонта;
+- строки отчёта можно фильтровать по прибыли, убытку, нулевому результату и неподтверждённой калькуляции;
+- фильтры строк не влияют на месячный финансовый trust: общий итог остаётся подтверждённым только если успешно прочитаны все закрытые ремонты месяца.
 
 Новые коммиты этого блока:
+
+```text
+ec5d9988cfef4e03b2e42b66b73e9aa886be04b5  Add repair finalization preflight handler
+dfc9c79c9a097db6b3a72782814e3b2b51b0f83b  Add read only repair finalization preflight API
+515f18f6eb5bfd414490c757fa76d4dc8deb573c  Add repair finalization preflight to mobile UI
+24dcf7b756f0fa255263d1c4bb905d1b46a9ca6a  Add repair finalization preflight to desktop UI
+8e403f9cb7eaff65d8e4431611307f5405a9c48b  Add mobile repair report search and outcome filters
+4b4a2473daa22912432870db56fed410636d9ad0  Add desktop repair report search and outcome filters
+```
+
+Предыдущий reporting/finalization блок:
 
 ```text
 5f2a2747a0d9dcf364491fb1e3100e6a0f5cbe08  Add detailed repair finalization outcomes
@@ -62,28 +73,6 @@ f78ccefc562be7e479729a80855a3ae98ed52005  Explain repair finalization failures o
 2e01efe8719a541bc2ad9621d2b07ac853a1a980  Add desktop closed repair report
 83f0cf3347299cfe86e60aca8aff9f152f32a5f4  Link mobile repair reports
 13e71d8f44acdf45940661f1626ccb9c90da922c  Link desktop repair reports
-```
-
-Предыдущий finalization/integrity блок:
-
-```text
-b6e1ea589f26122e0c433309aad3aea97ba14c5c  Fail closed on warehouse aggregate and append failures
-2bc6104e214062c2cbab137e74577155af06de39  Fail closed on partial warehouse movement appends
-b7dedc4eabdd0abfd2a8f7540bf1e79544afe098  Align warehouse summary value rounding
-d67d89b8bdcb142185937399c50d28b49a6946e8  Add mobile repair archive filter
-e3df51426f33129d321be394e6eb1926e5cb3a64  Add desktop repair archive filter
-abbe9d70131c64e24c9e77299273a30979e13eba  Show repair identity in mobile costing
-1dab1fd072ad9fd0b98f4a9485a85cab30608757  Show repair identity in desktop costing
-5b002872a967e6a4384cf70109f2aca46e19940f  Add verified winding summary to mobile repair total
-e7f14fbad856b3fdb0ea6e774cb4a2d77364c0f9  Add verified winding summary to desktop repair total
-11904fc362f0551c0f98233b936550d24a60a497  Add repair finalization integrity guard contract
-24680ae708f6a49d4e2171feebbb81389ab08c88  Harden repair finalization aggregate checks
-24b4ba0be8b695c794110a84f7b663c8f27ee279  Gate repair closure on finalization integrity
-d7cefb160fbb00099d7f77bed440b673137ca28c  Preserve idempotent repair closure
-1a3a2e3021305d13d5a2cc0df4a8210fc0ceb151  Verify winding journal before repair closure
-adafc73064e85f9780cd6d088dbe9e53fd960a68  Add winding journal transition audit contract
-2b260e39209c7c9849c221de5e5075ed80d9ef42  Implement winding journal transition audit
-34fc8325ef8cd4df69b79893e482d3d813b1c0c6  Enforce winding transition audit before repair closure
 ```
 
 ## Уже закрытые архитектурные задачи — не делать повторно
@@ -110,7 +99,9 @@ adafc73064e85f9780cd6d088dbe9e53fd960a68  Add winding journal transition audit c
 - archive filters и read-only итог закрытого ремонта;
 - server-side repair finalization integrity gate;
 - operator-facing finalization diagnostics;
-- read-only monthly closed-repair financial report.
+- read-only finalization preflight;
+- read-only monthly closed-repair financial report;
+- client/motor/outcome filters in closed-repair reports.
 
 ## Следующее обязательное действие
 
@@ -132,26 +123,25 @@ adafc73064e85f9780cd6d088dbe9e53fd960a68  Add winding journal transition audit c
 11. проверить winding history
 12. вручную зафиксировать фактические списания провода/материалов
 13. проверить итоговую калькуляцию
-14. закрыть ремонт
-15. убедиться, что CLOSED находится в архиве и mutation actions заблокированы
-16. убедиться, что закрытый ремонт попал в месячный отчёт
+14. выполнить read-only finalization preflight
+15. закрыть ремонт
+16. убедиться, что CLOSED находится в архиве и mutation actions заблокированы
+17. убедиться, что закрытый ремонт попал в месячный отчёт и находится поиском
 ```
 
 ## Следующий repo-reviewable функциональный блок
 
-Если физический стенд пока недоступен, следующий кодовый приоритет:
+Если физический стенд пока недоступен, repair lifecycle/reporting сейчас достаточно завершены. Следующий кодовый приоритет выбирать из реальных задач мастерской:
 
-1. read-only `GET /api/repairs/finalization?repair_id=...` для preflight до нажатия `Закрыть`;
-2. показать preflight-состояние прямо в карточке OPEN ремонта;
-3. добавить фильтр отчёта по клиенту/двигателю поверх уже существующего месячного отчёта;
-4. после этого — analogue/unassigned-winding workflow только если он реально нужен мастерской;
-5. exact spool identity в winding job проектировать только вместе с правилами ручного подтверждения фактического расхода.
+1. исследовать `analogue/unassigned winding` workflow: как фиксировать намотку, когда точная карточка двигателя ещё не определена, не ослабляя linked production path;
+2. exact spool identity в winding job проектировать только вместе с правилами ручного подтверждения фактического расхода — `RUN_COMPLETED` сам по себе не должен списывать провод;
+3. если analogue/unassigned workflow не нужен, перейти к эксплуатационным backup/export задачам, не меняющим motor-control safety.
 
 ## Что фиксировать при end-to-end тесте
 
 Если возникает расхождение, сохранить:
 
-- HTTP status и JSON `/api/jobs`, `/api/status`, `/api/repairs/close`;
+- HTTP status и JSON `/api/jobs`, `/api/status`, `/api/repairs/finalization`, `/api/repairs/close`;
 - UART событие Arduino;
 - соответствующие записи `events.ndjson`, movement/material usage logs;
 - snapshot/runtime-state session при recovery-проблеме.

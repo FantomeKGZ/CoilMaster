@@ -84,6 +84,18 @@ bool manualReviewRequired()
            recoveryInfo.disposition == CM::JobRecoveryDisposition::ManualReviewRequired;
 }
 
+bool linkedJobCreationReady()
+{
+    return recoveryEvaluated &&
+           recoveryInfo.mayCreateNewJob &&
+           !manualReviewRequired() &&
+           journalReady && journal.isReady() &&
+           idAllocatorReady && idAllocator.isReady() &&
+           jobSnapshotStoreReady && jobSnapshots.isReady() &&
+           jobStateStoreReady && jobStates.isReady() &&
+           jobLinkageResolverReady && jobLinkageResolver.isReady();
+}
+
 const char* jobStatusText()
 {
     if (manualReviewRequired()) return "MANUAL_REVIEW_REQUIRED";
@@ -336,6 +348,7 @@ void sendJsonStatus()
     response += F(",\"state_recovered\":"); response += stateRecovered ? F("true") : F("false");
     response += F(",\"manual_review_required\":"); response += manualReviewRequired() ? F("true") : F("false");
     response += F(",\"new_job_allowed\":"); response += recoveryInfo.mayCreateNewJob ? F("true") : F("false");
+    response += F(",\"linked_job_creation_ready\":"); response += linkedJobCreationReady() ? F("true") : F("false");
     response += F(",\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false");
     response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");

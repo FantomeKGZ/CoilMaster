@@ -25,25 +25,48 @@ bool WarehouseStore::assignLegacySpoolMaterial(uint32_t spoolId,
 
     bool found = false;
     bool valid = true;
+    uint32_t previousId = 0UL;
     while (source.available())
     {
         String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
         uint32_t currentId = 0UL;
-        if (findUnsigned(line, "spool_id", currentId) && currentId == spoolId)
+        uint32_t diameter = 0UL;
+        uint32_t weight = 0UL;
+        String status;
+        if (!findUnsigned(line, "spool_id", currentId) || currentId == 0UL ||
+            currentId <= previousId ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 0xFFFFUL ||
+            !findUnsigned(line, "current_weight_g", weight) ||
+            !findString(line, "status", status))
         {
-            String existingMaterial;
-            String status;
-            findString(line, "wire_type", existingMaterial);
-            findString(line, "status", status);
-            if (existingMaterial.length() > 0U ||
-                (status.length() > 0U && status != "ACTIVE"))
+            valid = false;
+            break;
+        }
+        previousId = currentId;
+
+        const bool hasMaterial = line.indexOf(F("\"wire_type\":")) >= 0;
+        String existingMaterial;
+        if (hasMaterial &&
+            (!findString(line, "wire_type", existingMaterial) ||
+             (existingMaterial != "CU" && existingMaterial != "AL")))
+        {
+            valid = false;
+            break;
+        }
+
+        if (currentId == spoolId)
+        {
+            if (found || hasMaterial || status != "ACTIVE")
             {
                 valid = false;
                 break;
             }
 
             const int closing = line.lastIndexOf('}');
-            if (closing < 0)
+            if (closing < 0 || closing != line.length() - 1)
             {
                 valid = false;
                 break;
@@ -56,6 +79,13 @@ bool WarehouseStore::assignLegacySpoolMaterial(uint32_t spoolId,
             enriched += wireType;
             enriched += F("\"}");
             line = enriched;
+
+            String verified;
+            if (!findString(line, "wire_type", verified) || verified != wireType)
+            {
+                valid = false;
+                break;
+            }
             found = true;
         }
 
@@ -76,7 +106,6 @@ bool WarehouseStore::assignLegacySpoolMaterial(uint32_t spoolId,
         return false;
     }
 
-    m_storage.remove(SpoolsPath);
-    return m_storage.rename(SpoolsTempPath, SpoolsPath);
+    return replaceSpoolsFileFromTemp();
 }
 }

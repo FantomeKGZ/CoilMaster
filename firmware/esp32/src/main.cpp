@@ -149,11 +149,6 @@ CM::JobDeliveryResult deliveryResultFor(CM::JobDeliveryState state)
 {
     switch (state)
     {
-        case CM::JobDeliveryResult::Accepted: return CM::JobDeliveryResult::Accepted;
-        default: break;
-    }
-    switch (state)
-    {
         case CM::JobDeliveryState::Accepted: return CM::JobDeliveryResult::Accepted;
         case CM::JobDeliveryState::Rejected: return CM::JobDeliveryResult::Rejected;
         case CM::JobDeliveryState::TimedOut: return CM::JobDeliveryResult::TimedOut;

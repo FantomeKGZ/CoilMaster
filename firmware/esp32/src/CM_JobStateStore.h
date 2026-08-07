@@ -48,6 +48,10 @@ public:
     bool create(uint32_t jobId, uint32_t sessionId, uint32_t nowMs);
     bool load(uint32_t sessionId, JobRuntimeState& state) const;
 
+    // Finds the highest valid persisted session. Temporary and malformed files
+    // are ignored. found=false is a valid result when no state exists yet.
+    bool loadLatest(JobRuntimeState& state, bool& found) const;
+
     bool updateDelivery(uint32_t sessionId,
                         JobDeliveryState deliveryState,
                         uint32_t nowMs);

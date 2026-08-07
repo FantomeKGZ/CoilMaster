@@ -122,7 +122,8 @@ bool WindingJournalQuery::findUnsigned(const String& line,
     value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int position = line.indexOf(marker);
-    if (position < 0) return false;
+    if (position < 0 || line.indexOf(marker, position + marker.length()) >= 0)
+        return false;
 
     int cursor = position + marker.length();
     while (cursor < line.length() && line[cursor] == ' ') ++cursor;
@@ -144,6 +145,7 @@ bool WindingJournalQuery::findUnsigned(const String& line,
         ++cursor;
     }
 
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     if (cursor >= line.length() ||
         (line[cursor] != ',' && line[cursor] != '}'))
     {
@@ -158,9 +160,11 @@ bool WindingJournalQuery::fieldIsNull(const String& line, const char* key)
 {
     const String marker = String("\"") + key + F("\":null");
     const int position = line.indexOf(marker);
-    if (position < 0) return false;
+    if (position < 0 || line.indexOf(marker, position + marker.length()) >= 0)
+        return false;
 
-    const int cursor = position + marker.length();
+    int cursor = position + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     return cursor < line.length() &&
            (line[cursor] == ',' || line[cursor] == '}');
 }
@@ -194,9 +198,17 @@ bool WindingJournalQuery::isValidSchema2Record(const String& line,
         return false;
     }
 
-    const bool started = line.indexOf(F("\"event\":\"RUN_STARTED\"")) >= 0;
-    const bool completed = line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0;
+    const String startedMarker = F("\"event\":\"RUN_STARTED\"");
+    const String completedMarker = F("\"event\":\"RUN_COMPLETED\"");
+    const int startedPosition = line.indexOf(startedMarker);
+    const int completedPosition = line.indexOf(completedMarker);
+    const bool started = startedPosition >= 0;
+    const bool completed = completedPosition >= 0;
     if (started == completed ||
+        (started && line.indexOf(startedMarker,
+                                 startedPosition + startedMarker.length()) >= 0) ||
+        (completed && line.indexOf(completedMarker,
+                                   completedPosition + completedMarker.length()) >= 0) ||
         (started && completedRuns != 0UL) ||
         (completed && completedRuns == 0UL))
     {

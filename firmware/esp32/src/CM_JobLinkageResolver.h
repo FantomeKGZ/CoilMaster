@@ -22,8 +22,17 @@ public:
                  uint32_t requestedMotorId,
                  JobLinkage& linkage) const;
 
+    // Resolves the repair->motor linkage and the motor catalogue winding program
+    // from the same persistent workshop dataset. Duplicate motor identifiers,
+    // missing/inactive motors or an empty coil_program fail closed.
+    bool resolveWithProgram(uint32_t repairId,
+                            uint32_t requestedMotorId,
+                            JobLinkage& linkage,
+                            String& coilProgram) const;
+
 private:
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
+    static constexpr const char* MotorsPath = "/data/workshop/motors.ndjson";
 
     fs::FS& m_storage;
     bool m_ready;
@@ -31,5 +40,8 @@ private:
     static bool findUnsigned(const String& line,
                              const char* key,
                              uint32_t& value);
+    static bool findString(const String& line,
+                           const char* key,
+                           String& value);
 };
 }

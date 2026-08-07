@@ -137,10 +137,15 @@ bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t value = 0UL;
         String currency;
-        if (!findUnsigned(line, "price_per_kg_minor", value)) continue;
-        if (!findString(line, "currency", currency)) currency = "KGS";
+        if (!findUnsigned(line, "price_per_kg_minor", value) || value == 0UL ||
+            !findString(line, "currency", currency) || currency.length() != 3U)
+        {
+            file.close();
+            return false;
+        }
         price.pricePerKgMinor = value;
         price.currency = currency;
         found = true;
@@ -247,26 +252,42 @@ bool WarehouseStore::readSpools()
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t spoolId = 0UL;
         uint32_t diameter = 0UL;
         uint32_t weight = 0UL;
         String status;
 
-        if (!findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-            !findUnsigned(line, "current_weight_g", weight))
+        if (!findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 0xFFFFUL ||
+            !findUnsigned(line, "current_weight_g", weight) ||
+            !findString(line, "status", status))
         {
-            continue;
+            file.close();
+            return false;
         }
 
-        findString(line, "status", status);
-        if (status.length() > 0U && status != "ACTIVE")
-        {
-            continue;
-        }
+        if (status != "ACTIVE") continue;
 
         WireStockSummary* summary = findOrCreate(static_cast<uint16_t>(diameter));
-        if (summary == nullptr) continue;
+        if (summary == nullptr)
+        {
+            file.close();
+            return false;
+        }
+        if (summary->remainingGrams > 0xFFFFFFFFUL - weight)
+        {
+            file.close();
+            return false;
+        }
         summary->remainingGrams += weight;
-        if (summary->activeSpoolCount < 255U) ++summary->activeSpoolCount;
+        if (summary->activeSpoolCount == 255U)
+        {
+            file.close();
+            return false;
+        }
+        ++summary->activeSpoolCount;
     }
 
     file.close();
@@ -289,30 +310,52 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t diameter = 0UL;
         uint32_t grams = 0UL;
         String type;
         String timestamp;
-        String confirmed;
+        String status;
 
-        if (!findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-            !findUnsigned(line, "mass_g", grams) ||
-            !findString(line, "type", type))
+        if (!findString(line, "type", type) || !findString(line, "status", status))
         {
-            continue;
+            file.close();
+            return false;
         }
 
         if (type != "WRITE_OFF") continue;
+        if (status == "PENDING") continue;
+        if (status != "CONFIRMED")
+        {
+            file.close();
+            return false;
+        }
 
-        findString(line, "status", confirmed);
-        if (confirmed.length() > 0U && confirmed != "CONFIRMED") continue;
+        if (!findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 0xFFFFUL ||
+            !findUnsigned(line, "mass_g", grams) || grams == 0UL ||
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+        {
+            file.close();
+            return false;
+        }
 
         WireStockSummary* summary = findOrCreate(static_cast<uint16_t>(diameter));
-        if (summary == nullptr) continue;
+        if (summary == nullptr ||
+            summary->consumedAllTimeGrams > 0xFFFFFFFFUL - grams)
+        {
+            file.close();
+            return false;
+        }
         summary->consumedAllTimeGrams += grams;
 
-        if (findString(line, "timestamp", timestamp) && timestamp.startsWith(monthPrefix))
+        if (timestamp.startsWith(monthPrefix))
         {
+            if (summary->consumedMonthGrams > 0xFFFFFFFFUL - grams)
+            {
+                file.close();
+                return false;
+            }
             summary->consumedMonthGrams += grams;
         }
     }
@@ -333,11 +376,14 @@ bool WarehouseStore::nextSpoolId(uint32_t& id) const
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
-        if (findUnsigned(line, "spool_id", candidate) && candidate > maximum)
+        if (!findUnsigned(line, "spool_id", candidate) || candidate == 0UL)
         {
-            maximum = candidate;
+            file.close();
+            return false;
         }
+        if (candidate > maximum) maximum = candidate;
     }
     file.close();
 
@@ -348,31 +394,73 @@ bool WarehouseStore::nextSpoolId(uint32_t& id) const
 
 bool WarehouseStore::findUnsigned(const String& line, const char* key, uint32_t& value)
 {
+    value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int start = line.indexOf(marker);
-    if (start < 0) return false;
+    if (start < 0 || line.indexOf(marker, start + marker.length()) >= 0) return false;
 
     int index = start + marker.length();
     while (index < line.length() && line[index] == ' ') ++index;
-    int end = index;
-    while (end < line.length() && isDigit(line[end])) ++end;
-    if (end == index) return false;
+    if (index >= line.length() || !isDigit(line[index])) return false;
+    if (line[index] == '0' && index + 1 < line.length() && isDigit(line[index + 1]))
+        return false;
 
-    value = static_cast<uint32_t>(line.substring(index, end).toInt());
+    uint32_t parsed = 0UL;
+    int end = index;
+    while (end < line.length() && isDigit(line[end]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[end] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++end;
+    }
+    while (end < line.length() && line[end] == ' ') ++end;
+    if (end >= line.length() || (line[end] != ',' && line[end] != '}')) return false;
+
+    value = parsed;
     return true;
 }
 
 bool WarehouseStore::findString(const String& line, const char* key, String& value)
 {
+    value = String();
     const String marker = String("\"") + key + F("\":\"");
     const int start = line.indexOf(marker);
-    if (start < 0) return false;
+    if (start < 0 || line.indexOf(marker, start + marker.length()) >= 0) return false;
 
-    const int valueStart = start + marker.length();
-    const int valueEnd = line.indexOf('"', valueStart);
-    if (valueEnd < 0) return false;
+    int index = start + marker.length();
+    String parsed;
+    parsed.reserve(32U);
+    bool closed = false;
+    for (; index < line.length(); ++index)
+    {
+        const char ch = line[index];
+        if (ch == '"')
+        {
+            closed = true;
+            ++index;
+            break;
+        }
+        if (ch == '\\')
+        {
+            ++index;
+            if (index >= line.length()) return false;
+            const char escaped = line[index];
+            if (escaped == '"' || escaped == '\\') parsed += escaped;
+            else if (escaped == 'n') parsed += '\n';
+            else if (escaped == 'r') parsed += '\r';
+            else if (escaped == 't') parsed += '\t';
+            else return false;
+            continue;
+        }
+        if (static_cast<uint8_t>(ch) < 0x20U) return false;
+        parsed += ch;
+    }
+    if (!closed) return false;
+    while (index < line.length() && line[index] == ' ') ++index;
+    if (index >= line.length() || (line[index] != ',' && line[index] != '}')) return false;
 
-    value = line.substring(valueStart, valueEnd);
+    value = parsed;
     return true;
 }
 

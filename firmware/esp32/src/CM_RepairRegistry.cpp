@@ -112,8 +112,9 @@ bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
 bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
 {
     motorId = 0UL;
+    String canonicalProgram;
     if (!m_ready || motor.name.length() == 0U ||
-        !WindingProgramParser::valid(motor.coilProgram) ||
+        !WindingProgramParser::canonicalize(motor.coilProgram, canonicalProgram) ||
         !nextId(MotorsPath, "motor_id", motorId)) return false;
 
     File file = m_storage.open(MotorsPath, FILE_APPEND);
@@ -125,7 +126,7 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
     line += F("\",\"model\":\""); line += jsonEscape(motor.model);
     line += F("\",\"manufacturer\":\""); line += jsonEscape(motor.manufacturer);
     line += F("\",\"tags\":\""); line += jsonEscape(motor.tags);
-    line += F("\",\"coil_program\":\""); line += jsonEscape(motor.coilProgram);
+    line += F("\",\"coil_program\":\""); line += canonicalProgram;
     line += F("\",\"status\":\"ACTIVE\"");
     if (motor.comment.length() > 0U)
     {

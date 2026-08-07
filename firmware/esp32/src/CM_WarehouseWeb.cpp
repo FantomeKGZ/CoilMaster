@@ -55,10 +55,20 @@ void WarehouseWeb::handleSummary()
         return;
     }
 
-    if (!m_store.ready() || !m_store.loadSummary(month.c_str()))
+    if (!m_store.ready())
     {
         m_server.send(503, "application/json; charset=utf-8",
                       "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+    if (!m_store.loadSummary(month.c_str()))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_summary_read_failed\"}");
         return;
     }
 
@@ -180,8 +190,12 @@ void WarehouseWeb::handleCreateSpool()
     uint32_t spoolId = 0UL;
     if (!m_store.addSpool(spool, spoolId))
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"spool_write_failed\"}");
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"spool_write_failed\"}");
         return;
     }
 
@@ -259,17 +273,40 @@ void WarehouseWeb::handleSetPrice()
         return;
     }
 
+    WarehousePrice current;
+    bool configured = false;
+    if (!m_store.loadWarehousePrice(current, configured))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_price_read_failed\"}");
+        return;
+    }
+    if (configured && current.pricePerKgMinor == value && current.currency == currency)
+    {
+        m_server.send(200, "application/json; charset=utf-8",
+                      "{\"saved\":false,\"unchanged\":true,\"write_performed\":false}");
+        return;
+    }
+
     WarehousePrice price;
     price.pricePerKgMinor = value;
     price.currency = currency;
     if (!m_store.setWarehousePrice(price))
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"price_write_failed\"}");
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"price_write_failed\"}");
         return;
     }
 
-    String response = F("{\"saved\":true,\"price_per_kg_minor\":");
+    String response = F("{\"saved\":true,\"unchanged\":false,\"write_performed\":true,\"price_per_kg_minor\":");
     response += price.pricePerKgMinor;
     response += F(",\"currency\":\"");
     response += price.currency;

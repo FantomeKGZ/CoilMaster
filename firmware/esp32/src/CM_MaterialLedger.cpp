@@ -66,15 +66,54 @@ bool MaterialLedger::appendMaterialsJson(String& json, uint16_t& count) const
     if (!file) return false;
 
     bool first = true;
+    uint32_t previousId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        String status;
-        findString(line, "status", status);
-        if (status.length() > 0U && status != "ACTIVE") continue;
+        if (line.length() == 0U) continue;
+        if (!line.startsWith("{") || !line.endsWith("}"))
+        {
+            file.close();
+            return false;
+        }
+
+        uint32_t materialId = 0UL;
+        uint32_t stock = 0UL;
+        uint32_t price = 0UL;
+        String name, unit, currency, status;
+        if (!findUnsigned(line, "material_id", materialId) || materialId == 0UL ||
+            materialId <= previousId ||
+            !findString(line, "name", name) || name.length() == 0U ||
+            !findString(line, "unit", unit) || unit.length() == 0U ||
+            !findUnsigned(line, "stock_quantity_milli", stock) ||
+            !findUnsigned(line, "price_per_unit_minor", price) || price == 0UL ||
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "status", status))
+        {
+            file.close();
+            return false;
+        }
+        previousId = materialId;
+
+        if (line.indexOf(F("\"comment\":")) >= 0)
+        {
+            String comment;
+            if (!findString(line, "comment", comment))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        if (status != "ACTIVE") continue;
         if (!first) json += ',';
         first = false;
         json += line;
+        if (count == 0xFFFFU)
+        {
+            file.close();
+            return false;
+        }
         ++count;
     }
     file.close();
@@ -115,20 +154,34 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     File materialFile = m_storage.open(MaterialsPath, FILE_READ);
     if (!materialFile) return false;
     bool materialFound = false;
+    uint32_t previousMaterialId = 0UL;
     while (materialFile.available())
     {
         const String materialLine = materialFile.readStringUntil('\n');
+        if (materialLine.length() == 0U) continue;
         uint32_t materialId = 0UL;
-        String status;
-        if (findUnsigned(materialLine, "material_id", materialId) &&
-            materialId == usage.materialId &&
-            findUnsigned(materialLine, "price_per_unit_minor", price) &&
-            findString(materialLine, "currency", currency) &&
-            (!findString(materialLine, "status", status) || status == "ACTIVE"))
+        uint32_t linePrice = 0UL;
+        String lineCurrency, status;
+        if (!findUnsigned(materialLine, "material_id", materialId) || materialId == 0UL ||
+            materialId <= previousMaterialId ||
+            !findUnsigned(materialLine, "price_per_unit_minor", linePrice) || linePrice == 0UL ||
+            !findString(materialLine, "currency", lineCurrency) || lineCurrency.length() != 3U ||
+            !findString(materialLine, "status", status))
         {
-            materialFound = true;
-            break;
+            materialFile.close();
+            return false;
         }
+        previousMaterialId = materialId;
+
+        if (materialId != usage.materialId) continue;
+        if (materialFound || status != "ACTIVE")
+        {
+            materialFile.close();
+            return false;
+        }
+        materialFound = true;
+        price = linePrice;
+        currency = lineCurrency;
     }
     materialFile.close();
     if (!materialFound || currency != "KGS") return false;
@@ -218,18 +271,37 @@ bool MaterialLedger::recoverPendingUsage()
     uint32_t materialId = 0UL;
     uint32_t stockBefore = 0UL;
     uint32_t stockAfter = 0UL;
-    if (!findUnsigned(metadata, "usage_id", usageId) ||
-        !findUnsigned(metadata, "material_id", materialId) ||
+    if (!findUnsigned(metadata, "usage_id", usageId) || usageId == 0UL ||
+        !findUnsigned(metadata, "material_id", materialId) || materialId == 0UL ||
         !findUnsigned(metadata, "stock_before_milli", stockBefore) ||
         !findUnsigned(metadata, "stock_after_milli", stockAfter))
     {
         return false;
     }
 
-    if (usageExists(usageId))
+    bool usageAlreadyDurable = false;
+    if (m_storage.exists(UsagePath))
     {
-        return m_storage.remove(UsagePendingPath);
+        File usageFile = m_storage.open(UsagePath, FILE_READ);
+        if (!usageFile) return false;
+        uint32_t previousUsageId = 0UL;
+        while (usageFile.available())
+        {
+            const String line = usageFile.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            uint32_t existing = 0UL;
+            if (!findUnsigned(line, "usage_id", existing) || existing == 0UL ||
+                existing <= previousUsageId)
+            {
+                usageFile.close();
+                return false;
+            }
+            previousUsageId = existing;
+            if (existing == usageId) usageAlreadyDurable = true;
+        }
+        usageFile.close();
     }
+    if (usageAlreadyDurable) return m_storage.remove(UsagePendingPath);
 
     uint32_t currentStock = 0UL;
     if (!readStockQuantity(materialId, currentStock)) return false;
@@ -277,18 +349,24 @@ bool MaterialLedger::usageExists(uint32_t usageId) const
     if (!m_storage.exists(UsagePath)) return false;
     File file = m_storage.open(UsagePath, FILE_READ);
     if (!file) return false;
+    uint32_t previousId = 0UL;
+    bool found = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t existing = 0UL;
-        if (findUnsigned(line, "usage_id", existing) && existing == usageId)
+        if (!findUnsigned(line, "usage_id", existing) || existing == 0UL ||
+            existing <= previousId)
         {
             file.close();
-            return true;
+            return false;
         }
+        previousId = existing;
+        if (existing == usageId) found = true;
     }
     file.close();
-    return false;
+    return found;
 }
 
 bool MaterialLedger::readStockQuantity(uint32_t materialId,
@@ -298,20 +376,34 @@ bool MaterialLedger::readStockQuantity(uint32_t materialId,
     if (!m_storage.exists(MaterialsPath)) return false;
     File file = m_storage.open(MaterialsPath, FILE_READ);
     if (!file) return false;
+
+    uint32_t previousId = 0UL;
+    bool found = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (findUnsigned(line, "material_id", currentId) &&
-            currentId == materialId &&
-            findUnsigned(line, "stock_quantity_milli", quantityMilli))
+        uint32_t currentQuantity = 0UL;
+        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+            currentId <= previousId ||
+            !findUnsigned(line, "stock_quantity_milli", currentQuantity))
         {
             file.close();
-            return true;
+            return false;
         }
+        previousId = currentId;
+        if (currentId != materialId) continue;
+        if (found)
+        {
+            file.close();
+            return false;
+        }
+        found = true;
+        quantityMilli = currentQuantity;
     }
     file.close();
-    return false;
+    return found;
 }
 
 bool MaterialLedger::appendUsageLine(const String& line)
@@ -334,9 +426,15 @@ bool MaterialLedger::nextId(const char* path, const char* key, uint32_t& id) con
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
-        if (findUnsigned(line, key, candidate) && candidate > maximum)
-            maximum = candidate;
+        if (!findUnsigned(line, key, candidate) || candidate == 0UL ||
+            candidate <= maximum)
+        {
+            file.close();
+            return false;
+        }
+        maximum = candidate;
     }
     file.close();
     if (maximum == 0xFFFFFFFFUL) return false;
@@ -361,18 +459,33 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
 
     bool found = false;
     bool valid = true;
+    uint32_t previousId = 0UL;
     while (source.available())
     {
         String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (findUnsigned(line, "material_id", currentId) && currentId == materialId)
+        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+            currentId <= previousId)
         {
+            valid = false;
+            break;
+        }
+        previousId = currentId;
+
+        if (currentId == materialId)
+        {
+            if (found)
+            {
+                valid = false;
+                break;
+            }
             uint32_t stock = 0UL;
             String status;
             if (!findUnsigned(line, "stock_quantity_milli", stock) ||
                 !findUnsigned(line, "price_per_unit_minor", unitPriceMinor) ||
-                !findString(line, "currency", currency) ||
-                (findString(line, "status", status) && status != "ACTIVE") ||
+                !findString(line, "currency", currency) || currency.length() != 3U ||
+                !findString(line, "status", status) || status != "ACTIVE" ||
                 stock < consumeMilli)
             {
                 valid = false;
@@ -382,6 +495,11 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
             remainingMilli = stock - consumeMilli;
             const String marker = F("\"stock_quantity_milli\":");
             const int markerPos = line.indexOf(marker);
+            if (markerPos < 0)
+            {
+                valid = false;
+                break;
+            }
             int start = markerPos + marker.length();
             int end = start;
             while (end < line.length() && isDigit(line[end])) ++end;
@@ -414,12 +532,27 @@ bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli
 
     bool found = false;
     bool valid = true;
+    uint32_t previousId = 0UL;
     while (source.available())
     {
         String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (findUnsigned(line, "material_id", currentId) && currentId == materialId)
+        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+            currentId <= previousId)
         {
+            valid = false;
+            break;
+        }
+        previousId = currentId;
+
+        if (currentId == materialId)
+        {
+            if (found)
+            {
+                valid = false;
+                break;
+            }
             uint32_t stock = 0UL;
             if (!findUnsigned(line, "stock_quantity_milli", stock) ||
                 stock > 0xFFFFFFFFUL - quantityMilli)
@@ -430,6 +563,11 @@ bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli
             const uint32_t restored = stock + quantityMilli;
             const String marker = F("\"stock_quantity_milli\":");
             const int markerPos = line.indexOf(marker);
+            if (markerPos < 0)
+            {
+                valid = false;
+                break;
+            }
             int start = markerPos + marker.length();
             int end = start;
             while (end < line.length() && isDigit(line[end])) ++end;

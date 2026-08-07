@@ -45,6 +45,8 @@ public:
     bool addClient(const NewClient& client, uint32_t& clientId);
     bool addMotor(const NewMotor& motor, uint32_t& motorId);
     bool addRepair(const NewRepair& repair, uint32_t& repairId);
+    bool closeRepair(uint32_t repairId, const String& closedAt,
+                     bool& alreadyClosed);
 
     bool appendClientsJson(String& json, const String& phoneQuery,
                            uint16_t& count) const;
@@ -66,9 +68,12 @@ private:
     static constexpr const char* ClientsPath = "/data/workshop/clients.ndjson";
     static constexpr const char* MotorsPath = "/data/workshop/motors.ndjson";
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
+    static constexpr const char* RepairStatusPath = "/data/workshop/repair-status.ndjson";
 
     bool ensureDirectories();
     bool validateUniqueIds(const char* path, const char* key) const;
+    bool validateRepairStatusHistory() const;
+    bool repairClosed(uint32_t repairId, bool& closed, String& closedAt) const;
     bool nextId(const char* path, const char* key, uint32_t& id) const;
     bool idExists(const char* path, const char* key, uint32_t id) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);

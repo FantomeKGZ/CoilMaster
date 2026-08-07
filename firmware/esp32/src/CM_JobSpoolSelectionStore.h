@@ -39,6 +39,7 @@ public:
     bool isReady() const;
     bool create(const JobSpoolSelection& selection);
     bool load(uint32_t sessionId, JobSpoolSelection& selection) const;
+    bool load(uint32_t sessionId, JobSpoolSelection& selection, bool& found) const;
     bool validateIdentity(uint32_t jobId, uint32_t sessionId) const;
 
 private:

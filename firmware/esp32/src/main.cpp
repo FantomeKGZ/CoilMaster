@@ -457,6 +457,11 @@ void handleCreateJob()
         linkage = resolved;
     }
 
+    if (!journalReady || !journal.isReady())
+    {
+        webServer.send(503, "application/json", "{\"error\":\"winding_journal_unavailable\"}");
+        return;
+    }
     if (!idAllocatorReady || !idAllocator.isReady())
     {
         webServer.send(503, "application/json", "{\"error\":\"id_allocator_unavailable\"}");

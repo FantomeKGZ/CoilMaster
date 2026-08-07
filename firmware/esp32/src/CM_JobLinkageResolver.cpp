@@ -74,7 +74,8 @@ bool JobLinkageResolver::resolve(uint32_t repairId,
     }
     file.close();
 
-    if (!found || storedMotorId != requestedMotorId) return false;
+    if (!found || storedMotorId != requestedMotorId || !repairIsOpen(repairId))
+        return false;
 
     linkage.linked = true;
     linkage.repairId = repairId;
@@ -144,6 +145,49 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
         return false;
     }
     return true;
+}
+
+bool JobLinkageResolver::repairIsOpen(uint32_t repairId) const
+{
+    if (repairId == 0UL) return false;
+    if (!m_storage.exists(RepairStatusPath)) return true;
+
+    File file = m_storage.open(RepairStatusPath, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    bool closed = false;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        uint32_t candidateRepairId = 0UL;
+        String status;
+        String closedAt;
+        if (line[0] != '{' || line[line.length() - 1U] != '}' ||
+            !findUnsigned(line, "repair_id", candidateRepairId) ||
+            !findString(line, "status", status) || status != "CLOSED" ||
+            !findString(line, "closed_at", closedAt) || closedAt.length() < 10U)
+        {
+            file.close();
+            return false;
+        }
+
+        if (candidateRepairId != repairId) continue;
+        if (closed)
+        {
+            file.close();
+            return false;
+        }
+        closed = true;
+    }
+
+    file.close();
+    return !closed;
 }
 
 bool JobLinkageResolver::findUnsigned(const String& line,

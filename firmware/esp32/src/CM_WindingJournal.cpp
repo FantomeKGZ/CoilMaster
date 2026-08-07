@@ -202,6 +202,10 @@ bool WindingJournal::validateJournalSessionContexts() const
     File file = m_fileSystem.open(JournalPath, FILE_READ);
     if (!file) return false;
 
+    uint32_t currentSessionId = 0UL;
+    WindingEventContext currentContext;
+    bool haveCurrentContext = false;
+
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -215,8 +219,37 @@ bool WindingJournal::validateJournalSessionContexts() const
         uint32_t sessionId = 0UL;
         WindingEventContext context;
         if (!findUnsigned(line, "session_id", sessionId) ||
-            sessionId == 0UL || !parseContext(line, context) ||
-            !sessionContextMatches(sessionId, context))
+            sessionId == 0UL || !parseContext(line, context))
+        {
+            file.close();
+            return false;
+        }
+
+        if (!haveCurrentContext)
+        {
+            currentSessionId = sessionId;
+            currentContext = context;
+            haveCurrentContext = true;
+            continue;
+        }
+
+        if (sessionId < currentSessionId)
+        {
+            file.close();
+            return false;
+        }
+
+        if (sessionId > currentSessionId)
+        {
+            currentSessionId = sessionId;
+            currentContext = context;
+            continue;
+        }
+
+        if (context.jobId != currentContext.jobId ||
+            context.linked != currentContext.linked ||
+            context.repairId != currentContext.repairId ||
+            context.motorId != currentContext.motorId)
         {
             file.close();
             return false;

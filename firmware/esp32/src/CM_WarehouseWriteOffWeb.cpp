@@ -28,7 +28,18 @@ void WarehouseWeb::handleListWriteOffs()
                       "{\"error\":\"repair_id_required\"}");
         return;
     }
-    if (!m_store.repairExists(repairId))
+    bool repairFound = false;
+    if (!m_store.repairExists(repairId, repairFound))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_reference_read_failed\"}");
+        return;
+    }
+    if (!repairFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"repair_not_found\"}");
@@ -130,7 +141,18 @@ void WarehouseWeb::handleConfirmWriteOff()
                       "{\"error\":\"invalid_write_off_fields\"}");
         return;
     }
-    if (!m_store.repairExists(repairId))
+    bool repairFound = false;
+    if (!m_store.repairExists(repairId, repairFound))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_reference_read_failed\"}");
+        return;
+    }
+    if (!repairFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"repair_not_found\"}");

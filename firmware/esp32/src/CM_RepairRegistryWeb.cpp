@@ -1,5 +1,6 @@
 #include "CM_RepairRegistryWeb.h"
 #include <SD.h>
+#include "CM_BackupExportWeb.h"
 #include "CM_RepairClosureGuard.h"
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_WindingProgramParser.h"
@@ -11,6 +12,8 @@ RepairRegistryWeb::RepairRegistryWeb(WebServer& server, RepairRegistry& registry
 
 void RepairRegistryWeb::begin()
 {
+    static BackupExportWeb backupExportWeb(m_server, SD);
+    backupExportWeb.begin();
     m_server.on("/api/clients", HTTP_GET, [this]() { handleListClients(); });
     m_server.on("/api/clients", HTTP_POST, [this]() { handleCreateClient(); });
     m_server.on("/api/motors", HTTP_GET, [this]() { handleListMotors(); });

@@ -45,8 +45,16 @@ void MaterialLedgerWeb::handleUsageHistory()
     if (!m_ledger.appendUsageHistoryJson(response, repairId, materialId,
                                          static_cast<uint16_t>(parsedLimit), count))
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"usage_history_read_failed\"}");
+        if (!m_ledger.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"materials_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"usage_history_read_failed\"}");
+        }
         return;
     }
 

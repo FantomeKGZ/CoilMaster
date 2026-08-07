@@ -161,6 +161,28 @@ bool JobStateStore::updateExecution(uint32_t sessionId,
     return writeAtomic(state);
 }
 
+bool JobStateStore::closeAfterManualReview(uint32_t sessionId,
+                                           uint32_t nowMs)
+{
+    JobRuntimeState state;
+    if (!load(sessionId, state)) return false;
+
+    if (state.executionState == JobExecutionState::ClosedAfterReview)
+        return true;
+
+    const bool reviewRequired =
+        state.executionState == JobExecutionState::Running ||
+        state.executionState == JobExecutionState::Fault ||
+        state.deliveryState == JobDeliveryState::Delivering ||
+        (state.deliveryState == JobDeliveryState::Accepted &&
+         state.executionState == JobExecutionState::WaitingPhysicalStart);
+    if (!reviewRequired) return false;
+
+    state.executionState = JobExecutionState::ClosedAfterReview;
+    state.updatedUptimeMs = nowMs;
+    return writeAtomic(state);
+}
+
 bool JobStateStore::ensureDirectories()
 {
     if (!m_fileSystem.exists("/data") && !m_fileSystem.mkdir("/data"))
@@ -311,6 +333,7 @@ const char* JobStateStore::executionName(JobExecutionState state)
         case JobExecutionState::Running: return "RUNNING";
         case JobExecutionState::ProgramCompleted: return "PROGRAM_COMPLETED";
         case JobExecutionState::Fault: return "FAULT";
+        case JobExecutionState::ClosedAfterReview: return "CLOSED_AFTER_REVIEW";
         default: return "WAITING_DELIVERY";
     }
 }
@@ -336,6 +359,7 @@ bool JobStateStore::parseExecution(const String& value,
     else if (value == "RUNNING") state = JobExecutionState::Running;
     else if (value == "PROGRAM_COMPLETED") state = JobExecutionState::ProgramCompleted;
     else if (value == "FAULT") state = JobExecutionState::Fault;
+    else if (value == "CLOSED_AFTER_REVIEW") state = JobExecutionState::ClosedAfterReview;
     else return false;
     return true;
 }

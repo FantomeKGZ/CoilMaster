@@ -1,6 +1,5 @@
 #include "CM_JobLinkageResolver.h"
-
-#include <stdlib.h>
+#include "CM_WindingProgramParser.h"
 
 namespace CM
 {
@@ -48,11 +47,12 @@ bool JobLinkageResolver::resolve(uint32_t repairId,
         if (line.length() == 0U) continue;
 
         uint32_t candidateRepairId = 0UL;
-        if (!findUnsigned(line, "repair_id", candidateRepairId) ||
-            candidateRepairId != repairId)
+        if (!findUnsigned(line, "repair_id", candidateRepairId))
         {
-            continue;
+            file.close();
+            return false;
         }
+        if (candidateRepairId != repairId) continue;
 
         // Duplicate repair identifiers make the source ambiguous and unsafe.
         if (found || !findUnsigned(line, "motor_id", storedMotorId) ||
@@ -101,17 +101,20 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
         if (line.length() == 0U) continue;
 
         uint32_t candidateMotorId = 0UL;
-        if (!findUnsigned(line, "motor_id", candidateMotorId) ||
-            candidateMotorId != requestedMotorId)
+        if (!findUnsigned(line, "motor_id", candidateMotorId))
         {
-            continue;
+            file.close();
+            linkage = JobLinkage();
+            return false;
         }
+        if (candidateMotorId != requestedMotorId) continue;
 
         String candidateProgram;
+        String canonicalProgram;
         String status;
         if (found ||
             !findString(line, "coil_program", candidateProgram) ||
-            candidateProgram.length() == 0U ||
+            !WindingProgramParser::canonicalize(candidateProgram, canonicalProgram) ||
             (findString(line, "status", status) && status != "ACTIVE"))
         {
             file.close();
@@ -120,15 +123,7 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
             return false;
         }
 
-        candidateProgram.trim();
-        if (candidateProgram.length() == 0U)
-        {
-            file.close();
-            linkage = JobLinkage();
-            return false;
-        }
-
-        coilProgram = candidateProgram;
+        coilProgram = canonicalProgram;
         found = true;
     }
     file.close();
@@ -148,24 +143,39 @@ bool JobLinkageResolver::findUnsigned(const String& line,
 {
     value = 0UL;
     const String marker = String('"') + key + F("\":");
-    int start = line.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
-
-    int end = start;
-    while (end < line.length() && isDigit(line[end])) ++end;
-    if (end == start) return false;
-
-    // A canonical JSON number must end at a field or object delimiter.
-    if (end < line.length() && line[end] != ',' && line[end] != '}') return false;
-
-    const String number = line.substring(start, end);
-    char* parseEnd = nullptr;
-    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
-    if (parseEnd == nullptr || *parseEnd != '\0' || parsed == 0UL)
+    const int position = line.indexOf(marker);
+    if (position < 0 ||
+        line.indexOf(marker, position + marker.length()) >= 0)
+    {
         return false;
+    }
 
-    value = static_cast<uint32_t>(parsed);
+    int cursor = position + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor >= line.length() || !isDigit(line[cursor])) return false;
+    if (line[cursor] == '0' && cursor + 1 < line.length() &&
+        isDigit(line[cursor + 1]))
+    {
+        return false;
+    }
+
+    uint32_t parsed = 0UL;
+    while (cursor < line.length() && isDigit(line[cursor]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[cursor] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++cursor;
+    }
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor >= line.length() ||
+        (line[cursor] != ',' && line[cursor] != '}') ||
+        parsed == 0UL)
+    {
+        return false;
+    }
+
+    value = parsed;
     return true;
 }
 
@@ -176,13 +186,35 @@ bool JobLinkageResolver::findString(const String& line,
     value = String();
     const String marker = String('"') + key + F("\":\"");
     const int position = line.indexOf(marker);
-    if (position < 0) return false;
+    if (position < 0 ||
+        line.indexOf(marker, position + marker.length()) >= 0)
+    {
+        return false;
+    }
 
-    const int start = position + marker.length();
-    const int end = line.indexOf('"', start);
-    if (end < 0) return false;
-
-    value = line.substring(start, end);
-    return true;
+    int cursor = position + marker.length();
+    while (cursor < line.length())
+    {
+        const char ch = line[cursor++];
+        if (ch == '"')
+        {
+            while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+            return cursor < line.length() &&
+                   (line[cursor] == ',' || line[cursor] == '}');
+        }
+        if (ch == '\\')
+        {
+            if (cursor >= line.length()) return false;
+            const char escaped = line[cursor++];
+            if (escaped == '"' || escaped == '\\') value += escaped;
+            else if (escaped == 'n') value += '\n';
+            else if (escaped == 'r') value += '\r';
+            else return false;
+            continue;
+        }
+        if (static_cast<uint8_t>(ch) < 0x20U) return false;
+        value += ch;
+    }
+    return false;
 }
 }

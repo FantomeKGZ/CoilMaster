@@ -72,6 +72,30 @@ bool RepairRegistry::begin()
         return false;
     }
 
+    if (m_storage.exists(MotorsPath))
+    {
+        File motors = m_storage.open(MotorsPath, FILE_READ);
+        if (!motors || motors.isDirectory())
+        {
+            if (motors) motors.close();
+            return false;
+        }
+
+        while (motors.available())
+        {
+            const String line = motors.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            String coilProgram;
+            if (!findString(line, "coil_program", coilProgram) ||
+                !validCoilProgram(coilProgram))
+            {
+                motors.close();
+                return false;
+            }
+        }
+        motors.close();
+    }
+
     // Reference checks deliberately run only after all three registries have
     // passed their structural/identity validation. Temporarily mark the store
     // ready so the existing exact-one-match lookup functions can be reused.

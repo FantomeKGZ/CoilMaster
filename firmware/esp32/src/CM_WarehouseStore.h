@@ -11,6 +11,7 @@ constexpr uint8_t WarehouseMaxDiameters = 32U;
 
 struct WireStockSummary{uint16_t diameterHundredthsMm;uint32_t remainingGrams;uint8_t activeSpoolCount;uint32_t consumedMonthGrams;uint32_t consumedAllTimeGrams;WireStockSummary():diameterHundredthsMm(0U),remainingGrams(0UL),activeSpoolCount(0U),consumedMonthGrams(0UL),consumedAllTimeGrams(0UL){}};
 struct NewWireSpool{uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;String wireType;String manufacturer;String supplier;String batch;String storageLocation;String comment;NewWireSpool():diameterHundredthsMm(0U),currentWeightGrams(0UL){}};
+struct ActiveWireSpoolIdentity{uint32_t spoolId;uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;String wireType;ActiveWireSpoolIdentity():spoolId(0UL),diameterHundredthsMm(0U),currentWeightGrams(0UL){}};
 struct WarehousePrice{uint32_t pricePerKgMinor;String currency;WarehousePrice():pricePerKgMinor(0UL),currency("KGS") {}};
 struct ConfirmedSpoolWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t weightBeforeGrams;uint32_t weightAfterGrams;String timestamp;String comment;ConfirmedSpoolWriteOff():spoolId(0UL),repairId(0UL),weightBeforeGrams(0UL),weightAfterGrams(0UL){}};
 struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;String wireType;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
@@ -25,6 +26,7 @@ public:
     fs::FS& storage() { return m_storage; }
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
     bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
+    bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity) const;
     bool repairExists(uint32_t repairId) const;
     bool repairExists(uint32_t repairId,bool& found) const;
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);

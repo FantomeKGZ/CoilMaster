@@ -444,7 +444,7 @@ bool RepairRegistry::findString(const String& line, const char* key, String& val
     value = String();
     const String marker = String("\"") + key + F("\":\"");
     const int pos = line.indexOf(marker);
-    if (pos < 0) return false;
+    if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
 
     int cursor = pos + marker.length();
     while (cursor < line.length())

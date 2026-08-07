@@ -111,6 +111,10 @@ bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
         return false;
     }
 
+    WarehousePrice current;
+    bool configured = false;
+    if (!loadWarehousePrice(current, configured)) return false;
+
     File file = m_storage.open(PricePath, FILE_APPEND);
     if (!file) return false;
 
@@ -130,34 +134,8 @@ bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
 
 bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const
 {
-    price = WarehousePrice();
-    if (!ready() || !m_storage.exists(PricePath))
-    {
-        return false;
-    }
-
-    File file = m_storage.open(PricePath, FILE_READ);
-    if (!file) return false;
-
-    bool found = false;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        uint32_t value = 0UL;
-        String currency;
-        if (!findUnsigned(line, "price_per_kg_minor", value) || value == 0UL ||
-            !findString(line, "currency", currency) || currency.length() != 3U)
-        {
-            file.close();
-            return false;
-        }
-        price.pricePerKgMinor = value;
-        price.currency = currency;
-        found = true;
-    }
-    file.close();
-    return found;
+    bool configured = false;
+    return loadWarehousePrice(price, configured) && configured;
 }
 
 uint8_t WarehouseStore::summaryCount() const

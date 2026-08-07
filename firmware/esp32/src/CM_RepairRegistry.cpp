@@ -76,7 +76,12 @@ bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
     line += F("}\n");
     const size_t written = file.print(line);
     file.flush(); file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
 }
 
 bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
@@ -103,7 +108,12 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
     line += F("}\n");
     const size_t written = file.print(line);
     file.flush(); file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
 }
 
 bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
@@ -134,7 +144,12 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
     line += F("}\n");
     const size_t written = file.print(line);
     file.flush(); file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
 }
 
 bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,

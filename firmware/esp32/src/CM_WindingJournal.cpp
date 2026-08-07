@@ -270,6 +270,7 @@ bool WindingJournal::sessionContextMatches(
     File file = m_fileSystem.open(JournalPath, FILE_READ);
     if (!file) return false;
 
+    bool matchingSessionFound = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -277,12 +278,20 @@ bool WindingJournal::sessionContextMatches(
         uint32_t lineSessionId = 0UL;
         if (!findUnsigned(line, "schema_version", schemaVersion) ||
             schemaVersion != 2UL ||
-            !findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId != sessionId)
+            !findUnsigned(line, "session_id", lineSessionId))
         {
             continue;
         }
 
+        if (lineSessionId > sessionId)
+        {
+            file.close();
+            return false;
+        }
+        if (lineSessionId != sessionId)
+            continue;
+
+        matchingSessionFound = true;
         WindingEventContext existing;
         if (!parseContext(line, existing) ||
             existing.jobId != context.jobId ||
@@ -296,7 +305,7 @@ bool WindingJournal::sessionContextMatches(
     }
 
     file.close();
-    return true;
+    return matchingSessionFound || true;
 }
 
 bool WindingJournal::containsRunEvent(uint32_t sessionId,

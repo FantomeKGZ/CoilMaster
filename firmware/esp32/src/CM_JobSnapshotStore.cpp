@@ -4,9 +4,36 @@
 
 namespace CM
 {
+JobLinkage::JobLinkage()
+    : linked(false), repairId(0UL), motorId(0UL)
+{
+}
+
+JobLinkage JobLinkage::unlinked()
+{
+    return JobLinkage();
+}
+
+JobLinkage JobLinkage::linkedTo(uint32_t repairIdValue,
+                                uint32_t motorIdValue)
+{
+    JobLinkage result;
+    result.linked = true;
+    result.repairId = repairIdValue;
+    result.motorId = motorIdValue;
+    return result;
+}
+
+bool JobLinkage::isValid() const
+{
+    if (!linked) return repairId == 0UL && motorId == 0UL;
+    return repairId != 0UL && motorId != 0UL;
+}
+
 JobSnapshot::JobSnapshot()
     : jobId(0UL),
       sessionId(0UL),
+      linkage(),
       type(RemoteJobType::Working),
       coilCount(0U),
       turns{},
@@ -33,14 +60,21 @@ bool JobSnapshotStore::isReady() const
 bool JobSnapshotStore::create(const OutgoingWindingJob& job,
                               uint32_t createdUptimeMs)
 {
-    if (!m_ready || !job.isValid()) return false;
+    return create(job, JobLinkage::unlinked(), createdUptimeMs);
+}
+
+bool JobSnapshotStore::create(const OutgoingWindingJob& job,
+                              const JobLinkage& linkage,
+                              uint32_t createdUptimeMs)
+{
+    if (!m_ready || !job.isValid() || !linkage.isValid()) return false;
 
     const String finalPath = snapshotPath(job.sessionId);
     const String tempPath = temporaryPath(job.sessionId);
     if (m_fileSystem.exists(finalPath) || m_fileSystem.exists(tempPath))
         return false;
 
-    const String record = serialize(job, createdUptimeMs);
+    const String record = serialize(job, linkage, createdUptimeMs);
     File file = m_fileSystem.open(tempPath, FILE_WRITE);
     if (!file) return false;
 
@@ -52,7 +86,10 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
     if (written != record.length() ||
         !readAndParse(tempPath.c_str(), verified) ||
         verified.jobId != job.jobId ||
-        verified.sessionId != job.sessionId)
+        verified.sessionId != job.sessionId ||
+        verified.linkage.linked != linkage.linked ||
+        verified.linkage.repairId != linkage.repairId ||
+        verified.linkage.motorId != linkage.motorId)
     {
         m_fileSystem.remove(tempPath);
         return false;
@@ -65,7 +102,11 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
     }
 
     if (!readAndParse(finalPath.c_str(), verified)) return false;
-    return verified.jobId == job.jobId && verified.sessionId == job.sessionId;
+    return verified.jobId == job.jobId &&
+           verified.sessionId == job.sessionId &&
+           verified.linkage.linked == linkage.linked &&
+           verified.linkage.repairId == linkage.repairId &&
+           verified.linkage.motorId == linkage.motorId;
 }
 
 bool JobSnapshotStore::exists(uint32_t sessionId) const
@@ -130,15 +171,22 @@ String JobSnapshotStore::temporaryPath(uint32_t sessionId) const
 }
 
 String JobSnapshotStore::serialize(const OutgoingWindingJob& job,
+                                   const JobLinkage& linkage,
                                    uint32_t createdUptimeMs) const
 {
     String result;
-    result.reserve(384U);
+    result.reserve(416U);
     result = F("{\"schema_version\":1,\"job_id\":");
     result += job.jobId;
     result += F(",\"session_id\":");
     result += job.sessionId;
-    result += F(",\"repair_id\":null,\"motor_id\":null,\"program_type\":\"");
+    result += F(",\"repair_id\":");
+    if (linkage.linked) result += linkage.repairId;
+    else result += F("null");
+    result += F(",\"motor_id\":");
+    if (linkage.linked) result += linkage.motorId;
+    else result += F("null");
+    result += F(",\"program_type\":\"");
     result += job.type == RemoteJobType::Starting ? F("STARTING") : F("WORKING");
     result += F("\",\"coil_count\":");
     result += job.coilCount;
@@ -191,6 +239,10 @@ bool JobSnapshotStore::parse(const String& content,
 
     uint32_t schemaVersion = 0UL;
     uint32_t coilCount = 0UL;
+    bool hasRepairId = false;
+    bool hasMotorId = false;
+    uint32_t repairId = 0UL;
+    uint32_t motorId = 0UL;
     String programType;
     if (!findUnsigned(content, "schema_version", schemaVersion) ||
         schemaVersion != 1UL ||
@@ -198,6 +250,9 @@ bool JobSnapshotStore::parse(const String& content,
         snapshot.jobId == 0UL ||
         !findUnsigned(content, "session_id", snapshot.sessionId) ||
         snapshot.sessionId == 0UL ||
+        !findNullableUnsigned(content, "repair_id", hasRepairId, repairId) ||
+        !findNullableUnsigned(content, "motor_id", hasMotorId, motorId) ||
+        hasRepairId != hasMotorId ||
         !findString(content, "program_type", programType) ||
         !findUnsigned(content, "coil_count", coilCount) ||
         coilCount == 0UL || coilCount > JobSnapshot::MaxCoils ||
@@ -205,6 +260,11 @@ bool JobSnapshotStore::parse(const String& content,
     {
         return false;
     }
+
+    snapshot.linkage = hasRepairId
+        ? JobLinkage::linkedTo(repairId, motorId)
+        : JobLinkage::unlinked();
+    if (!snapshot.linkage.isValid()) return false;
 
     if (programType == "WORKING")
         snapshot.type = RemoteJobType::Working;
@@ -235,6 +295,35 @@ bool JobSnapshotStore::findUnsigned(const String& input,
     char* parseEnd = nullptr;
     const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
     if (parseEnd == nullptr || *parseEnd != '\0') return false;
+    value = static_cast<uint32_t>(parsed);
+    return true;
+}
+
+bool JobSnapshotStore::findNullableUnsigned(const String& input,
+                                            const char* key,
+                                            bool& hasValue,
+                                            uint32_t& value)
+{
+    hasValue = false;
+    value = 0UL;
+    const String marker = String('"') + key + F("\":");
+    int start = input.indexOf(marker);
+    if (start < 0) return false;
+    start += marker.length();
+
+    if (input.substring(start, start + 4) == "null") return true;
+
+    int end = start;
+    while (end < input.length() && isDigit(input[end])) ++end;
+    if (end == start) return false;
+
+    const String number = input.substring(start, end);
+    char* parseEnd = nullptr;
+    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
+    if (parseEnd == nullptr || *parseEnd != '\0' || parsed == 0UL)
+        return false;
+
+    hasValue = true;
     value = static_cast<uint32_t>(parsed);
     return true;
 }

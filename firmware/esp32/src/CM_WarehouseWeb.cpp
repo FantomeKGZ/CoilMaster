@@ -11,6 +11,16 @@ void appendUnsigned64(String& target, uint64_t value)
     target += buffer;
 }
 
+bool roundedMassValueMinor(uint32_t grams, uint32_t pricePerKgMinor, uint64_t& value)
+{
+    value = 0ULL;
+    const uint64_t product = static_cast<uint64_t>(grams) *
+                             static_cast<uint64_t>(pricePerKgMinor);
+    if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL) return false;
+    value = (product + 500ULL) / 1000ULL;
+    return true;
+}
+
 bool normalizeWireType(const String& source, String& normalized)
 {
     normalized = source;
@@ -85,8 +95,19 @@ void WarehouseWeb::handleSummary()
         return;
     }
 
+    uint64_t stockValue = 0ULL;
+    if (priceConfigured &&
+        !roundedMassValueMinor(m_store.totalRemainingGrams(),
+                               price.pricePerKgMinor,
+                               stockValue))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_value_overflow\"}");
+        return;
+    }
+
     String response;
-    response.reserve(2400U);
+    response.reserve(2460U);
     response = F("{\"month\":\"");
     response += month;
     response += F("\",\"total_remaining_g\":");
@@ -104,18 +125,32 @@ void WarehouseWeb::handleSummary()
     response += F(",\"currency\":\"");
     response += price.currency;
     response += F("\",\"stock_value_minor\":");
-    const uint64_t stockValue = priceConfigured
-                                    ? static_cast<uint64_t>(m_store.totalRemainingGrams()) *
-                                          price.pricePerKgMinor / 1000ULL
-                                    : 0ULL;
     appendUnsigned64(response, stockValue);
+    response += F(",\"value_rounding\":\"NEAREST_MINOR_UNIT\"");
     response += F(",\"diameters\":[");
 
     bool first = true;
     for (uint8_t i = 0U; i < m_store.summaryCount(); ++i)
     {
         WireStockSummary item;
-        if (!m_store.summaryAt(i, item)) continue;
+        if (!m_store.summaryAt(i, item))
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_summary_inconsistent\"}");
+            return;
+        }
+
+        uint64_t remainingValue = 0ULL;
+        if (priceConfigured &&
+            !roundedMassValueMinor(item.remainingGrams,
+                                   price.pricePerKgMinor,
+                                   remainingValue))
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_value_overflow\"}");
+            return;
+        }
+
         if (!first) response += ',';
         first = false;
 
@@ -130,10 +165,6 @@ void WarehouseWeb::handleSummary()
         response += F(",\"consumed_all_time_g\":");
         response += item.consumedAllTimeGrams;
         response += F(",\"remaining_value_minor\":");
-        const uint64_t remainingValue = priceConfigured
-                                            ? static_cast<uint64_t>(item.remainingGrams) *
-                                                  price.pricePerKgMinor / 1000ULL
-                                            : 0ULL;
         appendUnsigned64(response, remainingValue);
         response += '}';
     }

@@ -73,6 +73,12 @@ bool RepairRegistry::begin()
         repairs.close();
     }
 
+    if (!validateRepairStatusHistory())
+    {
+        m_ready = false;
+        return false;
+    }
+
     return true;
 }
 
@@ -199,6 +205,51 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
     return true;
 }
 
+bool RepairRegistry::closeRepair(uint32_t repairId, const String& closedAt,
+                                 bool& alreadyClosed)
+{
+    alreadyClosed = false;
+    if (!ready() || repairId == 0UL || closedAt.length() < 10U ||
+        !idExists(RepairsPath, "repair_id", repairId))
+    {
+        return false;
+    }
+
+    bool closed = false;
+    String existingClosedAt;
+    if (!repairClosed(repairId, closed, existingClosedAt)) return false;
+    if (closed)
+    {
+        alreadyClosed = true;
+        return true;
+    }
+
+    File file = m_storage.open(RepairStatusPath, FILE_APPEND);
+    if (!file)
+    {
+        m_ready = false;
+        return false;
+    }
+
+    String line;
+    line.reserve(160U);
+    line = F("{\"repair_id\":");
+    line += repairId;
+    line += F(",\"status\":\"CLOSED\",\"closed_at\":\"");
+    line += jsonEscape(closedAt);
+    line += F("\"}\n");
+
+    const size_t written = file.print(line);
+    file.flush();
+    file.close();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
+}
+
 bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
                                        uint16_t& count) const
 {
@@ -273,13 +324,51 @@ bool RepairRegistry::appendRepairsJson(String& json, uint32_t clientId,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U || line[0] != '{' ||
+            line[line.length() - 1U] != '}')
+        {
+            file.close();
+            return false;
+        }
+
+        uint32_t repairId = 0UL;
         uint32_t lineClientId = 0UL;
-        if (clientId > 0UL &&
-            (!findUnsigned(line, "client_id", lineClientId) || lineClientId != clientId))
-            continue;
+        if (!findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+            !findUnsigned(line, "client_id", lineClientId) || lineClientId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        if (clientId > 0UL && lineClientId != clientId) continue;
+
+        bool closed = false;
+        String closedAt;
+        if (!repairClosed(repairId, closed, closedAt))
+        {
+            file.close();
+            return false;
+        }
+
+        String decorated = line;
+        decorated.remove(decorated.length() - 1U);
+        decorated += F(",\"current_status\":\"");
+        decorated += closed ? F("CLOSED") : F("OPEN");
+        decorated += F("\",\"closed_at\":");
+        if (closed)
+        {
+            decorated += '"';
+            decorated += jsonEscape(closedAt);
+            decorated += '"';
+        }
+        else
+        {
+            decorated += F("null");
+        }
+        decorated += '}';
+
         if (!first) json += ',';
         first = false;
-        json += line;
+        json += decorated;
         ++count;
     }
     file.close();
@@ -400,6 +489,129 @@ bool RepairRegistry::validateUniqueIds(const char* path, const char* key) const
     }
 
     source.close();
+    return true;
+}
+
+bool RepairRegistry::validateRepairStatusHistory() const
+{
+    if (!m_storage.exists(RepairStatusPath)) return true;
+
+    File source = m_storage.open(RepairStatusPath, FILE_READ);
+    if (!source || source.isDirectory())
+    {
+        if (source) source.close();
+        return false;
+    }
+
+    while (source.available())
+    {
+        const String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        if (line[0] != '{' || line[line.length() - 1U] != '}')
+        {
+            source.close();
+            return false;
+        }
+
+        uint32_t repairId = 0UL;
+        String status;
+        String closedAt;
+        if (!findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+            !findString(line, "status", status) || status != "CLOSED" ||
+            !findString(line, "closed_at", closedAt) || closedAt.length() < 10U ||
+            !idExists(RepairsPath, "repair_id", repairId))
+        {
+            source.close();
+            return false;
+        }
+
+        File duplicateScan = m_storage.open(RepairStatusPath, FILE_READ);
+        if (!duplicateScan)
+        {
+            source.close();
+            return false;
+        }
+        uint8_t matches = 0U;
+        while (duplicateScan.available())
+        {
+            const String candidateLine = duplicateScan.readStringUntil('\n');
+            if (candidateLine.length() == 0U) continue;
+            uint32_t candidateRepairId = 0UL;
+            String candidateStatus;
+            String candidateClosedAt;
+            if (!findUnsigned(candidateLine, "repair_id", candidateRepairId) ||
+                candidateRepairId == 0UL ||
+                !findString(candidateLine, "status", candidateStatus) ||
+                candidateStatus != "CLOSED" ||
+                !findString(candidateLine, "closed_at", candidateClosedAt) ||
+                candidateClosedAt.length() < 10U)
+            {
+                duplicateScan.close();
+                source.close();
+                return false;
+            }
+            if (candidateRepairId == repairId && ++matches > 1U)
+            {
+                duplicateScan.close();
+                source.close();
+                return false;
+            }
+        }
+        duplicateScan.close();
+        if (matches != 1U)
+        {
+            source.close();
+            return false;
+        }
+    }
+
+    source.close();
+    return true;
+}
+
+bool RepairRegistry::repairClosed(uint32_t repairId, bool& closed,
+                                  String& closedAt) const
+{
+    closed = false;
+    closedAt = String();
+    if (!ready() || repairId == 0UL) return false;
+    if (!m_storage.exists(RepairStatusPath)) return true;
+
+    File file = m_storage.open(RepairStatusPath, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t candidateRepairId = 0UL;
+        String status;
+        String candidateClosedAt;
+        if (line[0] != '{' || line[line.length() - 1U] != '}' ||
+            !findUnsigned(line, "repair_id", candidateRepairId) ||
+            candidateRepairId == 0UL ||
+            !findString(line, "status", status) || status != "CLOSED" ||
+            !findString(line, "closed_at", candidateClosedAt) ||
+            candidateClosedAt.length() < 10U)
+        {
+            file.close();
+            return false;
+        }
+        if (candidateRepairId != repairId) continue;
+        if (closed)
+        {
+            file.close();
+            return false;
+        }
+        closed = true;
+        closedAt = candidateClosedAt;
+    }
+
+    file.close();
     return true;
 }
 

@@ -110,6 +110,28 @@ public:
             if (leftTurns[index] != rightTurns[index]) return false;
         return true;
     }
+
+    static bool canonicalize(const String& source,
+                             String& result,
+                             uint8_t maximumCoils = 10U,
+                             uint16_t maximumTurns = 9999U)
+    {
+        result = String();
+        if (maximumCoils == 0U || maximumCoils > 10U) return false;
+
+        uint16_t turns[10] = {};
+        uint8_t count = 0U;
+        if (!parse(source, turns, maximumCoils, count, maximumTurns))
+            return false;
+
+        result.reserve(static_cast<unsigned int>(count) * 5U);
+        for (uint8_t index = 0U; index < count; ++index)
+        {
+            if (index > 0U) result += '/';
+            result += turns[index];
+        }
+        return true;
+    }
 };
 }
 

@@ -149,6 +149,11 @@ CM::JobDeliveryResult deliveryResultFor(CM::JobDeliveryState state)
 {
     switch (state)
     {
+        case CM::JobDeliveryResult::Accepted: return CM::JobDeliveryResult::Accepted;
+        default: break;
+    }
+    switch (state)
+    {
         case CM::JobDeliveryState::Accepted: return CM::JobDeliveryResult::Accepted;
         case CM::JobDeliveryState::Rejected: return CM::JobDeliveryResult::Rejected;
         case CM::JobDeliveryState::TimedOut: return CM::JobDeliveryResult::TimedOut;
@@ -375,6 +380,26 @@ bool parseTurns(const String& source, CM::OutgoingWindingJob& job)
     return job.coilCount > 0U;
 }
 
+bool parseCanonicalUint32(const String& source, uint32_t& value)
+{
+    value = 0UL;
+    if (source.length() == 0U) return false;
+    if (source.length() > 1U && source[0] == '0') return false;
+
+    uint32_t parsed = 0UL;
+    for (size_t index = 0U; index < source.length(); ++index)
+    {
+        const char ch = source[index];
+        if (!isDigit(ch)) return false;
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+    }
+
+    value = parsed;
+    return true;
+}
+
 bool sameProgram(const CM::OutgoingWindingJob& left,
                  const CM::OutgoingWindingJob& right)
 {
@@ -449,8 +474,8 @@ void handleRecoveryAcknowledge()
     }
 
     const String sessionText = webServer.arg("session_id");
-    const uint32_t sessionId = static_cast<uint32_t>(sessionText.toInt());
-    if (sessionId == 0UL || sessionText != String(sessionId) ||
+    uint32_t sessionId = 0UL;
+    if (!parseCanonicalUint32(sessionText, sessionId) || sessionId == 0UL ||
         sessionId != activeSessionId || sessionId != recoveryInfo.state.sessionId)
     {
         webServer.send(409, "application/json", "{\"error\":\"session_mismatch\"}");

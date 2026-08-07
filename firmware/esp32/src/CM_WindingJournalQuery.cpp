@@ -24,7 +24,11 @@ bool WindingJournalQuery::begin()
 
 bool WindingJournalQuery::isReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File root = m_storage.open("/", FILE_READ);
+    if (!root) return false;
+    root.close();
+    return true;
 }
 
 WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
@@ -59,7 +63,7 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
     count = 0U;
     nextCursor = cursor;
     hasMore = false;
-    if (!m_ready)
+    if (!isReady())
         return WindingJournalQueryResult::StorageUnavailable;
     if ((sessionId == 0UL) == (repairId == 0UL))
         return WindingJournalQueryResult::InvalidFilter;

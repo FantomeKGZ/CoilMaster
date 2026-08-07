@@ -1,6 +1,7 @@
 #include "CM_RepairRegistryWeb.h"
 #include <SD.h>
 #include "CM_RepairClosureGuard.h"
+#include "CM_RepairFinalizationGuard.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -264,6 +265,21 @@ void RepairRegistryWeb::handleCloseRepair()
         return;
     }
 
+    const RepairFinalizationCheck finalization =
+        RepairFinalizationGuard::check(SD, repairId);
+    if (finalization == RepairFinalizationCheck::StorageUnavailable)
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_storage_unavailable\",\"write_performed\":false}");
+        return;
+    }
+    if (finalization != RepairFinalizationCheck::Ready)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_integrity_failed\",\"write_performed\":false}");
+        return;
+    }
+
     bool alreadyClosed = false;
     if (!m_registry.closeRepair(repairId, m_server.arg("closed_at"), alreadyClosed))
     {
@@ -284,7 +300,7 @@ void RepairRegistryWeb::handleCloseRepair()
     response += repairId;
     response += F(",\"already_closed\":");
     response += alreadyClosed ? F("true") : F("false");
-    response += '}';
+    response += F(",\"finalization_integrity_verified\":true}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

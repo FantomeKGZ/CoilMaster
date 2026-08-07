@@ -189,8 +189,15 @@ void WarehouseWeb::handleCreateSpool()
 
 void WarehouseWeb::handleGetPrice()
 {
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
     WarehousePrice price;
-    if (!m_store.ready() || !m_store.loadWarehousePrice(price))
+    if (!m_store.loadWarehousePrice(price))
     {
         m_server.send(200, "application/json; charset=utf-8",
                       "{\"configured\":false,\"price_per_kg_minor\":0,\"currency\":\"KGS\"}");
@@ -258,8 +265,8 @@ bool WarehouseWeb::validMonth(const String& month)
         if (!isDigit(month[i])) return false;
     }
 
-    const int value = month.substring(5).toInt();
-    return value >= 1 && value <= 12;
+    const uint8_t value = static_cast<uint8_t>((month[5] - '0') * 10 + (month[6] - '0'));
+    return value >= 1U && value <= 12U;
 }
 
 bool WarehouseWeb::parseUnsignedArg(WebServer& server,
@@ -268,18 +275,24 @@ bool WarehouseWeb::parseUnsignedArg(WebServer& server,
                                     uint32_t maximum,
                                     uint32_t& value)
 {
-    if (name == nullptr || !server.hasArg(name)) return false;
+    value = 0UL;
+    if (name == nullptr || !server.hasArg(name) || minimum > maximum) return false;
     const String source = server.arg(name);
     if (source.length() == 0U) return false;
+    if (source.length() > 1U && source[0] == '0') return false;
 
+    uint32_t parsed = 0UL;
     for (size_t i = 0U; i < source.length(); ++i)
     {
         if (!isDigit(source[i])) return false;
+        const uint8_t digit = static_cast<uint8_t>(source[i] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        if (parsed > maximum) return false;
     }
 
-    const unsigned long parsed = strtoul(source.c_str(), nullptr, 10);
-    if (parsed < minimum || parsed > maximum) return false;
-    value = static_cast<uint32_t>(parsed);
+    if (parsed < minimum) return false;
+    value = parsed;
     return true;
 }
 }

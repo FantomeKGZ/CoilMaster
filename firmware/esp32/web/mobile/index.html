@@ -6,7 +6,7 @@
 <title>CoilMaster Mobile</title>
 <style>
 :root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:78px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px}main{padding:12px}.card{background:#fff;border-radius:15px;padding:16px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric strong{display:block;font-size:25px}.muted{color:var(--muted)}input,select,button{width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid #cbd5df;font-size:17px}button{background:var(--blue);color:#fff;border:0;font-weight:bold}button:disabled{background:#9aa7b1}.note{background:#f3f7fa;padding:12px;border-radius:10px;margin-top:10px}.context{padding:10px 12px;border-radius:10px;background:#e8f1f8;margin-top:10px}.context.unlinked{background:#fff1d8}.warning{background:#fff1d8}.ok{background:#e8f7ee}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:78px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px}main{padding:12px}.card{background:#fff;border-radius:15px;padding:16px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric strong{display:block;font-size:25px}.muted{color:var(--muted)}input,select,button{width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid #cbd5df;font-size:17px}button{background:var(--blue);color:#fff;border:0;font-weight:bold}button:disabled{background:#9aa7b1}.note{background:#f3f7fa;padding:12px;border-radius:10px;margin-top:10px}.context{padding:10px 12px;border-radius:10px;background:#e8f1f8;margin-top:10px}.context a{display:inline-block;margin-top:6px;color:#105b91;font-weight:bold}.context.unlinked{background:#fff1d8}.warning{background:#fff1d8}.ok{background:#e8f7ee}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
 </style>
 </head>
 <body>
@@ -22,6 +22,20 @@ localStorage.setItem('cm-ui-version','mobile');
 const $=id=>document.getElementById(id);
 let serviceReady=false,sending=false;
 function updateServiceButton(){ $('serviceSend').disabled=sending||!serviceReady }
+function persistentHealthy(s){return s.storage_ready===true&&s.id_allocator_ready===true&&s.job_snapshot_store_ready===true&&s.job_state_store_ready===true}
+function statusHint(s){
+  if(s.manual_review_required===true)return 'Требуется ручная проверка восстановления перед продолжением.';
+  switch(s.job_status){
+    case 'WAITING_ARDUINO_ACK':return 'Задание передаётся на Arduino. Ожидается подтверждение.';
+    case 'ACCEPTED_READY':return 'Arduino приняла программу. Запуск выполняется физической кнопкой A или START.';
+    case 'RUNNING':return 'Намотка выполняется.';
+    case 'PROGRAM_COMPLETED':return 'Программа намотки завершена. Можно подготовить следующее задание.';
+    case 'REJECTED':return 'Arduino отклонила последнее задание.';
+    case 'TIMED_OUT':return 'Arduino не подтвердила последнее задание вовремя.';
+    case 'CANCELLED':return 'Последнее задание отменено.';
+    default:return s.job_id?'Текущее задание не запущено.':'Станок ожидает программу.';
+  }
+}
 function renderServiceState(s){
   serviceReady=s.job_creation_ready===true;
   const box=$('serviceState');
@@ -44,7 +58,7 @@ async function refresh(){
     const context=$('jobContext');
     if(s.job_id&&s.linked){
       context.className='context';
-      context.textContent='Ремонт №'+s.repair_id+' · Двигатель №'+s.motor_id;
+      context.innerHTML='Ремонт №'+s.repair_id+' · Двигатель №'+s.motor_id+'<br><a href="/mobile/winding-history.html?repair_id='+s.repair_id+'">История намотки ремонта</a>';
     }else if(s.job_id){
       context.className='context unlinked';
       context.textContent='Сервисное задание · без привязки к ремонту';
@@ -52,8 +66,8 @@ async function refresh(){
       context.className='context';
       context.textContent='Контекст задания: —';
     }
-    $('hint').textContent=s.run_active?'Намотка выполняется.':s.job_status==='ACCEPTED_READY'?'Arduino готова. Нажмите A или START.':'Станок ожидает программу.';
-    $('health').textContent=s.storage_ready?'Система: норма':'Внимание';
+    $('hint').textContent=statusHint(s);
+    $('health').textContent=persistentHealthy(s)?'Система: норма':'Внимание';
     renderServiceState(s);
   }catch(e){
     serviceReady=false;

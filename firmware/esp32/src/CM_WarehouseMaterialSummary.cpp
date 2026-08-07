@@ -65,7 +65,7 @@ void sortDiameters(MaterialSummary& summary)
 bool WarehouseStore::appendMaterialSummaryJson(String& json,
                                                 const char* monthPrefix) const
 {
-    if (!m_ready || monthPrefix == nullptr) return false;
+    if (!ready() || monthPrefix == nullptr) return false;
 
     MaterialSummary groups[3];
     groups[0].code = "CU";
@@ -76,24 +76,53 @@ bool WarehouseStore::appendMaterialSummaryJson(String& json,
     {
         File spools = m_storage.open(SpoolsPath, FILE_READ);
         if (!spools) return false;
+        uint32_t previousSpoolId = 0UL;
         while (spools.available())
         {
             const String line = spools.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+
+            uint32_t spoolId = 0UL;
             uint32_t diameter = 0UL;
             uint32_t weight = 0UL;
-            String status;
-            String wireType;
-            if (!findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-                !findUnsigned(line, "current_weight_g", weight)) continue;
-            findString(line, "status", status);
-            if (status.length() > 0U && status != "ACTIVE") continue;
-            findString(line, "wire_type", wireType);
+            String status, wireType;
+            if (!findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+                spoolId <= previousSpoolId ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                diameter == 0UL || diameter > 0xFFFFUL ||
+                !findUnsigned(line, "current_weight_g", weight) ||
+                !findString(line, "status", status))
+            {
+                spools.close();
+                return false;
+            }
+            previousSpoolId = spoolId;
+
+            const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+            if (hasWireType &&
+                (!findString(line, "wire_type", wireType) ||
+                 (wireType != "CU" && wireType != "AL")))
+            {
+                spools.close();
+                return false;
+            }
+
+            if (status != "ACTIVE") continue;
+
             MaterialSummary& group = groups[materialIndex(wireType)];
             MaterialDiameterSummary* item =
                 findOrAdd(group, static_cast<uint16_t>(diameter));
-            if (item == nullptr) continue;
+            if (item == nullptr ||
+                item->remaining > 0xFFFFFFFFUL - weight ||
+                item->spoolCount == 0xFFFFU ||
+                group.remaining > 0xFFFFFFFFUL - weight ||
+                group.spoolCount == 0xFFFFFFFFUL)
+            {
+                spools.close();
+                return false;
+            }
             item->remaining += weight;
-            if (item->spoolCount < 0xFFFFU) ++item->spoolCount;
+            ++item->spoolCount;
             group.remaining += weight;
             ++group.spoolCount;
         }
@@ -104,37 +133,167 @@ bool WarehouseStore::appendMaterialSummaryJson(String& json,
     {
         File movements = m_storage.open(MovementsPath, FILE_READ);
         if (!movements) return false;
+
+        uint32_t maximumMovementId = 0UL;
+        uint32_t pendingId = 0UL;
+        uint32_t pendingSpoolId = 0UL;
+        uint32_t pendingRepairId = 0UL;
+        uint32_t pendingBefore = 0UL;
+        uint32_t pendingAfter = 0UL;
+        uint32_t pendingMass = 0UL;
+        uint32_t pendingPrice = 0UL;
+        String pendingCurrency, pendingTimestamp, pendingComment;
+
         while (movements.available())
         {
             const String line = movements.readStringUntil('\n');
-            String type;
-            String status;
-            String timestamp;
-            String wireType;
-            uint32_t spoolId = 0UL;
-            uint32_t diameter = 0UL;
-            uint32_t grams = 0UL;
-            if (!findString(line, "type", type) || type != "WRITE_OFF" ||
-                !findString(line, "status", status) || status != "CONFIRMED" ||
-                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-                !findUnsigned(line, "mass_g", grams)) continue;
+            if (line.length() == 0U) continue;
 
-            if (!findString(line, "wire_type", wireType) &&
-                findUnsigned(line, "spool_id", spoolId) &&
-                m_storage.exists(SpoolsPath))
+            uint32_t movementId = 0UL;
+            uint32_t spoolId = 0UL;
+            uint32_t repairId = 0UL;
+            uint32_t diameter = 0UL;
+            uint32_t before = 0UL;
+            uint32_t after = 0UL;
+            uint32_t grams = 0UL;
+            uint32_t price = 0UL;
+            String type, status, timestamp, wireType, currency, comment;
+
+            if (!findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
+                !findString(line, "type", type) || type != "WRITE_OFF" ||
+                !findString(line, "status", status) ||
+                !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+                !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter > 0xFFFFUL ||
+                !findUnsigned(line, "weight_before_g", before) || before == 0UL ||
+                !findUnsigned(line, "weight_after_g", after) || after >= before ||
+                !findUnsigned(line, "mass_g", grams) || grams != before - after ||
+                !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
+                !findString(line, "currency", currency) || currency.length() != 3U ||
+                !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+            {
+                movements.close();
+                return false;
+            }
+
+            const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+            if (hasWireType &&
+                (!findString(line, "wire_type", wireType) ||
+                 (wireType != "CU" && wireType != "AL")))
+            {
+                movements.close();
+                return false;
+            }
+            const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
+            if (hasComment && !findString(line, "comment", comment))
+            {
+                movements.close();
+                return false;
+            }
+
+            if (status == "PENDING")
+            {
+                if (pendingId != 0UL || movementId <= maximumMovementId ||
+                    diameter != 0UL || hasWireType)
+                {
+                    movements.close();
+                    return false;
+                }
+                maximumMovementId = movementId;
+                pendingId = movementId;
+                pendingSpoolId = spoolId;
+                pendingRepairId = repairId;
+                pendingBefore = before;
+                pendingAfter = after;
+                pendingMass = grams;
+                pendingPrice = price;
+                pendingCurrency = currency;
+                pendingTimestamp = timestamp;
+                pendingComment = comment;
+                continue;
+            }
+
+            if (status != "CONFIRMED" && status != "ABORTED")
+            {
+                movements.close();
+                return false;
+            }
+            if (pendingId == 0UL || movementId != pendingId ||
+                spoolId != pendingSpoolId || repairId != pendingRepairId ||
+                before != pendingBefore || after != pendingAfter || grams != pendingMass ||
+                price != pendingPrice || currency != pendingCurrency ||
+                timestamp != pendingTimestamp || comment != pendingComment)
+            {
+                movements.close();
+                return false;
+            }
+
+            if (status == "ABORTED")
+            {
+                if (diameter != 0UL || hasWireType)
+                {
+                    movements.close();
+                    return false;
+                }
+                pendingId = 0UL;
+                continue;
+            }
+
+            if (diameter == 0UL)
+            {
+                movements.close();
+                return false;
+            }
+
+            if (!hasWireType && m_storage.exists(SpoolsPath))
             {
                 File spools = m_storage.open(SpoolsPath, FILE_READ);
-                if (!spools) { movements.close(); return false; }
+                if (!spools)
+                {
+                    movements.close();
+                    return false;
+                }
+                uint32_t previousSpoolId = 0UL;
+                bool foundSpool = false;
                 while (spools.available())
                 {
                     const String spoolLine = spools.readStringUntil('\n');
+                    if (spoolLine.length() == 0U) continue;
                     uint32_t currentId = 0UL;
-                    if (findUnsigned(spoolLine, "spool_id", currentId) &&
-                        currentId == spoolId)
+                    uint32_t currentDiameter = 0UL;
+                    uint32_t currentWeight = 0UL;
+                    String spoolStatus, currentWireType;
+                    if (!findUnsigned(spoolLine, "spool_id", currentId) || currentId == 0UL ||
+                        currentId <= previousSpoolId ||
+                        !findUnsigned(spoolLine, "diameter_hundredths_mm", currentDiameter) ||
+                        currentDiameter == 0UL || currentDiameter > 0xFFFFUL ||
+                        !findUnsigned(spoolLine, "current_weight_g", currentWeight) ||
+                        !findString(spoolLine, "status", spoolStatus))
                     {
-                        findString(spoolLine, "wire_type", wireType);
-                        break;
+                        spools.close();
+                        movements.close();
+                        return false;
                     }
+                    previousSpoolId = currentId;
+
+                    const bool spoolHasWireType = spoolLine.indexOf(F("\"wire_type\":")) >= 0;
+                    if (spoolHasWireType &&
+                        (!findString(spoolLine, "wire_type", currentWireType) ||
+                         (currentWireType != "CU" && currentWireType != "AL")))
+                    {
+                        spools.close();
+                        movements.close();
+                        return false;
+                    }
+                    if (currentId != spoolId) continue;
+                    if (foundSpool)
+                    {
+                        spools.close();
+                        movements.close();
+                        return false;
+                    }
+                    foundSpool = true;
+                    if (spoolHasWireType) wireType = currentWireType;
                 }
                 spools.close();
             }
@@ -142,17 +301,31 @@ bool WarehouseStore::appendMaterialSummaryJson(String& json,
             MaterialSummary& group = groups[materialIndex(wireType)];
             MaterialDiameterSummary* item =
                 findOrAdd(group, static_cast<uint16_t>(diameter));
-            if (item == nullptr) continue;
+            if (item == nullptr ||
+                item->consumedAll > 0xFFFFFFFFUL - grams ||
+                group.consumedAll > 0xFFFFFFFFUL - grams)
+            {
+                movements.close();
+                return false;
+            }
             item->consumedAll += grams;
             group.consumedAll += grams;
-            if (findString(line, "timestamp", timestamp) &&
-                timestamp.startsWith(monthPrefix))
+
+            if (timestamp.startsWith(monthPrefix))
             {
+                if (item->consumedMonth > 0xFFFFFFFFUL - grams ||
+                    group.consumedMonth > 0xFFFFFFFFUL - grams)
+                {
+                    movements.close();
+                    return false;
+                }
                 item->consumedMonth += grams;
                 group.consumedMonth += grams;
             }
+            pendingId = 0UL;
         }
         movements.close();
+        if (pendingId != 0UL) return false;
     }
 
     for (uint8_t i = 0U; i < 3U; ++i) sortDiameters(groups[i]);

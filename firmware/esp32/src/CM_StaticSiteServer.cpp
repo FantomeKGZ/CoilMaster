@@ -3,7 +3,12 @@
 namespace CM
 {
 StaticSiteServer::StaticSiteServer(WebServer& server, fs::FS& storage)
-    : m_server(server), m_storage(storage), m_webRoot("/web"), m_ready(false)
+    : m_server(server),
+      m_storage(storage),
+      m_windingHistoryQuery(storage),
+      m_windingHistoryWeb(server, m_windingHistoryQuery),
+      m_webRoot("/web"),
+      m_ready(false)
 {
 }
 
@@ -20,6 +25,11 @@ void StaticSiteServer::begin(const char* webRoot)
     }
 
     m_ready = m_storage.exists(m_webRoot);
+
+    // The history API is registered through the same web initialization point,
+    // but remains a separate read-only module over winding events on microSD.
+    m_windingHistoryQuery.begin();
+    m_windingHistoryWeb.begin();
 
     m_server.on("/mobile", HTTP_GET, [this]() { redirect("/mobile/"); });
     m_server.on("/desktop", HTTP_GET, [this]() { redirect("/desktop/"); });
@@ -54,6 +64,11 @@ bool StaticSiteServer::serveCurrentRequest()
 bool StaticSiteServer::storageReady() const
 {
     return m_ready;
+}
+
+bool StaticSiteServer::windingHistoryReady() const
+{
+    return m_windingHistoryQuery.isReady();
 }
 
 bool StaticSiteServer::serveUri(const String& uri)

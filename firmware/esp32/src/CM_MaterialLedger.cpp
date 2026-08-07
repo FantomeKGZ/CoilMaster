@@ -1,4 +1,5 @@
 #include "CM_MaterialLedger.h"
+#include "CM_RepairLifecycle.h"
 
 namespace CM
 {
@@ -91,6 +92,13 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
         return false;
     }
 
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(m_storage, usage.repairId, repairOpen) ||
+        !repairOpen)
+    {
+        return false;
+    }
+
     uint32_t usageId = 0UL;
     if (!nextId(UsagePath, "usage_id", usageId)) return false;
 
@@ -168,14 +176,12 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
 
     if (!appendUsageLine(line))
     {
-        // Leave the pending transaction in place. begin() will finish it after reboot.
         m_ready = false;
         return false;
     }
 
     if (!m_storage.remove(UsagePendingPath))
     {
-        // The usage is already durable. Recovery will only remove the stale marker.
         m_ready = false;
         return false;
     }
@@ -230,7 +236,6 @@ bool MaterialLedger::recoverPendingUsage()
 
     if (currentStock == stockBefore)
     {
-        // Stock was never changed; discard the prepared transaction.
         return m_storage.remove(UsagePendingPath);
     }
     if (currentStock != stockAfter) return false;

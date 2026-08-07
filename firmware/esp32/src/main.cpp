@@ -309,6 +309,61 @@ void sendJsonStatus()
     webServer.send(200, "application/json; charset=utf-8", response);
 }
 
+void handleRecoveryAcknowledge()
+{
+    if (!manualReviewRequired())
+    {
+        webServer.send(409, "application/json", "{\"error\":\"manual_review_not_required\"}");
+        return;
+    }
+    if (!jobStateStoreReady || !jobStates.isReady())
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_state_store_unavailable\"}");
+        return;
+    }
+    if (!webServer.hasArg("session_id") || !webServer.hasArg("confirmed"))
+    {
+        webServer.send(400, "application/json", "{\"error\":\"session_id_and_confirmation_required\"}");
+        return;
+    }
+
+    const String sessionText = webServer.arg("session_id");
+    const uint32_t sessionId = static_cast<uint32_t>(sessionText.toInt());
+    if (sessionId == 0UL || sessionText != String(sessionId) ||
+        sessionId != activeSessionId || sessionId != recoveryInfo.state.sessionId)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"session_mismatch\"}");
+        return;
+    }
+    if (webServer.arg("confirmed") != "true")
+    {
+        webServer.send(400, "application/json", "{\"error\":\"explicit_confirmation_required\"}");
+        return;
+    }
+    if (!jobStates.closeAfterManualReview(sessionId, millis()))
+    {
+        jobStateStoreReady = false;
+        webServer.send(503, "application/json", "{\"error\":\"review_closure_persistence_failed\"}");
+        return;
+    }
+
+    restoreLatestJobState();
+    if (!jobStateStoreReady || manualReviewRequired() || !recoveryInfo.mayCreateNewJob)
+    {
+        webServer.send(503, "application/json", "{\"error\":\"review_closure_verification_failed\"}");
+        return;
+    }
+
+    runActive = false;
+    jobAwaitingAck = false;
+    String response = F("{\"acknowledged\":true,\"session_id\":");
+    response += sessionId;
+    response += F(",\"state\":\"CLOSED_AFTER_REVIEW\",\"new_job_allowed\":true,");
+    response += F("\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false}");
+    webServer.send(200, "application/json; charset=utf-8", response);
+    Serial.print(F("Operator review closed session=")); Serial.println(sessionId);
+}
+
 void handleCreateJob()
 {
     if (!recoveryEvaluated || !recoveryInfo.mayCreateNewJob)
@@ -401,6 +456,7 @@ void configureWebServer()
 {
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
+    webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);
     warehouseWeb.begin();
     warehouseWeb.beginSpoolList();
     staticSites.begin("/web");

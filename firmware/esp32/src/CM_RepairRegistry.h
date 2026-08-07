@@ -47,7 +47,20 @@ public:
     bool addRepair(const NewRepair& repair, uint32_t& repairId);
     bool closeRepair(uint32_t repairId, const String& closedAt,
                      bool& alreadyClosed);
-    bool repairIsOpen(uint32_t repairId, bool& open) const;
+    bool repairIsOpen(uint32_t repairId, bool& open) const
+    {
+        open = false;
+        if (!ready() || repairId == 0UL ||
+            !idExists(RepairsPath, "repair_id", repairId))
+        {
+            return false;
+        }
+        bool closed = false;
+        String closedAt;
+        if (!repairClosed(repairId, closed, closedAt)) return false;
+        open = !closed;
+        return true;
+    }
 
     bool appendClientsJson(String& json, const String& phoneQuery,
                            uint16_t& count) const;

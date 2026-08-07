@@ -23,7 +23,11 @@ bool JobLinkageResolver::begin()
 
 bool JobLinkageResolver::isReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File root = m_storage.open("/", FILE_READ);
+    if (!root) return false;
+    root.close();
+    return true;
 }
 
 bool JobLinkageResolver::resolve(uint32_t repairId,
@@ -31,7 +35,7 @@ bool JobLinkageResolver::resolve(uint32_t repairId,
                                  JobLinkage& linkage) const
 {
     linkage = JobLinkage();
-    if (!m_ready || repairId == 0UL || requestedMotorId == 0UL ||
+    if (!isReady() || repairId == 0UL || requestedMotorId == 0UL ||
         !m_storage.exists(RepairsPath))
     {
         return false;

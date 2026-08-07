@@ -19,14 +19,19 @@ bool MaterialLedger::begin()
 
 bool MaterialLedger::ready() const
 {
-    return m_ready;
+    if (!m_ready || !m_storage.exists("/data/materials")) return false;
+    File probe = m_storage.open("/data/materials");
+    if (!probe) return false;
+    const bool directory = probe.isDirectory();
+    probe.close();
+    return directory;
 }
 
 bool MaterialLedger::addMaterial(const NewMaterial& material,
                                  uint32_t& assignedMaterialId)
 {
     assignedMaterialId = 0UL;
-    if (!m_ready || material.name.length() == 0U ||
+    if (!ready() || material.name.length() == 0U ||
         material.pricePerUnitMinor == 0UL || material.currency.length() != 3U)
     {
         return false;
@@ -55,13 +60,19 @@ bool MaterialLedger::addMaterial(const NewMaterial& material,
     const size_t written = file.print(line);
     file.flush();
     file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_ready = false;
+        assignedMaterialId = 0UL;
+        return false;
+    }
+    return true;
 }
 
 bool MaterialLedger::appendMaterialsJson(String& json, uint16_t& count) const
 {
     count = 0U;
-    if (!m_ready) return false;
+    if (!ready()) return false;
     if (!m_storage.exists(MaterialsPath)) return true;
 
     File file = m_storage.open(MaterialsPath, FILE_READ);
@@ -126,7 +137,7 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
                                   RepairMaterialUsageResult& result)
 {
     result = RepairMaterialUsageResult();
-    if (!m_ready || usage.repairId == 0UL || usage.materialId == 0UL ||
+    if (!ready() || usage.repairId == 0UL || usage.materialId == 0UL ||
         usage.quantityMilli == 0UL || usage.timestamp.length() < 10U ||
         !repairExists(usage.repairId) || m_storage.exists(UsagePendingPath))
     {
@@ -225,7 +236,7 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
                          rewrittenBefore, rewrittenRemaining,
                          rewrittenPrice, rewrittenCurrency))
     {
-        if (m_ready) m_storage.remove(UsagePendingPath);
+        if (ready()) m_storage.remove(UsagePendingPath);
         return false;
     }
 

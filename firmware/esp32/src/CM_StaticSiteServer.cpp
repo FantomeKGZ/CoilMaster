@@ -63,7 +63,12 @@ bool StaticSiteServer::serveCurrentRequest()
 
 bool StaticSiteServer::storageReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File root = m_storage.open(m_webRoot, FILE_READ);
+    if (!root) return false;
+    const bool ready = root.isDirectory();
+    root.close();
+    return ready;
 }
 
 bool StaticSiteServer::windingHistoryReady() const
@@ -73,7 +78,7 @@ bool StaticSiteServer::windingHistoryReady() const
 
 bool StaticSiteServer::serveUri(const String& uri)
 {
-    if (!m_ready || !isSafeUri(uri))
+    if (!storageReady() || !isSafeUri(uri))
     {
         return false;
     }

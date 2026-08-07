@@ -42,11 +42,15 @@ public:
 private:
     static constexpr const char* SpoolsPath="/data/warehouse/spools.ndjson";
     static constexpr const char* SpoolsTempPath="/data/warehouse/spools.tmp";
+    static constexpr const char* SpoolsBackupPath="/data/warehouse/spools.bak";
     static constexpr const char* MovementsPath="/data/warehouse/movements.ndjson";
     static constexpr const char* PricePath="/data/warehouse/price.ndjson";
     static constexpr const char* RepairsPath="/data/workshop/repairs.ndjson";
     static constexpr const char* ConversionSettingsPath="/data/settings/conductor.json";
-    bool ensureDirectories(); void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
+    bool ensureDirectories();
+    bool recoverSpoolFileSwap();
+    bool replaceSpoolsFileFromTemp();
+    void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
     bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);
     bool appendWriteOffRecord(uint32_t movementId,const ConfirmedSpoolWriteOff& operation,uint16_t diameterHundredthsMm,uint32_t consumedGrams,const WarehousePrice& price,const char* status,const String& wireType);

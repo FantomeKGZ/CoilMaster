@@ -113,7 +113,9 @@ bool linkedJobCreationReady()
 const char* jobStatusText()
 {
     if (manualReviewRequired()) return "MANUAL_REVIEW_REQUIRED";
+    if (runActive) return "RUNNING";
     if (jobAwaitingAck) return "WAITING_ARDUINO_ACK";
+    if (completedRuns > 0U) return "PROGRAM_COMPLETED";
     switch (lastJobResult)
     {
         case CM::JobDeliveryResult::Accepted: return "ACCEPTED_READY";
@@ -130,8 +132,8 @@ const char* machineStatusText()
     if (manualReviewRequired()) return "Требуется проверка";
     if (runActive) return "Намотка";
     if (jobAwaitingAck) return "Передача";
-    if (lastJobResult == CM::JobDeliveryResult::Accepted) return "Готов";
     if (completedRuns > 0U) return "Завершено";
+    if (lastJobResult == CM::JobDeliveryResult::Accepted) return "Готов";
     return "Ожидание";
 }
 
@@ -462,9 +464,19 @@ void handleRecoveryAcknowledge()
 
 void handleCreateJob()
 {
-    if (!recoveryEvaluated || !recoveryInfo.mayCreateNewJob)
+    if (!recoveryEvaluated)
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_recovery_not_evaluated\"}");
+        return;
+    }
+    if (manualReviewRequired())
     {
         webServer.send(409, "application/json", "{\"error\":\"manual_review_required\"}");
+        return;
+    }
+    if (!recoveryInfo.mayCreateNewJob)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"current_job_not_complete\"}");
         return;
     }
     if (!webServer.hasArg("turns"))

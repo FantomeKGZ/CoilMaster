@@ -356,23 +356,56 @@ bool WarehouseStore::nextSpoolId(uint32_t& id) const
     File file = m_storage.open(SpoolsPath, FILE_READ);
     if (!file) return false;
 
-    uint32_t maximum = 0UL;
+    uint32_t previousId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+
         uint32_t candidate = 0UL;
-        if (!findUnsigned(line, "spool_id", candidate) || candidate == 0UL)
+        uint32_t diameter = 0UL;
+        uint32_t weight = 0UL;
+        String status;
+        String wireType;
+        String optional;
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+        if (!line.startsWith("{") || !line.endsWith("}") ||
+            !findUnsigned(line, "spool_id", candidate) || candidate == 0UL ||
+            candidate <= previousId ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 0xFFFFUL ||
+            !findUnsigned(line, "current_weight_g", weight) ||
+            !findString(line, "status", status) ||
+            (hasWireType &&
+             (!findString(line, "wire_type", wireType) ||
+              (wireType != "CU" && wireType != "AL"))))
         {
             file.close();
             return false;
         }
-        if (candidate > maximum) maximum = candidate;
+
+        const char* optionalKeys[] = {
+            "manufacturer", "supplier", "batch", "storage_location", "comment"
+        };
+        for (uint8_t keyIndex = 0U;
+             keyIndex < sizeof(optionalKeys) / sizeof(optionalKeys[0]);
+             ++keyIndex)
+        {
+            const String marker = String("\"") + optionalKeys[keyIndex] + F("\":");
+            if (line.indexOf(marker) >= 0 &&
+                !findString(line, optionalKeys[keyIndex], optional))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        previousId = candidate;
     }
     file.close();
 
-    if (maximum == 0xFFFFFFFFUL) return false;
-    id = maximum + 1UL;
+    if (previousId == 0xFFFFFFFFUL) return false;
+    id = previousId + 1UL;
     return true;
 }
 

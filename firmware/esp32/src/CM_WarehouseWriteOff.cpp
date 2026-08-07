@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_RepairLifecycle.h"
 
 namespace CM
 {
@@ -10,6 +11,13 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
         operation.timestamp.length() < 10U || operation.weightBeforeGrams == 0UL ||
         operation.weightAfterGrams >= operation.weightBeforeGrams ||
         !repairExists(operation.repairId))
+    {
+        return false;
+    }
+
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(m_storage, operation.repairId, repairOpen) ||
+        !repairOpen)
     {
         return false;
     }

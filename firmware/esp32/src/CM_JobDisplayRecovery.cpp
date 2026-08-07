@@ -7,7 +7,8 @@ RecoveredJobDisplay::RecoveredJobDisplay()
       sessionId(0UL),
       type(RemoteJobType::Working),
       coilCount(0U),
-      turns{}
+      turns{},
+      linkage()
 {
 }
 
@@ -33,6 +34,7 @@ bool JobDisplayRecovery::load(const JobSnapshotStore& snapshots,
     display.sessionId = snapshot.sessionId;
     display.type = snapshot.type;
     display.coilCount = snapshot.coilCount;
+    display.linkage = snapshot.linkage;
     for (uint8_t index = 0U; index < snapshot.coilCount; ++index)
         display.turns[index] = snapshot.turns[index];
 

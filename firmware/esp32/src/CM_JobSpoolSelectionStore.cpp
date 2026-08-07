@@ -1,4 +1,5 @@
 #include "CM_JobSpoolSelectionStore.h"
+#include <string.h>
 
 namespace CM
 {
@@ -261,7 +262,6 @@ bool JobSpoolSelectionStore::parse(const String& input,
 
     uint32_t schemaVersion = 0UL;
     uint32_t diameter = 0UL;
-    String writeoffFlag;
     if (!findUnsigned(input, "schema_version", schemaVersion) || schemaVersion != 1UL ||
         !findUnsigned(input, "job_id", selection.jobId) || selection.jobId == 0UL ||
         !findUnsigned(input, "session_id", selection.sessionId) || selection.sessionId == 0UL ||

@@ -78,8 +78,11 @@ private:
                                const WindingEventContext& context) const;
     bool containsRunEvent(uint32_t sessionId,
                           uint32_t runId,
-                          RemoteEventType type) const;
-    bool hasRunStart(uint32_t sessionId, uint32_t runId) const;
+                          RemoteEventType type,
+                          bool& found) const;
+    bool hasRunStart(uint32_t sessionId,
+                     uint32_t runId,
+                     bool& found) const;
     bool loadSessionCompletedRuns(uint32_t sessionId,
                                   uint16_t& completedRuns) const;
     bool loadActiveRun(uint32_t sessionId,
@@ -91,6 +94,7 @@ private:
                       const WindingEventContext& context);
     static bool parseContext(const String& line,
                              WindingEventContext& context);
+    static bool parseEvent(const String& line, RemoteEventType& type);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool fieldIsNull(const String& line, const char* key);
     static const char* eventTypeName(RemoteEventType type);

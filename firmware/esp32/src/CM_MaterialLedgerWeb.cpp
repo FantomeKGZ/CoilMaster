@@ -67,12 +67,18 @@ void MaterialLedgerWeb::handleUsage()
     if(!m_ledger.ready()){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");return;}
     uint32_t repairId=0UL,materialId=0UL,quantity=0UL;
     if(!parseUnsigned(m_server,"repair_id",1UL,0xFFFFFFFFUL,repairId)||!parseUnsigned(m_server,"material_id",1UL,0xFFFFFFFFUL,materialId)||!parseUnsigned(m_server,"quantity_milli",1UL,0xFFFFFFFFUL,quantity)||!m_server.hasArg("timestamp")||m_server.arg("timestamp").length()<10U){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_usage_fields\"}");return;}
-    if(!m_ledger.repairExists(repairId))
+    bool repairFound=false;
+    if(!m_ledger.repairExists(repairId,repairFound))
     {
         if(!m_ledger.ready())
             m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
         else
-            m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}");
+            m_server.send(500,"application/json; charset=utf-8","{\"error\":\"repair_reference_read_failed\"}");
+        return;
+    }
+    if(!repairFound)
+    {
+        m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}");
         return;
     }
     bool repairOpen=false;

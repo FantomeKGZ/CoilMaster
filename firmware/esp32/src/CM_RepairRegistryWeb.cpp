@@ -14,6 +14,8 @@ void RepairRegistryWeb::begin()
     m_server.on("/api/motors", HTTP_POST, [this]() { handleCreateMotor(); });
     m_server.on("/api/repairs", HTTP_GET, [this]() { handleListRepairs(); });
     m_server.on("/api/repairs", HTTP_POST, [this]() { handleCreateRepair(); });
+    m_server.on("/api/repairs/close", HTTP_POST,
+                [this]() { handleCloseRepair(); });
 }
 
 void RepairRegistryWeb::handleListClients()
@@ -225,6 +227,49 @@ void RepairRegistryWeb::handleCreateRepair()
     response += F(",\"motor_id\":"); response += motorId;
     response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryWeb::handleCloseRepair()
+{
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
+
+    uint32_t repairId = 0UL;
+    if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId) ||
+        !m_server.hasArg("closed_at") || m_server.arg("closed_at").length() < 10U ||
+        !m_server.hasArg("confirmed") || m_server.arg("confirmed") != "true")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_repair_close_request\"}");
+        return;
+    }
+
+    bool alreadyClosed = false;
+    if (!m_registry.closeRepair(repairId, m_server.arg("closed_at"), alreadyClosed))
+    {
+        if (!m_registry.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_registry_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_not_closed\"}");
+        }
+        return;
+    }
+
+    String response = F("{\"closed\":true,\"repair_id\":");
+    response += repairId;
+    response += F(",\"already_closed\":");
+    response += alreadyClosed ? F("true") : F("false");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 bool RepairRegistryWeb::parseUnsigned(WebServer& server, const char* name,

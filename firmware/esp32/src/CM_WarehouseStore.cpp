@@ -17,12 +17,16 @@ bool WarehouseStore::begin()
 
 bool WarehouseStore::ready() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File directory = m_storage.open("/data/warehouse", FILE_READ);
+    const bool available = directory && directory.isDirectory();
+    if (directory) directory.close();
+    return available;
 }
 
 bool WarehouseStore::loadSummary(const char* monthPrefix)
 {
-    if (!m_ready || monthPrefix == nullptr)
+    if (!ready() || monthPrefix == nullptr)
     {
         return false;
     }
@@ -34,7 +38,7 @@ bool WarehouseStore::loadSummary(const char* monthPrefix)
 bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpoolId)
 {
     assignedSpoolId = 0UL;
-    if (!m_ready || spool.diameterHundredthsMm == 0U ||
+    if (!ready() || spool.diameterHundredthsMm == 0U ||
         spool.currentWeightGrams == 0UL ||
         (spool.wireType != "CU" && spool.wireType != "AL"))
     {
@@ -102,7 +106,7 @@ bool WarehouseStore::addSpool(const NewWireSpool& spool, uint32_t& assignedSpool
 
 bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
 {
-    if (!m_ready || price.pricePerKgMinor == 0UL || price.currency.length() != 3U)
+    if (!ready() || price.pricePerKgMinor == 0UL || price.currency.length() != 3U)
     {
         return false;
     }
@@ -127,7 +131,7 @@ bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
 bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const
 {
     price = WarehousePrice();
-    if (!m_ready || !m_storage.exists(PricePath))
+    if (!ready() || !m_storage.exists(PricePath))
     {
         return false;
     }

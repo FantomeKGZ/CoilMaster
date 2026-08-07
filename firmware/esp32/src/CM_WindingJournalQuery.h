@@ -48,6 +48,7 @@ private:
                              const char* key,
                              uint32_t& value);
     static bool fieldIsNull(const String& line, const char* key);
+    static bool isValidLegacySchema1Record(const String& line);
     static bool isValidSchema2Record(const String& line,
                                      uint32_t& sessionId,
                                      bool& linked,

@@ -19,6 +19,7 @@
 #include "CM_WarehouseStore.h"
 #include "CM_WarehouseWeb.h"
 #include "CM_WindingJournal.h"
+#include "CM_WindingProgramParser.h"
 
 namespace
 {
@@ -315,64 +316,18 @@ void handleEvent(const CM::RemoteWindingEvent& event)
 
 bool parseTurns(const String& source, CM::OutgoingWindingJob& job)
 {
-    String normalized = source;
-    normalized.trim();
-    normalized.replace(" ", "");
-    if (normalized.length() == 0U) return false;
-
-    job.coilCount = 0U;
-    uint32_t value = 0UL;
-    bool hasDigit = false;
-    bool leadingZero = false;
-
-    for (size_t index = 0U; index <= normalized.length(); ++index)
+    uint8_t count = 0U;
+    if (!CM::WindingProgramParser::parse(source,
+                                         job.turns,
+                                         MaxWebCoils,
+                                         count,
+                                         MaxTurnsPerCoil))
     {
-        const bool atEnd = index == normalized.length();
-        const char ch = atEnd ? '\0' : normalized[index];
-        const bool separator = ch == '/' || ch == ',' || ch == ';';
-
-        if (atEnd || separator)
-        {
-            if (!hasDigit || value == 0UL || value > MaxTurnsPerCoil ||
-                job.coilCount >= MaxWebCoils)
-            {
-                job.coilCount = 0U;
-                return false;
-            }
-
-            job.turns[job.coilCount++] = static_cast<uint16_t>(value);
-            value = 0UL;
-            hasDigit = false;
-            leadingZero = false;
-            continue;
-        }
-
-        if (!isDigit(ch))
-        {
-            job.coilCount = 0U;
-            return false;
-        }
-        if (!hasDigit)
-        {
-            hasDigit = true;
-            leadingZero = ch == '0';
-        }
-        else if (leadingZero)
-        {
-            job.coilCount = 0U;
-            return false;
-        }
-
-        const uint8_t digit = static_cast<uint8_t>(ch - '0');
-        if (value > (MaxTurnsPerCoil - digit) / 10UL)
-        {
-            job.coilCount = 0U;
-            return false;
-        }
-        value = value * 10UL + digit;
+        job.coilCount = 0U;
+        return false;
     }
-
-    return job.coilCount > 0U;
+    job.coilCount = count;
+    return true;
 }
 
 bool parseCanonicalUint32(const String& source, uint32_t& value)

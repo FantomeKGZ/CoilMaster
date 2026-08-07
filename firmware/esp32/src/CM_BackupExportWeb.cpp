@@ -34,6 +34,7 @@ constexpr ExportFileDefinition ExportFiles[] =
 
 constexpr size_t ExportFileCount = sizeof(ExportFiles) / sizeof(ExportFiles[0]);
 constexpr const char* SnapshotDirectory = "/data/winding-jobs/snapshots";
+constexpr const char* SpoolSelectionDirectory = "/data/winding-jobs/spool-selection";
 constexpr const char* StateDirectory = "/data/winding-jobs/state";
 constexpr uint8_t MaxSessionPage = 32U;
 
@@ -186,11 +187,32 @@ String sessionPath(const char* kind, uint32_t sessionId)
     String path;
     if (strcmp(kind, "snapshot") == 0)
         path = F("/data/winding-jobs/snapshots/session-");
+    else if (strcmp(kind, "spool-selection") == 0)
+        path = F("/data/winding-jobs/spool-selection/session-");
     else
         path = F("/data/winding-jobs/state/session-");
     path += sessionId;
     path += F(".json");
     return path;
+}
+
+bool loadFileSize(fs::FS& storage,
+                  const String& path,
+                  bool& exists,
+                  uint32_t& sizeBytes)
+{
+    exists = storage.exists(path);
+    sizeBytes = 0UL;
+    if (!exists) return true;
+    File file = storage.open(path, FILE_READ);
+    if (!file || file.isDirectory() || file.size() > 0xFFFFFFFFUL)
+    {
+        if (file) file.close();
+        return false;
+    }
+    sizeBytes = static_cast<uint32_t>(file.size());
+    file.close();
+    return true;
 }
 
 bool requireSafeExport(WebServer& server, fs::FS& storage)
@@ -243,7 +265,7 @@ void BackupExportWeb::handleManifest()
     }
 
     const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
-    String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"export_allowed\":");
+    String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"spool_selection_exports_supported\":true,\"export_allowed\":");
     response += activity == BackupActivityCheck::Safe ? F("true") : F("false");
     response += F(",\"activity_state_verified\":");
     response += activity != BackupActivityCheck::Unavailable ? F("true") : F("false");
@@ -255,7 +277,7 @@ void BackupExportWeb::handleManifest()
     else
         response += F("null");
     response += F(",\"items\":[");
-    response.reserve(3456U);
+    response.reserve(3520U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)
@@ -389,16 +411,24 @@ void BackupExportWeb::handleSessions()
     uint32_t ids[MaxSessionPage] = {};
     uint8_t count = 0U;
     bool truncated = false;
+    const uint8_t capacity = static_cast<uint8_t>(limitValue);
     const SessionScanResult snapshotScan =
         scanSessionDirectory(m_storage, SnapshotDirectory, afterSessionId,
-                             ids, count, static_cast<uint8_t>(limitValue), truncated);
-    const SessionScanResult stateScan =
+                             ids, count, capacity, truncated);
+    const SessionScanResult spoolSelectionScan =
         snapshotScan == SessionScanResult::Ok
-            ? scanSessionDirectory(m_storage, StateDirectory, afterSessionId,
-                                   ids, count, static_cast<uint8_t>(limitValue), truncated)
+            ? scanSessionDirectory(m_storage, SpoolSelectionDirectory, afterSessionId,
+                                   ids, count, capacity, truncated)
             : snapshotScan;
-    const SessionScanResult scanResult =
-        snapshotScan != SessionScanResult::Ok ? snapshotScan : stateScan;
+    const SessionScanResult stateScan =
+        snapshotScan == SessionScanResult::Ok &&
+        spoolSelectionScan == SessionScanResult::Ok
+            ? scanSessionDirectory(m_storage, StateDirectory, afterSessionId,
+                                   ids, count, capacity, truncated)
+            : spoolSelectionScan;
+    SessionScanResult scanResult = snapshotScan;
+    if (scanResult == SessionScanResult::Ok) scanResult = spoolSelectionScan;
+    if (scanResult == SessionScanResult::Ok) scanResult = stateScan;
 
     if (scanResult == SessionScanResult::StorageUnavailable)
     {
@@ -420,42 +450,27 @@ void BackupExportWeb::handleSessions()
     }
 
     String response = F("{\"items\":[");
-    response.reserve(4096U);
+    response.reserve(5120U);
     for (uint8_t i = 0U; i < count; ++i)
     {
         const uint32_t sessionId = ids[i];
         const String snapshot = sessionPath("snapshot", sessionId);
+        const String spoolSelection = sessionPath("spool-selection", sessionId);
         const String state = sessionPath("state", sessionId);
-        const bool snapshotExists = m_storage.exists(snapshot);
-        const bool stateExists = m_storage.exists(state);
+        bool snapshotExists = false;
+        bool spoolSelectionExists = false;
+        bool stateExists = false;
         uint32_t snapshotSize = 0UL;
+        uint32_t spoolSelectionSize = 0UL;
         uint32_t stateSize = 0UL;
 
-        if (snapshotExists)
+        if (!loadFileSize(m_storage, snapshot, snapshotExists, snapshotSize) ||
+            !loadFileSize(m_storage, spoolSelection, spoolSelectionExists, spoolSelectionSize) ||
+            !loadFileSize(m_storage, state, stateExists, stateSize))
         {
-            File file = m_storage.open(snapshot, FILE_READ);
-            if (!file || file.isDirectory() || file.size() > 0xFFFFFFFFUL)
-            {
-                if (file) file.close();
-                m_server.send(500, "application/json; charset=utf-8",
-                              "{\"error\":\"backup_snapshot_read_failed\"}");
-                return;
-            }
-            snapshotSize = static_cast<uint32_t>(file.size());
-            file.close();
-        }
-        if (stateExists)
-        {
-            File file = m_storage.open(state, FILE_READ);
-            if (!file || file.isDirectory() || file.size() > 0xFFFFFFFFUL)
-            {
-                if (file) file.close();
-                m_server.send(500, "application/json; charset=utf-8",
-                              "{\"error\":\"backup_state_read_failed\"}");
-                return;
-            }
-            stateSize = static_cast<uint32_t>(file.size());
-            file.close();
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"backup_session_file_read_failed\"}");
+            return;
         }
 
         if (i > 0U) response += ',';
@@ -465,6 +480,10 @@ void BackupExportWeb::handleSessions()
         response += snapshotExists ? F("true") : F("false");
         response += F(",\"snapshot_size_bytes\":");
         response += snapshotSize;
+        response += F(",\"spool_selection_exists\":");
+        response += spoolSelectionExists ? F("true") : F("false");
+        response += F(",\"spool_selection_size_bytes\":");
+        response += spoolSelectionSize;
         response += F(",\"state_exists\":");
         response += stateExists ? F("true") : F("false");
         response += F(",\"state_size_bytes\":");
@@ -501,7 +520,7 @@ void BackupExportWeb::handleSessionFile()
     }
 
     const String kind = m_server.arg("kind");
-    if (kind != "snapshot" && kind != "state")
+    if (kind != "snapshot" && kind != "spool-selection" && kind != "state")
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_backup_session_kind\"}");

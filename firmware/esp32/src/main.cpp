@@ -84,7 +84,7 @@ bool manualReviewRequired()
            recoveryInfo.disposition == CM::JobRecoveryDisposition::ManualReviewRequired;
 }
 
-bool linkedJobCreationReady()
+bool jobCreationReady()
 {
     return recoveryEvaluated &&
            recoveryInfo.mayCreateNewJob &&
@@ -92,7 +92,12 @@ bool linkedJobCreationReady()
            journalReady && journal.isReady() &&
            idAllocatorReady && idAllocator.isReady() &&
            jobSnapshotStoreReady && jobSnapshots.isReady() &&
-           jobStateStoreReady && jobStates.isReady() &&
+           jobStateStoreReady && jobStates.isReady();
+}
+
+bool linkedJobCreationReady()
+{
+    return jobCreationReady() &&
            jobLinkageResolverReady && jobLinkageResolver.isReady();
 }
 
@@ -348,6 +353,7 @@ void sendJsonStatus()
     response += F(",\"state_recovered\":"); response += stateRecovered ? F("true") : F("false");
     response += F(",\"manual_review_required\":"); response += manualReviewRequired() ? F("true") : F("false");
     response += F(",\"new_job_allowed\":"); response += recoveryInfo.mayCreateNewJob ? F("true") : F("false");
+    response += F(",\"job_creation_ready\":"); response += jobCreationReady() ? F("true") : F("false");
     response += F(",\"linked_job_creation_ready\":"); response += linkedJobCreationReady() ? F("true") : F("false");
     response += F(",\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false");
     response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");

@@ -316,33 +316,63 @@ void handleEvent(const CM::RemoteWindingEvent& event)
 bool parseTurns(const String& source, CM::OutgoingWindingJob& job)
 {
     String normalized = source;
-    normalized.replace('/', ',');
-    normalized.replace(';', ',');
-    normalized.replace(' ', ',');
-    uint8_t count = 0U;
-    int start = 0;
-    while (start < normalized.length())
-    {
-        while (start < normalized.length() && normalized[start] == ',') ++start;
-        if (start >= normalized.length()) break;
-        int end = normalized.indexOf(',', start);
-        if (end < 0) end = normalized.length();
-        if (count >= MaxWebCoils || end <= start) return false;
+    normalized.trim();
+    normalized.replace(" ", "");
+    if (normalized.length() == 0U) return false;
 
-        uint32_t value = 0UL;
-        for (int index = start; index < end; ++index)
+    job.coilCount = 0U;
+    uint32_t value = 0UL;
+    bool hasDigit = false;
+    bool leadingZero = false;
+
+    for (size_t index = 0U; index <= normalized.length(); ++index)
+    {
+        const bool atEnd = index == normalized.length();
+        const char ch = atEnd ? '\0' : normalized[index];
+        const bool separator = ch == '/' || ch == ',' || ch == ';';
+
+        if (atEnd || separator)
         {
-            if (!isDigit(normalized[index])) return false;
-            const uint8_t digit = static_cast<uint8_t>(normalized[index] - '0');
-            if (value > (MaxTurnsPerCoil - digit) / 10UL) return false;
-            value = value * 10UL + digit;
+            if (!hasDigit || value == 0UL || value > MaxTurnsPerCoil ||
+                job.coilCount >= MaxWebCoils)
+            {
+                job.coilCount = 0U;
+                return false;
+            }
+
+            job.turns[job.coilCount++] = static_cast<uint16_t>(value);
+            value = 0UL;
+            hasDigit = false;
+            leadingZero = false;
+            continue;
         }
-        if (value == 0UL || value > MaxTurnsPerCoil) return false;
-        job.turns[count++] = static_cast<uint16_t>(value);
-        start = end + 1;
+
+        if (!isDigit(ch))
+        {
+            job.coilCount = 0U;
+            return false;
+        }
+        if (!hasDigit)
+        {
+            hasDigit = true;
+            leadingZero = ch == '0';
+        }
+        else if (leadingZero)
+        {
+            job.coilCount = 0U;
+            return false;
+        }
+
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (value > (MaxTurnsPerCoil - digit) / 10UL)
+        {
+            job.coilCount = 0U;
+            return false;
+        }
+        value = value * 10UL + digit;
     }
-    job.coilCount = count;
-    return count > 0U;
+
+    return job.coilCount > 0U;
 }
 
 bool sameProgram(const CM::OutgoingWindingJob& left,

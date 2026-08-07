@@ -63,7 +63,17 @@ void WarehouseWeb::handleSummary()
     }
 
     WarehousePrice price;
-    const bool priceConfigured = m_store.loadWarehousePrice(price);
+    bool priceConfigured = false;
+    if (!m_store.loadWarehousePrice(price, priceConfigured))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_price_read_failed\"}");
+        return;
+    }
 
     String response;
     response.reserve(2400U);
@@ -197,7 +207,18 @@ void WarehouseWeb::handleGetPrice()
     }
 
     WarehousePrice price;
-    if (!m_store.loadWarehousePrice(price))
+    bool configured = false;
+    if (!m_store.loadWarehousePrice(price, configured))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_price_read_failed\"}");
+        return;
+    }
+    if (!configured)
     {
         m_server.send(200, "application/json; charset=utf-8",
                       "{\"configured\":false,\"price_per_kg_minor\":0,\"currency\":\"KGS\"}");

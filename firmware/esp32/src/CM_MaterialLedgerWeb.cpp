@@ -27,9 +27,20 @@ void MaterialLedgerWeb::begin()
 
 void MaterialLedgerWeb::handleList()
 {
-    if (!m_ledger.ready()) { m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}"); return; }
+    if (!m_ledger.ready())
+    {
+        m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
+        return;
+    }
     String response=F("{\"items\":["); response.reserve(4096U); uint16_t count=0U;
-    if(!m_ledger.appendMaterialsJson(response,count)){m_server.send(500,"application/json; charset=utf-8","{\"error\":\"materials_read_failed\"}");return;}
+    if(!m_ledger.appendMaterialsJson(response,count))
+    {
+        if(!m_ledger.ready())
+            m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
+        else
+            m_server.send(500,"application/json; charset=utf-8","{\"error\":\"materials_read_failed\"}");
+        return;
+    }
     response+=F("],\"count\":");response+=count;response+=F(",\"currency_policy\":\"KGS_ONLY\",\"supported_currency\":\"KGS\"}");m_server.send(200,"application/json; charset=utf-8",response);
 }
 
@@ -40,7 +51,14 @@ void MaterialLedgerWeb::handleCreate()
     if(currency!="KGS"){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"unsupported_currency\",\"supported_currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\"}");return;}
     if(!m_server.hasArg("name")||m_server.arg("name").length()==0U||!parseUnit(m_server.arg("unit"),unit)||!parseUnsigned(m_server,"stock_quantity_milli",0UL,0xFFFFFFFFUL,stock)||!parseUnsigned(m_server,"price_per_unit_minor",1UL,100000000UL,price)){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_material_fields\"}");return;}
     NewMaterial material;material.name=m_server.arg("name");material.unit=unit;material.stockQuantityMilli=stock;material.pricePerUnitMinor=price;material.currency=currency;material.comment=m_server.arg("comment");uint32_t materialId=0UL;
-    if(!m_ledger.addMaterial(material,materialId)){m_server.send(500,"application/json; charset=utf-8","{\"error\":\"material_write_failed\"}");return;}
+    if(!m_ledger.addMaterial(material,materialId))
+    {
+        if(!m_ledger.ready())
+            m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
+        else
+            m_server.send(500,"application/json; charset=utf-8","{\"error\":\"material_write_failed\"}");
+        return;
+    }
     String response=F("{\"created\":true,\"material_id\":");response+=materialId;response+=F(",\"currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\"}");m_server.send(201,"application/json; charset=utf-8",response);
 }
 
@@ -49,12 +67,26 @@ void MaterialLedgerWeb::handleUsage()
     if(!m_ledger.ready()){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");return;}
     uint32_t repairId=0UL,materialId=0UL,quantity=0UL;
     if(!parseUnsigned(m_server,"repair_id",1UL,0xFFFFFFFFUL,repairId)||!parseUnsigned(m_server,"material_id",1UL,0xFFFFFFFFUL,materialId)||!parseUnsigned(m_server,"quantity_milli",1UL,0xFFFFFFFFUL,quantity)||!m_server.hasArg("timestamp")||m_server.arg("timestamp").length()<10U){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_usage_fields\"}");return;}
-    if(!m_ledger.repairExists(repairId)){m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}");return;}
+    if(!m_ledger.repairExists(repairId))
+    {
+        if(!m_ledger.ready())
+            m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
+        else
+            m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}");
+        return;
+    }
     bool repairOpen=false;
     if(!RepairLifecycle::isOpen(SD,repairId,repairOpen)){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"repair_lifecycle_unavailable\"}");return;}
     if(!repairOpen){m_server.send(409,"application/json; charset=utf-8","{\"error\":\"repair_closed\",\"write_performed\":false}");return;}
     String materialCurrency;
-    if(!m_ledger.loadActiveMaterialCurrency(materialId,materialCurrency)){m_server.send(404,"application/json; charset=utf-8","{\"error\":\"material_not_found\"}");return;}
+    if(!m_ledger.loadActiveMaterialCurrency(materialId,materialCurrency))
+    {
+        if(!m_ledger.ready())
+            m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
+        else
+            m_server.send(404,"application/json; charset=utf-8","{\"error\":\"material_not_found\"}");
+        return;
+    }
     if(materialCurrency!="KGS")
     {
         String error=F("{\"error\":\"unsupported_material_currency\",\"material_id\":");
@@ -64,7 +96,14 @@ void MaterialLedgerWeb::handleUsage()
         m_server.send(409,"application/json; charset=utf-8",error);return;
     }
     RepairMaterialUsage usage;usage.repairId=repairId;usage.materialId=materialId;usage.quantityMilli=quantity;usage.timestamp=m_server.arg("timestamp");usage.comment=m_server.arg("comment");RepairMaterialUsageResult result;
-    if(!m_ledger.confirmUsage(usage,result)){m_server.send(409,"application/json; charset=utf-8","{\"error\":\"usage_not_committed\"}");return;}
+    if(!m_ledger.confirmUsage(usage,result))
+    {
+        if(!m_ledger.ready())
+            m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");
+        else
+            m_server.send(409,"application/json; charset=utf-8","{\"error\":\"usage_not_committed\"}");
+        return;
+    }
     const uint64_t expectedCost=(static_cast<uint64_t>(quantity)*static_cast<uint64_t>(result.unitPriceMinor)+500ULL)/1000ULL;
     const bool costMatches=result.lineCostMinor==expectedCost;
     const bool currencyMatches=result.currency=="KGS"&&result.currency==materialCurrency;
@@ -79,5 +118,4 @@ bool MaterialLedgerWeb::parseUnsigned(WebServer& server,const char* name,uint32_
 bool MaterialLedgerWeb::parseUnit(const String& source,MaterialUnit& unit)
 {
     String value=source;value.toUpperCase();if(value=="PIECE")unit=MaterialUnit::Piece;else if(value=="GRAM")unit=MaterialUnit::Gram;else if(value=="MILLILITRE"||value=="MILLILITER")unit=MaterialUnit::Millilitre;else if(value=="METRE"||value=="METER")unit=MaterialUnit::Metre;else if(value=="SQUARE_METRE"||value=="SQUARE_METER")unit=MaterialUnit::SquareMetre;else return false;return true;
-}
 }

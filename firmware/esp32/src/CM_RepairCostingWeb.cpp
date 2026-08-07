@@ -24,6 +24,12 @@ void RepairCostingWeb::handlePricingHistory()
                       "{\"error\":\"invalid_repair_id\"}");
         return;
     }
+    if (!m_costing.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"costing_unavailable\"}");
+        return;
+    }
     if (!m_costing.repairExists(repairId))
     {
         m_server.send(404, "application/json; charset=utf-8",
@@ -34,8 +40,16 @@ void RepairCostingWeb::handlePricingHistory()
     RepairCostSummary current;
     if (!m_costing.load(repairId, current))
     {
-        m_server.send(503, "application/json; charset=utf-8",
-                      "{\"error\":\"pricing_history_unavailable\"}");
+        if (!m_costing.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"pricing_history_read_failed\"}");
+        }
         return;
     }
 
@@ -48,8 +62,16 @@ void RepairCostingWeb::handlePricingHistory()
     PricingRevisionSnapshot latest;
     if (!m_costing.appendPricingRevisionsJson(response, repairId, count, latest))
     {
-        m_server.send(503, "application/json; charset=utf-8",
-                      "{\"error\":\"pricing_history_unavailable\"}");
+        if (!m_costing.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"pricing_history_read_failed\"}");
+        }
         return;
     }
     const bool countMatches = count == current.pricingRevisionCount;
@@ -98,6 +120,12 @@ void RepairCostingWeb::handleGet()
         m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_repair_id\"}");
         return;
     }
+    if (!m_costing.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"costing_unavailable\"}");
+        return;
+    }
     if (!m_costing.repairExists(repairId))
     {
         m_server.send(404, "application/json; charset=utf-8",
@@ -116,7 +144,16 @@ void RepairCostingWeb::handleGet()
     RepairCostSummary summary;
     if (!m_costing.load(repairId, summary))
     {
-        m_server.send(503, "application/json; charset=utf-8", "{\"error\":\"costing_unavailable\"}");
+        if (!m_costing.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_read_failed\"}");
+        }
         return;
     }
 
@@ -210,6 +247,12 @@ void RepairCostingWeb::handleSavePricing()
         m_server.send(400, "application/json; charset=utf-8", "{\"error\":\"invalid_costing_fields\"}");
         return;
     }
+    if (!m_costing.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"costing_unavailable\"}");
+        return;
+    }
     if (!m_costing.repairExists(repairId))
     {
         m_server.send(404, "application/json; charset=utf-8",
@@ -234,7 +277,16 @@ void RepairCostingWeb::handleSavePricing()
     RepairCostSummary current;
     if (!m_costing.load(repairId, current))
     {
-        m_server.send(503, "application/json; charset=utf-8", "{\"error\":\"costing_unavailable\"}");
+        if (!m_costing.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_read_failed\"}");
+        }
         return;
     }
     if (expectedRevision != current.pricingRevisionCount)
@@ -286,7 +338,16 @@ void RepairCostingWeb::handleSavePricing()
 
     if (!m_costing.savePricing(repairId, labour, clientPrice, currency, timestamp))
     {
-        m_server.send(500, "application/json; charset=utf-8", "{\"error\":\"pricing_write_failed\"}");
+        if (!m_costing.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"pricing_write_failed\"}");
+        }
         return;
     }
 

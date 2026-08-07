@@ -61,6 +61,46 @@ bool JobStateStore::load(uint32_t sessionId, JobRuntimeState& state) const
     return parse(input, state) && state.sessionId == sessionId;
 }
 
+bool JobStateStore::loadLatest(JobRuntimeState& state, bool& found) const
+{
+    state = JobRuntimeState();
+    found = false;
+    if (!m_ready) return false;
+
+    File directory = m_fileSystem.open(StateDirectory);
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        return false;
+    }
+
+    uint32_t highestSessionId = 0UL;
+    File entry = directory.openNextFile();
+    while (entry)
+    {
+        if (!entry.isDirectory())
+        {
+            const String name = entry.name();
+            if (name.endsWith(F(".json")))
+            {
+                const String input = entry.readString();
+                JobRuntimeState candidate;
+                if (parse(input, candidate) &&
+                    candidate.sessionId > highestSessionId)
+                {
+                    highestSessionId = candidate.sessionId;
+                    state = candidate;
+                    found = true;
+                }
+            }
+        }
+        entry.close();
+        entry = directory.openNextFile();
+    }
+    directory.close();
+    return true;
+}
+
 bool JobStateStore::updateDelivery(uint32_t sessionId,
                                    JobDeliveryState deliveryState,
                                    uint32_t nowMs)

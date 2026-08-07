@@ -1,4 +1,6 @@
 #include "CM_RepairCostingWeb.h"
+#include <SD.h>
+#include "CM_RepairLifecycle.h"
 
 namespace CM
 {
@@ -205,6 +207,20 @@ void RepairCostingWeb::handleSavePricing()
         return;
     }
 
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(SD, repairId, repairOpen))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_lifecycle_unavailable\"}");
+        return;
+    }
+    if (!repairOpen)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_closed\",\"write_performed\":false}");
+        return;
+    }
+
     RepairCostSummary current;
     if (!m_costing.load(repairId, current))
     {
@@ -274,22 +290,12 @@ void RepairCostingWeb::handleSavePricing()
 
 bool RepairCostingWeb::parseUnsigned(WebServer& server,const char* name,uint32_t minValue,uint32_t maxValue,uint32_t& value)
 {
-    if (!server.hasArg(name)) return false;
-    const String source=server.arg(name); if(source.length()==0U)return false;
-    for(size_t i=0U;i<source.length();++i)if(!isDigit(source[i]))return false;
-    const unsigned long parsed=strtoul(source.c_str(),nullptr,10); if(parsed<minValue||parsed>maxValue)return false;
-    value=static_cast<uint32_t>(parsed); return true;
+    value=0UL;if(!server.hasArg(name))return false;const String source=server.arg(name);if(source.length()==0U)return false;if(source.length()>1U&&source[0]=='0')return false;uint32_t parsed=0UL;for(size_t i=0U;i<source.length();++i){if(!isDigit(source[i]))return false;const uint8_t digit=static_cast<uint8_t>(source[i]-'0');if(parsed>(0xFFFFFFFFUL-digit)/10UL)return false;parsed=parsed*10UL+digit;}if(parsed<minValue||parsed>maxValue)return false;value=parsed;return true;
 }
 
 bool RepairCostingWeb::parseUnsigned64(WebServer& server,const char* name,uint64_t& value)
 {
-    if (!server.hasArg(name)) return false;
-    const String source = server.arg(name);
-    if (source.length() == 0U) return false;
-    for (size_t i = 0U; i < source.length(); ++i)
-        if (!isDigit(source[i])) return false;
-    value = strtoull(source.c_str(), nullptr, 10);
-    return true;
+    value=0ULL;if(!server.hasArg(name))return false;const String source=server.arg(name);if(source.length()==0U)return false;if(source.length()>1U&&source[0]=='0')return false;uint64_t parsed=0ULL;for(size_t i=0U;i<source.length();++i){if(!isDigit(source[i]))return false;const uint8_t digit=static_cast<uint8_t>(source[i]-'0');if(parsed>(0xFFFFFFFFFFFFFFFFULL-digit)/10ULL)return false;parsed=parsed*10ULL+digit;}value=parsed;return true;
 }
 
 void RepairCostingWeb::appendUInt64(String& target,uint64_t value)

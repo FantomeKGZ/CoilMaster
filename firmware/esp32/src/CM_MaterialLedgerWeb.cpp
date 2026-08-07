@@ -2,6 +2,7 @@
 #include <SD.h>
 #include "CM_RepairCosting.h"
 #include "CM_RepairCostingWeb.h"
+#include "CM_RepairLifecycle.h"
 
 namespace CM
 {
@@ -49,6 +50,9 @@ void MaterialLedgerWeb::handleUsage()
     uint32_t repairId=0UL,materialId=0UL,quantity=0UL;
     if(!parseUnsigned(m_server,"repair_id",1UL,0xFFFFFFFFUL,repairId)||!parseUnsigned(m_server,"material_id",1UL,0xFFFFFFFFUL,materialId)||!parseUnsigned(m_server,"quantity_milli",1UL,0xFFFFFFFFUL,quantity)||!m_server.hasArg("timestamp")||m_server.arg("timestamp").length()<10U){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_usage_fields\"}");return;}
     if(!m_ledger.repairExists(repairId)){m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}");return;}
+    bool repairOpen=false;
+    if(!RepairLifecycle::isOpen(SD,repairId,repairOpen)){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"repair_lifecycle_unavailable\"}");return;}
+    if(!repairOpen){m_server.send(409,"application/json; charset=utf-8","{\"error\":\"repair_closed\",\"write_performed\":false}");return;}
     String materialCurrency;
     if(!m_ledger.loadActiveMaterialCurrency(materialId,materialCurrency)){m_server.send(404,"application/json; charset=utf-8","{\"error\":\"material_not_found\"}");return;}
     if(materialCurrency!="KGS")
@@ -69,7 +73,7 @@ void MaterialLedgerWeb::handleUsage()
 
 bool MaterialLedgerWeb::parseUnsigned(WebServer& server,const char* name,uint32_t minimum,uint32_t maximum,uint32_t& value)
 {
-    if(!server.hasArg(name))return false;const String source=server.arg(name);if(source.length()==0U)return false;for(size_t i=0U;i<source.length();++i)if(!isDigit(source[i]))return false;const unsigned long parsed=strtoul(source.c_str(),nullptr,10);if(parsed<minimum||parsed>maximum)return false;value=static_cast<uint32_t>(parsed);return true;
+    value=0UL;if(!server.hasArg(name))return false;const String source=server.arg(name);if(source.length()==0U)return false;if(source.length()>1U&&source[0]=='0')return false;uint32_t parsed=0UL;for(size_t i=0U;i<source.length();++i){if(!isDigit(source[i]))return false;const uint8_t digit=static_cast<uint8_t>(source[i]-'0');if(parsed>(0xFFFFFFFFUL-digit)/10UL)return false;parsed=parsed*10UL+digit;}if(parsed<minimum||parsed>maximum)return false;value=parsed;return true;
 }
 
 bool MaterialLedgerWeb::parseUnit(const String& source,MaterialUnit& unit)

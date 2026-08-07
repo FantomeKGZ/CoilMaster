@@ -30,6 +30,16 @@ bool acceptCurrency(const String& value, String& current, bool& set)
     }
     return current == value;
 }
+
+bool storageDirectoryReady(fs::FS& storage, const char* path)
+{
+    if (path == nullptr || !storage.exists(path)) return false;
+    File probe = storage.open(path);
+    if (!probe) return false;
+    const bool directory = probe.isDirectory();
+    probe.close();
+    return directory;
+}
 }
 
 RepairCosting::RepairCosting(fs::FS& storage) : m_storage(storage), m_ready(false) {}
@@ -42,12 +52,10 @@ bool RepairCosting::begin()
 
 bool RepairCosting::ready() const
 {
-    if (!m_ready || !m_storage.exists("/data/repairs")) return false;
-    File probe = m_storage.open("/data/repairs");
-    if (!probe) return false;
-    const bool directory = probe.isDirectory();
-    probe.close();
-    return directory;
+    return m_ready &&
+           storageDirectoryReady(m_storage, "/data/repairs") &&
+           storageDirectoryReady(m_storage, "/data/materials") &&
+           storageDirectoryReady(m_storage, "/data/warehouse");
 }
 
 bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const

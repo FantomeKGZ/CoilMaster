@@ -11,15 +11,25 @@ JobRecoveryInfo::JobRecoveryInfo()
 {
 }
 
-bool JobRecovery::evaluate(const JobStateStore& store,
+bool JobRecovery::evaluate(const JobStateStore& stateStore,
+                           const JobSnapshotStore& snapshotStore,
                            JobRecoveryInfo& recovery)
 {
     recovery = JobRecoveryInfo();
 
     bool found = false;
     JobRuntimeState latest;
-    if (!store.loadLatest(latest, found)) return false;
+    if (!stateStore.loadLatest(latest, found)) return false;
     if (!found) return true;
+
+    // Runtime state is never trusted by itself. Recovery requires the immutable
+    // source snapshot to exist, parse correctly and match the same identifiers.
+    if (!snapshotStore.isReady() ||
+        !snapshotStore.validateIdentity(latest.jobId, latest.sessionId))
+    {
+        recovery.mayCreateNewJob = false;
+        return false;
+    }
 
     recovery.state = latest;
     recovery.mayAutoQueue = false;

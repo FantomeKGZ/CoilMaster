@@ -9,6 +9,7 @@
 #include "CM_JobLinkageResolver.h"
 #include "CM_JobRecovery.h"
 #include "CM_JobSnapshotStore.h"
+#include "CM_JobSpoolSelectionStore.h"
 #include "CM_JobStateStore.h"
 #include "CM_MotorSimilarityWeb.h"
 #include "CM_PersistentIdAllocator.h"
@@ -40,6 +41,7 @@ CM::UartEventReceiver receiver(arduinoSerial);
 CM::WindingJournal journal(SD);
 CM::PersistentIdAllocator idAllocator(SD);
 CM::JobSnapshotStore jobSnapshots(SD);
+CM::JobSpoolSelectionStore jobSpoolSelections(SD);
 CM::JobStateStore jobStates(SD);
 CM::JobLinkageResolver jobLinkageResolver(SD);
 CM::WarehouseStore warehouse(SD);
@@ -59,6 +61,7 @@ uint8_t activeCoilCount = 0U;
 uint16_t activeTurns[MaxWebCoils] = {};
 CM::RemoteJobType activeJobType = CM::RemoteJobType::Working;
 CM::JobLinkage activeJobLinkage;
+CM::JobSpoolSelection activeJobSpoolSelection;
 CM::JobDeliveryResult lastJobResult = CM::JobDeliveryResult::None;
 CM::JobRecoveryInfo recoveryInfo;
 bool recoveryEvaluated = false;
@@ -68,6 +71,7 @@ bool runActive = false;
 bool journalReady = false;
 bool idAllocatorReady = false;
 bool jobSnapshotStoreReady = false;
+bool jobSpoolSelectionStoreReady = false;
 bool jobStateStoreReady = false;
 bool jobLinkageResolverReady = false;
 bool warehouseReady = false;
@@ -106,8 +110,10 @@ bool jobCreationReady()
 bool linkedJobCreationReady()
 {
     return jobCreationReady() &&
+           jobSpoolSelectionStoreReady && jobSpoolSelections.isReady() &&
            jobLinkageResolverReady && jobLinkageResolver.isReady() &&
-           repairRegistryReady && repairRegistry.ready();
+           repairRegistryReady && repairRegistry.ready() &&
+           warehouseReady && warehouse.ready();
 }
 
 const char* jobStatusText()
@@ -168,6 +174,7 @@ void restoreLatestJobState()
     recoveryInfo = CM::JobRecoveryInfo();
     stateRecovered = false;
     activeJobLinkage = CM::JobLinkage();
+    activeJobSpoolSelection = CM::JobSpoolSelection();
     activeCoilCount = 0U;
     for (uint8_t i = 0U; i < MaxWebCoils; ++i) activeTurns[i] = 0U;
 
@@ -211,6 +218,18 @@ void restoreLatestJobState()
     completedRuns = recoveryInfo.state.completedRuns;
     lastJobResult = deliveryResultFor(recoveryInfo.state.deliveryState);
 
+    if (activeJobLinkage.linked && jobSpoolSelectionStoreReady)
+    {
+        CM::JobSpoolSelection recoveredSelection;
+        if (jobSpoolSelections.load(activeSessionId, recoveredSelection) &&
+            recoveredSelection.jobId == activeJobId &&
+            recoveredSelection.repairId == activeJobLinkage.repairId &&
+            recoveredSelection.motorId == activeJobLinkage.motorId)
+        {
+            activeJobSpoolSelection = recoveredSelection;
+        }
+    }
+
     runActive = false;
     jobAwaitingAck = false;
 
@@ -221,6 +240,10 @@ void restoreLatestJobState()
     {
         Serial.print(F(" repair=")); Serial.print(activeJobLinkage.repairId);
         Serial.print(F(" motor=")); Serial.print(activeJobLinkage.motorId);
+        if (activeJobSpoolSelection.isValid())
+        {
+            Serial.print(F(" spool=")); Serial.print(activeJobSpoolSelection.spoolId);
+        }
     }
     Serial.print(F(" run=")); Serial.print(lastRunId);
     Serial.print(F(" completed=")); Serial.println(completedRuns);
@@ -381,6 +404,21 @@ void sendJsonStatus()
     response += F(",\"motor_id\":");
     if (activeJobLinkage.linked) response += activeJobLinkage.motorId;
     else response += F("null");
+    response += F(",\"spool_id\":");
+    if (activeJobSpoolSelection.isValid()) response += activeJobSpoolSelection.spoolId;
+    else response += F("null");
+    response += F(",\"spool_wire_type\":");
+    if (activeJobSpoolSelection.isValid())
+    {
+        response += '"'; response += activeJobSpoolSelection.wireType; response += '"';
+    }
+    else response += F("null");
+    response += F(",\"spool_diameter_hundredths_mm\":");
+    if (activeJobSpoolSelection.isValid()) response += activeJobSpoolSelection.diameterHundredthsMm;
+    else response += F("null");
+    response += F(",\"spool_weight_at_selection_g\":");
+    if (activeJobSpoolSelection.isValid()) response += activeJobSpoolSelection.weightAtSelectionGrams;
+    else response += F("null");
     response += F(",\"completed_runs\":"); response += completedRuns;
     response += F(",\"last_run_id\":"); response += lastRunId;
     response += F(",\"run_active\":"); response += runActive ? F("true") : F("false");
@@ -391,16 +429,17 @@ void sendJsonStatus()
     response += F(",\"new_job_allowed\":"); response += recoveryInfo.mayCreateNewJob ? F("true") : F("false");
     response += F(",\"job_creation_ready\":"); response += jobCreationReady() ? F("true") : F("false");
     response += F(",\"linked_job_creation_ready\":"); response += linkedJobCreationReady() ? F("true") : F("false");
-    response += F(",\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false");
+    response += F(",\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false,\"automatic_wire_writeoff_allowed\":false");
     response += F(",\"storage_ready\":"); response += journalReady && journal.isReady() ? F("true") : F("false");
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
     response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
+    response += F(",\"job_spool_selection_store_ready\":"); response += jobSpoolSelectionStoreReady && jobSpoolSelections.isReady() ? F("true") : F("false");
     response += F(",\"job_state_store_ready\":"); response += jobStateStoreReady && jobStates.isReady() ? F("true") : F("false");
     response += F(",\"job_linkage_resolver_ready\":"); response += jobLinkageResolverReady && jobLinkageResolver.isReady() ? F("true") : F("false");
     response += F(",\"repair_registry_ready\":"); response += repairRegistryReady && repairRegistry.ready() ? F("true") : F("false");
     response += F(",\"last_allocated_job_id\":"); response += idAllocator.lastJobId();
     response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
-    response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
+    response += F(",\"warehouse_ready\":"); response += warehouseReady && warehouse.ready() ? F("true") : F("false");
     response += F(",\"web_storage_ready\":"); response += staticSites.storageReady() ? F("true") : F("false");
     response += F(",\"winding_history_ready\":"); response += staticSites.windingHistoryReady() ? F("true") : F("false");
     response += F("}");
@@ -494,6 +533,8 @@ void handleCreateJob()
     }
 
     CM::JobLinkage linkage;
+    CM::ActiveWireSpoolIdentity selectedSpool;
+    bool selectedSpoolReady = false;
     const CM::JobLinkageRequestResult linkageResult = CM::JobLinkageRequest::parse(
         webServer.hasArg("repair_id"), webServer.arg("repair_id"),
         webServer.hasArg("motor_id"), webServer.arg("motor_id"), linkage);
@@ -515,6 +556,38 @@ void handleCreateJob()
             webServer.send(503, "application/json", "{\"error\":\"repair_store_unavailable\"}");
             return;
         }
+        if (!warehouseReady || !warehouse.ready())
+        {
+            webServer.send(503, "application/json", "{\"error\":\"warehouse_unavailable\"}");
+            return;
+        }
+        if (!jobSpoolSelectionStoreReady || !jobSpoolSelections.isReady())
+        {
+            webServer.send(503, "application/json", "{\"error\":\"job_spool_selection_store_unavailable\"}");
+            return;
+        }
+        uint32_t spoolId = 0UL;
+        if (!webServer.hasArg("spool_id") ||
+            !parseCanonicalUint32(webServer.arg("spool_id"), spoolId) || spoolId == 0UL)
+        {
+            webServer.send(400, "application/json", "{\"error\":\"linked_spool_id_required\"}");
+            return;
+        }
+        bool spoolFound = false;
+        if (!warehouse.loadActiveSpoolIdentity(spoolId, selectedSpool, spoolFound))
+        {
+            if (!warehouse.ready())
+                webServer.send(503, "application/json", "{\"error\":\"warehouse_unavailable\"}");
+            else
+                webServer.send(500, "application/json", "{\"error\":\"spool_catalog_read_failed\"}");
+            return;
+        }
+        if (!spoolFound || !selectedSpool.isValid())
+        {
+            webServer.send(409, "application/json", "{\"error\":\"selected_spool_not_active_or_material_unknown\"}");
+            return;
+        }
+        selectedSpoolReady = true;
 
         CM::JobLinkage resolved;
         String catalogProgram;
@@ -539,6 +612,11 @@ void handleCreateJob()
             return;
         }
         linkage = resolved;
+    }
+    else if (webServer.hasArg("spool_id") && webServer.arg("spool_id").length() > 0U)
+    {
+        webServer.send(400, "application/json", "{\"error\":\"spool_id_requires_linked_job\"}");
+        return;
     }
 
     if (!journalReady || !journal.isReady())
@@ -574,6 +652,31 @@ void handleCreateJob()
         webServer.send(503, "application/json", "{\"error\":\"job_snapshot_persistence_failed\"}");
         return;
     }
+
+    CM::JobSpoolSelection persistedSpoolSelection;
+    if (linkage.linked)
+    {
+        if (!selectedSpoolReady)
+        {
+            webServer.send(500, "application/json", "{\"error\":\"linked_spool_selection_internal_error\"}");
+            return;
+        }
+        persistedSpoolSelection.jobId = job.jobId;
+        persistedSpoolSelection.sessionId = job.sessionId;
+        persistedSpoolSelection.repairId = linkage.repairId;
+        persistedSpoolSelection.motorId = linkage.motorId;
+        persistedSpoolSelection.spoolId = selectedSpool.spoolId;
+        persistedSpoolSelection.diameterHundredthsMm = selectedSpool.diameterHundredthsMm;
+        persistedSpoolSelection.weightAtSelectionGrams = selectedSpool.currentWeightGrams;
+        persistedSpoolSelection.wireType = selectedSpool.wireType;
+        if (!jobSpoolSelections.create(persistedSpoolSelection))
+        {
+            jobSpoolSelectionStoreReady = false;
+            webServer.send(503, "application/json", "{\"error\":\"job_spool_selection_persistence_failed\"}");
+            return;
+        }
+    }
+
     if (!jobStates.create(job.jobId, job.sessionId, createdMs) ||
         !jobStates.updateDelivery(job.sessionId,
                                   CM::JobDeliveryState::Delivering,
@@ -596,6 +699,9 @@ void handleCreateJob()
     activeSessionId = job.sessionId;
     activeJobType = job.type;
     activeJobLinkage = linkage;
+    activeJobSpoolSelection = linkage.linked
+        ? persistedSpoolSelection
+        : CM::JobSpoolSelection();
     activeCoilCount = job.coilCount;
     for (uint8_t i = 0U; i < activeCoilCount; ++i) activeTurns[i] = job.turns[i];
     completedRuns = 0U;
@@ -615,12 +721,17 @@ void handleCreateJob()
     {
         response += F(",\"repair_id\":"); response += linkage.repairId;
         response += F(",\"motor_id\":"); response += linkage.motorId;
+        response += F(",\"spool_id\":"); response += persistedSpoolSelection.spoolId;
+        response += F(",\"spool_wire_type\":\""); response += persistedSpoolSelection.wireType;
+        response += F("\",\"spool_diameter_hundredths_mm\":"); response += persistedSpoolSelection.diameterHundredthsMm;
+        response += F(",\"spool_weight_at_selection_g\":"); response += persistedSpoolSelection.weightAtSelectionGrams;
+        response += F(",\"spool_selection_saved\":true");
     }
     else
     {
-        response += F(",\"repair_id\":null,\"motor_id\":null");
+        response += F(",\"repair_id\":null,\"motor_id\":null,\"spool_id\":null,\"spool_wire_type\":null,\"spool_diameter_hundredths_mm\":null,\"spool_weight_at_selection_g\":null,\"spool_selection_saved\":false");
     }
-    response += F(",\"snapshot_saved\":true,\"state_saved\":true");
+    response += F(",\"snapshot_saved\":true,\"state_saved\":true,\"automatic_wire_writeoff_allowed\":false");
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);
 }
@@ -648,7 +759,7 @@ void configureWebServer()
             webServer.send(404, "application/json", "{\"error\":\"not_found\"}");
             return;
         }
-        webServer.send(404, "text/plain; charset=utf-8", "Страница не найдена");
+        webServer.send(404, "text/plain", "Страница не найдена");
     });
     webServer.begin();
 }
@@ -707,6 +818,7 @@ void setup()
     journalReady = sdReady && journal.begin();
     idAllocatorReady = sdReady && idAllocator.begin();
     jobSnapshotStoreReady = sdReady && jobSnapshots.begin();
+    jobSpoolSelectionStoreReady = sdReady && jobSpoolSelections.begin();
     jobStateStoreReady = sdReady && jobStates.begin();
     jobLinkageResolverReady = sdReady && jobLinkageResolver.begin();
     warehouseReady = sdReady && warehouse.begin();
@@ -720,6 +832,7 @@ void setup()
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
+    Serial.println(jobSpoolSelectionStoreReady ? F("immutable job spool selection store ready") : F("WARNING: job spool selection store unavailable; linked job creation blocked"));
     Serial.println(jobStateStoreReady ? F("persistent job runtime state store ready") : F("WARNING: job state store unavailable; job creation blocked"));
     Serial.println(jobLinkageResolverReady ? F("repair motor linkage resolver ready") : F("WARNING: repair motor linkage resolver unavailable; linked job creation blocked"));
     Serial.println(repairRegistryReady ? F("client motor repair registry ready") : F("WARNING: client motor repair registry unavailable; linked job creation blocked"));

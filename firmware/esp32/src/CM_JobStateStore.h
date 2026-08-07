@@ -21,7 +21,8 @@ enum class JobExecutionState : uint8_t
     WaitingPhysicalStart,
     Running,
     ProgramCompleted,
-    Fault
+    Fault,
+    ClosedAfterReview
 };
 
 struct JobRuntimeState
@@ -60,6 +61,10 @@ public:
                          uint32_t runId,
                          uint16_t completedRuns,
                          uint32_t nowMs);
+
+    // Persists an operator-confirmed closure after physical inspection.
+    // It never queues, resumes, or controls the machine.
+    bool closeAfterManualReview(uint32_t sessionId, uint32_t nowMs);
 
 private:
     static constexpr const char* RootDirectory = "/data/winding-jobs";

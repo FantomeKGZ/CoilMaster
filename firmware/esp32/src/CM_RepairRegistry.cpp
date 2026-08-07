@@ -76,17 +76,29 @@ bool RepairRegistry::begin()
     return true;
 }
 
-bool RepairRegistry::ready() const { return m_ready; }
+bool RepairRegistry::ready() const
+{
+    if (!m_ready) return false;
+    File directory = m_storage.open("/data/workshop", FILE_READ);
+    if (!directory) return false;
+    const bool available = directory.isDirectory();
+    directory.close();
+    return available;
+}
 
 bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
 {
     clientId = 0UL;
     const String normalized = normalizePhone(client.phone);
-    if (!m_ready || client.name.length() == 0U || normalized.length() < 7U ||
+    if (!ready() || client.name.length() == 0U || normalized.length() < 7U ||
         !nextId(ClientsPath, "client_id", clientId)) return false;
 
     File file = m_storage.open(ClientsPath, FILE_APPEND);
-    if (!file) return false;
+    if (!file)
+    {
+        m_ready = false;
+        return false;
+    }
     String line;
     line.reserve(320U);
     line = F("{\"client_id\":"); line += clientId;
@@ -113,12 +125,16 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
 {
     motorId = 0UL;
     String canonicalProgram;
-    if (!m_ready || motor.name.length() == 0U ||
+    if (!ready() || motor.name.length() == 0U ||
         !WindingProgramParser::canonicalize(motor.coilProgram, canonicalProgram) ||
         !nextId(MotorsPath, "motor_id", motorId)) return false;
 
     File file = m_storage.open(MotorsPath, FILE_APPEND);
-    if (!file) return false;
+    if (!file)
+    {
+        m_ready = false;
+        return false;
+    }
     String line;
     line.reserve(560U);
     line = F("{\"motor_id\":"); line += motorId;
@@ -146,13 +162,17 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
 bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
 {
     repairId = 0UL;
-    if (!m_ready || repair.clientId == 0UL || repair.motorId == 0UL ||
+    if (!ready() || repair.clientId == 0UL || repair.motorId == 0UL ||
         repair.receivedAt.length() < 10U || !clientExists(repair.clientId) ||
         !motorExists(repair.motorId) ||
         !nextId(RepairsPath, "repair_id", repairId)) return false;
 
     File file = m_storage.open(RepairsPath, FILE_APPEND);
-    if (!file) return false;
+    if (!file)
+    {
+        m_ready = false;
+        return false;
+    }
     String line;
     line.reserve(420U);
     line = F("{\"repair_id\":"); line += repairId;
@@ -183,7 +203,7 @@ bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
                                        uint16_t& count) const
 {
     count = 0U;
-    if (!m_ready) return false;
+    if (!ready()) return false;
     if (!m_storage.exists(ClientsPath)) return true;
     const String query = normalizePhone(phoneQuery);
     File file = m_storage.open(ClientsPath, FILE_READ);
@@ -209,7 +229,7 @@ bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
                                       uint16_t& count) const
 {
     count = 0U;
-    if (!m_ready) return false;
+    if (!ready()) return false;
     if (!m_storage.exists(MotorsPath)) return true;
     String query = searchQuery;
     query.trim();
@@ -245,7 +265,7 @@ bool RepairRegistry::appendRepairsJson(String& json, uint32_t clientId,
                                        uint16_t& count) const
 {
     count = 0U;
-    if (!m_ready) return false;
+    if (!ready()) return false;
     if (!m_storage.exists(RepairsPath)) return true;
     File file = m_storage.open(RepairsPath, FILE_READ);
     if (!file) return false;
@@ -278,7 +298,7 @@ bool RepairRegistry::motorExists(uint32_t motorId) const
 
 bool RepairRegistry::idExists(const char* path, const char* key, uint32_t id) const
 {
-    if (!m_ready || id == 0UL || !m_storage.exists(path)) return false;
+    if (!ready() || id == 0UL || !m_storage.exists(path)) return false;
     File file = m_storage.open(path, FILE_READ);
     if (!file) return false;
 

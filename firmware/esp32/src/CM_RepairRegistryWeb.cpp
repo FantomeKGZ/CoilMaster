@@ -39,6 +39,12 @@ void RepairRegistryWeb::handleListClients()
 
 void RepairRegistryWeb::handleCreateClient()
 {
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
     if (!m_server.hasArg("name") || !m_server.hasArg("phone") ||
         m_server.arg("name").length() == 0U ||
         RepairRegistry::normalizePhone(m_server.arg("phone")).length() < 7U)
@@ -54,8 +60,16 @@ void RepairRegistryWeb::handleCreateClient()
     uint32_t clientId = 0UL;
     if (!m_registry.addClient(client, clientId))
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"client_write_failed\"}");
+        if (!m_registry.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_registry_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"client_write_failed\"}");
+        }
         return;
     }
     String response = F("{\"created\":true,\"client_id\":");
@@ -65,6 +79,12 @@ void RepairRegistryWeb::handleCreateClient()
 
 void RepairRegistryWeb::handleListMotors()
 {
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
     String response = F("{\"items\":[");
     response.reserve(4096U);
     uint16_t count = 0U;
@@ -83,6 +103,12 @@ void RepairRegistryWeb::handleListMotors()
 
 void RepairRegistryWeb::handleCreateMotor()
 {
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
     if (!m_server.hasArg("name") || m_server.arg("name").length() == 0U ||
         !m_server.hasArg("coil_program") ||
         m_server.arg("coil_program").length() == 0U)
@@ -101,8 +127,16 @@ void RepairRegistryWeb::handleCreateMotor()
     uint32_t motorId = 0UL;
     if (!m_registry.addMotor(motor, motorId))
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"motor_write_failed\"}");
+        if (!m_registry.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_registry_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"motor_write_failed\"}");
+        }
         return;
     }
     String response = F("{\"created\":true,\"motor_id\":");
@@ -112,6 +146,12 @@ void RepairRegistryWeb::handleCreateMotor()
 
 void RepairRegistryWeb::handleListRepairs()
 {
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
     uint32_t clientId = 0UL;
     if (m_server.hasArg("client_id") && m_server.arg("client_id").length() > 0U &&
         !parseUnsigned(m_server, "client_id", 1UL, 0xFFFFFFFFUL, clientId))
@@ -135,6 +175,12 @@ void RepairRegistryWeb::handleListRepairs()
 
 void RepairRegistryWeb::handleCreateRepair()
 {
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
     uint32_t clientId = 0UL;
     uint32_t motorId = 0UL;
     if (!parseUnsigned(m_server, "client_id", 1UL, 0xFFFFFFFFUL, clientId) ||
@@ -154,8 +200,16 @@ void RepairRegistryWeb::handleCreateRepair()
     uint32_t repairId = 0UL;
     if (!m_registry.addRepair(repair, repairId))
     {
-        m_server.send(409, "application/json; charset=utf-8",
-                      "{\"error\":\"repair_not_created\"}");
+        if (!m_registry.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_registry_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_not_created\"}");
+        }
         return;
     }
     String response = F("{\"created\":true,\"repair_id\":");

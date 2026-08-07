@@ -1,4 +1,5 @@
 #include "CM_RepairCosting.h"
+#include "CM_RepairLifecycle.h"
 
 namespace CM
 {
@@ -121,6 +122,11 @@ bool RepairCosting::savePricing(uint32_t repairId,
     if (!m_ready || repairId == 0UL || !repairExists(repairId) ||
         currency.length() != 3U || timestamp.length() < 10U)
         return false;
+
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(m_storage, repairId, repairOpen) || !repairOpen)
+        return false;
+
     File file = m_storage.open(PricingPath, FILE_APPEND);
     if (!file) return false;
     char labour[24], client[24];

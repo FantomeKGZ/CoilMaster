@@ -5,38 +5,66 @@
 
 ## Точная точка продолжения
 
-Рабочий UI-путь ремонта теперь замкнут:
+Рабочий путь ремонта теперь замкнут до архивного состояния:
 
 ```text
 клиент
 → двигатель
-→ ремонт
+→ ремонт OPEN
 → калькуляция
 → linked winding
 → physical START
 → RUN_STARTED / RUN_COMPLETED
 → история намотки
+→ ручные списания провода/материалов
+→ итог ремонта
+→ CLOSED
+→ read-only архив
 ```
 
-Последний функциональный блок:
+`CLOSED` является реальным server-side финальным состоянием, а не только UI-меткой.
 
-- desktop quick-add двигателя на `repairs.html` выровнен с mobile: similarity-проверка перед созданием;
-- mobile/desktop quick-add двигателя используют ту же строгую грамматику `coil_program`, что firmware;
-- страницы ремонтов безопасно обрабатывают недоступные registry API и сохраняют выбранные client/motor/repair IDs;
-- linked winding mobile/desktop показывает live lifecycle текущего задания;
-- lifecycle различает `WAITING_ARDUINO_ACK`, `ACCEPTED_READY`, `RUNNING`, `PROGRAM_COMPLETED`, `REJECTED`, `TIMED_OUT`, `CANCELLED`;
-- linked winding имеет прямой переход в историю выбранного ремонта;
-- mobile/desktop costing теперь содержит прямые действия: намотка ремонта, история намотки, списание провода, списание дополнительных материалов.
+Перед новым переходом `OPEN → CLOSED` backend теперь обязательно проверяет:
 
-Последние функциональные коммиты:
+- отсутствие незавершённого/recovery winding job;
+- доступность обязательных persistent storage-компонентов;
+- целостность warehouse movements, material usage и pricing через строгий `RepairCosting::load()`;
+- согласованность wire/material/labour total и material-aware wire breakdown;
+- полную читаемость winding journal через cursor query до EOF;
+- semantic transition audit всего winding journal: возрастающие session/run IDs, один активный run, `RUN_STARTED → RUN_COMPLETED`, точный рост `completed_runs`.
+
+Если finalization audit не доказан, `CLOSED` не записывается. Повторный запрос уже закрытого ремонта остаётся идемпотентным и не требует повторной доступности warehouse/material storage.
+
+## Последние функциональные изменения
+
+- warehouse summary и append-paths fail-closed на overflow и partial writes;
+- warehouse стоимость использует тот же `NEAREST_MINOR_UNIT`, что write-off/costing;
+- mobile/desktop реестр ремонтов имеет фильтры `Открытые / Закрытые / Все`;
+- закрытый ремонт ведёт в `Итог ремонта`, а не в mutation workflow;
+- costing mobile/desktop показывает карточку клиента/двигателя и подтверждённый winding summary;
+- создан `RepairFinalizationGuard`;
+- создан отдельный `WindingJournalTransitionAudit` для semantic проверки persisted событий перед закрытием.
+
+Последние коммиты этого блока:
 
 ```text
-e566e6e27ee6f37804a9cae9756c8fbf73843823  Align desktop repair motor creation flow
-48f5dda2daac6a2abde6b4a2b532b5a03f1503b2  Harden mobile repair creation flow
-44beaaf54069525f15d29522e0f06c309bf63d30  Show linked winding lifecycle on mobile
-6921b110780f34f0cad062813ab80a88a07ab6f8  Show linked winding lifecycle on desktop
-9e98fd3895dfa29ecb43bfa8f747197f64259612  Link mobile costing to winding flow
-56a90e8c20af48d8a5f2733089f5276ce29d11c5  Link desktop costing to winding flow
+b6e1ea589f26122e0c433309aad3aea97ba14c5c  Fail closed on warehouse aggregate and append failures
+2bc6104e214062c2cbab137e74577155af06de39  Fail closed on partial warehouse movement appends
+b7dedc4eabdd0abfd2a8f7540bf1e79544afe098  Align warehouse summary value rounding
+d67d89b8bdcb142185937399c50d28b49a6946e8  Add mobile repair archive filter
+e3df51426f33129d321be394e6eb1926e5cb3a64  Add desktop repair archive filter
+abbe9d70131c64e24c9e77299273a30979e13eba  Show repair identity in mobile costing
+1dab1fd072ad9fd0b98f4a9485a85cab30608757  Show repair identity in desktop costing
+5b002872a967e6a4384cf70109f2aca46e19940f  Add verified winding summary to mobile repair total
+e7f14fbad856b3fdb0ea6e774cb4a2d77364c0f9  Add verified winding summary to desktop repair total
+11904fc362f0551c0f98233b936550d24a60a497  Add repair finalization integrity guard contract
+24680ae708f6a49d4e2171feebbb81389ab08c88  Harden repair finalization aggregate checks
+24b4ba0be8b695c794110a84f7b663c8f27ee279  Gate repair closure on finalization integrity
+d7cefb160fbb00099d7f77bed440b673137ca28c  Preserve idempotent repair closure
+1a3a2e3021305d13d5a2cc0df4a8210fc0ceb151  Verify winding journal before repair closure
+adafc73064e85f9780cd6d088dbe9e53fd960a68  Add winding journal transition audit contract
+2b260e39209c7c9849c221de5e5075ed80d9ef42  Implement winding journal transition audit
+34fc8325ef8cd4df69b79893e482d3d813b1c0c6  Enforce winding transition audit before repair closure
 ```
 
 ## Уже закрытые архитектурные задачи — не делать повторно
@@ -56,65 +84,57 @@ e566e6e27ee6f37804a9cae9756c8fbf73843823  Align desktop repair motor creation fl
 - mobile/desktop winding-history pages;
 - runtime microSD readiness для критических persistent stores;
 - явные lifecycle статусы в `/api/status` и UI;
-- mobile/desktop repair → costing → linked winding → history навигация.
+- append-only `OPEN → CLOSED` lifecycle ремонта;
+- запрет linked winding, pricing и новых списаний для `CLOSED`;
+- recoverable material-ledger file swap и material-adjustment crash recovery;
+- recoverable warehouse spool swap и `PENDING → CONFIRMED | ABORTED` write-off recovery;
+- strict warehouse/material/costing persisted parsing и reference lookups;
+- archive filters и read-only итог закрытого ремонта;
+- server-side repair finalization integrity gate.
 
 ## Следующее обязательное действие
 
-Не создавать новую инфраструктуру. Выполнить **реальный end-to-end прогон полного связанного задания** на ESP32 + Arduino и сверить фактические ответы с текущим контрактом.
+Реальный end-to-end прогон полного связанного задания на ESP32 + Arduino всё ещё обязателен для доказательства физического поведения. Repository/CI не заменяет проверку UART, physical START и фактического motor path.
 
-Минимальный сценарий:
+Минимальный happy-path сценарий:
 
 ```text
 1. создать/выбрать клиента
 2. создать/выбрать двигатель с валидной coil_program
 3. создать ремонт
-4. открыть калькуляцию ремонта
-5. перейти в «Намотка ремонта»
-6. убедиться, что программа readonly и соответствует карточке двигателя
-7. отправить linked job
-8. получить JOB_ACK ACCEPTED
-9. убедиться, что UI показывает ACCEPTED_READY
-10. нажать физический START
-11. получить RUN_STARTED
-12. убедиться, что UI показывает RUNNING
-13. дождаться RUN_COMPLETED
-14. убедиться, что UI показывает PROGRAM_COMPLETED
-15. открыть историю намотки ремонта
-16. сверить job_id + session_id + run_id + repair_id + motor_id
+4. задать цену/стоимость работы при необходимости
+5. открыть «Намотка ремонта»
+6. отправить linked job
+7. получить JOB_ACK ACCEPTED
+8. нажать физический START
+9. получить RUN_STARTED
+10. дождаться RUN_COMPLETED
+11. проверить winding history
+12. вручную зафиксировать фактические списания провода/материалов
+13. проверить итоговую калькуляцию
+14. закрыть ремонт
+15. убедиться, что CLOSED находится в архиве и все mutation actions заблокированы
 ```
+
+## Следующий repo-reviewable функциональный блок
+
+Если физический стенд пока недоступен, не возвращаться к уже закрытому winding infrastructure. Следующий кодовый приоритет:
+
+1. понятные operator-facing причины finalization отказа в mobile/desktop;
+2. отчёт/поиск по закрытым ремонтам: период, клиент, двигатель, прибыль/убыток;
+3. только после этого — analogue/unassigned-winding workflow, если он реально нужен мастерской;
+4. exact spool identity в winding job проектировать только вместе с правилами ручного подтверждения фактического расхода.
 
 ## Что фиксировать при end-to-end тесте
 
 Если возникает расхождение, сохранить:
 
-- HTTP status и JSON ответа `/api/jobs`;
-- `/api/status` до отправки, после ACK, после RUN_STARTED и после RUN_COMPLETED;
-- строку/событие UART, если проблема связана с Arduino;
-- соответствующую запись `/data/winding-runs/events.ndjson`;
-- при recovery-проблеме — snapshot и runtime-state этой session.
+- HTTP status и JSON `/api/jobs`, `/api/status`, `/api/repairs/close`;
+- UART событие Arduino;
+- соответствующие записи `events.ndjson`, movement/material usage logs;
+- snapshot/runtime-state session при recovery-проблеме.
 
-Не обходить fail-closed блокировки временными UI-исключениями: сначала определить, какой persisted/API invariant нарушен.
-
-## Отказные сценарии после happy path
-
-После успешного полного цикла проверить:
-
-- снять microSD до создания job → `job_creation_ready=false`, linked job не создаётся;
-- снять microSD после boot → readiness должен динамически упасть;
-- перезапуск после ACCEPTED до физического START → manual review, без auto-resume;
-- перезапуск после RUN_STARTED → manual review;
-- повреждённый snapshot/state/journal → fail-closed;
-- неверный repair_id/motor_id → linked job не создаётся;
-- turns не совпадают с motor `coil_program` → HTTP 409;
-- повторное/старое событие Arduino → не создаёт новую запись и не двигает состояние повторно.
-
-## После end-to-end проверки
-
-Если happy path и отказные проверки проходят, следующий функциональный блок выбирать из фактических задач мастерской, а не из winding-infrastructure. Приоритет:
-
-1. состояние/закрытие ремонта и отображение выполненной намотки в карточке ремонта;
-2. объединение данных ремонта, калькуляции, списаний и winding history в единую карточку;
-3. только после устойчивого repair lifecycle — проектирование безопасного material write-off по факту выполнения, если для него будет определена однозначная катушка/spool identity.
+Не обходить fail-closed блокировки UI-исключениями: сначала определить нарушенный persisted/API invariant.
 
 ## Что пока намеренно не делать
 
@@ -123,7 +143,7 @@ e566e6e27ee6f37804a9cae9756c8fbf73843823  Align desktop repair motor creation fl
 - прямое управление SSR с ESP32/WEB;
 - автоматическое списание провода только по `RUN_COMPLETED`;
 - миграцию NDJSON в новую БД до фактической необходимости;
-- Wi-Fi manager/FTP в рамках текущего winding-flow этапа.
+- Wi-Fi manager/FTP в рамках текущего repair-flow этапа.
 
 ## Правило переноса
 

@@ -545,6 +545,10 @@ void handleCreateJob()
         response += F(",\"repair_id\":"); response += linkage.repairId;
         response += F(",\"motor_id\":"); response += linkage.motorId;
     }
+    else
+    {
+        response += F(",\"repair_id\":null,\"motor_id\":null");
+    }
     response += F(",\"snapshot_saved\":true,\"state_saved\":true");
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);

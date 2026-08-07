@@ -10,7 +10,10 @@
 #include "CM_JobRecovery.h"
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobStateStore.h"
+#include "CM_MotorSimilarityWeb.h"
 #include "CM_PersistentIdAllocator.h"
+#include "CM_RepairRegistry.h"
+#include "CM_RepairRegistryWeb.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
 #include "CM_WarehouseStore.h"
@@ -39,9 +42,12 @@ CM::JobSnapshotStore jobSnapshots(SD);
 CM::JobStateStore jobStates(SD);
 CM::JobLinkageResolver jobLinkageResolver(SD);
 CM::WarehouseStore warehouse(SD);
+CM::RepairRegistry repairRegistry(SD);
 WebServer webServer(80);
 CM::StaticSiteServer staticSites(webServer, SD);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
+CM::RepairRegistryWeb repairRegistryWeb(webServer, repairRegistry);
+CM::MotorSimilarityWeb motorSimilarityWeb(webServer, repairRegistry);
 
 uint32_t activeJobId = 0UL;
 uint32_t activeSessionId = 0UL;
@@ -64,6 +70,7 @@ bool jobSnapshotStoreReady = false;
 bool jobStateStoreReady = false;
 bool jobLinkageResolverReady = false;
 bool warehouseReady = false;
+bool repairRegistryReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -98,7 +105,8 @@ bool jobCreationReady()
 bool linkedJobCreationReady()
 {
     return jobCreationReady() &&
-           jobLinkageResolverReady && jobLinkageResolver.isReady();
+           jobLinkageResolverReady && jobLinkageResolver.isReady() &&
+           repairRegistryReady && repairRegistry.ready();
 }
 
 const char* jobStatusText()
@@ -382,6 +390,7 @@ void sendJsonStatus()
     response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
     response += F(",\"job_state_store_ready\":"); response += jobStateStoreReady && jobStates.isReady() ? F("true") : F("false");
     response += F(",\"job_linkage_resolver_ready\":"); response += jobLinkageResolverReady && jobLinkageResolver.isReady() ? F("true") : F("false");
+    response += F(",\"repair_registry_ready\":"); response += repairRegistryReady && repairRegistry.ready() ? F("true") : F("false");
     response += F(",\"last_allocated_job_id\":"); response += idAllocator.lastJobId();
     response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
     response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
@@ -483,7 +492,8 @@ void handleCreateJob()
     }
     if (linkageResult == CM::JobLinkageRequestResult::Linked)
     {
-        if (!jobLinkageResolverReady || !jobLinkageResolver.isReady())
+        if (!jobLinkageResolverReady || !jobLinkageResolver.isReady() ||
+            !repairRegistryReady || !repairRegistry.ready())
         {
             webServer.send(503, "application/json", "{\"error\":\"repair_store_unavailable\"}");
             return;
@@ -603,6 +613,8 @@ void configureWebServer()
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
     webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);
+    repairRegistryWeb.begin();
+    motorSimilarityWeb.begin();
     warehouseWeb.begin();
     warehouseWeb.beginSpoolList();
     staticSites.begin("/web");
@@ -681,6 +693,7 @@ void setup()
     jobStateStoreReady = sdReady && jobStates.begin();
     jobLinkageResolverReady = sdReady && jobLinkageResolver.begin();
     warehouseReady = sdReady && warehouse.begin();
+    repairRegistryReady = sdReady && repairRegistry.begin();
     restoreLatestJobState();
 
     WiFi.mode(WIFI_AP);
@@ -692,6 +705,7 @@ void setup()
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
     Serial.println(jobStateStoreReady ? F("persistent job runtime state store ready") : F("WARNING: job state store unavailable; job creation blocked"));
     Serial.println(jobLinkageResolverReady ? F("repair motor linkage resolver ready") : F("WARNING: repair motor linkage resolver unavailable; linked job creation blocked"));
+    Serial.println(repairRegistryReady ? F("client motor repair registry ready") : F("WARNING: client motor repair registry unavailable; linked job creation blocked"));
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(staticSites.windingHistoryReady() ? F("read-only winding history API ready") : F("WARNING: winding history API unavailable"));

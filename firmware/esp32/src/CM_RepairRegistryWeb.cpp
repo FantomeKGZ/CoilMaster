@@ -17,6 +17,8 @@ void RepairRegistryWeb::begin()
     m_server.on("/api/motors", HTTP_POST, [this]() { handleCreateMotor(); });
     m_server.on("/api/repairs", HTTP_GET, [this]() { handleListRepairs(); });
     m_server.on("/api/repairs", HTTP_POST, [this]() { handleCreateRepair(); });
+    m_server.on("/api/repairs/finalization", HTTP_GET,
+                [this]() { handleRepairFinalization(); });
     m_server.on("/api/repairs/close", HTTP_POST,
                 [this]() { handleCloseRepair(); });
 }
@@ -230,6 +232,100 @@ void RepairRegistryWeb::handleCreateRepair()
     response += F(",\"motor_id\":"); response += motorId;
     response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryWeb::handleRepairFinalization()
+{
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
+
+    uint32_t repairId = 0UL;
+    if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_repair_id\"}");
+        return;
+    }
+
+    bool repairOpen = false;
+    if (!m_registry.repairIsOpen(repairId, repairOpen))
+    {
+        if (!m_registry.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_registry_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_close_state_read_failed\"}");
+        return;
+    }
+
+    if (!repairOpen)
+    {
+        String response = F("{\"repair_id\":");
+        response += repairId;
+        response += F(",\"status\":\"CLOSED\",\"ready_to_close\":false,\"already_closed\":true,\"reason\":\"already_closed\"}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+        return;
+    }
+
+    bool closureAllowed = false;
+    if (!RepairClosureGuard::canClose(SD, repairId, closureAllowed))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_closure_state_unavailable\"}");
+        return;
+    }
+    if (!closureAllowed)
+    {
+        String response = F("{\"repair_id\":");
+        response += repairId;
+        response += F(",\"status\":\"OPEN\",\"ready_to_close\":false,\"already_closed\":false,\"reason\":\"repair_has_unfinished_winding_job\"}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+        return;
+    }
+
+    const RepairFinalizationCheck finalization =
+        RepairFinalizationGuard::check(SD, repairId);
+    const char* reason = nullptr;
+    switch (finalization)
+    {
+        case RepairFinalizationCheck::Ready:
+            break;
+        case RepairFinalizationCheck::CostingStorageUnavailable:
+            reason = "repair_finalization_costing_storage_unavailable";
+            break;
+        case RepairFinalizationCheck::CostingIntegrityFailed:
+            reason = "repair_finalization_costing_integrity_failed";
+            break;
+        case RepairFinalizationCheck::WindingStorageUnavailable:
+            reason = "repair_finalization_winding_storage_unavailable";
+            break;
+        case RepairFinalizationCheck::WindingIntegrityFailed:
+            reason = "repair_finalization_winding_integrity_failed";
+            break;
+        default:
+            reason = "repair_finalization_unknown_failure";
+            break;
+    }
+
+    String response = F("{\"repair_id\":");
+    response += repairId;
+    response += F(",\"status\":\"OPEN\",\"ready_to_close\":");
+    response += finalization == RepairFinalizationCheck::Ready ? F("true") : F("false");
+    response += F(",\"already_closed\":false,\"reason\":");
+    if (reason == nullptr) response += F("null");
+    else
+    {
+        response += '"';
+        response += reason;
+        response += '"';
+    }
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void RepairRegistryWeb::handleCloseRepair()

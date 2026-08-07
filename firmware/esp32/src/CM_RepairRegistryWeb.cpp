@@ -287,16 +287,34 @@ void RepairRegistryWeb::handleCloseRepair()
 
     const RepairFinalizationCheck finalization =
         RepairFinalizationGuard::check(SD, repairId);
-    if (finalization == RepairFinalizationCheck::StorageUnavailable)
+    if (finalization == RepairFinalizationCheck::CostingStorageUnavailable)
     {
         m_server.send(503, "application/json; charset=utf-8",
-                      "{\"error\":\"repair_finalization_storage_unavailable\",\"write_performed\":false}");
+                      "{\"error\":\"repair_finalization_costing_storage_unavailable\",\"write_performed\":false}");
+        return;
+    }
+    if (finalization == RepairFinalizationCheck::WindingStorageUnavailable)
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_winding_storage_unavailable\",\"write_performed\":false}");
+        return;
+    }
+    if (finalization == RepairFinalizationCheck::CostingIntegrityFailed)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_costing_integrity_failed\",\"write_performed\":false}");
+        return;
+    }
+    if (finalization == RepairFinalizationCheck::WindingIntegrityFailed)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_winding_integrity_failed\",\"write_performed\":false}");
         return;
     }
     if (finalization != RepairFinalizationCheck::Ready)
     {
         m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"repair_finalization_integrity_failed\",\"write_performed\":false}");
+                      "{\"error\":\"repair_finalization_unknown_failure\",\"write_performed\":false}");
         return;
     }
 

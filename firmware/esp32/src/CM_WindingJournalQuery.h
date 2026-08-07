@@ -29,6 +29,18 @@ public:
                                                 String& json,
                                                 uint16_t& count) const;
 
+    // Cursor is the number of already-consumed matching validated records.
+    // nextCursor advances by count. hasMore is true only when another matching
+    // validated record exists after the returned page.
+    WindingJournalQueryResult appendHistoryJson(uint32_t sessionId,
+                                                uint32_t repairId,
+                                                uint32_t cursor,
+                                                uint16_t limit,
+                                                String& json,
+                                                uint16_t& count,
+                                                uint32_t& nextCursor,
+                                                bool& hasMore) const;
+
 private:
     static constexpr const char* JournalPath = "/data/winding-runs/events.ndjson";
 

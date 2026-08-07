@@ -18,6 +18,8 @@ public:
 private:
     void handleManifest();
     void handleFile();
+    void handleSessions();
+    void handleSessionFile();
 
     WebServer& m_server;
     fs::FS& m_storage;

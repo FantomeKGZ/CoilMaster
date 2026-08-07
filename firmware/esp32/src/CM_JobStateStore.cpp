@@ -111,10 +111,14 @@ bool JobStateStore::loadLatest(JobRuntimeState& state, bool& found) const
                     return false;
                 }
 
-                const String expectedSuffix = String(F("session-")) +
-                                              candidate.sessionId +
-                                              F(".json");
-                if (!name.endsWith(expectedSuffix))
+                const String expectedName = String(F("session-")) +
+                                            candidate.sessionId +
+                                            F(".json");
+                const int separator = name.lastIndexOf('/');
+                const String baseName = separator >= 0
+                    ? name.substring(separator + 1)
+                    : name;
+                if (baseName != expectedName)
                 {
                     entry.close();
                     directory.close();
@@ -354,9 +358,14 @@ bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
 
     if (state.executionState == JobExecutionState::WaitingDelivery)
     {
-        return state.lastRunId == 0UL && state.completedRuns == 0U &&
-               (state.deliveryState == JobDeliveryState::Created ||
-                state.deliveryState == JobDeliveryState::Delivering);
+        const bool deliveryConsistent =
+            state.deliveryState == JobDeliveryState::Created ||
+            state.deliveryState == JobDeliveryState::Delivering ||
+            state.deliveryState == JobDeliveryState::Rejected ||
+            state.deliveryState == JobDeliveryState::TimedOut ||
+            state.deliveryState == JobDeliveryState::Cancelled;
+        return deliveryConsistent && state.lastRunId == 0UL &&
+               state.completedRuns == 0U;
     }
     if (state.executionState == JobExecutionState::WaitingPhysicalStart)
     {

@@ -94,14 +94,32 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
             const String line = file.readStringUntil('\n');
             uint32_t lineRepairId = 0UL;
             if (!findUnsigned(line, "repair_id", lineRepairId) || lineRepairId != repairId) continue;
-            findUnsigned64(line, "labour_cost_minor", summary.labourCostMinor);
-            findUnsigned64(line, "client_price_minor", summary.clientPriceMinor);
+            if (!findUnsigned64(line, "labour_cost_minor", summary.labourCostMinor) ||
+                !findUnsigned64(line, "client_price_minor", summary.clientPriceMinor))
+            {
+                file.close();
+                return false;
+            }
             String currency;
-            if (findString(line, "currency", currency) && currency.length() == 3U)
-                summary.currency = currency;
+            if (!findString(line, "currency", currency) || currency.length() != 3U)
+            {
+                file.close();
+                return false;
+            }
+            summary.currency = currency;
             String timestamp;
-            if (findString(line, "timestamp", timestamp)) summary.pricingUpdatedAt = timestamp;
+            if (!findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+            {
+                file.close();
+                return false;
+            }
+            summary.pricingUpdatedAt = timestamp;
             if (summary.pricingRevisionCount < 0xFFFFU) ++summary.pricingRevisionCount;
+            else
+            {
+                file.close();
+                return false;
+            }
         }
         file.close();
     }
@@ -151,29 +169,89 @@ bool RepairCosting::ensureDirectories()
 
 bool RepairCosting::findUnsigned(const String& line,const char* key,uint32_t& value)
 {
-    uint64_t wide=0ULL; if(!findUnsigned64(line,key,wide)||wide>0xFFFFFFFFULL)return false;
-    value=static_cast<uint32_t>(wide); return true;
+    uint64_t wide = 0ULL;
+    if (!findUnsigned64(line, key, wide) || wide > 0xFFFFFFFFULL) return false;
+    value = static_cast<uint32_t>(wide);
+    return true;
 }
 
 bool RepairCosting::findUnsigned64(const String& line,const char* key,uint64_t& value)
 {
-    const String marker=String("\"")+key+F("\":"); const int pos=line.indexOf(marker); if(pos<0)return false;
-    int start=pos+marker.length(); while(start<line.length()&&line[start]==' ')++start;
-    int end=start; while(end<line.length()&&isDigit(line[end]))++end; if(end==start)return false;
-    value=strtoull(line.substring(start,end).c_str(),nullptr,10); return true;
+    value = 0ULL;
+    const String marker = String("\"") + key + F("\":");
+    const int pos = line.indexOf(marker);
+    if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
+
+    int start = pos + marker.length();
+    while (start < line.length() && line[start] == ' ') ++start;
+    if (start >= line.length() || !isDigit(line[start])) return false;
+    if (line[start] == '0' && start + 1 < line.length() && isDigit(line[start + 1]))
+        return false;
+
+    uint64_t parsed = 0ULL;
+    int end = start;
+    while (end < line.length() && isDigit(line[end]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[end] - '0');
+        if (parsed > (0xFFFFFFFFFFFFFFFFULL - digit) / 10ULL) return false;
+        parsed = parsed * 10ULL + digit;
+        ++end;
+    }
+
+    while (end < line.length() && line[end] == ' ') ++end;
+    if (end >= line.length() || (line[end] != ',' && line[end] != '}')) return false;
+
+    value = parsed;
+    return true;
 }
 
 bool RepairCosting::findString(const String& line,const char* key,String& value)
 {
-    const String marker=String("\"")+key+F("\":\""); const int pos=line.indexOf(marker); if(pos<0)return false;
-    const int start=pos+marker.length(); const int end=line.indexOf('"',start); if(end<0)return false;
-    value=line.substring(start,end); return true;
+    value = String();
+    const String marker = String("\"") + key + F("\":\"");
+    const int pos = line.indexOf(marker);
+    if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
+
+    int index = pos + marker.length();
+    String parsed;
+    parsed.reserve(32U);
+    bool closed = false;
+    for (; index < line.length(); ++index)
+    {
+        const char ch = line[index];
+        if (ch == '"')
+        {
+            closed = true;
+            ++index;
+            break;
+        }
+        if (ch == '\\')
+        {
+            ++index;
+            if (index >= line.length()) return false;
+            const char escaped = line[index];
+            if (escaped == '"' || escaped == '\\') parsed += escaped;
+            else if (escaped == 'n') parsed += '\n';
+            else if (escaped == 'r') parsed += '\r';
+            else return false;
+            continue;
+        }
+        if (static_cast<uint8_t>(ch) < 0x20U) return false;
+        parsed += ch;
+    }
+    if (!closed) return false;
+
+    while (index < line.length() && line[index] == ' ') ++index;
+    if (index >= line.length() || (line[index] != ',' && line[index] != '}')) return false;
+
+    value = parsed;
+    return true;
 }
 
 String RepairCosting::jsonEscape(const String& value)
 {
     String out; out.reserve(value.length()+8U);
-    for(size_t i=0;i<value.length();++i){const char c=value[i];if(c=='\\')out+=F("\\\\");else if(c=='"')out+=F("\\\"");else if(static_cast<uint8_t>(c)>=0x20U)out+=c;}
+    for(size_t i=0;i<value.length();++i){const char c=value[i];if(c=='\\')out+=F("\\\\");else if(c=='"')out+=F("\\\"");else if(c=='\n')out+=F("\\n");else if(c=='\r')out+=F("\\r");else if(static_cast<uint8_t>(c)>=0x20U)out+=c;}
     return out;
 }
 }

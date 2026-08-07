@@ -6,7 +6,7 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
                                     MaterialAdjustmentResult& result)
 {
     result = MaterialAdjustmentResult();
-    if (!m_ready || adjustment.materialId == 0UL ||
+    if (!ready() || adjustment.materialId == 0UL ||
         (adjustment.addQuantityMilli == 0UL && adjustment.newPricePerUnitMinor == 0UL) ||
         adjustment.currency.length() != 3U || adjustment.timestamp.length() < 10U ||
         !m_storage.exists(MaterialsPath) || m_storage.exists(AdjustmentPendingPath))
@@ -75,7 +75,7 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
     File source = m_storage.open(MaterialsPath, FILE_READ);
     if (!source)
     {
-        m_storage.remove(AdjustmentPendingPath);
+        if (ready()) m_storage.remove(AdjustmentPendingPath);
         return false;
     }
     m_storage.remove(MaterialsTempPath);
@@ -83,7 +83,7 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
     if (!target)
     {
         source.close();
-        m_storage.remove(AdjustmentPendingPath);
+        if (ready()) m_storage.remove(AdjustmentPendingPath);
         return false;
     }
 
@@ -162,7 +162,7 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
 
     if (!replaceMaterialsFileFromTemp())
     {
-        if (m_ready) m_storage.remove(AdjustmentPendingPath);
+        if (ready()) m_storage.remove(AdjustmentPendingPath);
         return false;
     }
 

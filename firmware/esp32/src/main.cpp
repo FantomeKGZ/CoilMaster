@@ -390,7 +390,7 @@ void sendJsonStatus()
     response += F(",\"job_creation_ready\":"); response += jobCreationReady() ? F("true") : F("false");
     response += F(",\"linked_job_creation_ready\":"); response += linkedJobCreationReady() ? F("true") : F("false");
     response += F(",\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false");
-    response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");
+    response += F(",\"storage_ready\":"); response += journalReady && journal.isReady() ? F("true") : F("false");
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
     response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
     response += F(",\"job_state_store_ready\":"); response += jobStateStoreReady && jobStates.isReady() ? F("true") : F("false");

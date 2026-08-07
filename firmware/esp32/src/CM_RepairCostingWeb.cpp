@@ -30,7 +30,18 @@ void RepairCostingWeb::handlePricingHistory()
                       "{\"error\":\"costing_unavailable\"}");
         return;
     }
-    if (!m_costing.repairExists(repairId))
+    bool repairFound = false;
+    if (!m_costing.repairExists(repairId, repairFound))
+    {
+        if (!m_costing.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_reference_read_failed\"}");
+        return;
+    }
+    if (!repairFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"repair_not_found\"}");
@@ -126,7 +137,18 @@ void RepairCostingWeb::handleGet()
                       "{\"error\":\"costing_unavailable\"}");
         return;
     }
-    if (!m_costing.repairExists(repairId))
+    bool repairFound = false;
+    if (!m_costing.repairExists(repairId, repairFound))
+    {
+        if (!m_costing.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_reference_read_failed\"}");
+        return;
+    }
+    if (!repairFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"repair_not_found\"}");
@@ -253,7 +275,18 @@ void RepairCostingWeb::handleSavePricing()
                       "{\"error\":\"costing_unavailable\"}");
         return;
     }
-    if (!m_costing.repairExists(repairId))
+    bool repairFound = false;
+    if (!m_costing.repairExists(repairId, repairFound))
+    {
+        if (!m_costing.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"costing_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_reference_read_failed\"}");
+        return;
+    }
+    if (!repairFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"repair_not_found\"}");

@@ -5,27 +5,38 @@
 
 ## Точная точка продолжения
 
-Последний функциональный блок перед обновлением handoff:
-
-- writer-side `CM_WindingJournal` переведён на fail-closed scans;
-- corruption больше не маскируется под «событие не найдено»;
-- mobile и desktop главные страницы показывают явный lifecycle задания;
-- linked repair из текущего задания ведёт в историю намотки;
-- `RepairRegistry` и `JobLinkageResolver` динамически замечают runtime-потерю microSD;
-- формы двигателя mobile/desktop валидируют и канонизируют `coil_program` перед API.
-
-Последние функциональные коммиты перед документацией:
+Рабочий UI-путь ремонта теперь замкнут:
 
 ```text
-b33ff222617cce7ed1fd41a069a5bdeb8ff323d8  Make winding journal scans fail closed
-a3b59cff66d48538cc38087c65c968346c86f54a  Harden winding journal event scans
-4e56ac07590be3eb44665b7a4f1f1c0fa39d5423  Show explicit winding lifecycle on mobile
-0703f828163513007e2694af28467a684d0700b2  Show explicit winding lifecycle on desktop
-f7a16f4a63b8bfef595af0897509b5698bd7b8e4  Add motor catalog to mobile navigation
-adede9bd93eabe338f313cd04f90482caee38df2  Detect runtime repair registry storage loss
-93180abfc8d4927b4282926b3213e7f7426a92be  Detect runtime linkage storage loss
-90841c8dc43fde2511a5180d528829ca0cc46d55  Validate motor winding program in mobile UI
-b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a  Validate motor winding program in desktop UI
+клиент
+→ двигатель
+→ ремонт
+→ калькуляция
+→ linked winding
+→ physical START
+→ RUN_STARTED / RUN_COMPLETED
+→ история намотки
+```
+
+Последний функциональный блок:
+
+- desktop quick-add двигателя на `repairs.html` выровнен с mobile: similarity-проверка перед созданием;
+- mobile/desktop quick-add двигателя используют ту же строгую грамматику `coil_program`, что firmware;
+- страницы ремонтов безопасно обрабатывают недоступные registry API и сохраняют выбранные client/motor/repair IDs;
+- linked winding mobile/desktop показывает live lifecycle текущего задания;
+- lifecycle различает `WAITING_ARDUINO_ACK`, `ACCEPTED_READY`, `RUNNING`, `PROGRAM_COMPLETED`, `REJECTED`, `TIMED_OUT`, `CANCELLED`;
+- linked winding имеет прямой переход в историю выбранного ремонта;
+- mobile/desktop costing теперь содержит прямые действия: намотка ремонта, история намотки, списание провода, списание дополнительных материалов.
+
+Последние функциональные коммиты:
+
+```text
+e566e6e27ee6f37804a9cae9756c8fbf73843823  Align desktop repair motor creation flow
+48f5dda2daac6a2abde6b4a2b532b5a03f1503b2  Harden mobile repair creation flow
+44beaaf54069525f15d29522e0f06c309bf63d30  Show linked winding lifecycle on mobile
+6921b110780f34f0cad062813ab80a88a07ab6f8  Show linked winding lifecycle on desktop
+9e98fd3895dfa29ecb43bfa8f747197f64259612  Link mobile costing to winding flow
+56a90e8c20af48d8a5f2733089f5276ce29d11c5  Link desktop costing to winding flow
 ```
 
 ## Уже закрытые архитектурные задачи — не делать повторно
@@ -44,70 +55,66 @@ b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a  Validate motor winding program in desk
 - read-only winding history API с cursor pagination;
 - mobile/desktop winding-history pages;
 - runtime microSD readiness для критических persistent stores;
-- явные lifecycle статусы в `/api/status` и UI.
+- явные lifecycle статусы в `/api/status` и UI;
+- mobile/desktop repair → costing → linked winding → history навигация.
 
-## Следующее действие
+## Следующее обязательное действие
 
-Продолжить **с рабочего процесса ремонта**, а не с новой инфраструктуры.
+Не создавать новую инфраструктуру. Выполнить **реальный end-to-end прогон полного связанного задания** на ESP32 + Arduino и сверить фактические ответы с текущим контрактом.
 
-Порядок:
-
-1. Перечитать актуальные:
-
-```text
-firmware/esp32/web/mobile/repairs.html
-firmware/esp32/web/desktop/repairs.html
-firmware/esp32/src/CM_RepairRegistryWeb.cpp
-firmware/esp32/src/main.cpp
-```
-
-2. Проверить путь:
+Минимальный сценарий:
 
 ```text
-client selection
-→ motor selection
-→ repair creation
-→ repair card
-→ linked winding page
-→ POST /api/jobs with repair_id + motor_id
-→ physical run
-→ winding history
+1. создать/выбрать клиента
+2. создать/выбрать двигатель с валидной coil_program
+3. создать ремонт
+4. открыть калькуляцию ремонта
+5. перейти в «Намотка ремонта»
+6. убедиться, что программа readonly и соответствует карточке двигателя
+7. отправить linked job
+8. получить JOB_ACK ACCEPTED
+9. убедиться, что UI показывает ACCEPTED_READY
+10. нажать физический START
+11. получить RUN_STARTED
+12. убедиться, что UI показывает RUNNING
+13. дождаться RUN_COMPLETED
+14. убедиться, что UI показывает PROGRAM_COMPLETED
+15. открыть историю намотки ремонта
+16. сверить job_id + session_id + run_id + repair_id + motor_id
 ```
 
-3. Устранить UI-разрывы, если ремонт не сохраняет/не восстанавливает выбранные client/motor IDs или не ведёт на linked winding/history корректно.
+## Что фиксировать при end-to-end тесте
 
-4. Проверить, что linked winding использует readonly программу двигателя, а сервисный режим остаётся отдельным unlinked путём.
+Если возникает расхождение, сохранить:
 
-5. После функциональной связки выполнить end-to-end checklist на реальном ESP32/Arduino.
+- HTTP status и JSON ответа `/api/jobs`;
+- `/api/status` до отправки, после ACK, после RUN_STARTED и после RUN_COMPLETED;
+- строку/событие UART, если проблема связана с Arduino;
+- соответствующую запись `/data/winding-runs/events.ndjson`;
+- при recovery-проблеме — snapshot и runtime-state этой session.
 
-## End-to-end checklist
+Не обходить fail-closed блокировки временными UI-исключениями: сначала определить, какой persisted/API invariant нарушен.
 
-Минимальный ручной сценарий:
+## Отказные сценарии после happy path
 
-```text
-создать/выбрать клиента
-создать/выбрать двигатель с coil_program
-создать ремонт
-открыть linked winding
-создать job
-получить JOB_ACK ACCEPTED
-нажать физический START
-получить RUN_STARTED
-получить RUN_COMPLETED
-проверить /api/status = PROGRAM_COMPLETED
-открыть историю ремонта
-убедиться, что job/session/run/repair/motor совпадают
-```
+После успешного полного цикла проверить:
 
-Отказные сценарии после основного happy path:
-
-- снять microSD до создания job → job creation должна быть заблокирована;
+- снять microSD до создания job → `job_creation_ready=false`, linked job не создаётся;
+- снять microSD после boot → readiness должен динамически упасть;
 - перезапуск после ACCEPTED до физического START → manual review, без auto-resume;
 - перезапуск после RUN_STARTED → manual review;
 - повреждённый snapshot/state/journal → fail-closed;
 - неверный repair_id/motor_id → linked job не создаётся;
 - turns не совпадают с motor `coil_program` → HTTP 409;
-- повторное/старое событие Arduino → не создаёт новую запись/не меняет состояние неправильно.
+- повторное/старое событие Arduino → не создаёт новую запись и не двигает состояние повторно.
+
+## После end-to-end проверки
+
+Если happy path и отказные проверки проходят, следующий функциональный блок выбирать из фактических задач мастерской, а не из winding-infrastructure. Приоритет:
+
+1. состояние/закрытие ремонта и отображение выполненной намотки в карточке ремонта;
+2. объединение данных ремонта, калькуляции, списаний и winding history в единую карточку;
+3. только после устойчивого repair lifecycle — проектирование безопасного material write-off по факту выполнения, если для него будет определена однозначная катушка/spool identity.
 
 ## Что пока намеренно не делать
 

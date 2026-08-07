@@ -9,6 +9,15 @@ WindingJournalQuery::WindingJournalQuery(fs::FS& storage)
 
 bool WindingJournalQuery::begin()
 {
+    m_ready = false;
+
+    File root = m_storage.open("/", FILE_READ);
+    if (!root)
+    {
+        return false;
+    }
+
+    root.close();
     m_ready = true;
     return true;
 }

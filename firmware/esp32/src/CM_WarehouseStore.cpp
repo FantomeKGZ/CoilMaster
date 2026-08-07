@@ -10,6 +10,7 @@ WarehouseStore::WarehouseStore(fs::FS& storage)
 bool WarehouseStore::begin()
 {
     m_ready = ensureDirectories();
+    if (m_ready) m_ready = recoverSpoolFileSwap();
     return m_ready;
 }
 

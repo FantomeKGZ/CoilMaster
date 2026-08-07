@@ -57,8 +57,10 @@ public:
     bool begin();
     bool isReady() const;
 
-    // New records require immutable job context resolved from the session
-    // snapshot. No request-provided linkage is accepted here.
+    // Resolves job and repair context from the immutable session snapshot.
+    JournalSaveResult save(const RemoteWindingEvent& event);
+
+    // Writes a record only with already validated immutable context.
     JournalSaveResult save(const RemoteWindingEvent& event,
                            const WindingEventContext& context);
 

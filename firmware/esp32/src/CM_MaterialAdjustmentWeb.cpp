@@ -78,8 +78,16 @@ void MaterialLedgerWeb::handleAdjust()
     MaterialAdjustmentResult result;
     if (!m_ledger.adjustMaterial(adjustment, result))
     {
-        m_server.send(409, "application/json; charset=utf-8",
-                      "{\"error\":\"material_adjustment_failed\"}");
+        if (!m_ledger.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"materials_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"material_adjustment_failed\"}");
+        }
         return;
     }
 

@@ -24,6 +24,57 @@
 
 ---
 
+## 2026-08-07 16:11 — Обновление документации для переноса
+
+Цель:
+
+Синхронизировать handoff с фактическим состоянием ветки после большой серии изменений ESP32 winding flow.
+
+Что сделано:
+
+- переписан `01_CURRENT_STATE.md` под текущую архитектуру;
+- переписана точная точка продолжения `06_ACTIVE_WORK_AND_NEXT_STEPS.md`;
+- обновлён индекс ключевых файлов `09_KEY_FILES_INDEX.md`;
+- зафиксированы реализованные persistent allocator, snapshot/state recovery, strict linked job, winding history, runtime microSD readiness, shared winding parser и lifecycle UI;
+- удалены из активного backlog пункты, которые уже реализованы;
+- следующей задачей определён end-to-end путь `client → motor → repair → linked winding → history` через `repairs.html` mobile/desktop.
+
+Последние функциональные коммиты перед handoff:
+
+```text
+b33ff222617cce7ed1fd41a069a5bdeb8ff323d8
+a3b59cff66d48538cc38087c65c968346c86f54a
+4e56ac07590be3eb44665b7a4f1f1c0fa39d5423
+0703f828163513007e2694af28467a684d0700b2
+f7a16f4a63b8bfef595af0897509b5698bd7b8e4
+adede9bd93eabe338f313cd04f90482caee38df2
+93180abfc8d4927b4282926b3213e7f7426a92be
+90841c8dc43fde2511a5180d528829ca0cc46d55
+b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
+```
+
+Документационные коммиты этой точки переноса начинаются с:
+
+```text
+7542afb23bf030081ef98292476f8e9ed67561de  current state
+aea8b9378c2a0637aaa66a4493c9a96a89ce83fd  next steps
+8d9dcb9d9568d8464f0601ab7f4b65ab5dc706b5  key files index
+```
+
+Проверка:
+
+Пользователь ранее в этой сессии подтвердил, что проверенные им предыдущие коммиты зелёные. Документация не считается самостоятельным доказательством CI для последующих функциональных коммитов.
+
+Где остановились:
+
+Backend full winding flow и основные safety/integrity слои собраны. Следующий рабочий участок — UI ремонта mobile/desktop и проверка всей цепочки до истории намотки.
+
+Следующее действие:
+
+Перечитать актуальные `firmware/esp32/web/mobile/repairs.html` и `firmware/esp32/web/desktop/repairs.html`, затем пройти и исправить цепочку `клиент → двигатель → ремонт → linked winding → history`.
+
+---
+
 ## 2026-08-06 — Усиление журнала намотки
 
 Цель:

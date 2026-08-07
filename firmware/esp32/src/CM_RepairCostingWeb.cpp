@@ -105,6 +105,14 @@ void RepairCostingWeb::handleGet()
         return;
     }
 
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(SD, repairId, repairOpen))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_lifecycle_unavailable\"}");
+        return;
+    }
+
     RepairCostSummary summary;
     if (!m_costing.load(repairId, summary))
     {
@@ -140,8 +148,10 @@ void RepairCostingWeb::handleGet()
     }
 
     String response;
-    response.reserve(1450U);
+    response.reserve(1540U);
     response = F("{\"repair_id\":"); response += repairId;
+    response += F(",\"repair_status\":\""); response += repairOpen ? F("OPEN") : F("CLOSED");
+    response += F("\",\"pricing_writable\":"); response += repairOpen ? F("true") : F("false");
     response += F(",\"wire_line_count\":"); response += summary.wireLineCount;
     response += F(",\"material_line_count\":"); response += summary.materialLineCount;
     response += F(",\"wire_cost_minor\":"); appendUInt64(response, summary.wireCostMinor);

@@ -160,15 +160,9 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
         return false;
     }
 
-    if (!m_storage.remove(MaterialsPath))
+    if (!replaceMaterialsFileFromTemp())
     {
-        m_storage.remove(MaterialsTempPath);
-        m_storage.remove(AdjustmentPendingPath);
-        return false;
-    }
-    if (!m_storage.rename(MaterialsTempPath, MaterialsPath))
-    {
-        m_ready = false;
+        if (m_ready) m_storage.remove(AdjustmentPendingPath);
         return false;
     }
 

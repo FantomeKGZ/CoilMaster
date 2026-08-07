@@ -1,7 +1,5 @@
 #include "CM_WindingJournalWeb.h"
 
-#include <stdlib.h>
-
 namespace CM
 {
 WindingJournalWeb::WindingJournalWeb(WebServer& server,
@@ -150,18 +148,19 @@ bool WindingJournalWeb::parseCanonicalUint32(const String& text,
         return false;
     }
 
+    uint32_t parsed = 0UL;
     for (size_t index = 0U; index < text.length(); ++index)
     {
-        if (!isDigit(text[index])) return false;
+        const char ch = text[index];
+        if (!isDigit(ch)) return false;
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
     }
 
-    char* parseEnd = nullptr;
-    const unsigned long parsed = strtoul(text.c_str(), &parseEnd, 10);
-    if (parseEnd == nullptr || *parseEnd != '\0' || parsed == 0UL)
-        return false;
-
-    value = static_cast<uint32_t>(parsed);
-    return String(value) == text;
+    if (parsed == 0UL) return false;
+    value = parsed;
+    return true;
 }
 
 bool WindingJournalWeb::parseCursor(const String& text,

@@ -7,7 +7,7 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
                                            SpoolWriteOffResult& result)
 {
     result = SpoolWriteOffResult();
-    if (!m_ready || operation.spoolId == 0UL || operation.repairId == 0UL ||
+    if (!ready() || operation.spoolId == 0UL || operation.repairId == 0UL ||
         operation.timestamp.length() < 10U || operation.weightBeforeGrams == 0UL ||
         operation.weightAfterGrams >= operation.weightBeforeGrams ||
         !repairExists(operation.repairId))

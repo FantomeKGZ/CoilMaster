@@ -68,6 +68,7 @@ private:
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 
     bool ensureDirectories();
+    bool validateUniqueIds(const char* path, const char* key) const;
     bool nextId(const char* path, const char* key, uint32_t& id) const;
     bool idExists(const char* path, const char* key, uint32_t id) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);

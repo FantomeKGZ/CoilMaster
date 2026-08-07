@@ -485,24 +485,45 @@ bool WindingJournal::findUnsigned(const String& line,
     const int position = line.indexOf(marker);
     if (position < 0) return false;
 
-    int start = position + marker.length();
-    while (start < line.length() && line[start] == ' ') ++start;
-    int end = start;
-    while (end < line.length() && isDigit(line[end])) ++end;
-    if (end == start) return false;
+    int cursor = position + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor >= line.length() || !isDigit(line[cursor])) return false;
 
-    const String number = line.substring(start, end);
-    char* parseEnd = nullptr;
-    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
-    if (parseEnd == nullptr || *parseEnd != '\0') return false;
-    value = static_cast<uint32_t>(parsed);
+    if (line[cursor] == '0' &&
+        cursor + 1 < line.length() &&
+        isDigit(line[cursor + 1]))
+    {
+        return false;
+    }
+
+    uint32_t parsed = 0UL;
+    while (cursor < line.length() && isDigit(line[cursor]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[cursor] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++cursor;
+    }
+
+    if (cursor >= line.length() ||
+        (line[cursor] != ',' && line[cursor] != '}'))
+    {
+        return false;
+    }
+
+    value = parsed;
     return true;
 }
 
 bool WindingJournal::fieldIsNull(const String& line, const char* key)
 {
     const String marker = String("\"") + key + F("\":null");
-    return line.indexOf(marker) >= 0;
+    const int position = line.indexOf(marker);
+    if (position < 0) return false;
+
+    const int cursor = position + marker.length();
+    return cursor < line.length() &&
+           (line[cursor] == ',' || line[cursor] == '}');
 }
 
 const char* WindingJournal::eventTypeName(RemoteEventType type)

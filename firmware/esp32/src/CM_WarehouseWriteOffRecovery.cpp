@@ -106,8 +106,8 @@ bool WarehouseStore::recoverPendingWriteOff()
 
         if (status == "CONFIRMED")
         {
-            if (diameter == 0UL || !hasWireType ||
-                (wireType != "CU" && wireType != "AL"))
+            if (diameter == 0UL ||
+                (hasWireType && wireType != "CU" && wireType != "AL"))
             {
                 file.close();
                 return false;

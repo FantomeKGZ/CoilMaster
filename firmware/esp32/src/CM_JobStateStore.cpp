@@ -1,7 +1,5 @@
 #include "CM_JobStateStore.h"
 
-#include <stdlib.h>
-
 namespace CM
 {
 JobRuntimeState::JobRuntimeState()
@@ -59,7 +57,16 @@ bool JobStateStore::load(uint32_t sessionId, JobRuntimeState& state) const
     if (!isReady() || sessionId == 0UL) return false;
 
     File file = m_fileSystem.open(statePath(sessionId), FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+    if (file.size() == 0U || file.size() >= 320U)
+    {
+        file.close();
+        return false;
+    }
     const String input = file.readString();
     file.close();
 
@@ -88,10 +95,33 @@ bool JobStateStore::loadLatest(JobRuntimeState& state, bool& found) const
             const String name = entry.name();
             if (name.endsWith(F(".json")))
             {
+                if (entry.size() == 0U || entry.size() >= 320U)
+                {
+                    entry.close();
+                    directory.close();
+                    return false;
+                }
+
                 const String input = entry.readString();
                 JobRuntimeState candidate;
-                if (parse(input, candidate) &&
-                    candidate.sessionId > highestSessionId)
+                if (!parse(input, candidate))
+                {
+                    entry.close();
+                    directory.close();
+                    return false;
+                }
+
+                const String expectedSuffix = String(F("session-")) +
+                                              candidate.sessionId +
+                                              F(".json");
+                if (!name.endsWith(expectedSuffix))
+                {
+                    entry.close();
+                    directory.close();
+                    return false;
+                }
+
+                if (candidate.sessionId > highestSessionId)
                 {
                     highestSessionId = candidate.sessionId;
                     state = candidate;
@@ -154,6 +184,7 @@ bool JobStateStore::updateExecution(uint32_t sessionId,
     {
         if (runId == 0UL || runId != state.lastRunId ||
             completedRuns == 0U ||
+            state.completedRuns == 0xFFFFU ||
             completedRuns != static_cast<uint16_t>(state.completedRuns + 1U))
         {
             return false;
@@ -249,7 +280,8 @@ bool JobStateStore::writeAtomic(const JobRuntimeState& state)
         verifiedState.deliveryState != state.deliveryState ||
         verifiedState.executionState != state.executionState ||
         verifiedState.lastRunId != state.lastRunId ||
-        verifiedState.completedRuns != state.completedRuns)
+        verifiedState.completedRuns != state.completedRuns ||
+        verifiedState.updatedUptimeMs != state.updatedUptimeMs)
     {
         m_fileSystem.remove(temp);
         return false;
@@ -291,6 +323,13 @@ bool JobStateStore::serialize(const JobRuntimeState& state,
 
 bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
 {
+    state = JobRuntimeState();
+    if (!input.startsWith(F("{\"schema_version\":1,")) ||
+        !input.endsWith(F("}\n")) || input.length() >= 320U)
+    {
+        return false;
+    }
+
     uint32_t schemaVersion = 0UL;
     uint32_t completedRuns = 0UL;
     String delivery;
@@ -312,7 +351,33 @@ bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
     }
 
     state.completedRuns = static_cast<uint16_t>(completedRuns);
-    return true;
+
+    if (state.executionState == JobExecutionState::WaitingDelivery)
+    {
+        return state.lastRunId == 0UL && state.completedRuns == 0U &&
+               (state.deliveryState == JobDeliveryState::Created ||
+                state.deliveryState == JobDeliveryState::Delivering);
+    }
+    if (state.executionState == JobExecutionState::WaitingPhysicalStart)
+    {
+        return state.deliveryState == JobDeliveryState::Accepted &&
+               state.lastRunId == 0UL && state.completedRuns == 0U;
+    }
+    if (state.executionState == JobExecutionState::Running)
+    {
+        return state.deliveryState == JobDeliveryState::Accepted &&
+               state.lastRunId != 0UL;
+    }
+    if (state.executionState == JobExecutionState::ProgramCompleted)
+    {
+        return state.deliveryState == JobDeliveryState::Accepted &&
+               state.lastRunId != 0UL && state.completedRuns != 0U;
+    }
+    if (state.executionState == JobExecutionState::ClosedAfterReview)
+    {
+        return true;
+    }
+    return state.executionState == JobExecutionState::Fault;
 }
 
 const char* JobStateStore::deliveryName(JobDeliveryState state)
@@ -375,18 +440,31 @@ bool JobStateStore::findUnsigned(const String& input,
 {
     value = 0UL;
     const String marker = String("\"") + key + F("\":");
-    int start = input.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
-    int end = start;
-    while (end < input.length() && isDigit(input[end])) ++end;
-    if (end == start) return false;
+    const int position = input.indexOf(marker);
+    if (position < 0 || input.indexOf(marker, position + marker.length()) >= 0)
+        return false;
 
-    const String number = input.substring(start, end);
-    char* parseEnd = nullptr;
-    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
-    if (parseEnd == nullptr || *parseEnd != '\0') return false;
-    value = static_cast<uint32_t>(parsed);
+    int cursor = position + marker.length();
+    if (cursor >= input.length() || !isDigit(input[cursor])) return false;
+    if (input[cursor] == '0' && cursor + 1 < input.length() &&
+        isDigit(input[cursor + 1])) return false;
+
+    uint32_t parsed = 0UL;
+    while (cursor < input.length() && isDigit(input[cursor]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(input[cursor] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++cursor;
+    }
+
+    if (cursor >= input.length() ||
+        (input[cursor] != ',' && input[cursor] != '}'))
+    {
+        return false;
+    }
+
+    value = parsed;
     return true;
 }
 
@@ -394,14 +472,26 @@ bool JobStateStore::findString(const String& input,
                                const char* key,
                                String& value)
 {
+    value = String();
     const String marker = String("\"") + key + F("\":\"");
-    int start = input.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
-    const int end = input.indexOf('"', start);
-    if (end < 0 || end == start) return false;
-    value = input.substring(start, end);
-    return true;
+    const int position = input.indexOf(marker);
+    if (position < 0 || input.indexOf(marker, position + marker.length()) >= 0)
+        return false;
+
+    int cursor = position + marker.length();
+    while (cursor < input.length())
+    {
+        const char ch = input[cursor++];
+        if (ch == '"')
+        {
+            return cursor < input.length() &&
+                   (input[cursor] == ',' || input[cursor] == '}') &&
+                   value.length() > 0U;
+        }
+        if (ch == '\\' || static_cast<uint8_t>(ch) < 0x20U) return false;
+        value += ch;
+    }
+    return false;
 }
 
 bool JobStateStore::validTransition(JobDeliveryState from,

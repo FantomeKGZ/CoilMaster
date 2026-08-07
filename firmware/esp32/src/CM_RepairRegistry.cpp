@@ -366,14 +366,35 @@ bool RepairRegistry::findUnsigned(const String& line, const char* key, uint32_t&
 
 bool RepairRegistry::findString(const String& line, const char* key, String& value)
 {
+    value = String();
     const String marker = String("\"") + key + F("\":\"");
     const int pos = line.indexOf(marker);
     if (pos < 0) return false;
-    const int start = pos + marker.length();
-    const int end = line.indexOf('"', start);
-    if (end < 0) return false;
-    value = line.substring(start, end);
-    return true;
+
+    int cursor = pos + marker.length();
+    while (cursor < line.length())
+    {
+        const char ch = line[cursor++];
+        if (ch == '"')
+        {
+            while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+            return cursor < line.length() &&
+                   (line[cursor] == ',' || line[cursor] == '}');
+        }
+        if (ch == '\\')
+        {
+            if (cursor >= line.length()) return false;
+            const char escaped = line[cursor++];
+            if (escaped == '"' || escaped == '\\') value += escaped;
+            else if (escaped == 'n') value += '\n';
+            else if (escaped == 'r') value += '\r';
+            else return false;
+            continue;
+        }
+        if (static_cast<uint8_t>(ch) < 0x20U) return false;
+        value += ch;
+    }
+    return false;
 }
 
 String RepairRegistry::jsonEscape(const String& value)

@@ -34,11 +34,16 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
         return RepairFinalizationCheck::IntegrityFailed;
     }
 
-    const uint64_t materialWireCost = summary.copperWireCostMinor +
-                                      summary.aluminiumWireCostMinor +
-                                      summary.unknownWireCostMinor;
-    const uint32_t materialWireLines = static_cast<uint32_t>(summary.copperWireLineCount) +
-                                       static_cast<uint32_t>(summary.aluminiumWireLineCount) +
+    if (summary.copperWireCostMinor > 0xFFFFFFFFFFFFFFFFULL - summary.aluminiumWireCostMinor)
+        return RepairFinalizationCheck::IntegrityFailed;
+    const uint64_t knownWireCost = summary.copperWireCostMinor + summary.aluminiumWireCostMinor;
+    if (knownWireCost > 0xFFFFFFFFFFFFFFFFULL - summary.unknownWireCostMinor)
+        return RepairFinalizationCheck::IntegrityFailed;
+    const uint64_t materialWireCost = knownWireCost + summary.unknownWireCostMinor;
+
+    const uint32_t knownWireLines = static_cast<uint32_t>(summary.copperWireLineCount) +
+                                    static_cast<uint32_t>(summary.aluminiumWireLineCount);
+    const uint32_t materialWireLines = knownWireLines +
                                        static_cast<uint32_t>(summary.unknownWireLineCount);
     if (materialWireCost != summary.wireCostMinor ||
         materialWireLines != static_cast<uint32_t>(summary.wireLineCount))

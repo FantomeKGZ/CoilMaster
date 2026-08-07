@@ -22,6 +22,8 @@ private:
     void handleHistory();
     static bool parseCanonicalUint32(const String& text,
                                      uint32_t& value);
+    static bool parseCursor(const String& text,
+                            uint32_t& value);
     static bool parseLimit(const String& text,
                            uint16_t& value);
 

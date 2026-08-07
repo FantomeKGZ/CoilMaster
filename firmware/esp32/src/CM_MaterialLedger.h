@@ -88,6 +88,7 @@ public:
     bool begin();
     bool ready() const;
     bool repairExists(uint32_t repairId) const;
+    bool repairExists(uint32_t repairId, bool& found) const;
     bool loadActiveMaterialCurrency(uint32_t materialId, String& currency) const;
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
     bool adjustMaterial(const MaterialAdjustment& adjustment,

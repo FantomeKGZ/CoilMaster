@@ -5,6 +5,7 @@
 #include <WiFi.h>
 
 #include "CM_JobSnapshotStore.h"
+#include "CM_JobStateStore.h"
 #include "CM_PersistentIdAllocator.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
@@ -31,6 +32,7 @@ CM::UartEventReceiver receiver(arduinoSerial);
 CM::WindingJournal journal(SD);
 CM::PersistentIdAllocator idAllocator(SD);
 CM::JobSnapshotStore jobSnapshots(SD);
+CM::JobStateStore jobStates(SD);
 CM::WarehouseStore warehouse(SD);
 WebServer webServer(80);
 CM::StaticSiteServer staticSites(webServer, SD);
@@ -50,6 +52,7 @@ bool runActive = false;
 bool journalReady = false;
 bool idAllocatorReady = false;
 bool jobSnapshotStoreReady = false;
+bool jobStateStoreReady = false;
 bool warehouseReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
@@ -108,25 +111,79 @@ void printEvent(const CM::RemoteWindingEvent& event)
     Serial.print(F(" completed=")); Serial.println(event.completedRuns);
 }
 
+bool persistEventState(const CM::RemoteWindingEvent& event)
+{
+    if (!jobStateStoreReady || !jobStates.isReady()) return false;
+
+    CM::JobRuntimeState state;
+    if (!jobStates.load(event.sessionId, state)) return false;
+
+    if (event.type == CM::RemoteEventType::RunStarted)
+    {
+        if (state.executionState == CM::JobExecutionState::Running &&
+            state.lastRunId == event.runId &&
+            state.completedRuns == event.completedRuns)
+        {
+            return true;
+        }
+
+        return jobStates.updateExecution(event.sessionId,
+                                         CM::JobExecutionState::Running,
+                                         event.runId,
+                                         event.completedRuns,
+                                         millis());
+    }
+
+    if (event.type == CM::RemoteEventType::RunCompleted)
+    {
+        if (state.executionState == CM::JobExecutionState::ProgramCompleted &&
+            state.lastRunId == event.runId &&
+            state.completedRuns == event.completedRuns)
+        {
+            return true;
+        }
+
+        return jobStates.updateExecution(event.sessionId,
+                                         CM::JobExecutionState::ProgramCompleted,
+                                         event.runId,
+                                         event.completedRuns,
+                                         millis());
+    }
+
+    return false;
+}
+
 void handleEvent(const CM::RemoteWindingEvent& event)
 {
     printEvent(event);
     lastArduinoEventMs = millis();
-    activeSessionId = event.sessionId;
-    lastRunId = event.runId;
-    completedRuns = event.completedRuns;
-    runActive = event.type == CM::RemoteEventType::RunStarted;
 
     const CM::JournalSaveResult result = journal.save(event);
+    if (result == CM::JournalSaveResult::Saved ||
+        result == CM::JournalSaveResult::Duplicate)
+    {
+        if (!persistEventState(event))
+        {
+            jobStateStoreReady = false;
+            receiver.sendNack(event.runId, "STATE_WRITE_FAILED");
+            return;
+        }
+
+        activeSessionId = event.sessionId;
+        lastRunId = event.runId;
+        completedRuns = event.completedRuns;
+        runActive = event.type == CM::RemoteEventType::RunStarted;
+        receiver.sendAck(event.runId,
+                         result == CM::JournalSaveResult::Duplicate
+                             ? "DUPLICATE"
+                             : (event.type == CM::RemoteEventType::RunCompleted
+                                    ? "SAVED"
+                                    : "RECORDED"));
+        return;
+    }
+
     switch (result)
     {
-        case CM::JournalSaveResult::Saved:
-            receiver.sendAck(event.runId,
-                             event.type == CM::RemoteEventType::RunCompleted ? "SAVED" : "RECORDED");
-            break;
-        case CM::JournalSaveResult::Duplicate:
-            receiver.sendAck(event.runId, "DUPLICATE");
-            break;
         case CM::JournalSaveResult::StorageUnavailable:
             receiver.sendNack(event.runId, "STORAGE_UNAVAILABLE");
             break;
@@ -183,6 +240,7 @@ void sendJsonStatus()
     response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
     response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
+    response += F(",\"job_state_store_ready\":"); response += jobStateStoreReady && jobStates.isReady() ? F("true") : F("false");
     response += F(",\"last_allocated_job_id\":"); response += idAllocator.lastJobId();
     response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
     response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
@@ -219,6 +277,12 @@ void handleCreateJob()
         return;
     }
 
+    if (!jobStateStoreReady || !jobStates.isReady())
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_state_store_unavailable\"}");
+        return;
+    }
+
     if (!idAllocator.allocate(job.jobId, job.sessionId))
     {
         idAllocatorReady = false;
@@ -226,14 +290,28 @@ void handleCreateJob()
         return;
     }
 
-    if (!jobSnapshots.create(job, millis()))
+    const uint32_t createdMs = millis();
+    if (!jobSnapshots.create(job, createdMs))
     {
         webServer.send(503, "application/json", "{\"error\":\"job_snapshot_persistence_failed\"}");
         return;
     }
 
+    if (!jobStates.create(job.jobId, job.sessionId, createdMs) ||
+        !jobStates.updateDelivery(job.sessionId,
+                                  CM::JobDeliveryState::Delivering,
+                                  millis()))
+    {
+        jobStateStoreReady = false;
+        webServer.send(503, "application/json", "{\"error\":\"job_state_persistence_failed\"}");
+        return;
+    }
+
     if (!receiver.queueJob(job))
     {
+        jobStates.updateDelivery(job.sessionId,
+                                 CM::JobDeliveryState::Cancelled,
+                                 millis());
         webServer.send(409, "application/json", "{\"error\":\"sender_busy\"}");
         return;
     }
@@ -250,7 +328,7 @@ void handleCreateJob()
     jobAwaitingAck = true;
     String response = F("{\"accepted\":true,\"job_id\":"); response += job.jobId;
     response += F(",\"session_id\":"); response += job.sessionId;
-    response += F(",\"snapshot_saved\":true");
+    response += F(",\"snapshot_saved\":true,\"state_saved\":true");
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);
 }
@@ -281,11 +359,44 @@ void configureWebServer()
     webServer.begin();
 }
 
+CM::JobDeliveryState deliveryStateFor(CM::JobDeliveryResult result)
+{
+    switch (result)
+    {
+        case CM::JobDeliveryResult::Accepted:
+            return CM::JobDeliveryState::Accepted;
+        case CM::JobDeliveryResult::Rejected:
+            return CM::JobDeliveryState::Rejected;
+        case CM::JobDeliveryResult::TimedOut:
+            return CM::JobDeliveryState::TimedOut;
+        case CM::JobDeliveryResult::Cancelled:
+            return CM::JobDeliveryState::Cancelled;
+        case CM::JobDeliveryResult::None:
+        default:
+            return CM::JobDeliveryState::Delivering;
+    }
+}
+
 void processJobDelivery()
 {
     CM::JobDeliveryEvent delivery;
     while (receiver.takeJobDelivery(delivery))
     {
+        const uint32_t sessionId = activeSessionId;
+        if (sessionId == 0UL || delivery.jobId != activeJobId ||
+            delivery.result == CM::JobDeliveryResult::None ||
+            !jobStateStoreReady ||
+            !jobStates.updateDelivery(sessionId,
+                                      deliveryStateFor(delivery.result),
+                                      millis()))
+        {
+            jobStateStoreReady = false;
+            jobAwaitingAck = false;
+            lastJobResult = CM::JobDeliveryResult::Rejected;
+            Serial.println(F("ERROR: job delivery state persistence failed"));
+            continue;
+        }
+
         activeJobId = delivery.jobId;
         lastJobResult = delivery.result;
         jobAwaitingAck = false;
@@ -306,6 +417,7 @@ void setup()
     journalReady = sdReady && journal.begin();
     idAllocatorReady = sdReady && idAllocator.begin();
     jobSnapshotStoreReady = sdReady && jobSnapshots.begin();
+    jobStateStoreReady = sdReady && jobStates.begin();
     warehouseReady = sdReady && warehouse.begin();
     WiFi.mode(WIFI_AP);
     const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);
@@ -314,6 +426,7 @@ void setup()
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
+    Serial.println(jobStateStoreReady ? F("persistent job runtime state store ready") : F("WARNING: job state store unavailable; job creation blocked"));
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));

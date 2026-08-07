@@ -1,7 +1,5 @@
 #include "CM_JobSnapshotStore.h"
 
-#include <stdlib.h>
-
 namespace CM
 {
 JobLinkage::JobLinkage()
@@ -289,19 +287,38 @@ bool JobSnapshotStore::findUnsigned(const String& input,
 {
     value = 0UL;
     const String marker = String('"') + key + F("\":");
-    int start = input.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
+    const int position = input.indexOf(marker);
+    if (position < 0 ||
+        input.indexOf(marker, position + marker.length()) >= 0)
+    {
+        return false;
+    }
 
-    int end = start;
-    while (end < input.length() && isDigit(input[end])) ++end;
-    if (end == start) return false;
+    int cursor = position + marker.length();
+    while (cursor < input.length() && input[cursor] == ' ') ++cursor;
+    if (cursor >= input.length() || !isDigit(input[cursor])) return false;
+    if (input[cursor] == '0' && cursor + 1 < input.length() &&
+        isDigit(input[cursor + 1]))
+    {
+        return false;
+    }
 
-    const String number = input.substring(start, end);
-    char* parseEnd = nullptr;
-    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
-    if (parseEnd == nullptr || *parseEnd != '\0') return false;
-    value = static_cast<uint32_t>(parsed);
+    uint32_t parsed = 0UL;
+    while (cursor < input.length() && isDigit(input[cursor]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(input[cursor] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++cursor;
+    }
+    while (cursor < input.length() && input[cursor] == ' ') ++cursor;
+    if (cursor >= input.length() ||
+        (input[cursor] != ',' && input[cursor] != '}'))
+    {
+        return false;
+    }
+
+    value = parsed;
     return true;
 }
 
@@ -313,24 +330,47 @@ bool JobSnapshotStore::findNullableUnsigned(const String& input,
     hasValue = false;
     value = 0UL;
     const String marker = String('"') + key + F("\":");
-    int start = input.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
-
-    if (input.substring(start, start + 4) == "null") return true;
-
-    int end = start;
-    while (end < input.length() && isDigit(input[end])) ++end;
-    if (end == start) return false;
-
-    const String number = input.substring(start, end);
-    char* parseEnd = nullptr;
-    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
-    if (parseEnd == nullptr || *parseEnd != '\0' || parsed == 0UL)
+    const int position = input.indexOf(marker);
+    if (position < 0 ||
+        input.indexOf(marker, position + marker.length()) >= 0)
+    {
         return false;
+    }
+
+    int cursor = position + marker.length();
+    while (cursor < input.length() && input[cursor] == ' ') ++cursor;
+    if (input.substring(cursor, cursor + 4) == "null")
+    {
+        cursor += 4;
+        while (cursor < input.length() && input[cursor] == ' ') ++cursor;
+        return cursor < input.length() &&
+               (input[cursor] == ',' || input[cursor] == '}');
+    }
+
+    if (cursor >= input.length() || !isDigit(input[cursor])) return false;
+    if (input[cursor] == '0' && cursor + 1 < input.length() &&
+        isDigit(input[cursor + 1]))
+    {
+        return false;
+    }
+
+    uint32_t parsed = 0UL;
+    while (cursor < input.length() && isDigit(input[cursor]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(input[cursor] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++cursor;
+    }
+    while (cursor < input.length() && input[cursor] == ' ') ++cursor;
+    if (parsed == 0UL || cursor >= input.length() ||
+        (input[cursor] != ',' && input[cursor] != '}'))
+    {
+        return false;
+    }
 
     hasValue = true;
-    value = static_cast<uint32_t>(parsed);
+    value = parsed;
     return true;
 }
 
@@ -340,14 +380,27 @@ bool JobSnapshotStore::findString(const String& input,
 {
     value = String();
     const String marker = String('"') + key + F("\":\"");
-    int start = input.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
+    const int position = input.indexOf(marker);
+    if (position < 0 ||
+        input.indexOf(marker, position + marker.length()) >= 0)
+    {
+        return false;
+    }
 
-    const int end = input.indexOf('"', start);
-    if (end < 0 || end == start) return false;
-    value = input.substring(start, end);
-    return true;
+    int cursor = position + marker.length();
+    while (cursor < input.length())
+    {
+        const char ch = input[cursor++];
+        if (ch == '"')
+        {
+            while (cursor < input.length() && input[cursor] == ' ') ++cursor;
+            return value.length() > 0U && cursor < input.length() &&
+                   (input[cursor] == ',' || input[cursor] == '}');
+        }
+        if (ch == '\\' || static_cast<uint8_t>(ch) < 0x20U) return false;
+        value += ch;
+    }
+    return false;
 }
 
 bool JobSnapshotStore::findTurns(const String& input,
@@ -357,38 +410,50 @@ bool JobSnapshotStore::findTurns(const String& input,
     if (expectedCount == 0U || turns == nullptr) return false;
 
     const String marker = F("\"turns\":[");
-    int start = input.indexOf(marker);
-    if (start < 0) return false;
-    start += marker.length();
-
-    const int arrayEnd = input.indexOf(']', start);
-    if (arrayEnd < 0) return false;
-
-    uint8_t count = 0U;
-    int cursor = start;
-    while (cursor < arrayEnd)
+    const int position = input.indexOf(marker);
+    if (position < 0 ||
+        input.indexOf(marker, position + marker.length()) >= 0)
     {
-        if (count >= expectedCount) return false;
+        return false;
+    }
 
-        int valueEnd = cursor;
-        while (valueEnd < arrayEnd && isDigit(input[valueEnd])) ++valueEnd;
-        if (valueEnd == cursor) return false;
-
-        const String number = input.substring(cursor, valueEnd);
-        char* parseEnd = nullptr;
-        const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
-        if (parseEnd == nullptr || *parseEnd != '\0' ||
-            parsed == 0UL || parsed > MaxTurnsPerCoil)
+    int cursor = position + marker.length();
+    uint8_t count = 0U;
+    while (cursor < input.length())
+    {
+        if (count >= expectedCount || !isDigit(input[cursor])) return false;
+        if (input[cursor] == '0' && cursor + 1 < input.length() &&
+            isDigit(input[cursor + 1]))
         {
             return false;
         }
 
+        uint32_t parsed = 0UL;
+        while (cursor < input.length() && isDigit(input[cursor]))
+        {
+            const uint8_t digit = static_cast<uint8_t>(input[cursor] - '0');
+            if (parsed > (MaxTurnsPerCoil - digit) / 10UL) return false;
+            parsed = parsed * 10UL + digit;
+            ++cursor;
+        }
+        if (parsed == 0UL || parsed > MaxTurnsPerCoil) return false;
         turns[count++] = static_cast<uint16_t>(parsed);
-        if (valueEnd == arrayEnd) break;
-        if (input[valueEnd] != ',') return false;
-        cursor = valueEnd + 1;
+
+        if (cursor >= input.length()) return false;
+        if (input[cursor] == ',')
+        {
+            ++cursor;
+            continue;
+        }
+        if (input[cursor] == ']')
+        {
+            ++cursor;
+            return count == expectedCount && cursor < input.length() &&
+                   (input[cursor] == ',' || input[cursor] == '}');
+        }
+        return false;
     }
 
-    return count == expectedCount;
+    return false;
 }
 }

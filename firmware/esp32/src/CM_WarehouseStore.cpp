@@ -11,6 +11,7 @@ bool WarehouseStore::begin()
 {
     m_ready = ensureDirectories();
     if (m_ready) m_ready = recoverSpoolFileSwap();
+    if (m_ready) m_ready = recoverPendingWriteOff();
     return m_ready;
 }
 
@@ -325,7 +326,7 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
         }
 
         if (type != "WRITE_OFF") continue;
-        if (status == "PENDING") continue;
+        if (status == "PENDING" || status == "ABORTED") continue;
         if (status != "CONFIRMED")
         {
             file.close();

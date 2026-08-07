@@ -2,23 +2,6 @@
 
 namespace CM
 {
-namespace
-{
-bool optionalStringFieldValid(const String& line,
-                              const char* key,
-                              String& value,
-                              bool (*findStringFn)(const String&, const char*, String&))
-{
-    const String marker = String("\"") + key + F("\":");
-    if (line.indexOf(marker) < 0)
-    {
-        value = String();
-        return true;
-    }
-    return findStringFn(line, key, value);
-}
-}
-
 bool WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
                                              uint8_t capacity,
                                              uint8_t& count) const
@@ -52,6 +35,7 @@ bool WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
         String wireType;
         String optional;
 
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
         if (!line.startsWith("{") || !line.endsWith("}") ||
             !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
             spoolId <= previousSpoolId ||
@@ -59,19 +43,32 @@ bool WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
             diameter == 0UL || diameter > 0xFFFFUL ||
             !findUnsigned(line, "current_weight_g", weight) ||
             !findString(line, "status", status) ||
-            !optionalStringFieldValid(line, "wire_type", wireType, findString) ||
-            (!wireType.isEmpty() && wireType != "CU" && wireType != "AL") ||
-            !optionalStringFieldValid(line, "manufacturer", optional, findString) ||
-            !optionalStringFieldValid(line, "supplier", optional, findString) ||
-            !optionalStringFieldValid(line, "batch", optional, findString) ||
-            !optionalStringFieldValid(line, "storage_location", optional, findString) ||
-            !optionalStringFieldValid(line, "comment", optional, findString))
+            (hasWireType &&
+             (!findString(line, "wire_type", wireType) ||
+              (wireType != "CU" && wireType != "AL"))))
         {
             file.close();
             count = 0U;
             return false;
         }
         previousSpoolId = spoolId;
+
+        const char* optionalKeys[] = {
+            "manufacturer", "supplier", "batch", "storage_location", "comment"
+        };
+        for (uint8_t keyIndex = 0U;
+             keyIndex < sizeof(optionalKeys) / sizeof(optionalKeys[0]);
+             ++keyIndex)
+        {
+            const String marker = String("\"") + optionalKeys[keyIndex] + F("\":");
+            if (line.indexOf(marker) >= 0 &&
+                !findString(line, optionalKeys[keyIndex], optional))
+            {
+                file.close();
+                count = 0U;
+                return false;
+            }
+        }
 
         uint8_t index = count;
         for (uint8_t i = 0U; i < count; ++i)

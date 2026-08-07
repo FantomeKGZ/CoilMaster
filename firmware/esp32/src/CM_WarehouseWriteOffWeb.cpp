@@ -1,4 +1,6 @@
 #include "CM_WarehouseWeb.h"
+#include <SD.h>
+#include "CM_RepairLifecycle.h"
 
 namespace CM
 {
@@ -124,6 +126,20 @@ void WarehouseWeb::handleConfirmWriteOff()
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"repair_not_found\"}");
+        return;
+    }
+
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(SD, repairId, repairOpen))
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_lifecycle_unavailable\"}");
+        return;
+    }
+    if (!repairOpen)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_closed\",\"write_performed\":false}");
         return;
     }
 

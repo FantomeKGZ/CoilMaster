@@ -47,15 +47,37 @@ void ConductorCalculatorWeb::handleCalculate()
     ConversionSettings settings;
     if (!m_warehouse.loadConversionSettings(settings))
     {
-        m_server.send(409, "application/json; charset=utf-8",
-                      "{\"error\":\"calculator_not_configured\"}");
+        if (!m_warehouse.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"calculator_not_configured\"}");
+        }
         return;
     }
 
     KnownWireDiameter known[WarehouseMaxDiameters];
     const char* targetWireType = materialText(targetMaterial);
-    const uint8_t knownCount = m_warehouse.loadKnownWireDiameters(
-        targetWireType, known, WarehouseMaxDiameters);
+    uint8_t knownCount = 0U;
+    if (!m_warehouse.loadKnownWireDiameters(
+            targetWireType, known, WarehouseMaxDiameters, knownCount))
+    {
+        if (!m_warehouse.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"wire_catalogue_read_failed\"}");
+        }
+        return;
+    }
     if (knownCount == 0U)
     {
         String error = F("{\"error\":\"wire_catalogue_empty_for_material\",\"target_material\":\"");
@@ -139,16 +161,23 @@ bool ConductorCalculatorWeb::parseUnsignedArg(WebServer& server,
                                                uint32_t maximum,
                                                uint32_t& value)
 {
+    value = 0UL;
     if (name == nullptr || !server.hasArg(name)) return false;
     const String source = server.arg(name);
     if (source.length() == 0U) return false;
+    if (source.length() > 1U && source[0] == '0') return false;
+
+    uint32_t parsed = 0UL;
     for (size_t i = 0U; i < source.length(); ++i)
     {
         if (!isDigit(source[i])) return false;
+        const uint8_t digit = static_cast<uint8_t>(source[i] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
     }
-    const unsigned long parsed = strtoul(source.c_str(), nullptr, 10);
+
     if (parsed < minimum || parsed > maximum) return false;
-    value = static_cast<uint32_t>(parsed);
+    value = parsed;
     return true;
 }
 

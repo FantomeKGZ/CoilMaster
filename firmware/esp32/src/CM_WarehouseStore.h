@@ -29,7 +29,9 @@ public:
     bool repairExists(uint32_t repairId,bool& found) const;
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
     bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams,uint64_t& totalConsumedValueMinor,WriteOffMaterialTotals& materialTotals) const;
-    bool setWarehousePrice(const WarehousePrice& price); bool loadWarehousePrice(WarehousePrice& price) const;
+    bool setWarehousePrice(const WarehousePrice& price);
+    bool loadWarehousePrice(WarehousePrice& price) const;
+    bool loadWarehousePrice(WarehousePrice& price,bool& configured) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;
     bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,uint16_t& appendedCount) const;

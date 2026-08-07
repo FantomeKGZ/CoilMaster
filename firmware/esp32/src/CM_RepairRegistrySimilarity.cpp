@@ -1,4 +1,5 @@
 #include "CM_RepairRegistry.h"
+#include "CM_WindingProgramParser.h"
 
 namespace CM
 {
@@ -10,16 +11,15 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
     sameProgramCount = 0U;
     identityMatchCount = 0U;
     if (!m_ready) return false;
+    if (!WindingProgramParser::valid(candidate.coilProgram)) return false;
     if (!m_storage.exists(MotorsPath)) return true;
 
     String candidateName = candidate.name;
     String candidateModel = candidate.model;
     String candidateManufacturer = candidate.manufacturer;
-    String candidateProgram = candidate.coilProgram;
     candidateName.trim(); candidateName.toLowerCase();
     candidateModel.trim(); candidateModel.toLowerCase();
     candidateManufacturer.trim(); candidateManufacturer.toLowerCase();
-    candidateProgram.trim();
 
     File file = m_storage.open(MotorsPath, FILE_READ);
     if (!file) return false;
@@ -29,9 +29,11 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
     {
         const String line = file.readStringUntil('\n');
         String program;
-        if (!findString(line, "coil_program", program)) continue;
-        program.trim();
-        if (program != candidateProgram) continue;
+        if (!findString(line, "coil_program", program) ||
+            !WindingProgramParser::equivalent(program, candidate.coilProgram))
+        {
+            continue;
+        }
 
         ++sameProgramCount;
         String name, model, manufacturer;

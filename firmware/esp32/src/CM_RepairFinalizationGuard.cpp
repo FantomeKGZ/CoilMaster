@@ -1,6 +1,7 @@
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_RepairCosting.h"
 #include "CM_WindingJournalQuery.h"
+#include "CM_WindingJournalTransitionAudit.h"
 
 namespace CM
 {
@@ -82,6 +83,13 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
             return RepairFinalizationCheck::IntegrityFailed;
         cursor = nextCursor;
     }
+
+    const WindingJournalTransitionAuditResult transitionAudit =
+        WindingJournalTransitionAudit::validate(storage);
+    if (transitionAudit == WindingJournalTransitionAuditResult::StorageUnavailable)
+        return RepairFinalizationCheck::StorageUnavailable;
+    if (transitionAudit != WindingJournalTransitionAuditResult::Ok)
+        return RepairFinalizationCheck::IntegrityFailed;
 
     return RepairFinalizationCheck::Ready;
 }

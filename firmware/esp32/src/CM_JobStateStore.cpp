@@ -28,14 +28,19 @@ bool JobStateStore::begin()
 
 bool JobStateStore::isReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File directory = m_fileSystem.open(StateDirectory, FILE_READ);
+    if (!directory) return false;
+    const bool ready = directory.isDirectory();
+    directory.close();
+    return ready;
 }
 
 bool JobStateStore::create(uint32_t jobId,
                            uint32_t sessionId,
                            uint32_t nowMs)
 {
-    if (!m_ready || jobId == 0UL || sessionId == 0UL ||
+    if (!isReady() || jobId == 0UL || sessionId == 0UL ||
         m_fileSystem.exists(statePath(sessionId)))
     {
         return false;
@@ -51,7 +56,7 @@ bool JobStateStore::create(uint32_t jobId,
 bool JobStateStore::load(uint32_t sessionId, JobRuntimeState& state) const
 {
     state = JobRuntimeState();
-    if (!m_ready || sessionId == 0UL) return false;
+    if (!isReady() || sessionId == 0UL) return false;
 
     File file = m_fileSystem.open(statePath(sessionId), FILE_READ);
     if (!file) return false;
@@ -65,7 +70,7 @@ bool JobStateStore::loadLatest(JobRuntimeState& state, bool& found) const
 {
     state = JobRuntimeState();
     found = false;
-    if (!m_ready) return false;
+    if (!isReady()) return false;
 
     File directory = m_fileSystem.open(StateDirectory);
     if (!directory || !directory.isDirectory())
@@ -208,7 +213,7 @@ String JobStateStore::tempPath(uint32_t sessionId) const
 
 bool JobStateStore::writeAtomic(const JobRuntimeState& state)
 {
-    if (!m_ready || state.jobId == 0UL || state.sessionId == 0UL)
+    if (!isReady() || state.jobId == 0UL || state.sessionId == 0UL)
         return false;
 
     String output;

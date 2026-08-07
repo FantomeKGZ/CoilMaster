@@ -12,15 +12,17 @@ class BackupExportWeb
 public:
     BackupExportWeb(WebServer& server, fs::FS& storage);
 
+    // Compatibility registration path. Production wiring may register these
+    // handlers through an external activity guard instead.
     void begin();
     bool ready() const;
 
-private:
     void handleManifest();
     void handleFile();
     void handleSessions();
     void handleSessionFile();
 
+private:
     WebServer& m_server;
     fs::FS& m_storage;
 };

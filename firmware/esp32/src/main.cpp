@@ -4,6 +4,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "CM_PersistentIdAllocator.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
 #include "CM_WarehouseStore.h"
@@ -27,13 +28,12 @@ constexpr uint16_t MaxTurnsPerCoil = 9999U;
 HardwareSerial arduinoSerial(2);
 CM::UartEventReceiver receiver(arduinoSerial);
 CM::WindingJournal journal(SD);
+CM::PersistentIdAllocator idAllocator(SD);
 CM::WarehouseStore warehouse(SD);
 WebServer webServer(80);
 CM::StaticSiteServer staticSites(webServer, SD);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
 
-uint32_t nextJobId = 1UL;
-uint32_t nextSessionId = 1000UL;
 uint32_t activeJobId = 0UL;
 uint32_t activeSessionId = 0UL;
 uint32_t lastRunId = 0UL;
@@ -46,6 +46,7 @@ CM::JobDeliveryResult lastJobResult = CM::JobDeliveryResult::None;
 bool jobAwaitingAck = false;
 bool runActive = false;
 bool journalReady = false;
+bool idAllocatorReady = false;
 bool warehouseReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
@@ -68,6 +69,8 @@ const char* jobStatusText()
     {
         case CM::JobDeliveryResult::Accepted: return "ACCEPTED_READY";
         case CM::JobDeliveryResult::Rejected: return "REJECTED";
+        case CM::JobDeliveryResult::TimedOut: return "TIMED_OUT";
+        case CM::JobDeliveryResult::Cancelled: return "CANCELLED";
         case CM::JobDeliveryResult::None:
         default: return "IDLE";
     }
@@ -124,6 +127,9 @@ void handleEvent(const CM::RemoteWindingEvent& event)
         case CM::JournalSaveResult::StorageUnavailable:
             receiver.sendNack(event.runId, "STORAGE_UNAVAILABLE");
             break;
+        case CM::JournalSaveResult::InvalidTransition:
+            receiver.sendNack(event.runId, "INVALID_TRANSITION");
+            break;
         case CM::JournalSaveResult::WriteFailed:
         default:
             receiver.sendNack(event.runId, "WRITE_FAILED");
@@ -172,6 +178,9 @@ void sendJsonStatus()
     response += F(",\"arduino_ack_pending\":"); response += jobAwaitingAck ? F("true") : F("false");
     response += F(",\"arduino_online\":"); response += arduinoOnline ? F("true") : F("false");
     response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");
+    response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
+    response += F(",\"last_allocated_job_id\":"); response += idAllocator.lastJobId();
+    response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
     response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
     response += F(",\"web_storage_ready\":"); response += staticSites.storageReady() ? F("true") : F("false");
     response += F("}");
@@ -185,20 +194,34 @@ void handleCreateJob()
         webServer.send(400, "application/json", "{\"error\":\"turns_required\"}");
         return;
     }
+
     CM::OutgoingWindingJob job;
-    job.jobId = nextJobId++;
-    job.sessionId = nextSessionId++;
     job.type = webServer.arg("type") == "starting" ? CM::RemoteJobType::Starting : CM::RemoteJobType::Working;
     if (!parseTurns(webServer.arg("turns"), job))
     {
         webServer.send(400, "application/json", "{\"error\":\"invalid_turns\"}");
         return;
     }
+
+    if (!idAllocatorReady || !idAllocator.isReady())
+    {
+        webServer.send(503, "application/json", "{\"error\":\"id_allocator_unavailable\"}");
+        return;
+    }
+
+    if (!idAllocator.allocate(job.jobId, job.sessionId))
+    {
+        idAllocatorReady = false;
+        webServer.send(503, "application/json", "{\"error\":\"id_persistence_failed\"}");
+        return;
+    }
+
     if (!receiver.queueJob(job))
     {
         webServer.send(409, "application/json", "{\"error\":\"sender_busy\"}");
         return;
     }
+
     activeJobId = job.jobId;
     activeSessionId = job.sessionId;
     activeJobType = job.type;
@@ -210,6 +233,7 @@ void handleCreateJob()
     lastJobResult = CM::JobDeliveryResult::None;
     jobAwaitingAck = true;
     String response = F("{\"accepted\":true,\"job_id\":"); response += job.jobId;
+    response += F(",\"session_id\":"); response += job.sessionId;
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);
 }
@@ -251,7 +275,7 @@ void processJobDelivery()
         lastArduinoEventMs = millis();
         Serial.print(F("JOB_ACK id=")); Serial.print(delivery.jobId);
         Serial.print(F(" result="));
-        Serial.println(delivery.result == CM::JobDeliveryResult::Accepted ? F("ACCEPTED_READY") : F("REJECTED"));
+        Serial.println(delivery.result == CM::JobDeliveryResult::Accepted ? F("ACCEPTED_READY") : F("NOT_ACCEPTED"));
     }
 }
 }
@@ -263,12 +287,14 @@ void setup()
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);
     const bool sdReady = SD.begin(SdCsPin, SPI);
     journalReady = sdReady && journal.begin();
+    idAllocatorReady = sdReady && idAllocator.begin();
     warehouseReady = sdReady && warehouse.begin();
     WiFi.mode(WIFI_AP);
     const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);
     configureWebServer();
     Serial.println(F("CoilMaster ESP32 web portal ready"));
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
+    Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));

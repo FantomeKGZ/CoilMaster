@@ -3,9 +3,11 @@
 namespace CM
 {
 bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
-                                                String& currency) const
+                                                String& currency,
+                                                bool& found) const
 {
     currency = String();
+    found = false;
     if (!ready() || materialId == 0UL || !m_storage.exists(MaterialsPath))
         return false;
 
@@ -13,7 +15,6 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
     if (!file) return false;
 
     uint32_t previousId = 0UL;
-    bool found = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -34,6 +35,7 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
         {
             file.close();
             currency = String();
+            found = false;
             return false;
         }
         previousId = currentId;
@@ -45,6 +47,7 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
             {
                 file.close();
                 currency = String();
+                found = false;
                 return false;
             }
         }
@@ -54,6 +57,7 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
         {
             file.close();
             currency = String();
+            found = false;
             return false;
         }
         found = true;
@@ -61,6 +65,13 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
     }
 
     file.close();
-    return found;
+    return true;
+}
+
+bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
+                                                String& currency) const
+{
+    bool found = false;
+    return loadActiveMaterialCurrency(materialId, currency, found) && found;
 }
 }

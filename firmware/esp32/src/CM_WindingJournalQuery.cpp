@@ -80,11 +80,32 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U)
+        {
+            file.close();
+            return WindingJournalQueryResult::ReadFailed;
+        }
+
+        uint32_t schemaVersion = 0UL;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            (schemaVersion != 1UL && schemaVersion != 2UL))
+        {
+            file.close();
+            return WindingJournalQueryResult::ReadFailed;
+        }
+
+        // Legacy schema 1 records predate immutable repair/motor context and
+        // therefore cannot be exposed through the strict history API.
+        if (schemaVersion == 1UL) continue;
+
         uint32_t lineSessionId = 0UL;
         uint32_t lineRepairId = 0UL;
         bool linked = false;
         if (!isValidSchema2Record(line, lineSessionId, linked, lineRepairId))
-            continue;
+        {
+            file.close();
+            return WindingJournalQueryResult::ReadFailed;
+        }
 
         const bool matches = sessionId != 0UL
             ? lineSessionId == sessionId

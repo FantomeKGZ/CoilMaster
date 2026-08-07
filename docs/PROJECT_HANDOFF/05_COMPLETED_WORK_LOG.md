@@ -1,487 +1,438 @@
 # Журнал выполненных работ
 
-Этот файл содержит укрупнённую историю реализации ветки `cmp-protocol-v1`.
+Дата актуализации: 2026-08-07  
+Ветка: `cmp-protocol-v1`
 
-Для точного diff использовать историю GitHub и тематические документы в `docs/`.
+Этот файл — укрупнённая карта уже выполненной работы. Для точного diff и полного списка промежуточных коммитов использовать историю GitHub и тематические документы в `docs/`.
 
-## 1. Аппаратная проверка
+## 1. Аппаратная часть и базовый обмен
 
-Выполнено до основной программной интеграции:
+Проверены пользователем:
 
-- проверены модули ESP32;
-- проверены DS3231 и microSD;
-- проверены модули Arduino;
-- проверен UART Arduino ↔ ESP32;
-- проверен преобразователь логических уровней;
-- подтверждена работоспособность обмена данными.
+- основные модули ESP32;
+- DS3231;
+- microSD;
+- Arduino Uno и связанные модули;
+- level shifter;
+- UART ESP32 ↔ Arduino.
 
-Статус: `USER CONFIRMED`.
+Статус аппаратной проверки и базового обмена: `USER CONFIRMED`.
 
-## 2. Архитектура станка
+## 2. Архитектура безопасности
 
-Зафиксировано разделение:
+Зафиксировано и реализуется последовательно:
 
-- Arduino — реальное время, SSR, Холл, клавиатура, START и buzzer;
-- ESP32 — веб, хранилище, ремонт, склад, калькуляция и доставка задания;
-- удалённое прямое управление SSR запрещено;
-- физический START обязателен для каждой катушки;
-- одновременно выполняется одна программа.
+- Arduino отвечает за реальное время, SSR и физический цикл намотки;
+- ESP32 отвечает за web, storage, workshop и доставку job;
+- ESP32/WEB не включают SSR напрямую;
+- физический START остаётся обязательным;
+- автоматический resume после reboot запрещён;
+- одновременно исполняется одна программа.
 
-Статус: `APPROVED`.
-
-## 3. Реестр клиентов, двигателей и ремонтов
-
-Реализованы:
-
-- API клиентов;
-- API двигателей;
-- API ремонтов;
-- поля производителя, модели, тегов, программы катушек и комментария;
-- выбор двигателя при создании ремонта;
-- сохранение выбранного двигателя в UI.
-
-Ключевые коммиты выбора ремонта:
-
-```text
-032ea3669c84b684d4cbf2f874f9ecef711a684f  mobile
-0770e01e8cddc6117d2d0bfb25a018a75e877500  desktop
-79d9f5e144aa2717949f16c3260f60ea027b0858  docs
-```
-
-## 4. Поиск похожих двигателей
+## 3. CMP/UART доставка задания
 
 Реализованы:
 
-- нормализация программы катушек;
-- оценка идентичности двигателя;
-- категории `LIKELY_SAME_MOTOR`, `POSSIBLE_ANALOGUE`, `SAME_PROGRAM_ONLY`;
-- API `/api/motors/similar`;
-- отображение в mobile и desktop UI;
-- предупреждающий, а не блокирующий режим создания.
+- строковый протокол `CMP1|...`;
+- строгий parser полей;
+- bounded retry;
+- ACK/REJECT/TIMEOUT/CANCEL;
+- защита непрочитанного delivery result;
+- pending-job cancellation;
+- строгая job identity;
+- приём `RUN_STARTED` и `RUN_COMPLETED`.
 
-Ключевые документы:
+## 4. Persistent job identity
 
-```text
-docs по similarity и UI, завершённые коммитами
-69991d...
-8d1714...
-```
-
-Ограничение: это не точный детектор одинаковой полной обмотки.
-
-## 5. Серверные настройки калькулятора
-
-Реализовано:
-
-- сервер является источником настроек;
-- URL-переопределения игнорируются;
-- `settings_source: PERSISTED`;
-- ошибка `calculator_not_configured`;
-- документация `docs/51...`.
-
-Ключевые коммиты:
+Реализован устойчивый allocator:
 
 ```text
-2af671b... backend
-e2ada900... mobile
-462c042... desktop
+firmware/esp32/src/CM_PersistentIdAllocator.h
+firmware/esp32/src/CM_PersistentIdAllocator.cpp
 ```
 
-## 6. Материал провода CU/AL/UNKNOWN
-
-Реализовано:
-
-- канонические значения CU и AL;
-- нормализация русских и английских псевдонимов;
-- запрет отсутствующего материала для новых катушек;
-- старые записи без материала классифицируются как UNKNOWN;
-- UNKNOWN не превращается в CU автоматически.
-
-Ключевые коммиты:
+Хранилище:
 
 ```text
-fb2841ab... canonical material
-37f35d... aliases and validation
-a9fa48... docs/52
+/data/winding-jobs/id-state.txt
 ```
 
-## 7. Материал-зависимый каталог диаметров
+`job_id` и `session_id` больше не являются только RAM-счётчиками и переживают reboot.
 
-Реализовано:
+## 5. Immutable snapshot задания
 
-- отдельный каталог диаметров для CU и AL;
-- исключение UNKNOWN;
-- учёт активных остатков;
-- сохранение диаметра в каталоге даже при временно нулевом остатке;
-- ошибка `wire_catalogue_empty_for_material`.
-
-Ключевые коммиты:
+Реализованы:
 
 ```text
-738406...
-7da6d1...
-c605fbb...
-cbe96... docs/53
+CM_JobSnapshotStore.h/.cpp
+CM_JobDisplayRecovery.h/.cpp
 ```
 
-## 8. API и UI фильтрации катушек
+Snapshot хранит исходную identity/program/linkage задания и после создания не перезаписывается.
 
-Реализовано:
-
-- фильтры ALL/CU/AL/UNKNOWN;
-- фильтр активности;
-- фильтр диаметра;
-- сведения `material_class`;
-- mobile и desktop UI.
-
-Ключевые коммиты:
+Путь:
 
 ```text
-ce8fa...
-61430e...
-9675a...
-947366... mobile
-5ebb0f... desktop
-99fd55... docs/54
+/data/winding-jobs/snapshots/session-<session_id>.json
 ```
 
-## 9. Материальные сводки склада
+Parser snapshot усилен fail-closed: canonical numbers, duplicate-key rejection, строгий nullable linkage, program type и turns array.
 
-Реализовано:
+## 6. Persistent runtime-state и recovery
 
-- сводки CU/AL/UNKNOWN;
-- подтверждённые списания;
-- разрешение материала по движению с fallback к катушке;
-- UNKNOWN для неразрешимых старых данных;
-- mobile и desktop UI.
-
-Ключевые коммиты:
+Реализованы:
 
 ```text
-24e8a29...
-ccd356...
-b8f613...
-cbf465...
-7523a482... mobile
-bbb1f3e... desktop
+CM_JobStateStore.h/.cpp
+CM_JobRecovery.h/.cpp
 ```
 
-## 10. Снимок материала в списании
+Состояния доставки и выполнения сохраняются отдельно от snapshot.
 
-Реализовано сохранение `wire_type` в новых подтверждённых движениях.
-
-Был обнаружен и исправлен compile break из-за несовпадения заголовка и реализации:
+Путь:
 
 ```text
-3131966... initial header change, failed
-43a77f2... source fix, user confirmed green
-526b544... docs/56
+/data/winding-jobs/state/session-<session_id>.json
 ```
 
-## 11. Назначение материала старым катушкам
+Реализованы:
 
-Реализовано однократное назначение CU или AL активной старой катушке без `wire_type`.
+- atomic temp/write/verify/rename;
+- strict state transitions;
+- `loadLatest()`;
+- fail-closed на malformed state-файле;
+- snapshot identity cross-check;
+- manual review для опасных recovery-состояний;
+- `CLOSED_AFTER_REVIEW`;
+- `POST /api/recovery/acknowledge`;
+- `automatic_queue_allowed=false`;
+- `automatic_resume_allowed=false`.
 
-Ключевые коммиты:
+## 7. Linked repair/motor job
+
+Реализованы:
 
 ```text
-d96f837...
-ce3139d...
-7fe8d31...
-6bebe6e...
-80dd9ee... docs
-b21d868... mobile
-076aee4... desktop
-620ccf2... UI docs
+CM_JobLinkageRequest.h/.cpp
+CM_JobLinkageResolver.h/.cpp
 ```
 
-Статус: пользователь подтверждал зелёную сборку.
-
-## 12. Материал и стоимость в ответе списания
-
-Реализовано:
-
-- `wireType` в результате списания;
-- материал в POST-ответе;
-- сохранённая цена;
-- отображение в интерфейсе.
-
-Ключевые коммиты:
+`POST /api/jobs` поддерживает строго связанный режим:
 
 ```text
-bb509ff...
-2cc5bff...
-c0e89cd...
-1f5cbc...
+repair_id + motor_id
 ```
 
-## 13. UI списания провода на ремонт
+Перед выделением job/session ID сервер:
 
-Реализовано:
+- проверяет оба ID;
+- проверяет repair → motor;
+- находит motor в каталоге;
+- получает authoritative `coil_program`;
+- сравнивает submitted turns с программой двигателя;
+- fail-closed при ambiguity/corruption.
 
-- выбор ремонта и катушки;
-- фильтры материала;
-- диаметр, масса и остаток;
-- блокировка UNKNOWN;
-- проверка входных значений;
-- сообщение об успешном списании.
+## 8. Общий parser программы намотки
 
-Ключевые коммиты:
+Создан:
 
 ```text
-9d0ad1... mobile
-08218cb... desktop
-6676ebe... docs
+firmware/esp32/src/CM_WindingProgramParser.h
 ```
 
-## 14. История списаний ремонта
+Используется job creation, RepairRegistry, similarity и web UI.
 
-Реализован GET истории подтверждённых списаний выбранного ремонта.
+Правила:
 
-Возвращаются:
+- 1..10 сегментов;
+- 1..9999 витков;
+- `/`, `,`, `;` как разделители;
+- пробелы игнорируются;
+- leading zero и пустые сегменты запрещены;
+- canonical representation `N/N/...`.
 
-- движение;
-- катушка;
-- ремонт;
-- материал;
-- диаметр;
-- массы;
-- цена;
-- валюта;
-- timestamp;
-- комментарий.
+## 9. Реестр клиентов, двигателей и ремонтов
 
-Ключевые коммиты:
+Реализованы:
 
 ```text
-5075b9...
-749aa2...
-32e81d...
-90338e...
-00fa263... docs/61
-704b347f... mobile
-4dc93ef... desktop
-f6cfe3e... docs/62
+CM_RepairRegistry.h/.cpp
+CM_RepairRegistryWeb.h/.cpp
+CM_RepairRegistrySimilarity.cpp
+CM_MotorSimilarityWeb.h/.cpp
 ```
 
-## 15. Серверные итоги списаний по материалу
-
-Реализовано:
-
-- масса и число строк CU/AL/UNKNOWN;
-- `material_totals_source: SERVER`;
-- контроль массы и количества.
-
-Ключевые коммиты:
+API:
 
 ```text
-cd6aea6c0fdac7fb2360e63e8d1cd386517b0287
-71fae861f5f417433d41f32818c5db90b472fcc6
-18e88e3b790b2dca2cde78651373b4a62772e799 mobile
-ce0e1738a3e4371ddec3ce89fa4f6b7e2d4ab20d desktop
-4ad094c3b72fcc25e4d3453d66da1bb79284713b docs/64
+GET/POST /api/clients
+GET/POST /api/motors
+GET/POST /api/repairs
+GET      /api/motors/similar
 ```
 
-Статус: пользователь подтвердил зелёную сборку.
-
-## 16. Стоимость провода по материалам
-
-Реализовано разделение стоимости CU/AL/UNKNOWN и контроль суммы.
-
-Ключевые коммиты:
+Хранилище:
 
 ```text
-36fa97ae2edb78b383f8d78ce782ac00330cc5c0 backend
-bbd09142a200bea1e17597277417404da8e0bbca mobile
-dcde37f14b276105b7ddc86b2c77b4c56e898922 desktop
-aef91e41e64a90f83a8a1baf3b24a6a0917a0683 docs/65
+/data/workshop/clients.ndjson
+/data/workshop/motors.ndjson
+/data/workshop/repairs.ndjson
 ```
 
-## 17. Стоимость фактического списания провода
+Integrity guards:
 
-Реализовано:
+- unique canonical IDs;
+- repair references to exactly one client/motor;
+- valid stored `coil_program`;
+- canonical new `coil_program`;
+- duplicate string-field rejection;
+- partial-write fail-closed;
+- runtime storage readiness.
 
-- 64-битная стоимость;
-- округление к ближайшей минимальной единице;
-- `consumed_value_minor`;
-- общий итог стоимости;
-- стоимость по CU/AL/UNKNOWN;
-- `material_values_match_total`;
-- одинаковая формула в журнале и калькуляции.
+## 10. Similarity двигателей
 
-Ключевые коммиты:
+Реализовано предупреждение о похожих карточках.
+
+Сравнение `coil_program` теперь семантическое, поэтому:
 
 ```text
-29e183d0a07b20f50af88d2bb896a80d77ef7550 header
-c6dd6a9363b3b0c814bba7e64cc5aff6e8c3698b history
-d1e7d15be0422cc4bfb313cd2d01399e314065d8 web
-4741996fb57b6ce8c5c4348738268fcff89b071e costing
-ff10100502c4415c336400fb8a63bd7f997c36a3 docs/66
+100/200
+100,200
+100 ; 200
 ```
 
-Статус: пользователь явно подтвердил, что всё хорошо.
+трактуются как одна программа после parsing, а не как разные строки.
 
-UI стоимости списаний:
+Это не считается полным детектором одинаковой обмотки/аналога двигателя.
+
+## 11. Winding journal schema 2
+
+Журнал:
 
 ```text
-adf1b65805ef0a97d5b0aaa2f52c15f93cf4aab3 mobile
-e4191583aa9e4ae9cebc26385e43c34d106f3bf0 desktop
-1b558624455acaf08159f8489d0e14c073caacc1 docs/67
+/data/winding-runs/events.ndjson
 ```
 
-## 18. Целостность дополнительных материалов
-
-Реализовано:
-
-- проверка существования ремонта;
-- блокировка расхода на неизвестный ремонт;
-- источник исторической стоимости;
-- формула и политика округления;
-- проверка стоимости по формуле;
-- политика валюты KGS_ONLY;
-- предварительная проверка валюты материала;
-- проверки также перенесены в ядро `MaterialLedger`.
-
-Ключевые коммиты:
+Schema 2 содержит:
 
 ```text
-9aa3670... repair lookup declaration
-0e556ad... repair lookup implementation
-8778949... reject unknown repair
-8c90a04... docs/68
-1b4c141... cost provenance
-97d9496... docs/69
-8a20e92... formula metadata
-4b33b8a... docs/70
-0f3154b... value integrity
-ba98144... docs/71
-0b00fd3... currency lookup declaration
-66bf909... currency lookup implementation
-414f96d... preflight enforcement
-b7c7241... docs/72
-d1ead99... ledger core guards
-524a106... docs/73
+job_id
+session_id
+run_id
+event
+repair_id/motor_id или null
+completed_runs
+uptime_ms
 ```
 
-## 19. Журнал событий намотки
+Реализованы:
 
-Реализовано поэтапно:
+- composite event identity;
+- deduplication;
+- start-before-complete;
+- one active run per session;
+- monotonic run_id;
+- sequential completed_runs;
+- immutable session context;
+- strict canonical numeric/null parser;
+- duplicate-key rejection;
+- единственный `event`;
+- fail-closed scan при corruption.
 
-- дедупликация событий;
-- запрет завершения без запуска;
-- совпадение сессии;
-- последовательный `completed_runs`;
-- строгий разбор десятичных полей;
-- одна активная намотка в сессии;
-- завершение только активного запуска;
-- монотонный `run_id` в сессии.
-
-Ключевые коммиты:
+Последние writer-side commits:
 
 ```text
-21b1f9ce461075f3ee7c2571731550041bffd0a6 transition declaration
-7dc7e84b98be2003a00cc4645a59b94d5a7d7439 start-before-complete
-18972084dc6d88c183308967a020ae068f226825 docs/74
-c1725bca215aa404b5afc683a85c2ee7ce5a8756 strict parser declaration
-b21f2d0e2b1c6b4f3183f5aa673140492b196bf8 strict parser implementation
-dd965049da4dc3bbe86cd6864f1ffcbc7e707e87 docs/75
-d4ff546cdf198953d9a60d1f9c95941e73f1b8eb active run declaration
-4307809ac480dc3bb561baac4e8137caaf307d4c active run implementation
-adb3298eaeee26a591a7a3349fd6d15596547c52 docs/78
-ae58c1908d570f4489a0d58cd9167fd7e6b4c257 monotonic run declaration
-5d8dcea4800485f5dcecd8357fa43b96cfed5ff5 monotonic run implementation
+b33ff222617cce7ed1fd41a069a5bdeb8ff323d8
+a3b59cff66d48538cc38087c65c968346c86f54a
 ```
 
-Последние два коммита на момент создания исходного handoff требовали подтверждения сборкой.
+## 12. Read-only winding history
 
-## 20. Надёжность доставки задания
-
-Реализовано:
-
-- повтор каждые 2 секунды;
-- максимум 5 отправок;
-- `TimedOut`;
-- число попыток в результате;
-- строгие статусы `ACCEPTED` и `REJECTED`;
-- сохранение непрочитанного результата;
-- монотонный `job_id`;
-- отмена ожидающего задания;
-- деталь результата.
-
-Ключевые подтверждённые коммиты:
+Реализованы:
 
 ```text
-1bae7f679f7d80e119d1a341862613e09fc2ac00 retry declaration
-73dc12e8fac7f5d62b1175b08fd4d4629a6d8967 parser declaration fix
-083cf421bd90d37fd0bd35a15c71ccd283ec3c62 bounded retries
-44377b927c6e6b1cff63171b47a5dc3e9b4b45f docs/76
-41ee7da8088d2b81433988eb6eca75addf6fc802 unconsumed result guard
-a57c2b41064a1973e10ff72d0e6359a22bc0f942 docs/77
+CM_WindingJournalQuery.h/.cpp
+CM_WindingJournalWeb.h/.cpp
 ```
 
-Пользователь подтвердил зелёное состояние после защиты непрочитанного результата.
-
-## 21. Отложенные функции
-
-Отдельно зафиксированы в:
+API:
 
 ```text
-docs/46_DEFERRED_UNASSIGNED_WINDINGS_AND_ANALOGUE_MOTORS.md
+GET /api/winding-history
 ```
 
-Коммит:
+Фильтр — ровно один из:
 
 ```text
-d790bae05532b71f1a828be47ec1f2cb12c1f622
+session_id
+repair_id
 ```
 
-Они не должны случайно объявляться уже реализованными.
+Есть cursor pagination, `next_cursor`, `has_more` и fail-closed чтение corrupted schema 2.
 
-## 2026-08-06 — Составная идентичность события и семантика session_id
+Legacy schema 1 проверяется структурно, но не отдаётся новым API, потому что не содержит immutable repair/motor context.
 
-Цель:
-
-- сверить handoff с актуальным кодом ветки;
-- закрыть риск дедупликации только по `run_id`;
-- определить следующую точку разработки.
-
-Изменено:
-
-- подтверждено по актуальному коду, что `containsRunEvent()` уже принимает `sessionId`, `runId` и тип;
-- подтверждено, что `hasRunStart()` проверяет точную пару session/run;
-- создан документ составной идентичности события;
-- создан контракт семантики `session_id` для следующей реализации;
-- обновлены текущее состояние и точка продолжения.
-
-Файлы:
+UI:
 
 ```text
-docs/80_COMPOSITE_WINDING_EVENT_IDENTITY.md
-docs/81_WINDING_SESSION_ID_SEMANTICS.md
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
-docs/PROJECT_HANDOFF/05_COMPLETED_WORK_LOG.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+mobile/winding-history.html
+desktop/winding-history.html
 ```
 
-Коммиты:
+## 13. Runtime microSD readiness
+
+После boot критические компоненты больше не полагаются только на cached-ready флаг.
+
+Динамически проверяются:
+
+- winding journal;
+- ID allocator;
+- snapshot store;
+- state store;
+- winding history;
+- static site storage;
+- RepairRegistry;
+- JobLinkageResolver.
+
+При потере карты новое job блокируется до выделения ID/отправки UART.
+
+## 14. Lifecycle API и главные страницы
+
+`/api/status` теперь явно различает:
 
 ```text
-7235f1e7e54e8603191685035e38eaeb333fef2e  composite event identity
-0aa21ae9b3f6ee0fe5871eb500846d99732e882b  session semantics
-5d8fc943c2b0c82af98b9f945df6ccb4370e2659  current state
-c4d71262850e112386808857149a3f58b4ce1408  active next steps
+WAITING_ARDUINO_ACK
+ACCEPTED_READY
+RUNNING
+PROGRAM_COMPLETED
+REJECTED
+TIMED_OUT
+CANCELLED
+MANUAL_REVIEW_REQUIRED
 ```
 
-Проверка:
+Исправлено отображение завершённого job: после `RUN_COMPLETED` UI показывает завершение, а не старое `ACCEPTED_READY`.
 
-`NOT VERIFIED` — подключённый GitHub API не вернул workflow runs/status checks для прямых коммитов. Не заявлять GREEN до явной проверки `ESP32 Build` и `CMP Protocol Tests`.
+Обычная занятость текущим job больше не выдаётся как `manual_review_required`; используется `current_job_not_complete`.
 
-Ограничения:
+Mobile/desktop index обновлены под эти состояния.
 
-- устойчивый allocator `session_id` ещё не реализован;
-- неизменяемый job snapshot ещё не реализован;
-- текущий протокол событий ещё не связывает `RUN_STARTED/RUN_COMPLETED` с `job_id`.
+Последние UI commits:
 
-Следующий шаг:
+```text
+4e56ac07590be3eb44665b7a4f1f1c0fa39d5423
+0703f828163513007e2694af28467a684d0700b2
+```
 
-Найти фактический путь создания `OutgoingWindingJob`, существующий генератор `jobId/sessionId` и вызов `queueJob()`, затем спроектировать и реализовать минимальный устойчивый allocator без дублирования текущей логики.
+## 15. Linked winding UI
+
+Созданы mobile и desktop страницы связанной намотки:
+
+```text
+mobile/winding-job.html
+desktop/winding-job.html
+```
+
+Они:
+
+- получают `repair_id`;
+- загружают repair и motor;
+- показывают motor `coil_program` readonly;
+- отправляют repair_id + motor_id в `/api/jobs`;
+- не выполняют физический старт.
+
+## 16. Motor catalogue UI
+
+Mobile и desktop `motors.html`:
+
+- создают карточки двигателя;
+- ищут по каталогу;
+- вызывают similarity API;
+- предварительно валидируют программу;
+- канонизируют её в `N/N/...` до API.
+
+Коммиты последней UI-валидации:
+
+```text
+90841c8dc43fde2511a5180d528829ca0cc46d55
+b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
+```
+
+## 17. Склад провода
+
+Ранее реализованы и сохраняются:
+
+- CU/AL/UNKNOWN;
+- каталог диаметров;
+- катушки и остатки;
+- фильтры;
+- material summary;
+- confirmed write-off;
+- legacy material assignment;
+- repair write-off history;
+- server authoritative material totals;
+- saved price/value/currency metadata.
+
+Не начинать склад заново.
+
+## 18. Дополнительные материалы и калькуляция ремонта
+
+Ранее реализованы:
+
+- MaterialLedger;
+- material usage transactions;
+- crash recovery;
+- repair reference validation;
+- KGS currency policy;
+- cost provenance;
+- rounding/value integrity;
+- repair costing;
+- wire value split by CU/AL/UNKNOWN;
+- pricing revision/history/audit UI.
+
+Не начинать эти подсистемы заново.
+
+## 19. Conductor calculator
+
+Реализованы:
+
+- bidirectional Al ↔ Cu calculator core;
+- server-authoritative settings;
+- warehouse-aware catalogue/recommendations;
+- mobile/desktop calculator UI.
+
+Расширенный генератор/справочник может развиваться отдельно, но существующий calculator не является пустым местом.
+
+## 20. CI
+
+В ветке присутствуют:
+
+```text
+.github/workflows/esp32-build.yml
+.github/workflows/arduino-uno-build.yml
+.github/workflows/cmp-protocol-tests.yml
+```
+
+Пользователь 2026-08-07 подтвердил зелёными проверенные им предыдущие коммиты. Документация не должна использоваться как доказательство GREEN для последующих commits; при наличии доступа сверять фактический Actions run.
+
+## 21. Текущая точка после выполненного
+
+Инфраструктура full winding flow в основном собрана. Следующий участок — не новый storage/parser, а пользовательская цепочка ремонта:
+
+```text
+client
+→ motor
+→ repair
+→ linked winding
+→ physical run
+→ winding history
+```
+
+Начать с актуальных:
+
+```text
+firmware/esp32/web/mobile/repairs.html
+firmware/esp32/web/desktop/repairs.html
+```
+
+Точная последовательность следующей работы находится в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.

@@ -9,8 +9,10 @@ namespace CM
 enum class RepairFinalizationCheck : uint8_t
 {
     Ready = 0,
-    StorageUnavailable = 1,
-    IntegrityFailed = 2
+    CostingStorageUnavailable = 1,
+    CostingIntegrityFailed = 2,
+    WindingStorageUnavailable = 3,
+    WindingIntegrityFailed = 4
 };
 
 class RepairFinalizationGuard

@@ -134,11 +134,13 @@ void restoreLatestJobState()
     recoveryInfo = CM::JobRecoveryInfo();
     stateRecovered = false;
 
-    if (!jobStateStoreReady || !CM::JobRecovery::evaluate(jobStates, recoveryInfo))
+    if (!jobStateStoreReady ||
+        !jobSnapshotStoreReady ||
+        !CM::JobRecovery::evaluate(jobStates, jobSnapshots, recoveryInfo))
     {
         jobStateStoreReady = false;
         recoveryInfo.mayCreateNewJob = false;
-        Serial.println(F("ERROR: persisted job recovery failed; job creation blocked"));
+        Serial.println(F("ERROR: persisted job recovery or snapshot identity validation failed; job creation blocked"));
         return;
     }
 

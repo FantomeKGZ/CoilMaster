@@ -13,7 +13,7 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
     totalConsumedGrams = 0UL;
     totalValueMinor = 0ULL;
     materialTotals = WriteOffMaterialTotals();
-    if (!m_ready || repairId == 0UL) return false;
+    if (!ready() || repairId == 0UL) return false;
     if (!m_storage.exists(MovementsPath)) return true;
 
     File file = m_storage.open(MovementsPath, FILE_READ);

@@ -13,6 +13,7 @@ struct RecoveredJobDisplay
     RemoteJobType type;
     uint8_t coilCount;
     uint16_t turns[10];
+    JobLinkage linkage;
 
     RecoveredJobDisplay();
 };

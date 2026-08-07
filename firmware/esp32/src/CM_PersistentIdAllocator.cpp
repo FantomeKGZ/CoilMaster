@@ -51,7 +51,12 @@ bool PersistentIdAllocator::begin()
 
 bool PersistentIdAllocator::isReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File directory = m_fileSystem.open(DirectoryPath, FILE_READ);
+    if (!directory) return false;
+    const bool ready = directory.isDirectory();
+    directory.close();
+    return ready;
 }
 
 bool PersistentIdAllocator::allocate(uint32_t& jobId, uint32_t& sessionId)
@@ -59,7 +64,7 @@ bool PersistentIdAllocator::allocate(uint32_t& jobId, uint32_t& sessionId)
     jobId = 0UL;
     sessionId = 0UL;
 
-    if (!m_ready ||
+    if (!isReady() ||
         m_lastJobId == 0xFFFFFFFFUL ||
         m_lastSessionId == 0xFFFFFFFFUL)
     {

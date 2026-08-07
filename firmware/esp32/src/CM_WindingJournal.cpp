@@ -14,6 +14,7 @@ bool WindingJournal::begin()
 {
     m_ready = ensureDirectories();
     if (m_ready) m_ready = validateJournalStructure();
+    if (m_ready) m_ready = validateJournalSessionContexts();
     return m_ready;
 }
 
@@ -33,6 +34,9 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event,
     {
         return JournalSaveResult::InvalidTransition;
     }
+
+    if (!sessionContextMatches(event.sessionId, context))
+        return JournalSaveResult::InvalidTransition;
 
     if (event.type == RemoteEventType::RunStarted && event.completedRuns != 0U)
         return JournalSaveResult::InvalidTransition;
@@ -166,22 +170,8 @@ bool WindingJournal::validateJournalStructure() const
 
         if (schemaVersion == 2UL)
         {
-            uint32_t jobId = 0UL;
-            uint32_t repairId = 0UL;
-            uint32_t motorId = 0UL;
-            if (!findUnsigned(line, "job_id", jobId) || jobId == 0UL)
-            {
-                file.close();
-                return false;
-            }
-
-            const bool repairNull = fieldIsNull(line, "repair_id");
-            const bool motorNull = fieldIsNull(line, "motor_id");
-            const bool repairValue = findUnsigned(line, "repair_id", repairId) &&
-                                     repairId != 0UL;
-            const bool motorValue = findUnsigned(line, "motor_id", motorId) &&
-                                    motorId != 0UL;
-            if (!((repairNull && motorNull) || (repairValue && motorValue)))
+            WindingEventContext context;
+            if (!parseContext(line, context))
             {
                 file.close();
                 return false;
@@ -195,6 +185,77 @@ bool WindingJournal::validateJournalStructure() const
         if (started == completed ||
             (started && completedRuns != 0UL) ||
             (completed && completedRuns == 0UL))
+        {
+            file.close();
+            return false;
+        }
+    }
+
+    file.close();
+    return true;
+}
+
+bool WindingJournal::validateJournalSessionContexts() const
+{
+    if (!m_fileSystem.exists(JournalPath)) return true;
+
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t schemaVersion = 0UL;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            schemaVersion != 2UL)
+        {
+            continue;
+        }
+
+        uint32_t sessionId = 0UL;
+        WindingEventContext context;
+        if (!findUnsigned(line, "session_id", sessionId) ||
+            sessionId == 0UL || !parseContext(line, context) ||
+            !sessionContextMatches(sessionId, context))
+        {
+            file.close();
+            return false;
+        }
+    }
+
+    file.close();
+    return true;
+}
+
+bool WindingJournal::sessionContextMatches(
+    uint32_t sessionId,
+    const WindingEventContext& context) const
+{
+    if (sessionId == 0UL || !context.isValid()) return false;
+    if (!m_fileSystem.exists(JournalPath)) return true;
+
+    File file = m_fileSystem.open(JournalPath, FILE_READ);
+    if (!file) return false;
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        uint32_t schemaVersion = 0UL;
+        uint32_t lineSessionId = 0UL;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            schemaVersion != 2UL ||
+            !findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId != sessionId)
+        {
+            continue;
+        }
+
+        WindingEventContext existing;
+        if (!parseContext(line, existing) ||
+            existing.jobId != context.jobId ||
+            existing.linked != context.linked ||
+            existing.repairId != context.repairId ||
+            existing.motorId != context.motorId)
         {
             file.close();
             return false;
@@ -378,6 +439,41 @@ bool WindingJournal::appendRecord(const RemoteWindingEvent& event,
     file.flush();
     file.close();
     return written == record.length();
+}
+
+bool WindingJournal::parseContext(const String& line,
+                                  WindingEventContext& context)
+{
+    context = WindingEventContext();
+    if (!findUnsigned(line, "job_id", context.jobId) ||
+        context.jobId == 0UL)
+    {
+        return false;
+    }
+
+    const bool repairNull = fieldIsNull(line, "repair_id");
+    const bool motorNull = fieldIsNull(line, "motor_id");
+    const bool repairValue = findUnsigned(line, "repair_id", context.repairId) &&
+                             context.repairId != 0UL;
+    const bool motorValue = findUnsigned(line, "motor_id", context.motorId) &&
+                            context.motorId != 0UL;
+
+    if (repairNull && motorNull)
+    {
+        context.linked = false;
+        context.repairId = 0UL;
+        context.motorId = 0UL;
+    }
+    else if (repairValue && motorValue)
+    {
+        context.linked = true;
+    }
+    else
+    {
+        return false;
+    }
+
+    return context.isValid();
 }
 
 bool WindingJournal::findUnsigned(const String& line,

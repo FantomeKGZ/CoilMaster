@@ -1,8 +1,5 @@
 #include "CM_WindingJournal.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 namespace CM
 {
 WindingJournal::WindingJournal(fs::FS& fileSystem)
@@ -215,10 +212,16 @@ bool WindingJournal::validateJournalSessionContexts() const
     {
         const String line = file.readStringUntil('\n');
         uint32_t schemaVersion = 0UL;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            schemaVersion != 2UL)
+        if (!findUnsigned(line, "schema_version", schemaVersion))
         {
-            continue;
+            file.close();
+            return false;
+        }
+        if (schemaVersion == 1UL) continue;
+        if (schemaVersion != 2UL)
+        {
+            file.close();
+            return false;
         }
 
         uint32_t sessionId = 0UL;
@@ -279,12 +282,24 @@ bool WindingJournal::sessionContextMatches(
     {
         const String line = file.readStringUntil('\n');
         uint32_t schemaVersion = 0UL;
-        uint32_t lineSessionId = 0UL;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            schemaVersion != 2UL ||
-            !findUnsigned(line, "session_id", lineSessionId))
+        if (!findUnsigned(line, "schema_version", schemaVersion))
         {
-            continue;
+            file.close();
+            return false;
+        }
+        if (schemaVersion == 1UL) continue;
+        if (schemaVersion != 2UL)
+        {
+            file.close();
+            return false;
+        }
+
+        uint32_t lineSessionId = 0UL;
+        if (!findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId == 0UL)
+        {
+            file.close();
+            return false;
         }
 
         if (lineSessionId > sessionId)
@@ -528,18 +543,14 @@ bool WindingJournal::findUnsigned(const String& line,
     value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int position = line.indexOf(marker);
-    if (position < 0) return false;
+    if (position < 0 || line.indexOf(marker, position + marker.length()) >= 0)
+        return false;
 
     int cursor = position + marker.length();
     while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     if (cursor >= line.length() || !isDigit(line[cursor])) return false;
-
-    if (line[cursor] == '0' &&
-        cursor + 1 < line.length() &&
-        isDigit(line[cursor + 1]))
-    {
-        return false;
-    }
+    if (line[cursor] == '0' && cursor + 1 < line.length() &&
+        isDigit(line[cursor + 1])) return false;
 
     uint32_t parsed = 0UL;
     while (cursor < line.length() && isDigit(line[cursor]))
@@ -549,6 +560,7 @@ bool WindingJournal::findUnsigned(const String& line,
         parsed = parsed * 10UL + digit;
         ++cursor;
     }
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
 
     if (cursor >= line.length() ||
         (line[cursor] != ',' && line[cursor] != '}'))
@@ -562,11 +574,17 @@ bool WindingJournal::findUnsigned(const String& line,
 
 bool WindingJournal::fieldIsNull(const String& line, const char* key)
 {
-    const String marker = String("\"") + key + F("\":null");
+    const String marker = String("\"") + key + F("\":");
     const int position = line.indexOf(marker);
-    if (position < 0) return false;
+    if (position < 0 || line.indexOf(marker, position + marker.length()) >= 0)
+        return false;
 
-    const int cursor = position + marker.length();
+    int cursor = position + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor + 4 > line.length() || line.substring(cursor, cursor + 4) != "null")
+        return false;
+    cursor += 4;
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     return cursor < line.length() &&
            (line[cursor] == ',' || line[cursor] == '}');
 }

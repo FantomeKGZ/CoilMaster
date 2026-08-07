@@ -1,4 +1,5 @@
 #include "CM_BackupExportWeb.h"
+#include "CM_BackupActivityGuard.h"
 
 namespace CM
 {
@@ -27,6 +28,7 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"material-adjustments", "/data/materials/adjustments.ndjson", "application/x-ndjson", "material-adjustments.ndjson"},
     {"repair-pricing", "/data/repairs/pricing.ndjson", "application/x-ndjson", "repair-pricing.ndjson"},
     {"winding-id-state", "/data/winding-jobs/id-state.txt", "text/plain; charset=utf-8", "winding-id-state.txt"},
+    {"winding-id-state-backup", "/data/winding-jobs/id-state.bak", "text/plain; charset=utf-8", "winding-id-state.bak"},
     {"conductor-settings", "/data/settings/conductor.json", "application/json; charset=utf-8", "conductor-settings.json"}
 };
 
@@ -190,6 +192,21 @@ String sessionPath(const char* kind, uint32_t sessionId)
     path += F(".json");
     return path;
 }
+
+bool requireSafeExport(WebServer& server, fs::FS& storage)
+{
+    const BackupActivityCheck check = BackupActivityGuard::check(storage);
+    if (check == BackupActivityCheck::Safe) return true;
+    if (check == BackupActivityCheck::Busy)
+    {
+        server.send(409, "application/json; charset=utf-8",
+                    "{\"error\":\"backup_blocked_while_winding_active\"}");
+        return false;
+    }
+    server.send(503, "application/json; charset=utf-8",
+                "{\"error\":\"backup_activity_state_unavailable\"}");
+    return false;
+}
 }
 
 BackupExportWeb::BackupExportWeb(WebServer& server, fs::FS& storage)
@@ -225,8 +242,20 @@ void BackupExportWeb::handleManifest()
         return;
     }
 
-    String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"items\":[");
-    response.reserve(3264U);
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"export_allowed\":");
+    response += activity == BackupActivityCheck::Safe ? F("true") : F("false");
+    response += F(",\"activity_state_verified\":");
+    response += activity != BackupActivityCheck::Unavailable ? F("true") : F("false");
+    response += F(",\"blocked_reason\":");
+    if (activity == BackupActivityCheck::Busy)
+        response += F("\"winding_active\"");
+    else if (activity == BackupActivityCheck::Unavailable)
+        response += F("\"activity_state_unavailable\"");
+    else
+        response += F("null");
+    response += F(",\"items\":[");
+    response.reserve(3456U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)
@@ -285,6 +314,7 @@ void BackupExportWeb::handleFile()
                       "{\"error\":\"backup_storage_unavailable\"}");
         return;
     }
+    if (!requireSafeExport(m_server, m_storage)) return;
     if (!m_server.hasArg("name") || m_server.arg("name").length() == 0U)
     {
         m_server.send(400, "application/json; charset=utf-8",
@@ -332,6 +362,7 @@ void BackupExportWeb::handleSessions()
                       "{\"error\":\"backup_storage_unavailable\"}");
         return;
     }
+    if (!requireSafeExport(m_server, m_storage)) return;
 
     uint32_t afterSessionId = 0UL;
     if (m_server.hasArg("after_session_id") &&
@@ -461,6 +492,7 @@ void BackupExportWeb::handleSessionFile()
                       "{\"error\":\"backup_storage_unavailable\"}");
         return;
     }
+    if (!requireSafeExport(m_server, m_storage)) return;
     if (!m_server.hasArg("kind") || !m_server.hasArg("session_id"))
     {
         m_server.send(400, "application/json; charset=utf-8",

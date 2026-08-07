@@ -54,7 +54,12 @@ bool JobSnapshotStore::begin()
 
 bool JobSnapshotStore::isReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File directory = m_fileSystem.open(SnapshotDirectory, FILE_READ);
+    if (!directory) return false;
+    const bool ready = directory.isDirectory();
+    directory.close();
+    return ready;
 }
 
 bool JobSnapshotStore::create(const OutgoingWindingJob& job,
@@ -67,7 +72,7 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
                               const JobLinkage& linkage,
                               uint32_t createdUptimeMs)
 {
-    if (!m_ready || !job.isValid() || !linkage.isValid()) return false;
+    if (!isReady() || !job.isValid() || !linkage.isValid()) return false;
 
     const String finalPath = snapshotPath(job.sessionId);
     const String tempPath = temporaryPath(job.sessionId);
@@ -111,14 +116,15 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
 
 bool JobSnapshotStore::exists(uint32_t sessionId) const
 {
-    return sessionId != 0UL && m_fileSystem.exists(snapshotPath(sessionId));
+    return isReady() && sessionId != 0UL &&
+           m_fileSystem.exists(snapshotPath(sessionId));
 }
 
 bool JobSnapshotStore::load(uint32_t sessionId,
                             JobSnapshot& snapshot) const
 {
     snapshot = JobSnapshot();
-    if (!m_ready || sessionId == 0UL) return false;
+    if (!isReady() || sessionId == 0UL) return false;
 
     const String path = snapshotPath(sessionId);
     return m_fileSystem.exists(path) &&

@@ -5,6 +5,8 @@
 #include <WiFi.h>
 
 #include "CM_JobDisplayRecovery.h"
+#include "CM_JobLinkageRequest.h"
+#include "CM_JobLinkageResolver.h"
 #include "CM_JobRecovery.h"
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobStateStore.h"
@@ -35,6 +37,7 @@ CM::WindingJournal journal(SD);
 CM::PersistentIdAllocator idAllocator(SD);
 CM::JobSnapshotStore jobSnapshots(SD);
 CM::JobStateStore jobStates(SD);
+CM::JobLinkageResolver jobLinkageResolver(SD);
 CM::WarehouseStore warehouse(SD);
 WebServer webServer(80);
 CM::StaticSiteServer staticSites(webServer, SD);
@@ -58,6 +61,7 @@ bool journalReady = false;
 bool idAllocatorReady = false;
 bool jobSnapshotStoreReady = false;
 bool jobStateStoreReady = false;
+bool jobLinkageResolverReady = false;
 bool warehouseReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
@@ -176,7 +180,6 @@ void restoreLatestJobState()
     completedRuns = recoveryInfo.state.completedRuns;
     lastJobResult = deliveryResultFor(recoveryInfo.state.deliveryState);
 
-    // Persisted RUNNING is historical after reboot, not proof of current motion.
     runActive = false;
     jobAwaitingAck = false;
 
@@ -323,6 +326,7 @@ void sendJsonStatus()
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
     response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
     response += F(",\"job_state_store_ready\":"); response += jobStateStoreReady && jobStates.isReady() ? F("true") : F("false");
+    response += F(",\"job_linkage_resolver_ready\":"); response += jobLinkageResolverReady && jobLinkageResolver.isReady() ? F("true") : F("false");
     response += F(",\"last_allocated_job_id\":"); response += idAllocator.lastJobId();
     response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
     response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
@@ -406,6 +410,37 @@ void handleCreateJob()
         webServer.send(400, "application/json", "{\"error\":\"invalid_turns\"}");
         return;
     }
+
+    CM::JobLinkage linkage;
+    const CM::JobLinkageRequestResult linkageResult = CM::JobLinkageRequest::parse(
+        webServer.hasArg("repair_id"), webServer.arg("repair_id"),
+        webServer.hasArg("motor_id"), webServer.arg("motor_id"), linkage);
+    if (linkageResult == CM::JobLinkageRequestResult::Partial)
+    {
+        webServer.send(400, "application/json", "{\"error\":\"repair_id_and_motor_id_required_together\"}");
+        return;
+    }
+    if (linkageResult == CM::JobLinkageRequestResult::Invalid)
+    {
+        webServer.send(400, "application/json", "{\"error\":\"invalid_repair_motor_linkage\"}");
+        return;
+    }
+    if (linkageResult == CM::JobLinkageRequestResult::Linked)
+    {
+        if (!jobLinkageResolverReady || !jobLinkageResolver.isReady())
+        {
+            webServer.send(503, "application/json", "{\"error\":\"repair_store_unavailable\"}");
+            return;
+        }
+        CM::JobLinkage resolved;
+        if (!jobLinkageResolver.resolve(linkage.repairId, linkage.motorId, resolved))
+        {
+            webServer.send(409, "application/json", "{\"error\":\"repair_motor_mismatch_or_not_found\"}");
+            return;
+        }
+        linkage = resolved;
+    }
+
     if (!idAllocatorReady || !idAllocator.isReady())
     {
         webServer.send(503, "application/json", "{\"error\":\"id_allocator_unavailable\"}");
@@ -429,7 +464,7 @@ void handleCreateJob()
     }
 
     const uint32_t createdMs = millis();
-    if (!jobSnapshots.create(job, createdMs))
+    if (!jobSnapshots.create(job, linkage, createdMs))
     {
         webServer.send(503, "application/json", "{\"error\":\"job_snapshot_persistence_failed\"}");
         return;
@@ -469,6 +504,12 @@ void handleCreateJob()
 
     String response = F("{\"accepted\":true,\"job_id\":"); response += job.jobId;
     response += F(",\"session_id\":"); response += job.sessionId;
+    response += F(",\"linked\":"); response += linkage.linked ? F("true") : F("false");
+    if (linkage.linked)
+    {
+        response += F(",\"repair_id\":"); response += linkage.repairId;
+        response += F(",\"motor_id\":"); response += linkage.motorId;
+    }
     response += F(",\"snapshot_saved\":true,\"state_saved\":true");
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);
@@ -555,6 +596,7 @@ void setup()
     idAllocatorReady = sdReady && idAllocator.begin();
     jobSnapshotStoreReady = sdReady && jobSnapshots.begin();
     jobStateStoreReady = sdReady && jobStates.begin();
+    jobLinkageResolverReady = sdReady && jobLinkageResolver.begin();
     warehouseReady = sdReady && warehouse.begin();
     restoreLatestJobState();
 
@@ -566,6 +608,7 @@ void setup()
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
     Serial.println(jobStateStoreReady ? F("persistent job runtime state store ready") : F("WARNING: job state store unavailable; job creation blocked"));
+    Serial.println(jobLinkageResolverReady ? F("repair motor linkage resolver ready") : F("WARNING: repair motor linkage resolver unavailable; linked job creation blocked"));
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));

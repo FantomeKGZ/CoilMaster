@@ -279,6 +279,7 @@ void handleEvent(const CM::RemoteWindingEvent& event)
         completedRuns = event.completedRuns;
         runActive = event.type == CM::RemoteEventType::RunStarted;
         recoveryInfo = CM::JobRecoveryInfo();
+        recoveryInfo.mayCreateNewJob = event.type == CM::RemoteEventType::RunCompleted;
         recoveryEvaluated = true;
         stateRecovered = false;
         receiver.sendAck(event.runId,

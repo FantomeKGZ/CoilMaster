@@ -43,6 +43,16 @@ void WindingJournalWeb::handleHistory()
         return;
     }
 
+    uint32_t cursor = 0UL;
+    if (m_server.hasArg("cursor") &&
+        !parseCursor(m_server.arg("cursor"), cursor))
+    {
+        m_server.send(400,
+                      "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_cursor\"}");
+        return;
+    }
+
     uint16_t limit = DefaultLimit;
     if (m_server.hasArg("limit") &&
         !parseLimit(m_server.arg("limit"), limit))
@@ -64,12 +74,17 @@ void WindingJournalWeb::handleHistory()
     String events;
     events.reserve(512U);
     uint16_t count = 0U;
+    uint32_t nextCursor = cursor;
+    bool hasMore = false;
     const WindingJournalQueryResult result =
         m_query.appendHistoryJson(sessionId,
                                   repairId,
+                                  cursor,
                                   limit,
                                   events,
-                                  count);
+                                  count,
+                                  nextCursor,
+                                  hasMore);
 
     if (result == WindingJournalQueryResult::InvalidFilter)
     {
@@ -94,7 +109,7 @@ void WindingJournalWeb::handleHistory()
     }
 
     String response;
-    response.reserve(events.length() + 160U);
+    response.reserve(events.length() + 220U);
     response = F("{\"filter\":{\"");
     if (sessionId != 0UL)
     {
@@ -106,10 +121,16 @@ void WindingJournalWeb::handleHistory()
         response += F("repair_id\":");
         response += repairId;
     }
-    response += F("},\"limit\":");
+    response += F("},\"cursor\":");
+    response += cursor;
+    response += F(",\"limit\":");
     response += limit;
     response += F(",\"count\":");
     response += count;
+    response += F(",\"next_cursor\":");
+    response += nextCursor;
+    response += F(",\"has_more\":");
+    response += hasMore ? F("true") : F("false");
     response += F(",\"events\":[");
     response += events;
     response += F("]}");
@@ -141,6 +162,14 @@ bool WindingJournalWeb::parseCanonicalUint32(const String& text,
 
     value = static_cast<uint32_t>(parsed);
     return String(value) == text;
+}
+
+bool WindingJournalWeb::parseCursor(const String& text,
+                                    uint32_t& value)
+{
+    value = 0UL;
+    if (text == "0") return true;
+    return parseCanonicalUint32(text, value);
 }
 
 bool WindingJournalWeb::parseLimit(const String& text,

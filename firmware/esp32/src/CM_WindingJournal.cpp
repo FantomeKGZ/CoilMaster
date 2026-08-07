@@ -20,13 +20,18 @@ bool WindingJournal::begin()
 
 bool WindingJournal::isReady() const
 {
-    return m_ready;
+    if (!m_ready) return false;
+    File directory = m_fileSystem.open(DirectoryPath, FILE_READ);
+    if (!directory) return false;
+    const bool ready = directory.isDirectory();
+    directory.close();
+    return ready;
 }
 
 JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event,
                                        const WindingEventContext& context)
 {
-    if (!m_ready)
+    if (!isReady())
         return JournalSaveResult::StorageUnavailable;
 
     if (!context.isValid() || event.runId == 0UL ||
@@ -97,7 +102,7 @@ bool WindingJournal::loadSessionState(uint32_t sessionId,
 {
     state = WindingSessionState();
     state.sessionId = sessionId;
-    if (!m_ready || sessionId == 0UL) return false;
+    if (!isReady() || sessionId == 0UL) return false;
 
     uint32_t activeRunId = 0UL;
     bool activeRunFound = false;

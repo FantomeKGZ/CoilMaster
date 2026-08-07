@@ -454,28 +454,75 @@ bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli
 bool MaterialLedger::findUnsigned(const String& line, const char* key,
                                   uint32_t& value)
 {
+    value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int pos = line.indexOf(marker);
-    if (pos < 0) return false;
+    if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
+
     int start = pos + marker.length();
     while (start < line.length() && line[start] == ' ') ++start;
+    if (start >= line.length() || !isDigit(line[start])) return false;
+    if (line[start] == '0' && start + 1 < line.length() && isDigit(line[start + 1]))
+        return false;
+
+    uint32_t parsed = 0UL;
     int end = start;
-    while (end < line.length() && isDigit(line[end])) ++end;
-    if (end == start) return false;
-    value = static_cast<uint32_t>(strtoul(line.substring(start, end).c_str(), nullptr, 10));
+    while (end < line.length() && isDigit(line[end]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[end] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++end;
+    }
+
+    while (end < line.length() && line[end] == ' ') ++end;
+    if (end >= line.length() || (line[end] != ',' && line[end] != '}')) return false;
+
+    value = parsed;
     return true;
 }
 
 bool MaterialLedger::findString(const String& line, const char* key,
                                 String& value)
 {
+    value = String();
     const String marker = String("\"") + key + F("\":\"");
     const int pos = line.indexOf(marker);
-    if (pos < 0) return false;
-    const int start = pos + marker.length();
-    const int end = line.indexOf('"', start);
-    if (end < 0) return false;
-    value = line.substring(start, end);
+    if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
+
+    int index = pos + marker.length();
+    String parsed;
+    parsed.reserve(32U);
+    bool closed = false;
+    for (; index < line.length(); ++index)
+    {
+        const char ch = line[index];
+        if (ch == '"')
+        {
+            closed = true;
+            ++index;
+            break;
+        }
+        if (ch == '\\')
+        {
+            ++index;
+            if (index >= line.length()) return false;
+            const char escaped = line[index];
+            if (escaped == '"' || escaped == '\\') parsed += escaped;
+            else if (escaped == 'n') parsed += '\n';
+            else if (escaped == 'r') parsed += '\r';
+            else return false;
+            continue;
+        }
+        if (static_cast<uint8_t>(ch) < 0x20U) return false;
+        parsed += ch;
+    }
+    if (!closed) return false;
+
+    while (index < line.length() && line[index] == ' ') ++index;
+    if (index >= line.length() || (line[index] != ',' && line[index] != '}')) return false;
+
+    value = parsed;
     return true;
 }
 

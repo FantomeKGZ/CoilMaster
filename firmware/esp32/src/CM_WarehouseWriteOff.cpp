@@ -53,11 +53,14 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     {
         uint16_t ignoredDiameter = 0U;
         String ignoredWireType;
-        rewriteSpoolWeight(operation.spoolId,
-                           operation.weightAfterGrams,
-                           operation.weightBeforeGrams,
-                           ignoredDiameter,
-                           ignoredWireType);
+        if (!rewriteSpoolWeight(operation.spoolId,
+                                operation.weightAfterGrams,
+                                operation.weightBeforeGrams,
+                                ignoredDiameter,
+                                ignoredWireType))
+        {
+            m_ready = false;
+        }
         return false;
     }
 
@@ -79,15 +82,52 @@ bool WarehouseStore::nextMovementId(uint32_t& id) const
     if (!file) return false;
 
     uint32_t maximum = 0UL;
+    uint32_t openPendingId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
         uint32_t candidate = 0UL;
-        if (findUnsigned(line, "movement_id", candidate) && candidate > maximum)
+        String type, status;
+        if (!findUnsigned(line, "movement_id", candidate) || candidate == 0UL ||
+            !findString(line, "type", type) || type != "WRITE_OFF" ||
+            !findString(line, "status", status))
+        {
+            file.close();
+            return false;
+        }
+
+        if (status == "PENDING")
+        {
+            if (openPendingId != 0UL || candidate <= maximum)
+            {
+                file.close();
+                return false;
+            }
+            openPendingId = candidate;
             maximum = candidate;
+        }
+        else if (status == "CONFIRMED")
+        {
+            if (openPendingId == 0UL || candidate != openPendingId)
+            {
+                file.close();
+                return false;
+            }
+            openPendingId = 0UL;
+        }
+        else
+        {
+            file.close();
+            return false;
+        }
     }
     file.close();
-    if (maximum == 0xFFFFFFFFUL) return false;
+
+    // A dangling PENDING requires reconciliation before another movement ID
+    // may be issued. Never hide an incomplete stock transaction by moving on.
+    if (openPendingId != 0UL || maximum == 0xFFFFFFFFUL) return false;
     id = maximum + 1UL;
     return true;
 }
@@ -113,20 +153,33 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
 
     bool found = false;
     bool valid = true;
+    uint32_t previousId = 0UL;
     while (source.available())
     {
         String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
         uint32_t currentId = 0UL;
-        if (findUnsigned(line, "spool_id", currentId) && currentId == spoolId)
+        uint32_t currentWeight = 0UL;
+        uint32_t diameter = 0UL;
+        String status, currentWireType;
+        if (!findUnsigned(line, "spool_id", currentId) || currentId == 0UL ||
+            currentId <= previousId ||
+            !findUnsigned(line, "current_weight_g", currentWeight) ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 0xFFFFUL ||
+            !findString(line, "status", status) ||
+            !findString(line, "wire_type", currentWireType) ||
+            (currentWireType != "CU" && currentWireType != "AL"))
         {
-            uint32_t currentWeight = 0UL;
-            uint32_t diameter = 0UL;
-            String status;
-            findString(line, "status", status);
-            if (!findUnsigned(line, "current_weight_g", currentWeight) ||
-                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-                currentWeight != expectedWeightGrams ||
-                (status.length() > 0U && status != "ACTIVE"))
+            valid = false;
+            break;
+        }
+        previousId = currentId;
+
+        if (currentId == spoolId)
+        {
+            if (found || currentWeight != expectedWeightGrams || status != "ACTIVE")
             {
                 valid = false;
                 break;
@@ -134,13 +187,26 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
 
             const String marker = F("\"current_weight_g\":");
             const int valueStart = line.indexOf(marker);
+            if (valueStart < 0)
+            {
+                valid = false;
+                break;
+            }
             int digitsStart = valueStart + marker.length();
             int digitsEnd = digitsStart;
             while (digitsEnd < line.length() && isDigit(line[digitsEnd])) ++digitsEnd;
             line = line.substring(0, digitsStart) + String(newWeightGrams) +
                    line.substring(digitsEnd);
+
+            uint32_t verifiedWeight = 0UL;
+            if (!findUnsigned(line, "current_weight_g", verifiedWeight) ||
+                verifiedWeight != newWeightGrams)
+            {
+                valid = false;
+                break;
+            }
             diameterHundredthsMm = static_cast<uint16_t>(diameter);
-            findString(line, "wire_type", wireType);
+            wireType = currentWireType;
             found = true;
         }
 
@@ -161,8 +227,7 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
         return false;
     }
 
-    m_storage.remove(SpoolsPath);
-    return m_storage.rename(SpoolsTempPath, SpoolsPath);
+    return replaceSpoolsFileFromTemp();
 }
 
 bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
@@ -173,6 +238,17 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
                                            const char* status,
                                            const String& wireType)
 {
+    if (movementId == 0UL || operation.spoolId == 0UL || operation.repairId == 0UL ||
+        consumedGrams == 0UL || price.pricePerKgMinor == 0UL ||
+        price.currency.length() != 3U || status == nullptr ||
+        (String(status) != "PENDING" && String(status) != "CONFIRMED") ||
+        (String(status) == "PENDING" && (diameterHundredthsMm != 0U || wireType.length() != 0U)) ||
+        (String(status) == "CONFIRMED" &&
+         (diameterHundredthsMm == 0U || (wireType != "CU" && wireType != "AL"))))
+    {
+        return false;
+    }
+
     File file = m_storage.open(MovementsPath, FILE_APPEND);
     if (!file) return false;
 

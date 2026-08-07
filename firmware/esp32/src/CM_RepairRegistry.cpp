@@ -6,8 +6,16 @@ RepairRegistry::RepairRegistry(fs::FS& storage) : m_storage(storage), m_ready(fa
 
 bool RepairRegistry::begin()
 {
-    m_ready = ensureDirectories();
-    return m_ready;
+    m_ready = false;
+    if (!ensureDirectories()) return false;
+    if (!validateUniqueIds(ClientsPath, "client_id") ||
+        !validateUniqueIds(MotorsPath, "motor_id") ||
+        !validateUniqueIds(RepairsPath, "repair_id"))
+    {
+        return false;
+    }
+    m_ready = true;
+    return true;
 }
 
 bool RepairRegistry::ready() const { return m_ready; }
@@ -198,18 +206,26 @@ bool RepairRegistry::idExists(const char* path, const char* key, uint32_t id) co
     if (!m_ready || id == 0UL || !m_storage.exists(path)) return false;
     File file = m_storage.open(path, FILE_READ);
     if (!file) return false;
+
+    uint8_t matches = 0U;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t current = 0UL;
-        if (findUnsigned(line, key, current) && current == id)
+        if (!findUnsigned(line, key, current) || current == 0UL)
         {
             file.close();
-            return true;
+            return false;
+        }
+        if (current == id && ++matches > 1U)
+        {
+            file.close();
+            return false;
         }
     }
     file.close();
-    return false;
+    return matches == 1U;
 }
 
 String RepairRegistry::normalizePhone(const String& phone)
@@ -228,18 +244,90 @@ bool RepairRegistry::ensureDirectories()
     return true;
 }
 
+bool RepairRegistry::validateUniqueIds(const char* path, const char* key) const
+{
+    if (!m_storage.exists(path)) return true;
+    File source = m_storage.open(path, FILE_READ);
+    if (!source || source.isDirectory())
+    {
+        if (source) source.close();
+        return false;
+    }
+
+    while (source.available())
+    {
+        const String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        if (line[0] != '{' || line[line.length() - 1U] != '}')
+        {
+            source.close();
+            return false;
+        }
+
+        uint32_t id = 0UL;
+        if (!findUnsigned(line, key, id) || id == 0UL)
+        {
+            source.close();
+            return false;
+        }
+
+        File duplicateScan = m_storage.open(path, FILE_READ);
+        if (!duplicateScan)
+        {
+            source.close();
+            return false;
+        }
+        uint8_t matches = 0U;
+        while (duplicateScan.available())
+        {
+            const String candidateLine = duplicateScan.readStringUntil('\n');
+            if (candidateLine.length() == 0U) continue;
+            uint32_t candidate = 0UL;
+            if (!findUnsigned(candidateLine, key, candidate) || candidate == 0UL)
+            {
+                duplicateScan.close();
+                source.close();
+                return false;
+            }
+            if (candidate == id && ++matches > 1U)
+            {
+                duplicateScan.close();
+                source.close();
+                return false;
+            }
+        }
+        duplicateScan.close();
+        if (matches != 1U)
+        {
+            source.close();
+            return false;
+        }
+    }
+
+    source.close();
+    return true;
+}
+
 bool RepairRegistry::nextId(const char* path, const char* key, uint32_t& id) const
 {
     id = 1UL;
     if (!m_storage.exists(path)) return true;
+    if (!validateUniqueIds(path, key)) return false;
+
     File file = m_storage.open(path, FILE_READ);
     if (!file) return false;
     uint32_t maximum = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
-        if (findUnsigned(line, key, candidate) && candidate > maximum) maximum = candidate;
+        if (!findUnsigned(line, key, candidate) || candidate == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        if (candidate > maximum) maximum = candidate;
     }
     file.close();
     if (maximum == 0xFFFFFFFFUL) return false;
@@ -249,15 +337,30 @@ bool RepairRegistry::nextId(const char* path, const char* key, uint32_t& id) con
 
 bool RepairRegistry::findUnsigned(const String& line, const char* key, uint32_t& value)
 {
+    value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int pos = line.indexOf(marker);
-    if (pos < 0) return false;
-    int start = pos + marker.length();
-    while (start < line.length() && line[start] == ' ') ++start;
-    int end = start;
-    while (end < line.length() && isDigit(line[end])) ++end;
-    if (end == start) return false;
-    value = static_cast<uint32_t>(strtoul(line.substring(start, end).c_str(), nullptr, 10));
+    if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
+
+    int cursor = pos + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor >= line.length() || !isDigit(line[cursor])) return false;
+    if (line[cursor] == '0' && cursor + 1 < line.length() &&
+        isDigit(line[cursor + 1])) return false;
+
+    uint32_t parsed = 0UL;
+    while (cursor < line.length() && isDigit(line[cursor]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[cursor] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++cursor;
+    }
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor >= line.length() ||
+        (line[cursor] != ',' && line[cursor] != '}')) return false;
+
+    value = parsed;
     return true;
 }
 

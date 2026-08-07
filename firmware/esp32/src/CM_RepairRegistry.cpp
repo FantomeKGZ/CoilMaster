@@ -14,7 +14,40 @@ bool RepairRegistry::begin()
     {
         return false;
     }
+
+    // Reference checks deliberately run only after all three registries have
+    // passed their structural/identity validation. Temporarily mark the store
+    // ready so the existing exact-one-match lookup functions can be reused.
     m_ready = true;
+    if (m_storage.exists(RepairsPath))
+    {
+        File repairs = m_storage.open(RepairsPath, FILE_READ);
+        if (!repairs || repairs.isDirectory())
+        {
+            if (repairs) repairs.close();
+            m_ready = false;
+            return false;
+        }
+
+        while (repairs.available())
+        {
+            const String line = repairs.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+
+            uint32_t clientId = 0UL;
+            uint32_t motorId = 0UL;
+            if (!findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
+                !findUnsigned(line, "motor_id", motorId) || motorId == 0UL ||
+                !clientExists(clientId) || !motorExists(motorId))
+            {
+                repairs.close();
+                m_ready = false;
+                return false;
+            }
+        }
+        repairs.close();
+    }
+
     return true;
 }
 

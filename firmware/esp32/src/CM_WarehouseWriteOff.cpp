@@ -9,8 +9,13 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     result = SpoolWriteOffResult();
     if (!ready() || operation.spoolId == 0UL || operation.repairId == 0UL ||
         operation.timestamp.length() < 10U || operation.weightBeforeGrams == 0UL ||
-        operation.weightAfterGrams >= operation.weightBeforeGrams ||
-        !repairExists(operation.repairId))
+        operation.weightAfterGrams >= operation.weightBeforeGrams)
+    {
+        return false;
+    }
+
+    bool repairFound = false;
+    if (!repairExists(operation.repairId, repairFound) || !repairFound)
     {
         return false;
     }
@@ -23,7 +28,8 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     }
 
     WarehousePrice price;
-    if (!loadWarehousePrice(price)) return false;
+    bool priceConfigured = false;
+    if (!loadWarehousePrice(price, priceConfigured) || !priceConfigured) return false;
 
     uint32_t movementId = 0UL;
     if (!nextMovementId(movementId)) return false;
@@ -293,6 +299,11 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     const size_t written = file.print(line);
     file.flush();
     file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
 }
 }

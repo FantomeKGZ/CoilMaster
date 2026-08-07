@@ -19,6 +19,10 @@ public:
     bool create(const OutgoingWindingJob& job, uint32_t createdUptimeMs);
     bool exists(uint32_t sessionId) const;
 
+    // Verifies that the persisted immutable snapshot is structurally valid and
+    // belongs to the exact job/session pair expected by runtime recovery.
+    bool validateIdentity(uint32_t jobId, uint32_t sessionId) const;
+
 private:
     static constexpr const char* RootDirectory = "/data/winding-jobs";
     static constexpr const char* SnapshotDirectory = "/data/winding-jobs/snapshots";
@@ -34,5 +38,8 @@ private:
     bool verifySnapshot(const char* path,
                         uint32_t jobId,
                         uint32_t sessionId) const;
+    static bool findUnsigned(const String& input,
+                             const char* key,
+                             uint32_t& value);
 };
 }

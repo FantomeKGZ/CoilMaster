@@ -9,7 +9,7 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
 {
     appendedCount = 0U;
     latest = PricingRevisionSnapshot();
-    if (!m_ready || repairId == 0UL) return false;
+    if (!ready() || repairId == 0UL) return false;
     if (!m_storage.exists(PricingPath)) return true;
 
     File file = m_storage.open(PricingPath, FILE_READ);
@@ -19,23 +19,35 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
         uint32_t lineRepairId = 0UL;
         uint64_t labour = 0ULL;
         uint64_t clientPrice = 0ULL;
         String currency;
         String timestamp;
 
-        if (!findUnsigned(line, "repair_id", lineRepairId) ||
-            lineRepairId != repairId ||
+        if (!line.startsWith("{") || !line.endsWith("}") ||
+            !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
             !findUnsigned64(line, "labour_cost_minor", labour) ||
-            !findUnsigned64(line, "client_price_minor", clientPrice))
+            !findUnsigned64(line, "client_price_minor", clientPrice) ||
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
-            continue;
+            file.close();
+            appendedCount = 0U;
+            latest = PricingRevisionSnapshot();
+            return false;
         }
 
-        findString(line, "currency", currency);
-        findString(line, "timestamp", timestamp);
-        if (currency.length() != 3U) currency = "KGS";
+        if (lineRepairId != repairId) continue;
+        if (appendedCount == 0xFFFFU)
+        {
+            file.close();
+            appendedCount = 0U;
+            latest = PricingRevisionSnapshot();
+            return false;
+        }
 
         if (!first) json += ',';
         first = false;
@@ -61,7 +73,7 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
         latest.clientPriceMinor = clientPrice;
         latest.currency = currency;
         latest.timestamp = timestamp;
-        if (appendedCount < 0xFFFFU) ++appendedCount;
+        ++appendedCount;
     }
     file.close();
     return true;

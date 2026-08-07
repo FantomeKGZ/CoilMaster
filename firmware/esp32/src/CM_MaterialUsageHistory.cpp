@@ -9,7 +9,7 @@ bool MaterialLedger::appendUsageHistoryJson(String& json,
                                             uint16_t& count) const
 {
     count = 0U;
-    if (!m_ready) return false;
+    if (!ready()) return false;
     if (!m_storage.exists(UsagePath)) return true;
     if (limit == 0U) limit = 50U;
 

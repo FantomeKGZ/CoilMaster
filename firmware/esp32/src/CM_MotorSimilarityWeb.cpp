@@ -1,4 +1,5 @@
 #include "CM_MotorSimilarityWeb.h"
+#include "CM_WindingProgramParser.h"
 
 namespace CM
 {
@@ -24,6 +25,12 @@ void MotorSimilarityWeb::handleLookup()
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"coil_program_required\"}");
+        return;
+    }
+    if (!WindingProgramParser::valid(m_server.arg("coil_program")))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_coil_program\"}");
         return;
     }
 

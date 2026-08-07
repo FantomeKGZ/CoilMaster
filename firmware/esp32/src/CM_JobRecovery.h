@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include "CM_JobSnapshotStore.h"
 #include "CM_JobStateStore.h"
 
 namespace CM
@@ -27,7 +28,8 @@ struct JobRecoveryInfo
 class JobRecovery
 {
 public:
-    static bool evaluate(const JobStateStore& store,
+    static bool evaluate(const JobStateStore& stateStore,
+                         const JobSnapshotStore& snapshotStore,
                          JobRecoveryInfo& recovery);
 
 private:

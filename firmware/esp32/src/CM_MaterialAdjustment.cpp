@@ -25,6 +25,7 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
 
     bool found = false;
     bool valid = true;
+    uint32_t previousMaterialId = 0UL;
     uint32_t previousStock = 0UL;
     uint32_t previousPrice = 0UL;
     String previousCurrency;
@@ -32,19 +33,35 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
     while (source.available())
     {
         String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
         uint32_t currentId = 0UL;
-        if (findUnsigned(line, "material_id", currentId) &&
-            currentId == adjustment.materialId)
+        uint32_t currentStock = 0UL;
+        uint32_t currentPrice = 0UL;
+        String currentCurrency, status;
+        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+            currentId <= previousMaterialId ||
+            !findUnsigned(line, "stock_quantity_milli", currentStock) ||
+            !findUnsigned(line, "price_per_unit_minor", currentPrice) || currentPrice == 0UL ||
+            !findString(line, "currency", currentCurrency) || currentCurrency.length() != 3U ||
+            !findString(line, "status", status))
         {
-            String status;
-            if (!findUnsigned(line, "stock_quantity_milli", previousStock) ||
-                !findUnsigned(line, "price_per_unit_minor", previousPrice) ||
-                !findString(line, "currency", previousCurrency) ||
-                (findString(line, "status", status) && status != "ACTIVE"))
+            valid = false;
+            break;
+        }
+        previousMaterialId = currentId;
+
+        if (currentId == adjustment.materialId)
+        {
+            if (found || status != "ACTIVE")
             {
                 valid = false;
                 break;
             }
+
+            previousStock = currentStock;
+            previousPrice = currentPrice;
+            previousCurrency = currentCurrency;
 
             const uint64_t newStock = static_cast<uint64_t>(previousStock) +
                                       adjustment.addQuantityMilli;
@@ -67,6 +84,20 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
             line = replaceUnsigned(line, "price_per_unit_minor",
                                    result.pricePerUnitMinor);
             line = replaceString(line, "currency", result.currency);
+
+            uint32_t verifiedStock = 0UL;
+            uint32_t verifiedPrice = 0UL;
+            String verifiedCurrency;
+            if (!findUnsigned(line, "stock_quantity_milli", verifiedStock) ||
+                verifiedStock != result.stockQuantityMilli ||
+                !findUnsigned(line, "price_per_unit_minor", verifiedPrice) ||
+                verifiedPrice != result.pricePerUnitMinor ||
+                !findString(line, "currency", verifiedCurrency) ||
+                verifiedCurrency != result.currency)
+            {
+                valid = false;
+                break;
+            }
             found = true;
         }
 
@@ -124,6 +155,9 @@ String MaterialLedger::replaceUnsigned(const String& line,
                                        const char* key,
                                        uint32_t value)
 {
+    uint32_t current = 0UL;
+    if (!findUnsigned(line, key, current)) return line;
+
     const String marker = String("\"") + key + F("\":");
     const int pos = line.indexOf(marker);
     if (pos < 0) return line;
@@ -138,12 +172,32 @@ String MaterialLedger::replaceString(const String& line,
                                      const char* key,
                                      const String& value)
 {
+    String current;
+    if (!findString(line, key, current)) return line;
+
     const String marker = String("\"") + key + F("\":\"");
     const int pos = line.indexOf(marker);
     if (pos < 0) return line;
     const int start = pos + marker.length();
-    const int end = line.indexOf('"', start);
-    if (end < 0) return line;
+
+    int end = start;
+    bool escaped = false;
+    for (; end < line.length(); ++end)
+    {
+        const char ch = line[end];
+        if (escaped)
+        {
+            escaped = false;
+            continue;
+        }
+        if (ch == '\\')
+        {
+            escaped = true;
+            continue;
+        }
+        if (ch == '"') break;
+    }
+    if (end >= line.length()) return line;
     return line.substring(0, start) + jsonEscape(value) + line.substring(end);
 }
 }

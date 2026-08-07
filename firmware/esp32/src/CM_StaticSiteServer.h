@@ -5,6 +5,9 @@
 #include <FS.h>
 #include <WebServer.h>
 
+#include "CM_WindingJournalQuery.h"
+#include "CM_WindingJournalWeb.h"
+
 namespace CM
 {
 class StaticSiteServer
@@ -18,6 +21,7 @@ public:
 
     bool serveCurrentRequest();
     bool storageReady() const;
+    bool windingHistoryReady() const;
 
 private:
     static constexpr size_t MaxPathLength = 192U;
@@ -32,6 +36,8 @@ private:
 
     WebServer& m_server;
     fs::FS& m_storage;
+    WindingJournalQuery m_windingHistoryQuery;
+    WindingJournalWeb m_windingHistoryWeb;
     String m_webRoot;
     bool m_ready;
 };

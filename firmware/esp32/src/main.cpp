@@ -4,6 +4,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "CM_JobSnapshotStore.h"
 #include "CM_PersistentIdAllocator.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
@@ -29,6 +30,7 @@ HardwareSerial arduinoSerial(2);
 CM::UartEventReceiver receiver(arduinoSerial);
 CM::WindingJournal journal(SD);
 CM::PersistentIdAllocator idAllocator(SD);
+CM::JobSnapshotStore jobSnapshots(SD);
 CM::WarehouseStore warehouse(SD);
 WebServer webServer(80);
 CM::StaticSiteServer staticSites(webServer, SD);
@@ -47,6 +49,7 @@ bool jobAwaitingAck = false;
 bool runActive = false;
 bool journalReady = false;
 bool idAllocatorReady = false;
+bool jobSnapshotStoreReady = false;
 bool warehouseReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
@@ -179,6 +182,7 @@ void sendJsonStatus()
     response += F(",\"arduino_online\":"); response += arduinoOnline ? F("true") : F("false");
     response += F(",\"storage_ready\":"); response += journalReady ? F("true") : F("false");
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
+    response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
     response += F(",\"last_allocated_job_id\":"); response += idAllocator.lastJobId();
     response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
     response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
@@ -209,10 +213,22 @@ void handleCreateJob()
         return;
     }
 
+    if (!jobSnapshotStoreReady || !jobSnapshots.isReady())
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_snapshot_store_unavailable\"}");
+        return;
+    }
+
     if (!idAllocator.allocate(job.jobId, job.sessionId))
     {
         idAllocatorReady = false;
         webServer.send(503, "application/json", "{\"error\":\"id_persistence_failed\"}");
+        return;
+    }
+
+    if (!jobSnapshots.create(job, millis()))
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_snapshot_persistence_failed\"}");
         return;
     }
 
@@ -234,6 +250,7 @@ void handleCreateJob()
     jobAwaitingAck = true;
     String response = F("{\"accepted\":true,\"job_id\":"); response += job.jobId;
     response += F(",\"session_id\":"); response += job.sessionId;
+    response += F(",\"snapshot_saved\":true");
     response += F(",\"status\":\"WAITING_ARDUINO_ACK\"}");
     webServer.send(202, "application/json; charset=utf-8", response);
 }
@@ -288,6 +305,7 @@ void setup()
     const bool sdReady = SD.begin(SdCsPin, SPI);
     journalReady = sdReady && journal.begin();
     idAllocatorReady = sdReady && idAllocator.begin();
+    jobSnapshotStoreReady = sdReady && jobSnapshots.begin();
     warehouseReady = sdReady && warehouse.begin();
     WiFi.mode(WIFI_AP);
     const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);
@@ -295,6 +313,7 @@ void setup()
     Serial.println(F("CoilMaster ESP32 web portal ready"));
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
+    Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));

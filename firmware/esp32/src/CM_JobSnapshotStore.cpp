@@ -4,6 +4,16 @@
 
 namespace CM
 {
+JobSnapshot::JobSnapshot()
+    : jobId(0UL),
+      sessionId(0UL),
+      type(RemoteJobType::Working),
+      coilCount(0U),
+      turns{},
+      createdUptimeMs(0UL)
+{
+}
+
 JobSnapshotStore::JobSnapshotStore(fs::FS& fileSystem)
     : m_fileSystem(fileSystem), m_ready(false)
 {
@@ -37,8 +47,12 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
     const size_t written = file.print(record);
     file.flush();
     file.close();
+
+    JobSnapshot verified;
     if (written != record.length() ||
-        !verifySnapshot(tempPath.c_str(), job.jobId, job.sessionId))
+        !readAndParse(tempPath.c_str(), verified) ||
+        verified.jobId != job.jobId ||
+        verified.sessionId != job.sessionId)
     {
         m_fileSystem.remove(tempPath);
         return false;
@@ -50,7 +64,8 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
         return false;
     }
 
-    return verifySnapshot(finalPath.c_str(), job.jobId, job.sessionId);
+    if (!readAndParse(finalPath.c_str(), verified)) return false;
+    return verified.jobId == job.jobId && verified.sessionId == job.sessionId;
 }
 
 bool JobSnapshotStore::exists(uint32_t sessionId) const
@@ -58,13 +73,25 @@ bool JobSnapshotStore::exists(uint32_t sessionId) const
     return sessionId != 0UL && m_fileSystem.exists(snapshotPath(sessionId));
 }
 
+bool JobSnapshotStore::load(uint32_t sessionId,
+                            JobSnapshot& snapshot) const
+{
+    snapshot = JobSnapshot();
+    if (!m_ready || sessionId == 0UL) return false;
+
+    const String path = snapshotPath(sessionId);
+    return m_fileSystem.exists(path) &&
+           readAndParse(path.c_str(), snapshot) &&
+           snapshot.sessionId == sessionId;
+}
+
 bool JobSnapshotStore::validateIdentity(uint32_t jobId,
                                         uint32_t sessionId) const
 {
-    if (!m_ready || jobId == 0UL || sessionId == 0UL) return false;
-    const String path = snapshotPath(sessionId);
-    return m_fileSystem.exists(path) &&
-           verifySnapshot(path.c_str(), jobId, sessionId);
+    JobSnapshot snapshot;
+    return jobId != 0UL &&
+           load(sessionId, snapshot) &&
+           snapshot.jobId == jobId;
 }
 
 bool JobSnapshotStore::ensureDirectories()
@@ -129,16 +156,32 @@ String JobSnapshotStore::serialize(const OutgoingWindingJob& job,
     return result;
 }
 
-bool JobSnapshotStore::verifySnapshot(const char* path,
-                                      uint32_t jobId,
-                                      uint32_t sessionId) const
+bool JobSnapshotStore::readAndParse(const char* path,
+                                    JobSnapshot& snapshot) const
 {
+    snapshot = JobSnapshot();
     File file = m_fileSystem.open(path, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    if (file.size() == 0U || file.size() > 1024U)
+    {
+        file.close();
+        return false;
+    }
 
     const String content = file.readString();
     file.close();
+    return parse(content, snapshot);
+}
 
+bool JobSnapshotStore::parse(const String& content,
+                             JobSnapshot& snapshot)
+{
+    snapshot = JobSnapshot();
     if (!content.startsWith(F("{\"schema_version\":1,")) ||
         !content.endsWith(F("}\n")) ||
         content.length() > 1024U)
@@ -146,23 +189,32 @@ bool JobSnapshotStore::verifySnapshot(const char* path,
         return false;
     }
 
-    uint32_t storedJobId = 0UL;
-    uint32_t storedSessionId = 0UL;
+    uint32_t schemaVersion = 0UL;
     uint32_t coilCount = 0UL;
-    uint32_t createdUptimeMs = 0UL;
-    if (!findUnsigned(content, "job_id", storedJobId) ||
-        !findUnsigned(content, "session_id", storedSessionId) ||
+    String programType;
+    if (!findUnsigned(content, "schema_version", schemaVersion) ||
+        schemaVersion != 1UL ||
+        !findUnsigned(content, "job_id", snapshot.jobId) ||
+        snapshot.jobId == 0UL ||
+        !findUnsigned(content, "session_id", snapshot.sessionId) ||
+        snapshot.sessionId == 0UL ||
+        !findString(content, "program_type", programType) ||
         !findUnsigned(content, "coil_count", coilCount) ||
-        !findUnsigned(content, "created_uptime_ms", createdUptimeMs) ||
-        storedJobId != jobId ||
-        storedSessionId != sessionId ||
-        coilCount == 0UL || coilCount > 10UL)
+        coilCount == 0UL || coilCount > JobSnapshot::MaxCoils ||
+        !findUnsigned(content, "created_uptime_ms", snapshot.createdUptimeMs))
     {
         return false;
     }
 
-    return content.indexOf(F("\"program_type\":\"WORKING\"")) >= 0 ||
-           content.indexOf(F("\"program_type\":\"STARTING\"")) >= 0;
+    if (programType == "WORKING")
+        snapshot.type = RemoteJobType::Working;
+    else if (programType == "STARTING")
+        snapshot.type = RemoteJobType::Starting;
+    else
+        return false;
+
+    snapshot.coilCount = static_cast<uint8_t>(coilCount);
+    return findTurns(content, snapshot.coilCount, snapshot.turns);
 }
 
 bool JobSnapshotStore::findUnsigned(const String& input,
@@ -185,5 +237,63 @@ bool JobSnapshotStore::findUnsigned(const String& input,
     if (parseEnd == nullptr || *parseEnd != '\0') return false;
     value = static_cast<uint32_t>(parsed);
     return true;
+}
+
+bool JobSnapshotStore::findString(const String& input,
+                                  const char* key,
+                                  String& value)
+{
+    value = String();
+    const String marker = String('"') + key + F("\":\"");
+    int start = input.indexOf(marker);
+    if (start < 0) return false;
+    start += marker.length();
+
+    const int end = input.indexOf('"', start);
+    if (end < 0 || end == start) return false;
+    value = input.substring(start, end);
+    return true;
+}
+
+bool JobSnapshotStore::findTurns(const String& input,
+                                 uint8_t expectedCount,
+                                 uint16_t* turns)
+{
+    if (expectedCount == 0U || turns == nullptr) return false;
+
+    const String marker = F("\"turns\":[");
+    int start = input.indexOf(marker);
+    if (start < 0) return false;
+    start += marker.length();
+
+    const int arrayEnd = input.indexOf(']', start);
+    if (arrayEnd < 0) return false;
+
+    uint8_t count = 0U;
+    int cursor = start;
+    while (cursor < arrayEnd)
+    {
+        if (count >= expectedCount) return false;
+
+        int valueEnd = cursor;
+        while (valueEnd < arrayEnd && isDigit(input[valueEnd])) ++valueEnd;
+        if (valueEnd == cursor) return false;
+
+        const String number = input.substring(cursor, valueEnd);
+        char* parseEnd = nullptr;
+        const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
+        if (parseEnd == nullptr || *parseEnd != '\0' ||
+            parsed == 0UL || parsed > MaxTurnsPerCoil)
+        {
+            return false;
+        }
+
+        turns[count++] = static_cast<uint16_t>(parsed);
+        if (valueEnd == arrayEnd) break;
+        if (input[valueEnd] != ',') return false;
+        cursor = valueEnd + 1;
+    }
+
+    return count == expectedCount;
 }
 }

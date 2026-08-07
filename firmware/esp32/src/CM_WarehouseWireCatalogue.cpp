@@ -2,13 +2,31 @@
 
 namespace CM
 {
-uint8_t WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
-                                                uint8_t capacity) const
+namespace
 {
-    if (!m_ready || items == nullptr || capacity == 0U ||
-        !m_storage.exists(SpoolsPath))
+bool optionalStringFieldValid(const String& line,
+                              const char* key,
+                              String& value,
+                              bool (*findStringFn)(const String&, const char*, String&))
+{
+    const String marker = String("\"") + key + F("\":");
+    if (line.indexOf(marker) < 0)
     {
-        return 0U;
+        value = String();
+        return true;
+    }
+    return findStringFn(line, key, value);
+}
+}
+
+bool WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
+                                             uint8_t capacity,
+                                             uint8_t& count) const
+{
+    count = 0U;
+    if (!ready() || items == nullptr || capacity == 0U)
+    {
+        return false;
     }
 
     for (uint8_t i = 0U; i < capacity; ++i)
@@ -16,28 +34,44 @@ uint8_t WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
         items[i] = KnownWireDiameter();
     }
 
-    File file = m_storage.open(SpoolsPath, FILE_READ);
-    if (!file)
-    {
-        return 0U;
-    }
+    if (!m_storage.exists(SpoolsPath)) return true;
 
-    uint8_t count = 0U;
+    File file = m_storage.open(SpoolsPath, FILE_READ);
+    if (!file) return false;
+
+    uint32_t previousSpoolId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        uint32_t spoolId = 0UL;
         uint32_t diameter = 0UL;
         uint32_t weight = 0UL;
         String status;
+        String wireType;
+        String optional;
 
-        if (!findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-            diameter == 0UL || diameter > 0xFFFFUL)
+        if (!line.startsWith("{") || !line.endsWith("}") ||
+            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+            spoolId <= previousSpoolId ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 0xFFFFUL ||
+            !findUnsigned(line, "current_weight_g", weight) ||
+            !findString(line, "status", status) ||
+            !optionalStringFieldValid(line, "wire_type", wireType, findString) ||
+            (!wireType.isEmpty() && wireType != "CU" && wireType != "AL") ||
+            !optionalStringFieldValid(line, "manufacturer", optional, findString) ||
+            !optionalStringFieldValid(line, "supplier", optional, findString) ||
+            !optionalStringFieldValid(line, "batch", optional, findString) ||
+            !optionalStringFieldValid(line, "storage_location", optional, findString) ||
+            !optionalStringFieldValid(line, "comment", optional, findString))
         {
-            continue;
+            file.close();
+            count = 0U;
+            return false;
         }
-
-        findUnsigned(line, "current_weight_g", weight);
-        findString(line, "status", status);
+        previousSpoolId = spoolId;
 
         uint8_t index = count;
         for (uint8_t i = 0U; i < count; ++i)
@@ -53,24 +87,28 @@ uint8_t WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
         {
             if (count >= capacity)
             {
-                continue;
+                file.close();
+                count = 0U;
+                return false;
             }
             items[index].diameterHundredthsMm = static_cast<uint16_t>(diameter);
             ++count;
         }
 
-        if (status.length() == 0U || status == "ACTIVE")
+        if (status == "ACTIVE")
         {
-            const uint64_t total = static_cast<uint64_t>(items[index].availableGrams) + weight;
-            items[index].availableGrams = total > 0xFFFFFFFFULL
-                                              ? 0xFFFFFFFFUL
-                                              : static_cast<uint32_t>(total);
+            if (items[index].availableGrams > 0xFFFFFFFFUL - weight)
+            {
+                file.close();
+                count = 0U;
+                return false;
+            }
+            items[index].availableGrams += weight;
         }
     }
 
     file.close();
 
-    // Stable ascending order makes API output and calculations deterministic.
     for (uint8_t i = 1U; i < count; ++i)
     {
         const KnownWireDiameter current = items[i];
@@ -84,6 +122,13 @@ uint8_t WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
         items[position] = current;
     }
 
-    return count;
+    return true;
+}
+
+uint8_t WarehouseStore::loadKnownWireDiameters(KnownWireDiameter* items,
+                                                uint8_t capacity) const
+{
+    uint8_t count = 0U;
+    return loadKnownWireDiameters(items, capacity, count) ? count : 0U;
 }
 }

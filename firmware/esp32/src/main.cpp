@@ -51,6 +51,7 @@ uint16_t completedRuns = 0U;
 uint8_t activeCoilCount = 0U;
 uint16_t activeTurns[MaxWebCoils] = {};
 CM::RemoteJobType activeJobType = CM::RemoteJobType::Working;
+CM::JobLinkage activeJobLinkage;
 CM::JobDeliveryResult lastJobResult = CM::JobDeliveryResult::None;
 CM::JobRecoveryInfo recoveryInfo;
 bool recoveryEvaluated = false;
@@ -138,6 +139,7 @@ void restoreLatestJobState()
     recoveryEvaluated = true;
     recoveryInfo = CM::JobRecoveryInfo();
     stateRecovered = false;
+    activeJobLinkage = CM::JobLinkage();
     activeCoilCount = 0U;
     for (uint8_t i = 0U; i < MaxWebCoils; ++i) activeTurns[i] = 0U;
 
@@ -173,6 +175,7 @@ void restoreLatestJobState()
     activeJobId = recoveryInfo.state.jobId;
     activeSessionId = recoveryInfo.state.sessionId;
     activeJobType = display.type;
+    activeJobLinkage = display.linkage;
     activeCoilCount = display.coilCount;
     for (uint8_t i = 0U; i < activeCoilCount; ++i)
         activeTurns[i] = display.turns[i];
@@ -186,6 +189,11 @@ void restoreLatestJobState()
     Serial.print(F("Recovered job state job=")); Serial.print(activeJobId);
     Serial.print(F(" session=")); Serial.print(activeSessionId);
     Serial.print(F(" program=")); Serial.print(activeProgramText());
+    if (activeJobLinkage.linked)
+    {
+        Serial.print(F(" repair=")); Serial.print(activeJobLinkage.repairId);
+        Serial.print(F(" motor=")); Serial.print(activeJobLinkage.motorId);
+    }
     Serial.print(F(" run=")); Serial.print(lastRunId);
     Serial.print(F(" completed=")); Serial.println(completedRuns);
     if (manualReviewRequired())
@@ -313,7 +321,14 @@ void sendJsonStatus()
     response += F("\",\"job_type\":\"");
     response += activeJobType == CM::RemoteJobType::Starting ? F("STARTING") : F("WORKING");
     response += F("\",\"program\":\""); response += activeProgramText();
-    response += F("\",\"completed_runs\":"); response += completedRuns;
+    response += F("\",\"linked\":"); response += activeJobLinkage.linked ? F("true") : F("false");
+    response += F(",\"repair_id\":");
+    if (activeJobLinkage.linked) response += activeJobLinkage.repairId;
+    else response += F("null");
+    response += F(",\"motor_id\":");
+    if (activeJobLinkage.linked) response += activeJobLinkage.motorId;
+    else response += F("null");
+    response += F(",\"completed_runs\":"); response += completedRuns;
     response += F(",\"last_run_id\":"); response += lastRunId;
     response += F(",\"run_active\":"); response += runActive ? F("true") : F("false");
     response += F(",\"arduino_ack_pending\":"); response += jobAwaitingAck ? F("true") : F("false");
@@ -490,6 +505,7 @@ void handleCreateJob()
     activeJobId = job.jobId;
     activeSessionId = job.sessionId;
     activeJobType = job.type;
+    activeJobLinkage = linkage;
     activeCoilCount = job.coilCount;
     for (uint8_t i = 0U; i < activeCoilCount; ++i) activeTurns[i] = job.turns[i];
     completedRuns = 0U;

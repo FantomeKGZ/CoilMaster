@@ -2,246 +2,232 @@
 
 Перед редактированием всегда получать актуальное содержимое файла из ветки `cmp-protocol-v1`.
 
-## UART и намотка ESP32
+## Главная интеграция ESP32
+
+```text
+firmware/esp32/src/main.cpp
+```
+
+Содержит:
+
+- `/api/status`;
+- `/api/jobs`;
+- `/api/recovery/acknowledge`;
+- регистрацию workshop/warehouse/static web API;
+- startup всех persistent-компонентов;
+- lifecycle текущего job;
+- `job_creation_ready` и `linked_job_creation_ready`.
+
+## Persistent job identity и recovery
+
+```text
+firmware/esp32/src/CM_PersistentIdAllocator.h
+firmware/esp32/src/CM_PersistentIdAllocator.cpp
+firmware/esp32/src/CM_JobSnapshotStore.h
+firmware/esp32/src/CM_JobSnapshotStore.cpp
+firmware/esp32/src/CM_JobStateStore.h
+firmware/esp32/src/CM_JobStateStore.cpp
+firmware/esp32/src/CM_JobRecovery.h
+firmware/esp32/src/CM_JobRecovery.cpp
+firmware/esp32/src/CM_JobDisplayRecovery.h
+firmware/esp32/src/CM_JobDisplayRecovery.cpp
+```
+
+Хранилища:
+
+```text
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/snapshots/session-<session_id>.json
+/data/winding-jobs/state/session-<session_id>.json
+```
+
+## UART и журнал намотки
 
 ```text
 firmware/esp32/src/CM_UartEventReceiver.h
 firmware/esp32/src/CM_UartEventReceiver.cpp
 firmware/esp32/src/CM_WindingJournal.h
 firmware/esp32/src/CM_WindingJournal.cpp
+firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp
 ```
 
 Назначение:
 
-- приём UART-событий;
-- передача заданий;
-- ACK/REJECT/TIMEOUT/CANCEL;
-- повторные отправки;
-- строгий парсинг;
-- журнал `RUN_STARTED` и `RUN_COMPLETED`;
-- защита последовательности событий;
-- составная идентичность `session_id + run_id + event_type`.
+- доставка job и ACK/REJECT/TIMEOUT/CANCEL;
+- `RUN_STARTED` / `RUN_COMPLETED`;
+- composite identity `session_id + run_id + event_type`;
+- schema 2 context `job_id/repair_id/motor_id`;
+- fail-closed event scans и startup validation.
+
+Журнал:
+
+```text
+/data/winding-runs/events.ndjson
+```
+
+## История намотки
+
+```text
+firmware/esp32/src/CM_WindingJournalQuery.h
+firmware/esp32/src/CM_WindingJournalQuery.cpp
+firmware/esp32/src/CM_WindingJournalWeb.h
+firmware/esp32/src/CM_WindingJournalWeb.cpp
+```
+
+API:
+
+```text
+GET /api/winding-history?repair_id=<id>&cursor=<n>&limit=<n>
+GET /api/winding-history?session_id=<id>&cursor=<n>&limit=<n>
+```
+
+UI:
+
+```text
+firmware/esp32/web/mobile/winding-history.html
+firmware/esp32/web/desktop/winding-history.html
+```
+
+## Программа намотки
+
+Единый parser:
+
+```text
+firmware/esp32/src/CM_WindingProgramParser.h
+```
+
+Правила:
+
+- 1..10 катушек;
+- 1..9999 витков на сегмент;
+- разделители `/`, `,`, `;`;
+- пробелы игнорируются;
+- leading zero и пустые сегменты запрещены;
+- canonical format `N/N/...`.
+
+Используется job creation, registry, similarity и UI-валидацией.
+
+## Linked job и workshop registry
+
+```text
+firmware/esp32/src/CM_JobLinkageRequest.h
+firmware/esp32/src/CM_JobLinkageRequest.cpp
+firmware/esp32/src/CM_JobLinkageResolver.h
+firmware/esp32/src/CM_JobLinkageResolver.cpp
+firmware/esp32/src/CM_RepairRegistry.h
+firmware/esp32/src/CM_RepairRegistry.cpp
+firmware/esp32/src/CM_RepairRegistrySimilarity.cpp
+firmware/esp32/src/CM_RepairRegistryWeb.h
+firmware/esp32/src/CM_RepairRegistryWeb.cpp
+firmware/esp32/src/CM_MotorSimilarityWeb.h
+firmware/esp32/src/CM_MotorSimilarityWeb.cpp
+```
+
+Данные:
+
+```text
+/data/workshop/clients.ndjson
+/data/workshop/motors.ndjson
+/data/workshop/repairs.ndjson
+```
+
+API:
+
+```text
+GET/POST /api/clients
+GET/POST /api/motors
+GET/POST /api/repairs
+GET      /api/motors/similar
+```
+
+## Linked winding UI
+
+```text
+firmware/esp32/web/mobile/winding-job.html
+firmware/esp32/web/desktop/winding-job.html
+```
+
+Ожидается `repair_id`, загружается repair + motor, `coil_program` readonly, POST идёт в `/api/jobs` с `repair_id` и `motor_id`. Физический запуск не выполняется из браузера.
+
+## Главные страницы
+
+```text
+firmware/esp32/web/mobile/index.html
+firmware/esp32/web/desktop/index.html
+```
+
+Показывают явные lifecycle states и readiness. Linked repair ведёт на winding history.
+
+## Клиенты, ремонты и двигатели UI
+
+```text
+firmware/esp32/web/mobile/clients.html
+firmware/esp32/web/mobile/repairs.html
+firmware/esp32/web/mobile/motors.html
+firmware/esp32/web/mobile/more.html
+firmware/esp32/web/desktop/clients.html
+firmware/esp32/web/desktop/repairs.html
+firmware/esp32/web/desktop/motors.html
+```
+
+Следующая активная проверка начинается именно с `repairs.html` mobile/desktop.
+
+## Static web storage
+
+```text
+firmware/esp32/src/CM_StaticSiteServer.h
+firmware/esp32/src/CM_StaticSiteServer.cpp
+firmware/esp32/web/mobile/
+firmware/esp32/web/desktop/
+```
+
+`web_storage_ready` динамически отражает runtime-доступность `/web`.
 
 ## Склад провода
 
-Основные файлы находятся среди:
+Основные файлы:
 
 ```text
 firmware/esp32/src/CM_WarehouseStore.h
-firmware/esp32/src/CM_WarehouseWriteOffHistory.cpp
+firmware/esp32/src/CM_WarehouseStore.cpp
+firmware/esp32/src/CM_WarehouseWeb.h
+firmware/esp32/src/CM_WarehouseWeb.cpp
+firmware/esp32/src/CM_WarehouseWriteOff.cpp
 firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp
+firmware/esp32/src/CM_WarehouseWriteOffHistory.cpp
 firmware/esp32/src/CM_WarehouseMaterialCatalogue.cpp
 ```
 
-Перед изменением маршрутов дополнительно искать текущие `CM_Warehouse*Web.h/.cpp` и регистрацию API.
+Не начинать склад заново — подсистема уже реализована.
 
-## Калькуляция ремонта
+## Калькуляция ремонта и материалы
 
 ```text
 firmware/esp32/src/CM_RepairCosting.h
 firmware/esp32/src/CM_RepairCosting.cpp
 firmware/esp32/src/CM_RepairCostingWeb.h
 firmware/esp32/src/CM_RepairCostingWeb.cpp
-```
-
-Ключевые задачи:
-
-- стоимость провода;
-- дополнительные материалы;
-- исторические снимки цен;
-- итоги CU/AL/UNKNOWN;
-- контрольные признаки.
-
-## Дополнительные материалы
-
-```text
 firmware/esp32/src/CM_MaterialLedger.h
 firmware/esp32/src/CM_MaterialLedger.cpp
 firmware/esp32/src/CM_MaterialLedgerWeb.h
 firmware/esp32/src/CM_MaterialLedgerWeb.cpp
 ```
 
-Дополнительные реализации могут быть разделены на файлы по функциям, например проверка ремонта или валюты. Перед удалением или переносом искать все определения методов `MaterialLedger`.
+Дополнительные реализации разделены на файлы `CM_Material*`, `CM_RepairPricing*`, `CM_Warehouse*` — перед изменением искать все определения.
 
-## Реестр мастерской
-
-Искать файлы и обработчики, связанные с:
+## CI
 
 ```text
-clients
-motors
-repairs
-workshop
+.github/workflows/esp32-build.yml
+.github/workflows/arduino-uno-build.yml
+.github/workflows/cmp-protocol-tests.yml
+Tests/Protocol/CMakeLists.txt
+Tests/Protocol/test_main.cpp
 ```
 
-Данные хранятся под:
+GitHub connector для `fetch_commit_workflow_runs` видит только PR-triggered runs, поэтому отсутствие результата не доказывает отсутствие/успех push-run.
 
-```text
-/data/workshop/
-```
-
-Известный файл:
-
-```text
-/data/workshop/repairs.ndjson
-```
-
-## Веб-интерфейс
-
-Мобильная версия:
-
-```text
-firmware/esp32/web/mobile/
-```
-
-Настольная версия:
-
-```text
-firmware/esp32/web/desktop/
-```
-
-Ключевые страницы:
-
-```text
-firmware/esp32/web/mobile/motors.html
-firmware/esp32/web/desktop/motors.html
-firmware/esp32/web/mobile/writeoff.html
-firmware/esp32/web/desktop/writeoff.html
-```
-
-Также искать страницы ремонта, выбора двигателя и калькуляции по текущей структуре каталога.
-
-## Планируемые Wi-Fi и FTP настройки
-
-Подробная спецификация планов:
-
-```text
-docs/82_WIFI_MANAGER_AND_FTP_CONFIGURATION.md
-```
-
-Будущие страницы:
-
-```text
-firmware/esp32/web/mobile/settings-wifi.html
-firmware/esp32/web/desktop/settings-wifi.html
-firmware/esp32/web/mobile/settings-ftp.html
-firmware/esp32/web/desktop/settings-ftp.html
-```
-
-Будущие основные компоненты ESP32 должны покрывать:
-
-- хранение нескольких Wi-Fi сетей;
-- приоритеты, DHCP/static IP и восстановление подключения;
-- fallback access point при отсутствии доступной сети;
-- API и UI настройки Wi-Fi;
-- отключаемый FTP-сервер для microSD;
-- защищённое хранение учётных данных;
-- запрет записи в критические файлы во время активной намотки;
-- API и UI настройки FTP.
-
-Этот блок имеет статус `PLANNED`. Наличие текущей фиксированной точки доступа не означает, что Wi-Fi manager и FTP уже реализованы.
-
-## Хранилища на SD
-
-Журнал намотки:
-
-```text
-/data/winding-runs/events.ndjson
-```
-
-Дополнительные материалы:
-
-```text
-/data/materials/materials.ndjson
-/data/materials/materials.tmp
-/data/materials/usage.ndjson
-/data/materials/usage.pending
-/data/materials/adjustments.ndjson
-```
-
-Ремонты:
-
-```text
-/data/workshop/repairs.ndjson
-```
-
-Пути склада провода уточнять по текущим константам в `CM_WarehouseStore`.
-
-## Ключевые тематические документы
-
-Отложенные функции:
-
-```text
-docs/46_DEFERRED_UNASSIGNED_WINDINGS_AND_ANALOGUE_MOTORS.md
-docs/82_WIFI_MANAGER_AND_FTP_CONFIGURATION.md
-```
-
-Калькулятор и материалы:
-
-```text
-docs/51...
-docs/52...
-docs/53...
-docs/54...
-```
-
-Склад и списания:
-
-```text
-docs/56...
-docs/61...
-docs/62...
-docs/63...
-docs/64...
-docs/65...
-docs/66_REPAIR_WRITE_OFF_VALUE_TOTALS.md
-docs/67_REPAIR_WRITE_OFF_VALUE_TOTALS_UI.md
-```
-
-Дополнительные материалы:
-
-```text
-docs/68_MATERIAL_USAGE_REPAIR_REFERENCE_INTEGRITY.md
-docs/69_MATERIAL_USAGE_COST_PROVENANCE.md
-docs/70_MATERIAL_USAGE_COST_FORMULA_METADATA.md
-docs/71_MATERIAL_USAGE_VALUE_INTEGRITY.md
-docs/72_MATERIAL_USAGE_CURRENCY_PREFLIGHT.md
-docs/73_MATERIAL_LEDGER_CORE_INTEGRITY_GUARDS.md
-```
-
-Протокол и журнал намотки:
-
-```text
-docs/74_WINDING_JOURNAL_TRANSITION_INTEGRITY.md
-docs/75_STRICT_UART_EVENT_FIELD_VALIDATION.md
-docs/76_BOUNDED_WINDING_JOB_DELIVERY_RETRIES.md
-docs/77_UNCONSUMED_JOB_DELIVERY_RESULT_GUARD.md
-docs/78_SINGLE_ACTIVE_WINDING_RUN_PER_SESSION.md
-docs/79_MONOTONIC_WINDING_RUN_IDS_PER_SESSION.md
-docs/80_COMPOSITE_WINDING_EVENT_IDENTITY.md
-docs/81_WINDING_SESSION_ID_SEMANTICS.md
-```
-
-Следующая активная тема:
-
-```text
-Persistent session allocator
-Immutable winding job snapshot
-job_id + session_id + run_id linkage
-```
-
-## CI и тесты
-
-В GitHub Actions используются как минимум:
-
-```text
-ESP32 Build
-CMP Protocol Tests
-```
-
-При ошибке открывать конкретный job и читать compile/test log. Общая лента Actions может содержать красные промежуточные коммиты даже после исправления.
-
-## Handoff-каталог
+## Handoff
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
@@ -254,7 +240,8 @@ docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/07_BACKLOG_AND_DEFERRED.md
 docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
 docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
+docs/PROJECT_HANDOFF/10_SESSION_LOG.md
 docs/PROJECT_HANDOFF/11_FULL_BRANCH_AUDIT.md
 ```
 
-После значимой работы обновлять минимум файлы `01`, `05` и `06`.
+При переносе в новый чат приоритет чтения: `00` → `01` → `06` → актуальные исходники; затем остальные handoff-файлы для деталей.

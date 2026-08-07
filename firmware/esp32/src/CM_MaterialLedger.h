@@ -108,6 +108,7 @@ public:
 private:
     static constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
     static constexpr const char* MaterialsTempPath = "/data/materials/materials.tmp";
+    static constexpr const char* MaterialsBackupPath = "/data/materials/materials.bak";
     static constexpr const char* UsagePath = "/data/materials/usage.ndjson";
     static constexpr const char* UsagePendingPath = "/data/materials/usage.pending";
     static constexpr const char* AdjustmentsPath = "/data/materials/adjustments.ndjson";
@@ -115,6 +116,8 @@ private:
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 
     bool ensureDirectories();
+    bool recoverMaterialFileSwap();
+    bool replaceMaterialsFileFromTemp();
     bool recoverPendingUsage();
     bool recoverPendingAdjustment();
     bool writePendingUsage(uint32_t usageId,

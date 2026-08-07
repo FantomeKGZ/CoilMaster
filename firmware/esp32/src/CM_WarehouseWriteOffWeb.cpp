@@ -51,8 +51,16 @@ void WarehouseWeb::handleListWriteOffs()
                                                totalValueMinor,
                                                materialTotals))
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"write_off_history_read_failed\"}");
+        if (!m_store.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"write_off_history_read_failed\"}");
+        }
         return;
     }
 
@@ -130,7 +138,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     }
 
     bool repairOpen = false;
-    if (!RepairLifecycle::isOpen(SD, repairId, repairOpen))
+    if (!RepairLifecycle::isOpen(m_store.storage(), repairId, repairOpen))
     {
         m_server.send(503, "application/json; charset=utf-8",
                       "{\"error\":\"repair_lifecycle_unavailable\"}");
@@ -169,8 +177,16 @@ void WarehouseWeb::handleConfirmWriteOff()
     SpoolWriteOffResult result;
     if (!m_store.confirmSpoolWriteOff(operation, result))
     {
-        m_server.send(409, "application/json; charset=utf-8",
-                      "{\"error\":\"write_off_not_committed\"}");
+        if (!m_store.ready())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
+        }
+        else
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"write_off_not_committed\"}");
+        }
         return;
     }
 

@@ -7,12 +7,25 @@
 
 namespace CM
 {
+struct JobLinkage
+{
+    bool linked;
+    uint32_t repairId;
+    uint32_t motorId;
+
+    JobLinkage();
+    static JobLinkage unlinked();
+    static JobLinkage linkedTo(uint32_t repairId, uint32_t motorId);
+    bool isValid() const;
+};
+
 struct JobSnapshot
 {
     static constexpr uint8_t MaxCoils = 10U;
 
     uint32_t jobId;
     uint32_t sessionId;
+    JobLinkage linkage;
     RemoteJobType type;
     uint8_t coilCount;
     uint16_t turns[MaxCoils];
@@ -29,11 +42,18 @@ public:
     bool begin();
     bool isReady() const;
 
-    // Creates one immutable snapshot. Existing session files are never replaced.
+    // Compatibility path for jobs that are not yet connected to a repair.
+    // Persists repair_id and motor_id as explicit JSON null values.
     bool create(const OutgoingWindingJob& job, uint32_t createdUptimeMs);
+
+    // Creates one immutable snapshot linked to an existing repair and motor.
+    // Both identifiers must be non-zero; partial linkage is rejected.
+    bool create(const OutgoingWindingJob& job,
+                const JobLinkage& linkage,
+                uint32_t createdUptimeMs);
     bool exists(uint32_t sessionId) const;
 
-    // Loads and validates immutable program data for display/recovery only.
+    // Loads and validates immutable program and linkage data for recovery.
     bool load(uint32_t sessionId, JobSnapshot& snapshot) const;
 
     // Verifies that the persisted immutable snapshot is structurally valid and
@@ -52,12 +72,17 @@ private:
     String snapshotPath(uint32_t sessionId) const;
     String temporaryPath(uint32_t sessionId) const;
     String serialize(const OutgoingWindingJob& job,
+                     const JobLinkage& linkage,
                      uint32_t createdUptimeMs) const;
     bool readAndParse(const char* path, JobSnapshot& snapshot) const;
     static bool parse(const String& content, JobSnapshot& snapshot);
     static bool findUnsigned(const String& input,
                              const char* key,
                              uint32_t& value);
+    static bool findNullableUnsigned(const String& input,
+                                     const char* key,
+                                     bool& hasValue,
+                                     uint32_t& value);
     static bool findString(const String& input,
                            const char* key,
                            String& value);

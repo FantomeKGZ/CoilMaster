@@ -73,6 +73,9 @@ private:
 
     bool ensureDirectories();
     bool validateJournalStructure() const;
+    bool validateJournalSessionContexts() const;
+    bool sessionContextMatches(uint32_t sessionId,
+                               const WindingEventContext& context) const;
     bool containsRunEvent(uint32_t sessionId,
                           uint32_t runId,
                           RemoteEventType type) const;
@@ -86,6 +89,8 @@ private:
                                  uint32_t& highestRunId) const;
     bool appendRecord(const RemoteWindingEvent& event,
                       const WindingEventContext& context);
+    static bool parseContext(const String& line,
+                             WindingEventContext& context);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool fieldIsNull(const String& line, const char* key);
     static const char* eventTypeName(RemoteEventType type);

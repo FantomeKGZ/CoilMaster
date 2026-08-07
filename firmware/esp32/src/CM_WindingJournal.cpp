@@ -43,7 +43,15 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event,
     if (event.type == RemoteEventType::RunStarted && event.completedRuns != 0U)
         return JournalSaveResult::InvalidTransition;
 
-    if (containsRunEvent(event.sessionId, event.runId, event.type))
+    bool duplicateFound = false;
+    if (!containsRunEvent(event.sessionId,
+                          event.runId,
+                          event.type,
+                          duplicateFound))
+    {
+        return JournalSaveResult::InvalidTransition;
+    }
+    if (duplicateFound)
         return JournalSaveResult::Duplicate;
 
     if (event.type == RemoteEventType::RunStarted)
@@ -66,8 +74,9 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event,
 
     if (event.type == RemoteEventType::RunCompleted)
     {
-        if (!hasRunStart(event.sessionId, event.runId) ||
-            event.completedRuns == 0U)
+        bool runStartFound = false;
+        if (!hasRunStart(event.sessionId, event.runId, runStartFound) ||
+            !runStartFound || event.completedRuns == 0U)
         {
             return JournalSaveResult::InvalidTransition;
         }
@@ -158,13 +167,15 @@ bool WindingJournal::validateJournalStructure() const
         uint32_t sessionId = 0UL;
         uint32_t completedRuns = 0UL;
         uint32_t uptimeMs = 0UL;
+        RemoteEventType eventType = RemoteEventType::None;
         if (!findUnsigned(line, "schema_version", schemaVersion) ||
             (schemaVersion != 1UL && schemaVersion != 2UL) ||
             !findUnsigned(line, "run_id", runId) || runId == 0UL ||
             !findUnsigned(line, "session_id", sessionId) || sessionId == 0UL ||
             !findUnsigned(line, "completed_runs", completedRuns) ||
             completedRuns > 0xFFFFUL ||
-            !findUnsigned(line, "uptime_ms", uptimeMs))
+            !findUnsigned(line, "uptime_ms", uptimeMs) ||
+            !parseEvent(line, eventType))
         {
             file.close();
             return false;
@@ -180,13 +191,8 @@ bool WindingJournal::validateJournalStructure() const
             }
         }
 
-        const bool started =
-            line.indexOf(F("\"event\":\"RUN_STARTED\"")) >= 0;
-        const bool completed =
-            line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0;
-        if (started == completed ||
-            (started && completedRuns != 0UL) ||
-            (completed && completedRuns == 0UL))
+        if ((eventType == RemoteEventType::RunStarted && completedRuns != 0UL) ||
+            (eventType == RemoteEventType::RunCompleted && completedRuns == 0UL))
         {
             file.close();
             return false;
@@ -328,37 +334,75 @@ bool WindingJournal::sessionContextMatches(
 
 bool WindingJournal::containsRunEvent(uint32_t sessionId,
                                       uint32_t runId,
-                                      RemoteEventType type) const
+                                      RemoteEventType type,
+                                      bool& found) const
 {
-    if (!m_fileSystem.exists(JournalPath)) return false;
+    found = false;
+    if (!m_fileSystem.exists(JournalPath)) return true;
     File file = m_fileSystem.open(JournalPath, FILE_READ);
     if (!file) return false;
 
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.indexOf(String("\"event\":\"") + eventTypeName(type) + '"') < 0)
-            continue;
-
+        uint32_t schemaVersion = 0UL;
         uint32_t lineSessionId = 0UL;
         uint32_t lineRunId = 0UL;
-        if (findUnsigned(line, "session_id", lineSessionId) &&
-            lineSessionId == sessionId &&
-            findUnsigned(line, "run_id", lineRunId) &&
-            lineRunId == runId)
+        uint32_t lineCompletedRuns = 0UL;
+        uint32_t uptimeMs = 0UL;
+        RemoteEventType lineType = RemoteEventType::None;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            (schemaVersion != 1UL && schemaVersion != 2UL) ||
+            !findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId == 0UL ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
+            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
+            lineCompletedRuns > 0xFFFFUL ||
+            !findUnsigned(line, "uptime_ms", uptimeMs) ||
+            !parseEvent(line, lineType))
         {
+            file.close();
+            return false;
+        }
+
+        if (schemaVersion == 2UL)
+        {
+            WindingEventContext context;
+            if (!parseContext(line, context))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
+            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
+        {
+            file.close();
+            return false;
+        }
+
+        if (lineSessionId == sessionId &&
+            lineRunId == runId && lineType == type)
+        {
+            found = true;
             file.close();
             return true;
         }
     }
 
     file.close();
-    return false;
+    return true;
 }
 
-bool WindingJournal::hasRunStart(uint32_t sessionId, uint32_t runId) const
+bool WindingJournal::hasRunStart(uint32_t sessionId,
+                                 uint32_t runId,
+                                 bool& found) const
 {
-    return containsRunEvent(sessionId, runId, RemoteEventType::RunStarted);
+    return containsRunEvent(sessionId,
+                            runId,
+                            RemoteEventType::RunStarted,
+                            found);
 }
 
 bool WindingJournal::loadSessionCompletedRuns(uint32_t sessionId,
@@ -372,15 +416,45 @@ bool WindingJournal::loadSessionCompletedRuns(uint32_t sessionId,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) < 0)
-            continue;
-
+        uint32_t schemaVersion = 0UL;
         uint32_t lineSessionId = 0UL;
+        uint32_t lineRunId = 0UL;
         uint32_t lineCompletedRuns = 0UL;
-        if (!findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId != sessionId ||
+        uint32_t uptimeMs = 0UL;
+        RemoteEventType lineType = RemoteEventType::None;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            (schemaVersion != 1UL && schemaVersion != 2UL) ||
+            !findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId == 0UL ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
             !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
-            lineCompletedRuns > 0xFFFFUL)
+            lineCompletedRuns > 0xFFFFUL ||
+            !findUnsigned(line, "uptime_ms", uptimeMs) ||
+            !parseEvent(line, lineType))
+        {
+            file.close();
+            return false;
+        }
+
+        if (schemaVersion == 2UL)
+        {
+            WindingEventContext context;
+            if (!parseContext(line, context))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
+            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
+        {
+            file.close();
+            return false;
+        }
+
+        if (lineSessionId != sessionId ||
+            lineType != RemoteEventType::RunCompleted)
         {
             continue;
         }
@@ -406,18 +480,48 @@ bool WindingJournal::loadActiveRun(uint32_t sessionId,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        uint32_t schemaVersion = 0UL;
         uint32_t lineSessionId = 0UL;
         uint32_t lineRunId = 0UL;
-        if (!findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId != sessionId ||
-            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL)
+        uint32_t lineCompletedRuns = 0UL;
+        uint32_t uptimeMs = 0UL;
+        RemoteEventType lineType = RemoteEventType::None;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            (schemaVersion != 1UL && schemaVersion != 2UL) ||
+            !findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId == 0UL ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
+            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
+            lineCompletedRuns > 0xFFFFUL ||
+            !findUnsigned(line, "uptime_ms", uptimeMs) ||
+            !parseEvent(line, lineType))
         {
-            continue;
+            file.close();
+            return false;
         }
 
-        if (line.indexOf(F("\"event\":\"RUN_STARTED\"")) >= 0)
+        if (schemaVersion == 2UL)
         {
-            if (found && runId != lineRunId)
+            WindingEventContext context;
+            if (!parseContext(line, context))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
+            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
+        {
+            file.close();
+            return false;
+        }
+
+        if (lineSessionId != sessionId) continue;
+
+        if (lineType == RemoteEventType::RunStarted)
+        {
+            if (found)
             {
                 file.close();
                 return false;
@@ -425,9 +529,13 @@ bool WindingJournal::loadActiveRun(uint32_t sessionId,
             runId = lineRunId;
             found = true;
         }
-        else if (line.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0 &&
-                 found && runId == lineRunId)
+        else
         {
+            if (!found || runId != lineRunId)
+            {
+                file.close();
+                return false;
+            }
             runId = 0UL;
             found = false;
         }
@@ -448,19 +556,55 @@ bool WindingJournal::loadSessionHighestRunId(uint32_t sessionId,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.indexOf(F("\"event\":\"RUN_STARTED\"")) < 0)
-            continue;
-
+        uint32_t schemaVersion = 0UL;
         uint32_t lineSessionId = 0UL;
         uint32_t lineRunId = 0UL;
-        if (!findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId != sessionId ||
-            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL)
+        uint32_t lineCompletedRuns = 0UL;
+        uint32_t uptimeMs = 0UL;
+        RemoteEventType lineType = RemoteEventType::None;
+        if (!findUnsigned(line, "schema_version", schemaVersion) ||
+            (schemaVersion != 1UL && schemaVersion != 2UL) ||
+            !findUnsigned(line, "session_id", lineSessionId) ||
+            lineSessionId == 0UL ||
+            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
+            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
+            lineCompletedRuns > 0xFFFFUL ||
+            !findUnsigned(line, "uptime_ms", uptimeMs) ||
+            !parseEvent(line, lineType))
+        {
+            file.close();
+            return false;
+        }
+
+        if (schemaVersion == 2UL)
+        {
+            WindingEventContext context;
+            if (!parseContext(line, context))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
+            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
+        {
+            file.close();
+            return false;
+        }
+
+        if (lineSessionId != sessionId ||
+            lineType != RemoteEventType::RunStarted)
         {
             continue;
         }
 
-        if (lineRunId > highestRunId) highestRunId = lineRunId;
+        if (lineRunId <= highestRunId)
+        {
+            file.close();
+            return false;
+        }
+        highestRunId = lineRunId;
     }
 
     file.close();
@@ -534,6 +678,36 @@ bool WindingJournal::parseContext(const String& line,
     }
 
     return context.isValid();
+}
+
+bool WindingJournal::parseEvent(const String& line, RemoteEventType& type)
+{
+    type = RemoteEventType::None;
+    const String marker = F("\"event\":\"");
+    const int position = line.indexOf(marker);
+    if (position < 0 || line.indexOf(marker, position + marker.length()) >= 0)
+        return false;
+
+    const int start = position + marker.length();
+    const int end = line.indexOf('"', start);
+    if (end <= start) return false;
+
+    int cursor = end + 1;
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (cursor >= line.length() ||
+        (line[cursor] != ',' && line[cursor] != '}'))
+    {
+        return false;
+    }
+
+    const String value = line.substring(start, end);
+    if (value == "RUN_STARTED")
+        type = RemoteEventType::RunStarted;
+    else if (value == "RUN_COMPLETED")
+        type = RemoteEventType::RunCompleted;
+    else
+        return false;
+    return true;
 }
 
 bool WindingJournal::findUnsigned(const String& line,

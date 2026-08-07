@@ -11,6 +11,7 @@ MaterialLedger::MaterialLedger(fs::FS& storage)
 bool MaterialLedger::begin()
 {
     m_ready = ensureDirectories();
+    if (m_ready) m_ready = recoverMaterialFileSwap();
     if (m_ready) m_ready = recoverPendingUsage();
     if (m_ready) m_ready = recoverPendingAdjustment();
     return m_ready;
@@ -224,7 +225,7 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
                          rewrittenBefore, rewrittenRemaining,
                          rewrittenPrice, rewrittenCurrency))
     {
-        m_storage.remove(UsagePendingPath);
+        if (m_ready) m_storage.remove(UsagePendingPath);
         return false;
     }
 
@@ -518,8 +519,7 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
         m_storage.remove(MaterialsTempPath);
         return false;
     }
-    m_storage.remove(MaterialsPath);
-    return m_storage.rename(MaterialsTempPath, MaterialsPath);
+    return replaceMaterialsFileFromTemp();
 }
 
 bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli)
@@ -586,8 +586,7 @@ bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli
         m_storage.remove(MaterialsTempPath);
         return false;
     }
-    m_storage.remove(MaterialsPath);
-    return m_storage.rename(MaterialsTempPath, MaterialsPath);
+    return replaceMaterialsFileFromTemp();
 }
 
 bool MaterialLedger::findUnsigned(const String& line, const char* key,

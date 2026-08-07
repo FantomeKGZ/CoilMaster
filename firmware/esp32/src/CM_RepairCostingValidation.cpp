@@ -2,8 +2,9 @@
 
 namespace CM
 {
-bool RepairCosting::repairExists(uint32_t repairId) const
+bool RepairCosting::repairExists(uint32_t repairId, bool& found) const
 {
+    found = false;
     if (!ready() || repairId == 0UL || !m_storage.exists(RepairsPath))
     {
         return false;
@@ -13,7 +14,6 @@ bool RepairCosting::repairExists(uint32_t repairId) const
     if (!file) return false;
 
     uint32_t previousId = 0UL;
-    bool found = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -25,6 +25,7 @@ bool RepairCosting::repairExists(uint32_t repairId) const
             currentRepairId == 0UL || currentRepairId <= previousId)
         {
             file.close();
+            found = false;
             return false;
         }
         previousId = currentRepairId;
@@ -32,6 +33,12 @@ bool RepairCosting::repairExists(uint32_t repairId) const
     }
 
     file.close();
-    return found;
+    return true;
+}
+
+bool RepairCosting::repairExists(uint32_t repairId) const
+{
+    bool found = false;
+    return repairExists(repairId, found) && found;
 }
 }

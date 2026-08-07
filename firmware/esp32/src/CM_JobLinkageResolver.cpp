@@ -10,10 +10,15 @@ JobLinkageResolver::JobLinkageResolver(fs::FS& storage)
 
 bool JobLinkageResolver::begin()
 {
-    // An empty workshop is valid. The store becomes usable once /data exists;
-    // resolve() will report unknown repairs until the repairs file is created.
-    m_ready = m_storage.exists("/data");
-    return m_ready;
+    // A mounted but empty workshop is valid. Data files may be created later
+    // by RepairRegistry during the same boot, so readiness must not depend on
+    // /data already existing when this component starts.
+    m_ready = false;
+    File root = m_storage.open("/", FILE_READ);
+    if (!root) return false;
+    root.close();
+    m_ready = true;
+    return true;
 }
 
 bool JobLinkageResolver::isReady() const

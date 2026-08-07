@@ -32,7 +32,7 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     uint16_t diameter = 0U;
     String wireType;
 
-    // PENDING is ignored by statistics. Material is written on CONFIRMED.
+    // PENDING is ignored by statistics until the spool mutation is durable.
     if (!appendWriteOffRecord(movementId, operation, 0U, consumed, price,
                               "PENDING", String()))
     {
@@ -45,6 +45,8 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
                             diameter,
                             wireType))
     {
+        // The persisted state is now ambiguous until startup reconciliation.
+        m_ready = false;
         return false;
     }
 
@@ -58,6 +60,15 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
                                 operation.weightBeforeGrams,
                                 ignoredDiameter,
                                 ignoredWireType))
+        {
+            m_ready = false;
+            return false;
+        }
+
+        // The stock mutation was successfully rolled back. Close the append-only
+        // transaction explicitly so the next movement id is not blocked.
+        if (!appendWriteOffRecord(movementId, operation, 0U, consumed, price,
+                                  "ABORTED", String()))
         {
             m_ready = false;
         }
@@ -108,7 +119,7 @@ bool WarehouseStore::nextMovementId(uint32_t& id) const
             openPendingId = candidate;
             maximum = candidate;
         }
-        else if (status == "CONFIRMED")
+        else if (status == "CONFIRMED" || status == "ABORTED")
         {
             if (openPendingId == 0UL || candidate != openPendingId)
             {
@@ -238,12 +249,16 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
                                            const char* status,
                                            const String& wireType)
 {
+    if (status == nullptr) return false;
+    const String statusText(status);
+    const bool isPendingLike = statusText == "PENDING" || statusText == "ABORTED";
+    const bool isConfirmed = statusText == "CONFIRMED";
+
     if (movementId == 0UL || operation.spoolId == 0UL || operation.repairId == 0UL ||
         consumedGrams == 0UL || price.pricePerKgMinor == 0UL ||
-        price.currency.length() != 3U || status == nullptr ||
-        (String(status) != "PENDING" && String(status) != "CONFIRMED") ||
-        (String(status) == "PENDING" && (diameterHundredthsMm != 0U || wireType.length() != 0U)) ||
-        (String(status) == "CONFIRMED" &&
+        price.currency.length() != 3U || (!isPendingLike && !isConfirmed) ||
+        (isPendingLike && (diameterHundredthsMm != 0U || wireType.length() != 0U)) ||
+        (isConfirmed &&
          (diameterHundredthsMm == 0U || (wireType != "CU" && wireType != "AL"))))
     {
         return false;
@@ -255,7 +270,7 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     String line;
     line.reserve(450U);
     line = F("{\"movement_id\":"); line += movementId;
-    line += F(",\"type\":\"WRITE_OFF\",\"status\":\""); line += status;
+    line += F(",\"type\":\"WRITE_OFF\",\"status\":\""); line += statusText;
     line += F("\",\"spool_id\":"); line += operation.spoolId;
     line += F(",\"repair_id\":"); line += operation.repairId;
     line += F(",\"diameter_hundredths_mm\":"); line += diameterHundredthsMm;

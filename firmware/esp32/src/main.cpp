@@ -346,6 +346,7 @@ void sendJsonStatus()
     response += F(",\"last_allocated_session_id\":"); response += idAllocator.lastSessionId();
     response += F(",\"warehouse_ready\":"); response += warehouseReady ? F("true") : F("false");
     response += F(",\"web_storage_ready\":"); response += staticSites.storageReady() ? F("true") : F("false");
+    response += F(",\"winding_history_ready\":"); response += staticSites.windingHistoryReady() ? F("true") : F("false");
     response += F("}");
     webServer.send(200, "application/json; charset=utf-8", response);
 }
@@ -627,6 +628,7 @@ void setup()
     Serial.println(jobLinkageResolverReady ? F("repair motor linkage resolver ready") : F("WARNING: repair motor linkage resolver unavailable; linked job creation blocked"));
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
+    Serial.println(staticSites.windingHistoryReady() ? F("read-only winding history API ready") : F("WARNING: winding history API unavailable"));
     Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));
     Serial.print(F("Open http://")); Serial.println(WiFi.softAPIP());
 }

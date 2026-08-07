@@ -18,34 +18,53 @@
 → история намотки
 → ручные списания провода/материалов
 → итог ремонта
+→ finalization audit
 → CLOSED
 → read-only архив
+→ месячный отчёт по закрытым ремонтам
 ```
 
-`CLOSED` является реальным server-side финальным состоянием, а не только UI-меткой.
+`CLOSED` является server-side финальным состоянием, а не UI-меткой.
 
-Перед новым переходом `OPEN → CLOSED` backend теперь обязательно проверяет:
+Перед новым переходом `OPEN → CLOSED` backend проверяет:
 
 - отсутствие незавершённого/recovery winding job;
 - доступность обязательных persistent storage-компонентов;
 - целостность warehouse movements, material usage и pricing через строгий `RepairCosting::load()`;
 - согласованность wire/material/labour total и material-aware wire breakdown;
 - полную читаемость winding journal через cursor query до EOF;
-- semantic transition audit всего winding journal: возрастающие session/run IDs, один активный run, `RUN_STARTED → RUN_COMPLETED`, точный рост `completed_runs`.
+- semantic transition audit winding journal: возрастающие session/run IDs, один активный run, `RUN_STARTED → RUN_COMPLETED`, точный рост `completed_runs`.
 
-Если finalization audit не доказан, `CLOSED` не записывается. Повторный запрос уже закрытого ремонта остаётся идемпотентным и не требует повторной доступности warehouse/material storage.
+Если finalization audit не доказан, `CLOSED` не записывается. Повторный запрос уже закрытого ремонта идемпотентен и не требует повторной доступности warehouse/material storage.
 
 ## Последние функциональные изменения
 
-- warehouse summary и append-paths fail-closed на overflow и partial writes;
-- warehouse стоимость использует тот же `NEAREST_MINOR_UNIT`, что write-off/costing;
-- mobile/desktop реестр ремонтов имеет фильтры `Открытые / Закрытые / Все`;
-- закрытый ремонт ведёт в `Итог ремонта`, а не в mutation workflow;
-- costing mobile/desktop показывает карточку клиента/двигателя и подтверждённый winding summary;
-- создан `RepairFinalizationGuard`;
-- создан отдельный `WindingJournalTransitionAudit` для semantic проверки persisted событий перед закрытием.
+- finalization result разделён на costing storage/integrity и winding storage/integrity;
+- `/api/repairs/close` возвращает точную причину отказа вместо общего finalization error;
+- mobile/desktop показывают оператору понятное объяснение finalization-блокировки;
+- mobile/desktop отчёты по закрытым ремонтам добавлены без новой БД;
+- отчёт фильтруется по месяцу `closed_at`;
+- для каждого ремонта отчёт повторно читает server-authoritative costing;
+- общий финансовый итог показывается только если все ремонты выборки успешно подтверждены;
+- desktop старая заглушка `Статистика` заменена рабочим `Отчёты`;
+- mobile `Разделы` содержит прямой переход в отчёты.
 
-Последние коммиты этого блока:
+Новые коммиты этого блока:
+
+```text
+5f2a2747a0d9dcf364491fb1e3100e6a0f5cbe08  Add detailed repair finalization outcomes
+dc4a2f9eb002c9b821c82f3f9bdf272b370ecb26  Distinguish repair finalization failure domains
+f6172e5bb946a83b45524aa0055027c31e9ba61f  Expose detailed repair finalization failures
+1426510bba067e8349d69501abcf1f94ff980052  Explain repair finalization failures on mobile
+546b19f196d12e8142ba2179595b38f84fa8d767  Fix mobile repair motor form reset
+f78ccefc562be7e479729a80855a3ae98ed52005  Explain repair finalization failures on desktop
+29265bfcb9c2839d0abd1722dee1f9b97b259e12  Add mobile closed repair report
+2e01efe8719a541bc2ad9621d2b07ac853a1a980  Add desktop closed repair report
+83f0cf3347299cfe86e60aca8aff9f152f32a5f4  Link mobile repair reports
+13e71d8f44acdf45940661f1626ccb9c90da922c  Link desktop repair reports
+```
+
+Предыдущий finalization/integrity блок:
 
 ```text
 b6e1ea589f26122e0c433309aad3aea97ba14c5c  Fail closed on warehouse aggregate and append failures
@@ -83,14 +102,15 @@ adafc73064e85f9780cd6d088dbe9e53fd960a68  Add winding journal transition audit c
 - read-only winding history API с cursor pagination;
 - mobile/desktop winding-history pages;
 - runtime microSD readiness для критических persistent stores;
-- явные lifecycle статусы в `/api/status` и UI;
 - append-only `OPEN → CLOSED` lifecycle ремонта;
 - запрет linked winding, pricing и новых списаний для `CLOSED`;
 - recoverable material-ledger file swap и material-adjustment crash recovery;
 - recoverable warehouse spool swap и `PENDING → CONFIRMED | ABORTED` write-off recovery;
 - strict warehouse/material/costing persisted parsing и reference lookups;
 - archive filters и read-only итог закрытого ремонта;
-- server-side repair finalization integrity gate.
+- server-side repair finalization integrity gate;
+- operator-facing finalization diagnostics;
+- read-only monthly closed-repair financial report.
 
 ## Следующее обязательное действие
 
@@ -113,17 +133,19 @@ adafc73064e85f9780cd6d088dbe9e53fd960a68  Add winding journal transition audit c
 12. вручную зафиксировать фактические списания провода/материалов
 13. проверить итоговую калькуляцию
 14. закрыть ремонт
-15. убедиться, что CLOSED находится в архиве и все mutation actions заблокированы
+15. убедиться, что CLOSED находится в архиве и mutation actions заблокированы
+16. убедиться, что закрытый ремонт попал в месячный отчёт
 ```
 
 ## Следующий repo-reviewable функциональный блок
 
-Если физический стенд пока недоступен, не возвращаться к уже закрытому winding infrastructure. Следующий кодовый приоритет:
+Если физический стенд пока недоступен, следующий кодовый приоритет:
 
-1. понятные operator-facing причины finalization отказа в mobile/desktop;
-2. отчёт/поиск по закрытым ремонтам: период, клиент, двигатель, прибыль/убыток;
-3. только после этого — analogue/unassigned-winding workflow, если он реально нужен мастерской;
-4. exact spool identity в winding job проектировать только вместе с правилами ручного подтверждения фактического расхода.
+1. read-only `GET /api/repairs/finalization?repair_id=...` для preflight до нажатия `Закрыть`;
+2. показать preflight-состояние прямо в карточке OPEN ремонта;
+3. добавить фильтр отчёта по клиенту/двигателю поверх уже существующего месячного отчёта;
+4. после этого — analogue/unassigned-winding workflow только если он реально нужен мастерской;
+5. exact spool identity в winding job проектировать только вместе с правилами ручного подтверждения фактического расхода.
 
 ## Что фиксировать при end-to-end тесте
 

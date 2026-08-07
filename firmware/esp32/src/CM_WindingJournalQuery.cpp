@@ -94,9 +94,15 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
             return WindingJournalQueryResult::ReadFailed;
         }
 
-        // Legacy schema 1 records predate immutable repair/motor context and
-        // therefore cannot be exposed through the strict history API.
-        if (schemaVersion == 1UL) continue;
+        if (schemaVersion == 1UL)
+        {
+            if (!isValidLegacySchema1Record(line))
+            {
+                file.close();
+                return WindingJournalQueryResult::ReadFailed;
+            }
+            continue;
+        }
 
         uint32_t lineSessionId = 0UL;
         uint32_t lineRepairId = 0UL;
@@ -114,6 +120,11 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
 
         if (matchedIndex < cursor)
         {
+            if (matchedIndex == 0xFFFFFFFFUL)
+            {
+                file.close();
+                return WindingJournalQueryResult::ReadFailed;
+            }
             ++matchedIndex;
             continue;
         }
@@ -128,10 +139,17 @@ WindingJournalQueryResult WindingJournalQuery::appendHistoryJson(
         first = false;
         json += line;
         ++count;
+        if (matchedIndex == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return WindingJournalQueryResult::ReadFailed;
+        }
         ++matchedIndex;
     }
 
     file.close();
+    if (static_cast<uint32_t>(count) > 0xFFFFFFFFUL - cursor)
+        return WindingJournalQueryResult::ReadFailed;
     nextCursor = cursor + static_cast<uint32_t>(count);
     return WindingJournalQueryResult::Ok;
 }
@@ -188,6 +206,46 @@ bool WindingJournalQuery::fieldIsNull(const String& line, const char* key)
     while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     return cursor < line.length() &&
            (line[cursor] == ',' || line[cursor] == '}');
+}
+
+bool WindingJournalQuery::isValidLegacySchema1Record(const String& line)
+{
+    uint32_t schemaVersion = 0UL;
+    uint32_t runId = 0UL;
+    uint32_t sessionId = 0UL;
+    uint32_t completedRuns = 0UL;
+    uint32_t uptimeMs = 0UL;
+    if (line.length() < 2U || line[0] != '{' ||
+        line[line.length() - 1U] != '}' ||
+        !findUnsigned(line, "schema_version", schemaVersion) ||
+        schemaVersion != 1UL ||
+        !findUnsigned(line, "run_id", runId) || runId == 0UL ||
+        !findUnsigned(line, "session_id", sessionId) || sessionId == 0UL ||
+        !findUnsigned(line, "completed_runs", completedRuns) ||
+        completedRuns > 0xFFFFUL ||
+        !findUnsigned(line, "uptime_ms", uptimeMs))
+    {
+        return false;
+    }
+
+    const String startedMarker = F("\"event\":\"RUN_STARTED\"");
+    const String completedMarker = F("\"event\":\"RUN_COMPLETED\"");
+    const int startedPosition = line.indexOf(startedMarker);
+    const int completedPosition = line.indexOf(completedMarker);
+    const bool started = startedPosition >= 0;
+    const bool completed = completedPosition >= 0;
+    if (started == completed ||
+        (started && line.indexOf(startedMarker,
+                                 startedPosition + startedMarker.length()) >= 0) ||
+        (completed && line.indexOf(completedMarker,
+                                   completedPosition + completedMarker.length()) >= 0) ||
+        (started && completedRuns != 0UL) ||
+        (completed && completedRuns == 0UL))
+    {
+        return false;
+    }
+
+    return true;
 }
 
 bool WindingJournalQuery::isValidSchema2Record(const String& line,

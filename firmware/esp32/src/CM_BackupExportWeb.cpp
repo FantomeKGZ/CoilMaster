@@ -31,6 +31,9 @@ constexpr ExportFileDefinition ExportFiles[] =
 };
 
 constexpr size_t ExportFileCount = sizeof(ExportFiles) / sizeof(ExportFiles[0]);
+constexpr const char* SnapshotDirectory = "/data/winding-jobs/snapshots";
+constexpr const char* StateDirectory = "/data/winding-jobs/state";
+constexpr uint8_t MaxSessionPage = 32U;
 
 const ExportFileDefinition* findDefinition(const String& name)
 {
@@ -39,6 +42,153 @@ const ExportFileDefinition* findDefinition(const String& name)
         if (name == ExportFiles[i].name) return &ExportFiles[i];
     }
     return nullptr;
+}
+
+bool parseCanonicalUint32(const String& source, uint32_t& value)
+{
+    value = 0UL;
+    if (source.length() == 0U) return false;
+    if (source.length() > 1U && source[0] == '0') return false;
+
+    uint32_t parsed = 0UL;
+    for (size_t i = 0U; i < source.length(); ++i)
+    {
+        const char ch = source[i];
+        if (!isDigit(ch)) return false;
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+    }
+    value = parsed;
+    return true;
+}
+
+String baseNameOf(const String& path)
+{
+    const int separator = path.lastIndexOf('/');
+    return separator >= 0 ? path.substring(separator + 1) : path;
+}
+
+bool parseSessionJsonName(const String& fileName, uint32_t& sessionId)
+{
+    sessionId = 0UL;
+    const String baseName = baseNameOf(fileName);
+    if (!baseName.startsWith(F("session-")) || !baseName.endsWith(F(".json")))
+        return false;
+    const size_t prefixLength = 8U;
+    const size_t suffixLength = 5U;
+    if (baseName.length() <= prefixLength + suffixLength) return false;
+    const String idText = baseName.substring(prefixLength,
+                                             baseName.length() - suffixLength);
+    return parseCanonicalUint32(idText, sessionId) && sessionId != 0UL;
+}
+
+bool isCanonicalTempName(const String& fileName)
+{
+    const String baseName = baseNameOf(fileName);
+    if (!baseName.startsWith(F("session-")) || !baseName.endsWith(F(".tmp")))
+        return false;
+    const String idText = baseName.substring(8U, baseName.length() - 4U);
+    uint32_t sessionId = 0UL;
+    return parseCanonicalUint32(idText, sessionId) && sessionId != 0UL;
+}
+
+void insertSortedUnique(uint32_t value,
+                        uint32_t* values,
+                        uint8_t& count,
+                        uint8_t capacity,
+                        bool& truncated)
+{
+    if (value == 0UL || values == nullptr || capacity == 0U) return;
+    uint8_t position = 0U;
+    while (position < count && values[position] < value) ++position;
+    if (position < count && values[position] == value) return;
+
+    if (count < capacity)
+    {
+        for (uint8_t i = count; i > position; --i)
+            values[i] = values[i - 1U];
+        values[position] = value;
+        ++count;
+        return;
+    }
+
+    truncated = true;
+    if (position >= capacity) return;
+    for (uint8_t i = static_cast<uint8_t>(capacity - 1U); i > position; --i)
+        values[i] = values[i - 1U];
+    values[position] = value;
+}
+
+enum class SessionScanResult : uint8_t
+{
+    Ok = 0U,
+    StorageUnavailable,
+    TemporaryFilePresent,
+    InvalidEntry
+};
+
+SessionScanResult scanSessionDirectory(fs::FS& storage,
+                                       const char* directoryPath,
+                                       uint32_t afterSessionId,
+                                       uint32_t* ids,
+                                       uint8_t& count,
+                                       uint8_t capacity,
+                                       bool& truncated)
+{
+    if (!storage.exists(directoryPath)) return SessionScanResult::Ok;
+    File directory = storage.open(directoryPath, FILE_READ);
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        return SessionScanResult::StorageUnavailable;
+    }
+
+    File entry = directory.openNextFile();
+    while (entry)
+    {
+        const String name = entry.name();
+        if (entry.isDirectory())
+        {
+            entry.close();
+            directory.close();
+            return SessionScanResult::InvalidEntry;
+        }
+
+        if (isCanonicalTempName(name))
+        {
+            entry.close();
+            directory.close();
+            return SessionScanResult::TemporaryFilePresent;
+        }
+
+        uint32_t sessionId = 0UL;
+        if (!parseSessionJsonName(name, sessionId))
+        {
+            entry.close();
+            directory.close();
+            return SessionScanResult::InvalidEntry;
+        }
+        if (sessionId > afterSessionId)
+            insertSortedUnique(sessionId, ids, count, capacity, truncated);
+
+        entry.close();
+        entry = directory.openNextFile();
+    }
+    directory.close();
+    return SessionScanResult::Ok;
+}
+
+String sessionPath(const char* kind, uint32_t sessionId)
+{
+    String path;
+    if (strcmp(kind, "snapshot") == 0)
+        path = F("/data/winding-jobs/snapshots/session-");
+    else
+        path = F("/data/winding-jobs/state/session-");
+    path += sessionId;
+    path += F(".json");
+    return path;
 }
 }
 
@@ -51,6 +201,10 @@ void BackupExportWeb::begin()
                 [this]() { handleManifest(); });
     m_server.on("/api/backup/file", HTTP_GET,
                 [this]() { handleFile(); });
+    m_server.on("/api/backup/sessions", HTTP_GET,
+                [this]() { handleSessions(); });
+    m_server.on("/api/backup/session-file", HTTP_GET,
+                [this]() { handleSessionFile(); });
 }
 
 bool BackupExportWeb::ready() const
@@ -71,8 +225,8 @@ void BackupExportWeb::handleManifest()
         return;
     }
 
-    String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"items\":[");
-    response.reserve(3072U);
+    String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"items\":[");
+    response.reserve(3264U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)
@@ -118,7 +272,7 @@ void BackupExportWeb::handleManifest()
 
     response += F("],\"count\":");
     response += static_cast<uint32_t>(ExportFileCount);
-    response += F("}");
+    response += F(",\"sessions_endpoint\":\"/api/backup/sessions\",\"session_file_endpoint\":\"/api/backup/session-file\"}");
     m_server.sendHeader("Cache-Control", "no-store");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
@@ -167,6 +321,193 @@ void BackupExportWeb::handleFile()
     m_server.sendHeader("Content-Disposition", disposition);
     m_server.sendHeader("Cache-Control", "no-store");
     m_server.streamFile(file, definition->contentType);
+    file.close();
+}
+
+void BackupExportWeb::handleSessions()
+{
+    if (!ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_storage_unavailable\"}");
+        return;
+    }
+
+    uint32_t afterSessionId = 0UL;
+    if (m_server.hasArg("after_session_id") &&
+        m_server.arg("after_session_id").length() > 0U &&
+        !parseCanonicalUint32(m_server.arg("after_session_id"), afterSessionId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_after_session_id\"}");
+        return;
+    }
+
+    uint32_t limitValue = MaxSessionPage;
+    if (m_server.hasArg("limit") && m_server.arg("limit").length() > 0U)
+    {
+        if (!parseCanonicalUint32(m_server.arg("limit"), limitValue) ||
+            limitValue == 0UL || limitValue > MaxSessionPage)
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_backup_session_limit\"}");
+            return;
+        }
+    }
+
+    uint32_t ids[MaxSessionPage] = {};
+    uint8_t count = 0U;
+    bool truncated = false;
+    const SessionScanResult snapshotScan =
+        scanSessionDirectory(m_storage, SnapshotDirectory, afterSessionId,
+                             ids, count, static_cast<uint8_t>(limitValue), truncated);
+    const SessionScanResult stateScan =
+        snapshotScan == SessionScanResult::Ok
+            ? scanSessionDirectory(m_storage, StateDirectory, afterSessionId,
+                                   ids, count, static_cast<uint8_t>(limitValue), truncated)
+            : snapshotScan;
+    const SessionScanResult scanResult =
+        snapshotScan != SessionScanResult::Ok ? snapshotScan : stateScan;
+
+    if (scanResult == SessionScanResult::StorageUnavailable)
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_session_storage_unavailable\"}");
+        return;
+    }
+    if (scanResult == SessionScanResult::TemporaryFilePresent)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_session_directory_unstable\"}");
+        return;
+    }
+    if (scanResult != SessionScanResult::Ok)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_session_directory_invalid\"}");
+        return;
+    }
+
+    String response = F("{\"items\":[");
+    response.reserve(4096U);
+    for (uint8_t i = 0U; i < count; ++i)
+    {
+        const uint32_t sessionId = ids[i];
+        const String snapshot = sessionPath("snapshot", sessionId);
+        const String state = sessionPath("state", sessionId);
+        const bool snapshotExists = m_storage.exists(snapshot);
+        const bool stateExists = m_storage.exists(state);
+        uint32_t snapshotSize = 0UL;
+        uint32_t stateSize = 0UL;
+
+        if (snapshotExists)
+        {
+            File file = m_storage.open(snapshot, FILE_READ);
+            if (!file || file.isDirectory() || file.size() > 0xFFFFFFFFUL)
+            {
+                if (file) file.close();
+                m_server.send(500, "application/json; charset=utf-8",
+                              "{\"error\":\"backup_snapshot_read_failed\"}");
+                return;
+            }
+            snapshotSize = static_cast<uint32_t>(file.size());
+            file.close();
+        }
+        if (stateExists)
+        {
+            File file = m_storage.open(state, FILE_READ);
+            if (!file || file.isDirectory() || file.size() > 0xFFFFFFFFUL)
+            {
+                if (file) file.close();
+                m_server.send(500, "application/json; charset=utf-8",
+                              "{\"error\":\"backup_state_read_failed\"}");
+                return;
+            }
+            stateSize = static_cast<uint32_t>(file.size());
+            file.close();
+        }
+
+        if (i > 0U) response += ',';
+        response += F("{\"session_id\":");
+        response += sessionId;
+        response += F(",\"snapshot_exists\":");
+        response += snapshotExists ? F("true") : F("false");
+        response += F(",\"snapshot_size_bytes\":");
+        response += snapshotSize;
+        response += F(",\"state_exists\":");
+        response += stateExists ? F("true") : F("false");
+        response += F(",\"state_size_bytes\":");
+        response += stateSize;
+        response += '}';
+    }
+    response += F("],\"count\":");
+    response += count;
+    response += F(",\"after_session_id\":");
+    response += afterSessionId;
+    response += F(",\"next_after_session_id\":");
+    response += count > 0U ? ids[count - 1U] : afterSessionId;
+    response += F(",\"has_more\":");
+    response += truncated ? F("true") : F("false");
+    response += '}';
+    m_server.sendHeader("Cache-Control", "no-store");
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void BackupExportWeb::handleSessionFile()
+{
+    if (!ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_storage_unavailable\"}");
+        return;
+    }
+    if (!m_server.hasArg("kind") || !m_server.hasArg("session_id"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_kind_and_session_id_required\"}");
+        return;
+    }
+
+    const String kind = m_server.arg("kind");
+    if (kind != "snapshot" && kind != "state")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_backup_session_kind\"}");
+        return;
+    }
+    uint32_t sessionId = 0UL;
+    if (!parseCanonicalUint32(m_server.arg("session_id"), sessionId) ||
+        sessionId == 0UL)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_backup_session_id\"}");
+        return;
+    }
+
+    const String path = sessionPath(kind.c_str(), sessionId);
+    if (!m_storage.exists(path))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_session_file_not_found\"}");
+        return;
+    }
+    File file = m_storage.open(path, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_session_file_read_failed\"}");
+        return;
+    }
+
+    String disposition = F("attachment; filename=\"");
+    disposition += kind;
+    disposition += F("-session-");
+    disposition += sessionId;
+    disposition += F(".json\"");
+    m_server.sendHeader("Content-Disposition", disposition);
+    m_server.sendHeader("Cache-Control", "no-store");
+    m_server.streamFile(file, "application/json; charset=utf-8");
     file.close();
 }
 }

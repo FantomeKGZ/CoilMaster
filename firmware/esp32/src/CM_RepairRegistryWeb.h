@@ -20,6 +20,7 @@ private:
     void handleCreateMotor();
     void handleListRepairs();
     void handleCreateRepair();
+    void handleRepairFinalization();
     void handleCloseRepair();
     static bool parseUnsigned(WebServer& server, const char* name,
                               uint32_t minimum, uint32_t maximum,

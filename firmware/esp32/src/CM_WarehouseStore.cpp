@@ -233,23 +233,49 @@ bool WarehouseStore::readSpools()
     File file = m_storage.open(SpoolsPath, FILE_READ);
     if (!file) return false;
 
+    uint32_t previousSpoolId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+
         uint32_t spoolId = 0UL;
         uint32_t diameter = 0UL;
         uint32_t weight = 0UL;
         String status;
-
-        if (!findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+        String wireType;
+        String optional;
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+        if (!line.startsWith("{") || !line.endsWith("}") ||
+            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+            spoolId <= previousSpoolId ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
             diameter == 0UL || diameter > 0xFFFFUL ||
             !findUnsigned(line, "current_weight_g", weight) ||
-            !findString(line, "status", status))
+            !findString(line, "status", status) || status.length() == 0U ||
+            (hasWireType &&
+             (!findString(line, "wire_type", wireType) ||
+              (wireType != "CU" && wireType != "AL"))))
         {
             file.close();
             return false;
+        }
+        previousSpoolId = spoolId;
+
+        const char* optionalKeys[] = {
+            "manufacturer", "supplier", "batch", "storage_location", "comment"
+        };
+        for (uint8_t keyIndex = 0U;
+             keyIndex < sizeof(optionalKeys) / sizeof(optionalKeys[0]);
+             ++keyIndex)
+        {
+            const String marker = String("\"") + optionalKeys[keyIndex] + F("\":");
+            if (line.indexOf(marker) >= 0 &&
+                !findString(line, optionalKeys[keyIndex], optional))
+            {
+                file.close();
+                return false;
+            }
         }
 
         if (status != "ACTIVE") continue;
@@ -291,61 +317,143 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
     File file = m_storage.open(MovementsPath, FILE_READ);
     if (!file) return false;
 
+    uint32_t maximumMovementId = 0UL;
+    uint32_t pendingId = 0UL;
+    uint32_t pendingSpoolId = 0UL;
+    uint32_t pendingRepairId = 0UL;
+    uint32_t pendingBefore = 0UL;
+    uint32_t pendingAfter = 0UL;
+    uint32_t pendingMass = 0UL;
+    uint32_t pendingPrice = 0UL;
+    String pendingCurrency;
+    String pendingTimestamp;
+    String pendingComment;
+
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+
+        uint32_t movementId = 0UL;
+        uint32_t spoolId = 0UL;
+        uint32_t repairId = 0UL;
         uint32_t diameter = 0UL;
+        uint32_t before = 0UL;
+        uint32_t after = 0UL;
         uint32_t grams = 0UL;
-        String type;
-        String timestamp;
-        String status;
+        uint32_t price = 0UL;
+        String type, status, currency, timestamp, comment, wireType;
+        const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
 
-        if (!findString(line, "type", type) || !findString(line, "status", status))
+        if (!line.startsWith("{") || !line.endsWith("}") ||
+            !findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
+            !findString(line, "type", type) || type != "WRITE_OFF" ||
+            !findString(line, "status", status) ||
+            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+            !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter > 0xFFFFUL ||
+            !findUnsigned(line, "weight_before_g", before) || before == 0UL ||
+            !findUnsigned(line, "weight_after_g", after) || after >= before ||
+            !findUnsigned(line, "mass_g", grams) || grams != before - after ||
+            !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
+            (hasComment && !findString(line, "comment", comment)) ||
+            (hasWireType && !findString(line, "wire_type", wireType)))
         {
             file.close();
             return false;
         }
 
-        if (type != "WRITE_OFF") continue;
-        if (status == "PENDING" || status == "ABORTED") continue;
-        if (status != "CONFIRMED")
+        if (status == "PENDING")
         {
-            file.close();
-            return false;
-        }
-
-        if (!findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-            diameter == 0UL || diameter > 0xFFFFUL ||
-            !findUnsigned(line, "mass_g", grams) || grams == 0UL ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
-        {
-            file.close();
-            return false;
-        }
-
-        WireStockSummary* summary = findOrCreate(static_cast<uint16_t>(diameter));
-        if (summary == nullptr ||
-            summary->consumedAllTimeGrams > 0xFFFFFFFFUL - grams)
-        {
-            file.close();
-            return false;
-        }
-        summary->consumedAllTimeGrams += grams;
-
-        if (timestamp.startsWith(monthPrefix))
-        {
-            if (summary->consumedMonthGrams > 0xFFFFFFFFUL - grams)
+            if (pendingId != 0UL || movementId <= maximumMovementId ||
+                diameter != 0UL || hasWireType)
             {
                 file.close();
                 return false;
             }
-            summary->consumedMonthGrams += grams;
+            maximumMovementId = movementId;
+            pendingId = movementId;
+            pendingSpoolId = spoolId;
+            pendingRepairId = repairId;
+            pendingBefore = before;
+            pendingAfter = after;
+            pendingMass = grams;
+            pendingPrice = price;
+            pendingCurrency = currency;
+            pendingTimestamp = timestamp;
+            pendingComment = comment;
+            continue;
         }
+
+        if (status != "CONFIRMED" && status != "ABORTED")
+        {
+            file.close();
+            return false;
+        }
+        if (pendingId == 0UL || movementId != pendingId ||
+            spoolId != pendingSpoolId || repairId != pendingRepairId ||
+            before != pendingBefore || after != pendingAfter || grams != pendingMass ||
+            price != pendingPrice || currency != pendingCurrency ||
+            timestamp != pendingTimestamp || comment != pendingComment)
+        {
+            file.close();
+            return false;
+        }
+
+        if (status == "ABORTED")
+        {
+            if (diameter != 0UL || hasWireType)
+            {
+                file.close();
+                return false;
+            }
+        }
+        else
+        {
+            if (diameter == 0UL ||
+                (hasWireType && wireType != "CU" && wireType != "AL"))
+            {
+                file.close();
+                return false;
+            }
+
+            WireStockSummary* summary = findOrCreate(static_cast<uint16_t>(diameter));
+            if (summary == nullptr ||
+                summary->consumedAllTimeGrams > 0xFFFFFFFFUL - grams)
+            {
+                file.close();
+                return false;
+            }
+            summary->consumedAllTimeGrams += grams;
+
+            if (timestamp.startsWith(monthPrefix))
+            {
+                if (summary->consumedMonthGrams > 0xFFFFFFFFUL - grams)
+                {
+                    file.close();
+                    return false;
+                }
+                summary->consumedMonthGrams += grams;
+            }
+        }
+
+        pendingId = 0UL;
+        pendingSpoolId = 0UL;
+        pendingRepairId = 0UL;
+        pendingBefore = 0UL;
+        pendingAfter = 0UL;
+        pendingMass = 0UL;
+        pendingPrice = 0UL;
+        pendingCurrency = String();
+        pendingTimestamp = String();
+        pendingComment = String();
     }
 
     file.close();
-    return true;
+    return pendingId == 0UL;
 }
 
 bool WarehouseStore::nextSpoolId(uint32_t& id) const

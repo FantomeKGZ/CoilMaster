@@ -251,6 +251,26 @@ void RepairRegistryWeb::handleCloseRepair()
         return;
     }
 
+    bool repairOpen = false;
+    if (!m_registry.repairIsOpen(repairId, repairOpen))
+    {
+        if (!m_registry.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_registry_unavailable\"}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_close_state_read_failed\"}");
+        return;
+    }
+    if (!repairOpen)
+    {
+        String response = F("{\"closed\":true,\"repair_id\":");
+        response += repairId;
+        response += F(",\"already_closed\":true,\"write_performed\":false,\"finalization_check_skipped\":true}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+        return;
+    }
+
     bool closureAllowed = false;
     if (!RepairClosureGuard::canClose(SD, repairId, closureAllowed))
     {
@@ -300,7 +320,7 @@ void RepairRegistryWeb::handleCloseRepair()
     response += repairId;
     response += F(",\"already_closed\":");
     response += alreadyClosed ? F("true") : F("false");
-    response += F(",\"finalization_integrity_verified\":true}");
+    response += F(",\"write_performed\":true,\"finalization_integrity_verified\":true}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

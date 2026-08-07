@@ -1,5 +1,62 @@
 #include "CM_RepairRegistryWeb.h"
 
+namespace
+{
+constexpr uint8_t MaxCoilsPerProgram = 10U;
+constexpr uint16_t MaxTurnsPerCoil = 9999U;
+
+bool validCoilProgram(const String& source)
+{
+    String normalized = source;
+    normalized.trim();
+    normalized.replace(" ", "");
+    if (normalized.length() == 0U) return false;
+
+    uint8_t count = 0U;
+    uint32_t value = 0UL;
+    bool hasDigit = false;
+    bool leadingZero = false;
+
+    for (size_t i = 0U; i <= normalized.length(); ++i)
+    {
+        const bool atEnd = i == normalized.length();
+        const char ch = atEnd ? '\0' : normalized[i];
+        const bool separator = ch == '/' || ch == ',' || ch == ';';
+
+        if (atEnd || separator)
+        {
+            if (!hasDigit || value == 0UL || value > MaxTurnsPerCoil ||
+                count >= MaxCoilsPerProgram)
+            {
+                return false;
+            }
+            ++count;
+            value = 0UL;
+            hasDigit = false;
+            leadingZero = false;
+            continue;
+        }
+
+        if (!isDigit(ch)) return false;
+        if (!hasDigit)
+        {
+            hasDigit = true;
+            leadingZero = ch == '0';
+        }
+        else if (leadingZero)
+        {
+            return false;
+        }
+
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (value > (MaxTurnsPerCoil - digit) / 10UL) return false;
+        value = value * 10UL + digit;
+    }
+
+    return count > 0U;
+}
+}
+
 namespace CM
 {
 RepairRegistryWeb::RepairRegistryWeb(WebServer& server, RepairRegistry& registry)
@@ -115,6 +172,12 @@ void RepairRegistryWeb::handleCreateMotor()
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"name_and_coil_program_required\"}");
+        return;
+    }
+    if (!validCoilProgram(m_server.arg("coil_program")))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_coil_program\"}");
         return;
     }
     NewMotor motor;

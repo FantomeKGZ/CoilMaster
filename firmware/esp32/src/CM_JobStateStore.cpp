@@ -416,6 +416,8 @@ bool JobStateStore::validTransition(JobDeliveryState from,
 bool JobStateStore::validTransition(JobExecutionState from,
                                     JobExecutionState to)
 {
+    if (from == JobExecutionState::ClosedAfterReview)
+        return to == JobExecutionState::ClosedAfterReview;
     if (from == to) return true;
     if (to == JobExecutionState::Fault) return true;
     if (from == JobExecutionState::WaitingDelivery)

@@ -111,18 +111,35 @@ private:
     static constexpr const char* UsagePath = "/data/materials/usage.ndjson";
     static constexpr const char* UsagePendingPath = "/data/materials/usage.pending";
     static constexpr const char* AdjustmentsPath = "/data/materials/adjustments.ndjson";
+    static constexpr const char* AdjustmentPendingPath = "/data/materials/adjustment.pending";
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 
     bool ensureDirectories();
     bool recoverPendingUsage();
+    bool recoverPendingAdjustment();
     bool writePendingUsage(uint32_t usageId,
                            uint32_t materialId,
                            uint32_t stockBefore,
                            uint32_t stockAfter,
                            const String& usageLine);
+    bool writePendingAdjustment(uint32_t adjustmentId,
+                                uint32_t materialId,
+                                uint32_t stockBefore,
+                                uint32_t stockAfter,
+                                uint32_t priceBefore,
+                                uint32_t priceAfter,
+                                const String& currencyBefore,
+                                const String& currencyAfter,
+                                const String& auditLine);
     bool usageExists(uint32_t usageId) const;
+    bool adjustmentExists(uint32_t adjustmentId) const;
     bool readStockQuantity(uint32_t materialId, uint32_t& quantityMilli) const;
+    bool readMaterialState(uint32_t materialId,
+                           uint32_t& stockQuantityMilli,
+                           uint32_t& pricePerUnitMinor,
+                           String& currency) const;
     bool appendUsageLine(const String& line);
+    bool appendAdjustmentLine(const String& line);
     bool nextId(const char* path, const char* key, uint32_t& id) const;
     bool rewriteQuantity(uint32_t materialId,
                          uint32_t consumeMilli,

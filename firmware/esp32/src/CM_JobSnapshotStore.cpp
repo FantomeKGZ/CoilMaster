@@ -1,5 +1,7 @@
 #include "CM_JobSnapshotStore.h"
 
+#include <stdlib.h>
+
 namespace CM
 {
 JobSnapshotStore::JobSnapshotStore(fs::FS& fileSystem)
@@ -54,6 +56,15 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
 bool JobSnapshotStore::exists(uint32_t sessionId) const
 {
     return sessionId != 0UL && m_fileSystem.exists(snapshotPath(sessionId));
+}
+
+bool JobSnapshotStore::validateIdentity(uint32_t jobId,
+                                        uint32_t sessionId) const
+{
+    if (!m_ready || jobId == 0UL || sessionId == 0UL) return false;
+    const String path = snapshotPath(sessionId);
+    return m_fileSystem.exists(path) &&
+           verifySnapshot(path.c_str(), jobId, sessionId);
 }
 
 bool JobSnapshotStore::ensureDirectories()
@@ -129,15 +140,50 @@ bool JobSnapshotStore::verifySnapshot(const char* path,
     file.close();
 
     if (!content.startsWith(F("{\"schema_version\":1,")) ||
-        !content.endsWith(F("}\n")))
+        !content.endsWith(F("}\n")) ||
+        content.length() > 1024U)
     {
         return false;
     }
 
-    const String jobMarker = String(F("\"job_id\":")) + jobId + ',';
-    const String sessionMarker =
-        String(F("\"session_id\":")) + sessionId + ',';
-    return content.indexOf(jobMarker) >= 0 &&
-           content.indexOf(sessionMarker) >= 0;
+    uint32_t storedJobId = 0UL;
+    uint32_t storedSessionId = 0UL;
+    uint32_t coilCount = 0UL;
+    uint32_t createdUptimeMs = 0UL;
+    if (!findUnsigned(content, "job_id", storedJobId) ||
+        !findUnsigned(content, "session_id", storedSessionId) ||
+        !findUnsigned(content, "coil_count", coilCount) ||
+        !findUnsigned(content, "created_uptime_ms", createdUptimeMs) ||
+        storedJobId != jobId ||
+        storedSessionId != sessionId ||
+        coilCount == 0UL || coilCount > 10UL)
+    {
+        return false;
+    }
+
+    return content.indexOf(F("\"program_type\":\"WORKING\"")) >= 0 ||
+           content.indexOf(F("\"program_type\":\"STARTING\"")) >= 0;
+}
+
+bool JobSnapshotStore::findUnsigned(const String& input,
+                                    const char* key,
+                                    uint32_t& value)
+{
+    value = 0UL;
+    const String marker = String('"') + key + F("\":");
+    int start = input.indexOf(marker);
+    if (start < 0) return false;
+    start += marker.length();
+
+    int end = start;
+    while (end < input.length() && isDigit(input[end])) ++end;
+    if (end == start) return false;
+
+    const String number = input.substring(start, end);
+    char* parseEnd = nullptr;
+    const unsigned long parsed = strtoul(number.c_str(), &parseEnd, 10);
+    if (parseEnd == nullptr || *parseEnd != '\0') return false;
+    value = static_cast<uint32_t>(parsed);
+    return true;
 }
 }

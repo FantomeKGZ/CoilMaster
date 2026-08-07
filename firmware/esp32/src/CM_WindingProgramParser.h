@@ -86,6 +86,29 @@ public:
         uint8_t count = 0U;
         return parse(source, turns, maximumCoils, count, maximumTurns);
     }
+
+    static bool equivalent(const String& left,
+                           const String& right,
+                           uint8_t maximumCoils = 10U,
+                           uint16_t maximumTurns = 9999U)
+    {
+        if (maximumCoils == 0U || maximumCoils > 10U) return false;
+
+        uint16_t leftTurns[10] = {};
+        uint16_t rightTurns[10] = {};
+        uint8_t leftCount = 0U;
+        uint8_t rightCount = 0U;
+        if (!parse(left, leftTurns, maximumCoils, leftCount, maximumTurns) ||
+            !parse(right, rightTurns, maximumCoils, rightCount, maximumTurns) ||
+            leftCount != rightCount)
+        {
+            return false;
+        }
+
+        for (uint8_t index = 0U; index < leftCount; ++index)
+            if (leftTurns[index] != rightTurns[index]) return false;
+        return true;
+    }
 };
 }
 

@@ -1,5 +1,6 @@
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_RepairCosting.h"
+#include "CM_WindingJournalQuery.h"
 
 namespace CM
 {
@@ -49,6 +50,37 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
         materialWireLines != static_cast<uint32_t>(summary.wireLineCount))
     {
         return RepairFinalizationCheck::IntegrityFailed;
+    }
+
+    WindingJournalQuery history(storage);
+    if (!history.begin() || !history.isReady())
+        return RepairFinalizationCheck::StorageUnavailable;
+
+    uint32_t cursor = 0UL;
+    for (;;)
+    {
+        String page;
+        page.reserve(4096U);
+        uint16_t count = 0U;
+        uint32_t nextCursor = cursor;
+        bool hasMore = false;
+        const WindingJournalQueryResult result =
+            history.appendHistoryJson(0UL,
+                                      repairId,
+                                      cursor,
+                                      100U,
+                                      page,
+                                      count,
+                                      nextCursor,
+                                      hasMore);
+        if (result == WindingJournalQueryResult::StorageUnavailable)
+            return RepairFinalizationCheck::StorageUnavailable;
+        if (result != WindingJournalQueryResult::Ok)
+            return RepairFinalizationCheck::IntegrityFailed;
+        if (!hasMore) break;
+        if (count == 0U || nextCursor <= cursor)
+            return RepairFinalizationCheck::IntegrityFailed;
+        cursor = nextCursor;
     }
 
     return RepairFinalizationCheck::Ready;

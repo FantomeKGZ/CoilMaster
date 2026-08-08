@@ -1,5 +1,6 @@
 #include "CM_WarehouseStore.h"
 #include "CM_FlatJsonObjectValidator.h"
+#include "CM_JobSpoolSelectionStore.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WindingSessionCompletionAudit.h"
 
@@ -26,6 +27,19 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     bool repairOpen = false;
     if (!RepairLifecycle::isOpen(m_storage, operation.repairId, repairOpen) ||
         !repairOpen)
+    {
+        return false;
+    }
+
+    JobSpoolSelection selection;
+    bool selectionFound = false;
+    if (!JobSpoolSelectionStore::loadReadOnly(m_storage,
+                                              operation.sourceSessionId,
+                                              selection,
+                                              selectionFound) ||
+        !selectionFound ||
+        selection.repairId != operation.repairId ||
+        selection.spoolId != operation.spoolId)
     {
         return false;
     }

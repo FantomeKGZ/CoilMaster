@@ -166,6 +166,14 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
 
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
 {
+    uint32_t ignoredRecordCount = 0UL;
+    return check(storage, ignoredRecordCount);
+}
+
+bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
+                                            uint32_t& validatedRecordCount)
+{
+    validatedRecordCount = 0UL;
     constexpr const char* Path = "/data/warehouse/movements.ndjson";
     if (!storage.exists(Path)) return true;
     File file = storage.open(Path, FILE_READ);
@@ -175,6 +183,7 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
         return false;
     }
 
+    uint32_t recordCount = 0UL;
     uint32_t maximumId = 0UL;
     uint32_t pendingId = 0UL;
     uint32_t pendingSpool = 0UL;
@@ -233,6 +242,12 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
             return false;
         }
 
+        if (recordCount == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return false;
+        }
+
         if (status == "PENDING")
         {
             if (pendingId != 0UL || movementId <= maximumId || diameter != 0UL || hasWireType)
@@ -255,6 +270,7 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
             pendingCurrency = currency;
             pendingTimestamp = timestamp;
             pendingComment = comment;
+            ++recordCount;
             continue;
         }
 
@@ -296,9 +312,12 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
         pendingSourceRun = 0UL;
         pendingHasSourceSession = false;
         pendingHasSourceRun = false;
+        ++recordCount;
     }
     file.close();
     if (pendingId != 0UL) return false;
-    return confirmedProvenanceUnique(storage, Path);
+    if (!confirmedProvenanceUnique(storage, Path)) return false;
+    validatedRecordCount = recordCount;
+    return true;
 }
 }

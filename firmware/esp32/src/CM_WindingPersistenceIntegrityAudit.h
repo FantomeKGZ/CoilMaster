@@ -1,6 +1,7 @@
 #ifndef CM_WINDING_PERSISTENCE_INTEGRITY_AUDIT_H
 #define CM_WINDING_PERSISTENCE_INTEGRITY_AUDIT_H
 
+#include <stdint.h>
 #include <FS.h>
 
 namespace CM

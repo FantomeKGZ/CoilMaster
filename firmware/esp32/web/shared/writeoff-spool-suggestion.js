@@ -8,10 +8,18 @@ delete document.body.dataset.writeoffSourceSessionId;
 delete document.body.dataset.writeoffSourceRunId;
 delete document.body.dataset.writeoffSourceSpoolId;
 
+const note=document.createElement('div');
+note.className='info muted';
+note.textContent='Проверка бухты из последнего завершённого прогона…';
+const spoolInfo=document.getElementById('spoolInfo');
+if(spoolInfo&&spoolInfo.parentNode)spoolInfo.parentNode.insertBefore(note,spoolInfo);
+else spoolSelect.insertAdjacentElement('afterend',note);
+
 if(!window.cmWriteoffProvenanceFetchWrapped){
     const originalFetch=window.fetch.bind(window);
-    window.fetch=(input,init)=>{
+    window.fetch=async(input,init)=>{
         const url=typeof input==='string'?input:(input&&input.url)||'';
+        let attachedSessionId='',attachedRunId='';
         if(url==='/api/warehouse/write-offs'&&init&&String(init.method||'GET').toUpperCase()==='POST'&&init.body instanceof URLSearchParams){
             const sessionId=document.body.dataset.writeoffSourceSessionId||'';
             const runId=document.body.dataset.writeoffSourceRunId||'';
@@ -20,22 +28,30 @@ if(!window.cmWriteoffProvenanceFetchWrapped){
             if(/^[1-9]\d*$/.test(sessionId)&&/^[1-9]\d*$/.test(runId)&&sourceSpoolId===postedSpoolId){
                 init.body.set('source_session_id',sessionId);
                 init.body.set('source_run_id',runId);
+                attachedSessionId=sessionId;
+                attachedRunId=runId;
             }else{
                 init.body.delete('source_session_id');
                 init.body.delete('source_run_id');
             }
         }
-        return originalFetch(input,init);
+        const response=await originalFetch(input,init);
+        if(attachedSessionId&&attachedRunId&&response.ok){
+            try{
+                const payload=await response.clone().json();
+                if(payload&&payload.confirmed===true&&String(payload.source_session_id)===attachedSessionId&&String(payload.source_run_id)===attachedRunId){
+                    note.className='info';
+                    note.textContent='Ручное списание подтверждено для сессии №'+attachedSessionId+', проход №'+attachedRunId+'. Этот прогон теперь покрыт складским provenance.';
+                    delete document.body.dataset.writeoffSourceSessionId;
+                    delete document.body.dataset.writeoffSourceRunId;
+                    delete document.body.dataset.writeoffSourceSpoolId;
+                }
+            }catch(_){}
+        }
+        return response;
     };
     window.cmWriteoffProvenanceFetchWrapped=true;
 }
-
-const note=document.createElement('div');
-note.className='info muted';
-note.textContent='Проверка бухты из последнего завершённого прогона…';
-const spoolInfo=document.getElementById('spoolInfo');
-if(spoolInfo&&spoolInfo.parentNode)spoolInfo.parentNode.insertBefore(note,spoolInfo);
-else spoolSelect.insertAdjacentElement('afterend',note);
 
 const escText=v=>String(v??'');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -84,17 +100,19 @@ async function runAlreadyWrittenOff(sessionId,runId){
     try{j=await r.json()}catch(_){throw new Error('writeoff_history_invalid_response')}
     if(!r.ok)throw new Error(j.error||'writeoff_history_read_failed');
     if(!Array.isArray(j.items))throw new Error('writeoff_history_items_missing');
+    let exactMatches=0,legacyMatches=0;
     for(const item of j.items){
         const sourceSession=item&&item.source_session_id;
         if(sourceSession===null||sourceSession===undefined)continue;
         if(!/^[1-9]\d*$/.test(String(sourceSession)))throw new Error('invalid_writeoff_source_session_id');
         if(String(sourceSession)!==sessionId)continue;
         const sourceRun=item.source_run_id;
-        if(sourceRun===null||sourceRun===undefined)return true;
+        if(sourceRun===null||sourceRun===undefined){legacyMatches++;continue;}
         if(!/^[1-9]\d*$/.test(String(sourceRun)))throw new Error('invalid_writeoff_source_run_id');
-        if(String(sourceRun)===runId)return true;
+        if(String(sourceRun)===runId)exactMatches++;
     }
-    return false;
+    if(legacyMatches>1||exactMatches>1||(legacyMatches&&exactMatches))throw new Error('duplicate_writeoff_provenance');
+    return legacyMatches===1||exactMatches===1;
 }
 
 async function loadSelection(sessionId){
@@ -153,7 +171,7 @@ async function run(){
         spoolSelect.dispatchEvent(new Event('change'));
         syncProvenance();
         note.className='info';
-        note.textContent='Предложена бухта №'+spoolId+' из immutable записи сессии №'+sessionId+', проход №'+runId+'. Пока выбрана эта бухта, session/run будут сохранены как provenance ручного списания. Расход и подтверждение остаются ручными.';
+        note.textContent='Предложена бухта №'+spoolId+' из immutable записи: сессия №'+sessionId+', проход №'+runId+'. Пока выбрана эта бухта, оба идентификатора будут сохранены как provenance ручного списания. Расход и подтверждение остаются ручными.';
     }catch(e){
         suggestedSessionId='';
         suggestedRunId='';

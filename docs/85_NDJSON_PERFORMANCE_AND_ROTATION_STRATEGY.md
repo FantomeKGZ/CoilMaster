@@ -54,6 +54,29 @@ Costing, finalization preflight и operator histories также читают ap
 
 Не хранить optimistic cache как доказательство integrity после mutation/reboot.
 
+### Уже начато
+
+Manifest теперь возвращает:
+
+```text
+snapshot_stability_duration_ms
+```
+
+Семантика:
+
+- при `snapshot_stability_checked=true` — длительность фактически выполненного deep audit;
+- при `snapshot_stability_checked=false` — `null`;
+- измерение оборачивает уже существующий `snapshotStabilityReason()` и **не добавляет дополнительный filesystem scan**;
+- поле только observability metadata и не влияет на `snapshot_stable`/`export_allowed`.
+
+Commit:
+
+```text
+8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
+```
+
+Это первый runtime signal для сравнения реального роста persisted dataset на стенде. Следующие метрики добавлять только там, где их можно получить во время уже выполняемого прохода или с явно ограниченной стоимостью.
+
 ## Этап 1 — убрать повторные сканы внутри одного request
 
 При подтверждённой необходимости:
@@ -129,6 +152,8 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-После текущего repository audit — не переписывать storage. На hardware E2E и эксплуатационном стенде собрать реальные размеры/latency, затем выбрать один hotspot и оптимизировать его измеримо.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes` и `snapshot_stability_duration_ms`, затем выбрать один hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+
+Если потребуется следующий repo-only шаг до стенда, предпочтительнее найти метрику, которую существующий validator может посчитать в том же проходе без дополнительного чтения файла, а не начинать storage refactor.
 
 Hardware E2E ESP32 + Arduino остаётся обязательным отдельным подтверждением и этим документом не считается выполненным.

@@ -27,6 +27,12 @@ struct RecoveryMarkerDefinition
     const char* reason;
 };
 
+struct SnapshotAuditMetrics
+{
+    bool windingJournalRecordCountMeasured = false;
+    uint32_t windingJournalRecordCount = 0UL;
+};
+
 constexpr ExportFileDefinition ExportFiles[] =
 {
     {"workshop-clients", "/data/workshop/clients.ndjson", "application/x-ndjson", "clients.ndjson"},
@@ -208,8 +214,12 @@ SessionScanResult scanSessionDirectory(fs::FS& storage,
     return SessionScanResult::Ok;
 }
 
-const char* snapshotStabilityReason(fs::FS& storage)
+const char* snapshotStabilityReason(fs::FS& storage,
+                                    SnapshotAuditMetrics& metrics)
 {
+    metrics.windingJournalRecordCountMeasured = false;
+    metrics.windingJournalRecordCount = 0UL;
+
     for (size_t i = 0U; i < RecoveryMarkerCount; ++i)
     {
         if (storage.exists(RecoveryMarkers[i].path))
@@ -228,8 +238,14 @@ const char* snapshotStabilityReason(fs::FS& storage)
     if (!BackupBusinessDataIntegrityAudit::check(storage))
         return "business_data_unstable_or_invalid";
 
-    if (!WindingPersistenceIntegrityAudit::check(storage))
+    uint32_t windingJournalRecordCount = 0UL;
+    if (!WindingPersistenceIntegrityAudit::check(storage,
+                                                 windingJournalRecordCount))
+    {
         return "winding_persistence_unstable_or_invalid";
+    }
+    metrics.windingJournalRecordCount = windingJournalRecordCount;
+    metrics.windingJournalRecordCountMeasured = true;
 
     if (!WarehousePersistenceIntegrityAudit::check(storage))
         return "warehouse_persistence_unstable_or_invalid";
@@ -354,10 +370,11 @@ void BackupExportWeb::handleManifest()
     const bool stabilityChecked = activity == BackupActivityCheck::Safe;
     const char* stabilityReason = nullptr;
     uint32_t stabilityDurationMs = 0UL;
+    SnapshotAuditMetrics auditMetrics;
     if (stabilityChecked)
     {
         const uint32_t startedAtMs = millis();
-        stabilityReason = snapshotStabilityReason(m_storage);
+        stabilityReason = snapshotStabilityReason(m_storage, auditMetrics);
         stabilityDurationMs = millis() - startedAtMs;
     }
 
@@ -393,8 +410,13 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += stabilityDurationMs;
+    response += F(",\"winding_journal_record_count\":");
+    if (!stabilityChecked || !auditMetrics.windingJournalRecordCountMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingJournalRecordCount;
     response += F(",\"items\":[");
-    response.reserve(3840U);
+    response.reserve(3900U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

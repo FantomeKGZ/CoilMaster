@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -38,7 +39,7 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
         String optional;
 
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
             spoolId <= previousSpoolId ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) ||

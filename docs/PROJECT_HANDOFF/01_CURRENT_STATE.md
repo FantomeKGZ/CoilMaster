@@ -3,41 +3,44 @@
 Дата обновления: **2026-08-08**  
 Ветка: **`cmp-protocol-v1`**  
 Ориентировочная функциональная готовность: **около 90%**  
-Статус: **основной production workflow ремонта, намотки, склада и закрытия уже собран; остаются эксплуатационная доводка и hardware E2E**
+Статус: **основной production workflow ремонта, намотки, склада и закрытия собран; остаются эксплуатационная доводка и hardware E2E**
 
-## Назначение и safety boundary
+## Safety boundary
 
-CoilMaster объединяет намоточный станок и мастерскую по ремонту электродвигателей:
+CoilMaster объединяет Arduino Uno и ESP32:
 
-- Arduino Uno — реальное время, SSR, датчик Холла, физический START, клавиатура, LCD, buzzer;
-- ESP32 — веб-интерфейс, microSD, задания намотки, реестр мастерской, склад, материалы, калькуляция, отчёты и backup;
-- UART — доставка задания и события `RUN_STARTED` / `RUN_COMPLETED`;
-- mobile и desktop UI.
+- Arduino Uno — реальное время, SSR, Hall, физический START, клавиатура/LCD/buzzer;
+- ESP32 — WEB, microSD, задания, workshop registry, warehouse/materials, costing, reports и backup;
+- UART — delivery и события `RUN_STARTED` / `RUN_COMPLETED`.
 
-ESP32 и WEB **не управляют SSR напрямую**. Физический START остаётся аппаратным действием. После reboot нет автоматического resume. `RUN_COMPLETED` **не выполняет автоматическое списание провода**.
+Не менять базовые safety-правила:
 
-## Основной рабочий путь
+- ESP32/WEB не управляют SSR напрямую;
+- физический START не запускается автоматически;
+- после reboot нет auto-resume;
+- `RUN_COMPLETED` не выполняет automatic wire writeoff.
+
+## Production path
 
 ```text
 клиент
-→ двигатель с authoritative coil_program
+→ двигатель + authoritative coil_program
 → ремонт OPEN
-→ калькуляция
-→ linked winding job
-→ обязательный exact spool_id
+→ costing
+→ linked winding + exact spool_id
 → immutable job snapshot + immutable spool selection
 → UART delivery
 → JOB_ACK ACCEPTED
 → physical START
 → RUN_STARTED / RUN_COMPLETED
 → winding history
-→ ручное списание провода с фактическим весом
-→ provenance source_session_id + source_run_id
-→ дополнительные материалы / pricing
+→ ручной wire writeoff по фактическому весу
+→ source_session_id + source_run_id provenance
+→ materials / pricing
 → read-only finalization preflight
 → CLOSED
-→ read-only архив
-→ месячный отчёт
+→ read-only archive / monthly report
+→ read-only backup/export
 ```
 
 ## Намотка и persisted state
@@ -46,104 +49,90 @@ ESP32 и WEB **не управляют SSR напрямую**. Физическ�
 
 - persistent `job_id/session_id` allocator;
 - immutable job snapshot;
-- отдельный immutable spool-selection store для linked job;
-- mutable persisted runtime-state;
-- fail-safe recovery и manual-review acknowledgement;
+- immutable exact spool-selection для linked job;
+- persisted runtime-state;
+- fail-safe recovery/manual review acknowledgement;
 - strict repair/motor linkage;
-- server-authoritative motor `coil_program` и единый `CM_WindingProgramParser`;
-- journal schema 2 с `job_id`, `session_id`, `run_id`, `repair_id`, `motor_id`;
-- read-only `/api/winding-history` с cursor pagination;
+- server-authoritative `coil_program` + единый `CM_WindingProgramParser`;
+- winding journal schema 2;
+- cursor read-only history;
 - semantic transition audit `RUN_STARTED → RUN_COMPLETED`;
-- explicit UI lifecycle `WAITING_ARDUINO_ACK`, `ACCEPTED_READY`, `RUNNING`, `PROGRAM_COMPLETED` и terminal states.
+- explicit lifecycle UI.
 
-Критические session-файлы:
+Session persistence:
 
 ```text
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/id-state.bak
 /data/winding-jobs/snapshots/session-<id>.json
 /data/winding-jobs/spool-selection/session-<id>.json
 /data/winding-jobs/state/session-<id>.json
 /data/winding-runs/events.ndjson
 ```
 
-## Exact spool identity и ручное списание
+## Exact spool и ручное списание
 
-Новые linked jobs требуют конкретный `spool_id`. Backend повторно проверяет, что бухта:
+Новый linked job требует конкретную `ACTIVE` CU/AL бухту с положительным остатком. Выбор сохраняется immutable до UART delivery.
 
-- `ACTIVE`;
-- имеет положительный остаток;
-- классифицирована как `CU` или `AL`.
+После `RUN_COMPLETED` UI может только предложить immutable бухту. Оператор вручную вводит фактический остаток и подтверждает write-off.
 
-До отправки задания на Arduino сохраняется immutable spool-selection с `repair_id`, `motor_id`, `spool_id`, диаметром, материалом и весом на момент выбора.
-
-После `RUN_COMPLETED` провод **не списывается автоматически**. UI только предлагает оператору ту бухту, которая была immutable выбрана для сессии. Оператор вручную вводит фактический вес после работы и подтверждает write-off.
-
-Новые подтверждённые movements сохраняют provenance:
+Новая provenance-гранулярность:
 
 ```text
-source_session_id
-source_run_id
+source_session_id + source_run_id
 ```
 
-Server-side проверяется:
+Server-side доказывается:
 
-- конкретный `(session_id, run_id)` имеет `RUN_COMPLETED`;
-- immutable spool-selection относится к тому же ремонту;
-- `spool_id` совпадает;
-- второй CONFIRMED write-off для того же run запрещён;
+- конкретный run имеет `RUN_COMPLETED`;
+- repair и spool совпадают с immutable selection;
+- второй CONFIRMED для того же `(session, run)` запрещён;
 - recovery сохраняет provenance через `PENDING → CONFIRMED | ABORTED`.
 
-Legacy movements и legacy sessions остаются читаемыми по совместимым правилам.
+Repair finalization требует ручное покрытие каждого нового completed linked run с immutable spool-selection. Legacy sessions/movements читаются совместимо.
 
-## Реестр ремонта и CLOSED
+## CLOSED и finalization
 
-Работают API клиентов, двигателей и ремонтов, similarity lookup, lifecycle и finalization preflight.
+`CLOSED` — server-side финальное состояние. Перед `OPEN → CLOSED` backend проверяет:
 
-`CLOSED` — server-side финальное состояние. Для нового `OPEN → CLOSED` проверяются:
+- нет незавершённого/recovery winding job;
+- costing/material/warehouse persistence цела;
+- winding journal полностью читается;
+- winding transition state-machine согласована;
+- wire coverage для новых `(session_id, run_id)` подтверждён вручную.
 
-- отсутствие незавершённого/recovery winding job;
-- целостность costing/material/warehouse persisted данных;
-- полная читаемость winding history;
-- semantic winding transition audit;
-- для новых completed linked runs с immutable spool-selection — наличие ручного CONFIRMED write-off именно для `(session_id, run_id)`.
+Preflight read-only, реальный close независимо повторяет проверки. Повторный close уже закрытого ремонта идемпотентен.
 
-Если ручное списание провода отсутствует, preflight возвращает `repair_finalization_wire_writeoff_required`, а close не выполняется.
-
-Повторный close уже `CLOSED` ремонта остаётся идемпотентным.
-
-## Склад, материалы и costing
+## Warehouse / materials / costing
 
 Реализованы и hardened:
 
-- CU/AL и совместимый legacy UNKNOWN;
+- CU/AL + legacy UNKNOWN;
 - active spool catalogue;
 - recoverable spool-file swap;
-- append-only warehouse write-off `PENDING → CONFIRMED | ABORTED`;
-- startup crash recovery;
-- material ledger, adjustments и repair usage;
-- material pending/recovery и recoverable file swap;
+- warehouse write-off `PENDING → CONFIRMED | ABORTED` + startup recovery;
+- material ledger, usage, adjustments, pending/recovery и recoverable swap;
 - warehouse price history;
-- strict reference lookups и persisted parsing;
-- `RepairCosting` с проверкой формул, валюты, overflow и transaction integrity;
-- одинаковое округление `NEAREST_MINOR_UNIT`;
-- repair-level costing, margin/loss и read-only archive totals.
+- strict persisted parsing/reference lookups;
+- `RepairCosting` с currency/formula/overflow/transaction checks;
+- одинаковое округление `NEAREST_MINOR_UNIT`.
 
-## Отчёты и UI
+## Reports и UI
 
-Mobile и desktop имеют:
+Mobile/desktop имеют:
 
-- repair archive filters `Открытые / Закрытые / Все`;
-- finalization preflight до кнопки close;
-- понятные причины блокировки, включая незавершённое ручное списание провода;
-- read-only итог закрытого ремонта;
-- winding history с immutable spool audit;
-- write-off history с отображением `session / run` provenance;
-- месячные отчёты закрытых ремонтов;
-- поиск по клиенту, телефону, двигателю, модели и repair ID;
-- фильтр прибыль / убыток / ноль / неподтверждённые данные.
+- OPEN/CLOSED/ALL repair filters;
+- finalization preflight;
+- operator-facing причины блокировки;
+- read-only итог ремонта;
+- winding history + immutable spool audit;
+- write-off history с `session / run` provenance;
+- monthly closed-repair report;
+- client/motor/repair search и profit/loss filters.
 
 ## Read-only backup/export
 
-Добавлен whitelist-based backup API без произвольного filesystem path:
+Whitelist endpoints:
 
 ```text
 GET /api/backup/manifest
@@ -152,24 +141,38 @@ GET /api/backup/sessions
 GET /api/backup/session-file?kind=...&session_id=...
 ```
 
-Экспорт включает основные workshop/winding/warehouse/material/pricing файлы и per-session snapshot/spool-selection/runtime-state.
+Arbitrary filesystem paths запрещены. Тяжёлый export и deep integrity scan не выполняются при active winding.
 
-Тяжёлый export server-side блокируется в активных фазах намотки через persisted activity guard.
+Manifest разделяет:
 
-Manifest отдельно сообщает:
+- `export_allowed` — можно ли сейчас безопасно выполнять export;
+- `snapshot_stability_checked` — запускался ли глубокий audit;
+- `snapshot_stable` — `true/false`, либо `null`, если глубокий scan намеренно не запускался из-за machine activity;
+- `snapshot_stability_reason` — первый доказанный recovery/integrity failure.
 
-- `export_allowed` — можно ли сейчас безопасно выполнять тяжёлое чтение;
-- `snapshot_stable` — нет ли известных recovery markers (`*.pending`, material/warehouse swap temp/backup, session temp/invalid entry).
+При безопасном machine-state `snapshot_stable=true` требует успешной read-only проверки:
 
-Нестабильный snapshot можно скачать как диагностическую копию, но UI явно не называет его чистым backup.
+- material pending/swap markers;
+- persistent allocator `id-state.txt`, optional `.bak`, отсутствие `.tmp`;
+- conductor settings и отсутствие `conductor.tmp`;
+- workshop clients/motors/repairs + repair-status references;
+- repair pricing + repair references;
+- material catalogue/usage/adjustments + арифметика;
+- winding journal schema до EOF + semantic transitions;
+- warehouse spools + price;
+- warehouse movements transaction/provenance integrity;
+- canonical session directories;
+- содержимое snapshot/runtime-state/spool-selection и cross-file identity.
+
+Нестабильный snapshot можно скачать как diagnostic copy, если export разрешён, но UI не называет его чистым backup.
 
 ## Runtime microSD safety
 
-Критические stores динамически fail-closed при потере microSD. Storage corruption не должен превращаться в ложный `404`/`not found`; для основных repair/material/warehouse lookup введены tri-state `success + found` контракты.
+Критические stores динамически fail-closed при потере microSD. Corruption не должен превращаться в ложный `404`; для основных reference lookups используются tri-state `success + found` контракты.
 
 ## Главный оставшийся внешний риск
 
-Repository review и зелёный CI **не доказывают физическое поведение станка**. Обязателен реальный end-to-end прогон ESP32 + Arduino:
+Repository review и зелёный CI не доказывают физический motor/UART path. Нужен реальный ESP32 + Arduino E2E:
 
 ```text
 linked repair
@@ -182,18 +185,19 @@ linked repair
 → costing
 → finalization preflight
 → CLOSED
+→ stable backup
 ```
 
-Отдельно проверить reboot/manual-review, снятие microSD, повреждённые persisted-файлы и UART fault scenarios.
+Отдельно проверить reboot/manual-review, microSD loss, corrupted persistence и UART fault scenarios.
 
-## Намеренно не делать автоматически
+## Намеренно не автоматизировать
 
-- auto physical START;
-- auto resume после reboot;
-- прямое SSR управление с ESP32/WEB;
-- automatic wire writeoff только по `RUN_COMPLETED`;
-- обход fail-closed проверок ради UI convenience.
+- physical START;
+- resume после reboot;
+- SSR control с ESP32/WEB;
+- wire writeoff только по `RUN_COMPLETED`;
+- обход fail-closed проверок.
 
-## Оставшиеся продуктовые направления
+## Product decisions после E2E
 
-После hardware E2E и короткой эксплуатационной доводки следующий функционал выбирать по реальной потребности мастерской. `analogue / unassigned winding` пока не имеет готовой production-модели и не должен ослаблять строгий `repair ↔ motor ↔ coil_program` path.
+`analogue / unassigned winding` пока не имеет production-модели. Проектировать его только как отдельный workflow, если мастерской это реально нужно, не ослабляя строгий `repair ↔ motor ↔ coil_program` path.

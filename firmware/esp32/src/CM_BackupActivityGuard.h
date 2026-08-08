@@ -16,6 +16,9 @@ enum class BackupActivityCheck : uint8_t
 class BackupActivityGuard
 {
 public:
+    using RuntimeProbe = BackupActivityCheck (*)();
+
+    static void setRuntimeProbe(RuntimeProbe probe);
     static BackupActivityCheck check(fs::FS& storage);
 };
 }

@@ -27,6 +27,17 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
         return false;
     }
 
+    if (operation.sourceSessionId != 0UL)
+    {
+        bool alreadyConfirmed = false;
+        if (!confirmedWriteOffForSourceSession(operation.sourceSessionId,
+                                               alreadyConfirmed) ||
+            alreadyConfirmed)
+        {
+            return false;
+        }
+    }
+
     WarehousePrice price;
     bool priceConfigured = false;
     if (!loadWarehousePrice(price, priceConfigured) || !priceConfigured) return false;

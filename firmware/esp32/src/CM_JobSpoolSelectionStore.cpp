@@ -45,78 +45,85 @@ bool JobSpoolSelectionStore::begin()
     m_ready = false;
     if (!ensureDirectories()) return false;
 
-    File directory = m_storage.open(SelectionDirectory, FILE_READ);
-    if (!directory || !directory.isDirectory())
+    const auto auditDirectory = [this](bool allowRecoverableTemp,
+                                       uint32_t& recoverableSessionId) -> bool
     {
-        if (directory) directory.close();
-        return false;
+        recoverableSessionId = 0UL;
+        File directory = m_storage.open(SelectionDirectory, FILE_READ);
+        if (!directory || !directory.isDirectory())
+        {
+            if (directory) directory.close();
+            return false;
+        }
+
+        File entry = directory.openNextFile();
+        while (entry)
+        {
+            if (entry.isDirectory())
+            {
+                entry.close();
+                directory.close();
+                return false;
+            }
+
+            const String base = baseNameOf(entry.name());
+            const size_t size = entry.size();
+            if (size == 0U || size >= 512U)
+            {
+                entry.close();
+                directory.close();
+                return false;
+            }
+            const String content = entry.readString();
+            entry.close();
+
+            JobSpoolSelection selection;
+            if (!parse(content, selection))
+            {
+                directory.close();
+                return false;
+            }
+
+            uint32_t fileSessionId = 0UL;
+            if (base.endsWith(F(".json.tmp")))
+            {
+                if (!allowRecoverableTemp || recoverableSessionId != 0UL ||
+                    !canonicalSessionFileName(base, ".json.tmp", fileSessionId) ||
+                    fileSessionId != selection.sessionId ||
+                    m_storage.exists(selectionPath(selection.sessionId)))
+                {
+                    directory.close();
+                    return false;
+                }
+                recoverableSessionId = selection.sessionId;
+            }
+            else if (!canonicalSessionFileName(base, ".json", fileSessionId) ||
+                     fileSessionId != selection.sessionId)
+            {
+                directory.close();
+                return false;
+            }
+
+            entry = directory.openNextFile();
+        }
+        directory.close();
+        return true;
+    };
+
+    uint32_t recoverableSessionId = 0UL;
+    if (!auditDirectory(true, recoverableSessionId)) return false;
+
+    if (recoverableSessionId != 0UL)
+    {
+        const String tempPath = temporaryPath(recoverableSessionId);
+        const String finalPath = selectionPath(recoverableSessionId);
+        if (!m_storage.rename(tempPath, finalPath)) return false;
+
+        uint32_t unexpectedTemp = 0UL;
+        if (!auditDirectory(false, unexpectedTemp) || unexpectedTemp != 0UL)
+            return false;
     }
 
-    File entry = directory.openNextFile();
-    while (entry)
-    {
-        if (entry.isDirectory())
-        {
-            entry.close();
-            directory.close();
-            return false;
-        }
-
-        const String name = entry.name();
-        const String base = baseNameOf(name);
-        const size_t size = entry.size();
-        if (size == 0U || size >= 512U)
-        {
-            entry.close();
-            directory.close();
-            return false;
-        }
-        const String content = entry.readString();
-        entry.close();
-
-        JobSpoolSelection selection;
-        if (!parse(content, selection))
-        {
-            directory.close();
-            return false;
-        }
-
-        uint32_t fileSessionId = 0UL;
-        if (base.endsWith(F(".json.tmp")))
-        {
-            if (!canonicalSessionFileName(base, ".json.tmp", fileSessionId) ||
-                fileSessionId != selection.sessionId)
-            {
-                directory.close();
-                return false;
-            }
-
-            const String finalPath = selectionPath(selection.sessionId);
-            if (m_storage.exists(finalPath))
-            {
-                directory.close();
-                return false;
-            }
-            const String tempPath = temporaryPath(selection.sessionId);
-            if (!m_storage.rename(tempPath, finalPath))
-            {
-                directory.close();
-                return false;
-            }
-        }
-        else
-        {
-            if (!canonicalSessionFileName(base, ".json", fileSessionId) ||
-                fileSessionId != selection.sessionId)
-            {
-                directory.close();
-                return false;
-            }
-        }
-
-        entry = directory.openNextFile();
-    }
-    directory.close();
     m_ready = true;
     return true;
 }
@@ -138,6 +145,12 @@ bool JobSpoolSelectionStore::create(const JobSpoolSelection& selection)
     const String tempPath = temporaryPath(selection.sessionId);
     if (m_storage.exists(finalPath) || m_storage.exists(tempPath)) return false;
 
+    const auto cleanupTemp = [this, &tempPath]()
+    {
+        if (m_storage.exists(tempPath) && !m_storage.remove(tempPath))
+            m_ready = false;
+    };
+
     String output;
     if (!serialize(selection, output)) return false;
     File file = m_storage.open(tempPath, FILE_WRITE);
@@ -147,7 +160,7 @@ bool JobSpoolSelectionStore::create(const JobSpoolSelection& selection)
     file.close();
     if (written != output.length())
     {
-        m_storage.remove(tempPath);
+        cleanupTemp();
         return false;
     }
 
@@ -155,7 +168,7 @@ bool JobSpoolSelectionStore::create(const JobSpoolSelection& selection)
     if (!verify || verify.isDirectory())
     {
         if (verify) verify.close();
-        m_storage.remove(tempPath);
+        cleanupTemp();
         return false;
     }
     const String verifiedText = verify.readString();
@@ -171,13 +184,13 @@ bool JobSpoolSelectionStore::create(const JobSpoolSelection& selection)
         verified.weightAtSelectionGrams != selection.weightAtSelectionGrams ||
         verified.wireType != selection.wireType)
     {
-        m_storage.remove(tempPath);
+        cleanupTemp();
         return false;
     }
 
     if (!m_storage.rename(tempPath, finalPath))
     {
-        m_storage.remove(tempPath);
+        cleanupTemp();
         return false;
     }
     return true;

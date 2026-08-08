@@ -152,7 +152,10 @@ Manifest разделяет:
 - `export_allowed` — можно ли сейчас безопасно выполнять export;
 - `snapshot_stability_checked` — запускался ли глубокий audit;
 - `snapshot_stable` — `true/false`, либо `null`, если глубокий scan намеренно не запускался из-за machine activity;
-- `snapshot_stability_reason` — первый доказанный recovery/integrity failure.
+- `snapshot_stability_reason` — первый доказанный recovery/integrity failure;
+- `snapshot_stability_duration_ms` — длительность уже выполненного deep audit; `null`, если audit не запускался.
+
+`duration_ms` — только observability metadata: он не запускает дополнительный filesystem scan и не влияет на `snapshot_stable`/`export_allowed`.
 
 При безопасном machine-state `snapshot_stable=true` теперь означает успешную read-only проверку **всего backup whitelist**, а также необходимых recovery/session adjuncts.
 
@@ -191,7 +194,7 @@ Manifest разделяет:
 
 Compile-safety audit новых backup integrity modules также выполнен на уровне repository review: публичные audit headers самостоятельно включают `FS.h`, `.cpp` с `String/File/isDigit` имеют Arduino dependencies, а ESP32 PlatformIO filter компилирует все `firmware/esp32/src/*.cpp`. Missing include в проверенном наборе не найден. Это **не** считается доказательством GREEN CI до фактического build result.
 
-HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение на текущем этапе — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД.
+HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение на текущем этапе — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД. Этап 0 observability начат измерением `snapshot_stability_duration_ms` без дополнительного чтения persistence.
 
 ## Runtime microSD safety
 

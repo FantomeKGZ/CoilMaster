@@ -1,4 +1,5 @@
 #include "CM_MaterialLedger.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_RepairLifecycle.h"
 
 namespace CM
@@ -84,7 +85,7 @@ bool MaterialLedger::appendMaterialsJson(String& json, uint16_t& count) const
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!line.startsWith("{") || !line.endsWith("}"))
+        if (!FlatJsonObjectValidator::valid(line))
         {
             file.close();
             return false;
@@ -175,7 +176,8 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
         uint32_t materialId = 0UL;
         uint32_t linePrice = 0UL;
         String lineCurrency, status;
-        if (!findUnsigned(materialLine, "material_id", materialId) || materialId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(materialLine) ||
+            !findUnsigned(materialLine, "material_id", materialId) || materialId == 0UL ||
             materialId <= previousMaterialId ||
             !findUnsigned(materialLine, "price_per_unit_minor", linePrice) || linePrice == 0UL ||
             !findString(materialLine, "currency", lineCurrency) || lineCurrency.length() != 3U ||
@@ -276,18 +278,28 @@ bool MaterialLedger::recoverPendingUsage()
     if (!pending) return false;
     const String metadata = pending.readStringUntil('\n');
     String usageLine = pending.readStringUntil('\n');
+    const String extra = pending.readStringUntil('\n');
     pending.close();
-    if (usageLine.length() == 0U) return false;
+    if (usageLine.length() == 0U || extra.length() != 0U ||
+        !FlatJsonObjectValidator::valid(metadata) ||
+        !FlatJsonObjectValidator::valid(usageLine))
+    {
+        return false;
+    }
     usageLine += '\n';
 
     uint32_t usageId = 0UL;
     uint32_t materialId = 0UL;
     uint32_t stockBefore = 0UL;
     uint32_t stockAfter = 0UL;
+    uint32_t auditUsageId = 0UL;
+    uint32_t auditMaterialId = 0UL;
     if (!findUnsigned(metadata, "usage_id", usageId) || usageId == 0UL ||
         !findUnsigned(metadata, "material_id", materialId) || materialId == 0UL ||
         !findUnsigned(metadata, "stock_before_milli", stockBefore) ||
-        !findUnsigned(metadata, "stock_after_milli", stockAfter))
+        !findUnsigned(metadata, "stock_after_milli", stockAfter) ||
+        !findUnsigned(usageLine, "usage_id", auditUsageId) || auditUsageId != usageId ||
+        !findUnsigned(usageLine, "material_id", auditMaterialId) || auditMaterialId != materialId)
     {
         return false;
     }
@@ -303,7 +315,8 @@ bool MaterialLedger::recoverPendingUsage()
             const String line = usageFile.readStringUntil('\n');
             if (line.length() == 0U) continue;
             uint32_t existing = 0UL;
-            if (!findUnsigned(line, "usage_id", existing) || existing == 0UL ||
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "usage_id", existing) || existing == 0UL ||
                 existing <= previousUsageId)
             {
                 usageFile.close();
@@ -369,7 +382,8 @@ bool MaterialLedger::usageExists(uint32_t usageId) const
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t existing = 0UL;
-        if (!findUnsigned(line, "usage_id", existing) || existing == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "usage_id", existing) || existing == 0UL ||
             existing <= previousId)
         {
             file.close();
@@ -398,7 +412,8 @@ bool MaterialLedger::readStockQuantity(uint32_t materialId,
         if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
         uint32_t currentQuantity = 0UL;
-        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
             currentId <= previousId ||
             !findUnsigned(line, "stock_quantity_milli", currentQuantity))
         {
@@ -441,7 +456,8 @@ bool MaterialLedger::nextId(const char* path, const char* key, uint32_t& id) con
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
-        if (!findUnsigned(line, key, candidate) || candidate == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, key, candidate) || candidate == 0UL ||
             candidate <= maximum)
         {
             file.close();
@@ -478,7 +494,8 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
         String line = source.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
             currentId <= previousId)
         {
             valid = false;
@@ -517,6 +534,11 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
             int end = start;
             while (end < line.length() && isDigit(line[end])) ++end;
             line = line.substring(0, start) + String(remainingMilli) + line.substring(end);
+            if (!FlatJsonObjectValidator::valid(line))
+            {
+                valid = false;
+                break;
+            }
             found = true;
         }
         if (target.println(line) == 0U) { valid = false; break; }
@@ -550,7 +572,8 @@ bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli
         String line = source.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
             currentId <= previousId)
         {
             valid = false;
@@ -584,6 +607,11 @@ bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli
             int end = start;
             while (end < line.length() && isDigit(line[end])) ++end;
             line = line.substring(0, start) + String(restored) + line.substring(end);
+            if (!FlatJsonObjectValidator::valid(line))
+            {
+                valid = false;
+                break;
+            }
             found = true;
         }
         if (target.println(line) == 0U) { valid = false; break; }

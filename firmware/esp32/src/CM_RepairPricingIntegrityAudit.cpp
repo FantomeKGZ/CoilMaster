@@ -68,6 +68,39 @@ bool findString(const String& line, const char* key, String& value)
     }
     return false;
 }
+
+bool repairExists(fs::FS& storage, uint32_t repairId)
+{
+    constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
+    if (repairId == 0UL || !storage.exists(RepairsPath)) return false;
+
+    File file = storage.open(RepairsPath, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint8_t matches = 0U;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t currentId = 0UL;
+        if (!findUnsigned32(line, "repair_id", currentId) || currentId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        if (currentId == repairId && ++matches > 1U)
+        {
+            file.close();
+            return false;
+        }
+    }
+    file.close();
+    return matches == 1U;
+}
 }
 
 bool RepairPricingIntegrityAudit::check(fs::FS& storage)
@@ -100,7 +133,8 @@ bool RepairPricingIntegrityAudit::check(fs::FS& storage)
             !findUnsigned64(line, "labour_cost_minor", labour) ||
             !findUnsigned64(line, "client_price_minor", client) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
+            !repairExists(storage, repairId))
         {
             file.close();
             return false;

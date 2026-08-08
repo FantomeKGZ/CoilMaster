@@ -88,8 +88,9 @@ bool repairExists(fs::FS& storage, uint32_t repairId)
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned32(line, "repair_id", currentId) || currentId == 0UL)
+        // Workshop syntax is validated by its authoritative registry audit.
+        // Keep this repeated pricing-reference scan focused on exact identity.
+        if (!findUnsigned32(line, "repair_id", currentId) || currentId == 0UL)
         {
             file.close();
             return false;

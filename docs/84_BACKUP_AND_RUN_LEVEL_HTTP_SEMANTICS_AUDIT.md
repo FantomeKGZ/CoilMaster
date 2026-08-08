@@ -40,9 +40,12 @@ Manifest намеренно отличается от direct export endpoints:
 - `snapshot_stability_checked=false` означает, что тяжёлый integrity audit намеренно не выполнялся;
 - `snapshot_stable=null` допустим только когда deep scan не выполнялся;
 - `snapshot_stability_duration_ms=null` допустим только когда deep scan не выполнялся; при `snapshot_stability_checked=true` поле содержит фактическую длительность уже выполненного deep audit в миллисекундах и не запускает дополнительный filesystem scan;
+- `winding_journal_record_count` возвращается только если winding schema validation **и** transition audit полностью успешны; если deep scan не запускался, до winding audit не дошли или winding integrity не доказана, значение `null`;
 - при safe state integrity failure возвращается как `snapshot_stable=false` + `snapshot_stability_reason`, а не как транспортная ошибка HTTP.
 
-Это разделяет operational state и failure чтения самого endpoint. Duration-поле является observability metadata и не участвует в решении `snapshot_stable`/`export_allowed`.
+Это разделяет operational state и failure чтения самого endpoint. Duration/count поля являются observability metadata и не участвуют в решении `snapshot_stable`/`export_allowed`.
+
+`winding_journal_record_count` считается внутри уже существующего `WindingJournalQuery::validateAll()` прохода до EOF. Дополнительного чтения `events.ndjson` ради метрики нет.
 
 ### `/api/backup/file`
 
@@ -96,11 +99,17 @@ source_run_id=
 
 Исправлено: само присутствие одного/both run-level параметров теперь включает строгую provenance validation. Оба параметра должны присутствовать вместе, быть непустыми и содержать canonical non-zero IDs; иначе -> `400` без записи.
 
-Commit:
+Коммиты, связанные с этим audit/observability batch:
 
 ```text
 362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
 8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
+c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation count
+36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
+eeea77a35e0938692f2142b5022ea41849bf5f64  Expose winding audit record count
+1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
+a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
+b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 ```
 
 Остальные run-level conflicts остаются `409`: repair closed, spool/session mismatch, run not completed, duplicate confirmed write-off. Persisted history/integrity failure остаётся `500`, dependency unavailable -> `503`.
@@ -109,4 +118,4 @@ Commit:
 
 HTTP/error semantics после исправления согласованы с fail-closed моделью. Дополнительный массовый refactor status codes сейчас не нужен.
 
-Следующий repo-reviewable эксплуатационный блок — стоимость растущих NDJSON scans и bounded rotation/summary strategy без преждевременной миграции в БД. Первый low-cost observability signal уже добавлен в manifest: duration существующего deep audit без дополнительных проходов по persistence.
+Performance Stage 0 теперь имеет две runtime observability величины без дополнительного persistence scan: полную длительность deep backup audit и число успешно провалидированных записей winding journal. Rotation/storage refactor до измерений не начинать.

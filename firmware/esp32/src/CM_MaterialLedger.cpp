@@ -32,7 +32,7 @@ bool MaterialLedger::addMaterial(const NewMaterial& material,
 {
     assignedMaterialId = 0UL;
     if (!ready() || material.name.length() == 0U ||
-        material.pricePerUnitMinor == 0UL || material.currency.length() != 3U)
+        material.pricePerUnitMinor == 0UL || material.currency != "KGS")
     {
         return false;
     }
@@ -702,5 +702,4 @@ const char* MaterialLedger::unitText(MaterialUnit unit)
         case MaterialUnit::Piece:
         default: return "PIECE";
     }
-}
 }

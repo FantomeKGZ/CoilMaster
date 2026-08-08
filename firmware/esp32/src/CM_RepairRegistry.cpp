@@ -1,4 +1,5 @@
 #include "CM_RepairRegistry.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -30,7 +31,8 @@ bool RepairRegistry::begin()
             const String line = motors.readStringUntil('\n');
             if (line.length() == 0U) continue;
             String coilProgram;
-            if (!findString(line, "coil_program", coilProgram) ||
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findString(line, "coil_program", coilProgram) ||
                 !WindingProgramParser::valid(coilProgram))
             {
                 motors.close();
@@ -61,7 +63,8 @@ bool RepairRegistry::begin()
 
             uint32_t clientId = 0UL;
             uint32_t motorId = 0UL;
-            if (!findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
                 !findUnsigned(line, "motor_id", motorId) || motorId == 0UL ||
                 !clientExists(clientId) || !motorExists(motorId))
             {
@@ -263,6 +266,12 @@ bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        if (!FlatJsonObjectValidator::valid(line))
+        {
+            file.close();
+            return false;
+        }
         String normalized;
         if (query.length() > 0U &&
             (!findString(line, "phone_normalized", normalized) ||
@@ -291,6 +300,12 @@ bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        if (!FlatJsonObjectValidator::valid(line))
+        {
+            file.close();
+            return false;
+        }
         if (query.length() > 0U)
         {
             String searchable;
@@ -324,8 +339,8 @@ bool RepairRegistry::appendRepairsJson(String& json, uint32_t clientId,
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.length() == 0U || line[0] != '{' ||
-            line[line.length() - 1U] != '}')
+        if (line.length() == 0U) continue;
+        if (!FlatJsonObjectValidator::valid(line))
         {
             file.close();
             return false;
@@ -397,7 +412,8 @@ bool RepairRegistry::idExists(const char* path, const char* key, uint32_t id) co
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t current = 0UL;
-        if (!findUnsigned(line, key, current) || current == 0UL)
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, key, current) || current == 0UL)
         {
             file.close();
             return false;
@@ -442,7 +458,7 @@ bool RepairRegistry::validateUniqueIds(const char* path, const char* key) const
     {
         const String line = source.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (line[0] != '{' || line[line.length() - 1U] != '}')
+        if (!FlatJsonObjectValidator::valid(line))
         {
             source.close();
             return false;
@@ -467,7 +483,8 @@ bool RepairRegistry::validateUniqueIds(const char* path, const char* key) const
             const String candidateLine = duplicateScan.readStringUntil('\n');
             if (candidateLine.length() == 0U) continue;
             uint32_t candidate = 0UL;
-            if (!findUnsigned(candidateLine, key, candidate) || candidate == 0UL)
+            if (!FlatJsonObjectValidator::valid(candidateLine) ||
+                !findUnsigned(candidateLine, key, candidate) || candidate == 0UL)
             {
                 duplicateScan.close();
                 source.close();
@@ -507,7 +524,7 @@ bool RepairRegistry::validateRepairStatusHistory() const
     {
         const String line = source.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (line[0] != '{' || line[line.length() - 1U] != '}')
+        if (!FlatJsonObjectValidator::valid(line))
         {
             source.close();
             return false;
@@ -539,7 +556,8 @@ bool RepairRegistry::validateRepairStatusHistory() const
             uint32_t candidateRepairId = 0UL;
             String candidateStatus;
             String candidateClosedAt;
-            if (!findUnsigned(candidateLine, "repair_id", candidateRepairId) ||
+            if (!FlatJsonObjectValidator::valid(candidateLine) ||
+                !findUnsigned(candidateLine, "repair_id", candidateRepairId) ||
                 candidateRepairId == 0UL ||
                 !findString(candidateLine, "status", candidateStatus) ||
                 candidateStatus != "CLOSED" ||
@@ -591,7 +609,7 @@ bool RepairRegistry::repairClosed(uint32_t repairId, bool& closed,
         uint32_t candidateRepairId = 0UL;
         String status;
         String candidateClosedAt;
-        if (line[0] != '{' || line[line.length() - 1U] != '}' ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "repair_id", candidateRepairId) ||
             candidateRepairId == 0UL ||
             !findString(line, "status", status) || status != "CLOSED" ||
@@ -629,7 +647,8 @@ bool RepairRegistry::nextId(const char* path, const char* key, uint32_t& id) con
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
-        if (!findUnsigned(line, key, candidate) || candidate == 0UL)
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, key, candidate) || candidate == 0UL)
         {
             file.close();
             return false;

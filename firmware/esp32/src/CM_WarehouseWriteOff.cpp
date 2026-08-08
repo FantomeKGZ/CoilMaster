@@ -10,7 +10,8 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     result = SpoolWriteOffResult();
     if (!ready() || operation.spoolId == 0UL || operation.repairId == 0UL ||
         operation.timestamp.length() < 10U || operation.weightBeforeGrams == 0UL ||
-        operation.weightAfterGrams >= operation.weightBeforeGrams)
+        operation.weightAfterGrams >= operation.weightBeforeGrams ||
+        ((operation.sourceSessionId == 0UL) != (operation.sourceRunId == 0UL)))
     {
         return false;
     }
@@ -31,15 +32,17 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     if (operation.sourceSessionId != 0UL)
     {
         if (WindingSessionCompletionAudit::check(m_storage,
-                                                 operation.sourceSessionId) !=
+                                                 operation.sourceSessionId,
+                                                 operation.sourceRunId) !=
             WindingSessionCompletionCheck::Completed)
         {
             return false;
         }
 
         bool alreadyConfirmed = false;
-        if (!confirmedWriteOffForSourceSession(operation.sourceSessionId,
-                                               alreadyConfirmed) ||
+        if (!confirmedWriteOffForSourceRun(operation.sourceSessionId,
+                                           operation.sourceRunId,
+                                           alreadyConfirmed) ||
             alreadyConfirmed)
         {
             return false;
@@ -280,6 +283,7 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     const bool isConfirmed = statusText == "CONFIRMED";
 
     if (movementId == 0UL || operation.spoolId == 0UL || operation.repairId == 0UL ||
+        ((operation.sourceSessionId == 0UL) != (operation.sourceRunId == 0UL)) ||
         consumedGrams == 0UL || price.pricePerKgMinor == 0UL ||
         price.currency.length() != 3U || (!isPendingLike && !isConfirmed) ||
         (isPendingLike && (diameterHundredthsMm != 0U || wireType.length() != 0U)) ||
@@ -293,7 +297,7 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     if (!file) return false;
 
     String line;
-    line.reserve(490U);
+    line.reserve(520U);
     line = F("{\"movement_id\":"); line += movementId;
     line += F(",\"type\":\"WRITE_OFF\",\"status\":\""); line += statusText;
     line += F("\",\"spool_id\":"); line += operation.spoolId;
@@ -301,6 +305,7 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     if (operation.sourceSessionId != 0UL)
     {
         line += F(",\"source_session_id\":"); line += operation.sourceSessionId;
+        line += F(",\"source_run_id\":"); line += operation.sourceRunId;
     }
     line += F(",\"diameter_hundredths_mm\":"); line += diameterHundredthsMm;
     if (wireType.length() > 0U)

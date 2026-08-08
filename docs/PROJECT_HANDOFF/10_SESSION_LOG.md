@@ -24,6 +24,81 @@
 
 ---
 
+## 2026-08-08 19:03 — Business backup observability и handoff sync
+
+Цель:
+
+Продолжить от фактического HEAD `cmp-protocol-v1` после winding cleanup, не повторять уже завершённые блоки и взять следующий repo-reviewable Stage 0 шаг без дополнительного full-file I/O.
+
+Что сделано:
+
+- прочитаны все актуальные файлы `docs/PROJECT_HANDOFF/` и подтверждено, что `CM_WindingPersistenceIntegrityAudit` cleanup через `WindingJournalQuery::validateAll()` уже завершён;
+- подтверждено, что HTTP/error semantics audit также уже закрыт, поэтому работа продолжена от фактической точки ветки;
+- выбран same-pass observability для business/workshop persistence;
+- `BackupBusinessDataAuditMetrics` добавляет counts клиентов, двигателей, ремонтов, repair-status и pricing;
+- старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
+- client/motor/repair counts собираются внутри уже существующих uniqueness passes, repair-status/pricing counts — внутри текущих parser/reference passes;
+- partial business metrics не публикуются при failed audit;
+- backup manifest публикует `workshop_client_record_count`, `workshop_motor_record_count`, `workshop_repair_record_count`, `repair_status_record_count`, `repair_pricing_record_count` только после полного успешного business audit;
+- при первой попытке обновить `CM_BackupExportWeb.cpp` GitHub вернул `409`, потому что файл изменился параллельно; файл был заново fetched из `cmp-protocol-v1`, после чего изменения наложены поверх актуального blob без потери новых winding session counters;
+- сохранены параллельно появившиеся `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` и их `WindingSessionPersistenceAuditMetrics` contract;
+- Stage 0 observability теперь содержит 14 runtime metrics и даёт пары `size_bytes + record_count` для workshop/pricing/material/winding/warehouse growth paths плюс session-file population и общую audit duration;
+- обновлены `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md`, `09_KEY_FILES_INDEX.md`, `12_LATEST_HANDOFF_2026-08-08.md`; `01_CURRENT_STATE.md` уже был синхронизирован параллельной работой и лишний commit не создавался.
+
+Файлы:
+
+```text
+firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.h
+firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.cpp
+firmware/esp32/src/CM_BackupExportWeb.cpp
+docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
+docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
+```
+
+Кодовые коммиты:
+
+```text
+cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
+33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
+1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
+```
+
+Сохранённые параллельные winding-session observability commits:
+
+```text
+9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
+afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
+abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
+```
+
+Документационные коммиты этой части до записи session log:
+
+```text
+702edf98c9b993332fdaf17aa2359c1128391f27  Document business backup observability
+b13bcb6d19fe9aaac13d4a01a273e9823dd4fb50  Complete business observability handoff
+f0b23da4fe942fe1d5fab767a649cf48abe13f2c  Refresh latest handoff observability
+2d3deaf31e194f5d3d93bf586c27757f8be4ac4c  Index business backup audit metrics
+```
+
+Проверка:
+
+Static repository review подтверждает совместимость overloads/includes, сохранение `BackupActivityGuard::Safe` gating и отсутствие нового telemetry-only full scan. Это не заменяет ESP32 build. GREEN CI текущего head в этой записи не подтверждён. Hardware E2E не выполнялся.
+
+Где остановились:
+
+Winding cleanup, deep backup integrity, HTTP semantics audit и Stage 0 observability для material/business/winding/warehouse + session files завершены на repository level. Известный duplicate-I/O composition path и business reference scans остаются измеряемыми Stage 1 кандидатами, но не должны рефакториться до benchmark без отдельной correctness причины.
+
+Следующее действие:
+
+1. Реальный ESP32 + Arduino E2E production path.
+2. Одновременно снять manifest `size_bytes`, все 14 Stage 0 metrics и `snapshot_stability_duration_ms`.
+3. По фактическим latency/size/population выбрать первый hotspot для bounded index / audit decomposition / rotation.
+4. Если доступен новый Actions run — проверить фактический `build-esp32` head и исправлять только подтверждённую compile/link ошибку.
+
+---
+
 ## 2026-08-08 18:50 — Winding cleanup verification и material backup observability
 
 Цель:

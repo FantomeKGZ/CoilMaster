@@ -1,4 +1,5 @@
 #include "CM_WindingJournalTransitionAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -88,7 +89,7 @@ WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::
         uint32_t persistedCompletedRuns = 0UL;
         AuditEvent event = AuditEvent::Started;
 
-        if (line.length() == 0U || line[0] != '{' || line[line.length() - 1U] != '}' ||
+        if (line.length() == 0U || !FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "session_id", sessionId) || sessionId == 0UL ||
             !findUnsigned(line, "run_id", runId) || runId == 0UL ||
             !findUnsigned(line, "completed_runs", persistedCompletedRuns) ||

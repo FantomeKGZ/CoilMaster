@@ -3,6 +3,8 @@
 #include "CM_ConductorSettingsWeb.h"
 #include "CM_MaterialLedger.h"
 #include "CM_MaterialLedgerWeb.h"
+#include "CM_WindingJournalQuery.h"
+#include "CM_WindingJournalWeb.h"
 #include <SD.h>
 
 namespace CM
@@ -71,11 +73,15 @@ void WarehouseWeb::begin()
     static ConductorSettingsWeb conductorSettingsWeb(m_server, m_store);
     static MaterialLedger materialLedger(SD);
     static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
+    static WindingJournalQuery windingHistoryQuery(SD);
+    static WindingJournalWeb windingJournalWeb(m_server, windingHistoryQuery);
 
     materialLedger.begin();
+    windingHistoryQuery.begin();
     conductorCalculatorWeb.begin();
     conductorSettingsWeb.begin();
     materialLedgerWeb.begin();
+    windingJournalWeb.begin();
 }
 
 void WarehouseWeb::handleSummary()

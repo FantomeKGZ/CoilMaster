@@ -55,6 +55,13 @@ bool findString(const String& line, const char* key, String& value)
     return false;
 }
 
+bool incrementRecordCount(uint32_t& recordCount)
+{
+    if (recordCount == 0xFFFFFFFFUL) return false;
+    ++recordCount;
+    return true;
+}
+
 bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wanted)
 {
     if (wanted == 0UL || !storage.exists(path)) return false;
@@ -85,8 +92,9 @@ bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wante
     return matches == 1U;
 }
 
-bool checkSpools(fs::FS& storage)
+bool checkSpools(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     constexpr const char* Path = "/data/warehouse/spools.ndjson";
     if (!storage.exists(Path)) return true;
     File file = storage.open(Path, FILE_READ);
@@ -127,13 +135,19 @@ bool checkSpools(fs::FS& storage)
                 return false;
             }
         }
+        if (!incrementRecordCount(recordCount))
+        {
+            file.close();
+            return false;
+        }
     }
     file.close();
     return true;
 }
 
-bool checkPrice(fs::FS& storage)
+bool checkPrice(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     constexpr const char* Path = "/data/warehouse/price.ndjson";
     if (!storage.exists(Path)) return true;
     File file = storage.open(Path, FILE_READ);
@@ -150,7 +164,8 @@ bool checkPrice(fs::FS& storage)
         String currency;
         if (!line.startsWith("{") || !line.endsWith("}") ||
             !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
-            !findString(line, "currency", currency) || currency.length() != 3U)
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !incrementRecordCount(recordCount))
         {
             file.close();
             return false;
@@ -195,6 +210,24 @@ bool checkMovementReferences(fs::FS& storage)
 
 bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage)
 {
-    return checkSpools(storage) && checkPrice(storage) && checkMovementReferences(storage);
+    WarehousePersistenceAuditMetrics ignoredMetrics;
+    return check(storage, ignoredMetrics);
+}
+
+bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage,
+                                               WarehousePersistenceAuditMetrics& metrics)
+{
+    metrics = WarehousePersistenceAuditMetrics();
+    uint32_t spoolRecordCount = 0UL;
+    uint32_t priceRecordCount = 0UL;
+    if (!checkSpools(storage, spoolRecordCount) ||
+        !checkPrice(storage, priceRecordCount) ||
+        !checkMovementReferences(storage))
+    {
+        return false;
+    }
+    metrics.spoolRecordCount = spoolRecordCount;
+    metrics.priceRecordCount = priceRecordCount;
+    return true;
 }
 }

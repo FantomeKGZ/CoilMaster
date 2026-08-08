@@ -1,6 +1,7 @@
 #include "CM_WarehouseWeb.h"
 #include <SD.h>
 #include "CM_RepairLifecycle.h"
+#include "CM_WindingSessionCompletionAudit.h"
 
 namespace CM
 {
@@ -233,6 +234,27 @@ void WarehouseWeb::handleConfirmWriteOff()
         {
             m_server.send(409, "application/json; charset=utf-8",
                           "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
+            return;
+        }
+
+        const WindingSessionCompletionCheck completion =
+            WindingSessionCompletionAudit::check(m_store.storage(), sourceSessionId);
+        if (completion == WindingSessionCompletionCheck::StorageUnavailable)
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"winding_history_unavailable\",\"write_performed\":false}");
+            return;
+        }
+        if (completion == WindingSessionCompletionCheck::IntegrityFailed)
+        {
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"winding_history_integrity_failed\",\"write_performed\":false}");
+            return;
+        }
+        if (completion != WindingSessionCompletionCheck::Completed)
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"source_session_not_completed\",\"write_performed\":false}");
             return;
         }
 

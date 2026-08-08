@@ -5,9 +5,9 @@ namespace CM
 {
 namespace
 {
-bool hasSingleEventKey(const String& line)
+bool hasSingleKey(const String& line, const char* key)
 {
-    const String marker = F("\"event\":");
+    const String marker = String("\"") + key + F("\":");
     const int position = line.indexOf(marker);
     return position >= 0 &&
            line.indexOf(marker, position + marker.length()) < 0;
@@ -228,7 +228,7 @@ bool WindingJournalQuery::isValidLegacySchema1Record(const String& line)
     uint32_t completedRuns = 0UL;
     uint32_t uptimeMs = 0UL;
     if (!FlatJsonObjectValidator::valid(line) ||
-        !hasSingleEventKey(line) ||
+        !hasSingleKey(line, "event") ||
         !findUnsigned(line, "schema_version", schemaVersion) ||
         schemaVersion != 1UL ||
         !findUnsigned(line, "run_id", runId) || runId == 0UL ||
@@ -272,7 +272,9 @@ bool WindingJournalQuery::isValidSchema2Record(const String& line,
     uint32_t uptimeMs = 0UL;
     uint32_t motorId = 0UL;
     if (!FlatJsonObjectValidator::valid(line) ||
-        !hasSingleEventKey(line) ||
+        !hasSingleKey(line, "event") ||
+        !hasSingleKey(line, "repair_id") ||
+        !hasSingleKey(line, "motor_id") ||
         !findUnsigned(line, "schema_version", schemaVersion) ||
         schemaVersion != 2UL ||
         !findUnsigned(line, "job_id", jobId) || jobId == 0UL ||

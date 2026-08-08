@@ -1,4 +1,5 @@
 #include "CM_MaterialLedger.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -57,7 +58,7 @@ bool MaterialLedger::appendUsageHistoryJson(String& json,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!line.startsWith("{") || !line.endsWith("}"))
+        if (!FlatJsonObjectValidator::valid(line))
         {
             file.close();
             return false;

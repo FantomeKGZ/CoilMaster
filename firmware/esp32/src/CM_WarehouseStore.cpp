@@ -138,6 +138,12 @@ bool WarehouseStore::setWarehousePrice(const WarehousePrice& price)
     WarehousePrice current;
     bool configured = false;
     if (!loadWarehousePrice(current, configured)) return false;
+    if (configured &&
+        current.pricePerKgMinor == price.pricePerKgMinor &&
+        current.currency == price.currency)
+    {
+        return true;
+    }
 
     File file = m_storage.open(PricePath, FILE_APPEND);
     if (!file) return false;

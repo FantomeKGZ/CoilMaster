@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <FS.h>
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -30,7 +31,7 @@ public:
         {
             const String line = file.readStringUntil('\n');
             if (line.length() == 0U) continue;
-            if (line[0] != '{' || line[line.length() - 1U] != '}')
+            if (!FlatJsonObjectValidator::valid(line))
             {
                 file.close();
                 return false;

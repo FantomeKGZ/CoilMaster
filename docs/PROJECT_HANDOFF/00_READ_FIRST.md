@@ -1,6 +1,6 @@
 # CoilMaster — продолжение проекта
 
-Дата обновления: 2026-08-07
+Дата обновления: 2026-08-08
 
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Рабочая ветка: `cmp-protocol-v1`
@@ -9,61 +9,72 @@
 
 ## Запрос для нового чата
 
-> Открой репозиторий `FantomeKGZ/CoilMaster`, работай только с веткой `cmp-protocol-v1`. Сначала прочитай `docs/PROJECT_HANDOFF/01_CURRENT_STATE.md`, затем `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и `09_KEY_FILES_INDEX.md`. После этого обязательно перечитай актуальные версии исходников, которые собираешься менять. Используй остальные handoff-файлы как дополнительную архитектурную и историческую справку. Продолжи с точки из `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и после значимого этапа снова обнови handoff.
+> Открой репозиторий `FantomeKGZ/CoilMaster`, работай только с веткой `cmp-protocol-v1`. Сначала прочитай `docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md`, затем `01_CURRENT_STATE.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и `09_KEY_FILES_INDEX.md`. После этого обязательно заново fetch актуальные версии исходников, которые собираешься менять. Код `cmp-protocol-v1` всегда source of truth. Продолжи с точной точки из `12_LATEST_HANDOFF_2026-08-08.md` и после значимого этапа снова обнови handoff.
 
 ## Рекомендуемый порядок чтения
 
-1. `01_CURRENT_STATE.md` — актуальное состояние на момент переноса.
-2. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — точная следующая задача.
-3. `09_KEY_FILES_INDEX.md` — актуальные ключевые файлы и пути.
-4. `08_WORK_RULES_AND_VERIFICATION.md` — правила работы и проверки.
-5. `02_ARCHITECTURE_AND_HARDWARE.md` — аппаратная архитектура.
-6. `03_PROTOCOL_AND_WINDING_FLOW.md` — протокол и winding flow.
-7. `04_DATA_STORAGE_API_UI.md` — данные/API/UI; сверять с текущим кодом, так как часть деталей могла устареть.
-8. `05_COMPLETED_WORK_LOG.md` — укрупнённый список уже реализованного.
-9. `07_BACKLOG_AND_DEFERRED.md` — отложенные задачи; не считать их реализованными автоматически.
-10. `10_SESSION_LOG.md` — журнал последних рабочих сессий.
-11. `11_FULL_BRANCH_AUDIT.md` — историческая полная карта ветки; не использовать вместо актуального кода и обновлённых `01/06/09`.
+1. `12_LATEST_HANDOFF_2026-08-08.md` — самый свежий полный snapshot: сделанное, последний CI failure/fix и точный следующий план.
+2. `01_CURRENT_STATE.md` — архитектурное текущее состояние.
+3. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — активные задачи и hardware E2E.
+4. `09_KEY_FILES_INDEX.md` — ключевые файлы и пути.
+5. `08_WORK_RULES_AND_VERIFICATION.md` — правила работы и проверки.
+6. `02_ARCHITECTURE_AND_HARDWARE.md` — аппаратная архитектура.
+7. `03_PROTOCOL_AND_WINDING_FLOW.md` — CMP/UART и winding flow.
+8. `04_DATA_STORAGE_API_UI.md` — данные/API/UI; сверять с кодом.
+9. `05_COMPLETED_WORK_LOG.md` — укрупнённая история реализованного.
+10. `10_SESSION_LOG.md` — журнал рабочих сессий.
+11. `07_BACKLOG_AND_DEFERRED.md` — отложенное; не считать реализованным автоматически.
+12. `11_FULL_BRANCH_AUDIT.md` — историческая карта, не источник текущего кода.
 
 ## Источник истины
 
 Приоритет:
 
 1. текущий код ветки `cmp-protocol-v1`;
-2. результаты актуальной сборки/тестов;
-3. `01_CURRENT_STATE.md` + `06_ACTIVE_WORK_AND_NEXT_STEPS.md`;
-4. остальные handoff-файлы;
-5. тематические документы `docs/*`;
-6. история чатов.
+2. фактические результаты актуальных Actions/build/tests;
+3. `12_LATEST_HANDOFF_2026-08-08.md`;
+4. `01_CURRENT_STATE.md` + `06_ACTIVE_WORK_AND_NEXT_STEPS.md`;
+5. остальные handoff-файлы;
+6. тематические документы `docs/*`;
+7. история чатов.
 
-Перед изменением существующего файла всегда заново получать его текущее содержимое и blob SHA из `cmp-protocol-v1`.
+Перед изменением существующего файла всегда заново получать его текущее содержимое и blob SHA из `cmp-protocol-v1`. Для нового файла сначала проверять отсутствие точного пути.
 
-Для нового файла сначала проверять отсутствие точного пути.
+## Критические safety-правила
 
-## Критические напоминания
-
-- Не переключаться на `main`: активная реализация находится в `cmp-protocol-v1`.
-- Не начинать заново persistent allocator, immutable snapshot, runtime-state, recovery, linked-job, winding history, workshop registry, warehouse, costing или calculator — они уже существуют.
+- Не переключаться на `main` как источник реализации.
+- Не начинать заново persistent allocator, snapshots/state/recovery, linked-job, winding history, repair lifecycle, warehouse/material/costing, exact spool provenance или backup — они уже реализованы.
 - ESP32/WEB не должны напрямую управлять SSR.
 - Физический START остаётся обязательным.
 - Automatic resume/automatic queue после recovery запрещены.
-- Не считать документацию доказательством успешной CI-сборки.
-- Не считать отсутствие видимого workflow-run доказательством GREEN.
-- Не списывать провод автоматически только по `RUN_COMPLETED`, пока не спроектирована устойчивая связь с конкретной складской катушкой и идемпотентность.
+- `RUN_COMPLETED` не должен автоматически списывать провод.
+- Не ослаблять fail-closed semantics ради UI convenience.
+
+## Последний CI факт
+
+Actions run `31243187630` на commit `78ac245...` падал не из-за `WString.h` warnings, а из-за:
+
+```text
+CM_MaterialLedger.cpp: expected '}' at end of input
+```
+
+Исправление уже закоммичено:
+
+```text
+77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
+```
+
+Не считать этот fix доказанно GREEN, пока нет фактического успешного ESP32 Actions run после него.
 
 ## Текущая точка продолжения
 
-На момент этого handoff следующий рабочий блок:
+Полный backup-integrity block завершён. Следующий repo-reviewable cleanup:
 
 ```text
-client → motor → repair → linked winding → physical run → winding history
+CM_WindingPersistenceIntegrityAudit
+→ использовать authoritative WindingJournalQuery::validateAll()
 ```
 
-Начать с проверки и доработки:
+После этого — audit backup HTTP/error semantics, затем performance/rotation review или hardware E2E по доступности стенда.
 
-```text
-firmware/esp32/web/mobile/repairs.html
-firmware/esp32/web/desktop/repairs.html
-```
-
-Все детали — в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Все детали и список последних коммитов: `12_LATEST_HANDOFF_2026-08-08.md`.

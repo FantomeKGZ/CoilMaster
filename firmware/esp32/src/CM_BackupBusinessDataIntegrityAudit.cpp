@@ -1,4 +1,5 @@
 #include "CM_BackupBusinessDataIntegrityAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include <Arduino.h>
 #include "CM_WindingProgramParser.h"
 
@@ -75,7 +76,7 @@ bool findString(const String& line, const char* key, String& value)
 
 bool validJsonLine(const String& line)
 {
-    return line.length() >= 2U && line.startsWith("{") && line.endsWith("}");
+    return FlatJsonObjectValidator::valid(line);
 }
 
 bool incrementRecordCount(uint32_t& recordCount)

@@ -9,6 +9,7 @@ class WindingPersistenceIntegrityAudit
 {
 public:
     static bool check(fs::FS& storage);
+    static bool check(fs::FS& storage, uint32_t& recordCount);
 };
 }
 

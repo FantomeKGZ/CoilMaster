@@ -1,5 +1,6 @@
 #include "CM_BackupExportWeb.h"
 #include "CM_BackupActivityGuard.h"
+#include "CM_WarehouseMovementIntegrityAudit.h"
 
 namespace CM
 {
@@ -53,6 +54,7 @@ constexpr size_t RecoveryMarkerCount = sizeof(RecoveryMarkers) / sizeof(Recovery
 constexpr const char* SnapshotDirectory = "/data/winding-jobs/snapshots";
 constexpr const char* SpoolSelectionDirectory = "/data/winding-jobs/spool-selection";
 constexpr const char* StateDirectory = "/data/winding-jobs/state";
+constexpr const char* WarehouseMovementsPath = "/data/warehouse/movements.ndjson";
 constexpr uint8_t MaxSessionPage = 32U;
 
 const ExportFileDefinition* findDefinition(const String& name)
@@ -205,6 +207,12 @@ const char* snapshotStabilityReason(fs::FS& storage)
     {
         if (storage.exists(RecoveryMarkers[i].path))
             return RecoveryMarkers[i].reason;
+    }
+
+    if (storage.exists(WarehouseMovementsPath) &&
+        !WarehouseMovementIntegrityAudit::check(storage))
+    {
+        return "warehouse_movements_unstable_or_invalid";
     }
 
     const char* directories[] =

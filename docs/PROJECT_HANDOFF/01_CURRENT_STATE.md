@@ -158,9 +158,10 @@ Manifest разделяет:
 - `workshop_client_record_count`, `workshop_motor_record_count`, `workshop_repair_record_count`, `repair_status_record_count`, `repair_pricing_record_count` — validated business/workshop/pricing records;
 - `winding_journal_record_count` — записи authoritative winding schema scan;
 - `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` — validated session persistence files;
+- `warehouse_spool_record_count`, `warehouse_price_record_count` — validated warehouse catalogue/price records;
 - `warehouse_movement_record_count` — validated warehouse movement records.
 
-Все четырнадцать Stage 0 performance/observability метрик не влияют на `snapshot_stable`/`export_allowed` и не должны добавлять отдельный full-file/directory scan ради телеметрии. Duration оборачивает уже выполняемый deep audit; material/business/winding/warehouse record counts и session file counts собираются внутри уже выполняемых authoritative validation passes. Session counts публикуются только после полного успешного `WindingSessionPersistenceIntegrityAudit`; отсутствующая session directory при успешном audit даёт `0`, partial counts при failure не публикуются.
+Все шестнадцать Stage 0 performance/observability метрик не влияют на `snapshot_stable`/`export_allowed` и не добавляют отдельный full-file/directory scan ради телеметрии. Duration оборачивает уже выполняемый deep audit; material/business/winding/warehouse record counts и session file counts собираются внутри уже выполняемых authoritative validation passes. Session counts публикуются только после полного успешного `WindingSessionPersistenceIntegrityAudit`; warehouse spool/price counts — только после полного успешного `WarehousePersistenceIntegrityAudit`, включая existing movement-reference validation. Partial metrics при failed domain audit не публикуются.
 
 При безопасном machine-state `snapshot_stable=true` означает успешную read-only проверку **всего backup whitelist**, а также необходимых recovery/session adjuncts.
 
@@ -225,7 +226,7 @@ linked repair
 → stable backup
 ```
 
-На стенде снять `size_bytes`, material/business/winding/warehouse record counts, `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` и `snapshot_stability_duration_ms`, чтобы дальнейшие bounded-index/rotation решения принимались по измеренным данным.
+На стенде снять `size_bytes`, material/business/winding/warehouse record counts, `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` и `snapshot_stability_duration_ms`, включая пары `warehouse-spools.size_bytes ↔ warehouse_spool_record_count` и `warehouse-price.size_bytes ↔ warehouse_price_record_count`, чтобы дальнейшие bounded-index/rotation решения принимались по измеренным данным.
 
 Отдельно проверить reboot/manual-review, microSD loss, corrupted persistence и UART fault scenarios.
 

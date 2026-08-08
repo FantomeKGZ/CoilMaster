@@ -42,8 +42,10 @@ bool normalizeWireType(const String& source, String& normalized)
 }
 }
 
-WarehouseWeb::WarehouseWeb(WebServer& server, WarehouseStore& store)
-    : m_server(server), m_store(store)
+WarehouseWeb::WarehouseWeb(WebServer& server,
+                           WarehouseStore& store,
+                           JobSpoolSelectionStore* spoolSelections)
+    : m_server(server), m_store(store), m_spoolSelections(spoolSelections)
 {
 }
 

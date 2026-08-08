@@ -8,29 +8,17 @@
 firmware/esp32/src/main.cpp
 ```
 
-Содержит:
-
-- `/api/status`;
-- `/api/jobs`;
-- `/api/recovery/acknowledge`;
-- регистрацию workshop/warehouse/static web API;
-- startup всех persistent-компонентов;
-- lifecycle текущего job;
-- `job_creation_ready` и `linked_job_creation_ready`.
+Содержит `/api/status`, `/api/jobs`, `/api/recovery/acknowledge`, регистрацию web/API, startup persistent-компонентов и lifecycle текущего job.
 
 ## Persistent job identity и recovery
 
 ```text
-firmware/esp32/src/CM_PersistentIdAllocator.h
-firmware/esp32/src/CM_PersistentIdAllocator.cpp
-firmware/esp32/src/CM_JobSnapshotStore.h
-firmware/esp32/src/CM_JobSnapshotStore.cpp
-firmware/esp32/src/CM_JobStateStore.h
-firmware/esp32/src/CM_JobStateStore.cpp
-firmware/esp32/src/CM_JobRecovery.h
-firmware/esp32/src/CM_JobRecovery.cpp
-firmware/esp32/src/CM_JobDisplayRecovery.h
-firmware/esp32/src/CM_JobDisplayRecovery.cpp
+firmware/esp32/src/CM_PersistentIdAllocator.h/.cpp
+firmware/esp32/src/CM_JobSnapshotStore.h/.cpp
+firmware/esp32/src/CM_JobStateStore.h/.cpp
+firmware/esp32/src/CM_JobRecovery.h/.cpp
+firmware/esp32/src/CM_JobDisplayRecovery.h/.cpp
+firmware/esp32/src/CM_JobSpoolSelectionStore.h/.cpp
 ```
 
 Хранилища:
@@ -38,26 +26,17 @@ firmware/esp32/src/CM_JobDisplayRecovery.cpp
 ```text
 /data/winding-jobs/id-state.txt
 /data/winding-jobs/snapshots/session-<session_id>.json
+/data/winding-jobs/spool-selection/session-<session_id>.json
 /data/winding-jobs/state/session-<session_id>.json
 ```
 
 ## UART и журнал намотки
 
 ```text
-firmware/esp32/src/CM_UartEventReceiver.h
-firmware/esp32/src/CM_UartEventReceiver.cpp
-firmware/esp32/src/CM_WindingJournal.h
-firmware/esp32/src/CM_WindingJournal.cpp
+firmware/esp32/src/CM_UartEventReceiver.h/.cpp
+firmware/esp32/src/CM_WindingJournal.h/.cpp
 firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp
 ```
-
-Назначение:
-
-- доставка job и ACK/REJECT/TIMEOUT/CANCEL;
-- `RUN_STARTED` / `RUN_COMPLETED`;
-- composite identity `session_id + run_id + event_type`;
-- schema 2 context `job_id/repair_id/motor_id`;
-- fail-closed event scans и startup validation.
 
 Журнал:
 
@@ -71,59 +50,28 @@ firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp
 firmware/esp32/src/CM_WindingJournalQuery.h
 firmware/esp32/src/CM_WindingJournalQuery.cpp
 firmware/esp32/src/CM_WindingJournalQueryValidation.cpp
-firmware/esp32/src/CM_WindingJournalWeb.h
-firmware/esp32/src/CM_WindingJournalWeb.cpp
+firmware/esp32/src/CM_WindingJournalWeb.h/.cpp
 ```
 
-`CM_WindingJournalQueryValidation.cpp` содержит authoritative `WindingJournalQuery::validateAll()` / count overload для full-file schema scan до EOF. Не искать эту реализацию только в `CM_WindingJournalQuery.cpp` и не возвращать backup audit к cursor-pagination.
-
-API:
-
-```text
-GET /api/winding-history?repair_id=<id>&cursor=<n>&limit=<n>
-GET /api/winding-history?session_id=<id>&cursor=<n>&limit=<n>
-```
-
-UI:
-
-```text
-firmware/esp32/web/mobile/winding-history.html
-firmware/esp32/web/desktop/winding-history.html
-```
+`CM_WindingJournalQueryValidation.cpp` содержит authoritative `WindingJournalQuery::validateAll()` / count overload для full-file schema scan до EOF. Не возвращать backup audit к cursor-pagination.
 
 ## Программа намотки
-
-Единый parser:
 
 ```text
 firmware/esp32/src/CM_WindingProgramParser.h
 ```
 
-Правила:
-
-- 1..10 катушек;
-- 1..9999 витков на сегмент;
-- разделители `/`, `,`, `;`;
-- пробелы игнорируются;
-- leading zero и пустые сегменты запрещены;
-- canonical format `N/N/...`.
-
-Используется job creation, registry, similarity и UI-валидацией.
+Единый parser для job creation, registry, similarity и UI-validation.
 
 ## Linked job и workshop registry
 
 ```text
-firmware/esp32/src/CM_JobLinkageRequest.h
-firmware/esp32/src/CM_JobLinkageRequest.cpp
-firmware/esp32/src/CM_JobLinkageResolver.h
-firmware/esp32/src/CM_JobLinkageResolver.cpp
-firmware/esp32/src/CM_RepairRegistry.h
-firmware/esp32/src/CM_RepairRegistry.cpp
+firmware/esp32/src/CM_JobLinkageRequest.h/.cpp
+firmware/esp32/src/CM_JobLinkageResolver.h/.cpp
+firmware/esp32/src/CM_RepairRegistry.h/.cpp
 firmware/esp32/src/CM_RepairRegistrySimilarity.cpp
-firmware/esp32/src/CM_RepairRegistryWeb.h
-firmware/esp32/src/CM_RepairRegistryWeb.cpp
-firmware/esp32/src/CM_MotorSimilarityWeb.h
-firmware/esp32/src/CM_MotorSimilarityWeb.cpp
+firmware/esp32/src/CM_RepairRegistryWeb.h/.cpp
+firmware/esp32/src/CM_MotorSimilarityWeb.h/.cpp
 ```
 
 Данные:
@@ -132,133 +80,76 @@ firmware/esp32/src/CM_MotorSimilarityWeb.cpp
 /data/workshop/clients.ndjson
 /data/workshop/motors.ndjson
 /data/workshop/repairs.ndjson
+/data/workshop/repair-status.ndjson
 ```
 
-API:
+## Production UI
 
 ```text
-GET/POST /api/clients
-GET/POST /api/motors
-GET/POST /api/repairs
-GET      /api/motors/similar
-```
-
-## Linked winding UI
-
-```text
-firmware/esp32/web/mobile/winding-job.html
-firmware/esp32/web/desktop/winding-job.html
-```
-
-Ожидается `repair_id`, загружается repair + motor, `coil_program` readonly, POST идёт в `/api/jobs` с `repair_id` и `motor_id`. Физический запуск не выполняется из браузера.
-
-## Главные страницы
-
-```text
-firmware/esp32/web/mobile/index.html
-firmware/esp32/web/desktop/index.html
-```
-
-Показывают явные lifecycle states и readiness. Linked repair ведёт на winding history.
-
-## Клиенты, ремонты и двигатели UI
-
-```text
-firmware/esp32/web/mobile/clients.html
-firmware/esp32/web/mobile/repairs.html
-firmware/esp32/web/mobile/motors.html
-firmware/esp32/web/mobile/more.html
-firmware/esp32/web/desktop/clients.html
-firmware/esp32/web/desktop/repairs.html
-firmware/esp32/web/desktop/motors.html
-```
-
-Основной production UI flow уже собран. Текущий обязательный следующий внешний этап — hardware E2E ESP32 + Arduino, а не повторная реализация repair/winding UI.
-
-## Static web storage
-
-```text
-firmware/esp32/src/CM_StaticSiteServer.h
-firmware/esp32/src/CM_StaticSiteServer.cpp
 firmware/esp32/web/mobile/
 firmware/esp32/web/desktop/
 ```
 
-`web_storage_ready` динамически отражает runtime-доступность `/web`.
+Основной production UI flow уже собран. Следующий обязательный внешний этап — hardware E2E ESP32 + Arduino, а не повторная реализация repair/winding UI.
 
-## Склад провода
+## Склад, материалы и costing
 
-Основные файлы:
-
-```text
-firmware/esp32/src/CM_WarehouseStore.h
-firmware/esp32/src/CM_WarehouseStore.cpp
-firmware/esp32/src/CM_WarehouseWeb.h
-firmware/esp32/src/CM_WarehouseWeb.cpp
-firmware/esp32/src/CM_WarehouseWriteOff.cpp
-firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp
-firmware/esp32/src/CM_WarehouseWriteOffHistory.cpp
-firmware/esp32/src/CM_WarehouseMaterialCatalogue.cpp
-```
-
-Не начинать склад заново — подсистема уже реализована.
-
-## Калькуляция ремонта и материалы
+Ключевые группы:
 
 ```text
-firmware/esp32/src/CM_RepairCosting.h
-firmware/esp32/src/CM_RepairCosting.cpp
-firmware/esp32/src/CM_RepairCostingWeb.h
-firmware/esp32/src/CM_RepairCostingWeb.cpp
-firmware/esp32/src/CM_MaterialLedger.h
-firmware/esp32/src/CM_MaterialLedger.cpp
-firmware/esp32/src/CM_MaterialLedgerWeb.h
-firmware/esp32/src/CM_MaterialLedgerWeb.cpp
-firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.h
-firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_Warehouse*.h/.cpp
+firmware/esp32/src/CM_Material*.h/.cpp
+firmware/esp32/src/CM_RepairCosting*.h/.cpp
+firmware/esp32/src/CM_RepairPricing*.h/.cpp
 ```
 
-Дополнительные реализации разделены на файлы `CM_Material*`, `CM_RepairPricing*`, `CM_Warehouse*` — перед изменением искать все определения.
-
-`CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload, который считает catalogue/usage/adjustment records в уже выполняемых validation passes. Старый `check(storage)` сохраняется.
+`CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload для catalogue/usage/adjustment counts; старый `check(storage)` сохранён.
 
 ## Read-only backup/export и deep integrity
 
-Основная orchestration:
+Orchestration:
 
 ```text
-firmware/esp32/src/CM_BackupActivityGuard.h
-firmware/esp32/src/CM_BackupActivityGuard.cpp
-firmware/esp32/src/CM_BackupExportWeb.h
-firmware/esp32/src/CM_BackupExportWeb.cpp
+firmware/esp32/src/CM_BackupActivityGuard.h/.cpp
+firmware/esp32/src/CM_BackupExportWeb.h/.cpp
 ```
 
 Deep audit modules:
 
 ```text
-firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.h
-firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.cpp
-firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.h
-firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.cpp
-firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.h
-firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.cpp
-firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.h
-firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.cpp
-firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h
-firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp
-firmware/esp32/src/CM_PersistentIdIntegrityAudit.h
-firmware/esp32/src/CM_PersistentIdIntegrityAudit.cpp
-firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.h
-firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.cpp
-firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.h
-firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.cpp
-firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h
-firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_PersistentIdIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.h/.cpp
+firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
 ```
 
-`CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его в backup orchestration.
+Ключевые правила:
 
-Manifest Stage 0 observability использует already-running passes и не должен добавлять второй full scan только ради counters.
+- `CM_WindingPersistenceIntegrityAudit` использует `WindingJournalQuery::validateAll()` + отдельный transition audit; cursor-pagination full scan там отсутствует.
+- `CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его.
+- Session audit теперь имеет совместимый metrics overload `WindingSessionPersistenceAuditMetrics`; старый `check(storage)` сохранён.
+- Metrics overload возвращает `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного успешного deep session audit; partial counts при failure не публикуются.
+- `CM_BackupExportWeb.cpp` публикует Stage 0 material/business/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms` только через уже выполняемые authoritative passes.
+- `BackupActivityGuard::Safe` gating не ослаблять: heavy deep scan не выполняется во время active winding.
+
+## Performance/rotation
+
+```text
+docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+```
+
+До hardware benchmark не делать произвольный rotation threshold, persistent optimistic cache, database migration или Stage 1 duplicate-scan refactor без отдельной correctness-причины.
+
+## HTTP semantics
+
+```text
+docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
+```
 
 ## CI
 
@@ -270,7 +161,7 @@ Tests/Protocol/CMakeLists.txt
 Tests/Protocol/test_main.cpp
 ```
 
-GitHub connector для `fetch_commit_workflow_runs` видит только PR-triggered runs, поэтому отсутствие результата не доказывает отсутствие/успех push-run.
+Отсутствие workflow/status результата в GitHub connector не доказывает GREEN push-run.
 
 ## Handoff
 
@@ -290,4 +181,4 @@ docs/PROJECT_HANDOFF/11_FULL_BRANCH_AUDIT.md
 docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
 ```
 
-При переносе в новый чат приоритет чтения: `00` → `12` → `01` → `06` → актуальные исходники; затем остальные handoff-файлы для деталей.
+При переносе в новый чат: `00` → `12` → `01` → `06` → актуальные исходники; затем остальные handoff-файлы.

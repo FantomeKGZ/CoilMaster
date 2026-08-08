@@ -23,7 +23,11 @@ private:
         "/data/settings/conductor-calculator.ndjson";
     static constexpr const char* TempPath =
         "/data/settings/conductor-calculator.tmp";
+    static constexpr const char* BackupPath =
+        "/data/settings/conductor-calculator.bak";
 
+    bool recoverFileSwap();
+    bool loadFromPath(const char* path, ConversionSettings& settings) const;
     static bool findUnsigned(const String& line,
                              const char* key,
                              uint32_t& value);

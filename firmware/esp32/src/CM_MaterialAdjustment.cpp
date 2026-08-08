@@ -8,7 +8,7 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
     result = MaterialAdjustmentResult();
     if (!ready() || adjustment.materialId == 0UL ||
         (adjustment.addQuantityMilli == 0UL && adjustment.newPricePerUnitMinor == 0UL) ||
-        adjustment.currency.length() != 3U || adjustment.timestamp.length() < 10U ||
+        adjustment.currency != "KGS" || adjustment.timestamp.length() < 10U ||
         !m_storage.exists(MaterialsPath) || m_storage.exists(AdjustmentPendingPath))
     {
         return false;
@@ -23,7 +23,8 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
     if (!readMaterialState(adjustment.materialId,
                            previousStock,
                            previousPrice,
-                           previousCurrency))
+                           previousCurrency) ||
+        previousCurrency != "KGS")
     {
         return false;
     }

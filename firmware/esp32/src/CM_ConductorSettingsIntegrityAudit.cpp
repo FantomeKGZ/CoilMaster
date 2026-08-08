@@ -7,6 +7,7 @@ namespace
 {
 constexpr const char* SettingsPath = "/data/settings/conductor-calculator.ndjson";
 constexpr const char* TempPath = "/data/settings/conductor-calculator.tmp";
+constexpr const char* BackupPath = "/data/settings/conductor-calculator.bak";
 
 bool findUnsigned(const String& line, const char* key, uint32_t& value)
 {
@@ -37,7 +38,7 @@ bool findUnsigned(const String& line, const char* key, uint32_t& value)
 
 bool ConductorSettingsIntegrityAudit::check(fs::FS& storage)
 {
-    if (storage.exists(TempPath)) return false;
+    if (storage.exists(TempPath) || storage.exists(BackupPath)) return false;
     if (!storage.exists(SettingsPath)) return true;
 
     File file = storage.open(SettingsPath, FILE_READ);

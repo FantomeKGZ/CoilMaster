@@ -65,14 +65,17 @@ firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp
 /data/winding-runs/events.ndjson
 ```
 
-## История намотки
+## История и full validation журнала намотки
 
 ```text
 firmware/esp32/src/CM_WindingJournalQuery.h
 firmware/esp32/src/CM_WindingJournalQuery.cpp
+firmware/esp32/src/CM_WindingJournalQueryValidation.cpp
 firmware/esp32/src/CM_WindingJournalWeb.h
 firmware/esp32/src/CM_WindingJournalWeb.cpp
 ```
+
+`CM_WindingJournalQueryValidation.cpp` содержит authoritative `WindingJournalQuery::validateAll()` / count overload для full-file schema scan до EOF. Не искать эту реализацию только в `CM_WindingJournalQuery.cpp` и не возвращать backup audit к cursor-pagination.
 
 API:
 
@@ -170,7 +173,7 @@ firmware/esp32/web/desktop/repairs.html
 firmware/esp32/web/desktop/motors.html
 ```
 
-Следующая активная проверка начинается именно с `repairs.html` mobile/desktop.
+Основной production UI flow уже собран. Текущий обязательный следующий внешний этап — hardware E2E ESP32 + Arduino, а не повторная реализация repair/winding UI.
 
 ## Static web storage
 
@@ -211,9 +214,51 @@ firmware/esp32/src/CM_MaterialLedger.h
 firmware/esp32/src/CM_MaterialLedger.cpp
 firmware/esp32/src/CM_MaterialLedgerWeb.h
 firmware/esp32/src/CM_MaterialLedgerWeb.cpp
+firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.h
+firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.cpp
 ```
 
 Дополнительные реализации разделены на файлы `CM_Material*`, `CM_RepairPricing*`, `CM_Warehouse*` — перед изменением искать все определения.
+
+`CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload, который считает catalogue/usage/adjustment records в уже выполняемых validation passes. Старый `check(storage)` сохраняется.
+
+## Read-only backup/export и deep integrity
+
+Основная orchestration:
+
+```text
+firmware/esp32/src/CM_BackupActivityGuard.h
+firmware/esp32/src/CM_BackupActivityGuard.cpp
+firmware/esp32/src/CM_BackupExportWeb.h
+firmware/esp32/src/CM_BackupExportWeb.cpp
+```
+
+Deep audit modules:
+
+```text
+firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.h
+firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.cpp
+firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.h
+firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.h
+firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.h
+firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h
+firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp
+firmware/esp32/src/CM_PersistentIdIntegrityAudit.h
+firmware/esp32/src/CM_PersistentIdIntegrityAudit.cpp
+firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.h
+firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.cpp
+firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.h
+firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h
+firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp
+```
+
+`CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его в backup orchestration.
+
+Manifest Stage 0 observability использует already-running passes и не должен добавлять второй full scan только ради counters.
 
 ## CI
 
@@ -242,6 +287,7 @@ docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
 docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
 docs/PROJECT_HANDOFF/10_SESSION_LOG.md
 docs/PROJECT_HANDOFF/11_FULL_BRANCH_AUDIT.md
+docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
 ```
 
-При переносе в новый чат приоритет чтения: `00` → `01` → `06` → актуальные исходники; затем остальные handoff-файлы для деталей.
+При переносе в новый чат приоритет чтения: `00` → `12` → `01` → `06` → актуальные исходники; затем остальные handoff-файлы для деталей.

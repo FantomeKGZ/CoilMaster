@@ -5,8 +5,8 @@ namespace CM
 {
 namespace
 {
-constexpr const char* SettingsPath = "/data/settings/conductor.json";
-constexpr const char* TempPath = "/data/settings/conductor.tmp";
+constexpr const char* SettingsPath = "/data/settings/conductor-calculator.ndjson";
+constexpr const char* TempPath = "/data/settings/conductor-calculator.tmp";
 
 bool findUnsigned(const String& line, const char* key, uint32_t& value)
 {

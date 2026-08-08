@@ -39,9 +39,10 @@ Manifest намеренно отличается от direct export endpoints:
 - если activity state не доказан, manifest возвращает blocked state и не запускает deep scan;
 - `snapshot_stability_checked=false` означает, что тяжёлый integrity audit намеренно не выполнялся;
 - `snapshot_stable=null` допустим только когда deep scan не выполнялся;
+- `snapshot_stability_duration_ms=null` допустим только когда deep scan не выполнялся; при `snapshot_stability_checked=true` поле содержит фактическую длительность уже выполненного deep audit в миллисекундах и не запускает дополнительный filesystem scan;
 - при safe state integrity failure возвращается как `snapshot_stable=false` + `snapshot_stability_reason`, а не как транспортная ошибка HTTP.
 
-Это разделяет operational state и failure чтения самого endpoint.
+Это разделяет operational state и failure чтения самого endpoint. Duration-поле является observability metadata и не участвует в решении `snapshot_stable`/`export_allowed`.
 
 ### `/api/backup/file`
 
@@ -99,6 +100,7 @@ Commit:
 
 ```text
 362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
+8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
 ```
 
 Остальные run-level conflicts остаются `409`: repair closed, spool/session mismatch, run not completed, duplicate confirmed write-off. Persisted history/integrity failure остаётся `500`, dependency unavailable -> `503`.
@@ -107,4 +109,4 @@ Commit:
 
 HTTP/error semantics после исправления согласованы с fail-closed моделью. Дополнительный массовый refactor status codes сейчас не нужен.
 
-Следующий repo-reviewable эксплуатационный блок — стоимость растущих NDJSON scans и bounded rotation/summary strategy без преждевременной миграции в БД.
+Следующий repo-reviewable эксплуатационный блок — стоимость растущих NDJSON scans и bounded rotation/summary strategy без преждевременной миграции в БД. Первый low-cost observability signal уже добавлен в manifest: duration существующего deep audit без дополнительных проходов по persistence.

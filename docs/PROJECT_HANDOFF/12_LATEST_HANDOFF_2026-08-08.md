@@ -42,7 +42,9 @@ Hardware E2E считается выполненным только после �
 - read-only whitelist backup/export;
 - deep backup persistence integrity;
 - winding backup cleanup на `WindingJournalQuery::validateAll()`;
-- backup/run-level HTTP semantics audit.
+- backup/run-level HTTP semantics audit;
+- Stage 0 backup observability до 29 metrics;
+- flat persisted JSON syntax hardening для workshop/pricing/material/warehouse/settings.
 
 Deep backup выполняется только при `BackupActivityGuard::Safe`. При active winding тяжёлый deep scan не запускается.
 
@@ -138,7 +140,53 @@ Semantics:
 - compatibility `check(storage)` overloads сохранены;
 - partial counts/high-water при failed domain audit наружу не публикуются.
 
-## Последние code commits
+## Flat persisted JSON correctness hardening
+
+Repository review выявил correctness gap, независимый от benchmark: часть flat NDJSON readers проверяла строку только по внешним `{...}` и выбранным полям. Синтаксически повреждённая строка с читаемым ID могла пройти часть startup/deep checks или попасть в read-only JSON API.
+
+Добавлен общий header-only validator:
+
+```text
+firmware/esp32/src/CM_FlatJsonObjectValidator.h
+```
+
+Он проверяет синтаксис уже прочитанного flat JSON object без внешней JSON dependency и без нового SD pass.
+
+Hardened readers/audits:
+
+```text
+CM_BackupBusinessDataIntegrityAudit
+CM_RepairRegistry
+CM_RepairPricingIntegrityAudit
+CM_MaterialPersistenceIntegrityAudit
+CM_WarehousePersistenceIntegrityAudit
+CM_WarehouseMovementIntegrityAudit
+CM_ConductorSettingsIntegrityAudit
+```
+
+`RepairRegistry` применяет validator и при runtime reads/lookups, поэтому post-boot corruption не должен молча превратиться в malformed JSON API output.
+
+Performance invariant: strict syntax validation выполняется на authoritative outer pass. В уже существующих O(n²)/O(n*m) duplicate/reference scans full JSON parse намеренно не дублируется; repeated scans остаются identity-focused.
+
+Это persistence correctness hardening. Physical START, SSR boundary, reboot behavior и manual wire writeoff semantics не менялись.
+
+## Последние code commits — JSON hardening
+
+```text
+9ddabf613f1edf95dc1da55cbba8763414e47968  Add flat persisted JSON syntax validator
+96c863b1a1bde3a3725596940e74805da2c69111  Reject malformed flat JSON in business backup audit
+d13269bb481d056623569b9ecdf91708be6b0b8b  Fail closed on malformed workshop JSON
+07b20e9b88012446fcbc813e78b39349ecd70753  Reject malformed flat JSON in pricing audit
+b86794238cab420d1d97c3b281fa233b92ccf317  Avoid repeated JSON parsing in business identity scans
+86b19f35cad6c383377dee9c342e58f4978b0e79  Avoid repeated JSON parsing in registry duplicate scans
+16f39b33cccaeed533c39c2e0144d6942169b2c7  Reject malformed flat JSON in material persistence audit
+b3fd050c5e917691877e1c245fadde333742eed7  Reject malformed flat JSON in warehouse persistence audit
+b7b362bfe1813f27eab0c904dc9c7fc4489e6f9e  Reject malformed flat JSON in movement audit
+ab0b1f6b0381641e811fed5a18ac412ebb0667d2  Reject malformed flat JSON in conductor settings audit
+090acf40fc4470c7b8719975df7f4ce218a3cdec  Keep pricing reference scans identity focused
+```
+
+## Предыдущие observability commits
 
 ```text
 4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
@@ -161,8 +209,11 @@ a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in 
 - `CM_BackupExportWeb.h` явно включает `Arduino.h`;
 - per-domain timing использует `uint32_t` `millis()` subtraction;
 - timing не меняет порядок audit и не добавляет SD scan;
+- `CM_FlatJsonObjectValidator.h` header-only и использует уже доступный Arduino `String`;
+- authoritative workshop/pricing/material/warehouse/settings readers теперь fail closed на malformed flat JSON;
+- nested identity/reference scans не получили full-parser CPU multiplier;
 - `BackupActivityGuard::Safe` gating сохранён;
-- winding `validateAll()` и session authoritative deep audit не заменены telemetry-логикой;
+- winding `validateAll()` и session authoritative deep audit не заменены telemetry/hardening логикой;
 - safety boundary physical START/SSR/manual writeoff не затронута.
 
 Это **не** доказательство GREEN ESP32 build.
@@ -176,7 +227,7 @@ Repository review показывает:
 3. Warehouse reference validation повторно ищет spool/repair references.
 4. Backup preliminary session-directory scan выполняется до authoritative deep session persistence audit.
 
-Это не correctness bugs. Per-domain timings теперь позволяют измерить цену каждого пути напрямую.
+Это не correctness bugs. Per-domain timings позволяют измерить цену каждого пути напрямую.
 
 ## Что измерить на hardware/E2E стенде
 
@@ -197,6 +248,12 @@ snapshot_stability_duration_ms
 - bounded rotation immutable histories.
 
 До измерений не начинать database migration.
+
+## Точная следующая repo-only точка
+
+Stage 0 observability достаточно детализирован. Если hardware пока недоступен, не добавлять новые metrics ради количества.
+
+Repo-only работа оправдана только при конкретной correctness/compile причине. Текущий следующий review-кандидат — runtime consumers append-only histories (например costing/report paths), где ещё может оставаться старый `{...}` shortcut после отдельного integrity audit. Ужесточать только фактически найденные readers, без изменения формул, provenance или mutation semantics.
 
 ## Обязательный следующий внешний этап
 

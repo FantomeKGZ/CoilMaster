@@ -1,4 +1,5 @@
 #include "CM_ConductorSettingsIntegrityAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include <Arduino.h>
 
 namespace CM
@@ -51,8 +52,7 @@ bool ConductorSettingsIntegrityAudit::check(fs::FS& storage)
     const String line = file.readStringUntil('\n');
     const String extra = file.readStringUntil('\n');
     file.close();
-    if (line.length() < 2U || !line.startsWith("{") || !line.endsWith("}") ||
-        extra.length() != 0U)
+    if (!FlatJsonObjectValidator::valid(line) || extra.length() != 0U)
     {
         return false;
     }

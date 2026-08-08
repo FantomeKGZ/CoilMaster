@@ -23,6 +23,7 @@ bool WarehouseStore::recoverPendingWriteOff()
         uint32_t movementId = 0UL;
         uint32_t spoolId = 0UL;
         uint32_t repairId = 0UL;
+        uint32_t sourceSessionId = 0UL;
         uint32_t diameter = 0UL;
         uint32_t before = 0UL;
         uint32_t after = 0UL;
@@ -42,6 +43,15 @@ bool WarehouseStore::recoverPendingWriteOff()
             !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+        {
+            file.close();
+            return false;
+        }
+
+        const bool hasSourceSession = line.indexOf(F("\"source_session_id\":")) >= 0;
+        if (hasSourceSession &&
+            (!findUnsigned(line, "source_session_id", sourceSessionId) ||
+             sourceSessionId == 0UL))
         {
             file.close();
             return false;
@@ -73,6 +83,7 @@ bool WarehouseStore::recoverPendingWriteOff()
             pendingId = movementId;
             pendingOperation.spoolId = spoolId;
             pendingOperation.repairId = repairId;
+            pendingOperation.sourceSessionId = sourceSessionId;
             pendingOperation.weightBeforeGrams = before;
             pendingOperation.weightAfterGrams = after;
             pendingOperation.timestamp = timestamp;
@@ -89,9 +100,12 @@ bool WarehouseStore::recoverPendingWriteOff()
             return false;
         }
 
+        const bool pendingHasSourceSession = pendingOperation.sourceSessionId != 0UL;
         if (pendingId == 0UL || movementId != pendingId ||
             spoolId != pendingOperation.spoolId ||
             repairId != pendingOperation.repairId ||
+            hasSourceSession != pendingHasSourceSession ||
+            sourceSessionId != pendingOperation.sourceSessionId ||
             before != pendingOperation.weightBeforeGrams ||
             after != pendingOperation.weightAfterGrams ||
             mass != pendingConsumed ||

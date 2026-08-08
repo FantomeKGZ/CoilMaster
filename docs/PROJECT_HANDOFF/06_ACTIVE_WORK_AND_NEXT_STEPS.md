@@ -103,6 +103,7 @@ snapshot_stability_checked=false
 snapshot_stable=null
 snapshot_stability_duration_ms=null
 winding_journal_record_count=null
+warehouse_movement_record_count=null
 ```
 
 При safe state deep audit охватывает **весь static backup whitelist**:
@@ -167,12 +168,14 @@ CM_PersistentIdIntegrityAudit.*
 CM_ConductorSettingsIntegrityAudit.*
 CM_WindingPersistenceIntegrityAudit.*
 CM_WindingSessionPersistenceIntegrityAudit.*
+CM_WarehouseMovementIntegrityAudit.*
 ```
 
 Результат repository review:
 
 - публичные audit headers имеют собственный `FS.h` для `fs::FS`;
-- новый count overload `CM_WindingPersistenceIntegrityAudit` имеет explicit `<stdint.h>` для `uint32_t`;
+- count overloads winding/warehouse movement audit имеют explicit `<stdint.h>` для `uint32_t`;
+- старые no-arg `check(storage)` контракты сохранены и делегируют новые overloads;
 - `.cpp`, использующие `String`, `File`, `isDigit`, имеют Arduino/own-header dependency chain;
 - ESP32 PlatformIO config компилирует все `firmware/esp32/src/*.cpp`;
 - явной missing-include / incomplete-type зависимости в проверенном наборе не найдено.
@@ -234,14 +237,17 @@ docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 5. БД рассматривать только при измеренном недостатке этих мер
 ```
 
-Manifest теперь имеет две runtime metrics без дополнительного persistence I/O:
+Manifest теперь имеет три runtime metrics без дополнительного persistence I/O:
 
 ```text
 snapshot_stability_duration_ms
 winding_journal_record_count
+warehouse_movement_record_count
 ```
 
 `winding_journal_record_count` считается внутри authoritative `WindingJournalQuery::validateAll()` прохода и становится доступен только после успешной schema validation + transition audit. Если winding integrity не доказана, поле `null`.
+
+`warehouse_movement_record_count` считается внутри уже выполняемого `WarehouseMovementIntegrityAudit::check()` прохода. Это число непустых persisted rows (`PENDING` и завершающие `CONFIRMED|ABORTED`); отдельного повторного чтения `/data/warehouse/movements.ndjson` ради метрики нет. Поле `null`, если файл отсутствует, audit не запускался/не был достигнут или integrity не доказана.
 
 Новые commits текущего performance/observability batch:
 
@@ -260,21 +266,29 @@ b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 cdf3c665d536d42e6638970d5a3694be03b014ce  Document winding journal backup metric
 495823c09b8c61213767d05966ca4434f185aef9  Document winding journal observability
 89f86252b94445d25b8bc1e5f1979595243407e4  Record winding backup observability in current state
+63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count
+fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
+a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
+08743e86987f28ae051a13f6d30e79869eff07ff  Document warehouse movement observability
+f6c98a6a132709d5be880d30714f1218207685ae  Fix winding observability commit reference
+e98600ebdbd343de6a7260a4019b32924f55f742  Record warehouse backup observability
 ```
 
 Не делать unbounded RAM mirror NDJSON на ESP32. Rotation обязана сохранять provenance/global IDs, fail-closed cross-segment validation, recoverable marker protocol и полноту backup whitelist.
 
 ## Следующее repo-reviewable действие
 
-До аппаратного стенда **не вводить rotation trigger и не менять storage format**. Текущий Stage 0 уже даёт достаточно, чтобы начать реальные измерения winding backup path:
+До аппаратного стенда **не вводить rotation trigger и не менять storage format**. Текущий Stage 0 уже даёт достаточно, чтобы начать реальные измерения двух append-only backup hotspots:
 
 ```text
 winding-events.size_bytes
 winding_journal_record_count
+warehouse-movements.size_bytes
+warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-Следующий repo-only код допустим только если ещё один authoritative validator может вернуть count/duration в том же уже выполняемом проходе без дополнительного чтения файла. Не добавлять метрики ценой второго full scan только ради телеметрии.
+Следующий repo-only код допустим только если ещё один authoritative validator может вернуть count/duration в том же уже выполняемом проходе без дополнительного чтения файла. Наиболее естественный следующий кандидат при продолжении без стенда — material usage/adjustment audit, но только через совместимый overload и без второго scan ради телеметрии.
 
 После hardware measurements выбрать один hotspot по фактическому размеру/latency. Только тогда решать, нужен ли bounded in-request index, rotation или read-only summary.
 
@@ -315,6 +329,8 @@ Happy path:
 ```text
 winding-events.size_bytes
 winding_journal_record_count
+warehouse-movements.size_bytes
+warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 

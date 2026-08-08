@@ -1,4 +1,5 @@
 #include "CM_RepairPricingIntegrityAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include <Arduino.h>
 
 namespace CM
@@ -87,7 +88,8 @@ bool repairExists(fs::FS& storage, uint32_t repairId)
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t currentId = 0UL;
-        if (!findUnsigned32(line, "repair_id", currentId) || currentId == 0UL)
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned32(line, "repair_id", currentId) || currentId == 0UL)
         {
             file.close();
             return false;
@@ -119,7 +121,7 @@ bool RepairPricingIntegrityAudit::check(fs::FS& storage)
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!line.startsWith("{") || !line.endsWith("}"))
+        if (!FlatJsonObjectValidator::valid(line))
         {
             file.close();
             return false;

@@ -35,6 +35,10 @@ struct SnapshotAuditMetrics
     uint32_t materialAdjustmentRecordCount = 0UL;
     bool windingJournalRecordCountMeasured = false;
     uint32_t windingJournalRecordCount = 0UL;
+    bool windingSessionFileCountsMeasured = false;
+    uint32_t windingSnapshotFileCount = 0UL;
+    uint32_t windingStateFileCount = 0UL;
+    uint32_t windingSpoolSelectionFileCount = 0UL;
     bool warehouseMovementRecordCountMeasured = false;
     uint32_t warehouseMovementRecordCount = 0UL;
 };
@@ -229,6 +233,10 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.materialAdjustmentRecordCount = 0UL;
     metrics.windingJournalRecordCountMeasured = false;
     metrics.windingJournalRecordCount = 0UL;
+    metrics.windingSessionFileCountsMeasured = false;
+    metrics.windingSnapshotFileCount = 0UL;
+    metrics.windingStateFileCount = 0UL;
+    metrics.windingSpoolSelectionFileCount = 0UL;
     metrics.warehouseMovementRecordCountMeasured = false;
     metrics.warehouseMovementRecordCount = 0UL;
 
@@ -301,8 +309,17 @@ const char* snapshotStabilityReason(fs::FS& storage,
             return "session_directory_invalid";
     }
 
-    if (!WindingSessionPersistenceIntegrityAudit::check(storage))
+    WindingSessionPersistenceAuditMetrics windingSessionMetrics;
+    if (!WindingSessionPersistenceIntegrityAudit::check(storage,
+                                                        windingSessionMetrics))
+    {
         return "winding_session_persistence_unstable_or_invalid";
+    }
+    metrics.windingSnapshotFileCount = windingSessionMetrics.snapshotFileCount;
+    metrics.windingStateFileCount = windingSessionMetrics.stateFileCount;
+    metrics.windingSpoolSelectionFileCount =
+        windingSessionMetrics.spoolSelectionFileCount;
+    metrics.windingSessionFileCountsMeasured = true;
 
     return nullptr;
 }
@@ -453,13 +470,28 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.windingJournalRecordCount;
+    response += F(",\"winding_snapshot_file_count\":");
+    if (!stabilityChecked || !auditMetrics.windingSessionFileCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingSnapshotFileCount;
+    response += F(",\"winding_state_file_count\":");
+    if (!stabilityChecked || !auditMetrics.windingSessionFileCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingStateFileCount;
+    response += F(",\"winding_spool_selection_file_count\":");
+    if (!stabilityChecked || !auditMetrics.windingSessionFileCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingSpoolSelectionFileCount;
     response += F(",\"warehouse_movement_record_count\":");
     if (!stabilityChecked || !auditMetrics.warehouseMovementRecordCountMeasured)
         response += F("null");
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(4200U);
+    response.reserve(4400U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

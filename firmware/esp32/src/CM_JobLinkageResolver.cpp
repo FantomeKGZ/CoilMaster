@@ -1,4 +1,5 @@
 #include "CM_JobLinkageResolver.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -56,7 +57,8 @@ bool JobLinkageResolver::resolve(uint32_t repairId,
         if (line.length() == 0U) continue;
 
         uint32_t candidateRepairId = 0UL;
-        if (!findUnsigned(line, "repair_id", candidateRepairId))
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "repair_id", candidateRepairId))
         {
             file.close();
             return false;
@@ -111,7 +113,8 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
         if (line.length() == 0U) continue;
 
         uint32_t candidateMotorId = 0UL;
-        if (!findUnsigned(line, "motor_id", candidateMotorId))
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "motor_id", candidateMotorId))
         {
             file.close();
             linkage = JobLinkage();
@@ -168,7 +171,7 @@ bool JobLinkageResolver::repairIsOpen(uint32_t repairId) const
         uint32_t candidateRepairId = 0UL;
         String status;
         String closedAt;
-        if (line[0] != '{' || line[line.length() - 1U] != '}' ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "repair_id", candidateRepairId) ||
             !findString(line, "status", status) || status != "CLOSED" ||
             !findString(line, "closed_at", closedAt) || closedAt.length() < 10U)

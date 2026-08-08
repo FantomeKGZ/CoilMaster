@@ -1,4 +1,9 @@
 #include "CM_WarehouseWeb.h"
+#include "CM_ConductorCalculatorWeb.h"
+#include "CM_ConductorSettingsWeb.h"
+#include "CM_MaterialLedger.h"
+#include "CM_MaterialLedgerWeb.h"
+#include <SD.h>
 
 namespace CM
 {
@@ -56,6 +61,21 @@ void WarehouseWeb::begin()
     m_server.on("/api/warehouse/price", HTTP_GET, [this]() { handleGetPrice(); });
     m_server.on("/api/warehouse/price", HTTP_POST, [this]() { handleSetPrice(); });
     beginWriteOff();
+
+    // main.cpp already guarantees WarehouseWeb::begin() is part of the production
+    // web bootstrap. Register the remaining implemented workshop services here so
+    // they are available on the real ESP32 without duplicating storage instances
+    // in main.cpp. Their handlers remain fail-closed when the underlying store is
+    // unavailable.
+    static ConductorCalculatorWeb conductorCalculatorWeb(m_server, m_store);
+    static ConductorSettingsWeb conductorSettingsWeb(m_server, m_store);
+    static MaterialLedger materialLedger(SD);
+    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
+
+    materialLedger.begin();
+    conductorCalculatorWeb.begin();
+    conductorSettingsWeb.begin();
+    materialLedgerWeb.begin();
 }
 
 void WarehouseWeb::handleSummary()

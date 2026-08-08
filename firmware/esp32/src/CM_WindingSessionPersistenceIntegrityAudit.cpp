@@ -53,14 +53,38 @@ String sessionPath(const char* directory, uint32_t sessionId)
     return path;
 }
 
-bool directoryReady(fs::FS& storage, const char* path)
+bool directoryContentsCanonical(fs::FS& storage, const char* path)
 {
-    if (!storage.exists(path)) return false;
+    if (!storage.exists(path)) return true;
     File directory = storage.open(path, FILE_READ);
-    if (!directory) return false;
-    const bool result = directory.isDirectory();
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        return false;
+    }
+
+    File entry = directory.openNextFile();
+    while (entry)
+    {
+        const String name = entry.name();
+        if (entry.isDirectory())
+        {
+            entry.close();
+            directory.close();
+            return false;
+        }
+        uint32_t sessionId = 0UL;
+        if (!parseSessionFileName(name, sessionId))
+        {
+            entry.close();
+            directory.close();
+            return false;
+        }
+        entry.close();
+        entry = directory.openNextFile();
+    }
     directory.close();
-    return result;
+    return true;
 }
 }
 
@@ -71,9 +95,13 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
     const bool hasSelections = storage.exists(SelectionDirectory);
 
     if (!hasSnapshots && !hasStates && !hasSelections) return true;
-    if ((hasSnapshots && !directoryReady(storage, SnapshotDirectory)) ||
-        (hasStates && !directoryReady(storage, StateDirectory)) ||
-        (hasSelections && !directoryReady(storage, SelectionDirectory)))
+
+    // Complete the read-only directory audit before any store begin(). In
+    // particular JobSpoolSelectionStore::begin() can recover a .tmp file, so a
+    // non-canonical entry must fail here before that code is reached.
+    if (!directoryContentsCanonical(storage, SnapshotDirectory) ||
+        !directoryContentsCanonical(storage, StateDirectory) ||
+        !directoryContentsCanonical(storage, SelectionDirectory))
     {
         return false;
     }
@@ -95,12 +123,8 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
         while (entry)
         {
             const String name = entry.name();
-            if (entry.isDirectory())
-            {
-                entry.close(); directory.close(); return false;
-            }
             uint32_t sessionId = 0UL;
-            if (!parseSessionFileName(name, sessionId))
+            if (entry.isDirectory() || !parseSessionFileName(name, sessionId))
             {
                 entry.close(); directory.close(); return false;
             }
@@ -129,12 +153,8 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
         while (entry)
         {
             const String name = entry.name();
-            if (entry.isDirectory())
-            {
-                entry.close(); directory.close(); return false;
-            }
             uint32_t sessionId = 0UL;
-            if (!parseSessionFileName(name, sessionId))
+            if (entry.isDirectory() || !parseSessionFileName(name, sessionId))
             {
                 entry.close(); directory.close(); return false;
             }
@@ -160,12 +180,8 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
         while (entry)
         {
             const String name = entry.name();
-            if (entry.isDirectory())
-            {
-                entry.close(); directory.close(); return false;
-            }
             uint32_t sessionId = 0UL;
-            if (!parseSessionFileName(name, sessionId))
+            if (entry.isDirectory() || !parseSessionFileName(name, sessionId))
             {
                 entry.close(); directory.close(); return false;
             }

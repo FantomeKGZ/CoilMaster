@@ -137,13 +137,14 @@ firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
 - `CM_WindingPersistenceIntegrityAudit` использует `WindingJournalQuery::validateAll()` + отдельный transition audit; cursor-pagination full scan там отсутствует.
 - `CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его.
 - Session audit имеет совместимый metrics overload `WindingSessionPersistenceAuditMetrics`; старый `check(storage)` сохранён.
-- Session metrics возвращают `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного успешного deep session audit; partial counts при failure не публикуются.
-- Те же session passes теперь возвращают `snapshotTotalBytes`, `stateTotalBytes`, `spoolSelectionTotalBytes`; если 32-bit сумма переполняется, `byteTotalsAvailable=false`, но integrity result не меняется.
-- `CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload; `lastAllocatedId` публикуется только после успешной проверки main/optional backup allocator state.
-- `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; старый `check(storage)` сохранён.
-- Business metrics возвращают `clientRecordCount`, `motorRecordCount`, `repairRecordCount`, `repairStatusRecordCount`, `pricingRecordCount` из уже выполняемых validation passes; дополнительного full scan ради telemetry нет.
-- `CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload; `spoolRecordCount` и `priceRecordCount` считаются в существующих authoritative spool/price passes, partial metrics при failure не публикуются.
-- `CM_BackupExportWeb.cpp` публикует двадцать Stage 0 metrics: duration, allocator high-water, material/business/winding/warehouse record counts, session file counts и session byte totals — только через уже выполняемые authoritative passes.
+- Session metrics возвращают `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного successful deep audit; partial counts при failure не публикуются.
+- Те же session passes возвращают `snapshotTotalBytes`, `stateTotalBytes`, `spoolSelectionTotalBytes`; 32-bit telemetry overflow не меняет integrity result.
+- `CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload; `lastAllocatedId` публикуется только после successful main/optional-backup audit.
+- `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; business counts берутся из существующих validation passes без telemetry-only full scan.
+- `CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload; spool/price counts считаются в authoritative passes, partial metrics при failure не публикуются.
+- `CM_BackupExportWeb.cpp` публикует **29 Stage 0 metrics**: total duration, 9 per-domain timings, allocator high-water, material/business/winding/warehouse record counts, session file counts и session byte totals.
+- Per-domain timing использует `millis()` вокруг уже существующих audit calls; дополнительного SD I/O нет.
+- `winding_session_directory_scan_duration_ms` измеряет preliminary directory scan отдельно от `winding_session_persistence_audit_duration_ms`, чтобы benchmark показал цену обоих passes до Stage 1 refactor.
 - `BackupActivityGuard::Safe` gating не ослаблять: heavy deep scan не выполняется во время active winding.
 
 ## Performance/rotation

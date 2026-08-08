@@ -120,8 +120,9 @@ bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wante
     return matches == 1U;
 }
 
-bool checkMaterials(fs::FS& storage)
+bool checkMaterials(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     constexpr const char* Path = "/data/materials/materials.ndjson";
     if (!storage.exists(Path)) return true;
     File file = storage.open(Path, FILE_READ);
@@ -159,13 +160,20 @@ bool checkMaterials(fs::FS& storage)
                 return false;
             }
         }
+        if (recordCount == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return false;
+        }
+        ++recordCount;
     }
     file.close();
     return true;
 }
 
-bool checkUsage(fs::FS& storage)
+bool checkUsage(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     constexpr const char* Path = "/data/materials/usage.ndjson";
     constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
     constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
@@ -216,13 +224,20 @@ bool checkUsage(fs::FS& storage)
                 return false;
             }
         }
+        if (recordCount == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return false;
+        }
+        ++recordCount;
     }
     file.close();
     return true;
 }
 
-bool checkAdjustments(fs::FS& storage)
+bool checkAdjustments(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     constexpr const char* Path = "/data/materials/adjustments.ndjson";
     constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
     if (!storage.exists(Path)) return true;
@@ -269,6 +284,12 @@ bool checkAdjustments(fs::FS& storage)
                 return false;
             }
         }
+        if (recordCount == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return false;
+        }
+        ++recordCount;
     }
     file.close();
     return true;
@@ -277,10 +298,32 @@ bool checkAdjustments(fs::FS& storage)
 
 bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage)
 {
-    return checkMaterials(storage) &&
-           checkUsage(storage) &&
-           checkAdjustments(storage) &&
-           WorkshopPersistenceIntegrityAudit::check(storage) &&
-           RepairPricingIntegrityAudit::check(storage);
+    MaterialPersistenceAuditMetrics ignoredMetrics;
+    return check(storage, ignoredMetrics);
+}
+
+bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage,
+                                              MaterialPersistenceAuditMetrics& metrics)
+{
+    metrics.materialRecordCount = 0UL;
+    metrics.usageRecordCount = 0UL;
+    metrics.adjustmentRecordCount = 0UL;
+
+    uint32_t materialRecordCount = 0UL;
+    uint32_t usageRecordCount = 0UL;
+    uint32_t adjustmentRecordCount = 0UL;
+    if (!checkMaterials(storage, materialRecordCount) ||
+        !checkUsage(storage, usageRecordCount) ||
+        !checkAdjustments(storage, adjustmentRecordCount) ||
+        !WorkshopPersistenceIntegrityAudit::check(storage) ||
+        !RepairPricingIntegrityAudit::check(storage))
+    {
+        return false;
+    }
+
+    metrics.materialRecordCount = materialRecordCount;
+    metrics.usageRecordCount = usageRecordCount;
+    metrics.adjustmentRecordCount = adjustmentRecordCount;
+    return true;
 }
 }

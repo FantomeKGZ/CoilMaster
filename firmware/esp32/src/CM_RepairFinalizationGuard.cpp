@@ -69,32 +69,11 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
     if (!history.begin() || !history.isReady())
         return RepairFinalizationCheck::WindingStorageUnavailable;
 
-    uint32_t cursor = 0UL;
-    for (;;)
-    {
-        String page;
-        page.reserve(4096U);
-        uint16_t count = 0U;
-        uint32_t nextCursor = cursor;
-        bool hasMore = false;
-        const WindingJournalQueryResult result =
-            history.appendHistoryJson(0UL,
-                                      repairId,
-                                      cursor,
-                                      100U,
-                                      page,
-                                      count,
-                                      nextCursor,
-                                      hasMore);
-        if (result == WindingJournalQueryResult::StorageUnavailable)
-            return RepairFinalizationCheck::WindingStorageUnavailable;
-        if (result != WindingJournalQueryResult::Ok)
-            return RepairFinalizationCheck::WindingIntegrityFailed;
-        if (!hasMore) break;
-        if (count == 0U || nextCursor <= cursor)
-            return RepairFinalizationCheck::WindingIntegrityFailed;
-        cursor = nextCursor;
-    }
+    const WindingJournalQueryResult journalAudit = history.validateAll();
+    if (journalAudit == WindingJournalQueryResult::StorageUnavailable)
+        return RepairFinalizationCheck::WindingStorageUnavailable;
+    if (journalAudit != WindingJournalQueryResult::Ok)
+        return RepairFinalizationCheck::WindingIntegrityFailed;
 
     const WindingJournalTransitionAuditResult transitionAudit =
         WindingJournalTransitionAudit::validate(storage);

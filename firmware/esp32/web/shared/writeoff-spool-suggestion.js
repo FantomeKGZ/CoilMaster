@@ -71,6 +71,21 @@ async function latestCompletedSession(){
     return '';
 }
 
+async function sessionAlreadyWrittenOff(sessionId){
+    const r=await fetch('/api/warehouse/write-offs?repair_id='+encodeURIComponent(repairId),{cache:'no-store'});
+    let j={};
+    try{j=await r.json()}catch(_){throw new Error('writeoff_history_invalid_response')}
+    if(!r.ok)throw new Error(j.error||'writeoff_history_read_failed');
+    if(!Array.isArray(j.items))throw new Error('writeoff_history_items_missing');
+    for(const item of j.items){
+        const source=item&&item.source_session_id;
+        if(source===null||source===undefined)continue;
+        if(!/^[1-9]\d*$/.test(String(source)))throw new Error('invalid_writeoff_source_session_id');
+        if(String(source)===sessionId)return true;
+    }
+    return false;
+}
+
 async function loadSelection(sessionId){
     const r=await fetch('/api/jobs/spool-selection?session_id='+encodeURIComponent(sessionId),{cache:'no-store'});
     let j={};
@@ -100,6 +115,11 @@ async function run(){
             note.textContent='В истории ремонта нет подтверждённого RUN_COMPLETED. Бухта выбирается вручную.';
             return;
         }
+        if(await sessionAlreadyWrittenOff(sessionId)){
+            note.className='info muted';
+            note.textContent='Для последней завершённой сессии №'+sessionId+' уже есть подтверждённое ручное списание. Повторная подсказка бухты отключена.';
+            return;
+        }
         const selection=await loadSelection(sessionId);
         if(!selection){
             note.className='info muted';
@@ -126,7 +146,7 @@ async function run(){
         suggestedSpoolId='';
         syncProvenance();
         note.className='warning';
-        note.textContent='Не удалось доказуемо получить бухту из завершённой намотки ('+escText(e.message||'unknown')+'). Автоматический выбор не выполнен; ручное списание остаётся доступным.';
+        note.textContent='Не удалось доказуемо получить безопасную подсказку бухты ('+escText(e.message||'unknown')+'). Автоматический выбор не выполнен; ручное списание остаётся доступным.';
     }
 }
 

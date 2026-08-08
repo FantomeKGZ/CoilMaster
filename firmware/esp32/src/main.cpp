@@ -4,6 +4,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "CM_BackupActivityGuard.h"
 #include "CM_JobDisplayRecovery.h"
 #include "CM_JobLinkageRequest.h"
 #include "CM_JobLinkageResolver.h"
@@ -96,6 +97,20 @@ bool manualReviewRequired()
 {
     return recoveryEvaluated &&
            recoveryInfo.disposition == CM::JobRecoveryDisposition::ManualReviewRequired;
+}
+
+CM::BackupActivityCheck backupRuntimeActivity()
+{
+    if (!recoveryEvaluated || !jobStateStoreReady || !jobStates.isReady())
+        return CM::BackupActivityCheck::Unavailable;
+    if (manualReviewRequired())
+        return CM::BackupActivityCheck::Safe;
+    if (runActive || jobAwaitingAck ||
+        (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns == 0U))
+    {
+        return CM::BackupActivityCheck::Busy;
+    }
+    return CM::BackupActivityCheck::Safe;
 }
 
 bool jobCreationReady()
@@ -827,6 +842,7 @@ void setup()
     warehouseReady = sdReady && warehouse.begin();
     repairRegistryReady = sdReady && repairRegistry.begin();
     restoreLatestJobState();
+    CM::BackupActivityGuard::setRuntimeProbe(backupRuntimeActivity);
 
     WiFi.mode(WIFI_AP);
     const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);

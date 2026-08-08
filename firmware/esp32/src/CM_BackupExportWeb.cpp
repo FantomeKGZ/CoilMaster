@@ -43,7 +43,7 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"repair-pricing", "/data/repairs/pricing.ndjson", "application/x-ndjson", "repair-pricing.ndjson"},
     {"winding-id-state", "/data/winding-jobs/id-state.txt", "text/plain; charset=utf-8", "winding-id-state.txt"},
     {"winding-id-state-backup", "/data/winding-jobs/id-state.bak", "text/plain; charset=utf-8", "winding-id-state.bak"},
-    {"conductor-settings", "/data/settings/conductor.json", "application/json; charset=utf-8", "conductor-settings.json"}
+    {"conductor-settings", "/data/settings/conductor-calculator.ndjson", "application/x-ndjson", "conductor-calculator.ndjson"}
 };
 
 constexpr RecoveryMarkerDefinition RecoveryMarkers[] =

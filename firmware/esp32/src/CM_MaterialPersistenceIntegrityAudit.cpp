@@ -1,4 +1,5 @@
 #include "CM_MaterialPersistenceIntegrityAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_WorkshopPersistenceIntegrityAudit.h"
 #include "CM_RepairPricingIntegrityAudit.h"
 #include <Arduino.h>
@@ -81,7 +82,7 @@ bool findString(const String& line, const char* key, String& value)
 
 bool validLineShape(const String& line)
 {
-    return line.length() > 1U && line.startsWith("{") && line.endsWith("}");
+    return FlatJsonObjectValidator::valid(line);
 }
 
 bool validMaterialUnit(const String& unit)

@@ -274,11 +274,15 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     if (!file) return false;
 
     String line;
-    line.reserve(450U);
+    line.reserve(490U);
     line = F("{\"movement_id\":"); line += movementId;
     line += F(",\"type\":\"WRITE_OFF\",\"status\":\""); line += statusText;
     line += F("\",\"spool_id\":"); line += operation.spoolId;
     line += F(",\"repair_id\":"); line += operation.repairId;
+    if (operation.sourceSessionId != 0UL)
+    {
+        line += F(",\"source_session_id\":"); line += operation.sourceSessionId;
+    }
     line += F(",\"diameter_hundredths_mm\":"); line += diameterHundredthsMm;
     if (wireType.length() > 0U)
     {

@@ -1,4 +1,5 @@
 #include "CM_ConductorSettingsWeb.h"
+#include "CM_ConductorSettingsIntegrityAudit.h"
 
 namespace CM
 {
@@ -13,8 +14,29 @@ void ConductorSettingsWeb::begin()
 
 void ConductorSettingsWeb::handleGet()
 {
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
     ConversionSettings settings;
     const bool configured = m_store.loadConversionSettings(settings);
+    if (!configured &&
+        !ConductorSettingsIntegrityAudit::check(m_store.storage()))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"conversion_settings_read_failed\"}");
+        return;
+    }
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
     String response = F("{\"configured\":");
     response += configured ? F("true") : F("false");
     response += F(",\"aluminium_to_copper_permille\":"); response += settings.aluminiumToCopperPermille;
@@ -28,6 +50,13 @@ void ConductorSettingsWeb::handleGet()
 
 void ConductorSettingsWeb::handleSet()
 {
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
     uint32_t alToCu = 0UL, cuToAl = 0UL, deviation = 0UL, maxStrands = 0UL;
     if (!parseUnsigned(m_server,"aluminium_to_copper_permille",100UL,3000UL,alToCu) ||
         !parseUnsigned(m_server,"copper_to_aluminium_permille",100UL,3000UL,cuToAl) ||
@@ -51,7 +80,14 @@ void ConductorSettingsWeb::handleSet()
 
     if (!m_store.setConversionSettings(settings))
     {
-        m_server.send(500,"application/json; charset=utf-8","{\"error\":\"settings_write_failed\"}");
+        if (!m_store.ready())
+        {
+            m_server.send(503,"application/json; charset=utf-8","{\"error\":\"warehouse_unavailable\"}");
+        }
+        else
+        {
+            m_server.send(500,"application/json; charset=utf-8","{\"error\":\"settings_write_failed\"}");
+        }
         return;
     }
     m_server.send(200,"application/json; charset=utf-8","{\"saved\":true}");
@@ -59,13 +95,22 @@ void ConductorSettingsWeb::handleSet()
 
 bool ConductorSettingsWeb::parseUnsigned(WebServer& server,const char* name,uint32_t minValue,uint32_t maxValue,uint32_t& value)
 {
+    value = 0UL;
     if (!server.hasArg(name)) return false;
     const String source = server.arg(name);
-    if (source.length() == 0U) return false;
-    for (size_t i=0U;i<source.length();++i) if (!isDigit(source[i])) return false;
-    const unsigned long parsed = strtoul(source.c_str(),nullptr,10);
+    if (source.length() == 0U || (source.length() > 1U && source[0] == '0')) return false;
+
+    uint32_t parsed = 0UL;
+    for (size_t i = 0U; i < source.length(); ++i)
+    {
+        if (!isDigit(source[i])) return false;
+        const uint8_t digit = static_cast<uint8_t>(source[i] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+    }
+
     if (parsed < minValue || parsed > maxValue) return false;
-    value = static_cast<uint32_t>(parsed);
+    value = parsed;
     return true;
 }
 }

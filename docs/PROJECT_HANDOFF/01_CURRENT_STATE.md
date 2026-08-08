@@ -154,14 +154,16 @@ Manifest разделяет:
 - `snapshot_stable` — `true/false`, либо `null`, если глубокий scan намеренно не запускался из-за machine activity;
 - `snapshot_stability_reason` — первый доказанный recovery/integrity failure;
 - `snapshot_stability_duration_ms` — длительность уже выполненного deep audit; `null`, если audit не запускался;
+- `winding_allocator_last_id` — validated allocator high-water `last_job_id == last_session_id`;
 - `material_catalog_record_count`, `material_usage_record_count`, `material_adjustment_record_count` — validated material records;
 - `workshop_client_record_count`, `workshop_motor_record_count`, `workshop_repair_record_count`, `repair_status_record_count`, `repair_pricing_record_count` — validated business/workshop/pricing records;
 - `winding_journal_record_count` — записи authoritative winding schema scan;
 - `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` — validated session persistence files;
+- `winding_snapshot_total_bytes`, `winding_state_total_bytes`, `winding_spool_selection_total_bytes` — суммарный размер validated session files, собранный в тех же directory passes;
 - `warehouse_spool_record_count`, `warehouse_price_record_count` — validated warehouse catalogue/price records;
 - `warehouse_movement_record_count` — validated warehouse movement records.
 
-Все шестнадцать Stage 0 performance/observability метрик не влияют на `snapshot_stable`/`export_allowed` и не добавляют отдельный full-file/directory scan ради телеметрии. Duration оборачивает уже выполняемый deep audit; material/business/winding/warehouse record counts и session file counts собираются внутри уже выполняемых authoritative validation passes. Session counts публикуются только после полного успешного `WindingSessionPersistenceIntegrityAudit`; warehouse spool/price counts — только после полного успешного `WarehousePersistenceIntegrityAudit`, включая existing movement-reference validation. Partial metrics при failed domain audit не публикуются.
+Все двадцать Stage 0 performance/observability метрик не влияют на `snapshot_stable`/`export_allowed` и не должны добавлять отдельный full-file/directory scan ради телеметрии. Duration оборачивает уже выполняемый deep audit; allocator high-water берётся из существующего `id-state.txt` validation; material/business/winding/warehouse record counts и session file counts/bytes собираются внутри уже выполняемых authoritative validation passes. Session byte totals являются telemetry-only: если их 32-bit сумма не представима, они становятся `null`, но session integrity audit продолжает работать по прежнему fail-closed контракту. Partial metrics при failed domain audit не публикуются.
 
 При безопасном machine-state `snapshot_stable=true` означает успешную read-only проверку **всего backup whitelist**, а также необходимых recovery/session adjuncts.
 
@@ -198,9 +200,9 @@ Manifest разделяет:
 
 Нестабильный snapshot можно скачать как diagnostic copy, если export разрешён, но UI не называет его чистым backup.
 
-Compile-safety audit новых backup integrity modules выполнен на уровне repository review: public audit headers включают собственные типы (`FS.h`, count APIs — explicit `stdint.h`), старые `check(storage)` контракты сохранены, metrics/count overloads добавлены совместимо. Это **не** доказательство GREEN CI до фактического build result.
+Compile-safety audit новых backup integrity modules выполнен на уровне repository review: public audit headers включают собственные типы (`FS.h`, metrics/count APIs — explicit `stdint.h`), старые `check(storage)` контракты сохранены, metrics/count overloads добавлены совместимо. Это **не** доказательство GREEN CI до фактического build result.
 
-HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД. Stage 0 observability теперь покрывает material/business/winding/warehouse record counts, winding session file counts и общую deep-audit duration без отдельного telemetry scan.
+HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД. Stage 0 observability теперь покрывает allocator high-water, material/business/winding/warehouse record counts, winding session file counts/bytes и общую deep-audit duration без отдельного telemetry scan.
 
 Repository review также выявил composition hotspot: `MaterialPersistenceIntegrityAudit` после собственных material scans транзитивно вызывает broad workshop/pricing dependency audits, а backup orchestration затем отдельно проверяет часть тех же domains. Это не correctness bug; Stage 1 refactor делать только после измерения влияния или отдельной correctness-причины.
 
@@ -226,7 +228,7 @@ linked repair
 → stable backup
 ```
 
-На стенде снять `size_bytes`, material/business/winding/warehouse record counts, `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` и `snapshot_stability_duration_ms`, включая пары `warehouse-spools.size_bytes ↔ warehouse_spool_record_count` и `warehouse-price.size_bytes ↔ warehouse_price_record_count`, чтобы дальнейшие bounded-index/rotation решения принимались по измеренным данным.
+На стенде снять `size_bytes`, material/business/winding/warehouse record counts, `winding_allocator_last_id`, `winding_snapshot_file_count`, `winding_snapshot_total_bytes`, `winding_state_file_count`, `winding_state_total_bytes`, `winding_spool_selection_file_count`, `winding_spool_selection_total_bytes` и `snapshot_stability_duration_ms`, включая пары `warehouse-spools.size_bytes ↔ warehouse_spool_record_count` и `warehouse-price.size_bytes ↔ warehouse_price_record_count`, чтобы дальнейшие bounded-index/rotation решения принимались по измеренным данным.
 
 Отдельно проверить reboot/manual-review, microSD loss, corrupted persistence и UART fault scenarios.
 

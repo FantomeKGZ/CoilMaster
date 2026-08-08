@@ -1,4 +1,5 @@
 #include "CM_WindingJournalQuery.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -215,8 +216,7 @@ bool WindingJournalQuery::isValidLegacySchema1Record(const String& line)
     uint32_t sessionId = 0UL;
     uint32_t completedRuns = 0UL;
     uint32_t uptimeMs = 0UL;
-    if (line.length() < 2U || line[0] != '{' ||
-        line[line.length() - 1U] != '}' ||
+    if (!FlatJsonObjectValidator::valid(line) ||
         !findUnsigned(line, "schema_version", schemaVersion) ||
         schemaVersion != 1UL ||
         !findUnsigned(line, "run_id", runId) || runId == 0UL ||
@@ -263,8 +263,7 @@ bool WindingJournalQuery::isValidSchema2Record(const String& line,
     uint32_t completedRuns = 0UL;
     uint32_t uptimeMs = 0UL;
     uint32_t motorId = 0UL;
-    if (line.length() < 2U || line[0] != '{' ||
-        line[line.length() - 1U] != '}' ||
+    if (!FlatJsonObjectValidator::valid(line) ||
         !findUnsigned(line, "schema_version", schemaVersion) ||
         schemaVersion != 2UL ||
         !findUnsigned(line, "job_id", jobId) || jobId == 0UL ||

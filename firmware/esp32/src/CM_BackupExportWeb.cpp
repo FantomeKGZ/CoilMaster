@@ -29,6 +29,8 @@ struct RecoveryMarkerDefinition
 
 struct SnapshotAuditMetrics
 {
+    bool allocatorHighWaterMeasured = false;
+    uint32_t windingAllocatorLastId = 0UL;
     bool materialRecordCountsMeasured = false;
     uint32_t materialCatalogRecordCount = 0UL;
     uint32_t materialUsageRecordCount = 0UL;
@@ -236,6 +238,8 @@ SessionScanResult scanSessionDirectory(fs::FS& storage,
 const char* snapshotStabilityReason(fs::FS& storage,
                                     SnapshotAuditMetrics& metrics)
 {
+    metrics.allocatorHighWaterMeasured = false;
+    metrics.windingAllocatorLastId = 0UL;
     metrics.materialRecordCountsMeasured = false;
     metrics.materialCatalogRecordCount = 0UL;
     metrics.materialUsageRecordCount = 0UL;
@@ -264,8 +268,11 @@ const char* snapshotStabilityReason(fs::FS& storage,
             return RecoveryMarkers[i].reason;
     }
 
-    if (!PersistentIdIntegrityAudit::check(storage))
+    PersistentIdIntegrityAuditMetrics allocatorMetrics;
+    if (!PersistentIdIntegrityAudit::check(storage, allocatorMetrics))
         return "persistent_id_unstable_or_invalid";
+    metrics.windingAllocatorLastId = allocatorMetrics.lastAllocatedId;
+    metrics.allocatorHighWaterMeasured = true;
 
     if (!ConductorSettingsIntegrityAudit::check(storage))
         return "conductor_settings_unstable_or_invalid";
@@ -479,6 +486,11 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += stabilityDurationMs;
+    response += F(",\"winding_allocator_last_id\":");
+    if (!stabilityChecked || !auditMetrics.allocatorHighWaterMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingAllocatorLastId;
     response += F(",\"material_catalog_record_count\":");
     if (!stabilityChecked || !auditMetrics.materialRecordCountsMeasured)
         response += F("null");
@@ -555,7 +567,7 @@ void BackupExportWeb::handleManifest()
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(5000U);
+    response.reserve(5100U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

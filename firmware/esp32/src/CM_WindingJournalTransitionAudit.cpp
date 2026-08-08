@@ -46,6 +46,14 @@ enum class AuditEvent : uint8_t
 
 bool parseEvent(const String& line, AuditEvent& event)
 {
+    const String eventKey = F("\"event\":");
+    const int eventKeyPos = line.indexOf(eventKey);
+    if (eventKeyPos < 0 ||
+        line.indexOf(eventKey, eventKeyPos + eventKey.length()) >= 0)
+    {
+        return false;
+    }
+
     const String started = F("\"event\":\"RUN_STARTED\"");
     const String completed = F("\"event\":\"RUN_COMPLETED\"");
     const int startedPos = line.indexOf(started);
@@ -54,7 +62,6 @@ bool parseEvent(const String& line, AuditEvent& event)
 
     const String& marker = startedPos >= 0 ? started : completed;
     const int position = startedPos >= 0 ? startedPos : completedPos;
-    if (line.indexOf(marker, position + marker.length()) >= 0) return false;
 
     int cursor = position + marker.length();
     while (cursor < line.length() && line[cursor] == ' ') ++cursor;

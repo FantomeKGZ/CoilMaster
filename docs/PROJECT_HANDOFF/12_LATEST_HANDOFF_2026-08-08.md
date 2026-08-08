@@ -2,153 +2,160 @@
 
 Ветка: `cmp-protocol-v1`  
 Репозиторий: `FantomeKGZ/CoilMaster`  
-Этот файл — свежая точка входа после backup-integrity, HTTP semantics и NDJSON performance review.
+Этот файл — актуальная точка входа после deep backup-integrity, HTTP semantics audit и первого Stage 0 performance/observability batch.
 
-## 1. Главные правила продолжения
+## 1. Обязательные правила продолжения
 
-- Источник истины — только текущий код ветки `cmp-protocol-v1`.
-- Не использовать `main` как источник кода или архитектурных решений.
-- Перед каждым edit/delete заново fetch текущего файла из `cmp-protocol-v1` и использовать его blob SHA.
-- Новый файл сначала проверять на отсутствие точного пути.
-- Не считать документацию или отсутствие workflow-run доказательством зелёного CI.
-- Не заявлять hardware E2E без реального стенда ESP32 + Arduino и подтверждения пользователя.
-- Не делать auto physical START, auto resume после reboot, direct SSR с ESP32/WEB или automatic wire writeoff только по `RUN_COMPLETED`.
+- Source of truth — только текущий код `cmp-protocol-v1`.
+- `main` не использовать как источник кода или архитектурных решений.
+- Перед каждым изменением существующего файла заново fetch его из `cmp-protocol-v1` и использовать текущий blob SHA.
+- При `update_file` отправлять полный файл.
+- Новый файл перед `create_file` проверять на отсутствие точного пути.
+- Один и тот же файл не редактировать параллельно.
+- Новые commits не считать GREEN без фактического Actions result/подтверждения пользователя.
+- Hardware E2E не считать выполненным без реального стенда ESP32 + Arduino и подтверждения пользователя.
 
-## 2. Production workflow, который уже собран
+Safety invariants не менять:
+
+- physical START только аппаратный;
+- ESP32/WEB не управляют SSR напрямую;
+- после reboot нет auto-resume;
+- `RUN_COMPLETED` не делает automatic wire writeoff;
+- ручное списание провода обязательно;
+- CLOSED repair запрещает новые mutations;
+- corruption/storage failure всегда fail-closed.
+
+## 2. Production workflow уже собран
 
 ```text
 client
 → motor с authoritative coil_program
 → repair OPEN
 → costing
-→ linked winding job
-→ обязательный exact spool_id
-→ immutable job snapshot
-→ immutable spool-selection
+→ linked winding
+→ exact spool_id
+→ immutable job snapshot + immutable spool selection
 → UART delivery
 → JOB_ACK ACCEPTED
 → physical START
 → RUN_STARTED / RUN_COMPLETED
 → winding history
-→ ручной write-off провода с фактическим весом
+→ manual wire writeoff по фактическому весу
 → source_session_id + source_run_id provenance
-→ дополнительные материалы / pricing
-→ read-only finalization preflight
+→ materials / pricing
+→ finalization preflight
 → CLOSED
-→ read-only archive
-→ monthly report
+→ archive / monthly report
 → read-only backup/export
 ```
 
-Физический START остаётся аппаратным действием. `RUN_COMPLETED` сам склад не меняет.
+Не начинать этот workflow заново.
 
-## 3. Persistent winding и recovery — уже реализовано
+## 3. Winding persistence и exact spool
 
-Реализованы и не должны начинаться заново:
+Реализованы:
 
 - persistent `job_id/session_id` allocator;
 - immutable job snapshot;
-- immutable exact spool selection;
+- immutable exact spool-selection;
 - persisted runtime state;
-- fail-safe reboot recovery;
-- manual-review acknowledgement;
+- reboot recovery + manual review acknowledgement;
 - strict repair/motor linkage;
-- authoritative `coil_program`;
+- authoritative motor `coil_program`;
 - единый `CM_WindingProgramParser`;
 - winding journal schema 2;
-- strict writer scans;
-- read-only winding history с cursor pagination для пользовательского API;
-- full-file authoritative `WindingJournalQuery::validateAll()` для integrity;
+- cursor pagination только для пользовательского read-only history API;
 - semantic transition audit `RUN_STARTED → RUN_COMPLETED`;
-- runtime dynamic microSD readiness.
+- dynamic microSD readiness.
 
-Ключевые файлы:
+Persistence:
 
 ```text
-firmware/esp32/src/CM_PersistentIdAllocator.*
-firmware/esp32/src/CM_JobSnapshotStore.*
-firmware/esp32/src/CM_JobSpoolSelectionStore.*
-firmware/esp32/src/CM_JobStateStore.*
-firmware/esp32/src/CM_JobRecovery.*
-firmware/esp32/src/CM_JobLinkageResolver.*
-firmware/esp32/src/CM_WindingProgramParser.h
-firmware/esp32/src/CM_WindingJournal.*
-firmware/esp32/src/CM_WindingJournalQuery.*
-firmware/esp32/src/CM_WindingJournalTransitionAudit.*
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/id-state.bak
+/data/winding-jobs/snapshots/session-<id>.json
+/data/winding-jobs/spool-selection/session-<id>.json
+/data/winding-jobs/state/session-<id>.json
+/data/winding-runs/events.ndjson
 ```
 
-Важно: `CM_WindingPersistenceIntegrityAudit` уже использует `validateAll()` + `WindingJournalTransitionAudit::validate()`. Старого cursor-pagination полного scan там нет, поэтому дополнительная правка этого файла не нужна.
+Важно: cleanup winding backup audit уже выполнен. `CM_WindingPersistenceIntegrityAudit` использует:
 
-## 4. Repair lifecycle и CLOSED invariant
+```text
+WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
+```
 
-`OPEN → CLOSED` append-only lifecycle реализован server-side.
+Старого cursor-pagination полного scan там нет. Не возвращаться к этому пункту.
 
-CLOSED repair запрещает:
+## 4. Manual wire writeoff provenance
+
+Для новых linked runs writeoff имеет:
+
+```text
+source_session_id + source_run_id
+```
+
+Server-side доказывается:
+
+- конкретный run имеет `RUN_COMPLETED`;
+- immutable spool-selection относится к тому же repair;
+- используется та же бухта;
+- duplicate CONFIRMED для `(session_id, run_id)` запрещён;
+- recovery сохраняет provenance через `PENDING → CONFIRMED | ABORTED`;
+- finalization требует ручного coverage каждого нового completed linked run.
+
+HTTP gap с пустыми run-level полями закрыт:
+
+```text
+362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
+```
+
+Если `source_session_id` или `source_run_id` присутствует, оба обязаны присутствовать, быть непустыми и canonical non-zero IDs; иначе `400` без записи.
+
+## 5. CLOSED и finalization
+
+`OPEN → CLOSED` реализован server-side.
+
+CLOSED запрещает:
 
 - новый linked winding;
-- новое wire writeoff;
+- wire writeoff;
 - material usage;
 - pricing revision.
 
-Истории остаются read-only.
+Перед закрытием backend fail-closed проверяет unfinished/recovery winding state, persisted dependencies, winding journal/transition semantics и ручной wire coverage. Preflight read-only; реальный close независимо повторяет проверки.
 
-Close блокируется, если есть unfinished/recovery winding state или не выполнены finalization checks.
-
-Для новых completed linked runs с immutable spool-selection требуется ручной CONFIRMED wire writeoff именно для `(source_session_id, source_run_id)`.
-
-## 5. Warehouse / material / costing integrity
+## 6. Warehouse / materials / costing
 
 Warehouse:
 
+- CU/AL + legacy UNKNOWN;
+- active spool catalogue;
 - recoverable spool-file swap;
 - writeoff transaction `PENDING → CONFIRMED | ABORTED`;
 - startup recovery;
-- strict movement parser;
-- exact spool identity;
-- provenance `source_session_id + source_run_id`;
-- duplicate source-run CONFIRMED writeoff запрещён;
-- dynamic storage readiness.
+- strict movement parsing/references;
+- exact spool identity + run provenance.
 
-Material ledger:
+Materials:
 
-- recoverable material file swap;
-- usage/adjustment pending recovery;
-- strict catalogue/history parsing;
-- formula validation;
-- KGS policy в production path;
-- dynamic storage readiness.
+- catalogue;
+- usage/adjustment histories;
+- pending recovery;
+- recoverable swap;
+- strict arithmetic/reference validation.
 
-RepairCosting:
+Costing:
 
-- strict warehouse transaction integrity;
-- material usage formula validation;
-- pricing history validation;
+- warehouse/material/pricing integrity;
 - checked overflow;
-- consistent currency;
-- fail-closed corrupted dependencies.
+- currency/formula validation;
+- consistent `NEAREST_MINOR_UNIT` rounding.
 
-## 6. UI и operator workflow
+## 7. Deep read-only backup/export
 
-Mobile/desktop уже имеют:
-
-- clients, motors, repairs;
-- linked winding;
-- exact spool selection;
-- lifecycle status;
-- winding history;
-- writeoff history с session/run provenance;
-- costing;
-- CLOSED read-only mode;
-- repair archive filters;
-- finalization preflight;
-- monthly reports;
-- backup/export pages.
-
-Новые linked jobs требуют exact active CU/AL spool с положительным остатком. Backend повторно проверяет spool identity перед job creation.
-
-## 7. Read-only backup/export — deep audit охватывает весь whitelist
-
-API:
+Endpoints:
 
 ```text
 GET /api/backup/manifest
@@ -157,18 +164,21 @@ GET /api/backup/sessions
 GET /api/backup/session-file?kind=...&session_id=...
 ```
 
-Произвольные filesystem paths запрещены.
+Arbitrary filesystem paths запрещены.
 
-`export_allowed` отвечает за то, безопасно ли выполнять тяжёлый export сейчас.
+Deep scan выполняется только если `BackupActivityGuard` доказывает `Safe`.
 
-Глубокий integrity audit выполняется только когда `BackupActivityGuard` доказывает `Safe`. Во время active winding manifest не запускает тяжёлые scans и возвращает:
+Во время active/unsafe winding:
 
 ```text
+export_allowed=false
 snapshot_stability_checked=false
 snapshot_stable=null
+snapshot_stability_duration_ms=null
+winding_journal_record_count=null
 ```
 
-При safe state `snapshot_stable=true` требует успешной проверки **всего static export whitelist**:
+При safe state `snapshot_stable=true` означает успешную read-only проверку всего static whitelist:
 
 ```text
 /data/workshop/clients.ndjson
@@ -188,29 +198,23 @@ snapshot_stable=null
 /data/settings/conductor-calculator.ndjson
 ```
 
-Дополнительно проверяются необходимые recovery/session invariants:
+И необходимых adjuncts/invariants:
 
-- recovery markers materials;
-- warehouse spool swap markers;
-- allocator `id-state.txt`, optional `.bak`, отсутствие `id-state.tmp`;
-- conductor settings `conductor-calculator.ndjson`, отсутствие `.tmp/.bak` recovery residue;
-- workshop clients/motors/repairs + repair-status references;
-- repair pricing + repair references;
-- materials catalogue/usage/adjustments + arithmetic + references;
-- winding journal full schema validation до EOF;
+- material/warehouse recovery and swap markers;
+- allocator main/optional backup/absence of temp;
+- conductor settings contents + absence of `.tmp/.bak` recovery residue;
+- workshop/material/pricing/warehouse references + arithmetic;
+- winding journal schema до EOF;
 - winding transition semantics;
-- warehouse spools/price/movements transaction/reference integrity;
 - canonical session directories;
-- содержимое каждого snapshot/state/spool-selection;
-- cross-file `job/session/repair/motor/spool` identity.
+- содержимое всех snapshot/state/spool-selection files;
+- cross-file job/session/repair/motor/spool identity.
 
-Задействованные audit-модули:
+Основные audit modules:
 
 ```text
 CM_BackupBusinessDataIntegrityAudit.*
 CM_MaterialPersistenceIntegrityAudit.*
-CM_WorkshopPersistenceIntegrityAudit.*
-CM_RepairPricingIntegrityAudit.*
 CM_WindingPersistenceIntegrityAudit.*
 CM_WarehousePersistenceIntegrityAudit.*
 CM_WarehouseMovementIntegrityAudit.*
@@ -219,117 +223,121 @@ CM_ConductorSettingsIntegrityAudit.*
 CM_WindingSessionPersistenceIntegrityAudit.*
 ```
 
-Статический compile-safety audit include-зависимостей выполнен: audit headers содержат собственный `FS.h`; реализации, использующие Arduino `String/File/isDigit`, имеют требуемую dependency chain; ESP32 PlatformIO filter компилирует все `firmware/esp32/src/*.cpp`. Missing include в проверенном наборе не найден, но это не заменяет фактический Actions build.
+## 8. HTTP/error semantics — закрыто
 
-## 8. HTTP/error semantics audit
-
-Подробный документ:
+Документ:
 
 ```text
 docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
 ```
 
-Каноническая карта:
+Карта:
 
 ```text
-400 malformed / missing request field
+400 malformed / missing required input
 404 requested allowed resource absent
-409 syntactically valid request blocked by machine/domain state
+409 syntactically valid request blocked by domain/machine state
 500 persisted read/integrity failure
 503 storage/service dependency unavailable
 ```
 
-Manifest намеренно является status endpoint: active winding выражается `200` + `export_allowed=false`, а direct heavy export блокируется `409`.
+Manifest остаётся status endpoint: active winding выражается `200` + blocked state; direct heavy export возвращает `409`.
 
-Найден один реальный run-level gap: пустые, но присутствующие `source_session_id` и `source_run_id` могли восприниматься как отсутствие provenance и перейти в legacy path.
+Не делать массовый refactor кодов без нового доказанного semantic gap.
 
-Исправлено:
+## 9. NDJSON performance strategy — без преждевременной БД
 
-```text
-362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
-```
-
-Теперь если run-level параметры присутствуют, они обязаны присутствовать вместе, быть непустыми и валидными non-zero IDs; иначе `400` без записи.
-
-## 9. NDJSON performance/rotation strategy
-
-Подробный документ:
+Документ:
 
 ```text
 docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 ```
 
-Решение: **не мигрировать преждевременно в БД**.
-
-Найденные hotspots:
-
-- deep backup full scans;
-- повторные cross-file reference scans в business/material/warehouse audits;
-- costing/finalization/history по растущим append-only NDJSON;
-- winding journal имеет отдельные schema + transition full scans, но schema validation уже не строит cursor JSON pages.
-
-Порядок дальнейшей оптимизации:
+Порядок:
 
 ```text
-1. измерить file size / record count / scan latency
-2. убрать доказанно дорогие повторные scans bounded per-request indexes
-3. при необходимости — recoverable rotation immutable append histories
-4. read-only summary snapshots для reports/dashboard
-5. БД только если измерения покажут недостаточность предыдущих этапов
+Stage 0  измерить size / record count / latency
+Stage 1  убрать доказанно дорогие repeated scans bounded per-request indexes
+Stage 2  recoverable rotation immutable append histories при необходимости
+Stage 3  read-only summary snapshots для reports/dashboard
+DB       только если измерения докажут недостаточность предыдущих этапов
 ```
 
-Не делать unbounded RAM mirror всех NDJSON на ESP32. Rotation должна сохранять provenance/global IDs, fail-closed cross-segment validation и полноту backup/export.
+Нельзя:
 
-## 10. Текущая серия коммитов после deep backup блока
+- делать unbounded RAM mirror всех NDJSON;
+- вводить persistent optimistic cache как доказательство integrity;
+- выбирать rotation threshold без измерений;
+- ослаблять fail-closed проверки ради скорости.
+
+## 10. Stage 0 observability — уже реализована
+
+Manifest теперь возвращает:
 
 ```text
-362fcb7d  Reject empty run provenance fields
-5544f07f  Document backup and run HTTP semantics audit
-23737ef5  Plan NDJSON growth and rotation strategy
-6b9762f9  Refresh backup integrity current state
-03dbc1fe  Advance active work after integrity review
+snapshot_stability_duration_ms
+winding_journal_record_count
 ```
 
-Этот handoff-коммит идёт после них и синхронизирует точку продолжения.
+`duration_ms` измеряет только уже выполняемый deep audit.
 
-## 11. Последняя найденная CI-ошибка и исправление
+`winding_journal_record_count` считается внутри того же authoritative `WindingJournalQuery::validateAll()` EOF pass. Отдельного повторного чтения `events.ndjson` ради count нет.
 
-Ранее пользователь дал Actions run:
+Count публикуется только после успешной winding schema validation **и** transition audit. Если winding integrity не доказана — `null`.
+
+Эти поля — observability metadata и не участвуют в `snapshot_stable` / `export_allowed`.
+
+Кодовые commits Stage 0:
 
 ```text
-https://github.com/FantomeKGZ/CoilMaster/actions/runs/31243187630
+8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
+c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation count
+36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
+eeea77a35e0938692f2142b5022ea41849bf5f64  Expose winding audit record count
+1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
+a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
+b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 ```
 
-Run checkout был на commit:
+Документационные commits текущего batch:
 
 ```text
-78ac24533f1157080bd2163990dbdb0b2577807c
+4696f5385c3749b2a824615033c1b29b284e79b5  Document backup audit timing semantics
+59d208a8f86e803308824c43c2c3894df500f69d  Record backup audit observability baseline
+3b1dbcc37ba00218e564b45edb42ace7105f2566  Record backup audit timing in current state
+28945a079520169f450fe70a312a40c7b4d598e7  Advance active work to backup observability
+cdf3c665d536d42e6638970d5a3694be03b014ce  Document winding journal backup metric
+495823c09b8c61213767d05966ca4434f185aef9  Document winding journal observability
+89f86252b94445d25b8bc1e5f1979595243407e4  Record winding backup observability in current state
+17fc3883cb2eeeefc6ff79f289e0b6e3a87db663  Advance handoff to measured backup performance
 ```
 
-`build-esp32` job id:
+Эти commits **не считать GREEN автоматически**.
 
-```text
-93067378338
-```
+## 11. Compile-safety status
 
-Реальная ошибка из полного лога:
+Repository-level include audit выполнен.
 
-```text
-firmware/esp32/src/CM_MaterialLedger.cpp:705:1: error: expected '}' at end of input
-note: to match namespace CM opening brace
-```
+Для нового winding count API:
 
-Исправлено:
+- старый no-arg `validateAll()` сохранён и делегирует overload;
+- старый `WindingPersistenceIntegrityAudit::check(storage)` сохранён;
+- count overload имеет explicit `<stdint.h>` для публичного `uint32_t`;
+- `CM_BackupExportWeb` уже имеет Arduino dependency для `millis()`.
+
+Это статическая compile-safety проверка, не фактический build result.
+
+Последняя ранее подтверждённая CI ошибка была missing namespace closing brace в `CM_MaterialLedger.cpp`; исправлена:
 
 ```text
 77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
 ```
 
-Для нового кодового commit `362fcb7d...` текущий connector не вернул combined statuses или PR-triggered workflow run. Это **не доказательство GREEN и не доказательство failure**. При доступном push-run проверять реальный job/result.
+Не утверждать GREEN для текущего head без нового Actions run/result.
 
 ## 12. Hardware E2E — обязательный внешний этап
 
-Реальный стенд должен пройти минимум:
+Happy path:
 
 ```text
 client + motor + repair
@@ -349,53 +357,59 @@ client + motor + repair
 → stable backup manifest/export
 ```
 
-Fault scenarios:
+На backup этапе снять:
+
+```text
+winding-events.size_bytes
+winding_journal_record_count
+snapshot_stability_duration_ms
+```
+
+Fault scenarios минимум:
 
 - microSD unavailable before job;
 - runtime microSD loss;
 - reboot after ACCEPTED before START;
 - reboot after RUN_STARTED;
-- corrupt snapshot/state/spool-selection/journal;
-- corrupt warehouse/material/pricing/workshop files;
+- corrupted snapshot/state/spool-selection/journal;
+- corrupted warehouse/material/pricing/workshop persistence;
 - dangling warehouse PENDING;
 - material pending/swap markers;
-- duplicate writeoff for same `(session_id, run_id)`;
+- duplicate writeoff same `(session_id, run_id)`;
 - close without manual wire coverage;
-- backup while winding active;
-- backup with temp/pending/corrupt persisted state.
+- backup during active winding;
+- backup with temp/pending/corrupt state.
 
-Repository review и CI не заменяют этот этап. Не считать физическое поведение ESP32 + Arduino проверенным, пока пользователь сам это не подтвердит.
+## 13. Точная точка продолжения
 
-## 13. Deferred product work
+1. Не повторять deep backup integrity, winding `validateAll()` cleanup или HTTP semantics audit.
+2. Если появляется новый Actions run — проверить фактический `build-esp32` head и исправлять первую реальную compile/link error, а не framework warnings.
+3. Предпочтительный следующий шаг — реальный hardware/E2E + performance measurement с `size_bytes`, `winding_journal_record_count`, `snapshot_stability_duration_ms`.
+4. Если hardware пока недоступен, repo-only код продолжать только как same-pass observability: новый counter/duration допустим, только если authoritative validator может вернуть его без второго full scan.
+5. Не вводить rotation threshold, persistent cache или database migration до измерений.
 
-Не начинать без явной потребности:
+## 14. Deferred product work
+
+Не начинать автоматически:
 
 - analogue/unassigned winding production model;
-- automatic material writeoff;
+- automatic wire/material writeoff по `RUN_COMPLETED`;
 - automatic safe resume;
 - database migration;
 - direct SSR control с ESP32/WEB.
 
-## 14. Рекомендуемый порядок чтения в новом чате
+## 15. Порядок чтения в следующем чате
 
-1. `docs/PROJECT_HANDOFF/00_READ_FIRST.md`
-2. этот файл `12_LATEST_HANDOFF_2026-08-08.md`
-3. `01_CURRENT_STATE.md`
-4. `06_ACTIVE_WORK_AND_NEXT_STEPS.md`
-5. актуальные исходники конкретного следующего изменения
-6. `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`
-7. `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`
-8. `09_KEY_FILES_INDEX.md`
-9. `08_WORK_RULES_AND_VERIFICATION.md`
+```text
+1. docs/PROJECT_HANDOFF/00_READ_FIRST.md
+2. docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
+3. docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
+4. docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+5. актуальные исходники конкретного изменения
+6. docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
+7. docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+8. docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
+9. docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
+```
 
-`11_FULL_BRANCH_AUDIT.md` считать исторической картой, не текущим source of truth.
-
-## 15. Точная точка продолжения
-
-После этого review:
-
-1. Не повторять deep backup-integrity block.
-2. Не переписывать `CM_WindingPersistenceIntegrityAudit`: `validateAll()` уже authoritative и cursor full scan отсутствует.
-3. При наличии нового ESP32 Actions run проверить фактический build для кодового head и чинить первую реальную compile/link error, если она есть.
-4. Следующий repo-reviewable performance шаг — low-cost observability file-size/record-count/scan-latency, прежде чем внедрять rotation.
-5. Hardware E2E остаётся обязательным внешним этапом и не отмечается выполненным без подтверждения пользователя.
+Код `cmp-protocol-v1` всегда выше документации по приоритету. `11_FULL_BRANCH_AUDIT.md` — историческая карта, не текущий source of truth.

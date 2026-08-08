@@ -57,6 +57,111 @@ bool findString(const String& line, const char* key, String& value)
     }
     return false;
 }
+
+bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
+{
+    File outer = storage.open(path, FILE_READ);
+    if (!outer || outer.isDirectory())
+    {
+        if (outer) outer.close();
+        return false;
+    }
+
+    while (outer.available())
+    {
+        const String line = outer.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        String status;
+        if (!findString(line, "status", status))
+        {
+            outer.close();
+            return false;
+        }
+        if (status != "CONFIRMED") continue;
+
+        const bool hasSession = line.indexOf(F("\"source_session_id\":")) >= 0;
+        if (!hasSession) continue;
+        const bool hasRun = line.indexOf(F("\"source_run_id\":")) >= 0;
+        uint32_t movementId = 0UL, sessionId = 0UL, runId = 0UL;
+        if (!findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
+            !findUnsigned(line, "source_session_id", sessionId) || sessionId == 0UL ||
+            (hasRun && (!findUnsigned(line, "source_run_id", runId) || runId == 0UL)))
+        {
+            outer.close();
+            return false;
+        }
+
+        File inner = storage.open(path, FILE_READ);
+        if (!inner || inner.isDirectory())
+        {
+            if (inner) inner.close();
+            outer.close();
+            return false;
+        }
+        while (inner.available())
+        {
+            const String candidate = inner.readStringUntil('\n');
+            if (candidate.length() == 0U) continue;
+            String candidateStatus;
+            if (!findString(candidate, "status", candidateStatus))
+            {
+                inner.close();
+                outer.close();
+                return false;
+            }
+            if (candidateStatus != "CONFIRMED") continue;
+
+            uint32_t candidateMovementId = 0UL;
+            if (!findUnsigned(candidate, "movement_id", candidateMovementId) ||
+                candidateMovementId == 0UL)
+            {
+                inner.close();
+                outer.close();
+                return false;
+            }
+            if (candidateMovementId == movementId) continue;
+
+            const bool candidateHasSession =
+                candidate.indexOf(F("\"source_session_id\":")) >= 0;
+            if (!candidateHasSession) continue;
+            uint32_t candidateSessionId = 0UL;
+            if (!findUnsigned(candidate, "source_session_id", candidateSessionId) ||
+                candidateSessionId == 0UL)
+            {
+                inner.close();
+                outer.close();
+                return false;
+            }
+            if (candidateSessionId != sessionId) continue;
+
+            const bool candidateHasRun =
+                candidate.indexOf(F("\"source_run_id\":")) >= 0;
+            if (!hasRun || !candidateHasRun)
+            {
+                inner.close();
+                outer.close();
+                return false;
+            }
+            uint32_t candidateRunId = 0UL;
+            if (!findUnsigned(candidate, "source_run_id", candidateRunId) ||
+                candidateRunId == 0UL)
+            {
+                inner.close();
+                outer.close();
+                return false;
+            }
+            if (candidateRunId == runId)
+            {
+                inner.close();
+                outer.close();
+                return false;
+            }
+        }
+        inner.close();
+    }
+    outer.close();
+    return true;
+}
 }
 
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
@@ -185,8 +290,6 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
             file.close();
             return false;
         }
-        // Legacy CONFIRMED rows may omit wire_type. When present it has already
-        // been validated as CU/AL above. New strict writers always include it.
 
         pendingId = 0UL;
         pendingSourceSession = 0UL;
@@ -195,6 +298,7 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
         pendingHasSourceRun = false;
     }
     file.close();
-    return pendingId == 0UL;
+    if (pendingId != 0UL) return false;
+    return confirmedProvenanceUnique(storage, Path);
 }
 }

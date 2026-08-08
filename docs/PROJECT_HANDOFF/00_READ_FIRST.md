@@ -68,13 +68,18 @@ CM_MaterialLedger.cpp: expected '}' at end of input
 
 ## Текущая точка продолжения
 
-Полный backup-integrity block завершён. Следующий repo-reviewable cleanup:
+Deep backup-integrity, winding `validateAll()` cleanup и backup/run-level HTTP semantics audit уже завершены.
+
+Stage 0 performance observability теперь даёт без дополнительного persistence scan:
 
 ```text
-CM_WindingPersistenceIntegrityAudit
-→ использовать authoritative WindingJournalQuery::validateAll()
+snapshot_stability_duration_ms
+winding_journal_record_count
+warehouse_movement_record_count
 ```
 
-После этого — audit backup HTTP/error semantics, затем performance/rotation review или hardware E2E по доступности стенда.
+На hardware E2E/эксплуатационном стенде нужно сопоставить их с `winding-events.size_bytes` и `warehouse-movements.size_bytes`. До измерений не вводить rotation threshold, persistent cache или database migration.
+
+Если hardware пока недоступен, следующий repo-only шаг допустим только как такой же same-pass observability для уже выполняемого authoritative validator; естественный кандидат — material usage/adjustment audit, без второго full scan ради метрики.
 
 Все детали и список последних коммитов: `12_LATEST_HANDOFF_2026-08-08.md`.

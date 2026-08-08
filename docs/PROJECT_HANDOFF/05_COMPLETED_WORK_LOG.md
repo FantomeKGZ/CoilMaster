@@ -1,6 +1,6 @@
 # Журнал выполненных работ
 
-Дата актуализации: 2026-08-07  
+Дата актуализации: 2026-08-08  
 Ветка: `cmp-protocol-v1`
 
 Этот файл — укрупнённая карта уже выполненной работы. Для точного diff и полного списка промежуточных коммитов использовать историю GitHub и тематические документы в `docs/`.
@@ -18,6 +18,8 @@
 
 Статус аппаратной проверки и базового обмена: `USER CONFIRMED`.
 
+Это не заменяет обязательный production hardware E2E полного safety/workshop flow.
+
 ## 2. Архитектура безопасности
 
 Зафиксировано и реализуется последовательно:
@@ -27,7 +29,8 @@
 - ESP32/WEB не включают SSR напрямую;
 - физический START остаётся обязательным;
 - автоматический resume после reboot запрещён;
-- одновременно исполняется одна программа.
+- одновременно исполняется одна программа;
+- `RUN_COMPLETED` сам по себе не списывает провод.
 
 ## 3. CMP/UART доставка задания
 
@@ -270,6 +273,8 @@ repair_id
 
 Есть cursor pagination, `next_cursor`, `has_more` и fail-closed чтение corrupted schema 2.
 
+Для deep backup validation cursor pagination не используется: authoritative EOF validation находится в `CM_WindingJournalQueryValidation.cpp` и вызывается через `WindingJournalQuery::validateAll()`.
+
 Legacy schema 1 проверяется структурно, но не отдаётся новым API, потому что не содержит immutable repair/motor context.
 
 UI:
@@ -298,7 +303,7 @@ desktop/winding-history.html
 
 ## 14. Lifecycle API и главные страницы
 
-`/api/status` теперь явно различает:
+`/api/status` явно различает:
 
 ```text
 WAITING_ARDUINO_ACK
@@ -317,7 +322,7 @@ MANUAL_REVIEW_REQUIRED
 
 Mobile/desktop index обновлены под эти состояния.
 
-Последние UI commits:
+Последние UI commits этого этапа:
 
 ```text
 4e56ac07590be3eb44665b7a4f1f1c0fa39d5423
@@ -360,15 +365,18 @@ b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
 
 ## 17. Склад провода
 
-Ранее реализованы и сохраняются:
+Реализованы и сохраняются:
 
 - CU/AL/UNKNOWN;
 - каталог диаметров;
 - катушки и остатки;
+- exact spool selection для linked winding;
 - фильтры;
 - material summary;
-- confirmed write-off;
-- legacy material assignment;
+- ручной confirmed write-off;
+- run-level provenance `source_session_id + source_run_id`;
+- duplicate confirmed write-off guard для run;
+- recoverable `PENDING → CONFIRMED | ABORTED` movement transaction;
 - repair write-off history;
 - server authoritative material totals;
 - saved price/value/currency metadata.
@@ -377,7 +385,7 @@ b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
 
 ## 18. Дополнительные материалы и калькуляция ремонта
 
-Ранее реализованы:
+Реализованы:
 
 - MaterialLedger;
 - material usage transactions;
@@ -388,7 +396,9 @@ b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
 - rounding/value integrity;
 - repair costing;
 - wire value split by CU/AL/UNKNOWN;
-- pricing revision/history/audit UI.
+- pricing revision/history/audit UI;
+- finalization preflight и CLOSED flow;
+- archive/monthly reports.
 
 Не начинать эти подсистемы заново.
 
@@ -413,26 +423,92 @@ b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
 .github/workflows/cmp-protocol-tests.yml
 ```
 
-Пользователь 2026-08-07 подтвердил зелёными проверенные им предыдущие коммиты. Документация не должна использоваться как доказательство GREEN для последующих commits; при наличии доступа сверять фактический Actions run.
+Последняя документированная фактическая failure была syntax error в `CM_MaterialLedger.cpp`, исправленная commit `77fd7dd4db3767c33106d63e6f9174e6559b9bc8`. Последующие commits нельзя считать GREEN без фактического Actions result.
 
-## 21. Текущая точка после выполненного
+## 21. Read-only backup/export и deep persistence integrity
 
-Инфраструктура full winding flow в основном собрана. Следующий участок — не новый storage/parser, а пользовательская цепочка ремонта:
-
-```text
-client
-→ motor
-→ repair
-→ linked winding
-→ physical run
-→ winding history
-```
-
-Начать с актуальных:
+Реализован whitelist export:
 
 ```text
-firmware/esp32/web/mobile/repairs.html
-firmware/esp32/web/desktop/repairs.html
+GET /api/backup/manifest
+GET /api/backup/file
+GET /api/backup/sessions
+GET /api/backup/session-file
 ```
 
-Точная последовательность следующей работы находится в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Heavy export/deep audit gated через `BackupActivityGuard::Safe`; при active winding deep scan не запускается.
+
+Safe `snapshot_stable=true` требует integrity всего static whitelist и необходимых adjuncts:
+
+- persistent allocator main/optional backup и отсутствие temp residue;
+- conductor settings и отсутствие recovery residue;
+- workshop clients/motors/repairs + repair-status;
+- repair pricing и references;
+- materials/usage/adjustments + formulas/references/recovery markers;
+- winding journal schema до EOF + `RUN_STARTED → RUN_COMPLETED` transition audit;
+- warehouse spools/price/movements;
+- содержимое snapshot/state/spool-selection session files штатными parsers и cross-file identity.
+
+`CM_WindingPersistenceIntegrityAudit` использует authoritative `WindingJournalQuery::validateAll()` и отдельно `WindingJournalTransitionAudit::validate()`. `CM_WindingSessionPersistenceIntegrityAudit` остаётся отдельным deep parser/cross-identity audit и не дублируется.
+
+HTTP/error semantics read-only backup/run-level endpoints отдельно audited в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`.
+
+## 22. Stage 0 NDJSON/session observability
+
+Решение зафиксировано в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`: сначала измерять, не мигрировать преждевременно в БД и не вводить arbitrary rotation threshold.
+
+Manifest возвращает 14 runtime metrics без отдельного telemetry full scan:
+
+```text
+snapshot_stability_duration_ms
+material_catalog_record_count
+material_usage_record_count
+material_adjustment_record_count
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
+winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
+warehouse_movement_record_count
+```
+
+Counts собираются внутри уже существующих authoritative validation passes. Старые `check(storage)` contracts сохранены через compatibility overloads. Partial metrics после failed domain audit не публикуются.
+
+Последний business observability batch:
+
+```text
+cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
+33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
+1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
+```
+
+Параллельно сохранён winding session observability batch:
+
+```text
+9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
+afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
+abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
+```
+
+## 23. Текущая точка после выполненного
+
+Основной production flow собран:
+
+```text
+client → motor → OPEN repair → costing → linked winding → exact spool
+→ immutable snapshot/spool-selection → UART → physical START
+→ RUN_STARTED/RUN_COMPLETED → manual wire writeoff
+→ costing → finalization preflight → CLOSED → reports → backup
+```
+
+Следующий обязательный внешний этап — реальный hardware E2E ESP32 + Arduino. Repository review не доказывает физический UART/START/SSR behavior.
+
+На E2E/эксплуатационном стенде одновременно снять пары `size_bytes + record_count`, session file counts и `snapshot_stability_duration_ms`. Только после фактических измерений выбирать bounded in-request index, duplicate-audit decomposition или rotation. Database migration, persistent optimistic cache и arbitrary rotation threshold пока не вводить.
+
+Если hardware временно недоступен, следующий repo-only код допустим только как same-pass observability существующего authoritative validator без дополнительного full scan либо как исправление доказанной correctness/compile проблемы.
+
+Точная последовательность следующей работы находится в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`; полный свежий snapshot — в `12_LATEST_HANDOFF_2026-08-08.md`.

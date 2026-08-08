@@ -181,117 +181,113 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
-    uint32_t sourceSessionId = 0UL;
-    uint32_t sourceRunId = 0UL;
-    const bool hasSourceSession = m_server.hasArg("source_session_id");
-    const bool hasSourceRun = m_server.hasArg("source_run_id");
-    if (hasSourceSession != hasSourceRun)
+    if (!m_server.hasArg("source_session_id") ||
+        !m_server.hasArg("source_run_id"))
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"source_session_and_run_required_together\",\"write_performed\":false}");
+                      "{\"error\":\"source_session_and_run_required\",\"write_performed\":false}");
         return;
     }
 
-    if (hasSourceSession)
+    uint32_t sourceSessionId = 0UL;
+    uint32_t sourceRunId = 0UL;
+    if (m_server.arg("source_session_id").length() == 0U ||
+        m_server.arg("source_run_id").length() == 0U ||
+        !parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
+                          sourceSessionId) ||
+        !parseUnsignedArg(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
+                          sourceRunId))
     {
-        if (m_server.arg("source_session_id").length() == 0U ||
-            m_server.arg("source_run_id").length() == 0U ||
-            !parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
-                              sourceSessionId) ||
-            !parseUnsignedArg(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
-                              sourceRunId))
-        {
-            m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_source_session_or_run_id\",\"write_performed\":false}");
-            return;
-        }
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_source_session_or_run_id\",\"write_performed\":false}");
+        return;
+    }
 
-        JobSpoolSelectionStore fallbackStore(m_store.storage());
-        JobSpoolSelectionStore* selections = m_spoolSelections;
-        if (selections == nullptr)
-        {
-            if (!fallbackStore.begin())
-            {
-                m_server.send(503, "application/json; charset=utf-8",
-                              "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
-                return;
-            }
-            selections = &fallbackStore;
-        }
-        if (!selections->isReady())
+    JobSpoolSelectionStore fallbackStore(m_store.storage());
+    JobSpoolSelectionStore* selections = m_spoolSelections;
+    if (selections == nullptr)
+    {
+        if (!fallbackStore.begin())
         {
             m_server.send(503, "application/json; charset=utf-8",
                           "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
             return;
         }
+        selections = &fallbackStore;
+    }
+    if (!selections->isReady())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
+        return;
+    }
 
-        JobSpoolSelection selection;
-        bool found = false;
-        if (!selections->load(sourceSessionId, selection, found))
-        {
-            if (!selections->isReady())
-                m_server.send(503, "application/json; charset=utf-8",
-                              "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
-            else
-                m_server.send(500, "application/json; charset=utf-8",
-                              "{\"error\":\"job_spool_selection_read_failed\",\"write_performed\":false}");
-            return;
-        }
-        if (!found)
-        {
-            m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"source_session_spool_selection_not_found\",\"write_performed\":false}");
-            return;
-        }
-        if (selection.repairId != repairId || selection.spoolId != spoolId)
-        {
-            m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
-            return;
-        }
-
-        const WindingSessionCompletionCheck completion =
-            WindingSessionCompletionAudit::check(m_store.storage(),
-                                                 sourceSessionId,
-                                                 sourceRunId);
-        if (completion == WindingSessionCompletionCheck::StorageUnavailable)
-        {
+    JobSpoolSelection selection;
+    bool found = false;
+    if (!selections->load(sourceSessionId, selection, found))
+    {
+        if (!selections->isReady())
             m_server.send(503, "application/json; charset=utf-8",
-                          "{\"error\":\"winding_history_unavailable\",\"write_performed\":false}");
-            return;
-        }
-        if (completion == WindingSessionCompletionCheck::IntegrityFailed)
-        {
+                          "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
+        else
             m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"winding_history_integrity_failed\",\"write_performed\":false}");
-            return;
-        }
-        if (completion != WindingSessionCompletionCheck::Completed)
-        {
-            m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"source_run_not_completed\",\"write_performed\":false}");
-            return;
-        }
+                          "{\"error\":\"job_spool_selection_read_failed\",\"write_performed\":false}");
+        return;
+    }
+    if (!found)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"source_session_spool_selection_not_found\",\"write_performed\":false}");
+        return;
+    }
+    if (selection.repairId != repairId || selection.spoolId != spoolId)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
+        return;
+    }
 
-        bool alreadyConfirmed = false;
-        if (!m_store.confirmedWriteOffForSourceRun(sourceSessionId,
-                                                   sourceRunId,
-                                                   alreadyConfirmed))
-        {
-            if (!m_store.ready())
-                m_server.send(503, "application/json; charset=utf-8",
-                              "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
-            else
-                m_server.send(500, "application/json; charset=utf-8",
-                              "{\"error\":\"source_run_writeoff_lookup_failed\",\"write_performed\":false}");
-            return;
-        }
-        if (alreadyConfirmed)
-        {
-            m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"source_run_already_written_off\",\"write_performed\":false}");
-            return;
-        }
+    const WindingSessionCompletionCheck completion =
+        WindingSessionCompletionAudit::check(m_store.storage(),
+                                             sourceSessionId,
+                                             sourceRunId);
+    if (completion == WindingSessionCompletionCheck::StorageUnavailable)
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"winding_history_unavailable\",\"write_performed\":false}");
+        return;
+    }
+    if (completion == WindingSessionCompletionCheck::IntegrityFailed)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"winding_history_integrity_failed\",\"write_performed\":false}");
+        return;
+    }
+    if (completion != WindingSessionCompletionCheck::Completed)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"source_run_not_completed\",\"write_performed\":false}");
+        return;
+    }
+
+    bool alreadyConfirmed = false;
+    if (!m_store.confirmedWriteOffForSourceRun(sourceSessionId,
+                                               sourceRunId,
+                                               alreadyConfirmed))
+    {
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"source_run_writeoff_lookup_failed\",\"write_performed\":false}");
+        return;
+    }
+    if (alreadyConfirmed)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"source_run_already_written_off\",\"write_performed\":false}");
+        return;
     }
 
     const String timestamp = m_server.arg("timestamp");
@@ -341,12 +337,8 @@ void WarehouseWeb::handleConfirmWriteOff()
     response += result.movementId;
     response += F(",\"spool_id\":"); response += spoolId;
     response += F(",\"repair_id\":"); response += repairId;
-    response += F(",\"source_session_id\":");
-    if (sourceSessionId != 0UL) response += sourceSessionId;
-    else response += F("null");
-    response += F(",\"source_run_id\":");
-    if (sourceRunId != 0UL) response += sourceRunId;
-    else response += F("null");
+    response += F(",\"source_session_id\":"); response += sourceSessionId;
+    response += F(",\"source_run_id\":"); response += sourceRunId;
     response += F(",\"diameter_hundredths_mm\":");
     response += result.diameterHundredthsMm;
     response += F(",\"wire_type\":");

@@ -1,4 +1,5 @@
 #include "CM_MaterialLedger.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -100,7 +101,8 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
         uint32_t currentStock = 0UL;
         uint32_t currentPrice = 0UL;
         String currentCurrency, status;
-        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
             currentId <= previousMaterialId ||
             !findUnsigned(line, "stock_quantity_milli", currentStock) ||
             !findUnsigned(line, "price_per_unit_minor", currentPrice) || currentPrice == 0UL ||
@@ -131,7 +133,8 @@ bool MaterialLedger::adjustMaterial(const MaterialAdjustment& adjustment,
             uint32_t verifiedStock = 0UL;
             uint32_t verifiedPrice = 0UL;
             String verifiedCurrency;
-            if (!findUnsigned(line, "stock_quantity_milli", verifiedStock) ||
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "stock_quantity_milli", verifiedStock) ||
                 verifiedStock != result.stockQuantityMilli ||
                 !findUnsigned(line, "price_per_unit_minor", verifiedPrice) ||
                 verifiedPrice != result.pricePerUnitMinor ||
@@ -192,7 +195,11 @@ bool MaterialLedger::recoverPendingAdjustment()
     const String metadata = pending.readStringUntil('\n');
     String auditLine = pending.readStringUntil('\n');
     pending.close();
-    if (auditLine.length() == 0U) return false;
+    if (!FlatJsonObjectValidator::valid(metadata) ||
+        !FlatJsonObjectValidator::valid(auditLine))
+    {
+        return false;
+    }
     auditLine += '\n';
 
     uint32_t adjustmentId = 0UL;
@@ -255,7 +262,8 @@ bool MaterialLedger::recoverPendingAdjustment()
             const String line = audit.readStringUntil('\n');
             if (line.length() == 0U) continue;
             uint32_t existing = 0UL;
-            if (!findUnsigned(line, "adjustment_id", existing) || existing == 0UL ||
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "adjustment_id", existing) || existing == 0UL ||
                 existing <= previousId)
             {
                 audit.close();
@@ -341,7 +349,8 @@ bool MaterialLedger::adjustmentExists(uint32_t adjustmentId) const
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t existing = 0UL;
-        if (!findUnsigned(line, "adjustment_id", existing) || existing == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "adjustment_id", existing) || existing == 0UL ||
             existing <= previousId)
         {
             file.close();
@@ -376,7 +385,8 @@ bool MaterialLedger::readMaterialState(uint32_t materialId,
         uint32_t stock = 0UL;
         uint32_t price = 0UL;
         String lineCurrency, status;
-        if (!findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
             currentId <= previousId ||
             !findUnsigned(line, "stock_quantity_milli", stock) ||
             !findUnsigned(line, "price_per_unit_minor", price) || price == 0UL ||

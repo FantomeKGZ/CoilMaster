@@ -24,6 +24,84 @@
 
 ---
 
+## 2026-08-08 21:00 — Flat JSON runtime persistence hardening
+
+Цель:
+
+После завершения 29-metric Stage 0 перейти только к подтверждённым correctness-проблемам: исключить ситуацию, когда syntactically malformed flat NDJSON с ещё читаемыми отдельными полями проходит startup/deep/runtime reader и влияет на API, costing, warehouse summary или manual writeoff preflight.
+
+Что сделано:
+
+- добавлен общий header-only `CM_FlatJsonObjectValidator.h` без внешней JSON dependency и без дополнительного SD pass;
+- deep business/pricing/material/warehouse/conductor settings authoritative passes теперь проверяют полный flat JSON syntax;
+- `RepairRegistry` fail-closed проверяет workshop JSON также в runtime reads/lookups;
+- strict parser выполняется один раз на authoritative outer pass; из O(n²)/O(n*m) nested identity/reference scans повторный parser убран/не добавлен;
+- `RepairCosting::load()` проверяет movement/material-usage/pricing rows перед расчётом operator-visible totals;
+- material adjustment history, usage history, pricing history и warehouse writeoff history reject malformed JSON до формирования API response/aggregates;
+- `MaterialLedger::adjustMaterial()` и pending adjustment recovery теперь требуют valid flat JSON для source material, pending metadata/audit row, durable adjustment rows и direct state lookups; rewritten material row проверяется до temp-file write;
+- `MaterialLedger::loadActiveMaterialCurrency()` теперь fail-closed на malformed catalog row;
+- warehouse summary, movement summary и next spool ID проверяют flat JSON в текущих runtime passes;
+- manual writeoff `nextMovementId()` и `rewriteSpoolWeight()` проверяют persisted state до PENDING transaction/spool swap; rewritten spool row проверяется до temp-file write;
+- `loadWarehousePrice()` и exact `loadActiveSpoolIdentity()` fail-closed проверяют persisted JSON непосредственно в writeoff/job preflight paths;
+- physical START, SSR ownership, reboot policy, PENDING→CONFIRMED|ABORTED semantics и manual `spool_id + source_session_id + source_run_id` writeoff invariants не менялись;
+- `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`, `01_CURRENT_STATE.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md`, `09_KEY_FILES_INDEX.md`, `12_LATEST_HANDOFF_2026-08-08.md` уже синхронизированы с базовым flat-JSON hardening block; текущая запись фиксирует последующее расширение runtime consumers.
+
+Ключевые commits базового JSON hardening:
+
+```text
+9ddabf613f1edf95dc1da55cbba8763414e47968  Add flat persisted JSON syntax validator
+96c863b1a1bde3a3725596940e74805da2c69111  Reject malformed flat JSON in business backup audit
+d13269bb481d056623569b9ecdf91708be6b0b8b  Fail closed on malformed workshop JSON
+07b20e9b88012446fcbc813e78b39349ecd70753  Reject malformed flat JSON in pricing audit
+b86794238cab420d1d97c3b281fa233b92ccf317  Avoid repeated JSON parsing in business identity scans
+86b19f35cad6c383377dee9c342e58f4978b0e79  Avoid repeated JSON parsing in registry duplicate scans
+16f39b33cccaeed533c39c2e0144d6942169b2c7  Reject malformed flat JSON in material persistence audit
+b3fd050c5e917691877e1c245fadde333742eed7  Reject malformed flat JSON in warehouse persistence audit
+b7b362bfe1813f27eab0c904dc9c7fc4489e6f9e  Reject malformed flat JSON in movement audit
+ab0b1f6b0381641e811fed5a18ac412ebb0667d2  Reject malformed flat JSON in conductor settings audit
+090acf40fc4470c7b8719975df7f4ce218a3cdec  Keep pricing reference scans identity focused
+02a80ea88a157ebfaee389d9c87368b36235ccbd  Fail closed on malformed costing histories
+```
+
+Ключевые commits последующего runtime/history/writeoff hardening:
+
+```text
+4d1761aa7b2b958a880b7de2b30c3bc8b09e62cd  Reject malformed pricing history JSON
+9fb8918eb8fad0c939cf04330ddfce81073c1f8c  Reject malformed write-off history JSON
+b43568c4231d9c972ed92f0b3b23c038837e3252  Reject malformed material usage history JSON
+8c3f2b76464918a889a0e5a42d27c6ac4ff82c63  Fail closed on malformed warehouse summary state
+d5c0a99449132fd343e1dc04e92e4136471dfbbb  Fail closed on malformed write-off transaction state
+ea37009b15cf5367d4c5712bdd412c16f4649827  Fail closed on malformed warehouse price state
+e01b7f8e6219558622a1c86c517c4d200f767992  Fail closed on malformed spool identity state
+```
+
+Также в этом блоке отдельными commits усилены:
+
+```text
+firmware/esp32/src/CM_MaterialHistory.cpp
+firmware/esp32/src/CM_MaterialAdjustment.cpp
+firmware/esp32/src/CM_MaterialLedgerCurrency.cpp
+```
+
+Проверка:
+
+Static repository review подтверждает self-contained `CM_FlatJsonObjectValidator.h` через `Arduino.h`, отсутствие новой library dependency и отсутствие нового filesystem pass. Generated mutation JSON/formulas/provenance не менялись. GREEN CI для текущего head не подтверждён; hardware E2E не выполнялся.
+
+Важно: большой `CM_MaterialLedger.cpp` был отдельно fetched и подготовлен к аналогичному hardening, но GitHub connector safety-filter остановил большой `update_file` **до записи**. Обход safety-filter через low-level Git object commit намеренно не использовался. Поэтому `CM_MaterialLedger.cpp` не считать полностью hardened этим блоком; его direct catalog/usage/rewrite readers остаются конкретным repo-only кандидатом.
+
+Где остановились:
+
+Flat JSON correctness hardening закрывает deep audits, workshop runtime, costing, material adjustment/currency/history consumers и основные warehouse summary/manual-writeoff consumers. Stage 0 metrics не расширялись дальше: 29 полей достаточно для hardware benchmark.
+
+Следующее действие:
+
+1. Если connector позволяет штатный SHA-guarded update без safety block — вернуться к `CM_MaterialLedger.cpp` и заменить только подтверждённые `{...}`/direct persisted row shortcuts на shared validator без новых scans.
+2. Продолжить audit оставшихся реально найденных split runtime readers/recovery helpers, не угадывая архитектуру и не меняя safety semantics.
+3. Обязательный внешний этап: ESP32 + Arduino E2E и один `/api/backup/manifest` с `items[].size_bytes` + всеми 29 metrics.
+4. Stage 1 duplicate-scan/rotation/database work не начинать до benchmark, если нет отдельной correctness причины.
+
+---
+
 ## 2026-08-08 20:04 — Per-domain deep backup timing
 
 Цель:
@@ -136,7 +214,7 @@ cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence by
 a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
 ```
 
-Документационные коммиты до этой записи:
+Документационные commits до этой записи:
 
 ```text
 19f026e778675a5423fa446e6595bc1115547f85  Document allocator and session byte observability

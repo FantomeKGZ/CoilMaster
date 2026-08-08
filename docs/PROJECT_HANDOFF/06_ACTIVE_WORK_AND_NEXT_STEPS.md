@@ -3,21 +3,21 @@
 Дата обновления: 2026-08-08  
 Ветка: `cmp-protocol-v1`
 
-Код ветки всегда выше документации по приоритету. Полный snapshot: `docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md`.
+Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
+
+Полный snapshot: `docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md`.
 
 ## Текущая оценка готовности
 
-Ориентировочно:
+Ориентировочно на текущем HEAD:
 
-- функциональный production flow: **около 94%**;
-- repository/firmware readiness: **около 90%**;
-- общая эксплуатационная готовность: **около 89%**.
+- реализованная функциональность production flow: **около 96%**;
+- repository/firmware readiness: **около 93%**;
+- общая эксплуатационная готовность: **около 90%**.
 
-Последний показатель ниже из-за отсутствия подтверждённого GREEN ESP32 build текущего HEAD и обязательного полного hardware E2E ESP32 + Arduino.
+Последний показатель намеренно ниже: текущий ESP32 HEAD ещё не имеет подтверждённого GREEN Actions result, полный ESP32 + Arduino hardware E2E не выполнен, а Stage 0 performance metrics ещё не сняты на реальном production dataset.
 
-## Уже закрыто — не повторять
-
-Production flow собран:
+## Production flow — собран и web-routes зарегистрированы
 
 ```text
 client → motor → OPEN repair → costing → linked winding → exact spool_id
@@ -27,263 +27,202 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 → finalization preflight → CLOSED → archive/report → read-only backup
 ```
 
-Также закрыты:
+Текущий production web bootstrap реально регистрирует:
 
-- persistent allocator/session state/recovery;
-- strict repair/motor/coil_program linkage;
-- exact spool selection и run-level provenance;
-- winding history + transition validation;
-- warehouse/material recovery и costing;
-- finalization coverage;
-- whitelist backup/export + deep persistence integrity;
-- backup winding scan через `WindingJournalQuery::validateAll()` + transition audit;
-- backup/run-level HTTP semantics audit;
-- Stage 0 backup observability до 29 metrics;
-- flat persisted JSON hardening основных backup/runtime/history/writeoff readers.
+```text
+workshop clients/motors/repairs
+motor similarity
+warehouse summary/spools/price
+warehouse writeoff GET/POST
+materials CRUD/usage/adjustments
+repair costing/pricing history
+conductor calculator
+conductor settings
+backup manifest/file/session export
+```
 
-Safety invariants не менять:
+Ключевые bootstrap commits:
+
+```text
+961229e410b91b788984a2ee14a1a8b4f1276073  Register warehouse writeoff routes in production bootstrap
+74f5bea9273ab47d5df1c4ef2f0557445b21a6ed  Register production material and conductor APIs
+```
+
+`WarehouseWeb::begin()` является гарантированно вызываемым production bootstrap point из текущего `main.cpp`. Material/costing/conductor handlers остаются fail-closed, если соответствующий store/recovery недоступен.
+
+## Safety invariants — не менять
 
 - physical START только физический;
 - ESP32/Web не управляют SSR напрямую;
-- после reboot нет auto-resume;
-- `RUN_COMPLETED` сам по себе не списывает wire;
-- wire writeoff остаётся ручным и связан с exact `spool_id`, `source_session_id + source_run_id`.
+- automatic resume после reboot отсутствует;
+- `RUN_COMPLETED` сам по себе не выполняет wire writeoff;
+- wire writeoff остаётся ручным;
+- writeoff связан с exact `spool_id`, `source_session_id + source_run_id`;
+- corrupted persistence/storage loss блокирует опасную операцию fail-closed.
 
-## Stage 0 performance observability
+## Winding / finalization / writeoff integrity — текущий уровень
 
-Manifest возвращает **29 metrics без telemetry-only full scan**.
-
-Per-domain timing:
-
-```text
-snapshot_stability_duration_ms
-persistent_id_audit_duration_ms
-conductor_settings_audit_duration_ms
-material_persistence_audit_duration_ms
-business_data_audit_duration_ms
-winding_persistence_audit_duration_ms
-warehouse_persistence_audit_duration_ms
-warehouse_movements_audit_duration_ms
-winding_session_directory_scan_duration_ms
-winding_session_persistence_audit_duration_ms
-```
-
-Population/high-water/size:
+Authoritative full winding validation:
 
 ```text
-winding_allocator_last_id
-material_catalog_record_count
-material_usage_record_count
-material_adjustment_record_count
-workshop_client_record_count
-workshop_motor_record_count
-workshop_repair_record_count
-repair_status_record_count
-repair_pricing_record_count
-winding_journal_record_count
-winding_snapshot_file_count
-winding_state_file_count
-winding_spool_selection_file_count
-winding_snapshot_total_bytes
-winding_state_total_bytes
-winding_spool_selection_total_bytes
-warehouse_spool_record_count
-warehouse_price_record_count
-warehouse_movement_record_count
+WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
 ```
 
-Не добавлять новые metrics ради количества. До benchmark не вводить arbitrary rotation threshold, persistent optimistic cache или database migration.
+`validateAll()` теперь проверяет полный flat JSON syntax, schema fields, single `event`, single nullable `repair_id/motor_id`, canonical numeric values и linkage shape.
 
-## Flat persisted JSON correctness hardening
+Ключевые commits:
 
-Shared validator:
+```text
+f3e02dadce34c7a85e11d23154652a469d6aa111  Make winding validateAll reject malformed JSON
+796724367eef66a3e2ba2b95c90cb03df641ac73  Reject duplicate winding event keys in query parser
+b3b12496837721f83895c93799e14b007f584869  Reject duplicate winding event keys in transition audit
+d92b6f1c19a5d0c5c2abb3663410e9202bcd385e  Use authoritative winding validation for finalization
+9e18cd076b8e1ad904e3893aab20cde1a4e596a8  Require authoritative winding integrity before writeoff
+d7c601fe18d8b60794334cb2572e40a7777cc0d2  Reject malformed winding JSON during startup validation
+```
+
+Startup `WindingJournal::begin()` теперь выполняет full flat-JSON syntax proof внутри уже существующего `validateJournalStructure()` pass. Дополнительного startup full scan ради syntax не добавлено; повторные save-path helper scans намеренно не получили parser multiplier.
+
+Manual wire writeoff completion proof требует full schema + transition integrity до проверки exact completed `(session_id, run_id)`.
+
+Finalization/CLOSED больше не строит временные cursor-pagination JSON pages ради integrity scan; используется authoritative EOF validation.
+
+## Flat persisted JSON runtime hardening
+
+Shared primitive-flat-object validator:
 
 ```text
 firmware/esp32/src/CM_FlatJsonObjectValidator.h
 ```
 
-Он проверяет полный синтаксис уже прочитанного flat JSON object без внешней JSON dependency и без нового filesystem pass.
+Он используется в основных backup/startup/runtime/history/writeoff readers workshop/material/warehouse/settings/winding. Это не новый filesystem pass: parser применяется к уже прочитанной строке.
 
-Уже hardened authoritative/runtime readers включают:
-
-```text
-CM_BackupBusinessDataIntegrityAudit
-CM_RepairRegistry
-CM_RepairPricingIntegrityAudit
-CM_MaterialPersistenceIntegrityAudit
-CM_WarehousePersistenceIntegrityAudit
-CM_WarehouseMovementIntegrityAudit
-CM_ConductorSettingsIntegrityAudit
-CM_RepairCosting
-CM_MaterialHistory
-CM_MaterialUsageHistory
-CM_MaterialAdjustment
-CM_MaterialLedgerCurrency
-CM_RepairPricingHistory
-CM_WarehouseWriteOffHistory
-CM_WarehouseStore
-CM_WarehouseWriteOff
-CM_WarehousePrice
-CM_WarehouseSpoolIdentity
-CM_RepairLifecycle
-CM_WindingJournalTransitionAudit
-CM_WindingJournalQuery
-```
-
-Repeated O(n²)/O(n*m) identity/reference scans не должны получать parser multiplier, если соответствующий authoritative outer pass уже доказал syntax.
-
-## Последний winding/finalization safety block
-
-### Repair lifecycle
-
-`CM_RepairLifecycle.h` теперь использует `FlatJsonObjectValidator` для `/data/workshop/repair-status.ndjson`.
-
-Commit:
+Крупный ранее открытый `CM_MaterialLedger.cpp` теперь закрыт:
 
 ```text
-fcae62f726ea82d3dfecb2a432d969e683e069ab  Fail closed on malformed repair lifecycle state
+c4ff5ff4d195959c3fc70bd8e0b8bf72ac5a0525  Fail closed on malformed material ledger runtime state
 ```
 
-Это влияет на OPEN/CLOSED preflight, используемый costing/material/writeoff paths.
-
-### Finalization journal validation
-
-`CM_RepairFinalizationGuard.cpp` больше не делает полный integrity scan через cursor-pagination `appendHistoryJson()` с временными 4 KB JSON pages.
-
-Теперь используется:
-
-```text
-WindingJournalQuery::validateAll()
-WindingJournalTransitionAudit::validate()
-```
-
-Commit:
-
-```text
-d92b6f1c19a5d0c5c2abb3663410e9202bcd385e  Use authoritative winding validation for finalization
-```
-
-Тот же guard используется и read-only finalization preview, и фактическим `POST /api/repairs/close`, поэтому CLOSED invariant сохранён.
-
-### Manual wire writeoff completion proof
-
-`CM_WindingSessionCompletionAudit.cpp` раньше доказывал в основном наличие `RUN_COMPLETED` для session/run.
-
-Теперь перед lookup конкретного run выполняются:
-
-```text
-WindingJournalQuery::validateAll()
-WindingJournalTransitionAudit::validate()
-```
-
-То есть ручное списание не разрешается на основе изолированной `RUN_COMPLETED`, если журнал имеет schema corruption или нарушенную последовательность `RUN_STARTED → RUN_COMPLETED`.
-
-Commit:
-
-```text
-9e18cd076b8e1ad904e3893aab20cde1a4e596a8  Require authoritative winding integrity before writeoff
-```
-
-Это дополнительный read на ручной safety-critical операции; он введён по correctness-причине, а не как performance feature.
-
-### Transition audit JSON syntax
-
-`CM_WindingJournalTransitionAudit.cpp` теперь сам fail-closed проверяет flat JSON syntax перед state-machine parsing.
-
-Commit:
-
-```text
-6a9d47f889ef0197fcb5b85b3c838984d3fb4e74  Reject malformed JSON in winding transition audit
-```
-
-### `validateAll()` теперь действительно strict JSON authority
-
-Repository review выявил, что `WindingJournalQuery::validateAll()` вызывал schema1/schema2 validators, которые ранее проверяли внешние `{...}` и required fields, но не полный JSON syntax.
-
-`CM_WindingJournalQuery.cpp` теперь вызывает `FlatJsonObjectValidator::valid(line)` внутри обоих record validators.
-
-Commit:
-
-```text
-f3e02dadce34c7a85e11d23154652a469d6aa111  Make winding validateAll reject malformed JSON
-```
-
-Практически это усиливает сразу:
-
-- deep backup winding integrity;
-- finalization/CLOSED preflight;
-- manual writeoff completion proof;
-- cursor history API parsing.
-
-## Явно незакрытые repo-only correctness кандидаты
-
-### 1. `CM_MaterialLedger.cpp`
-
-В большом файле остаются direct persisted-row paths со старым selected-field parsing:
+Теперь strict JSON validation применяется в:
 
 - material catalog JSON output;
-- material row scan перед usage confirmation;
-- pending usage recovery/durable lookup;
-- direct stock lookup;
-- generic next ID scan;
-- quantity rewrite/restore source rows.
+- material scan перед usage confirmation;
+- pending usage metadata + audit line recovery;
+- durable usage lookup;
+- stock lookup;
+- generic next-ID scan;
+- atomic quantity rewrite/restore source rows;
+- rewritten row проверяется до temp-file write.
 
-Обычный большой `update_file` ранее был остановлен connector safety-filter **до записи**. Не использовать low-level Git object workflow для обхода filter. Если обычный SHA-guarded update проходит — harden rows shared validator’ом без broad audit перед каждой mutation.
+Pending usage recovery дополнительно требует совпадения `usage_id/material_id` metadata и audit line.
 
-### 2. Startup `WindingJournal::begin()`
+## Conductor settings — authoritative production path
 
-`main.cpp` на boot делает:
+Реальный server-authoritative settings file:
 
 ```text
-journalReady = sdReady && journal.begin();
+/data/settings/conductor.json
 ```
 
-`CM_WindingJournal.cpp::validateJournalStructure()` всё ещё использует старый outer-brace/selected-field parsing. После изменения `WindingJournalQuery` backup/finalization/writeoff authority strict, но startup journal readiness ещё не полностью выровнена с новым flat-JSON contract.
+Ранний `ConductorSettingsStore` с `/data/settings/conductor-calculator.ndjson` был промежуточной реализацией и не является production contract.
 
-Перед изменением большого `CM_WindingJournal.cpp` выбрать аккуратный granular approach. Не добавлять `FlatJsonObjectValidator` во все повторные helper scans вслепую: event save path уже выполняет несколько full scans, поэтому parser multiplier надо оценивать отдельно.
+Исправлено:
 
-Приоритет: сделать startup authoritative syntax proof с минимальным дополнительным I/O/CPU и сохранить существующую transition/session-context semantics.
+- active runtime store strict JSON;
+- `allow_mixed_diameters` теперь действительно сохраняется;
+- старый `conductor.json` без этого поля читается backward-compatible как `true`;
+- deep settings audit проверяет `conductor.json`;
+- наличие legacy `conductor-calculator.*` считается ambiguous persistence и делает deep audit fail-closed;
+- backup whitelist экспортирует `conductor.json`, а не experimental NDJSON;
+- warehouse-aware calculator catalog fail-closed на malformed spool rows.
 
-## Performance hotspots — пока измерять, не рефакторить
+Ключевые commits:
 
-Подтверждены:
+```text
+6cde2831f190918f102ca39eb9f6b3687a7602ea  Persist and validate mixed conductor setting
+932624e5a83187eca6545182fefb3cfd81f0bc77  Audit production conductor settings file
+012cd0816a53489bb6169b69f3079f6ce46f9de5  Export production conductor settings file
+b006e77152777873a756f2356d5b9546d821dada  Reject malformed calculator wire catalogue rows
+```
 
-- `MaterialPersistenceIntegrityAudit::check()` транзитивно вызывает broad workshop/pricing dependency audits;
-- business uniqueness/reference lookups имеют повторные scans;
-- warehouse reference validation повторно ищет spool/repair references;
-- backup preliminary session-directory scan идёт перед authoritative deep session audit;
-- `WireWriteOffCoverageAudit` использует cursor pages журнала и повторный movements scan для completed runs.
+## Stage 0 backup observability — достаточно, не расширять ради количества
 
-Последний пункт может быть дорогим O(n*m), но сейчас он correctness-correct и закрывает coverage. Не заменять его новым index до фактического benchmark.
+Manifest возвращает 29 runtime metrics без telemetry-only full scan:
 
-## CI status
+- total snapshot stability duration;
+- 9 per-domain durations;
+- allocator high-water;
+- material/business/winding/warehouse record counts;
+- session snapshot/state/spool-selection counts;
+- session byte totals.
 
-Последняя ранее подтверждённая Actions failure была missing closing brace в `CM_MaterialLedger.cpp`, исправленная:
+Сохраняются правила:
+
+- `BackupActivityGuard::Safe` gating;
+- no deep scan while winding active;
+- failed-domain duration может публиковаться, неисполненные последующие domains остаются `null`;
+- partial domain counts/high-water не публикуются;
+- session byte overflow telemetry-only и не меняет integrity result.
+
+Не добавлять новые metrics до benchmark.
+
+## Известные performance hotspots — пока измерять
+
+- transitive material → workshop/pricing integrity scans;
+- business uniqueness/reference repeated scans;
+- warehouse reference repeated scans;
+- preliminary session-directory scan до authoritative session audit;
+- `WireWriteOffCoverageAudit`: cursor pages + repeated movement scans для completed runs;
+- writeoff fallback spool-selection store делает directory audit, когда `WarehouseWeb` не получил готовый `JobSpoolSelectionStore*`.
+
+Последний пункт не ослабляет exact-spool provenance и является performance cleanup candidate, не correctness bug.
+
+До реального benchmark не начинать database migration, persistent optimistic cache или arbitrary rotation threshold.
+
+## CI / compile verification
+
+Последняя исторически подтверждённая compile failure была missing closing brace в `CM_MaterialLedger.cpp`, исправленная:
 
 ```text
 77fd7dd4db3767c33106d63e6f9174e6559b9bc8
 ```
 
-Новые commits не считать GREEN без фактического build result. Отсутствие status/workflow run в connector не является GREEN.
+Для текущего HEAD combined statuses/workflow runs через connector пока не видны. Это означает **CI NOT CONFIRMED**, а не GREEN.
 
-## Следующее практическое действие
+Static diff review последних whole-file updates подтвердил:
 
-Repo-only до стенда:
+- `CM_BackupExportWeb.cpp` changed only conductor whitelist entry;
+- `CM_WindingJournal.cpp` changed only validator include + startup structural syntax check;
+- `CM_WarehouseWeb.cpp` changed only service includes + route/service registration;
+- `CM_MaterialLedger.cpp` changed только заявленные runtime/recovery validation paths.
 
-1. Попытаться закрыть `CM_MaterialLedger.cpp` только обычным SHA-guarded contents update.
-2. Спроектировать минимальный startup strict-validation change для `WindingJournal::begin()` без parser multiplier по всем helper scans.
-3. После каждого изменения — static compile/include review и фактический CI result, если connector его показывает.
-4. Не начинать Stage 1 performance refactor до benchmark без отдельной correctness-причины.
+Это не заменяет фактический ESP32 build.
 
-Внешне обязательный этап — реальный hardware E2E ESP32 + Arduino:
+## Следующее repo-only действие
+
+1. Проверить фактический current-head ESP32 build/Actions, если run станет видимым.
+2. Продолжать только по конкретно найденным correctness/compile gaps; не угадывать filenames и не создавать duplicate implementations.
+3. Найти точную реализацию tri-state `WarehouseStore::repairExists(uint32_t, bool&)` только через подтверждённый branch path/history; проверить её fail-closed semantics. Не создавать второй symbol по предположению.
+4. После hardware benchmark выбрать первый измеренный performance hotspot и только тогда проектировать bounded index/audit decomposition/rotation.
+
+## Обязательный следующий внешний этап — hardware E2E
 
 ```text
-linked repair → exact spool → JOB_ACK → physical START
-→ RUN_STARTED → RUN_COMPLETED → manual wire writeoff
-→ costing → finalization preflight → CLOSED → stable backup
+linked repair
+→ exact spool
+→ JOB_ACK
+→ physical START
+→ RUN_STARTED
+→ RUN_COMPLETED
+→ manual wire writeoff
+→ costing
+→ finalization preflight
+→ CLOSED
+→ stable backup
 ```
 
-На стенде сохранить один `/api/backup/manifest`:
+Снять один `/api/backup/manifest` после полного flow:
 
 ```text
 items[].size_bytes
@@ -291,12 +230,15 @@ items[].size_bytes
 snapshot_stability_duration_ms
 ```
 
-И отдельно fault cases:
+Fault cases отдельно:
 
 - reboot/manual-review;
 - microSD loss;
 - corrupted persistence;
-- UART faults;
+- UART timeout/reject/duplicate events;
 - duplicate writeoff;
+- writeoff wrong session/run/spool;
 - close without wire coverage;
 - backup during active winding.
+
+Только после этого эксплуатационную готовность можно поднимать существенно выше 90%.

@@ -59,20 +59,40 @@ Root `platformio.ini` для `env:esp32` включает `firmware/esp32/src/*.
 
 Решение остаётся: не мигрировать в БД и не вводить rotation threshold до реальных измерений.
 
-Manifest теперь возвращает без дополнительного full scan:
+Manifest теперь возвращает без дополнительного telemetry full scan:
 
 ```text
 snapshot_stability_duration_ms
 material_catalog_record_count
 material_usage_record_count
 material_adjustment_record_count
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
 winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
 warehouse_movement_record_count
 ```
 
-### Winding
+### Winding journal
 
 `winding_journal_record_count` считается в существующем authoritative EOF-pass `WindingJournalQuery::validateAll()` и публикуется только после успешной winding schema + transition validation.
+
+### Winding session persistence
+
+`WindingSessionPersistenceAuditMetrics` возвращает:
+
+```text
+snapshotFileCount
+stateFileCount
+spoolSelectionFileCount
+```
+
+Старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload. Counts считаются в существующих deep parser/cross-identity проходах по session files и публикуются только после полного успешного session persistence audit. Отдельного directory/full-file pass ради telemetry нет.
 
 ### Warehouse movements
 
@@ -80,7 +100,7 @@ warehouse_movement_record_count
 
 ### Materials
 
-Добавлен `MaterialPersistenceAuditMetrics`:
+`MaterialPersistenceAuditMetrics` возвращает:
 
 ```text
 materialRecordCount
@@ -89,6 +109,20 @@ adjustmentRecordCount
 ```
 
 Старый `MaterialPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload. Counts собираются в уже существующих scans `materials.ndjson`, `usage.ndjson`, `adjustments.ndjson`; дополнительного чтения файлов ради telemetry нет. Счётчики публикуются только после успешного текущего material persistence audit. Если конкретный material файл отсутствует, successful audit даёт `0`, а наличие файла отдельно видно в manifest `items[].exists`.
+
+### Business/workshop/pricing
+
+`BackupBusinessDataAuditMetrics` возвращает:
+
+```text
+clientRecordCount
+motorRecordCount
+repairRecordCount
+repairStatusRecordCount
+pricingRecordCount
+```
+
+Старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует metrics overload. Client/motor/repair counts собираются в уже существующих uniqueness scans, repair-status/pricing counts — в существующих parser/reference passes. Partial counts при failed business audit наружу не публикуются; дополнительного full-file чтения ради telemetry нет.
 
 Кодовые commits текущего расширения Stage 0:
 
@@ -99,9 +133,15 @@ a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
 ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
 6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
 38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
+9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
+afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
+abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
+cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
+33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
+1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
 ```
 
-Документация:
+Документация последних observability шагов:
 
 ```text
 0f10ed32d110c28b21af7c46c6be20a084c6ba2b  Document material backup observability
@@ -109,28 +149,32 @@ ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit coun
 1a78e23bdfc3addb7826845fc8273b33d96f5e67  Record material backup observability in current state
 9f32a1c953017447a71d907535ac2cf0398a5098  Refresh backup and winding key file index
 5a7070d805eb902e11046b7dfe94af169d549e99  Record material metrics integration review
+7cb635d4088d38cef58dcb39bc170bf7f55dd0c7  Document winding session backup observability
+702edf98c9b993332fdaf17aa2359c1128391f27  Document business backup observability
+b13bcb6d19fe9aaac13d4a01a273e9823dd4fb50  Complete business observability handoff
 ```
 
 Эти commits не считать GREEN без фактического Actions result.
 
-## Material metrics integration review
+## Metrics integration review
 
-Повторно просмотрены актуальные `CM_MaterialPersistenceIntegrityAudit.h/.cpp`, `CM_BackupExportWeb.cpp`, `CM_WorkshopPersistenceIntegrityAudit.cpp` и `CM_RepairPricingIntegrityAudit.cpp`.
+Повторно просмотрены актуальные business/material/winding-session audit contracts и `CM_BackupExportWeb.cpp`.
 
 На уровне static repository review подтверждено:
 
-- compatibility `check(storage)` сохранён;
-- public metrics header самостоятельно включает `FS.h` и `stdint.h`;
-- counters считаются внутри уже существующих validation loops;
-- partial metrics не публикуются при failure полного material audit;
+- compatibility `check(storage)` сохранён у добавленных metrics overloads;
+- public metrics headers самостоятельно включают `FS.h` и `stdint.h`;
+- counters считаются внутри уже существующих validation loops/passes;
+- partial business/material/session metrics не публикуются после failed domain audit;
 - `BackupActivityGuard::Safe` gating не изменён;
-- winding/session deep audits не заменены и не продублированы material observability логикой.
+- winding `validateAll()` и session deep parser/cross-identity audit не заменены и не продублированы telemetry-логикой;
+- safety boundary физического START/SSR/writeoff не затронута.
 
-Отдельной correctness-причины для дополнительного code refactor в этом review не найдено. Это не доказательство успешного ESP32 build.
+Это static repository review, а не доказательство успешного ESP32 build.
 
-## Найденный composition hotspot
+## Найденные composition/performance hotspots
 
-Repository review подтвердил, что полный `MaterialPersistenceIntegrityAudit::check()` после собственных material scans транзитивно вызывает:
+Полный `MaterialPersistenceIntegrityAudit::check()` после собственных material scans транзитивно вызывает:
 
 ```text
 WorkshopPersistenceIntegrityAudit::check()
@@ -139,15 +183,27 @@ RepairPricingIntegrityAudit::check()
 
 `WorkshopPersistenceIntegrityAudit` затем снова проверяет warehouse, allocator, winding session persistence, winding journal schema и transitions. Backup orchestration позже проверяет эти domains ещё раз отдельными audit’ами.
 
-Это доказанный duplicate-I/O path, но пока не повод преждевременно менять storage format. После benchmark безопасный Stage 1 вариант — разделить local material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз, сохранив старые public contracts для других callers.
+Кроме того, `BackupBusinessDataIntegrityAudit` намеренно использует повторные uniqueness/reference scans. Это не correctness bug, но новые business counts позволяют измерить влияние по реальной population.
 
-Не начинать этот refactor только ради эстетики до измерений, если не обнаружена отдельная correctness проблема.
+После benchmark безопасный Stage 1 вариант — разделить local material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз, сохранив старые public contracts для других callers. Для business reference lookups bounded in-request index рассматривать только если измерения покажут hotspot и с явным RAM limit/fail-closed поведением.
+
+Не начинать эти refactors только ради эстетики до измерений, если не обнаружена отдельная correctness проблема.
 
 ## Что измерить на hardware/E2E стенде
 
 Сохранить один и тот же manifest/замер вместе с:
 
 ```text
+workshop-clients.size_bytes
+workshop_client_record_count
+workshop-motors.size_bytes
+workshop_motor_record_count
+workshop-repairs.size_bytes
+workshop_repair_record_count
+repair-status.size_bytes
+repair_status_record_count
+repair-pricing.size_bytes
+repair_pricing_record_count
 materials.size_bytes
 material_catalog_record_count
 material-usage.size_bytes
@@ -156,12 +212,15 @@ material-adjustments.size_bytes
 material_adjustment_record_count
 winding-events.size_bytes
 winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
 warehouse-movements.size_bytes
 warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-По этим данным выбирать первый реальный hotspot. До этого не вводить persistent optimistic cache, arbitrary rotation threshold или database migration.
+По этим данным выбирать первый реальный hotspot. До этого не вводить persistent optimistic cache, arbitrary rotation threshold, Stage 1 duplicate-scan refactor или database migration.
 
 ## Точная следующая repo-only точка
 

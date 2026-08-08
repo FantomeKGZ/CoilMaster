@@ -1,4 +1,6 @@
 #include "CM_MaterialPersistenceIntegrityAudit.h"
+#include "CM_WorkshopPersistenceIntegrityAudit.h"
+#include "CM_RepairPricingIntegrityAudit.h"
 #include <Arduino.h>
 
 namespace CM
@@ -239,6 +241,10 @@ bool checkAdjustments(fs::FS& storage)
 
 bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage)
 {
-    return checkMaterials(storage) && checkUsage(storage) && checkAdjustments(storage);
+    return checkMaterials(storage) &&
+           checkUsage(storage) &&
+           checkAdjustments(storage) &&
+           WorkshopPersistenceIntegrityAudit::check(storage) &&
+           RepairPricingIntegrityAudit::check(storage);
 }
 }

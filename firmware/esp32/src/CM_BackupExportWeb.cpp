@@ -1,6 +1,7 @@
 #include "CM_BackupExportWeb.h"
 #include "CM_BackupActivityGuard.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
+#include "CM_WarehousePersistenceIntegrityAudit.h"
 #include "CM_MaterialPersistenceIntegrityAudit.h"
 #include "CM_BackupBusinessDataIntegrityAudit.h"
 #include "CM_WindingPersistenceIntegrityAudit.h"
@@ -220,6 +221,9 @@ const char* snapshotStabilityReason(fs::FS& storage)
 
     if (!WindingPersistenceIntegrityAudit::check(storage))
         return "winding_persistence_unstable_or_invalid";
+
+    if (!WarehousePersistenceIntegrityAudit::check(storage))
+        return "warehouse_persistence_unstable_or_invalid";
 
     if (storage.exists(WarehouseMovementsPath) &&
         !WarehouseMovementIntegrityAudit::check(storage))

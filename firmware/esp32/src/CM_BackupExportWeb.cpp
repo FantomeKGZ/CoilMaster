@@ -29,6 +29,10 @@ struct RecoveryMarkerDefinition
 
 struct SnapshotAuditMetrics
 {
+    bool materialRecordCountsMeasured = false;
+    uint32_t materialCatalogRecordCount = 0UL;
+    uint32_t materialUsageRecordCount = 0UL;
+    uint32_t materialAdjustmentRecordCount = 0UL;
     bool windingJournalRecordCountMeasured = false;
     uint32_t windingJournalRecordCount = 0UL;
     bool warehouseMovementRecordCountMeasured = false;
@@ -219,6 +223,10 @@ SessionScanResult scanSessionDirectory(fs::FS& storage,
 const char* snapshotStabilityReason(fs::FS& storage,
                                     SnapshotAuditMetrics& metrics)
 {
+    metrics.materialRecordCountsMeasured = false;
+    metrics.materialCatalogRecordCount = 0UL;
+    metrics.materialUsageRecordCount = 0UL;
+    metrics.materialAdjustmentRecordCount = 0UL;
     metrics.windingJournalRecordCountMeasured = false;
     metrics.windingJournalRecordCount = 0UL;
     metrics.warehouseMovementRecordCountMeasured = false;
@@ -236,8 +244,13 @@ const char* snapshotStabilityReason(fs::FS& storage,
     if (!ConductorSettingsIntegrityAudit::check(storage))
         return "conductor_settings_unstable_or_invalid";
 
-    if (!MaterialPersistenceIntegrityAudit::check(storage))
+    MaterialPersistenceAuditMetrics materialMetrics;
+    if (!MaterialPersistenceIntegrityAudit::check(storage, materialMetrics))
         return "material_persistence_unstable_or_invalid";
+    metrics.materialCatalogRecordCount = materialMetrics.materialRecordCount;
+    metrics.materialUsageRecordCount = materialMetrics.usageRecordCount;
+    metrics.materialAdjustmentRecordCount = materialMetrics.adjustmentRecordCount;
+    metrics.materialRecordCountsMeasured = true;
 
     if (!BackupBusinessDataIntegrityAudit::check(storage))
         return "business_data_unstable_or_invalid";
@@ -420,6 +433,21 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += stabilityDurationMs;
+    response += F(",\"material_catalog_record_count\":");
+    if (!stabilityChecked || !auditMetrics.materialRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.materialCatalogRecordCount;
+    response += F(",\"material_usage_record_count\":");
+    if (!stabilityChecked || !auditMetrics.materialRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.materialUsageRecordCount;
+    response += F(",\"material_adjustment_record_count\":");
+    if (!stabilityChecked || !auditMetrics.materialRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.materialAdjustmentRecordCount;
     response += F(",\"winding_journal_record_count\":");
     if (!stabilityChecked || !auditMetrics.windingJournalRecordCountMeasured)
         response += F("null");
@@ -431,7 +459,7 @@ void BackupExportWeb::handleManifest()
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(4000U);
+    response.reserve(4200U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

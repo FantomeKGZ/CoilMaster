@@ -3,6 +3,17 @@
 
 namespace CM
 {
+namespace
+{
+bool hasSingleEventKey(const String& line)
+{
+    const String marker = F("\"event\":");
+    const int position = line.indexOf(marker);
+    return position >= 0 &&
+           line.indexOf(marker, position + marker.length()) < 0;
+}
+}
+
 WindingJournalQuery::WindingJournalQuery(fs::FS& storage)
     : m_storage(storage), m_ready(false)
 {
@@ -217,6 +228,7 @@ bool WindingJournalQuery::isValidLegacySchema1Record(const String& line)
     uint32_t completedRuns = 0UL;
     uint32_t uptimeMs = 0UL;
     if (!FlatJsonObjectValidator::valid(line) ||
+        !hasSingleEventKey(line) ||
         !findUnsigned(line, "schema_version", schemaVersion) ||
         schemaVersion != 1UL ||
         !findUnsigned(line, "run_id", runId) || runId == 0UL ||
@@ -235,10 +247,6 @@ bool WindingJournalQuery::isValidLegacySchema1Record(const String& line)
     const bool started = startedPosition >= 0;
     const bool completed = completedPosition >= 0;
     if (started == completed ||
-        (started && line.indexOf(startedMarker,
-                                 startedPosition + startedMarker.length()) >= 0) ||
-        (completed && line.indexOf(completedMarker,
-                                   completedPosition + completedMarker.length()) >= 0) ||
         (started && completedRuns != 0UL) ||
         (completed && completedRuns == 0UL))
     {
@@ -264,6 +272,7 @@ bool WindingJournalQuery::isValidSchema2Record(const String& line,
     uint32_t uptimeMs = 0UL;
     uint32_t motorId = 0UL;
     if (!FlatJsonObjectValidator::valid(line) ||
+        !hasSingleEventKey(line) ||
         !findUnsigned(line, "schema_version", schemaVersion) ||
         schemaVersion != 2UL ||
         !findUnsigned(line, "job_id", jobId) || jobId == 0UL ||
@@ -283,10 +292,6 @@ bool WindingJournalQuery::isValidSchema2Record(const String& line,
     const bool started = startedPosition >= 0;
     const bool completed = completedPosition >= 0;
     if (started == completed ||
-        (started && line.indexOf(startedMarker,
-                                 startedPosition + startedMarker.length()) >= 0) ||
-        (completed && line.indexOf(completedMarker,
-                                   completedPosition + completedMarker.length()) >= 0) ||
         (started && completedRuns != 0UL) ||
         (completed && completedRuns == 0UL))
     {

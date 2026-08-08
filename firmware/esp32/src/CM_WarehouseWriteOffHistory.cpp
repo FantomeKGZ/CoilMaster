@@ -25,7 +25,9 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
     uint32_t pendingSpoolId = 0UL;
     uint32_t pendingRepairId = 0UL;
     uint32_t pendingSourceSessionId = 0UL;
+    uint32_t pendingSourceRunId = 0UL;
     bool pendingHasSourceSession = false;
+    bool pendingHasSourceRun = false;
     uint32_t pendingBefore = 0UL;
     uint32_t pendingAfter = 0UL;
     uint32_t pendingMass = 0UL;
@@ -43,6 +45,7 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
         uint32_t movementId = 0UL;
         uint32_t spoolId = 0UL;
         uint32_t sourceSessionId = 0UL;
+        uint32_t sourceRunId = 0UL;
         uint32_t diameter = 0UL;
         uint32_t before = 0UL;
         uint32_t after = 0UL;
@@ -68,9 +71,13 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
         }
 
         const bool hasSourceSession = line.indexOf(F("\"source_session_id\":")) >= 0;
-        if (hasSourceSession &&
-            (!findUnsigned(line, "source_session_id", sourceSessionId) ||
-             sourceSessionId == 0UL))
+        const bool hasSourceRun = line.indexOf(F("\"source_run_id\":")) >= 0;
+        if ((hasSourceSession &&
+             (!findUnsigned(line, "source_session_id", sourceSessionId) ||
+              sourceSessionId == 0UL)) ||
+            (hasSourceRun &&
+             (!hasSourceSession || !findUnsigned(line, "source_run_id", sourceRunId) ||
+              sourceRunId == 0UL)))
         {
             file.close();
             return false;
@@ -105,7 +112,9 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
             pendingSpoolId = spoolId;
             pendingRepairId = currentRepairId;
             pendingSourceSessionId = sourceSessionId;
+            pendingSourceRunId = sourceRunId;
             pendingHasSourceSession = hasSourceSession;
+            pendingHasSourceRun = hasSourceRun;
             pendingBefore = before;
             pendingAfter = after;
             pendingMass = mass;
@@ -126,6 +135,8 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
             spoolId != pendingSpoolId || currentRepairId != pendingRepairId ||
             hasSourceSession != pendingHasSourceSession ||
             sourceSessionId != pendingSourceSessionId ||
+            hasSourceRun != pendingHasSourceRun ||
+            sourceRunId != pendingSourceRunId ||
             before != pendingBefore || after != pendingAfter || mass != pendingMass ||
             price != pendingPrice || currency != pendingCurrency ||
             timestamp != pendingTimestamp || comment != pendingComment)
@@ -143,7 +154,9 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
             }
             pendingId = 0UL;
             pendingSourceSessionId = 0UL;
+            pendingSourceRunId = 0UL;
             pendingHasSourceSession = false;
+            pendingHasSourceRun = false;
             continue;
         }
 
@@ -177,6 +190,9 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
             json += F(",\"repair_id\":"); json += currentRepairId;
             json += F(",\"source_session_id\":");
             if (hasSourceSession) json += sourceSessionId;
+            else json += F("null");
+            json += F(",\"source_run_id\":");
+            if (hasSourceRun) json += sourceRunId;
             else json += F("null");
             json += F(",\"diameter_hundredths_mm\":"); json += diameter;
             json += F(",\"wire_type\":");
@@ -235,7 +251,9 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
 
         pendingId = 0UL;
         pendingSourceSessionId = 0UL;
+        pendingSourceRunId = 0UL;
         pendingHasSourceSession = false;
+        pendingHasSourceRun = false;
     }
 
     file.close();

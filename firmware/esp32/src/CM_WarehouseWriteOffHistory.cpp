@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -40,6 +41,11 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+        if (!FlatJsonObjectValidator::valid(line))
+        {
+            file.close();
+            return false;
+        }
 
         uint32_t currentRepairId = 0UL;
         uint32_t movementId = 0UL;

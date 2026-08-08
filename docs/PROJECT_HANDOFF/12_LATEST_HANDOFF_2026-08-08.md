@@ -2,7 +2,7 @@
 
 Ветка: `cmp-protocol-v1`  
 Репозиторий: `FantomeKGZ/CoilMaster`  
-Этот файл создан как максимально свежая точка входа для нового чата после большой серии изменений backend/UI/integrity/backup.
+Этот файл — свежая точка входа после backup-integrity, HTTP semantics и NDJSON performance review.
 
 ## 1. Главные правила продолжения
 
@@ -11,7 +11,7 @@
 - Перед каждым edit/delete заново fetch текущего файла из `cmp-protocol-v1` и использовать его blob SHA.
 - Новый файл сначала проверять на отсутствие точного пути.
 - Не считать документацию или отсутствие workflow-run доказательством зелёного CI.
-- Не заявлять hardware E2E без реального стенда ESP32 + Arduino.
+- Не заявлять hardware E2E без реального стенда ESP32 + Arduino и подтверждения пользователя.
 - Не делать auto physical START, auto resume после reboot, direct SSR с ESP32/WEB или automatic wire writeoff только по `RUN_COMPLETED`.
 
 ## 2. Production workflow, который уже собран
@@ -57,7 +57,8 @@ client
 - единый `CM_WindingProgramParser`;
 - winding journal schema 2;
 - strict writer scans;
-- full read-only winding history с cursor pagination;
+- read-only winding history с cursor pagination для пользовательского API;
+- full-file authoritative `WindingJournalQuery::validateAll()` для integrity;
 - semantic transition audit `RUN_STARTED → RUN_COMPLETED`;
 - runtime dynamic microSD readiness.
 
@@ -75,6 +76,8 @@ firmware/esp32/src/CM_WindingJournal.*
 firmware/esp32/src/CM_WindingJournalQuery.*
 firmware/esp32/src/CM_WindingJournalTransitionAudit.*
 ```
+
+Важно: `CM_WindingPersistenceIntegrityAudit` уже использует `validateAll()` + `WindingJournalTransitionAudit::validate()`. Старого cursor-pagination полного scan там нет, поэтому дополнительная правка этого файла не нужна.
 
 ## 4. Repair lifecycle и CLOSED invariant
 
@@ -143,7 +146,7 @@ Mobile/desktop уже имеют:
 
 Новые linked jobs требуют exact active CU/AL spool с положительным остатком. Backend повторно проверяет spool identity перед job creation.
 
-## 7. Read-only backup/export — текущий расширенный контракт
+## 7. Read-only backup/export — deep audit охватывает весь whitelist
 
 API:
 
@@ -165,31 +168,49 @@ snapshot_stability_checked=false
 snapshot_stable=null
 ```
 
-Когда состояние safe, `snapshot_stable=true` требует успешной проверки практически всего whitelist persistent-набора:
+При safe state `snapshot_stable=true` требует успешной проверки **всего static export whitelist**:
+
+```text
+/data/workshop/clients.ndjson
+/data/workshop/motors.ndjson
+/data/workshop/repairs.ndjson
+/data/workshop/repair-status.ndjson
+/data/winding-runs/events.ndjson
+/data/warehouse/spools.ndjson
+/data/warehouse/movements.ndjson
+/data/warehouse/price.ndjson
+/data/materials/materials.ndjson
+/data/materials/usage.ndjson
+/data/materials/adjustments.ndjson
+/data/repairs/pricing.ndjson
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/id-state.bak          # optional
+/data/settings/conductor-calculator.ndjson
+```
+
+Дополнительно проверяются необходимые recovery/session invariants:
 
 - recovery markers materials;
 - warehouse spool swap markers;
-- persistent allocator `id-state.txt`, optional `.bak`, отсутствие `.tmp`;
-- `conductor.json`, отсутствие `conductor.tmp`;
-- workshop clients/motors/repairs;
-- repair-status closure history;
-- repair-pricing и pricing→repair reference;
-- materials catalogue;
-- material usage/adjustments + arithmetic + references;
-- winding journal full schema validation;
+- allocator `id-state.txt`, optional `.bak`, отсутствие `id-state.tmp`;
+- conductor settings `conductor-calculator.ndjson`, отсутствие `.tmp/.bak` recovery residue;
+- workshop clients/motors/repairs + repair-status references;
+- repair pricing + repair references;
+- materials catalogue/usage/adjustments + arithmetic + references;
+- winding journal full schema validation до EOF;
 - winding transition semantics;
-- warehouse spools;
-- warehouse price;
-- warehouse movements transaction chain;
-- session directories;
-- содержимое snapshot/state/spool-selection;
-- cross-file job/session/repair/motor identity.
+- warehouse spools/price/movements transaction/reference integrity;
+- canonical session directories;
+- содержимое каждого snapshot/state/spool-selection;
+- cross-file `job/session/repair/motor/spool` identity.
 
-Новые/задействованные audit-модули:
+Задействованные audit-модули:
 
 ```text
 CM_BackupBusinessDataIntegrityAudit.*
 CM_MaterialPersistenceIntegrityAudit.*
+CM_WorkshopPersistenceIntegrityAudit.*
+CM_RepairPricingIntegrityAudit.*
 CM_WindingPersistenceIntegrityAudit.*
 CM_WarehousePersistenceIntegrityAudit.*
 CM_WarehouseMovementIntegrityAudit.*
@@ -198,35 +219,82 @@ CM_ConductorSettingsIntegrityAudit.*
 CM_WindingSessionPersistenceIntegrityAudit.*
 ```
 
-Backup UI умеет объяснять причины instability для этих доменов.
+Статический compile-safety audit include-зависимостей выполнен: audit headers содержат собственный `FS.h`; реализации, использующие Arduino `String/File/isDigit`, имеют требуемую dependency chain; ESP32 PlatformIO filter компилирует все `firmware/esp32/src/*.cpp`. Missing include в проверенном наборе не найден, но это не заменяет фактический Actions build.
 
-## 8. Последняя серия backup-коммитов этого чата
+## 8. HTTP/error semantics audit
+
+Подробный документ:
 
 ```text
-1a21073f  Add backup business data integrity audit contract
-b9236557  Implement backup business data integrity audit
-5a15dbfa  Audit workshop and pricing in backup manifest
-0b68f3ce  Explain business data backup instability on mobile
-f6cdd6d7  Explain business data backup instability on desktop
-11191769  Add winding persistence integrity audit contract
-1406c73f  Implement winding persistence integrity audit
-fe988944  Audit winding persistence only when backup is safe
-bbd0a507  Explain winding backup instability on mobile
-21d5ab1b  Explain winding backup instability on desktop
-b8ee44ce  Audit warehouse persistence in backup manifest
-80958209  Explain warehouse persistence backup instability on mobile
-e0d19ebe  Explain warehouse persistence backup instability on desktop
-70220e54  Audit persistent allocator state in backup manifest
-92a6a11e  Add conductor settings integrity audit contract
-8f5cc608  Implement conductor settings integrity audit
-fe683d95  Complete deep backup persistence audit
-d4e194c9  Explain complete backup integrity failures on mobile
-c3e2cdab  Explain complete backup integrity failures on desktop
+docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
 ```
 
-## 9. Последняя найденная CI-ошибка и исправление
+Каноническая карта:
 
-Пользователь дал Actions run:
+```text
+400 malformed / missing request field
+404 requested allowed resource absent
+409 syntactically valid request blocked by machine/domain state
+500 persisted read/integrity failure
+503 storage/service dependency unavailable
+```
+
+Manifest намеренно является status endpoint: active winding выражается `200` + `export_allowed=false`, а direct heavy export блокируется `409`.
+
+Найден один реальный run-level gap: пустые, но присутствующие `source_session_id` и `source_run_id` могли восприниматься как отсутствие provenance и перейти в legacy path.
+
+Исправлено:
+
+```text
+362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
+```
+
+Теперь если run-level параметры присутствуют, они обязаны присутствовать вместе, быть непустыми и валидными non-zero IDs; иначе `400` без записи.
+
+## 9. NDJSON performance/rotation strategy
+
+Подробный документ:
+
+```text
+docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+```
+
+Решение: **не мигрировать преждевременно в БД**.
+
+Найденные hotspots:
+
+- deep backup full scans;
+- повторные cross-file reference scans в business/material/warehouse audits;
+- costing/finalization/history по растущим append-only NDJSON;
+- winding journal имеет отдельные schema + transition full scans, но schema validation уже не строит cursor JSON pages.
+
+Порядок дальнейшей оптимизации:
+
+```text
+1. измерить file size / record count / scan latency
+2. убрать доказанно дорогие повторные scans bounded per-request indexes
+3. при необходимости — recoverable rotation immutable append histories
+4. read-only summary snapshots для reports/dashboard
+5. БД только если измерения покажут недостаточность предыдущих этапов
+```
+
+Не делать unbounded RAM mirror всех NDJSON на ESP32. Rotation должна сохранять provenance/global IDs, fail-closed cross-segment validation и полноту backup/export.
+
+## 10. Текущая серия коммитов после deep backup блока
+
+```text
+362fcb7d  Reject empty run provenance fields
+5544f07f  Document backup and run HTTP semantics audit
+23737ef5  Plan NDJSON growth and rotation strategy
+6b9762f9  Refresh backup integrity current state
+03dbc1fe  Advance active work after integrity review
+```
+
+Этот handoff-коммит идёт после них и синхронизирует точку продолжения.
+
+## 11. Последняя найденная CI-ошибка и исправление
+
+Ранее пользователь дал Actions run:
 
 ```text
 https://github.com/FantomeKGZ/CoilMaster/actions/runs/31243187630
@@ -251,72 +319,15 @@ firmware/esp32/src/CM_MaterialLedger.cpp:705:1: error: expected '}' at end of in
 note: to match namespace CM opening brace
 ```
 
-`WString.h [-Wconversion]` в том же логе — warnings, не причина failure.
-
-Исправлено минимально: добавлена отсутствующая closing brace namespace `CM` в конце `CM_MaterialLedger.cpp`.
-
-Коммит исправления:
+Исправлено:
 
 ```text
 77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
 ```
 
-Важно: этот handoff фиксирует сам fix, но не утверждает, что новый ESP32 Actions run уже GREEN, пока это не подтверждено фактическим run/result.
+Для нового кодового commit `362fcb7d...` текущий connector не вернул combined statuses или PR-triggered workflow run. Это **не доказательство GREEN и не доказательство failure**. При доступном push-run проверять реальный job/result.
 
-## 10. Что было запланировано непосредственно перед переносом
-
-### A. Cleanup winding backup audit
-
-`CM_WindingPersistenceIntegrityAudit` стоит упростить так, чтобы он использовал authoritative:
-
-```text
-WindingJournalQuery::validateAll()
-```
-
-вместо обхода pagination/cursor для полного файла. Цель — меньше временных JSON buffers и меньше дублирования parser logic.
-
-Перед правкой заново fetch:
-
-```text
-firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.cpp
-firmware/esp32/src/CM_WindingJournalQuery.h
-firmware/esp32/src/CM_WindingJournalQueryValidation.cpp
-```
-
-### B. Проверить ESP32 build после `77fd7dd4`
-
-Не ждать вручную без причины, но при следующем доступном Actions run сначала проверить реальную первую ошибку, если build снова красный.
-
-Если пользователь даёт run URL/ID:
-
-1. `fetch_workflow_run_jobs`;
-2. failed `build-esp32` job id;
-3. `fetch_workflow_job_logs`;
-4. исправлять первую реальную `error:`/linker failure, не хвост framework warnings.
-
-### C. Audit новых backup HTTP/error semantics
-
-Проверить, что operator/API semantics остаются последовательными:
-
-```text
-storage unavailable -> 503
-integrity/read failure -> 500
-active winding / unsafe heavy export -> 409 или documented blocked state
-not found -> 404
-bad request -> 400
-```
-
-Особенно проверить `snapshot_stability_checked`, nullable `snapshot_stable`, `blocked_reason`, session directory errors и новые instability reasons.
-
-### D. Performance / NDJSON growth
-
-Следующий repo-reviewable эксплуатационный блок после integrity:
-
-- оценить многократные full scans в manifest/finalization/costing;
-- не мигрировать преждевременно в новую БД;
-- при необходимости добавить bounded indexes/rotation/summary snapshots без ослабления fail-closed semantics.
-
-### E. Hardware E2E — обязательный внешний этап
+## 12. Hardware E2E — обязательный внешний этап
 
 Реальный стенд должен пройти минимум:
 
@@ -353,34 +364,38 @@ Fault scenarios:
 - backup while winding active;
 - backup with temp/pending/corrupt persisted state.
 
-### F. Deferred product work
+Repository review и CI не заменяют этот этап. Не считать физическое поведение ESP32 + Arduino проверенным, пока пользователь сам это не подтвердит.
+
+## 13. Deferred product work
 
 Не начинать без явной потребности:
 
 - analogue/unassigned winding production model;
 - automatic material writeoff;
 - automatic safe resume;
-- database migration.
+- database migration;
+- direct SSR control с ESP32/WEB.
 
-## 11. Рекомендуемый порядок чтения в новом чате
+## 14. Рекомендуемый порядок чтения в новом чате
 
 1. `docs/PROJECT_HANDOFF/00_READ_FIRST.md`
 2. этот файл `12_LATEST_HANDOFF_2026-08-08.md`
 3. `01_CURRENT_STATE.md`
 4. `06_ACTIVE_WORK_AND_NEXT_STEPS.md`
 5. актуальные исходники конкретного следующего изменения
-6. `09_KEY_FILES_INDEX.md`
-7. `08_WORK_RULES_AND_VERIFICATION.md`
-8. остальные handoff-документы при необходимости
+6. `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`
+7. `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`
+8. `09_KEY_FILES_INDEX.md`
+9. `08_WORK_RULES_AND_VERIFICATION.md`
 
 `11_FULL_BRANCH_AUDIT.md` считать исторической картой, не текущим source of truth.
 
-## 12. Точная точка продолжения
+## 15. Точная точка продолжения
 
-После handoff:
+После этого review:
 
-1. Не повторять уже сделанный backup-integrity block.
-2. Проверить/упростить `CM_WindingPersistenceIntegrityAudit` через `validateAll()`.
-3. При наличии нового ESP32 Actions failure — читать полный job log и чинить первую реальную ошибку.
-4. Затем audit HTTP/error semantics backup.
-5. После этого — performance/rotation review либо hardware E2E, в зависимости от доступности стенда.
+1. Не повторять deep backup-integrity block.
+2. Не переписывать `CM_WindingPersistenceIntegrityAudit`: `validateAll()` уже authoritative и cursor full scan отсутствует.
+3. При наличии нового ESP32 Actions run проверить фактический build для кодового head и чинить первую реальную compile/link error, если она есть.
+4. Следующий repo-reviewable performance шаг — low-cost observability file-size/record-count/scan-latency, прежде чем внедрять rotation.
+5. Hardware E2E остаётся обязательным внешним этапом и не отмечается выполненным без подтверждения пользователя.

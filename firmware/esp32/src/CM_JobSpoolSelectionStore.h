@@ -40,6 +40,10 @@ public:
     bool create(const JobSpoolSelection& selection);
     bool load(uint32_t sessionId, JobSpoolSelection& selection) const;
     bool load(uint32_t sessionId, JobSpoolSelection& selection, bool& found) const;
+    static bool loadReadOnly(fs::FS& storage,
+                             uint32_t sessionId,
+                             JobSpoolSelection& selection,
+                             bool& found);
     bool validateIdentity(uint32_t jobId, uint32_t sessionId) const;
 
 private:

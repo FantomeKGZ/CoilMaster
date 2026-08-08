@@ -30,6 +30,8 @@ firmware/esp32/src/CM_JobSpoolSelectionStore.h/.cpp
 /data/winding-jobs/state/session-<session_id>.json
 ```
 
+`CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload. Он возвращает validated `lastAllocatedId` из уже выполняемой проверки `last_job_id == last_session_id`; старый `check(storage)` сохранён.
+
 ## UART и журнал намотки
 
 ```text
@@ -136,10 +138,12 @@ firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
 - `CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его.
 - Session audit имеет совместимый metrics overload `WindingSessionPersistenceAuditMetrics`; старый `check(storage)` сохранён.
 - Session metrics возвращают `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного успешного deep session audit; partial counts при failure не публикуются.
+- Те же session passes теперь возвращают `snapshotTotalBytes`, `stateTotalBytes`, `spoolSelectionTotalBytes`; если 32-bit сумма переполняется, `byteTotalsAvailable=false`, но integrity result не меняется.
+- `CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload; `lastAllocatedId` публикуется только после успешной проверки main/optional backup allocator state.
 - `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; старый `check(storage)` сохранён.
 - Business metrics возвращают `clientRecordCount`, `motorRecordCount`, `repairRecordCount`, `repairStatusRecordCount`, `pricingRecordCount` из уже выполняемых validation passes; дополнительного full scan ради telemetry нет.
 - `CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload; `spoolRecordCount` и `priceRecordCount` считаются в существующих authoritative spool/price passes, partial metrics при failure не публикуются.
-- `CM_BackupExportWeb.cpp` публикует шестнадцать Stage 0 material/business/winding/warehouse record/file-count metrics и `snapshot_stability_duration_ms` только через уже выполняемые authoritative passes.
+- `CM_BackupExportWeb.cpp` публикует двадцать Stage 0 metrics: duration, allocator high-water, material/business/winding/warehouse record counts, session file counts и session byte totals — только через уже выполняемые authoritative passes.
 - `BackupActivityGuard::Safe` gating не ослаблять: heavy deep scan не выполняется во время active winding.
 
 ## Performance/rotation

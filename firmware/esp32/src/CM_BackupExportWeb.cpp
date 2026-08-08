@@ -5,7 +5,9 @@
 #include "CM_MaterialPersistenceIntegrityAudit.h"
 #include "CM_BackupBusinessDataIntegrityAudit.h"
 #include "CM_WindingPersistenceIntegrityAudit.h"
+#include "CM_WindingSessionPersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
+#include "CM_ConductorSettingsIntegrityAudit.h"
 
 namespace CM
 {
@@ -217,6 +219,9 @@ const char* snapshotStabilityReason(fs::FS& storage)
     if (!PersistentIdIntegrityAudit::check(storage))
         return "persistent_id_unstable_or_invalid";
 
+    if (!ConductorSettingsIntegrityAudit::check(storage))
+        return "conductor_settings_unstable_or_invalid";
+
     if (!MaterialPersistenceIntegrityAudit::check(storage))
         return "material_persistence_unstable_or_invalid";
 
@@ -256,6 +261,10 @@ const char* snapshotStabilityReason(fs::FS& storage)
         if (result == SessionScanResult::InvalidEntry)
             return "session_directory_invalid";
     }
+
+    if (!WindingSessionPersistenceIntegrityAudit::check(storage))
+        return "winding_session_persistence_unstable_or_invalid";
+
     return nullptr;
 }
 
@@ -372,7 +381,7 @@ void BackupExportWeb::handleManifest()
         response += '"';
     }
     response += F(",\"items\":[");
-    response.reserve(3740U);
+    response.reserve(3780U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

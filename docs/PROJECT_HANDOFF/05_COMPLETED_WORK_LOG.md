@@ -457,10 +457,11 @@ HTTP/error semantics read-only backup/run-level endpoints отдельно audit
 
 Решение зафиксировано в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`: сначала измерять, не мигрировать преждевременно в БД и не вводить arbitrary rotation threshold.
 
-Manifest возвращает 14 runtime metrics без отдельного telemetry full scan:
+Manifest возвращает 20 runtime metrics без отдельного telemetry full scan:
 
 ```text
 snapshot_stability_duration_ms
+winding_allocator_last_id
 material_catalog_record_count
 material_usage_record_count
 material_adjustment_record_count
@@ -473,10 +474,33 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+winding_snapshot_total_bytes
+winding_state_total_bytes
+winding_spool_selection_total_bytes
+warehouse_spool_record_count
+warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
-Counts собираются внутри уже существующих authoritative validation passes. Старые `check(storage)` contracts сохранены через compatibility overloads. Partial metrics после failed domain audit не публикуются.
+Counts/high-water/byte totals собираются внутри уже существующих authoritative validation passes. Старые `check(storage)` contracts сохранены через compatibility overloads. Partial metrics после failed domain audit не публикуются.
+
+Allocator high-water:
+
+```text
+4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
+b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water mark
+52fae7716034ccacebc41f1f11715f5eebf193c2  Expose allocator high-water mark in backup manifest
+```
+
+Winding session byte totals:
+
+```text
+1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
+cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
+a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
+```
+
+Byte totals являются telemetry-only: при 32-bit overflow три total-byte поля становятся `null`, но session persistence audit продолжает обычную fail-closed validation.
 
 Последний business observability batch:
 
@@ -486,12 +510,12 @@ cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
 ```
 
-Параллельно сохранён winding session observability batch:
+Warehouse persistence observability:
 
 ```text
-9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
-afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
-abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
+fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
+490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
+34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
 ```
 
 ## 23. Текущая точка после выполненного
@@ -507,7 +531,7 @@ client → motor → OPEN repair → costing → linked winding → exact spool
 
 Следующий обязательный внешний этап — реальный hardware E2E ESP32 + Arduino. Repository review не доказывает физический UART/START/SSR behavior.
 
-На E2E/эксплуатационном стенде одновременно снять пары `size_bytes + record_count`, session file counts и `snapshot_stability_duration_ms`. Только после фактических измерений выбирать bounded in-request index, duplicate-audit decomposition или rotation. Database migration, persistent optimistic cache и arbitrary rotation threshold пока не вводить.
+На E2E/эксплуатационном стенде одновременно снять пары `size_bytes + record_count`, `winding_allocator_last_id`, session file counts/total bytes и `snapshot_stability_duration_ms`. Только после фактических измерений выбирать bounded in-request index, duplicate-audit decomposition или rotation. Database migration, persistent optimistic cache и arbitrary rotation threshold пока не вводить.
 
 Если hardware временно недоступен, следующий repo-only код допустим только как same-pass observability существующего authoritative validator без дополнительного full scan либо как исправление доказанной correctness/compile проблемы.
 

@@ -235,6 +235,24 @@ void WarehouseWeb::handleConfirmWriteOff()
                           "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
             return;
         }
+
+        bool alreadyConfirmed = false;
+        if (!m_store.confirmedWriteOffForSourceSession(sourceSessionId, alreadyConfirmed))
+        {
+            if (!m_store.ready())
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
+            else
+                m_server.send(500, "application/json; charset=utf-8",
+                              "{\"error\":\"source_session_writeoff_lookup_failed\",\"write_performed\":false}");
+            return;
+        }
+        if (alreadyConfirmed)
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"source_session_already_written_off\",\"write_performed\":false}");
+            return;
+        }
     }
 
     const String timestamp = m_server.arg("timestamp");

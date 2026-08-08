@@ -56,12 +56,26 @@ bool loadState(fs::FS& storage, const char* path, uint32_t& value)
 
 bool PersistentIdIntegrityAudit::check(fs::FS& storage)
 {
+    PersistentIdIntegrityAuditMetrics ignoredMetrics;
+    return check(storage, ignoredMetrics);
+}
+
+bool PersistentIdIntegrityAudit::check(fs::FS& storage,
+                                       PersistentIdIntegrityAuditMetrics& metrics)
+{
     constexpr const char* Directory = "/data/winding-jobs";
     constexpr const char* State = "/data/winding-jobs/id-state.txt";
     constexpr const char* Temp = "/data/winding-jobs/id-state.tmp";
     constexpr const char* Backup = "/data/winding-jobs/id-state.bak";
 
-    if (!storage.exists(Directory)) return true;
+    metrics = PersistentIdIntegrityAuditMetrics();
+    uint32_t validatedLastAllocatedId = 0UL;
+
+    if (!storage.exists(Directory))
+    {
+        metrics.lastAllocatedId = validatedLastAllocatedId;
+        return true;
+    }
     File directory = storage.open(Directory, FILE_READ);
     if (!directory || !directory.isDirectory())
     {
@@ -82,6 +96,8 @@ bool PersistentIdIntegrityAudit::check(fs::FS& storage)
             return false;
     }
 
+    validatedLastAllocatedId = mainValue;
+    metrics.lastAllocatedId = validatedLastAllocatedId;
     return true;
 }
 }

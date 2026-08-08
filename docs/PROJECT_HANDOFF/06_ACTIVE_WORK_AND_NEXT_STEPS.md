@@ -99,6 +99,7 @@ Deep `snapshot_stable` audit запускается только когда `Bac
 export_allowed=false
 snapshot_stability_checked=false
 snapshot_stable=null
+snapshot_stability_duration_ms=null
 ```
 
 При safe state deep audit охватывает **весь static backup whitelist**:
@@ -202,7 +203,7 @@ Commit:
 362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
 ```
 
-## Performance/rotation review — strategy готова
+## Performance/rotation review — strategy готова, observability начата
 
 Документ:
 
@@ -229,11 +230,37 @@ docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 5. БД рассматривать только при измеренном недостатке этих мер
 ```
 
+Первый runtime signal уже добавлен без дополнительного I/O:
+
+```text
+snapshot_stability_duration_ms
+```
+
+Он измеряет только уже выполняемый deep audit; если `snapshot_stability_checked=false`, значение `null`. Поле не участвует в safety/integrity решениях.
+
+Новые commits текущего performance batch:
+
+```text
+8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
+4696f5385c3749b2a824615033c1b29b284e79b5  Document backup audit timing semantics
+59d208a8f86e803308824c43c2c3894df500f69d  Record backup audit observability baseline
+3b1dbcc37ba00218e564b45edb42ace7105f2566  Record backup audit timing in current state
+```
+
 Не делать unbounded RAM mirror NDJSON на ESP32. Rotation обязана сохранять provenance/global IDs, fail-closed cross-segment validation, recoverable marker protocol и полноту backup whitelist.
 
 ## Следующее repo-reviewable действие
 
-До аппаратного стенда полезный следующий шаг — **не внедрять rotation вслепую**, а добавить/спроектировать low-cost observability для размеров и длительности уже существующих scans. Реальные thresholds выбирать только по измеренным данным.
+До аппаратного стенда следующий безопасный участок — **не вводить rotation trigger**, а продолжить Stage 0 observability только там, где метрика получается без второго прохода по файлу.
+
+Приоритет:
+
+```text
+1. проверить, какие authoritative validators уже считают/могут вернуть record count в том же scan;
+2. если API можно расширить без дублирующего I/O — добавить bounded scan counters для одного наиболее дорогого audit path;
+3. не создавать persistent cache и не менять storage format;
+4. после hardware measurements выбрать hotspot по size_bytes + duration, а не по предположению.
+```
 
 Если появляется новый ESP32 Actions failure:
 

@@ -1,5 +1,6 @@
 #include "CM_WindingSessionCompletionAudit.h"
 #include "CM_WindingJournalQuery.h"
+#include "CM_WindingJournalTransitionAudit.h"
 
 namespace CM
 {
@@ -47,6 +48,19 @@ WindingSessionCompletionCheck WindingSessionCompletionAudit::check(fs::FS& stora
     WindingJournalQuery query(storage);
     if (!query.begin() || !query.isReady())
         return WindingSessionCompletionCheck::StorageUnavailable;
+
+    const WindingJournalQueryResult schemaAudit = query.validateAll();
+    if (schemaAudit == WindingJournalQueryResult::StorageUnavailable)
+        return WindingSessionCompletionCheck::StorageUnavailable;
+    if (schemaAudit != WindingJournalQueryResult::Ok)
+        return WindingSessionCompletionCheck::IntegrityFailed;
+
+    const WindingJournalTransitionAuditResult transitionAudit =
+        WindingJournalTransitionAudit::validate(storage);
+    if (transitionAudit == WindingJournalTransitionAuditResult::StorageUnavailable)
+        return WindingSessionCompletionCheck::StorageUnavailable;
+    if (transitionAudit != WindingJournalTransitionAuditResult::Ok)
+        return WindingSessionCompletionCheck::IntegrityFailed;
 
     uint32_t cursor = 0UL;
     bool completed = false;

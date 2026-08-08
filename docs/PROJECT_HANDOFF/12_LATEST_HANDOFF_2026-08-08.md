@@ -59,7 +59,7 @@ Root `platformio.ini` для `env:esp32` включает `firmware/esp32/src/*.
 
 Решение остаётся: не мигрировать в БД и не вводить rotation threshold до реальных измерений.
 
-Manifest теперь возвращает без дополнительного telemetry full scan:
+Manifest теперь возвращает без дополнительного telemetry full scan шестнадцать runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
@@ -75,6 +75,8 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+warehouse_spool_record_count
+warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
@@ -93,10 +95,6 @@ spoolSelectionFileCount
 ```
 
 Старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload. Counts считаются в существующих deep parser/cross-identity проходах по session files и публикуются только после полного успешного session persistence audit. Отдельного directory/full-file pass ради telemetry нет.
-
-### Warehouse movements
-
-`warehouse_movement_record_count` считается внутри существующего `WarehouseMovementIntegrityAudit::check()` pass. Считаются непустые persisted transaction rows, включая `PENDING` и завершающие `CONFIRMED|ABORTED`. Старый `check(storage)` сохранён, добавлен совместимый count overload.
 
 ### Materials
 
@@ -124,6 +122,21 @@ pricingRecordCount
 
 Старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует metrics overload. Client/motor/repair counts собираются в уже существующих uniqueness scans, repair-status/pricing counts — в существующих parser/reference passes. Partial counts при failed business audit наружу не публикуются; дополнительного full-file чтения ради telemetry нет.
 
+### Warehouse persistence
+
+`WarehousePersistenceAuditMetrics` возвращает:
+
+```text
+spoolRecordCount
+priceRecordCount
+```
+
+Старый `WarehousePersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload. `spoolRecordCount` и `priceRecordCount` считаются внутри уже существующих spool/price validation loops. Metrics копируются наружу только после успешного spool + price + movement-reference audit, поэтому partial counts при failure не публикуются. Отсутствующий spool/price файл при successful audit даёт `0`; отдельного full-file scan ради telemetry нет.
+
+### Warehouse movements
+
+`warehouse_movement_record_count` считается внутри существующего `WarehouseMovementIntegrityAudit::check()` pass. Считаются непустые persisted transaction rows, включая `PENDING` и завершающие `CONFIRMED|ABORTED`. Старый `check(storage)` сохранён, добавлен совместимый count overload.
+
 Кодовые commits текущего расширения Stage 0:
 
 ```text
@@ -139,6 +152,9 @@ abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in 
 cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
 1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
+fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
+490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
+34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
 ```
 
 Документация последних observability шагов:
@@ -152,22 +168,27 @@ cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 7cb635d4088d38cef58dcb39bc170bf7f55dd0c7  Document winding session backup observability
 702edf98c9b993332fdaf17aa2359c1128391f27  Document business backup observability
 b13bcb6d19fe9aaac13d4a01a273e9823dd4fb50  Complete business observability handoff
+d43e2361fadffa0191f31a975cc639f17e90e0c3  Document warehouse persistence backup observability
+7e7521122bdde5060fef2e011f6b5a20f80079ea  Record warehouse backup observability in current state
+36741e8d129effb8d5b70c7a678e4a4e81528502  Advance active work to warehouse observability benchmark
+3a60aed16e77a089f38f79514b7e48413af54dcc  Index warehouse backup audit metrics
 ```
 
 Эти commits не считать GREEN без фактического Actions result.
 
 ## Metrics integration review
 
-Повторно просмотрены актуальные business/material/winding-session audit contracts и `CM_BackupExportWeb.cpp`.
+Повторно просмотрены актуальные business/material/winding-session/warehouse audit contracts и `CM_BackupExportWeb.cpp`.
 
 На уровне static repository review подтверждено:
 
 - compatibility `check(storage)` сохранён у добавленных metrics overloads;
 - public metrics headers самостоятельно включают `FS.h` и `stdint.h`;
 - counters считаются внутри уже существующих validation loops/passes;
-- partial business/material/session metrics не публикуются после failed domain audit;
+- partial business/material/session/warehouse persistence metrics не публикуются после failed domain audit;
 - `BackupActivityGuard::Safe` gating не изменён;
 - winding `validateAll()` и session deep parser/cross-identity audit не заменены и не продублированы telemetry-логикой;
+- warehouse spool/price counters не создают дополнительный full-file pass;
 - safety boundary физического START/SSR/writeoff не затронута.
 
 Это static repository review, а не доказательство успешного ESP32 build.
@@ -183,9 +204,9 @@ RepairPricingIntegrityAudit::check()
 
 `WorkshopPersistenceIntegrityAudit` затем снова проверяет warehouse, allocator, winding session persistence, winding journal schema и transitions. Backup orchestration позже проверяет эти domains ещё раз отдельными audit’ами.
 
-Кроме того, `BackupBusinessDataIntegrityAudit` намеренно использует повторные uniqueness/reference scans. Это не correctness bug, но новые business counts позволяют измерить влияние по реальной population.
+Кроме того, `BackupBusinessDataIntegrityAudit` намеренно использует повторные uniqueness/reference scans, а warehouse movement-reference validation повторно ищет spool/repair references. Это не correctness bug; новые population counts позволяют измерить влияние по реальным размерам.
 
-После benchmark безопасный Stage 1 вариант — разделить local material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз, сохранив старые public contracts для других callers. Для business reference lookups bounded in-request index рассматривать только если измерения покажут hotspot и с явным RAM limit/fail-closed поведением.
+После benchmark безопасный Stage 1 вариант — разделить local material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз, сохранив старые public contracts для других callers. Bounded in-request indexes для business/warehouse reference lookups рассматривать только если измерения покажут hotspot, с явным RAM limit и fail-closed поведением.
 
 Не начинать эти refactors только ради эстетики до измерений, если не обнаружена отдельная correctness проблема.
 
@@ -215,6 +236,10 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+warehouse-spools.size_bytes
+warehouse_spool_record_count
+warehouse-price.size_bytes
+warehouse_price_record_count
 warehouse-movements.size_bytes
 warehouse_movement_record_count
 snapshot_stability_duration_ms

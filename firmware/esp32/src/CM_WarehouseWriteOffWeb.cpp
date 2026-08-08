@@ -163,8 +163,12 @@ void WarehouseWeb::handleConfirmWriteOff()
     bool repairOpen = false;
     if (!RepairLifecycle::isOpen(m_store.storage(), repairId, repairOpen))
     {
-        m_server.send(503, "application/json; charset=utf-8",
-                      "{\"error\":\"repair_lifecycle_unavailable\"}");
+        if (!m_store.ready())
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_lifecycle_unavailable\",\"write_performed\":false}");
+        else
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"repair_lifecycle_integrity_failed\",\"write_performed\":false}");
         return;
     }
     if (!repairOpen)

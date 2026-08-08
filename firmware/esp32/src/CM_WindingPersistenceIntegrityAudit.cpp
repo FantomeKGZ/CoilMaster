@@ -6,11 +6,29 @@ namespace CM
 {
 bool WindingPersistenceIntegrityAudit::check(fs::FS& storage)
 {
-    WindingJournalQuery query(storage);
-    if (!query.begin() || query.validateAll() != WindingJournalQueryResult::Ok)
-        return false;
+    uint32_t ignoredRecordCount = 0UL;
+    return check(storage, ignoredRecordCount);
+}
 
-    return WindingJournalTransitionAudit::validate(storage) ==
-           WindingJournalTransitionAuditResult::Ok;
+bool WindingPersistenceIntegrityAudit::check(fs::FS& storage,
+                                             uint32_t& recordCount)
+{
+    recordCount = 0UL;
+    WindingJournalQuery query(storage);
+    uint32_t validatedRecordCount = 0UL;
+    if (!query.begin() ||
+        query.validateAll(validatedRecordCount) != WindingJournalQueryResult::Ok)
+    {
+        return false;
+    }
+
+    if (WindingJournalTransitionAudit::validate(storage) !=
+        WindingJournalTransitionAuditResult::Ok)
+    {
+        return false;
+    }
+
+    recordCount = validatedRecordCount;
+    return true;
 }
 }

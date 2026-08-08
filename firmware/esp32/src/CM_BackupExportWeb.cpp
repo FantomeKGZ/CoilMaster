@@ -13,6 +13,12 @@ struct ExportFileDefinition
     const char* downloadName;
 };
 
+struct RecoveryMarkerDefinition
+{
+    const char* path;
+    const char* reason;
+};
+
 constexpr ExportFileDefinition ExportFiles[] =
 {
     {"workshop-clients", "/data/workshop/clients.ndjson", "application/x-ndjson", "clients.ndjson"},
@@ -32,7 +38,18 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"conductor-settings", "/data/settings/conductor.json", "application/json; charset=utf-8", "conductor-settings.json"}
 };
 
+constexpr RecoveryMarkerDefinition RecoveryMarkers[] =
+{
+    {"/data/materials/usage.pending", "material_usage_pending"},
+    {"/data/materials/adjustment.pending", "material_adjustment_pending"},
+    {"/data/materials/materials.tmp", "material_swap_temp_present"},
+    {"/data/materials/materials.bak", "material_swap_backup_present"},
+    {"/data/warehouse/spools.tmp", "warehouse_spool_swap_temp_present"},
+    {"/data/warehouse/spools.bak", "warehouse_spool_swap_backup_present"}
+};
+
 constexpr size_t ExportFileCount = sizeof(ExportFiles) / sizeof(ExportFiles[0]);
+constexpr size_t RecoveryMarkerCount = sizeof(RecoveryMarkers) / sizeof(RecoveryMarkers[0]);
 constexpr const char* SnapshotDirectory = "/data/winding-jobs/snapshots";
 constexpr const char* SpoolSelectionDirectory = "/data/winding-jobs/spool-selection";
 constexpr const char* StateDirectory = "/data/winding-jobs/state";
@@ -182,6 +199,38 @@ SessionScanResult scanSessionDirectory(fs::FS& storage,
     return SessionScanResult::Ok;
 }
 
+const char* snapshotStabilityReason(fs::FS& storage)
+{
+    for (size_t i = 0U; i < RecoveryMarkerCount; ++i)
+    {
+        if (storage.exists(RecoveryMarkers[i].path))
+            return RecoveryMarkers[i].reason;
+    }
+
+    const char* directories[] =
+    {
+        SnapshotDirectory,
+        SpoolSelectionDirectory,
+        StateDirectory
+    };
+    uint32_t ignoredIds[1] = {};
+    for (uint8_t i = 0U; i < sizeof(directories) / sizeof(directories[0]); ++i)
+    {
+        uint8_t count = 0U;
+        bool truncated = false;
+        const SessionScanResult result =
+            scanSessionDirectory(storage, directories[i], 0UL,
+                                 ignoredIds, count, 1U, truncated);
+        if (result == SessionScanResult::StorageUnavailable)
+            return "session_directory_unavailable";
+        if (result == SessionScanResult::TemporaryFilePresent)
+            return "session_temp_present";
+        if (result == SessionScanResult::InvalidEntry)
+            return "session_directory_invalid";
+    }
+    return nullptr;
+}
+
 String sessionPath(const char* kind, uint32_t sessionId)
 {
     String path;
@@ -265,6 +314,7 @@ void BackupExportWeb::handleManifest()
     }
 
     const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    const char* stabilityReason = snapshotStabilityReason(m_storage);
     String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"spool_selection_exports_supported\":true,\"export_allowed\":");
     response += activity == BackupActivityCheck::Safe ? F("true") : F("false");
     response += F(",\"activity_state_verified\":");
@@ -276,8 +326,19 @@ void BackupExportWeb::handleManifest()
         response += F("\"activity_state_unavailable\"");
     else
         response += F("null");
+    response += F(",\"snapshot_stable\":");
+    response += stabilityReason == nullptr ? F("true") : F("false");
+    response += F(",\"snapshot_stability_reason\":");
+    if (stabilityReason == nullptr)
+        response += F("null");
+    else
+    {
+        response += '"';
+        response += stabilityReason;
+        response += '"';
+    }
     response += F(",\"items\":[");
-    response.reserve(3520U);
+    response.reserve(3680U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

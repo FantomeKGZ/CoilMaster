@@ -11,6 +11,10 @@ struct WindingSessionPersistenceAuditMetrics
     uint32_t snapshotFileCount = 0UL;
     uint32_t stateFileCount = 0UL;
     uint32_t spoolSelectionFileCount = 0UL;
+    bool byteTotalsAvailable = true;
+    uint32_t snapshotTotalBytes = 0UL;
+    uint32_t stateTotalBytes = 0UL;
+    uint32_t spoolSelectionTotalBytes = 0UL;
 };
 
 class WindingSessionPersistenceIntegrityAudit

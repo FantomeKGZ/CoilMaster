@@ -352,7 +352,15 @@ void BackupExportWeb::handleManifest()
 
     const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
     const bool stabilityChecked = activity == BackupActivityCheck::Safe;
-    const char* stabilityReason = stabilityChecked ? snapshotStabilityReason(m_storage) : nullptr;
+    const char* stabilityReason = nullptr;
+    uint32_t stabilityDurationMs = 0UL;
+    if (stabilityChecked)
+    {
+        const uint32_t startedAtMs = millis();
+        stabilityReason = snapshotStabilityReason(m_storage);
+        stabilityDurationMs = millis() - startedAtMs;
+    }
+
     String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"spool_selection_exports_supported\":true,\"export_allowed\":");
     response += activity == BackupActivityCheck::Safe ? F("true") : F("false");
     response += F(",\"activity_state_verified\":");
@@ -380,8 +388,13 @@ void BackupExportWeb::handleManifest()
         response += stabilityReason;
         response += '"';
     }
+    response += F(",\"snapshot_stability_duration_ms\":");
+    if (!stabilityChecked)
+        response += F("null");
+    else
+        response += stabilityDurationMs;
     response += F(",\"items\":[");
-    response.reserve(3780U);
+    response.reserve(3840U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

@@ -1,5 +1,6 @@
 #include "CM_WarehouseStore.h"
 #include "CM_RepairLifecycle.h"
+#include "CM_WindingSessionCompletionAudit.h"
 
 namespace CM
 {
@@ -29,6 +30,13 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
 
     if (operation.sourceSessionId != 0UL)
     {
+        if (WindingSessionCompletionAudit::check(m_storage,
+                                                 operation.sourceSessionId) !=
+            WindingSessionCompletionCheck::Completed)
+        {
+            return false;
+        }
+
         bool alreadyConfirmed = false;
         if (!confirmedWriteOffForSourceSession(operation.sourceSessionId,
                                                alreadyConfirmed) ||

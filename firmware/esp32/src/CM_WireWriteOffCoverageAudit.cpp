@@ -22,7 +22,8 @@ struct SelectionIdentity
 {
     uint32_t sessionId;
     uint32_t repairId;
-    SelectionIdentity() : sessionId(0UL), repairId(0UL) {}
+    uint32_t spoolId;
+    SelectionIdentity() : sessionId(0UL), repairId(0UL), spoolId(0UL) {}
 };
 
 String baseNameOf(const String& path)
@@ -100,7 +101,7 @@ bool parseSelection(const String& input, SelectionIdentity& identity)
         !input.endsWith(F("}\n")) || input.length() >= 512U)
         return false;
 
-    uint32_t schema = 0UL, jobId = 0UL, motorId = 0UL, spoolId = 0UL;
+    uint32_t schema = 0UL, jobId = 0UL, motorId = 0UL;
     uint32_t diameter = 0UL, weight = 0UL;
     String wireType;
     if (!findUnsigned(input, "schema_version", schema) || schema != 1UL ||
@@ -108,7 +109,7 @@ bool parseSelection(const String& input, SelectionIdentity& identity)
         !findUnsigned(input, "session_id", identity.sessionId) || identity.sessionId == 0UL ||
         !findUnsigned(input, "repair_id", identity.repairId) || identity.repairId == 0UL ||
         !findUnsigned(input, "motor_id", motorId) || motorId == 0UL ||
-        !findUnsigned(input, "spool_id", spoolId) || spoolId == 0UL ||
+        !findUnsigned(input, "spool_id", identity.spoolId) || identity.spoolId == 0UL ||
         !findUnsigned(input, "diameter_hundredths_mm", diameter) ||
         diameter == 0UL || diameter > 0xFFFFUL ||
         !findUnsigned(input, "weight_at_selection_g", weight) || weight == 0UL ||
@@ -188,6 +189,8 @@ bool loadSelectionReadOnly(fs::FS& storage,
 }
 
 bool confirmedWriteOffExists(fs::FS& storage,
+                             uint32_t repairId,
+                             uint32_t spoolId,
                              uint32_t sessionId,
                              uint32_t runId,
                              bool& found)
@@ -219,6 +222,15 @@ bool confirmedWriteOffExists(fs::FS& storage,
             return false;
         }
         if (currentSession != sessionId) continue;
+
+        uint32_t currentRepair = 0UL, currentSpool = 0UL;
+        if (!findUnsigned(line, "repair_id", currentRepair) || currentRepair == 0UL ||
+            !findUnsigned(line, "spool_id", currentSpool) || currentSpool == 0UL ||
+            currentRepair != repairId || currentSpool != spoolId)
+        {
+            file.close();
+            return false;
+        }
 
         const bool hasRun = line.indexOf(F("\"source_run_id\":")) >= 0;
         if (!hasRun)
@@ -331,7 +343,12 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
                 return WireWriteOffCoverageCheck::IntegrityFailed;
 
             bool writeOffFound = false;
-            if (!confirmedWriteOffExists(storage, sessionId, runId, writeOffFound))
+            if (!confirmedWriteOffExists(storage,
+                                         repairId,
+                                         selection.spoolId,
+                                         sessionId,
+                                         runId,
+                                         writeOffFound))
             {
                 File probe = storage.open(MovementsPath, FILE_READ);
                 if (!probe) return WireWriteOffCoverageCheck::StorageUnavailable;

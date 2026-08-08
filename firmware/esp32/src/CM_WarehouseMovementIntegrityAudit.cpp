@@ -1,4 +1,5 @@
 #include "CM_WarehouseMovementIntegrityAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include <Arduino.h>
 
 namespace CM
@@ -202,7 +203,7 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!line.startsWith("{") || !line.endsWith("}"))
+        if (!FlatJsonObjectValidator::valid(line))
         {
             file.close();
             return false;
@@ -316,6 +317,9 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
     }
     file.close();
     if (pendingId != 0UL) return false;
+    // Syntax and transaction shape were already validated exactly once in the
+    // authoritative pass above; keep provenance uniqueness scans focused on
+    // identity to avoid adding a JSON-parser multiplier to their O(n^2) work.
     if (!confirmedProvenanceUnique(storage, Path)) return false;
     validatedRecordCount = recordCount;
     return true;

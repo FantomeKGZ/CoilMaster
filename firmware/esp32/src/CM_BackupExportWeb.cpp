@@ -2,6 +2,7 @@
 #include "CM_BackupActivityGuard.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
 #include "CM_MaterialPersistenceIntegrityAudit.h"
+#include "CM_BackupBusinessDataIntegrityAudit.h"
 
 namespace CM
 {
@@ -212,6 +213,9 @@ const char* snapshotStabilityReason(fs::FS& storage)
 
     if (!MaterialPersistenceIntegrityAudit::check(storage))
         return "material_persistence_unstable_or_invalid";
+
+    if (!BackupBusinessDataIntegrityAudit::check(storage))
+        return "business_data_unstable_or_invalid";
 
     if (storage.exists(WarehouseMovementsPath) &&
         !WarehouseMovementIntegrityAudit::check(storage))

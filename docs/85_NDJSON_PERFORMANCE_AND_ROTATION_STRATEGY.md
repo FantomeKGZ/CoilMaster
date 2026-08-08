@@ -93,7 +93,7 @@ warehouse_movement_record_count
 8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
 c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation count
 36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
-1101ab18ef6be33608f42bb2d7bfca87713b280  Return validated winding record count
+1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
 a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
 b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count

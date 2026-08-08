@@ -1,4 +1,5 @@
 #include "CM_MaterialLedger.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -11,7 +12,11 @@ bool MaterialLedger::repairExists(uint32_t repairId, bool& found) const
     }
 
     File file = m_storage.open(RepairsPath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
 
     uint32_t previousId = 0UL;
     while (file.available())
@@ -20,7 +25,7 @@ bool MaterialLedger::repairExists(uint32_t repairId, bool& found) const
         if (line.length() == 0U) continue;
 
         uint32_t candidate = 0UL;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "repair_id", candidate) || candidate == 0UL ||
             candidate <= previousId)
         {

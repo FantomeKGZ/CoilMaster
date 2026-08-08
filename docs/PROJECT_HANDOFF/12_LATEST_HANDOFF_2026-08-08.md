@@ -2,7 +2,7 @@
 
 Ветка: `cmp-protocol-v1`  
 Репозиторий: `FantomeKGZ/CoilMaster`  
-Этот файл — актуальная точка входа после deep backup-integrity, HTTP semantics audit и первого Stage 0 performance/observability batch.
+Этот файл — актуальная точка входа после deep backup-integrity, HTTP semantics audit и расширенного Stage 0 performance/observability batch.
 
 ## 1. Обязательные правила продолжения
 
@@ -176,6 +176,7 @@ snapshot_stability_checked=false
 snapshot_stable=null
 snapshot_stability_duration_ms=null
 winding_journal_record_count=null
+warehouse_movement_record_count=null
 ```
 
 При safe state `snapshot_stable=true` означает успешную read-only проверку всего static whitelist:
@@ -277,15 +278,16 @@ Manifest теперь возвращает:
 ```text
 snapshot_stability_duration_ms
 winding_journal_record_count
+warehouse_movement_record_count
 ```
 
 `duration_ms` измеряет только уже выполняемый deep audit.
 
-`winding_journal_record_count` считается внутри того же authoritative `WindingJournalQuery::validateAll()` EOF pass. Отдельного повторного чтения `events.ndjson` ради count нет.
+`winding_journal_record_count` считается внутри того же authoritative `WindingJournalQuery::validateAll()` EOF pass. Отдельного повторного чтения `events.ndjson` ради count нет. Count публикуется только после успешной winding schema validation **и** transition audit. Если winding integrity не доказана — `null`.
 
-Count публикуется только после успешной winding schema validation **и** transition audit. Если winding integrity не доказана — `null`.
+`warehouse_movement_record_count` считается внутри уже существующего `WarehouseMovementIntegrityAudit::check()` pass по `/data/warehouse/movements.ndjson`. Это число непустых persisted NDJSON rows, включая `PENDING` и завершающие `CONFIRMED|ABORTED`. Отдельного повторного чтения ради count нет. Поле публикуется только если файл существует и warehouse movement integrity доказана; иначе `null`.
 
-Эти поля — observability metadata и не участвуют в `snapshot_stable` / `export_allowed`.
+Все три поля — observability metadata и не участвуют в `snapshot_stable` / `export_allowed`.
 
 Кодовые commits Stage 0:
 
@@ -297,6 +299,9 @@ eeea77a35e0938692f2142b5022ea41849bf5f64  Expose winding audit record count
 1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
 a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
 b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
+63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count
+fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
+a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
 ```
 
 Документационные commits текущего batch:
@@ -310,6 +315,11 @@ cdf3c665d536d42e6638970d5a3694be03b014ce  Document winding journal backup metric
 495823c09b8c61213767d05966ca4434f185aef9  Document winding journal observability
 89f86252b94445d25b8bc1e5f1979595243407e4  Record winding backup observability in current state
 17fc3883cb2eeeefc6ff79f289e0b6e3a87db663  Advance handoff to measured backup performance
+08743e86987f28ae051a13f6d30e79869eff07ff  Document warehouse movement observability
+f6c98a6a132709d5be880d30714f1218207685ae  Fix winding observability commit reference
+e98600ebdbd343de6a7260a4019b32924f55f742  Record warehouse backup observability
+fb19a7384ed4055654a59880ccf41289fc7659ad  Advance active work to warehouse observability
+c3bd6b03451facd711558dbd67b6fe994c9ffbe7  Refresh project continuation point
 ```
 
 Эти commits **не считать GREEN автоматически**.
@@ -318,12 +328,13 @@ cdf3c665d536d42e6638970d5a3694be03b014ce  Document winding journal backup metric
 
 Repository-level include audit выполнен.
 
-Для нового winding count API:
+Для count APIs:
 
-- старый no-arg `validateAll()` сохранён и делегирует overload;
+- старый no-arg `WindingJournalQuery::validateAll()` сохранён и делегирует overload;
 - старый `WindingPersistenceIntegrityAudit::check(storage)` сохранён;
-- count overload имеет explicit `<stdint.h>` для публичного `uint32_t`;
-- `CM_BackupExportWeb` уже имеет Arduino dependency для `millis()`.
+- старый `WarehouseMovementIntegrityAudit::check(storage)` сохранён и делегирует overload с count;
+- публичные count overloads имеют explicit `<stdint.h>` для `uint32_t`;
+- `CM_BackupExportWeb` уже имеет Arduino dependency для `millis()` и вызывает новые overloads без изменения safety gating.
 
 Это статическая compile-safety проверка, не фактический build result.
 
@@ -362,6 +373,8 @@ client + motor + repair
 ```text
 winding-events.size_bytes
 winding_journal_record_count
+warehouse-movements.size_bytes
+warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
@@ -384,8 +397,8 @@ Fault scenarios минимум:
 
 1. Не повторять deep backup integrity, winding `validateAll()` cleanup или HTTP semantics audit.
 2. Если появляется новый Actions run — проверить фактический `build-esp32` head и исправлять первую реальную compile/link error, а не framework warnings.
-3. Предпочтительный следующий шаг — реальный hardware/E2E + performance measurement с `size_bytes`, `winding_journal_record_count`, `snapshot_stability_duration_ms`.
-4. Если hardware пока недоступен, repo-only код продолжать только как same-pass observability: новый counter/duration допустим, только если authoritative validator может вернуть его без второго full scan.
+3. Предпочтительный следующий шаг — реальный hardware/E2E + performance measurement с `winding-events.size_bytes`, `winding_journal_record_count`, `warehouse-movements.size_bytes`, `warehouse_movement_record_count`, `snapshot_stability_duration_ms`.
+4. Если hardware пока недоступен, repo-only код продолжать только как same-pass observability: следующий естественный кандидат — `CM_MaterialPersistenceIntegrityAudit` с counts usage/adjustments, но только через совместимый overload и без второго full scan ради телеметрии.
 5. Не вводить rotation threshold, persistent cache или database migration до измерений.
 
 ## 14. Deferred product work

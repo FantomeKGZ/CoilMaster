@@ -48,7 +48,7 @@ void WarehouseWeb::handleListWriteOffs()
     }
 
     String response;
-    response.reserve(5200U);
+    response.reserve(5400U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
@@ -182,14 +182,27 @@ void WarehouseWeb::handleConfirmWriteOff()
     }
 
     uint32_t sourceSessionId = 0UL;
-    if (m_server.hasArg("source_session_id") &&
-        m_server.arg("source_session_id").length() > 0U)
+    uint32_t sourceRunId = 0UL;
+    const bool hasSourceSession = m_server.hasArg("source_session_id") &&
+                                  m_server.arg("source_session_id").length() > 0U;
+    const bool hasSourceRun = m_server.hasArg("source_run_id") &&
+                              m_server.arg("source_run_id").length() > 0U;
+    if (hasSourceSession != hasSourceRun)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"source_session_and_run_required_together\",\"write_performed\":false}");
+        return;
+    }
+
+    if (hasSourceSession)
     {
         if (!parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
-                              sourceSessionId))
+                              sourceSessionId) ||
+            !parseUnsignedArg(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
+                              sourceRunId))
         {
             m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_source_session_id\",\"write_performed\":false}");
+                          "{\"error\":\"invalid_source_session_or_run_id\",\"write_performed\":false}");
             return;
         }
 
@@ -238,7 +251,9 @@ void WarehouseWeb::handleConfirmWriteOff()
         }
 
         const WindingSessionCompletionCheck completion =
-            WindingSessionCompletionAudit::check(m_store.storage(), sourceSessionId);
+            WindingSessionCompletionAudit::check(m_store.storage(),
+                                                 sourceSessionId,
+                                                 sourceRunId);
         if (completion == WindingSessionCompletionCheck::StorageUnavailable)
         {
             m_server.send(503, "application/json; charset=utf-8",
@@ -254,25 +269,27 @@ void WarehouseWeb::handleConfirmWriteOff()
         if (completion != WindingSessionCompletionCheck::Completed)
         {
             m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"source_session_not_completed\",\"write_performed\":false}");
+                          "{\"error\":\"source_run_not_completed\",\"write_performed\":false}");
             return;
         }
 
         bool alreadyConfirmed = false;
-        if (!m_store.confirmedWriteOffForSourceSession(sourceSessionId, alreadyConfirmed))
+        if (!m_store.confirmedWriteOffForSourceRun(sourceSessionId,
+                                                   sourceRunId,
+                                                   alreadyConfirmed))
         {
             if (!m_store.ready())
                 m_server.send(503, "application/json; charset=utf-8",
                               "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
             else
                 m_server.send(500, "application/json; charset=utf-8",
-                              "{\"error\":\"source_session_writeoff_lookup_failed\",\"write_performed\":false}");
+                              "{\"error\":\"source_run_writeoff_lookup_failed\",\"write_performed\":false}");
             return;
         }
         if (alreadyConfirmed)
         {
             m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"source_session_already_written_off\",\"write_performed\":false}");
+                          "{\"error\":\"source_run_already_written_off\",\"write_performed\":false}");
             return;
         }
     }
@@ -289,6 +306,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     operation.spoolId = spoolId;
     operation.repairId = repairId;
     operation.sourceSessionId = sourceSessionId;
+    operation.sourceRunId = sourceRunId;
     operation.weightBeforeGrams = before;
     operation.weightAfterGrams = after;
     operation.timestamp = timestamp;
@@ -318,13 +336,16 @@ void WarehouseWeb::handleConfirmWriteOff()
              static_cast<unsigned long long>(consumedValueMinor));
 
     String response;
-    response.reserve(440U);
+    response.reserve(480U);
     response = F("{\"confirmed\":true,\"movement_id\":");
     response += result.movementId;
     response += F(",\"spool_id\":"); response += spoolId;
     response += F(",\"repair_id\":"); response += repairId;
     response += F(",\"source_session_id\":");
     if (sourceSessionId != 0UL) response += sourceSessionId;
+    else response += F("null");
+    response += F(",\"source_run_id\":");
+    if (sourceRunId != 0UL) response += sourceRunId;
     else response += F("null");
     response += F(",\"diameter_hundredths_mm\":");
     response += result.diameterHundredthsMm;

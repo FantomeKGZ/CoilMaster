@@ -703,3 +703,4 @@ const char* MaterialLedger::unitText(MaterialUnit unit)
         default: return "PIECE";
     }
 }
+}

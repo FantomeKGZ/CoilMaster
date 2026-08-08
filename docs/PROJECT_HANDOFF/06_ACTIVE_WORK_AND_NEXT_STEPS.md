@@ -29,7 +29,7 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 - winding `validateAll()` cleanup;
 - backup/run-level HTTP semantics audit;
 - Stage 0 backup observability до 29 metrics;
-- flat persisted JSON syntax hardening для workshop/pricing/material/warehouse/settings.
+- flat persisted JSON syntax hardening для deep audits и основных runtime/history/writeoff readers.
 
 ## CI status
 
@@ -49,7 +49,7 @@ Safe `snapshot_stable=true` означает проверку static whitelist, 
 
 ## Stage 0 performance observability
 
-Manifest теперь возвращает **29 metrics без отдельного telemetry scan**.
+Manifest возвращает **29 metrics без отдельного telemetry scan**.
 
 Per-domain timing:
 
@@ -90,11 +90,11 @@ warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
-Timing оборачивает только уже существующие audit calls через `millis()`; filesystem I/O ради duration не добавляется. Если audit дошёл до domain, его duration публикуется даже при failure этого domain, а последующие неисполненные domains остаются `null`. Это позволяет локализовать slow failure.
+Timing оборачивает только уже существующие audit calls через `millis()`; filesystem I/O ради duration не добавляется. Если audit дошёл до domain, его duration публикуется даже при failure этого domain, а последующие неисполненные domains остаются `null`.
 
-`winding_session_directory_scan_duration_ms` отдельно измеряет уже существующий preliminary directory scan, а `winding_session_persistence_audit_duration_ms` — authoritative deep parser/cross-identity audit. До benchmark эти passes не объединять.
+`winding_session_directory_scan_duration_ms` отдельно измеряет preliminary directory scan, а `winding_session_persistence_audit_duration_ms` — authoritative deep parser/cross-identity audit. До benchmark эти passes не объединять.
 
-Record counts, allocator high-water и session file counts/bytes также собираются внутри уже выполняемых authoritative passes. Старые `check(storage)` contracts сохранены совместимо. Partial domain counts/high-water после failed domain audit наружу не публикуются.
+Record counts, allocator high-water и session file counts/bytes собираются внутри уже выполняемых authoritative passes. Старые `check(storage)` contracts сохранены совместимо. Partial domain counts/high-water после failed domain audit наружу не публикуются.
 
 Session byte totals являются telemetry-only: при 32-bit aggregate overflow только total-byte fields становятся `null`; integrity result не меняется.
 
@@ -104,20 +104,9 @@ Session byte totals являются telemetry-only: при 32-bit aggregate ove
 96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
 ```
 
-Ключевые предыдущие observability commits:
-
-```text
-4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
-b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water mark
-52fae7716034ccacebc41f1f11715f5eebf193c2  Expose allocator high-water mark in backup manifest
-1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
-cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
-a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
-```
-
 ## Flat persisted JSON correctness hardening
 
-Repository review после Stage 0 подтвердил отдельную correctness-причину: несколько persisted flat-NDJSON readers проверяли только внешние `{...}` и выбранные поля. Синтаксически повреждённая строка с ещё читаемым ID могла пройти часть integrity/startup checks или попасть в read-only JSON API.
+Repository review подтвердил correctness-причину: несколько persisted flat-NDJSON readers проверяли только внешние `{...}` и выбранные поля. Синтаксически повреждённая строка с ещё читаемым ID могла пройти часть integrity/startup/runtime checks или попасть в JSON API/агрегаты.
 
 Добавлен общий header-only:
 
@@ -125,9 +114,11 @@ Repository review после Stage 0 подтвердил отдельную cor
 firmware/esp32/src/CM_FlatJsonObjectValidator.h
 ```
 
-Он проверяет синтаксис уже прочитанного flat JSON object без нового SD pass и без внешней JSON dependency.
+Он проверяет полный синтаксис уже прочитанного flat JSON object без нового SD pass и без внешней JSON dependency.
 
-Hardened authoritative readers:
+### Deep/startup authoritative readers
+
+Hardened:
 
 ```text
 CM_BackupBusinessDataIntegrityAudit
@@ -139,9 +130,40 @@ CM_WarehouseMovementIntegrityAudit
 CM_ConductorSettingsIntegrityAudit
 ```
 
-Strict parser выполняется один раз на authoritative outer pass. В известных O(n²)/O(n*m) duplicate/reference scans повторный full JSON parse намеренно убран/не добавлен, чтобы correctness fix не создавал искусственный performance regression.
+Strict parser выполняется один раз на authoritative outer pass. В известных O(n²)/O(n*m) duplicate/reference scans повторный full JSON parse намеренно не выполняется.
 
-Ключевые commits:
+### Runtime/history/costing readers
+
+Дополнительно hardened:
+
+```text
+CM_RepairCosting.cpp
+CM_MaterialHistory.cpp
+CM_MaterialUsageHistory.cpp
+CM_MaterialAdjustment.cpp
+CM_MaterialLedgerCurrency.cpp
+CM_RepairPricingHistory.cpp
+CM_WarehouseWriteOffHistory.cpp
+CM_WarehouseStore.cpp
+CM_WarehouseWriteOff.cpp
+CM_WarehousePrice.cpp
+CM_WarehouseSpoolIdentity.cpp
+```
+
+Практический эффект:
+
+- malformed persisted history не должен попадать в material/pricing/write-off JSON response;
+- costing не строит operator-visible totals поверх malformed movement/usage/pricing rows;
+- material adjustment/recovery блокируется до temp swap/replay при malformed source/pending/audit JSON;
+- material currency lookup fail-closed;
+- warehouse summary и ID allocation fail-closed;
+- manual writeoff проверяет movement/spool state до PENDING/atomic spool rewrite;
+- rewritten spool/material-adjustment rows дополнительно syntax-проверяются до temp-file write;
+- exact active spool identity и warehouse price fail-closed проверяются непосредственно в runtime preflight.
+
+Safety invariants не менялись: physical START только физический, SSR остаётся у Arduino, auto-resume отсутствует, `RUN_COMPLETED` не списывает wire автоматически, writeoff остаётся ручным и связан с exact spool/session/run provenance.
+
+Ключевые базовые commits:
 
 ```text
 9ddabf613f1edf95dc1da55cbba8763414e47968  Add flat persisted JSON syntax validator
@@ -155,25 +177,51 @@ b3fd050c5e917691877e1c245fadde333742eed7  Reject malformed flat JSON in warehous
 b7b362bfe1813f27eab0c904dc9c7fc4489e6f9e  Reject malformed flat JSON in movement audit
 ab0b1f6b0381641e811fed5a18ac412ebb0667d2  Reject malformed flat JSON in conductor settings audit
 090acf40fc4470c7b8719975df7f4ce218a3cdec  Keep pricing reference scans identity focused
+02a80ea88a157ebfaee389d9c87368b36235ccbd  Fail closed on malformed costing histories
 ```
 
-Safety invariants не затронуты: это только fail-closed persistence parsing.
+Ключевые последующие runtime commits:
+
+```text
+4d1761aa7b2b958a880b7de2b30c3bc8b09e62cd  Reject malformed pricing history JSON
+9fb8918eb8fad0c939cf04330ddfce81073c1f8c  Reject malformed write-off history JSON
+b43568c4231d9c972ed92f0b3b23c038837e3252  Reject malformed material usage history JSON
+8c3f2b76464918a889a0e5a42d27c6ac4ff82c63  Fail closed on malformed warehouse summary state
+d5c0a99449132fd343e1dc04e92e4136471dfbbb  Fail closed on malformed write-off transaction state
+ea37009b15cf5367d4c5712bdd412c16f4649827  Fail closed on malformed warehouse price state
+e01b7f8e6219558622a1c86c517c4d200f767992  Fail closed on malformed spool identity state
+```
+
+Дополнительные material runtime commits находятся в текущей ветке для `CM_MaterialHistory.cpp`, `CM_MaterialAdjustment.cpp` и `CM_MaterialLedgerCurrency.cpp`; точная запись сессии находится в `10_SESSION_LOG.md`.
+
+## Явно незакрытый repo-only кандидат
+
+`firmware/esp32/src/CM_MaterialLedger.cpp` всё ещё содержит несколько direct persisted-row paths со старым shape shortcut/выборочным parsing:
+
+- material catalog JSON output;
+- material row scan перед usage confirmation;
+- pending usage recovery/durable lookup;
+- direct stock lookup;
+- generic next ID scan;
+- quantity rewrite/restore source rows.
+
+Файл был fetched и подготовлен к аналогичному hardening, но большой GitHub `update_file` был остановлен connector safety-filter **до записи**. Low-level Git object workflow для обхода этого filter намеренно не использовался. Поэтому `CM_MaterialLedger.cpp` не считать исправленным.
+
+Если connector позже позволяет обычный SHA-guarded contents update — это следующий конкретный repo-only correctness fix. Не заменять его broad full-audit вызовом перед каждой mutation: это добавило бы лишний SD I/O и исказило performance contract.
 
 ## Repo-reviewable integration status
 
 Подтверждено на уровне static repository review:
 
-- `CM_WindingPersistenceIntegrityAudit` использует authoritative `WindingJournalQuery::validateAll()` + отдельный transition audit;
-- `CM_WindingSessionPersistenceIntegrityAudit` остаётся authoritative deep parser/cross-file identity audit;
-- compatibility `check(storage)` overloads сохранены;
-- allocator high-water, record counts и session bytes не добавляют telemetry-only full scans;
-- per-domain timing использует `uint32_t` `millis()` subtraction вокруг существующих вызовов;
-- `CM_BackupExportWeb.h` явно включает `Arduino.h`, поэтому timing/String/F types доступны напрямую;
-- shared flat-JSON validator header-only и использует уже доступный Arduino `String`;
-- workshop/material/warehouse/settings authoritative passes теперь отвергают malformed flat JSON;
-- repeated identity/reference scans не получили лишнего full-JSON parser multiplier;
+- winding `validateAll()` + transition audit сохранены;
+- session authoritative deep parser/cross-file identity audit не дублирован;
+- compatibility audit overloads сохранены;
+- Stage 0 telemetry не добавляет full scans;
+- shared flat-JSON validator self-contained через `Arduino.h`;
+- runtime/deep authoritative rows fail-closed по синтаксису в перечисленных modules;
+- repeated identity/reference scans не получили лишний parser multiplier;
 - `BackupActivityGuard::Safe` gating сохранён;
-- safety semantics физического START/SSR/manual writeoff не изменены.
+- ручной writeoff transaction/provenance semantics не изменены.
 
 Это static repository review, а не доказательство успешной ESP32 сборки или hardware behavior.
 
@@ -186,23 +234,25 @@ Repository review показывает:
 - warehouse reference validation повторно ищет spool/repair references;
 - backup делает preliminary session-directory scan до authoritative deep session audit.
 
-Это не correctness bugs. Новые per-domain durations позволяют сначала измерить цену каждого пути.
+Это не correctness bugs. Per-domain durations позволяют сначала измерить цену каждого пути.
 
 ## Следующее практическое действие
 
-Обязательный следующий этап — реальный hardware E2E ESP32 + Arduino и одновременный benchmark backup manifest. Сохранить один manifest с:
+Внешне обязательный этап — реальный hardware E2E ESP32 + Arduino и benchmark одного backup manifest:
 
 ```text
 items[].size_bytes
-всеми 29 Stage 0 metrics
+все 29 Stage 0 metrics
 snapshot_stability_duration_ms
 ```
 
 Сначала выбрать самый дорогой domain по `*_duration_ms`, затем объяснить его рост через record counts/session bytes/high-water. Только после этого решать bounded in-request index, duplicate-audit decomposition или rotation.
 
-Не вводить rotation threshold, persistent optimistic cache, Stage 1 duplicate-scan refactor или database migration до этих данных, если не появится отдельная correctness-причина.
+Repo-only до стенда:
 
-Если стенд пока недоступен, repo-only код допустим как fix фактически подтверждённой compile/correctness проблемы. Stage 0 observability уже достаточно детализирован; не добавлять метрики ради количества.
+1. `CM_MaterialLedger.cpp` — только если обычный SHA-guarded update проходит connector safety filter.
+2. Дальше только фактически найденные runtime/recovery readers с подтверждённой correctness-причиной; не угадывать пути и не добавлять metrics ради количества.
+3. Не начинать Stage 1 duplicate-scan refactor, rotation threshold, persistent optimistic cache или database migration до benchmark без отдельной correctness-причины.
 
 ## Hardware E2E — обязательно отдельно
 

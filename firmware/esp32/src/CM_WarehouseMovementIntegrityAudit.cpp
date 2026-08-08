@@ -171,14 +171,13 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
                 return false;
             }
         }
-        else if (diameter == 0UL || !hasWireType)
+        else if (diameter == 0UL)
         {
-            // Current confirmed records written by the strict warehouse path always
-            // carry CU/AL. Legacy records without wire_type are accepted by some
-            // reporting APIs, but cannot be produced by this transaction format.
             file.close();
             return false;
         }
+        // Legacy CONFIRMED rows may omit wire_type. When present it has already
+        // been validated as CU/AL above. New strict writers always include it.
 
         pendingId = 0UL;
         pendingSourceSession = 0UL;

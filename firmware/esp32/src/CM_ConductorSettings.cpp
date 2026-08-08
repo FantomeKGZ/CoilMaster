@@ -16,16 +16,35 @@ bool ConductorSettingsStore::begin()
 bool ConductorSettingsStore::load(ConversionSettings& settings) const
 {
     settings = ConversionSettings();
-    if (!m_ready || !m_storage.exists(SettingsPath)) return false;
+    if (!ready() || !m_storage.exists(SettingsPath)) return false;
     File file = m_storage.open(SettingsPath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
     String line;
+    bool recordSeen = false;
     while (file.available())
     {
         const String current = file.readStringUntil('\n');
-        if (current.length() > 0U) line = current;
+        if (current.length() == 0U) continue;
+        if (recordSeen)
+        {
+            file.close();
+            return false;
+        }
+        line = current;
+        recordSeen = true;
     }
     file.close();
+
+    if (!recordSeen || line.length() < 2U ||
+        !line.startsWith("{") || !line.endsWith("}"))
+    {
+        return false;
+    }
 
     uint32_t alToCu = 0UL, cuToAl = 0UL, deviation = 0UL, maxStrands = 0UL;
     if (!findUnsigned(line, "aluminium_to_copper_permille", alToCu) ||
@@ -45,7 +64,7 @@ bool ConductorSettingsStore::load(ConversionSettings& settings) const
 
 bool ConductorSettingsStore::save(const ConversionSettings& settings)
 {
-    if (!m_ready || settings.aluminiumToCopperPermille < 100U ||
+    if (!ready() || settings.aluminiumToCopperPermille < 100U ||
         settings.aluminiumToCopperPermille > 3000U ||
         settings.copperToAluminiumPermille < 100U ||
         settings.copperToAluminiumPermille > 3000U ||
@@ -72,19 +91,42 @@ bool ConductorSettingsStore::save(const ConversionSettings& settings)
     return m_storage.rename(TempPath, SettingsPath);
 }
 
-bool ConductorSettingsStore::ready() const { return m_ready; }
+bool ConductorSettingsStore::ready() const
+{
+    if (!m_ready) return false;
+    File directory = m_storage.open("/data/settings", FILE_READ);
+    if (!directory) return false;
+    const bool available = directory.isDirectory();
+    directory.close();
+    return available;
+}
 
 bool ConductorSettingsStore::findUnsigned(const String& line, const char* key, uint32_t& value)
 {
+    value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int start = line.indexOf(marker);
-    if (start < 0) return false;
+    if (start < 0 || line.indexOf(marker, start + marker.length()) >= 0) return false;
+
     int index = start + marker.length();
     while (index < line.length() && line[index] == ' ') ++index;
-    int end = index;
-    while (end < line.length() && isDigit(line[end])) ++end;
-    if (end == index) return false;
-    value = static_cast<uint32_t>(line.substring(index, end).toInt());
+    if (index >= line.length() || !isDigit(line[index])) return false;
+    if (line[index] == '0' && index + 1 < line.length() && isDigit(line[index + 1]))
+        return false;
+
+    uint32_t parsed = 0UL;
+    while (index < line.length() && isDigit(line[index]))
+    {
+        const uint8_t digit = static_cast<uint8_t>(line[index] - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+        ++index;
+    }
+
+    while (index < line.length() && line[index] == ' ') ++index;
+    if (index >= line.length() || (line[index] != ',' && line[index] != '}')) return false;
+
+    value = parsed;
     return true;
 }
 }

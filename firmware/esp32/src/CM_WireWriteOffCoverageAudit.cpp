@@ -201,6 +201,8 @@ bool confirmedWriteOffExists(fs::FS& storage,
         return false;
     }
 
+    bool matchingLegacySession = false;
+    bool matchingRun = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -221,7 +223,12 @@ bool confirmedWriteOffExists(fs::FS& storage,
         const bool hasRun = line.indexOf(F("\"source_run_id\":")) >= 0;
         if (!hasRun)
         {
-            // Legacy session-level provenance covers the whole session.
+            if (matchingLegacySession || matchingRun)
+            {
+                file.close();
+                return false;
+            }
+            matchingLegacySession = true;
             found = true;
             continue;
         }
@@ -232,7 +239,14 @@ bool confirmedWriteOffExists(fs::FS& storage,
             file.close();
             return false;
         }
-        if (currentRun == runId) found = true;
+        if (currentRun != runId) continue;
+        if (matchingLegacySession || matchingRun)
+        {
+            file.close();
+            return false;
+        }
+        matchingRun = true;
+        found = true;
     }
 
     file.close();
@@ -312,7 +326,7 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
             bool selectionFound = false;
             if (!loadSelectionReadOnly(storage, sessionId, selection, selectionFound))
                 return WireWriteOffCoverageCheck::IntegrityFailed;
-            if (!selectionFound) continue; // Legacy linked session.
+            if (!selectionFound) continue;
             if (selection.repairId != repairId)
                 return WireWriteOffCoverageCheck::IntegrityFailed;
 

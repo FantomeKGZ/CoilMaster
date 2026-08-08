@@ -1,4 +1,5 @@
 #include "CM_RepairCosting.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
 
@@ -102,7 +103,7 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
 
             const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
             const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-            if (!line.startsWith("{") || !line.endsWith("}") ||
+            if (!FlatJsonObjectValidator::valid(line) ||
                 !findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
                 !findString(line, "type", type) || type != "WRITE_OFF" ||
                 !findString(line, "status", status) ||
@@ -268,7 +269,7 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
             String currency, timestamp, comment;
             const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
 
-            if (!line.startsWith("{") || !line.endsWith("}") ||
+            if (!FlatJsonObjectValidator::valid(line) ||
                 !findUnsigned(line, "usage_id", usageId) || usageId == 0UL ||
                 usageId <= previousUsageId ||
                 !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
@@ -322,7 +323,7 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
             uint64_t labour = 0ULL;
             uint64_t client = 0ULL;
             String currency, timestamp;
-            if (!line.startsWith("{") || !line.endsWith("}") ||
+            if (!FlatJsonObjectValidator::valid(line) ||
                 !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
                 !findUnsigned64(line, "labour_cost_minor", labour) ||
                 !findUnsigned64(line, "client_price_minor", client) ||

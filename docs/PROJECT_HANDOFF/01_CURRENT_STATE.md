@@ -70,6 +70,8 @@ Session persistence:
 /data/winding-runs/events.ndjson
 ```
 
+Deep winding backup validation уже использует authoritative `WindingJournalQuery::validateAll()` до EOF, затем отдельно `WindingJournalTransitionAudit::validate()`. Старого cursor-pagination полного scan в `CM_WindingPersistenceIntegrityAudit` нет; cursor остаётся только в пользовательском history API.
+
 ## Exact spool и ручное списание
 
 Новый linked job требует конкретную `ACTIVE` CU/AL бухту с положительным остатком. Выбор сохраняется immutable до UART delivery.
@@ -88,6 +90,8 @@ Server-side доказывается:
 - repair и spool совпадают с immutable selection;
 - второй CONFIRMED для того же `(session, run)` запрещён;
 - recovery сохраняет provenance через `PENDING → CONFIRMED | ABORTED`.
+
+Run-level HTTP contract дополнительно hardened: если `source_session_id` / `source_run_id` присутствуют, они обязаны присутствовать вместе, быть непустыми и валидными non-zero IDs. Пустые параметры больше не могут молча перейти в legacy write-off path.
 
 Repair finalization требует ручное покрытие каждого нового completed linked run с immutable spool-selection. Legacy sessions/movements читаются совместимо.
 
@@ -150,21 +154,44 @@ Manifest разделяет:
 - `snapshot_stable` — `true/false`, либо `null`, если глубокий scan намеренно не запускался из-за machine activity;
 - `snapshot_stability_reason` — первый доказанный recovery/integrity failure.
 
-При безопасном machine-state `snapshot_stable=true` требует успешной read-only проверки:
+При безопасном machine-state `snapshot_stable=true` теперь означает успешную read-only проверку **всего backup whitelist**, а также необходимых recovery/session adjuncts.
 
-- material pending/swap markers;
-- persistent allocator `id-state.txt`, optional `.bak`, отсутствие `.tmp`;
-- conductor settings и отсутствие `conductor.tmp`;
-- workshop clients/motors/repairs + repair-status references;
-- repair pricing + repair references;
-- material catalogue/usage/adjustments + арифметика;
-- winding journal schema до EOF + semantic transitions;
-- warehouse spools + price;
-- warehouse movements transaction/provenance integrity;
+Статический whitelist покрыт так:
+
+```text
+/data/workshop/clients.ndjson
+/data/workshop/motors.ndjson
+/data/workshop/repairs.ndjson
+/data/workshop/repair-status.ndjson
+/data/winding-runs/events.ndjson
+/data/warehouse/spools.ndjson
+/data/warehouse/movements.ndjson
+/data/warehouse/price.ndjson
+/data/materials/materials.ndjson
+/data/materials/usage.ndjson
+/data/materials/adjustments.ndjson
+/data/repairs/pricing.ndjson
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/id-state.bak          # optional, если существует
+/data/settings/conductor-calculator.ndjson
+```
+
+Дополнительно deep audit проверяет:
+
+- material/warehouse recovery и swap markers;
+- allocator: canonical main state, optional `.bak`, отсутствие `id-state.tmp`;
+- conductor settings: canonical `conductor-calculator.ndjson`, отсутствие `conductor-calculator.tmp` и `.bak` recovery residue;
+- workshop/pricing/material/warehouse references и арифметику;
+- winding journal schema до EOF + transition semantics;
 - canonical session directories;
-- содержимое snapshot/runtime-state/spool-selection и cross-file identity.
+- **содержимое всех** `snapshot/state/spool-selection` session files штатными stores/parsers;
+- cross-file `session_id/job_id/repair_id/motor_id/spool` identity.
 
 Нестабильный snapshot можно скачать как diagnostic copy, если export разрешён, но UI не называет его чистым backup.
+
+Compile-safety audit новых backup integrity modules также выполнен на уровне repository review: публичные audit headers самостоятельно включают `FS.h`, `.cpp` с `String/File/isDigit` имеют Arduino dependencies, а ESP32 PlatformIO filter компилирует все `firmware/esp32/src/*.cpp`. Missing include в проверенном наборе не найден. Это **не** считается доказательством GREEN CI до фактического build result.
+
+HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение на текущем этапе — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД.
 
 ## Runtime microSD safety
 

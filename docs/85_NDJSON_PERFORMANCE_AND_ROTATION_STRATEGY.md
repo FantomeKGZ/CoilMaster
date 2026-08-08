@@ -196,6 +196,28 @@ warehouse_price_record_count
 
 `warehouse_movement_record_count` считается внутри существующего `WarehouseMovementIntegrityAudit::check()` прохода по `/data/warehouse/movements.ndjson`. Это число непустых transaction rows, включая `PENDING` и завершающие `CONFIRMED|ABORTED`; отдельного чтения ради counter нет.
 
+## Flat persisted JSON correctness hardening
+
+После завершения Stage 0 repository review выявил отдельную correctness-причину, не связанную с benchmark: часть flat NDJSON validators считала строку структурно допустимой по внешним `{...}` и выборочному извлечению полей. Синтаксически повреждённая строка с ещё читаемым ID могла пройти часть startup/deep checks и затем попасть в read-only API как malformed JSON.
+
+Добавлен header-only `CM_FlatJsonObjectValidator.h` без внешней JSON dependency. Он проверяет полный синтаксис одного flat JSON object в уже прочитанной `String`: string keys, primitive string/number/bool/null values, whitespace и JSON escapes. Nested object/array намеренно не принимаются, потому что затронутые persisted schemas flat.
+
+Shared validator теперь применяется на authoritative outer passes для:
+
+```text
+workshop clients/motors/repairs/repair-status
+repair pricing
+materials/material usage/material adjustments
+warehouse spools/price/movements
+conductor settings
+```
+
+`RepairRegistry` также проверяет flat JSON в runtime reads/lookups, поэтому corruption после boot не должен превращаться в malformed JSON API output.
+
+Performance invariant сохранён: strict JSON syntax проверяется один раз на authoritative outer pass. В уже известных O(n²)/O(n*m) duplicate/reference scans parser намеренно не дублируется; такие scans остаются identity-focused. Это correctness hardening без дополнительного filesystem I/O и без преждевременного Stage 1 refactor.
+
+Safety semantics physical START/SSR/manual wire writeoff не затронуты.
+
 ## Ключевые Stage 0 commits
 
 ```text
@@ -209,7 +231,7 @@ fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
 a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
 ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
 6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
-38befe338cfc57879d2ad09fc6be20a084c6ba2b  Expose material audit counts in backup manifest
+38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
 9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
 afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
 abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
@@ -226,6 +248,22 @@ b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water 
 cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
 a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
 96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
+```
+
+Ключевые correctness commits после Stage 0:
+
+```text
+9ddabf613f1edf95dc1da55cbba8763414e47968  Add flat persisted JSON syntax validator
+96c863b1a1bde3a3725596940e74805da2c69111  Reject malformed flat JSON in business backup audit
+d13269bb481d056623569b9ecdf91708be6b0b8b  Fail closed on malformed workshop JSON
+07b20e9b88012446fcbc813e78b39349ecd70753  Reject malformed flat JSON in pricing audit
+b86794238cab420d1d97c3b281fa233b92ccf317  Avoid repeated JSON parsing in business identity scans
+86b19f35cad6c383377dee9c342e58f4978b0e79  Avoid repeated JSON parsing in registry duplicate scans
+16f39b33cccaeed533c39c2e0144d6942169b2c7  Reject malformed flat JSON in material persistence audit
+b3fd050c5e917691877e1c245fadde333742eed7  Reject malformed flat JSON in warehouse persistence audit
+b7b362bfe1813f27eab0c904dc9c7fc4489e6f9e  Reject malformed flat JSON in movement audit
+ab0b1f6b0381641e811fed5a18ac412ebb0667d2  Reject malformed flat JSON in conductor settings audit
+090acf40fc4470c7b8719975df7f4ce218a3cdec  Keep pricing reference scans identity focused
 ```
 
 ## Что снять на стенде

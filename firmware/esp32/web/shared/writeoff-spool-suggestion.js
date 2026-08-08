@@ -15,12 +15,28 @@ const spoolInfo=document.getElementById('spoolInfo');
 if(spoolInfo&&spoolInfo.parentNode)spoolInfo.parentNode.insertBefore(note,spoolInfo);
 else spoolSelect.insertAdjacentElement('afterend',note);
 
+const protectedWriteoffMessage=code=>({
+    source_session_and_run_required_together:'Защищённая связь со списанием неполная: session-id и run-id должны передаваться вместе. Обновите страницу и повторите выбор завершённого прогона.',
+    invalid_source_session_or_run_id:'Некорректные идентификаторы сессии или прохода. Списание не выполнено; обновите страницу и проверьте историю намотки.',
+    job_spool_selection_store_unavailable:'Хранилище immutable выбора бухты временно недоступно. Списание не выполнено; проверьте microSD.',
+    job_spool_selection_read_failed:'Immutable запись выбора бухты не прошла проверку целостности. Списание заблокировано до устранения проблемы данных.',
+    source_session_spool_selection_not_found:'Для выбранной сессии не найдена immutable запись бухты. Автоматическая подмена запрещена; проверьте историю задания.',
+    source_session_spool_mismatch:'Выбранная бухта не совпадает с immutable бухтой этой сессии. Списание не выполнено; не заменяйте бухту автоматически.',
+    winding_history_unavailable:'История намотки временно недоступна. Нельзя доказать завершение прохода, поэтому списание не выполнено.',
+    winding_history_integrity_failed:'История намотки не прошла проверку целостности. Списание по provenance заблокировано.',
+    source_run_not_completed:'Указанный проход не имеет подтверждённого RUN_COMPLETED. Списание для него не разрешено.',
+    source_run_writeoff_lookup_failed:'Не удалось доказуемо проверить, не списан ли этот проход ранее. Повторное списание заблокировано.',
+    source_run_already_written_off:'Для этой сессии и прохода уже существует подтверждённое ручное списание. Повторять операцию нельзя; обновите историю.',
+    write_off_not_committed:'Складская транзакция не была подтверждена. Не считайте расход списанным; обновите остаток и историю перед следующей попыткой.'
+})[code]||'';
+
 if(!window.cmWriteoffProvenanceFetchWrapped){
     const originalFetch=window.fetch.bind(window);
     window.fetch=async(input,init)=>{
         const url=typeof input==='string'?input:(input&&input.url)||'';
+        const isWriteoffPost=url==='/api/warehouse/write-offs'&&init&&String(init.method||'GET').toUpperCase()==='POST'&&init.body instanceof URLSearchParams;
         let attachedSessionId='',attachedRunId='';
-        if(url==='/api/warehouse/write-offs'&&init&&String(init.method||'GET').toUpperCase()==='POST'&&init.body instanceof URLSearchParams){
+        if(isWriteoffPost){
             const sessionId=document.body.dataset.writeoffSourceSessionId||'';
             const runId=document.body.dataset.writeoffSourceRunId||'';
             const sourceSpoolId=document.body.dataset.writeoffSourceSpoolId||'';
@@ -36,6 +52,23 @@ if(!window.cmWriteoffProvenanceFetchWrapped){
             }
         }
         const response=await originalFetch(input,init);
+        if(isWriteoffPost&&!response.ok){
+            try{
+                const payload=await response.clone().json();
+                const code=String(payload&&payload.error||'');
+                const message=protectedWriteoffMessage(code);
+                if(message){
+                    note.className='warning';
+                    note.textContent=message;
+                    const translated=Object.assign({},payload,{error:message,error_code:code});
+                    return new Response(JSON.stringify(translated),{
+                        status:response.status,
+                        statusText:response.statusText,
+                        headers:new Headers(response.headers)
+                    });
+                }
+            }catch(_){}
+        }
         if(attachedSessionId&&attachedRunId&&response.ok){
             try{
                 const payload=await response.clone().json();

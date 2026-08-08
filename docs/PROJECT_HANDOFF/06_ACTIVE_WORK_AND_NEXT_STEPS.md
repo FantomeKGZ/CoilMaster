@@ -6,7 +6,7 @@
 
 ## Точная точка продолжения
 
-Основной путь ремонта сейчас замкнут:
+Основной production path замкнут:
 
 ```text
 клиент
@@ -15,42 +15,45 @@
 → калькуляция
 → linked winding
 → обязательный exact spool_id
-→ immutable snapshot + immutable spool selection
+→ immutable job snapshot + immutable spool selection
 → physical START
 → RUN_STARTED / RUN_COMPLETED
 → winding history
-→ ручное списание провода по фактическому весу
+→ ручное списание фактического расхода провода
 → source_session_id + source_run_id provenance
 → дополнительные материалы / pricing
 → read-only finalization preflight
 → CLOSED
 → read-only архив
 → месячный отчёт
+→ read-only backup/export
 ```
 
-## Что нового закрыто
+Физический START, SSR и автоматическое продолжение после reboot не управляются WEB/ESP32. `RUN_COMPLETED` сам провод не списывает.
 
-### Exact spool identity
+## Exact spool + ручное списание
 
 Новые linked jobs требуют конкретную активную CU/AL бухту с положительным остатком. Выбор сохраняется отдельно как immutable spool-selection до UART delivery.
 
-`RUN_COMPLETED` сам провод не списывает.
-
-После завершения UI предлагает immutable выбранную бухту, но оператор вручную вводит фактический вес и подтверждает складскую операцию.
-
-Новый write-off provenance имеет гранулярность конкретного прогона:
+Manual write-off provenance имеет гранулярность:
 
 ```text
 source_session_id + source_run_id
 ```
 
-Backend проверяет completed run, repair/spool identity и отсутствие предыдущего CONFIRMED для того же run. Recovery переносит provenance через `PENDING → CONFIRMED | ABORTED`.
+Backend доказывает:
 
-Repair finalization требует ручное покрытие каждого нового completed linked run, для которого существует immutable spool-selection. При отсутствии движения preflight возвращает `repair_finalization_wire_writeoff_required`.
+- конкретный `RUN_COMPLETED(session, run)` существует;
+- immutable spool-selection принадлежит тому же repair/motor;
+- write-off использует тот же `spool_id`;
+- для этого `(session_id, run_id)` ещё нет CONFIRMED write-off;
+- `PENDING → CONFIRMED | ABORTED` сохраняет provenance через reboot recovery.
 
-### Backup/export
+Repair finalization требует ручное покрытие каждого нового completed linked run с immutable spool-selection. Legacy sessions без spool-selection остаются совместимыми.
 
-Добавлен read-only whitelist backup:
+## Backup/export
+
+Доступны read-only whitelist endpoints:
 
 ```text
 GET /api/backup/manifest
@@ -59,76 +62,92 @@ GET /api/backup/sessions
 GET /api/backup/session-file?kind=...&session_id=...
 ```
 
-Arbitrary filesystem paths запрещены.
+Arbitrary filesystem paths запрещены. Тяжёлый export блокируется во время активной winding phase.
 
-Тяжёлый export блокируется во время активных winding phases через persisted activity guard.
+Manifest разделяет:
 
-Manifest теперь разделяет:
+- `export_allowed` — безопасно ли сейчас выполнять тяжёлый export;
+- `snapshot_stable` — доказана ли целостность persistent snapshot.
 
-- `export_allowed` — можно ли безопасно выполнять export сейчас;
-- `snapshot_stable` — нет ли известных pending/swap/session recovery markers.
+Нестабильная карта всё ещё может быть выгружена как диагностическая копия, если export разрешён, но UI не должен называть её чистым backup.
 
-Нестабильный snapshot разрешается только как диагностическая копия и явно помечается mobile/desktop UI.
+### Что теперь входит в `snapshot_stable`
 
-## Последние важные коммиты
+Read-only audit проверяет:
+
+- material recovery markers (`usage.pending`, `adjustment.pending`, material swap temp/backup);
+- warehouse spool swap temp/backup;
+- `materials.ndjson`, `usage.ndjson`, `adjustments.ndjson` и их арифметику;
+- references material usage → repair/material и adjustment → material;
+- workshop clients/motors/repairs + repair-status через authoritative registry validation;
+- `repair-pricing` structure и pricing → repair references;
+- warehouse `spools`, `price`, `movements` transaction integrity и movement → spool/repair references;
+- persistent allocator `id-state.txt`, optional `id-state.bak`, отсутствие `id-state.tmp`;
+- winding journal schema до EOF;
+- winding transition state-machine;
+- session directories snapshots/state/spool-selection;
+- содержимое каждого session file штатными parsers;
+- cross-file `job_id/session_id/repair_id/motor_id` identity.
+
+Read-only правило важно: session directories полностью проверяются на canonical `session-N.json` до запуска store parser. GET backup audit не выполняет recovery/rename.
+
+Legacy snapshot-only session допустима. Runtime state без snapshot недопустим. Spool-selection требует snapshot + state и совпадающую linked identity.
+
+## Последний backup-integrity блок
 
 ```text
-b36def0e  Add run level wire writeoff provenance contract
-021042aa  Add run specific winding completion audit
-f178fc81  Implement run specific winding completion audit
-1cf28fd0  Support run level wire writeoff provenance lookup
-321f43fc  Validate run level wire writeoff provenance
-1eb3fdbc  Use run level provenance in warehouse core
-e033197e  Use run level provenance in manual writeoff helper
-3195e6e5  Use run level provenance in warehouse writeoff API
-68678269  Preserve run level writeoff provenance during recovery
-1b08b1c6  Expose run level wire writeoff provenance
-0dc4088d  Preserve legacy session provenance in writeoff recovery
-6a1139f4  Add wire writeoff coverage audit contract
-20315b1f  Implement wire writeoff coverage audit
-4279fa38  Require manual wire writeoff coverage before repair closure
-ff2cabe3  Expose manual wire writeoff finalization requirement
-7025bf68  Keep repair finalization preflight strictly read only
-3c2590d6  Reject duplicate run provenance in finalization coverage
-97b2d25a  Confirm run provenance after manual wire writeoff
-942657f3  Enforce unique confirmed writeoff provenance
-d645dde7  Bind finalization writeoff coverage to repair and spool identity
-ae9282e0  Explain wire writeoff finalization requirements on mobile
-b771af85  Explain wire writeoff finalization requirements on desktop
-8a990995  Show run provenance in mobile wire writeoff history
-e34acc79  Show run provenance in desktop wire writeoff history
-805f57f0  Expose backup snapshot stability in manifest
-2d4a4b3b  Show backup snapshot stability on mobile
-6e52e8f0  Show backup snapshot stability on desktop
+8004210a  Add material persistence integrity audit contract
+f0f9c9e1  Implement material persistence integrity audit
+b8e368ef  Audit material persistence in backup manifest
+3f72d3f0  Add workshop persistence integrity audit contract
+dcabd2c7  Implement workshop persistence integrity audit
+2efe0f0b  Add repair pricing integrity audit contract
+3ccec83a  Implement repair pricing integrity audit
+4328e5b9  Extend backup persistence integrity audit
+15ec0d86  Add full winding journal validation contract
+42389e54  Implement full winding journal validation
+40b5132c  Audit winding persistence in backup stability
+97d63e41  Add warehouse persistence integrity audit contract
+917e16fb  Implement warehouse persistence integrity audit
+9553c6ff  Audit warehouse persistence in backup stability
+c6284595  Add persistent ID integrity audit contract
+f564bcd1  Implement persistent ID integrity audit
+423f0bda  Audit persistent allocator state in backup stability
+a0edb0eb  Add winding session persistence audit contract
+34f2666c  Implement winding session persistence audit
+9a2f024f  Audit winding session metadata in backup stability
+bbec520c  Keep winding session backup audit strictly read only
+a18193ee  Validate pricing repair references in backup audit
+dc569bb0  Validate material persistence references in backup audit
+50c7da18  Validate warehouse movement references in backup audit
+0b3b7b4f  Preserve legacy snapshot only session compatibility
 ```
 
 ## Уже закрытые архитектурные задачи — не делать повторно
 
 - persistent `job_id/session_id` allocator;
 - immutable job snapshot;
-- immutable exact spool selection для новых linked jobs;
+- immutable exact spool selection;
 - persistent runtime-state;
-- recovery/manual review;
+- fail-safe recovery/manual review;
 - strict repair/motor linkage;
-- authoritative motor `coil_program`;
-- winding journal schema 2;
-- read-only winding history с cursor pagination;
+- authoritative `coil_program`;
+- winding journal schema 2 + strict history;
 - semantic winding transition audit;
 - dynamic microSD readiness;
-- repair `OPEN → CLOSED` lifecycle;
-- запреты mutation для CLOSED;
-- warehouse `PENDING → CONFIRMED | ABORTED` recovery;
-- material usage/adjustment recovery;
+- append-only repair `OPEN → CLOSED`;
+- CLOSED mutation guards;
+- warehouse crash recovery;
+- material usage/adjustment crash recovery;
 - strict warehouse/material/costing parsing;
-- repair costing и monthly closed-repair reporting;
-- finalization preflight;
-- exact spool identity для linked winding;
+- repair finalization preflight;
+- closed-repair reporting;
 - run-level manual wire writeoff provenance;
 - duplicate provenance prevention;
-- manual writeoff coverage requirement перед CLOSED;
-- read-only backup/export основных persistent данных;
+- manual wire coverage requirement before CLOSED;
+- whitelist read-only backup/export;
 - backup activity guard;
-- backup snapshot stability manifest.
+- full backup persistence integrity audit.
 
 ## Следующее обязательное действие — hardware E2E
 
@@ -137,67 +156,46 @@ Repository review и CI не доказывают физическое пове�
 Минимальный happy path:
 
 ```text
-1. создать/выбрать клиента
-2. создать/выбрать двигатель с валидной coil_program
-3. создать ремонт
-4. настроить warehouse price и убедиться, что есть активная CU/AL бухта
-5. открыть linked winding
-6. выбрать конкретный spool_id
-7. отправить job
-8. получить JOB_ACK ACCEPTED
-9. выполнить физический START
-10. получить RUN_STARTED
-11. дождаться RUN_COMPLETED
-12. проверить winding history и immutable spool identity
-13. открыть ручное списание
-14. убедиться, что предложена именно выбранная бухта и конкретный run
-15. вручную ввести фактический вес после работы
-16. подтвердить write-off
-17. проверить source_session_id + source_run_id в истории
-18. проверить costing
-19. выполнить finalization preflight
-20. закрыть ремонт
-21. проверить read-only archive/report
-22. сделать стабильный backup manifest/export
+1. клиент + двигатель + ремонт
+2. warehouse price + активная CU/AL бухта
+3. linked winding + exact spool_id
+4. JOB_ACK ACCEPTED
+5. physical START
+6. RUN_STARTED
+7. RUN_COMPLETED
+8. проверить winding history + immutable spool identity
+9. вручную подтвердить фактический wire write-off
+10. проверить source_session_id + source_run_id
+11. проверить costing
+12. finalization preflight
+13. CLOSED
+14. архив + месячный отчёт
+15. стабильный backup manifest/export
 ```
 
-Обязательные отказные сценарии:
+Обязательные fault/recovery сценарии:
 
-- microSD недоступна до создания job;
-- microSD теряется после boot;
-- reboot после ACCEPTED до physical START;
+- microSD unavailable до job;
+- microSD loss после boot;
+- reboot после ACCEPTED до START;
 - reboot после RUN_STARTED;
-- corrupted snapshot/state/journal;
-- corrupted warehouse/material log;
+- corrupted snapshot/state/spool-selection/journal;
+- corrupted warehouse/material/pricing/workshop data;
 - dangling warehouse PENDING;
-- незавершённый material pending;
-- попытка второго write-off для того же `(session_id, run_id)`;
-- попытка close без manual wire writeoff;
-- backup во время активного winding;
-- backup manifest при recovery marker.
+- material pending/swap marker;
+- повторный write-off одного `(session_id, run_id)`;
+- close без manual wire coverage;
+- backup во время active winding;
+- backup при temp/pending/corrupt persisted state.
 
 ## Следующий repo-reviewable кодовый приоритет
 
-Если физический стенд временно недоступен, следующий код выбирать из эксплуатационной доводки, а не создавать ещё один parallel production path:
+Если стенд временно недоступен:
 
-1. короткий audit всех operator-facing ошибок и HTTP semantics после новых run-level/finalization кодов;
-2. backup completeness: только после точной проверки добавлять дополнительные recovery markers или export-файлы;
-3. performance/rotation план для растущих NDJSON журналов — без преждевременной миграции БД;
-4. `analogue / unassigned winding` проектировать только как отдельное продуктовое решение, если мастерской реально нужен такой workflow, и не ослаблять `repair ↔ motor ↔ coil_program` invariant.
-
-## Что фиксировать при hardware E2E
-
-При расхождении сохранить:
-
-- HTTP status и JSON `/api/jobs`, `/api/status`, `/api/warehouse/write-offs`, `/api/repairs/finalization`, `/api/repairs/close`;
-- UART событие Arduino;
-- `events.ndjson`;
-- `spool-selection/session-N.json`;
-- соответствующий `movements.ndjson` transaction pair;
-- runtime-state/snapshot session при recovery-проблеме;
-- backup manifest при storage/recovery проблеме.
-
-Не обходить fail-closed блокировки временными UI-исключениями.
+1. привести operator-facing backup reason к нейтральному имени после расширения audit scope (`material_persistence_unstable_or_invalid` сейчас исторически слишком узкое имя);
+2. короткий audit HTTP/error semantics по новым backup/run-level кодам;
+3. performance/rotation план для растущих NDJSON без преждевременной миграции БД;
+4. `analogue / unassigned winding` проектировать только как отдельное продуктовое решение, если он реально нужен мастерской, не ослабляя `repair ↔ motor ↔ coil_program`.
 
 ## Что намеренно не делать
 
@@ -210,4 +208,4 @@ Repository review и CI не доказывают физическое пове�
 
 ## Правило переноса
 
-Новый чат сначала читает `00_READ_FIRST.md`, `01_CURRENT_STATE.md`, этот файл и актуальные исходники. Код `cmp-protocol-v1` всегда является source of truth.
+Новый чат сначала читает `00_READ_FIRST.md`, `01_CURRENT_STATE.md`, этот файл и актуальные исходники. Код `cmp-protocol-v1` всегда source of truth.

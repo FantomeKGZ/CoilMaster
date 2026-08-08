@@ -86,7 +86,7 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!line.startsWith('{') || !line.endsWith('}'))
+        if (!line.startsWith("{") || !line.endsWith("}"))
         {
             file.close();
             return false;

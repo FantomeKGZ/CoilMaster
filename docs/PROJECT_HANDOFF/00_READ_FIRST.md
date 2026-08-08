@@ -1,6 +1,6 @@
 # CoilMaster — продолжение проекта
 
-Дата обновления: 2026-08-08
+Дата обновления: 2026-08-08 22:22 +06
 
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Рабочая ветка: `cmp-protocol-v1`
@@ -9,22 +9,23 @@
 
 ## Запрос для нового чата
 
-> Открой репозиторий `FantomeKGZ/CoilMaster`, работай только с веткой `cmp-protocol-v1`. Сначала прочитай `docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md`, затем `01_CURRENT_STATE.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и `09_KEY_FILES_INDEX.md`. После этого обязательно заново fetch актуальные версии исходников, которые собираешься менять. Код `cmp-protocol-v1` всегда source of truth. Продолжи с точной точки из `12_LATEST_HANDOFF_2026-08-08.md` и после значимого этапа снова обнови handoff.
+> Открой репозиторий `FantomeKGZ/CoilMaster`, работай только с веткой `cmp-protocol-v1`. Сначала прочитай `docs/PROJECT_HANDOFF/13_PAUSE_HANDOFF_2026-08-08_2222.md`, затем `06_ACTIVE_WORK_AND_NEXT_STEPS.md`, `01_CURRENT_STATE.md`, `09_KEY_FILES_INDEX.md` и при необходимости `12_LATEST_HANDOFF_2026-08-08.md`. После этого обязательно заново fetch актуальные версии исходников, которые собираешься менять. Код `cmp-protocol-v1` всегда source of truth. Перед каждым update использовать текущий blob SHA; при `409` re-fetch + merge. Не использовать `main` как источник реализации.
 
 ## Рекомендуемый порядок чтения
 
-1. `12_LATEST_HANDOFF_2026-08-08.md` — самый свежий полный snapshot: сделанное, последний CI failure/fix и точный следующий план.
-2. `01_CURRENT_STATE.md` — архитектурное текущее состояние.
-3. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — активные задачи и hardware E2E.
+1. `13_PAUSE_HANDOFF_2026-08-08_2222.md` — самая свежая точка паузы и точное продолжение.
+2. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — текущие активные задачи и hardware E2E.
+3. `01_CURRENT_STATE.md` — архитектурное состояние.
 4. `09_KEY_FILES_INDEX.md` — ключевые файлы и пути.
-5. `08_WORK_RULES_AND_VERIFICATION.md` — правила работы и проверки.
-6. `02_ARCHITECTURE_AND_HARDWARE.md` — аппаратная архитектура.
-7. `03_PROTOCOL_AND_WINDING_FLOW.md` — CMP/UART и winding flow.
-8. `04_DATA_STORAGE_API_UI.md` — данные/API/UI; сверять с кодом.
-9. `05_COMPLETED_WORK_LOG.md` — укрупнённая история реализованного.
-10. `10_SESSION_LOG.md` — журнал рабочих сессий.
-11. `07_BACKLOG_AND_DEFERRED.md` — отложенное; не считать реализованным автоматически.
-12. `11_FULL_BRANCH_AUDIT.md` — историческая карта, не источник текущего кода.
+5. `12_LATEST_HANDOFF_2026-08-08.md` — предыдущий полный snapshot.
+6. `08_WORK_RULES_AND_VERIFICATION.md` — правила работы и проверки.
+7. `02_ARCHITECTURE_AND_HARDWARE.md` — аппаратная архитектура.
+8. `03_PROTOCOL_AND_WINDING_FLOW.md` — CMP/UART и winding flow.
+9. `04_DATA_STORAGE_API_UI.md` — данные/API/UI; сверять с текущим кодом.
+10. `05_COMPLETED_WORK_LOG.md` — укрупнённая история реализованного.
+11. `10_SESSION_LOG.md` — подробный журнал рабочих сессий.
+12. `07_BACKLOG_AND_DEFERRED.md` — отложенное; не считать реализованным автоматически.
+13. `11_FULL_BRANCH_AUDIT.md` — историческая карта, не источник текущего кода.
 
 ## Источник истины
 
@@ -32,54 +33,72 @@
 
 1. текущий код ветки `cmp-protocol-v1`;
 2. фактические результаты актуальных Actions/build/tests;
-3. `12_LATEST_HANDOFF_2026-08-08.md`;
-4. `01_CURRENT_STATE.md` + `06_ACTIVE_WORK_AND_NEXT_STEPS.md`;
-5. остальные handoff-файлы;
-6. тематические документы `docs/*`;
-7. история чатов.
+3. `13_PAUSE_HANDOFF_2026-08-08_2222.md`;
+4. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` + `01_CURRENT_STATE.md`;
+5. `12_LATEST_HANDOFF_2026-08-08.md`;
+6. остальные handoff-файлы;
+7. тематические документы `docs/*`;
+8. история чатов.
 
 Перед изменением существующего файла всегда заново получать его текущее содержимое и blob SHA из `cmp-protocol-v1`. Для нового файла сначала проверять отсутствие точного пути.
 
 ## Критические safety-правила
 
-- Не переключаться на `main` как источник реализации.
-- Не начинать заново persistent allocator, snapshots/state/recovery, linked-job, winding history, repair lifecycle, warehouse/material/costing, exact spool provenance или backup — они уже реализованы.
-- ESP32/WEB не должны напрямую управлять SSR.
+- ESP32/WEB не управляют SSR напрямую.
 - Физический START остаётся обязательным.
-- Automatic resume/automatic queue после recovery запрещены.
-- `RUN_COMPLETED` не должен автоматически списывать провод.
+- Automatic resume после reboot запрещён.
+- `RUN_COMPLETED` не выполняет automatic wire writeoff.
+- Новый wire writeoff остаётся ручным и требует exact `spool_id + source_session_id + source_run_id`.
 - Не ослаблять fail-closed semantics ради UI convenience.
+- Не возвращать legacy session-only writeoff как допустимый новый production flow.
 
-## Последний CI факт
+## Последний кодовый checkpoint перед pause-документацией
 
-Actions run `31243187630` на commit `78ac245...` падал не из-за `WString.h` warnings, а из-за:
+```text
+ef0e64838ebb3f0519f6bfe756ade599a07450b9  Require exact run provenance in writeoff UI
+```
+
+После него handoff-коммиты сдвигают HEAD документацией. При продолжении сначала определить фактический current HEAD.
+
+Последний exact-run provenance блок:
+
+```text
+c7335631c660a7b5ee71da880a1f77e4e5faa83f  Require exact run provenance for new wire writeoffs
+7b92010294342d2a9cc9a153f306673f5c66ffb9  Require run provenance in wire writeoff API
+ef0e64838ebb3f0519f6bfe756ade599a07450b9  Require exact run provenance in writeoff UI
+```
+
+Duplicate `/api/winding-history` bootstrap удалён:
+
+```text
+75207162c7164121252057391230077d5340be3a
+```
+
+## CI факт
+
+Историческая compile failure:
 
 ```text
 CM_MaterialLedger.cpp: expected '}' at end of input
 ```
 
-Исправление уже закоммичено:
+исправлена:
 
 ```text
-77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
+77fd7dd4db3767c33106d63e6f9174e6559b9bc8
 ```
 
-Не считать этот fix доказанно GREEN, пока нет фактического успешного ESP32 Actions run после него.
+Текущий head **не считать GREEN**, пока нет фактического успешного ESP32 Actions/build result. Connector не показывает общий список push-triggered runs.
 
 ## Текущая точка продолжения
 
-Deep backup-integrity, winding `validateAll()` cleanup и backup/run-level HTTP semantics audit уже завершены.
-
-Stage 0 performance observability теперь даёт без дополнительного persistence scan:
+Repo-level production flow собран примерно на 90% эксплуатационной готовности. Следующее repo-only действие — проверить фактический build/link и точное наличие definitions:
 
 ```text
-snapshot_stability_duration_ms
-winding_journal_record_count
-warehouse_movement_record_count
+WarehouseStore::confirmedWriteOffForSourceRun(...)
+WarehouseStore::confirmedWriteOffForSourceSession(...)
 ```
 
-На hardware E2E/эксплуатационном стенде нужно сопоставить их с `winding-events.size_bytes` и `warehouse-movements.size_bytes`. До измерений не вводить rotation threshold, persistent cache или database migration.
+Не создавать второй symbol по предположению. Если build/link чистый — переходить к обязательному ESP32 + Arduino hardware E2E и Stage 0 benchmark; новых observability metrics до benchmark не добавлять.
 
-Если hardware пока недоступен, следующий repo-only шаг допустим только как такой же same-pass observability для уже выполняемого authoritative validator; естественный кандидат — material usage/adjustment audit, без второго full scan ради метрики.
-
-Все детали и список последних коммитов: `12_LATEST_HANDOFF_2026-08-08.md`.
+Все свежие детали: `13_PAUSE_HANDOFF_2026-08-08_2222.md`.

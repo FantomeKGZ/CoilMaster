@@ -24,6 +24,75 @@
 
 ---
 
+## 2026-08-08 12:35 — Deep backup integrity, Actions diagnosis и handoff
+
+Цель:
+
+Довести read-only backup/export от простого whitelist-download до доказуемого snapshot integrity, найти реальную причину красного ESP32 Actions run и сохранить полную точку продолжения для нового чата.
+
+Что сделано:
+
+- добавлен строгий read-only audit workshop clients/motors/repairs, repair-status и repair-pricing references;
+- добавлен read-only winding persistence audit;
+- глубокий manifest audit ограничен состоянием `BackupActivityGuard::Safe`, чтобы во время active winding не делать длинные scans microSD;
+- подключены warehouse persistence, warehouse movement, material persistence, allocator, conductor settings и session persistence audits;
+- `snapshot_stability_checked=false` / `snapshot_stable=null` при небезопасном activity state;
+- backup UI mobile/desktop получил operator-readable причины instability;
+- зелёный `snapshot_stable` теперь требует глубокую проверку практически всего экспортируемого persistent-набора и cross-file identity;
+- получен полный job log Actions run `31243187630`, job `93067378338`;
+- подтверждено, что `WString.h [-Wconversion]` — warnings, не причина failure;
+- реальная ошибка: `CM_MaterialLedger.cpp:705: expected '}' at end of input`;
+- в текущей ветке добавлена отсутствующая closing brace namespace `CM`;
+- создан полный свежий handoff `12_LATEST_HANDOFF_2026-08-08.md`;
+- `00_READ_FIRST.md` перенаправлен на новый handoff.
+
+Ключевые коммиты этой части:
+
+```text
+1a21073f  Add backup business data integrity audit contract
+b9236557  Implement backup business data integrity audit
+5a15dbfa  Audit workshop and pricing in backup manifest
+0b68f3ce  Explain business data backup instability on mobile
+f6cdd6d7  Explain business data backup instability on desktop
+11191769  Add winding persistence integrity audit contract
+1406c73f  Implement winding persistence integrity audit
+fe988944  Audit winding persistence only when backup is safe
+bbd0a507  Explain winding backup instability on mobile
+21d5ab1b  Explain winding backup instability on desktop
+b8ee44ce  Audit warehouse persistence in backup manifest
+80958209  Explain warehouse persistence backup instability on mobile
+e0d19ebe  Explain warehouse persistence backup instability on desktop
+70220e54  Audit persistent allocator state in backup manifest
+92a6a11e  Add conductor settings integrity audit contract
+8f5cc608  Implement conductor settings integrity audit
+fe683d95  Complete deep backup persistence audit
+d4e194c9  Explain complete backup integrity failures on mobile
+c3e2cdab  Explain complete backup integrity failures on desktop
+77fd7dd4  Fix MaterialLedger namespace closure
+6375d567  Add complete latest handoff snapshot
+70b74928  Point new chats to latest complete handoff
+```
+
+Проверка:
+
+Actions run `31243187630` действительно был `failure` на commit `78ac24533f1157080bd2163990dbdb0b2577807c`. Полный лог доказал конкретную syntax error в `CM_MaterialLedger.cpp`. Исправление `77fd7dd4` закоммичено, но новый ESP32 Actions run после этого fix в этой записи ещё не подтверждён как GREEN.
+
+Где остановились:
+
+Backend deep backup integrity собран. Точный следующий cleanup — упростить `CM_WindingPersistenceIntegrityAudit`, используя authoritative `WindingJournalQuery::validateAll()` вместо собственного pagination-based полного обхода.
+
+Следующее действие:
+
+1. Fetch актуальный `CM_WindingPersistenceIntegrityAudit.cpp` и перевести его на `validateAll()` без изменения safety semantics.
+2. При наличии нового красного ESP32 run — читать полный job log и чинить первую реальную ошибку.
+3. Audit backup HTTP/error semantics.
+4. Performance/rotation review для растущих NDJSON без преждевременной смены storage model.
+5. Реальный hardware E2E ESP32 + Arduino остаётся обязательным внешним этапом.
+
+Полный контекст: `docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md`.
+
+---
+
 ## 2026-08-07 16:11 — Обновление документации для переноса
 
 Цель:

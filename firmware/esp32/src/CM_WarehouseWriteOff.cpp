@@ -10,9 +10,9 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
 {
     result = SpoolWriteOffResult();
     if (!ready() || operation.spoolId == 0UL || operation.repairId == 0UL ||
+        operation.sourceSessionId == 0UL || operation.sourceRunId == 0UL ||
         operation.timestamp.length() < 10U || operation.weightBeforeGrams == 0UL ||
-        operation.weightAfterGrams >= operation.weightBeforeGrams ||
-        ((operation.sourceSessionId == 0UL) != (operation.sourceRunId == 0UL)))
+        operation.weightAfterGrams >= operation.weightBeforeGrams)
     {
         return false;
     }
@@ -30,24 +30,21 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
         return false;
     }
 
-    if (operation.sourceSessionId != 0UL)
+    if (WindingSessionCompletionAudit::check(m_storage,
+                                             operation.sourceSessionId,
+                                             operation.sourceRunId) !=
+        WindingSessionCompletionCheck::Completed)
     {
-        if (WindingSessionCompletionAudit::check(m_storage,
-                                                 operation.sourceSessionId,
-                                                 operation.sourceRunId) !=
-            WindingSessionCompletionCheck::Completed)
-        {
-            return false;
-        }
+        return false;
+    }
 
-        bool alreadyConfirmed = false;
-        if (!confirmedWriteOffForSourceRun(operation.sourceSessionId,
-                                           operation.sourceRunId,
-                                           alreadyConfirmed) ||
-            alreadyConfirmed)
-        {
-            return false;
-        }
+    bool alreadyConfirmed = false;
+    if (!confirmedWriteOffForSourceRun(operation.sourceSessionId,
+                                       operation.sourceRunId,
+                                       alreadyConfirmed) ||
+        alreadyConfirmed)
+    {
+        return false;
     }
 
     WarehousePrice price;
@@ -289,7 +286,7 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     // A run without a session is never valid. A session without a run is
     // accepted here only so startup recovery can close a legacy session-level
     // PENDING created before run-level provenance was introduced. New writes are
-    // still forced to supply both by confirmSpoolWriteOff().
+    // forced to supply both by confirmSpoolWriteOff().
     if (movementId == 0UL || operation.spoolId == 0UL || operation.repairId == 0UL ||
         (operation.sourceRunId != 0UL && operation.sourceSessionId == 0UL) ||
         consumedGrams == 0UL || price.pricePerKgMinor == 0UL ||

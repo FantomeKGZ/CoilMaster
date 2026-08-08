@@ -3,6 +3,7 @@
 #include "CM_WarehouseMovementIntegrityAudit.h"
 #include "CM_MaterialPersistenceIntegrityAudit.h"
 #include "CM_BackupBusinessDataIntegrityAudit.h"
+#include "CM_WindingPersistenceIntegrityAudit.h"
 
 namespace CM
 {
@@ -217,6 +218,9 @@ const char* snapshotStabilityReason(fs::FS& storage)
     if (!BackupBusinessDataIntegrityAudit::check(storage))
         return "business_data_unstable_or_invalid";
 
+    if (!WindingPersistenceIntegrityAudit::check(storage))
+        return "winding_persistence_unstable_or_invalid";
+
     if (storage.exists(WarehouseMovementsPath) &&
         !WarehouseMovementIntegrityAudit::check(storage))
     {
@@ -330,7 +334,8 @@ void BackupExportWeb::handleManifest()
     }
 
     const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
-    const char* stabilityReason = snapshotStabilityReason(m_storage);
+    const bool stabilityChecked = activity == BackupActivityCheck::Safe;
+    const char* stabilityReason = stabilityChecked ? snapshotStabilityReason(m_storage) : nullptr;
     String response = F("{\"read_only\":true,\"arbitrary_paths_allowed\":false,\"session_exports_supported\":true,\"spool_selection_exports_supported\":true,\"export_allowed\":");
     response += activity == BackupActivityCheck::Safe ? F("true") : F("false");
     response += F(",\"activity_state_verified\":");
@@ -342,10 +347,15 @@ void BackupExportWeb::handleManifest()
         response += F("\"activity_state_unavailable\"");
     else
         response += F("null");
+    response += F(",\"snapshot_stability_checked\":");
+    response += stabilityChecked ? F("true") : F("false");
     response += F(",\"snapshot_stable\":");
-    response += stabilityReason == nullptr ? F("true") : F("false");
+    if (!stabilityChecked)
+        response += F("null");
+    else
+        response += stabilityReason == nullptr ? F("true") : F("false");
     response += F(",\"snapshot_stability_reason\":");
-    if (stabilityReason == nullptr)
+    if (!stabilityChecked || stabilityReason == nullptr)
         response += F("null");
     else
     {
@@ -354,7 +364,7 @@ void BackupExportWeb::handleManifest()
         response += '"';
     }
     response += F(",\"items\":[");
-    response.reserve(3680U);
+    response.reserve(3740U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

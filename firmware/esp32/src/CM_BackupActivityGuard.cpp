@@ -5,6 +5,8 @@ namespace CM
 {
 namespace
 {
+BackupActivityGuard::RuntimeProbe RuntimeActivityProbe = nullptr;
+
 bool directoryReady(fs::FS& storage, const char* path)
 {
     if (!storage.exists(path)) return false;
@@ -16,8 +18,20 @@ bool directoryReady(fs::FS& storage, const char* path)
 }
 }
 
+void BackupActivityGuard::setRuntimeProbe(RuntimeProbe probe)
+{
+    RuntimeActivityProbe = probe;
+}
+
 BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
 {
+    if (RuntimeActivityProbe != nullptr)
+    {
+        const BackupActivityCheck runtime = RuntimeActivityProbe();
+        if (runtime != BackupActivityCheck::Unavailable)
+            return runtime;
+    }
+
     if (!directoryReady(storage, "/data") ||
         !directoryReady(storage, "/data/winding-jobs") ||
         !directoryReady(storage, "/data/winding-jobs/state"))
@@ -25,8 +39,8 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
         return BackupActivityCheck::Unavailable;
     }
 
-    // Directories already exist, so begin() only validates the existing
-    // runtime-state store and cannot create anything during this read-only check.
+    // Fallback for callers that have not registered a runtime probe. Directories
+    // already exist, so begin() validates persisted state without creating them.
     JobStateStore states(storage);
     if (!states.begin() || !states.isReady())
         return BackupActivityCheck::Unavailable;

@@ -3,8 +3,44 @@
 
 namespace CM
 {
+namespace
+{
+bool pageContainsCompletedRun(const String& page, uint32_t runId)
+{
+    if (runId == 0UL) return page.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0;
+
+    String runMarker = F("\"run_id\":");
+    runMarker += runId;
+    runMarker += ',';
+
+    int cursor = 0;
+    while (cursor < page.length())
+    {
+        const int start = page.indexOf('{', cursor);
+        if (start < 0) break;
+        const int end = page.indexOf('}', start + 1);
+        if (end < 0) return false;
+        const String record = page.substring(start, end + 1);
+        if (record.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0 &&
+            record.indexOf(runMarker) >= 0)
+        {
+            return true;
+        }
+        cursor = end + 1;
+    }
+    return false;
+}
+}
+
 WindingSessionCompletionCheck WindingSessionCompletionAudit::check(fs::FS& storage,
                                                                   uint32_t sessionId)
+{
+    return check(storage, sessionId, 0UL);
+}
+
+WindingSessionCompletionCheck WindingSessionCompletionAudit::check(fs::FS& storage,
+                                                                  uint32_t sessionId,
+                                                                  uint32_t runId)
 {
     if (sessionId == 0UL) return WindingSessionCompletionCheck::IntegrityFailed;
 
@@ -35,8 +71,7 @@ WindingSessionCompletionCheck WindingSessionCompletionAudit::check(fs::FS& stora
         if (result != WindingJournalQueryResult::Ok)
             return WindingSessionCompletionCheck::IntegrityFailed;
 
-        if (page.indexOf(F("\"event\":\"RUN_COMPLETED\"")) >= 0)
-            completed = true;
+        if (pageContainsCompletedRun(page, runId)) completed = true;
 
         if (!hasMore) break;
         if (count == 0U || nextCursor <= cursor)

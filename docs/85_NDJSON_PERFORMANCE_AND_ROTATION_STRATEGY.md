@@ -23,7 +23,9 @@ Repository review ниже определяет hotspots и безопасный
 - material usage/adjustments повторно ищут referenced material/repair;
 - warehouse movements повторно ищут spool/repair references.
 
-Для больших `n` это может стать `O(n²)` или `O(n*m)` по числу записей. До реальных размеров это не повод менять storage engine, но это первый кандидат на оптимизацию.
+Дополнительно repository review подтвердил важный composition hotspot: текущий `MaterialPersistenceIntegrityAudit::check()` после собственных materials/usage/adjustments scans транзитивно вызывает `WorkshopPersistenceIntegrityAudit::check()` и `RepairPricingIntegrityAudit::check()`. `WorkshopPersistenceIntegrityAudit` в свою очередь снова проверяет warehouse, allocator, session persistence и полный winding journal + transition audit. В backup manifest эти domains затем отдельно проверяются ещё раз. Это не corruption bug, но это доказанный источник повторного I/O и кандидат Stage 1 после измерения влияния.
+
+Для больших `n` повторные reference scans могут стать `O(n²)` или `O(n*m)` по числу записей. До реальных размеров это не повод менять storage engine.
 
 ### 3. Winding journal
 
@@ -36,7 +38,7 @@ WindingJournalTransitionAudit::validate()
 
 `validateAll()` идёт до EOF без cursor pagination и без построения временных JSON history pages. Transition audit отдельно проверяет state-machine semantics.
 
-Не объединять их преждевременно только ради одного прохода: distinct validators дают более простой fail-closed reasoning. Оптимизировать общий scan стоит только после измерений.
+Не объединять их преждевременно только ради одного прохода: distinct validators дают более простой fail-closed reasoning. Оптимизировать общий scan стоит только после измерений или при устранении уже доказанного transitive duplicate audit без потери checks.
 
 ### 4. Costing/finalization/history
 
@@ -56,10 +58,13 @@ Costing, finalization preflight и operator histories также читают ap
 
 ### Уже начато
 
-Manifest теперь возвращает три runtime metrics:
+Manifest теперь возвращает шесть runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
+material_catalog_record_count
+material_usage_record_count
+material_adjustment_record_count
 winding_journal_record_count
 warehouse_movement_record_count
 ```
@@ -70,6 +75,22 @@ warehouse_movement_record_count
 - при `snapshot_stability_checked=false` — `null`;
 - измерение оборачивает уже существующий `snapshotStabilityReason()` и **не добавляет дополнительный filesystem scan**;
 - поле только observability metadata и не влияет на `snapshot_stable`/`export_allowed`.
+
+Семантика material counters:
+
+```text
+material_catalog_record_count
+material_usage_record_count
+material_adjustment_record_count
+```
+
+- считаются внутри уже существующих scans `materials.ndjson`, `usage.ndjson`, `adjustments.ndjson`;
+- учитываются только непустые rows, прошедшие соответствующий parser/reference/arithmetic validation;
+- старый `MaterialPersistenceIntegrityAudit::check(storage)` сохранён и делегирует overload с metrics;
+- metrics публикуются только после полного успешного текущего `MaterialPersistenceIntegrityAudit::check()`, включая его существующие dependency audits;
+- если deep audit не запускался, до material audit не дошли или material persistence не доказана — поля `null`;
+- если audit успешен, но конкретный material файл отсутствует, его count равен `0`; наличие файла отдельно видно через `items[].exists`;
+- отдельного повторного чтения material NDJSON ради counters нет.
 
 Семантика `winding_journal_record_count`:
 
@@ -99,11 +120,20 @@ b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count
 fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
 a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
+ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
+6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
+38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
 ```
 
 Теперь на стенде можно сопоставить как минимум:
 
 ```text
+materials.size_bytes
+material_catalog_record_count
+material-usage.size_bytes
+material_usage_record_count
+material-adjustments.size_bytes
+material_adjustment_record_count
 winding-events.size_bytes
 winding_journal_record_count
 warehouse-movements.size_bytes
@@ -111,12 +141,15 @@ warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-Это даёт первые сравнимые данные по двум растущим append-only hotspot без изменения storage format и без дополнительного audit I/O.
+Это даёт сравнимые данные по нескольким растущим persistence paths без изменения storage format и без дополнительного audit I/O.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
 При подтверждённой необходимости:
 
+- первым проверить влияние transitive `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` повторных scans;
+- если оно заметно, разделить локальную material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
+- старые public contracts для других callers сохранять совместимыми, пока не доказано обратное;
 - переиспользовать authoritative validators вместо повторного JSON/page parsing;
 - строить bounded in-memory ID index только на время одного audit/request;
 - размер index должен иметь явный верхний предел и fail-closed результат при превышении;
@@ -188,8 +221,10 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, `winding_journal_record_count`, `warehouse_movement_record_count` и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, material/winding/warehouse record counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
-Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O.
+Отдельно сравнить общую длительность deep audit с material history counts: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, поэтому рост material histories может сочетаться с уже существующим повторным cross-domain I/O.
+
+Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
 
 Hardware E2E ESP32 + Arduino остаётся обязательным отдельным подтверждением и этим документом не считается выполненным.

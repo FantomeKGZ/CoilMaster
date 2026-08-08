@@ -310,6 +310,15 @@ void RepairRegistryWeb::handleRepairFinalization()
         case RepairFinalizationCheck::WindingIntegrityFailed:
             reason = "repair_finalization_winding_integrity_failed";
             break;
+        case RepairFinalizationCheck::WireWriteOffRequired:
+            reason = "repair_finalization_wire_writeoff_required";
+            break;
+        case RepairFinalizationCheck::WireWriteOffStorageUnavailable:
+            reason = "repair_finalization_wire_writeoff_storage_unavailable";
+            break;
+        case RepairFinalizationCheck::WireWriteOffIntegrityFailed:
+            reason = "repair_finalization_wire_writeoff_integrity_failed";
+            break;
         default:
             reason = "repair_finalization_unknown_failure";
             break;
@@ -398,6 +407,18 @@ void RepairRegistryWeb::handleCloseRepair()
                       "{\"error\":\"repair_finalization_winding_storage_unavailable\",\"write_performed\":false}");
         return;
     }
+    if (finalization == RepairFinalizationCheck::WireWriteOffStorageUnavailable)
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_wire_writeoff_storage_unavailable\",\"write_performed\":false}");
+        return;
+    }
+    if (finalization == RepairFinalizationCheck::WireWriteOffRequired)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_wire_writeoff_required\",\"write_performed\":false}");
+        return;
+    }
     if (finalization == RepairFinalizationCheck::CostingIntegrityFailed)
     {
         m_server.send(500, "application/json; charset=utf-8",
@@ -408,6 +429,12 @@ void RepairRegistryWeb::handleCloseRepair()
     {
         m_server.send(500, "application/json; charset=utf-8",
                       "{\"error\":\"repair_finalization_winding_integrity_failed\",\"write_performed\":false}");
+        return;
+    }
+    if (finalization == RepairFinalizationCheck::WireWriteOffIntegrityFailed)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_finalization_wire_writeoff_integrity_failed\",\"write_performed\":false}");
         return;
     }
     if (finalization != RepairFinalizationCheck::Ready)

@@ -105,6 +105,8 @@ firmware/esp32/src/CM_RepairPricing*.h/.cpp
 
 `CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload для catalogue/usage/adjustment counts; старый `check(storage)` сохранён.
 
+`CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload для spool/price counts; старый `check(storage)` сохранён. Counts публикуются только после полного warehouse persistence audit, включая movement-reference validation.
+
 ## Read-only backup/export и deep integrity
 
 Orchestration:
@@ -136,7 +138,8 @@ firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
 - Session metrics возвращают `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного успешного deep session audit; partial counts при failure не публикуются.
 - `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; старый `check(storage)` сохранён.
 - Business metrics возвращают `clientRecordCount`, `motorRecordCount`, `repairRecordCount`, `repairStatusRecordCount`, `pricingRecordCount` из уже выполняемых validation passes; дополнительного full scan ради telemetry нет.
-- `CM_BackupExportWeb.cpp` публикует Stage 0 material/business/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms` только через уже выполняемые authoritative passes.
+- `CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload; `spoolRecordCount` и `priceRecordCount` считаются в существующих authoritative spool/price passes, partial metrics при failure не публикуются.
+- `CM_BackupExportWeb.cpp` публикует шестнадцать Stage 0 material/business/winding/warehouse record/file-count metrics и `snapshot_stability_duration_ms` только через уже выполняемые authoritative passes.
 - `BackupActivityGuard::Safe` gating не ослаблять: heavy deep scan не выполняется во время active winding.
 
 ## Performance/rotation

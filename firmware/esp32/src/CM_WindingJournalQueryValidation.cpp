@@ -24,7 +24,7 @@ WindingJournalQueryResult WindingJournalQuery::validateAll(uint32_t& recordCount
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.length() == 0U)
+        if (line.length() == 0U || recordCount == 0xFFFFFFFFUL)
         {
             file.close();
             return WindingJournalQueryResult::ReadFailed;

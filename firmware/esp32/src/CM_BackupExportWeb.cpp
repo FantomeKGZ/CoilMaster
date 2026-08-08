@@ -31,6 +31,8 @@ struct SnapshotAuditMetrics
 {
     bool windingJournalRecordCountMeasured = false;
     uint32_t windingJournalRecordCount = 0UL;
+    bool warehouseMovementRecordCountMeasured = false;
+    uint32_t warehouseMovementRecordCount = 0UL;
 };
 
 constexpr ExportFileDefinition ExportFiles[] =
@@ -219,6 +221,8 @@ const char* snapshotStabilityReason(fs::FS& storage,
 {
     metrics.windingJournalRecordCountMeasured = false;
     metrics.windingJournalRecordCount = 0UL;
+    metrics.warehouseMovementRecordCountMeasured = false;
+    metrics.warehouseMovementRecordCount = 0UL;
 
     for (size_t i = 0U; i < RecoveryMarkerCount; ++i)
     {
@@ -250,10 +254,16 @@ const char* snapshotStabilityReason(fs::FS& storage,
     if (!WarehousePersistenceIntegrityAudit::check(storage))
         return "warehouse_persistence_unstable_or_invalid";
 
-    if (storage.exists(WarehouseMovementsPath) &&
-        !WarehouseMovementIntegrityAudit::check(storage))
+    if (storage.exists(WarehouseMovementsPath))
     {
-        return "warehouse_movements_unstable_or_invalid";
+        uint32_t warehouseMovementRecordCount = 0UL;
+        if (!WarehouseMovementIntegrityAudit::check(storage,
+                                                    warehouseMovementRecordCount))
+        {
+            return "warehouse_movements_unstable_or_invalid";
+        }
+        metrics.warehouseMovementRecordCount = warehouseMovementRecordCount;
+        metrics.warehouseMovementRecordCountMeasured = true;
     }
 
     const char* directories[] =
@@ -415,8 +425,13 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.windingJournalRecordCount;
+    response += F(",\"warehouse_movement_record_count\":");
+    if (!stabilityChecked || !auditMetrics.warehouseMovementRecordCountMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(3900U);
+    response.reserve(4000U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

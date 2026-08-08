@@ -10,6 +10,7 @@
 #include "CM_JobRecovery.h"
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobSpoolSelectionStore.h"
+#include "CM_JobSpoolSelectionWeb.h"
 #include "CM_JobStateStore.h"
 #include "CM_MotorSimilarityWeb.h"
 #include "CM_PersistentIdAllocator.h"
@@ -47,6 +48,7 @@ CM::JobLinkageResolver jobLinkageResolver(SD);
 CM::WarehouseStore warehouse(SD);
 CM::RepairRegistry repairRegistry(SD);
 WebServer webServer(80);
+CM::JobSpoolSelectionWeb jobSpoolSelectionWeb(webServer, jobSpoolSelections);
 CM::StaticSiteServer staticSites(webServer, SD);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
 CM::RepairRegistryWeb repairRegistryWeb(webServer, repairRegistry);
@@ -741,6 +743,7 @@ void configureWebServer()
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
     webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);
+    jobSpoolSelectionWeb.begin();
     repairRegistryWeb.begin();
     motorSimilarityWeb.begin();
     warehouseWeb.begin();
@@ -759,7 +762,7 @@ void configureWebServer()
             webServer.send(404, "application/json", "{\"error\":\"not_found\"}");
             return;
         }
-        webServer.send(404, "text/plain", "Страница не найдена");
+        webServer.send(404, "text/plain; charset=utf-8", "Страница не найдена");
     });
     webServer.begin();
 }

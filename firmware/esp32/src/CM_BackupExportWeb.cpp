@@ -33,6 +33,12 @@ struct SnapshotAuditMetrics
     uint32_t materialCatalogRecordCount = 0UL;
     uint32_t materialUsageRecordCount = 0UL;
     uint32_t materialAdjustmentRecordCount = 0UL;
+    bool businessRecordCountsMeasured = false;
+    uint32_t workshopClientRecordCount = 0UL;
+    uint32_t workshopMotorRecordCount = 0UL;
+    uint32_t workshopRepairRecordCount = 0UL;
+    uint32_t repairStatusRecordCount = 0UL;
+    uint32_t repairPricingRecordCount = 0UL;
     bool windingJournalRecordCountMeasured = false;
     uint32_t windingJournalRecordCount = 0UL;
     bool windingSessionFileCountsMeasured = false;
@@ -231,6 +237,12 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.materialCatalogRecordCount = 0UL;
     metrics.materialUsageRecordCount = 0UL;
     metrics.materialAdjustmentRecordCount = 0UL;
+    metrics.businessRecordCountsMeasured = false;
+    metrics.workshopClientRecordCount = 0UL;
+    metrics.workshopMotorRecordCount = 0UL;
+    metrics.workshopRepairRecordCount = 0UL;
+    metrics.repairStatusRecordCount = 0UL;
+    metrics.repairPricingRecordCount = 0UL;
     metrics.windingJournalRecordCountMeasured = false;
     metrics.windingJournalRecordCount = 0UL;
     metrics.windingSessionFileCountsMeasured = false;
@@ -260,8 +272,15 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.materialAdjustmentRecordCount = materialMetrics.adjustmentRecordCount;
     metrics.materialRecordCountsMeasured = true;
 
-    if (!BackupBusinessDataIntegrityAudit::check(storage))
+    BackupBusinessDataAuditMetrics businessMetrics;
+    if (!BackupBusinessDataIntegrityAudit::check(storage, businessMetrics))
         return "business_data_unstable_or_invalid";
+    metrics.workshopClientRecordCount = businessMetrics.clientRecordCount;
+    metrics.workshopMotorRecordCount = businessMetrics.motorRecordCount;
+    metrics.workshopRepairRecordCount = businessMetrics.repairRecordCount;
+    metrics.repairStatusRecordCount = businessMetrics.repairStatusRecordCount;
+    metrics.repairPricingRecordCount = businessMetrics.pricingRecordCount;
+    metrics.businessRecordCountsMeasured = true;
 
     uint32_t windingJournalRecordCount = 0UL;
     if (!WindingPersistenceIntegrityAudit::check(storage,
@@ -465,6 +484,31 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.materialAdjustmentRecordCount;
+    response += F(",\"workshop_client_record_count\":");
+    if (!stabilityChecked || !auditMetrics.businessRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.workshopClientRecordCount;
+    response += F(",\"workshop_motor_record_count\":");
+    if (!stabilityChecked || !auditMetrics.businessRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.workshopMotorRecordCount;
+    response += F(",\"workshop_repair_record_count\":");
+    if (!stabilityChecked || !auditMetrics.businessRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.workshopRepairRecordCount;
+    response += F(",\"repair_status_record_count\":");
+    if (!stabilityChecked || !auditMetrics.businessRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.repairStatusRecordCount;
+    response += F(",\"repair_pricing_record_count\":");
+    if (!stabilityChecked || !auditMetrics.businessRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.repairPricingRecordCount;
     response += F(",\"winding_journal_record_count\":");
     if (!stabilityChecked || !auditMetrics.windingJournalRecordCountMeasured)
         response += F("null");
@@ -491,7 +535,7 @@ void BackupExportWeb::handleManifest()
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(4400U);
+    response.reserve(4800U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

@@ -199,10 +199,21 @@ bool JobSpoolSelectionStore::create(const JobSpoolSelection& selection)
 bool JobSpoolSelectionStore::load(uint32_t sessionId,
                                   JobSpoolSelection& selection) const
 {
+    bool found = false;
+    return load(sessionId, selection, found) && found;
+}
+
+bool JobSpoolSelectionStore::load(uint32_t sessionId,
+                                  JobSpoolSelection& selection,
+                                  bool& found) const
+{
     selection = JobSpoolSelection();
+    found = false;
     if (!isReady() || sessionId == 0UL) return false;
+
     const String path = selectionPath(sessionId);
-    if (!m_storage.exists(path)) return false;
+    if (!m_storage.exists(path)) return true;
+
     File file = m_storage.open(path, FILE_READ);
     if (!file || file.isDirectory() || file.size() == 0U || file.size() >= 512U)
     {
@@ -211,7 +222,11 @@ bool JobSpoolSelectionStore::load(uint32_t sessionId,
     }
     const String input = file.readString();
     file.close();
-    return parse(input, selection) && selection.sessionId == sessionId;
+    if (!parse(input, selection) || selection.sessionId != sessionId)
+        return false;
+
+    found = true;
+    return true;
 }
 
 bool JobSpoolSelectionStore::validateIdentity(uint32_t jobId,

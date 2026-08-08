@@ -50,7 +50,9 @@ client
 - finalization wire coverage;
 - reports;
 - whitelist backup/export;
-- deep backup persistence integrity audits.
+- deep backup persistence integrity audits;
+- winding backup `validateAll()` cleanup;
+- backup/run-level HTTP semantics audit.
 
 ## Последний подтверждённый CI факт
 
@@ -100,6 +102,7 @@ export_allowed=false
 snapshot_stability_checked=false
 snapshot_stable=null
 snapshot_stability_duration_ms=null
+winding_journal_record_count=null
 ```
 
 При safe state deep audit охватывает **весь static backup whitelist**:
@@ -150,7 +153,7 @@ WindingJournalQuery::validateAll()
 WindingJournalTransitionAudit::validate()
 ```
 
-`validateAll()` идёт по journal до EOF и не строит temporary JSON history pages. Поэтому дополнительный code churn в `CM_WindingPersistenceIntegrityAudit.cpp` не нужен.
+`validateAll()` идёт по journal до EOF и не строит temporary JSON history pages. Поэтому дополнительный pagination cleanup не нужен.
 
 ## Compile-safety audit новых backup integrity modules — выполнен статически
 
@@ -169,6 +172,7 @@ CM_WindingSessionPersistenceIntegrityAudit.*
 Результат repository review:
 
 - публичные audit headers имеют собственный `FS.h` для `fs::FS`;
+- новый count overload `CM_WindingPersistenceIntegrityAudit` имеет explicit `<stdint.h>` для `uint32_t`;
 - `.cpp`, использующие `String`, `File`, `isDigit`, имеют Arduino/own-header dependency chain;
 - ESP32 PlatformIO config компилирует все `firmware/esp32/src/*.cpp`;
 - явной missing-include / incomplete-type зависимости в проверенном наборе не найдено.
@@ -203,7 +207,7 @@ Commit:
 362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
 ```
 
-## Performance/rotation review — strategy готова, observability начата
+## Performance/rotation review — strategy готова, Stage 0 observability реализована
 
 Документ:
 
@@ -230,37 +234,49 @@ docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 5. БД рассматривать только при измеренном недостатке этих мер
 ```
 
-Первый runtime signal уже добавлен без дополнительного I/O:
+Manifest теперь имеет две runtime metrics без дополнительного persistence I/O:
 
 ```text
 snapshot_stability_duration_ms
+winding_journal_record_count
 ```
 
-Он измеряет только уже выполняемый deep audit; если `snapshot_stability_checked=false`, значение `null`. Поле не участвует в safety/integrity решениях.
+`winding_journal_record_count` считается внутри authoritative `WindingJournalQuery::validateAll()` прохода и становится доступен только после успешной schema validation + transition audit. Если winding integrity не доказана, поле `null`.
 
-Новые commits текущего performance batch:
+Новые commits текущего performance/observability batch:
 
 ```text
 8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
 4696f5385c3749b2a824615033c1b29b284e79b5  Document backup audit timing semantics
 59d208a8f86e803308824c43c2c3894df500f69d  Record backup audit observability baseline
 3b1dbcc37ba00218e564b45edb42ace7105f2566  Record backup audit timing in current state
+28945a079520169f450fe70a312a40c7b4d598e7  Advance active work to backup observability
+c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation count
+36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
+eeea77a35e0938692f2142b5022ea41849bf5f64  Expose winding audit record count
+1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
+a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
+b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
+cdf3c665d536d42e6638970d5a3694be03b014ce  Document winding journal backup metric
+495823c09b8c61213767d05966ca4434f185aef9  Document winding journal observability
+89f86252b94445d25b8bc1e5f1979595243407e4  Record winding backup observability in current state
 ```
 
 Не делать unbounded RAM mirror NDJSON на ESP32. Rotation обязана сохранять provenance/global IDs, fail-closed cross-segment validation, recoverable marker protocol и полноту backup whitelist.
 
 ## Следующее repo-reviewable действие
 
-До аппаратного стенда следующий безопасный участок — **не вводить rotation trigger**, а продолжить Stage 0 observability только там, где метрика получается без второго прохода по файлу.
-
-Приоритет:
+До аппаратного стенда **не вводить rotation trigger и не менять storage format**. Текущий Stage 0 уже даёт достаточно, чтобы начать реальные измерения winding backup path:
 
 ```text
-1. проверить, какие authoritative validators уже считают/могут вернуть record count в том же scan;
-2. если API можно расширить без дублирующего I/O — добавить bounded scan counters для одного наиболее дорогого audit path;
-3. не создавать persistent cache и не менять storage format;
-4. после hardware measurements выбрать hotspot по size_bytes + duration, а не по предположению.
+winding-events.size_bytes
+winding_journal_record_count
+snapshot_stability_duration_ms
 ```
+
+Следующий repo-only код допустим только если ещё один authoritative validator может вернуть count/duration в том же уже выполняемом проходе без дополнительного чтения файла. Не добавлять метрики ценой второго full scan только ради телеметрии.
+
+После hardware measurements выбрать один hotspot по фактическому размеру/latency. Только тогда решать, нужен ли bounded in-request index, rotation или read-only summary.
 
 Если появляется новый ESP32 Actions failure:
 
@@ -292,6 +308,14 @@ Happy path:
 13. CLOSED
 14. archive + monthly report
 15. stable backup manifest/export
+```
+
+На backup этапе дополнительно снять и сохранить:
+
+```text
+winding-events.size_bytes
+winding_journal_record_count
+snapshot_stability_duration_ms
 ```
 
 Fault scenarios:

@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -20,7 +21,7 @@ bool WarehouseStore::loadWarehousePrice(WarehousePrice& price,
 
         uint32_t value = 0UL;
         String currency;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "price_per_kg_minor", value) || value == 0UL ||
             !findString(line, "currency", currency) || currency.length() != 3U)
         {

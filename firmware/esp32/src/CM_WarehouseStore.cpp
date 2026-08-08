@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
 
 namespace CM
@@ -281,7 +282,7 @@ bool WarehouseStore::readSpools()
         String wireType;
         String optional;
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
             spoolId <= previousSpoolId ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
@@ -381,7 +382,7 @@ bool WarehouseStore::readMovements(const char* monthPrefix)
         const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
 
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
             !findString(line, "type", type) || type != "WRITE_OFF" ||
             !findString(line, "status", status) ||
@@ -512,7 +513,7 @@ bool WarehouseStore::nextSpoolId(uint32_t& id) const
         String wireType;
         String optional;
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "spool_id", candidate) || candidate == 0UL ||
             candidate <= previousId ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) ||

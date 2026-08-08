@@ -74,6 +74,22 @@ ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit coun
 0f10ed32d110c28b21af7c46c6be20a084c6ba2b  Document material backup observability
 ```
 
+## Repo-reviewable integration status
+
+Актуальные `CM_MaterialPersistenceIntegrityAudit.h/.cpp`, `CM_BackupExportWeb.cpp`, `CM_WorkshopPersistenceIntegrityAudit.cpp` и `CM_RepairPricingIntegrityAudit.cpp` повторно просмотрены после material observability batch.
+
+Подтверждено на уровне static repository review:
+
+- старый `MaterialPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
+- header явно включает `FS.h` и `stdint.h` для собственного public contract;
+- material counts считаются в уже существующих local validation loops;
+- partial counts не публикуются при failure полного material audit;
+- `BackupActivityGuard::Safe` gating не изменён;
+- winding schema audit остаётся через authoritative `WindingJournalQuery::validateAll()` + отдельный transition audit;
+- `CM_WindingSessionPersistenceIntegrityAudit` не дублируется новой observability логикой.
+
+Отдельной correctness-причины для нового code refactor в этом review не найдено. Это не build/CI доказательство.
+
 ## Подтверждённый performance hotspot
 
 Repository review показал, что полный `MaterialPersistenceIntegrityAudit::check()` после собственных material scans транзитивно вызывает:
@@ -107,7 +123,7 @@ snapshot_stability_duration_ms
 
 После измерений выбирать один hotspot по фактической latency/size. Не вводить rotation threshold, persistent optimistic cache или database migration до этих данных.
 
-Если стенд пока недоступен, следующий repo-only код допустим только как same-pass observability существующего authoritative validator без дополнительного full scan.
+Если стенд пока недоступен, следующий repo-only код допустим только как same-pass observability существующего authoritative validator без дополнительного full scan или как fix отдельного доказанного correctness/compile issue.
 
 ## Hardware E2E — обязательно отдельно
 

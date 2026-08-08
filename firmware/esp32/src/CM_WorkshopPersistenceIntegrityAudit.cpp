@@ -2,6 +2,7 @@
 #include "CM_RepairRegistry.h"
 #include "CM_WarehousePersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
+#include "CM_WindingSessionPersistenceIntegrityAudit.h"
 #include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalTransitionAudit.h"
 
@@ -27,7 +28,8 @@ bool WorkshopPersistenceIntegrityAudit::check(fs::FS& storage)
     }
 
     if (!WarehousePersistenceIntegrityAudit::check(storage) ||
-        !PersistentIdIntegrityAudit::check(storage))
+        !PersistentIdIntegrityAudit::check(storage) ||
+        !WindingSessionPersistenceIntegrityAudit::check(storage))
     {
         return false;
     }

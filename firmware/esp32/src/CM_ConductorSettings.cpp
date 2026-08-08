@@ -7,8 +7,10 @@ ConductorSettingsStore::ConductorSettingsStore(fs::FS& storage)
 
 bool ConductorSettingsStore::begin()
 {
+    m_ready = false;
     if (!m_storage.exists("/data") && !m_storage.mkdir("/data")) return false;
     if (!m_storage.exists("/data/settings") && !m_storage.mkdir("/data/settings")) return false;
+    if (!recoverFileSwap()) return false;
     m_ready = true;
     return true;
 }
@@ -16,8 +18,132 @@ bool ConductorSettingsStore::begin()
 bool ConductorSettingsStore::load(ConversionSettings& settings) const
 {
     settings = ConversionSettings();
-    if (!ready() || !m_storage.exists(SettingsPath)) return false;
-    File file = m_storage.open(SettingsPath, FILE_READ);
+    return ready() && m_storage.exists(SettingsPath) &&
+           loadFromPath(SettingsPath, settings);
+}
+
+bool ConductorSettingsStore::save(const ConversionSettings& settings)
+{
+    if (!ready() || settings.aluminiumToCopperPermille < 100U ||
+        settings.aluminiumToCopperPermille > 3000U ||
+        settings.copperToAluminiumPermille < 100U ||
+        settings.copperToAluminiumPermille > 3000U ||
+        settings.allowedDeviationPermille < 1U ||
+        settings.allowedDeviationPermille > 500U ||
+        settings.maxTargetStrands < 1U || settings.maxTargetStrands > 8U ||
+        !recoverFileSwap())
+    {
+        return false;
+    }
+
+    if (m_storage.exists(TempPath) && !m_storage.remove(TempPath)) return false;
+    File file = m_storage.open(TempPath, FILE_WRITE);
+    if (!file) return false;
+
+    String line = F("{\"aluminium_to_copper_permille\":");
+    line += settings.aluminiumToCopperPermille;
+    line += F(",\"copper_to_aluminium_permille\":"); line += settings.copperToAluminiumPermille;
+    line += F(",\"allowed_deviation_permille\":"); line += settings.allowedDeviationPermille;
+    line += F(",\"max_target_strands\":"); line += settings.maxTargetStrands;
+    line += F("}\n");
+
+    const size_t written = file.print(line);
+    file.flush();
+    file.close();
+    if (written != line.length())
+    {
+        m_storage.remove(TempPath);
+        return false;
+    }
+
+    ConversionSettings verified;
+    if (!loadFromPath(TempPath, verified) ||
+        verified.aluminiumToCopperPermille != settings.aluminiumToCopperPermille ||
+        verified.copperToAluminiumPermille != settings.copperToAluminiumPermille ||
+        verified.allowedDeviationPermille != settings.allowedDeviationPermille ||
+        verified.maxTargetStrands != settings.maxTargetStrands)
+    {
+        m_storage.remove(TempPath);
+        return false;
+    }
+
+    if (m_storage.exists(BackupPath) && !m_storage.remove(BackupPath))
+    {
+        m_storage.remove(TempPath);
+        return false;
+    }
+    if (m_storage.exists(SettingsPath) && !m_storage.rename(SettingsPath, BackupPath))
+    {
+        m_storage.remove(TempPath);
+        return false;
+    }
+    if (!m_storage.rename(TempPath, SettingsPath))
+    {
+        if (!m_storage.exists(SettingsPath) && m_storage.exists(BackupPath))
+            m_storage.rename(BackupPath, SettingsPath);
+        return false;
+    }
+    if (m_storage.exists(BackupPath) && !m_storage.remove(BackupPath))
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
+}
+
+bool ConductorSettingsStore::ready() const
+{
+    if (!m_ready) return false;
+    File directory = m_storage.open("/data/settings", FILE_READ);
+    if (!directory) return false;
+    const bool available = directory.isDirectory();
+    directory.close();
+    return available;
+}
+
+bool ConductorSettingsStore::recoverFileSwap()
+{
+    const bool mainExists = m_storage.exists(SettingsPath);
+    const bool tempExists = m_storage.exists(TempPath);
+    const bool backupExists = m_storage.exists(BackupPath);
+    if (!tempExists && !backupExists) return true;
+
+    ConversionSettings parsed;
+    const bool mainValid = mainExists && loadFromPath(SettingsPath, parsed);
+    if (mainValid)
+    {
+        if (tempExists && !m_storage.remove(TempPath)) return false;
+        if (backupExists && !m_storage.remove(BackupPath)) return false;
+        return true;
+    }
+
+    ConversionSettings tempSettings;
+    ConversionSettings backupSettings;
+    const bool tempValid = tempExists && loadFromPath(TempPath, tempSettings);
+    const bool backupValid = backupExists && loadFromPath(BackupPath, backupSettings);
+
+    if (mainExists && !m_storage.remove(SettingsPath)) return false;
+
+    if (tempValid)
+    {
+        if (!m_storage.rename(TempPath, SettingsPath)) return false;
+        if (backupExists && !m_storage.remove(BackupPath)) return false;
+        return true;
+    }
+
+    if (tempExists && !m_storage.remove(TempPath)) return false;
+    if (backupValid)
+        return m_storage.rename(BackupPath, SettingsPath);
+
+    return false;
+}
+
+bool ConductorSettingsStore::loadFromPath(const char* path,
+                                          ConversionSettings& settings) const
+{
+    settings = ConversionSettings();
+    if (path == nullptr || !m_storage.exists(path)) return false;
+    File file = m_storage.open(path, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
@@ -50,55 +176,20 @@ bool ConductorSettingsStore::load(ConversionSettings& settings) const
     if (!findUnsigned(line, "aluminium_to_copper_permille", alToCu) ||
         !findUnsigned(line, "copper_to_aluminium_permille", cuToAl) ||
         !findUnsigned(line, "allowed_deviation_permille", deviation) ||
-        !findUnsigned(line, "max_target_strands", maxStrands)) return false;
-
-    if (alToCu < 100UL || alToCu > 3000UL || cuToAl < 100UL || cuToAl > 3000UL ||
-        deviation < 1UL || deviation > 500UL || maxStrands < 1UL || maxStrands > 8UL) return false;
+        !findUnsigned(line, "max_target_strands", maxStrands) ||
+        alToCu < 100UL || alToCu > 3000UL ||
+        cuToAl < 100UL || cuToAl > 3000UL ||
+        deviation < 1UL || deviation > 500UL ||
+        maxStrands < 1UL || maxStrands > 8UL)
+    {
+        return false;
+    }
 
     settings.aluminiumToCopperPermille = static_cast<uint16_t>(alToCu);
     settings.copperToAluminiumPermille = static_cast<uint16_t>(cuToAl);
     settings.allowedDeviationPermille = static_cast<uint16_t>(deviation);
     settings.maxTargetStrands = static_cast<uint8_t>(maxStrands);
     return true;
-}
-
-bool ConductorSettingsStore::save(const ConversionSettings& settings)
-{
-    if (!ready() || settings.aluminiumToCopperPermille < 100U ||
-        settings.aluminiumToCopperPermille > 3000U ||
-        settings.copperToAluminiumPermille < 100U ||
-        settings.copperToAluminiumPermille > 3000U ||
-        settings.allowedDeviationPermille < 1U ||
-        settings.allowedDeviationPermille > 500U ||
-        settings.maxTargetStrands < 1U || settings.maxTargetStrands > 8U) return false;
-
-    m_storage.remove(TempPath);
-    File file = m_storage.open(TempPath, FILE_WRITE);
-    if (!file) return false;
-
-    String line = F("{\"aluminium_to_copper_permille\":");
-    line += settings.aluminiumToCopperPermille;
-    line += F(",\"copper_to_aluminium_permille\":"); line += settings.copperToAluminiumPermille;
-    line += F(",\"allowed_deviation_permille\":"); line += settings.allowedDeviationPermille;
-    line += F(",\"max_target_strands\":"); line += settings.maxTargetStrands;
-    line += F("}\n");
-
-    const size_t written = file.print(line);
-    file.flush();
-    file.close();
-    if (written != line.length()) { m_storage.remove(TempPath); return false; }
-    m_storage.remove(SettingsPath);
-    return m_storage.rename(TempPath, SettingsPath);
-}
-
-bool ConductorSettingsStore::ready() const
-{
-    if (!m_ready) return false;
-    File directory = m_storage.open("/data/settings", FILE_READ);
-    if (!directory) return false;
-    const bool available = directory.isDirectory();
-    directory.close();
-    return available;
 }
 
 bool ConductorSettingsStore::findUnsigned(const String& line, const char* key, uint32_t& value)

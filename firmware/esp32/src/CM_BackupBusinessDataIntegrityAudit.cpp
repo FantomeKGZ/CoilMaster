@@ -101,7 +101,10 @@ bool idOccursExactlyOnce(fs::FS& storage, const char* path, const char* key, uin
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
-        if (!validJsonLine(line) || !findUnsigned(line, key, candidate) || candidate == 0UL)
+        // The authoritative outer pass validates every non-empty record once.
+        // Keep repeated exact-one-match scans focused on identity so strict
+        // JSON validation does not become an avoidable O(n^2) CPU multiplier.
+        if (!findUnsigned(line, key, candidate) || candidate == 0UL)
         {
             file.close();
             return false;

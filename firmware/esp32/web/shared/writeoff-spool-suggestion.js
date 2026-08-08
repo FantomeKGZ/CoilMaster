@@ -7,6 +7,25 @@ if(!spoolSelect||!/^[1-9]\d*$/.test(repairId))return;
 delete document.body.dataset.writeoffSourceSessionId;
 delete document.body.dataset.writeoffSourceSpoolId;
 
+if(!window.cmWriteoffProvenanceFetchWrapped){
+    const originalFetch=window.fetch.bind(window);
+    window.fetch=(input,init)=>{
+        const url=typeof input==='string'?input:(input&&input.url)||'';
+        if(url==='/api/warehouse/write-offs'&&init&&String(init.method||'GET').toUpperCase()==='POST'&&init.body instanceof URLSearchParams){
+            const sessionId=document.body.dataset.writeoffSourceSessionId||'';
+            const sourceSpoolId=document.body.dataset.writeoffSourceSpoolId||'';
+            const postedSpoolId=String(init.body.get('spool_id')||'');
+            if(/^[1-9]\d*$/.test(sessionId)&&sourceSpoolId===postedSpoolId){
+                init.body.set('source_session_id',sessionId);
+            }else{
+                init.body.delete('source_session_id');
+            }
+        }
+        return originalFetch(input,init);
+    };
+    window.cmWriteoffProvenanceFetchWrapped=true;
+}
+
 const note=document.createElement('div');
 note.className='info muted';
 note.textContent='Проверка бухты из последней завершённой намотки…';

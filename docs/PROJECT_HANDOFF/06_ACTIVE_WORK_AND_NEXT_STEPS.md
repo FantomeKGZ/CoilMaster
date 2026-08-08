@@ -27,7 +27,9 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 - finalization coverage;
 - whitelist backup/export + deep persistence integrity;
 - winding `validateAll()` cleanup;
-- backup/run-level HTTP semantics audit.
+- backup/run-level HTTP semantics audit;
+- Stage 0 backup observability до 29 metrics;
+- flat persisted JSON syntax hardening для workshop/pricing/material/warehouse/settings.
 
 ## CI status
 
@@ -96,7 +98,7 @@ Record counts, allocator high-water и session file counts/bytes также со
 
 Session byte totals являются telemetry-only: при 32-bit aggregate overflow только total-byte fields становятся `null`; integrity result не меняется.
 
-Последний code commit:
+Ключевой timing commit:
 
 ```text
 96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
@@ -113,6 +115,50 @@ cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence by
 a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
 ```
 
+## Flat persisted JSON correctness hardening
+
+Repository review после Stage 0 подтвердил отдельную correctness-причину: несколько persisted flat-NDJSON readers проверяли только внешние `{...}` и выбранные поля. Синтаксически повреждённая строка с ещё читаемым ID могла пройти часть integrity/startup checks или попасть в read-only JSON API.
+
+Добавлен общий header-only:
+
+```text
+firmware/esp32/src/CM_FlatJsonObjectValidator.h
+```
+
+Он проверяет синтаксис уже прочитанного flat JSON object без нового SD pass и без внешней JSON dependency.
+
+Hardened authoritative readers:
+
+```text
+CM_BackupBusinessDataIntegrityAudit
+CM_RepairRegistry
+CM_RepairPricingIntegrityAudit
+CM_MaterialPersistenceIntegrityAudit
+CM_WarehousePersistenceIntegrityAudit
+CM_WarehouseMovementIntegrityAudit
+CM_ConductorSettingsIntegrityAudit
+```
+
+Strict parser выполняется один раз на authoritative outer pass. В известных O(n²)/O(n*m) duplicate/reference scans повторный full JSON parse намеренно убран/не добавлен, чтобы correctness fix не создавал искусственный performance regression.
+
+Ключевые commits:
+
+```text
+9ddabf613f1edf95dc1da55cbba8763414e47968  Add flat persisted JSON syntax validator
+96c863b1a1bde3a3725596940e74805da2c69111  Reject malformed flat JSON in business backup audit
+d13269bb481d056623569b9ecdf91708be6b0b8b  Fail closed on malformed workshop JSON
+07b20e9b88012446fcbc813e78b39349ecd70753  Reject malformed flat JSON in pricing audit
+b86794238cab420d1d97c3b281fa233b92ccf317  Avoid repeated JSON parsing in business identity scans
+86b19f35cad6c383377dee9c342e58f4978b0e79  Avoid repeated JSON parsing in registry duplicate scans
+16f39b33cccaeed533c39c2e0144d6942169b2c7  Reject malformed flat JSON in material persistence audit
+b3fd050c5e917691877e1c245fadde333742eed7  Reject malformed flat JSON in warehouse persistence audit
+b7b362bfe1813f27eab0c904dc9c7fc4489e6f9e  Reject malformed flat JSON in movement audit
+ab0b1f6b0381641e811fed5a18ac412ebb0667d2  Reject malformed flat JSON in conductor settings audit
+090acf40fc4470c7b8719975df7f4ce218a3cdec  Keep pricing reference scans identity focused
+```
+
+Safety invariants не затронуты: это только fail-closed persistence parsing.
+
 ## Repo-reviewable integration status
 
 Подтверждено на уровне static repository review:
@@ -123,6 +169,9 @@ a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in 
 - allocator high-water, record counts и session bytes не добавляют telemetry-only full scans;
 - per-domain timing использует `uint32_t` `millis()` subtraction вокруг существующих вызовов;
 - `CM_BackupExportWeb.h` явно включает `Arduino.h`, поэтому timing/String/F types доступны напрямую;
+- shared flat-JSON validator header-only и использует уже доступный Arduino `String`;
+- workshop/material/warehouse/settings authoritative passes теперь отвергают malformed flat JSON;
+- repeated identity/reference scans не получили лишнего full-JSON parser multiplier;
 - `BackupActivityGuard::Safe` gating сохранён;
 - safety semantics физического START/SSR/manual writeoff не изменены.
 
@@ -153,7 +202,7 @@ snapshot_stability_duration_ms
 
 Не вводить rotation threshold, persistent optimistic cache, Stage 1 duplicate-scan refactor или database migration до этих данных, если не появится отдельная correctness-причина.
 
-Если стенд пока недоступен, repo-only код допустим только как ещё одна same-pass observability существующего authoritative validator без дополнительного full scan либо как fix фактически подтверждённой compile/correctness проблемы.
+Если стенд пока недоступен, repo-only код допустим как fix фактически подтверждённой compile/correctness проблемы. Stage 0 observability уже достаточно детализирован; не добавлять метрики ради количества.
 
 ## Hardware E2E — обязательно отдельно
 

@@ -5,6 +5,7 @@
 #include "CM_MaterialPersistenceIntegrityAudit.h"
 #include "CM_BackupBusinessDataIntegrityAudit.h"
 #include "CM_WindingPersistenceIntegrityAudit.h"
+#include "CM_PersistentIdIntegrityAudit.h"
 
 namespace CM
 {
@@ -212,6 +213,9 @@ const char* snapshotStabilityReason(fs::FS& storage)
         if (storage.exists(RecoveryMarkers[i].path))
             return RecoveryMarkers[i].reason;
     }
+
+    if (!PersistentIdIntegrityAudit::check(storage))
+        return "persistent_id_unstable_or_invalid";
 
     if (!MaterialPersistenceIntegrityAudit::check(storage))
         return "material_persistence_unstable_or_invalid";

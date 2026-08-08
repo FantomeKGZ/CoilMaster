@@ -78,6 +78,13 @@ bool validJsonLine(const String& line)
     return line.length() >= 2U && line.startsWith("{") && line.endsWith("}");
 }
 
+bool incrementRecordCount(uint32_t& recordCount)
+{
+    if (recordCount == 0xFFFFFFFFUL) return false;
+    ++recordCount;
+    return true;
+}
+
 bool idOccursExactlyOnce(fs::FS& storage, const char* path, const char* key, uint32_t id)
 {
     if (id == 0UL || !storage.exists(path)) return false;
@@ -108,8 +115,12 @@ bool idOccursExactlyOnce(fs::FS& storage, const char* path, const char* key, uin
     return matches == 1U;
 }
 
-bool validateUniqueIds(fs::FS& storage, const char* path, const char* key)
+bool validateUniqueIds(fs::FS& storage,
+                       const char* path,
+                       const char* key,
+                       uint32_t& recordCount)
 {
+    recordCount = 0UL;
     if (!storage.exists(path)) return true;
     File source = storage.open(path, FILE_READ);
     if (!source || source.isDirectory())
@@ -123,7 +134,8 @@ bool validateUniqueIds(fs::FS& storage, const char* path, const char* key)
         if (line.length() == 0U) continue;
         uint32_t id = 0UL;
         if (!validJsonLine(line) || !findUnsigned(line, key, id) || id == 0UL ||
-            !idOccursExactlyOnce(storage, path, key, id))
+            !idOccursExactlyOnce(storage, path, key, id) ||
+            !incrementRecordCount(recordCount))
         {
             source.close();
             return false;
@@ -187,8 +199,9 @@ bool validateRepairs(fs::FS& storage)
     return true;
 }
 
-bool validateRepairStatus(fs::FS& storage)
+bool validateRepairStatus(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     if (!storage.exists(RepairStatusPath)) return true;
     File file = storage.open(RepairStatusPath, FILE_READ);
     if (!file || file.isDirectory())
@@ -207,7 +220,8 @@ bool validateRepairStatus(fs::FS& storage)
             !findString(line, "status", status) || status != "CLOSED" ||
             !findString(line, "closed_at", closedAt) || closedAt.length() < 10U ||
             !idOccursExactlyOnce(storage, RepairsPath, "repair_id", repairId) ||
-            !idOccursExactlyOnce(storage, RepairStatusPath, "repair_id", repairId))
+            !idOccursExactlyOnce(storage, RepairStatusPath, "repair_id", repairId) ||
+            !incrementRecordCount(recordCount))
         {
             file.close();
             return false;
@@ -217,8 +231,9 @@ bool validateRepairStatus(fs::FS& storage)
     return true;
 }
 
-bool validatePricing(fs::FS& storage)
+bool validatePricing(fs::FS& storage, uint32_t& recordCount)
 {
+    recordCount = 0UL;
     if (!storage.exists(PricingPath)) return true;
     File file = storage.open(PricingPath, FILE_READ);
     if (!file || file.isDirectory())
@@ -239,7 +254,8 @@ bool validatePricing(fs::FS& storage)
             !findUnsigned64(line, "client_price_minor", client) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
-            !idOccursExactlyOnce(storage, RepairsPath, "repair_id", repairId))
+            !idOccursExactlyOnce(storage, RepairsPath, "repair_id", repairId) ||
+            !incrementRecordCount(recordCount))
         {
             file.close();
             return false;
@@ -252,16 +268,41 @@ bool validatePricing(fs::FS& storage)
 
 bool BackupBusinessDataIntegrityAudit::check(fs::FS& storage)
 {
-    if (!validateUniqueIds(storage, ClientsPath, "client_id") ||
-        !validateUniqueIds(storage, MotorsPath, "motor_id") ||
-        !validateUniqueIds(storage, RepairsPath, "repair_id") ||
+    BackupBusinessDataAuditMetrics ignoredMetrics;
+    return check(storage, ignoredMetrics);
+}
+
+bool BackupBusinessDataIntegrityAudit::check(fs::FS& storage,
+                                             BackupBusinessDataAuditMetrics& metrics)
+{
+    metrics.clientRecordCount = 0UL;
+    metrics.motorRecordCount = 0UL;
+    metrics.repairRecordCount = 0UL;
+    metrics.repairStatusRecordCount = 0UL;
+    metrics.pricingRecordCount = 0UL;
+
+    uint32_t clientRecordCount = 0UL;
+    uint32_t motorRecordCount = 0UL;
+    uint32_t repairRecordCount = 0UL;
+    uint32_t repairStatusRecordCount = 0UL;
+    uint32_t pricingRecordCount = 0UL;
+
+    if (!validateUniqueIds(storage, ClientsPath, "client_id", clientRecordCount) ||
+        !validateUniqueIds(storage, MotorsPath, "motor_id", motorRecordCount) ||
+        !validateUniqueIds(storage, RepairsPath, "repair_id", repairRecordCount) ||
         !validateMotors(storage) ||
         !validateRepairs(storage) ||
-        !validateRepairStatus(storage) ||
-        !validatePricing(storage))
+        !validateRepairStatus(storage, repairStatusRecordCount) ||
+        !validatePricing(storage, pricingRecordCount))
     {
         return false;
     }
+
+    metrics.clientRecordCount = clientRecordCount;
+    metrics.motorRecordCount = motorRecordCount;
+    metrics.repairRecordCount = repairRecordCount;
+    metrics.repairStatusRecordCount = repairStatusRecordCount;
+    metrics.pricingRecordCount = pricingRecordCount;
     return true;
 }
 }

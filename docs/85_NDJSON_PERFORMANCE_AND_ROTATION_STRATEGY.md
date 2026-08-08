@@ -58,7 +58,7 @@ Costing, finalization preflight и operator histories также читают ap
 
 ### Уже начато
 
-Manifest теперь возвращает шесть runtime metrics:
+Manifest теперь возвращает девять runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
@@ -66,6 +66,9 @@ material_catalog_record_count
 material_usage_record_count
 material_adjustment_record_count
 winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
 warehouse_movement_record_count
 ```
 
@@ -99,6 +102,21 @@ material_adjustment_record_count
 - если deep audit не запускался, до winding audit не дошли или winding integrity не доказана — `null`;
 - отдельного повторного чтения `/data/winding-runs/events.ndjson` ради count нет.
 
+Семантика session file counters:
+
+```text
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
+```
+
+- считаются внутри уже существующих deep parser/cross-identity проходов `WindingSessionPersistenceIntegrityAudit` по snapshot/state/spool-selection directories;
+- старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
+- учитываются только файлы, которые прошли canonical filename check, штатный parser/load и требуемые cross-file identity checks;
+- counts публикуются только после полного успешного session persistence audit; partial counts при failure наружу не выдаются;
+- если соответствующая directory отсутствует и audit в целом успешен, её count равен `0`;
+- отдельного directory/full-file scan ради этих counters не добавлено.
+
 Семантика `warehouse_movement_record_count`:
 
 - считается внутри уже выполняемого `WarehouseMovementIntegrityAudit::check()` прохода по `/data/warehouse/movements.ndjson`;
@@ -123,6 +141,9 @@ a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
 ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
 6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
 38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
+9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
+afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
+abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
 ```
 
 Теперь на стенде можно сопоставить как минимум:
@@ -136,12 +157,15 @@ material-adjustments.size_bytes
 material_adjustment_record_count
 winding-events.size_bytes
 winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
 warehouse-movements.size_bytes
 warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-Это даёт сравнимые данные по нескольким растущим persistence paths без изменения storage format и без дополнительного audit I/O.
+Это даёт сравнимые данные по нескольким растущим persistence paths и session-file population без изменения storage format и без дополнительного audit I/O.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
@@ -221,9 +245,9 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, material/winding/warehouse record counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, material/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
-Отдельно сравнить общую длительность deep audit с material history counts: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, поэтому рост material histories может сочетаться с уже существующим повторным cross-domain I/O.
+Отдельно сравнить общую длительность deep audit с material history counts и количеством session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, поэтому рост material histories и накопление session files могут сочетаться с уже существующим повторным cross-domain I/O.
 
 Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
 

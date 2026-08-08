@@ -4,6 +4,9 @@ const p=new URLSearchParams(location.search),repairId=p.get('repair_id')||localS
 const spoolSelect=document.getElementById('spool');
 if(!spoolSelect||!/^[1-9]\d*$/.test(repairId))return;
 
+delete document.body.dataset.writeoffSourceSessionId;
+delete document.body.dataset.writeoffSourceSpoolId;
+
 const note=document.createElement('div');
 note.className='info muted';
 note.textContent='Проверка бухты из последней завершённой намотки…';
@@ -13,6 +16,18 @@ else spoolSelect.insertAdjacentElement('afterend',note);
 
 const escText=v=>String(v??'');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+let suggestedSessionId='',suggestedSpoolId='';
+
+function syncProvenance(){
+    if(suggestedSessionId&&suggestedSpoolId&&spoolSelect.value===suggestedSpoolId){
+        document.body.dataset.writeoffSourceSessionId=suggestedSessionId;
+        document.body.dataset.writeoffSourceSpoolId=suggestedSpoolId;
+        return;
+    }
+    delete document.body.dataset.writeoffSourceSessionId;
+    delete document.body.dataset.writeoffSourceSpoolId;
+}
+spoolSelect.addEventListener('change',syncProvenance);
 
 async function latestCompletedSession(){
     const events=[];
@@ -80,11 +95,17 @@ async function run(){
             note.textContent='Сессия №'+sessionId+' была выполнена с бухтой №'+spoolId+', но эта бухта сейчас не доступна среди активных. Автоматической замены нет — проверьте склад и выберите бухту вручную.';
             return;
         }
+        suggestedSessionId=sessionId;
+        suggestedSpoolId=spoolId;
         spoolSelect.value=spoolId;
         spoolSelect.dispatchEvent(new Event('change'));
+        syncProvenance();
         note.className='info';
-        note.textContent='Предложена бухта №'+spoolId+' из immutable записи завершённой сессии №'+sessionId+'. Это только подсказка: фактический вес после работы и подтверждение списания остаются ручными.';
+        note.textContent='Предложена бухта №'+spoolId+' из immutable записи завершённой сессии №'+sessionId+'. Пока выбрана эта бухта, session-id будет сохранён как provenance ручного списания. Расход и подтверждение остаются ручными.';
     }catch(e){
+        suggestedSessionId='';
+        suggestedSpoolId='';
+        syncProvenance();
         note.className='warning';
         note.textContent='Не удалось доказуемо получить бухту из завершённой намотки ('+escText(e.message||'unknown')+'). Автоматический выбор не выполнен; ручное списание остаётся доступным.';
     }

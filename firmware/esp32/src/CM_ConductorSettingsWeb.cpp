@@ -74,8 +74,21 @@ void ConductorSettingsWeb::handleSet()
     settings.maxTargetStrands = static_cast<uint8_t>(maxStrands);
     if (m_server.hasArg("allow_mixed_diameters"))
     {
-        const String value = m_server.arg("allow_mixed_diameters");
-        settings.allowMixedDiameters = value != "0" && value != "false" && value != "FALSE";
+        String value = m_server.arg("allow_mixed_diameters");
+        value.trim();
+        if (value == "1" || value == "true" || value == "TRUE")
+        {
+            settings.allowMixedDiameters = true;
+        }
+        else if (value == "0" || value == "false" || value == "FALSE")
+        {
+            settings.allowMixedDiameters = false;
+        }
+        else
+        {
+            m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_allow_mixed_diameters\"}");
+            return;
+        }
     }
 
     if (!m_store.setConversionSettings(settings))

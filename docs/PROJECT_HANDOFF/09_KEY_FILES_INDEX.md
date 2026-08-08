@@ -132,8 +132,10 @@ firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
 
 - `CM_WindingPersistenceIntegrityAudit` использует `WindingJournalQuery::validateAll()` + отдельный transition audit; cursor-pagination full scan там отсутствует.
 - `CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его.
-- Session audit теперь имеет совместимый metrics overload `WindingSessionPersistenceAuditMetrics`; старый `check(storage)` сохранён.
-- Metrics overload возвращает `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного успешного deep session audit; partial counts при failure не публикуются.
+- Session audit имеет совместимый metrics overload `WindingSessionPersistenceAuditMetrics`; старый `check(storage)` сохранён.
+- Session metrics возвращают `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного успешного deep session audit; partial counts при failure не публикуются.
+- `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; старый `check(storage)` сохранён.
+- Business metrics возвращают `clientRecordCount`, `motorRecordCount`, `repairRecordCount`, `repairStatusRecordCount`, `pricingRecordCount` из уже выполняемых validation passes; дополнительного full scan ради telemetry нет.
 - `CM_BackupExportWeb.cpp` публикует Stage 0 material/business/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms` только через уже выполняемые authoritative passes.
 - `BackupActivityGuard::Safe` gating не ослаблять: heavy deep scan не выполняется во время active winding.
 

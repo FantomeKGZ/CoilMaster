@@ -81,11 +81,26 @@ bool directoryContentsCanonical(fs::FS& storage, const char* path)
 
 bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
 {
+    WindingSessionPersistenceAuditMetrics ignoredMetrics;
+    return check(storage, ignoredMetrics);
+}
+
+bool WindingSessionPersistenceIntegrityAudit::check(
+    fs::FS& storage,
+    WindingSessionPersistenceAuditMetrics& metrics)
+{
+    metrics = WindingSessionPersistenceAuditMetrics();
+    WindingSessionPersistenceAuditMetrics validatedMetrics;
+
     const bool hasSnapshots = storage.exists(SnapshotDirectory);
     const bool hasStates = storage.exists(StateDirectory);
     const bool hasSelections = storage.exists(SelectionDirectory);
 
-    if (!hasSnapshots && !hasStates && !hasSelections) return true;
+    if (!hasSnapshots && !hasStates && !hasSelections)
+    {
+        metrics = validatedMetrics;
+        return true;
+    }
 
     // Complete the read-only directory audit before any store begin(). In
     // particular JobSpoolSelectionStore::begin() can recover a .tmp file, so a
@@ -128,6 +143,11 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
             {
                 directory.close(); return false;
             }
+            if (validatedMetrics.snapshotFileCount == 0xFFFFFFFFUL)
+            {
+                directory.close(); return false;
+            }
+            ++validatedMetrics.snapshotFileCount;
             // Snapshot-only sessions are valid legacy archive entries. Newer
             // state/spool files, when present, are cross-checked below.
             entry = directory.openNextFile();
@@ -157,6 +177,11 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
             {
                 directory.close(); return false;
             }
+            if (validatedMetrics.stateFileCount == 0xFFFFFFFFUL)
+            {
+                directory.close(); return false;
+            }
+            ++validatedMetrics.stateFileCount;
             entry = directory.openNextFile();
         }
         directory.close();
@@ -190,11 +215,17 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
             {
                 directory.close(); return false;
             }
+            if (validatedMetrics.spoolSelectionFileCount == 0xFFFFFFFFUL)
+            {
+                directory.close(); return false;
+            }
+            ++validatedMetrics.spoolSelectionFileCount;
             entry = directory.openNextFile();
         }
         directory.close();
     }
 
+    metrics = validatedMetrics;
     return true;
 }
 }

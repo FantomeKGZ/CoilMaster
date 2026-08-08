@@ -9,7 +9,7 @@
 docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
 ```
 
-Этот файл фиксирует именно активную очередь работ.
+Этот файл фиксирует именно активную очередь работ. Код ветки выше документации по приоритету.
 
 ## Что уже закрыто — не делать повторно
 
@@ -52,9 +52,9 @@ client
 - whitelist backup/export;
 - deep backup persistence integrity audits.
 
-## Последний CI факт
+## Последний подтверждённый CI факт
 
-Пользователь передал Actions run:
+Ранее пользователь передал Actions run:
 
 ```text
 31243187630
@@ -72,7 +72,7 @@ Run собирал commit:
 78ac24533f1157080bd2163990dbdb0b2577807c
 ```
 
-Первая реальная compile error:
+Первая реальная compile error была:
 
 ```text
 firmware/esp32/src/CM_MaterialLedger.cpp:705:1:
@@ -87,11 +87,11 @@ error: expected '}' at end of input
 77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
 ```
 
-Нельзя утверждать GREEN для `77fd7dd4`, пока фактический новый ESP32 Actions run не подтверждён.
+Repository review ниже не заменяет фактический ESP32 Actions build. Не утверждать GREEN для новых commits без реального run/result.
 
-## Текущий backup/export контракт
+## Backup integrity — проверено и закрыто
 
-Глубокий `snapshot_stable` audit выполняется только когда `BackupActivityGuard` возвращает `Safe`.
+Deep `snapshot_stable` audit запускается только когда `BackupActivityGuard` возвращает `Safe`.
 
 Во время active winding:
 
@@ -101,110 +101,151 @@ snapshot_stability_checked=false
 snapshot_stable=null
 ```
 
-Это важно: manifest не делает тяжёлые full scans microSD во время намотки.
+При safe state deep audit охватывает **весь static backup whitelist**:
 
-Когда state safe, deep audit проверяет:
+```text
+/data/workshop/clients.ndjson
+/data/workshop/motors.ndjson
+/data/workshop/repairs.ndjson
+/data/workshop/repair-status.ndjson
+/data/winding-runs/events.ndjson
+/data/warehouse/spools.ndjson
+/data/warehouse/movements.ndjson
+/data/warehouse/price.ndjson
+/data/materials/materials.ndjson
+/data/materials/usage.ndjson
+/data/materials/adjustments.ndjson
+/data/repairs/pricing.ndjson
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/id-state.bak          # optional
+/data/settings/conductor-calculator.ndjson
+```
 
-- material recovery markers и persisted files;
-- workshop clients/motors/repairs/status;
-- repair pricing + repair references;
-- winding journal schema и transition semantics;
-- warehouse spools/price/movements;
-- allocator main/backup/temp state;
-- conductor settings + temp marker;
-- session snapshot/state/spool-selection contents и cross-identity.
+И дополнительно проверяет необходимые adjuncts/invariants:
 
-Ключевая последняя серия коммитов перечислена полностью в `12_LATEST_HANDOFF_2026-08-08.md`.
+- material/warehouse pending/swap markers;
+- allocator main/optional backup/absence of temp;
+- conductor settings contents + отсутствие `.tmp/.bak` recovery residue;
+- workshop/material/pricing/warehouse references;
+- winding journal schema + transition semantics;
+- canonical session directories;
+- **содержимое allocator/session persistence**, включая snapshot/state/spool-selection;
+- cross-file job/session/repair/motor/spool identity.
 
-## Следующее действие №1 — cleanup winding backup audit
+## Winding backup cleanup — уже выполнен в коде
 
-Перечитать актуальные:
+Проверены актуальные:
 
 ```text
 firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.cpp
-firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.h
 firmware/esp32/src/CM_WindingJournalQuery.h
 firmware/esp32/src/CM_WindingJournalQueryValidation.cpp
 ```
 
-Цель:
-
-перевести full-file schema validation внутри `CM_WindingPersistenceIntegrityAudit` на authoritative:
+Старого cursor-pagination полного scan **нет**. Текущий audit уже использует:
 
 ```text
 WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
 ```
 
-вместо собственного pagination/cursor обхода.
+`validateAll()` идёт по journal до EOF и не строит temporary JSON history pages. Поэтому дополнительный code churn в `CM_WindingPersistenceIntegrityAudit.cpp` не нужен.
 
-Ограничения:
+## Compile-safety audit новых backup integrity modules — выполнен статически
 
-- не запускать write/recovery;
-- сохранить read-only semantics;
-- сохранить transition audit;
-- не ослабить fail-closed behavior;
-- deep audit всё ещё только при `BackupActivityGuard::Safe`.
-
-## Следующее действие №2 — новый ESP32 Actions failure, если появится
-
-Если пользователь даёт новый run URL/ID:
-
-1. получить jobs run;
-2. найти failed `build-esp32` job;
-3. загрузить полный job log;
-4. искать первую реальную `error:` / `fatal error:` / linker failure;
-5. не диагностировать по хвосту framework warnings;
-6. fetch exact current file из `cmp-protocol-v1`, исправить минимально и commit.
-
-## Следующее действие №3 — HTTP/error semantics backup
-
-Проверить новые endpoints/fields на единый контракт:
+Проверены include-зависимости новых audit modules, включая:
 
 ```text
-bad request -> 400
-active/unsafe export -> 409 или manifest blocked state
-not found -> 404
-integrity/read failure -> 500
-storage unavailable -> 503
+CM_BackupBusinessDataIntegrityAudit.*
+CM_MaterialPersistenceIntegrityAudit.*
+CM_WarehousePersistenceIntegrityAudit.*
+CM_PersistentIdIntegrityAudit.*
+CM_ConductorSettingsIntegrityAudit.*
+CM_WindingPersistenceIntegrityAudit.*
+CM_WindingSessionPersistenceIntegrityAudit.*
 ```
 
-Особенно проверить:
+Результат repository review:
 
-- `snapshot_stability_checked`;
-- nullable `snapshot_stable`;
-- `snapshot_stability_reason`;
-- `blocked_reason`;
-- session directory malformed/temp/read failures;
-- новые reasons:
-  - `persistent_id_unstable_or_invalid`;
-  - `conductor_settings_unstable_or_invalid`;
-  - `business_data_unstable_or_invalid`;
-  - `material_persistence_unstable_or_invalid`;
-  - `winding_persistence_unstable_or_invalid`;
-  - `warehouse_persistence_unstable_or_invalid`;
-  - `warehouse_movements_unstable_or_invalid`;
-  - `session_persistence_unstable_or_invalid`.
+- публичные audit headers имеют собственный `FS.h` для `fs::FS`;
+- `.cpp`, использующие `String`, `File`, `isDigit`, имеют Arduino/own-header dependency chain;
+- ESP32 PlatformIO config компилирует все `firmware/esp32/src/*.cpp`;
+- явной missing-include / incomplete-type зависимости в проверенном наборе не найдено.
 
-## Следующее действие №4 — performance/rotation review
+Это compile-safety review, а не доказательство успешной физической сборки/CI.
 
-После integrity review оценить стоимость растущих full scans:
+## HTTP/error semantics audit — выполнен
 
-- manifest deep audit;
-- finalization preflight;
-- costing;
-- repair histories;
-- warehouse/material NDJSON.
+Документ:
 
-Не мигрировать преждевременно в БД. Сначала измерить/оценить реальные размеры и частоту. Возможные направления только при необходимости:
+```text
+docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
+```
 
-- bounded indexes;
-- summary snapshots;
-- rotation/archiving старых immutable logs;
-- cache только там, где corruption всё равно проверяется fail-closed перед mutation.
+Проверенный контракт:
+
+```text
+400 malformed/missing request fields
+404 requested allowed resource not found
+409 valid request blocked by machine/domain state
+500 persisted read/integrity failure
+503 storage/service dependency unavailable
+```
+
+Manifest намеренно остаётся status endpoint: active winding выражается через `200` + `export_allowed=false`, а direct export endpoints возвращают `409`.
+
+Найден и исправлен run-level semantic gap: пустые, но присутствующие `source_session_id` + `source_run_id` больше не могут молча перейти в legacy write-off path.
+
+Commit:
+
+```text
+362fcb7daa8f883f57de4867c06c42f06e45b613  Reject empty run provenance fields
+```
+
+## Performance/rotation review — strategy готова
+
+Документ:
+
+```text
+docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+```
+
+Решение: **без преждевременной миграции в БД**.
+
+Главные hotspots repository review:
+
+- full deep backup scans;
+- repeated cross-file reference scans в business/material/warehouse audits;
+- costing/finalization/history по растущим append-only данным;
+- winding journal имеет отдельные full schema + semantic scans, но schema scan уже не создаёт pagination JSON.
+
+Порядок оптимизации:
+
+```text
+1. измерить file size / record count / scan latency
+2. убрать повторные scans внутри одного request bounded indexes
+3. при доказанной необходимости — rotation immutable append histories
+4. summary snapshots только для read/report paths
+5. БД рассматривать только при измеренном недостатке этих мер
+```
+
+Не делать unbounded RAM mirror NDJSON на ESP32. Rotation обязана сохранять provenance/global IDs, fail-closed cross-segment validation, recoverable marker protocol и полноту backup whitelist.
+
+## Следующее repo-reviewable действие
+
+До аппаратного стенда полезный следующий шаг — **не внедрять rotation вслепую**, а добавить/спроектировать low-cost observability для размеров и длительности уже существующих scans. Реальные thresholds выбирать только по измеренным данным.
+
+Если появляется новый ESP32 Actions failure:
+
+1. получить jobs конкретного run;
+2. найти failed `build-esp32` job;
+3. прочитать полный job log;
+4. исправлять первую реальную `error:` / `fatal error:` / linker failure;
+5. не считать framework warnings причиной failure без доказательства.
 
 ## Hardware E2E — обязательный внешний этап
 
-Repository review и CI не доказывают физическое поведение ESP32 + Arduino.
+Repository review и CI не доказывают физическое поведение ESP32 + Arduino. Не отмечать этот этап выполненным, пока пользователь сам не подтвердит стенд.
 
 Happy path:
 

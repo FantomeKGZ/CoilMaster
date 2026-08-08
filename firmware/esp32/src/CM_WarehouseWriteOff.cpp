@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WindingSessionCompletionAudit.h"
 
@@ -129,7 +130,8 @@ bool WarehouseStore::nextMovementId(uint32_t& id) const
 
         uint32_t candidate = 0UL;
         String type, status;
-        if (!findUnsigned(line, "movement_id", candidate) || candidate == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "movement_id", candidate) || candidate == 0UL ||
             !findString(line, "type", type) || type != "WRITE_OFF" ||
             !findString(line, "status", status))
         {
@@ -202,7 +204,8 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
         uint32_t currentWeight = 0UL;
         uint32_t diameter = 0UL;
         String status, currentWireType;
-        if (!findUnsigned(line, "spool_id", currentId) || currentId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "spool_id", currentId) || currentId == 0UL ||
             currentId <= previousId ||
             !findUnsigned(line, "current_weight_g", currentWeight) ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
@@ -238,7 +241,8 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
                    line.substring(digitsEnd);
 
             uint32_t verifiedWeight = 0UL;
-            if (!findUnsigned(line, "current_weight_g", verifiedWeight) ||
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "current_weight_g", verifiedWeight) ||
                 verifiedWeight != newWeightGrams)
             {
                 valid = false;

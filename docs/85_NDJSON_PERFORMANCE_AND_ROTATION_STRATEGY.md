@@ -56,11 +56,12 @@ Costing, finalization preflight и operator histories также читают ap
 
 ### Уже начато
 
-Manifest теперь возвращает две runtime metrics:
+Manifest теперь возвращает три runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
 winding_journal_record_count
+warehouse_movement_record_count
 ```
 
 Семантика `snapshot_stability_duration_ms`:
@@ -77,18 +78,40 @@ winding_journal_record_count
 - если deep audit не запускался, до winding audit не дошли или winding integrity не доказана — `null`;
 - отдельного повторного чтения `/data/winding-runs/events.ndjson` ради count нет.
 
+Семантика `warehouse_movement_record_count`:
+
+- считается внутри уже выполняемого `WarehouseMovementIntegrityAudit::check()` прохода по `/data/warehouse/movements.ndjson`;
+- это число непустых NDJSON-records, включая transaction rows `PENDING` и завершающие `CONFIRMED|ABORTED`;
+- публикуется только если файл существует и warehouse movement audit завершился успешно;
+- если deep audit не запускался, до warehouse movement audit не дошли, файл отсутствует или integrity не доказана — `null`;
+- старый `WarehouseMovementIntegrityAudit::check(storage)` сохранён и делегирует overload с count;
+- отдельного повторного чтения `movements.ndjson` ради count нет.
+
 Ключевые commits:
 
 ```text
 8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
 c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation count
 36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
-1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
+1101ab18ef6be33608f42bb2d7bfca87713b280  Return validated winding record count
 a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
 b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
+63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count
+fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
+a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
 ```
 
-Теперь на стенде можно сопоставить `winding-events.size_bytes`, `winding_journal_record_count` и общую `snapshot_stability_duration_ms` без изменения storage format и без дополнительного audit I/O.
+Теперь на стенде можно сопоставить как минимум:
+
+```text
+winding-events.size_bytes
+winding_journal_record_count
+warehouse-movements.size_bytes
+warehouse_movement_record_count
+snapshot_stability_duration_ms
+```
+
+Это даёт первые сравнимые данные по двум растущим append-only hotspot без изменения storage format и без дополнительного audit I/O.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
@@ -165,7 +188,7 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, `winding_journal_record_count` и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, `winding_journal_record_count`, `warehouse_movement_record_count` и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
 Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O.
 

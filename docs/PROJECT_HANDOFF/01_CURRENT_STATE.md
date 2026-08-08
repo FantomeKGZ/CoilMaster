@@ -215,9 +215,13 @@ winding_session_persistence_audit_duration_ms
 - **содержимое всех** `snapshot/state/spool-selection` session files штатными stores/parsers;
 - cross-file `session_id/job_id/repair_id/motor_id/spool` identity.
 
+Flat persisted JSON дополнительно hardened через общий `CM_FlatJsonObjectValidator.h`. Authoritative passes теперь проверяют полный синтаксис flat JSON object для workshop clients/motors/repairs/repair-status, repair pricing, materials/usage/adjustments, warehouse spools/price/movements и conductor settings. `RepairRegistry` применяет ту же проверку в runtime reads/lookups, поэтому синтаксически повреждённая persisted строка не должна молча попасть в JSON API после boot.
+
+Strict JSON parser намеренно не дублируется внутри уже существующих O(n²)/O(n*m) duplicate/reference scans: каждая строка проверяется на authoritative outer pass, а repeated scans остаются identity-focused. Это correctness hardening без дополнительного filesystem I/O и без преждевременного Stage 1 refactor.
+
 Нестабильный snapshot можно скачать как diagnostic copy, если export разрешён, но UI не называет его чистым backup.
 
-Compile-safety audit новых backup observability changes выполнен на уровне repository review: `CM_BackupExportWeb.h` явно включает `Arduino.h`, timing использует `uint32_t` `millis()` subtraction, старые audit contracts и порядок вызовов сохранены. Это **не** доказательство GREEN CI до фактического build result.
+Compile-safety audit новых backup observability/hardening changes выполнен на уровне repository review: `CM_BackupExportWeb.h` явно включает `Arduino.h`, timing использует `uint32_t` `millis()` subtraction, shared flat-JSON validator header-only и использует уже доступный Arduino `String`; старые audit contracts и порядок safety-проверок сохранены. Это **не** доказательство GREEN CI до фактического build result.
 
 HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД.
 

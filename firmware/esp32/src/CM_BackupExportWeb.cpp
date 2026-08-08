@@ -47,6 +47,10 @@ struct SnapshotAuditMetrics
     uint32_t windingSnapshotFileCount = 0UL;
     uint32_t windingStateFileCount = 0UL;
     uint32_t windingSpoolSelectionFileCount = 0UL;
+    bool windingSessionByteTotalsMeasured = false;
+    uint32_t windingSnapshotTotalBytes = 0UL;
+    uint32_t windingStateTotalBytes = 0UL;
+    uint32_t windingSpoolSelectionTotalBytes = 0UL;
     bool warehousePersistenceRecordCountsMeasured = false;
     uint32_t warehouseSpoolRecordCount = 0UL;
     uint32_t warehousePriceRecordCount = 0UL;
@@ -256,6 +260,10 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.windingSnapshotFileCount = 0UL;
     metrics.windingStateFileCount = 0UL;
     metrics.windingSpoolSelectionFileCount = 0UL;
+    metrics.windingSessionByteTotalsMeasured = false;
+    metrics.windingSnapshotTotalBytes = 0UL;
+    metrics.windingStateTotalBytes = 0UL;
+    metrics.windingSpoolSelectionTotalBytes = 0UL;
     metrics.warehousePersistenceRecordCountsMeasured = false;
     metrics.warehouseSpoolRecordCount = 0UL;
     metrics.warehousePriceRecordCount = 0UL;
@@ -356,6 +364,14 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.windingSpoolSelectionFileCount =
         windingSessionMetrics.spoolSelectionFileCount;
     metrics.windingSessionFileCountsMeasured = true;
+    if (windingSessionMetrics.byteTotalsAvailable)
+    {
+        metrics.windingSnapshotTotalBytes = windingSessionMetrics.snapshotTotalBytes;
+        metrics.windingStateTotalBytes = windingSessionMetrics.stateTotalBytes;
+        metrics.windingSpoolSelectionTotalBytes =
+            windingSessionMetrics.spoolSelectionTotalBytes;
+        metrics.windingSessionByteTotalsMeasured = true;
+    }
 
     return nullptr;
 }
@@ -551,6 +567,21 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.windingSpoolSelectionFileCount;
+    response += F(",\"winding_snapshot_total_bytes\":");
+    if (!stabilityChecked || !auditMetrics.windingSessionByteTotalsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingSnapshotTotalBytes;
+    response += F(",\"winding_state_total_bytes\":");
+    if (!stabilityChecked || !auditMetrics.windingSessionByteTotalsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingStateTotalBytes;
+    response += F(",\"winding_spool_selection_total_bytes\":");
+    if (!stabilityChecked || !auditMetrics.windingSessionByteTotalsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.windingSpoolSelectionTotalBytes;
     response += F(",\"warehouse_spool_record_count\":");
     if (!stabilityChecked || !auditMetrics.warehousePersistenceRecordCountsMeasured)
         response += F("null");
@@ -567,7 +598,7 @@ void BackupExportWeb::handleManifest()
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(5100U);
+    response.reserve(5500U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

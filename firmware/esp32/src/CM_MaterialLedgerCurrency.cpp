@@ -1,4 +1,5 @@
 #include "CM_MaterialLedger.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -25,7 +26,7 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
         uint32_t price = 0UL;
         String status;
         String storedCurrency;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
             currentId <= previousId ||
             !findUnsigned(line, "stock_quantity_milli", stock) ||

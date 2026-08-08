@@ -23,6 +23,9 @@ bool JobSpoolSelectionStore::loadReadOnly(fs::FS& storage,
     if (sessionId == 0UL) return false;
 
     const String path = readOnlySelectionPath(sessionId);
+    String temporaryPath = path;
+    temporaryPath += F(".tmp");
+    if (storage.exists(temporaryPath)) return false;
     if (!storage.exists(path)) return true;
 
     File file = storage.open(path, FILE_READ);

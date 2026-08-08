@@ -47,7 +47,7 @@ void WarehouseWeb::handleListWriteOffs()
     }
 
     String response;
-    response.reserve(4800U);
+    response.reserve(5200U);
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
@@ -180,6 +180,63 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
+    uint32_t sourceSessionId = 0UL;
+    if (m_server.hasArg("source_session_id") &&
+        m_server.arg("source_session_id").length() > 0U)
+    {
+        if (!parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
+                              sourceSessionId))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_source_session_id\",\"write_performed\":false}");
+            return;
+        }
+
+        JobSpoolSelectionStore fallbackStore(m_store.storage());
+        JobSpoolSelectionStore* selections = m_spoolSelections;
+        if (selections == nullptr)
+        {
+            if (!fallbackStore.begin())
+            {
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
+                return;
+            }
+            selections = &fallbackStore;
+        }
+        if (!selections->isReady())
+        {
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
+            return;
+        }
+
+        JobSpoolSelection selection;
+        bool found = false;
+        if (!selections->load(sourceSessionId, selection, found))
+        {
+            if (!selections->isReady())
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"job_spool_selection_store_unavailable\",\"write_performed\":false}");
+            else
+                m_server.send(500, "application/json; charset=utf-8",
+                              "{\"error\":\"job_spool_selection_read_failed\",\"write_performed\":false}");
+            return;
+        }
+        if (!found)
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"source_session_spool_selection_not_found\",\"write_performed\":false}");
+            return;
+        }
+        if (selection.repairId != repairId || selection.spoolId != spoolId)
+        {
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
+            return;
+        }
+    }
+
     const String timestamp = m_server.arg("timestamp");
     if (timestamp.length() < 10U)
     {
@@ -191,6 +248,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     ConfirmedSpoolWriteOff operation;
     operation.spoolId = spoolId;
     operation.repairId = repairId;
+    operation.sourceSessionId = sourceSessionId;
     operation.weightBeforeGrams = before;
     operation.weightAfterGrams = after;
     operation.timestamp = timestamp;
@@ -220,11 +278,14 @@ void WarehouseWeb::handleConfirmWriteOff()
              static_cast<unsigned long long>(consumedValueMinor));
 
     String response;
-    response.reserve(390U);
+    response.reserve(440U);
     response = F("{\"confirmed\":true,\"movement_id\":");
     response += result.movementId;
     response += F(",\"spool_id\":"); response += spoolId;
     response += F(",\"repair_id\":"); response += repairId;
+    response += F(",\"source_session_id\":");
+    if (sourceSessionId != 0UL) response += sourceSessionId;
+    else response += F("null");
     response += F(",\"diameter_hundredths_mm\":");
     response += result.diameterHundredthsMm;
     response += F(",\"wire_type\":");
@@ -241,7 +302,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     response += F(",\"price_per_kg_minor\":");
     response += result.pricePerKgMinor;
     response += F(",\"currency\":\""); response += result.currency;
-    response += F("\",\"value_rounding\":\"NEAREST_MINOR_UNIT\"}");
+    response += F("\",\"value_rounding\":\"NEAREST_MINOR_UNIT\",\"automatic_wire_writeoff_allowed\":false}");
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 }

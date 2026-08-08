@@ -5,6 +5,16 @@
 
 Код ветки всегда выше документации по приоритету. Полный snapshot: `docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md`.
 
+## Текущая оценка готовности
+
+Ориентировочно:
+
+- функциональный production flow: **около 94%**;
+- repository/firmware readiness: **около 90%**;
+- общая эксплуатационная готовность: **около 89%**.
+
+Последний показатель ниже из-за отсутствия подтверждённого GREEN ESP32 build текущего HEAD и обязательного полного hardware E2E ESP32 + Arduino.
+
 ## Уже закрыто — не повторять
 
 Production flow собран:
@@ -17,7 +27,7 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 → finalization preflight → CLOSED → archive/report → read-only backup
 ```
 
-Также уже закрыты:
+Также закрыты:
 
 - persistent allocator/session state/recovery;
 - strict repair/motor/coil_program linkage;
@@ -26,30 +36,22 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 - warehouse/material recovery и costing;
 - finalization coverage;
 - whitelist backup/export + deep persistence integrity;
-- winding `validateAll()` cleanup;
+- backup winding scan через `WindingJournalQuery::validateAll()` + transition audit;
 - backup/run-level HTTP semantics audit;
 - Stage 0 backup observability до 29 metrics;
-- flat persisted JSON syntax hardening для deep audits и основных runtime/history/writeoff readers.
+- flat persisted JSON hardening основных backup/runtime/history/writeoff readers.
 
-## CI status
+Safety invariants не менять:
 
-Последняя ранее подтверждённая ошибка Actions была missing closing brace в `CM_MaterialLedger.cpp`; fix:
-
-```text
-77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
-```
-
-Новые commits не считать GREEN без фактического build result. Для текущего head GREEN CI пока не подтверждён.
-
-## Deep backup contract
-
-Deep audit выполняется только при `BackupActivityGuard::Safe`. При active winding тяжёлый scan не запускается, export блокируется, stability/observability metrics остаются `null`.
-
-Safe `snapshot_stable=true` означает проверку static whitelist, recovery markers, allocator/settings, workshop/pricing/material/warehouse references, winding schema/transitions и содержимого всех snapshot/state/spool-selection session files.
+- physical START только физический;
+- ESP32/Web не управляют SSR напрямую;
+- после reboot нет auto-resume;
+- `RUN_COMPLETED` сам по себе не списывает wire;
+- wire writeoff остаётся ручным и связан с exact `spool_id`, `source_session_id + source_run_id`.
 
 ## Stage 0 performance observability
 
-Manifest возвращает **29 metrics без отдельного telemetry scan**.
+Manifest возвращает **29 metrics без telemetry-only full scan**.
 
 Per-domain timing:
 
@@ -90,35 +92,19 @@ warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
-Timing оборачивает только уже существующие audit calls через `millis()`; filesystem I/O ради duration не добавляется. Если audit дошёл до domain, его duration публикуется даже при failure этого domain, а последующие неисполненные domains остаются `null`.
-
-`winding_session_directory_scan_duration_ms` отдельно измеряет preliminary directory scan, а `winding_session_persistence_audit_duration_ms` — authoritative deep parser/cross-identity audit. До benchmark эти passes не объединять.
-
-Record counts, allocator high-water и session file counts/bytes собираются внутри уже выполняемых authoritative passes. Старые `check(storage)` contracts сохранены совместимо. Partial domain counts/high-water после failed domain audit наружу не публикуются.
-
-Session byte totals являются telemetry-only: при 32-bit aggregate overflow только total-byte fields становятся `null`; integrity result не меняется.
-
-Ключевой timing commit:
-
-```text
-96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
-```
+Не добавлять новые metrics ради количества. До benchmark не вводить arbitrary rotation threshold, persistent optimistic cache или database migration.
 
 ## Flat persisted JSON correctness hardening
 
-Repository review подтвердил correctness-причину: несколько persisted flat-NDJSON readers проверяли только внешние `{...}` и выбранные поля. Синтаксически повреждённая строка с ещё читаемым ID могла пройти часть integrity/startup/runtime checks или попасть в JSON API/агрегаты.
-
-Добавлен общий header-only:
+Shared validator:
 
 ```text
 firmware/esp32/src/CM_FlatJsonObjectValidator.h
 ```
 
-Он проверяет полный синтаксис уже прочитанного flat JSON object без нового SD pass и без внешней JSON dependency.
+Он проверяет полный синтаксис уже прочитанного flat JSON object без внешней JSON dependency и без нового filesystem pass.
 
-### Deep/startup authoritative readers
-
-Hardened:
+Уже hardened authoritative/runtime readers включают:
 
 ```text
 CM_BackupBusinessDataIntegrityAudit
@@ -128,75 +114,112 @@ CM_MaterialPersistenceIntegrityAudit
 CM_WarehousePersistenceIntegrityAudit
 CM_WarehouseMovementIntegrityAudit
 CM_ConductorSettingsIntegrityAudit
+CM_RepairCosting
+CM_MaterialHistory
+CM_MaterialUsageHistory
+CM_MaterialAdjustment
+CM_MaterialLedgerCurrency
+CM_RepairPricingHistory
+CM_WarehouseWriteOffHistory
+CM_WarehouseStore
+CM_WarehouseWriteOff
+CM_WarehousePrice
+CM_WarehouseSpoolIdentity
+CM_RepairLifecycle
+CM_WindingJournalTransitionAudit
+CM_WindingJournalQuery
 ```
 
-Strict parser выполняется один раз на authoritative outer pass. В известных O(n²)/O(n*m) duplicate/reference scans повторный full JSON parse намеренно не выполняется.
+Repeated O(n²)/O(n*m) identity/reference scans не должны получать parser multiplier, если соответствующий authoritative outer pass уже доказал syntax.
 
-### Runtime/history/costing readers
+## Последний winding/finalization safety block
 
-Дополнительно hardened:
+### Repair lifecycle
+
+`CM_RepairLifecycle.h` теперь использует `FlatJsonObjectValidator` для `/data/workshop/repair-status.ndjson`.
+
+Commit:
 
 ```text
-CM_RepairCosting.cpp
-CM_MaterialHistory.cpp
-CM_MaterialUsageHistory.cpp
-CM_MaterialAdjustment.cpp
-CM_MaterialLedgerCurrency.cpp
-CM_RepairPricingHistory.cpp
-CM_WarehouseWriteOffHistory.cpp
-CM_WarehouseStore.cpp
-CM_WarehouseWriteOff.cpp
-CM_WarehousePrice.cpp
-CM_WarehouseSpoolIdentity.cpp
+fcae62f726ea82d3dfecb2a432d969e683e069ab  Fail closed on malformed repair lifecycle state
 ```
 
-Практический эффект:
+Это влияет на OPEN/CLOSED preflight, используемый costing/material/writeoff paths.
 
-- malformed persisted history не должен попадать в material/pricing/write-off JSON response;
-- costing не строит operator-visible totals поверх malformed movement/usage/pricing rows;
-- material adjustment/recovery блокируется до temp swap/replay при malformed source/pending/audit JSON;
-- material currency lookup fail-closed;
-- warehouse summary и ID allocation fail-closed;
-- manual writeoff проверяет movement/spool state до PENDING/atomic spool rewrite;
-- rewritten spool/material-adjustment rows дополнительно syntax-проверяются до temp-file write;
-- exact active spool identity и warehouse price fail-closed проверяются непосредственно в runtime preflight.
+### Finalization journal validation
 
-Safety invariants не менялись: physical START только физический, SSR остаётся у Arduino, auto-resume отсутствует, `RUN_COMPLETED` не списывает wire автоматически, writeoff остаётся ручным и связан с exact spool/session/run provenance.
+`CM_RepairFinalizationGuard.cpp` больше не делает полный integrity scan через cursor-pagination `appendHistoryJson()` с временными 4 KB JSON pages.
 
-Ключевые базовые commits:
+Теперь используется:
 
 ```text
-9ddabf613f1edf95dc1da55cbba8763414e47968  Add flat persisted JSON syntax validator
-96c863b1a1bde3a3725596940e74805da2c69111  Reject malformed flat JSON in business backup audit
-d13269bb481d056623569b9ecdf91708be6b0b8b  Fail closed on malformed workshop JSON
-07b20e9b88012446fcbc813e78b39349ecd70753  Reject malformed flat JSON in pricing audit
-b86794238cab420d1d97c3b281fa233b92ccf317  Avoid repeated JSON parsing in business identity scans
-86b19f35cad6c383377dee9c342e58f4978b0e79  Avoid repeated JSON parsing in registry duplicate scans
-16f39b33cccaeed533c39c2e0144d6942169b2c7  Reject malformed flat JSON in material persistence audit
-b3fd050c5e917691877e1c245fadde333742eed7  Reject malformed flat JSON in warehouse persistence audit
-b7b362bfe1813f27eab0c904dc9c7fc4489e6f9e  Reject malformed flat JSON in movement audit
-ab0b1f6b0381641e811fed5a18ac412ebb0667d2  Reject malformed flat JSON in conductor settings audit
-090acf40fc4470c7b8719975df7f4ce218a3cdec  Keep pricing reference scans identity focused
-02a80ea88a157ebfaee389d9c87368b36235ccbd  Fail closed on malformed costing histories
+WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
 ```
 
-Ключевые последующие runtime commits:
+Commit:
 
 ```text
-4d1761aa7b2b958a880b7de2b30c3bc8b09e62cd  Reject malformed pricing history JSON
-9fb8918eb8fad0c939cf04330ddfce81073c1f8c  Reject malformed write-off history JSON
-b43568c4231d9c972ed92f0b3b23c038837e3252  Reject malformed material usage history JSON
-8c3f2b76464918a889a0e5a42d27c6ac4ff82c63  Fail closed on malformed warehouse summary state
-d5c0a99449132fd343e1dc04e92e4136471dfbbb  Fail closed on malformed write-off transaction state
-ea37009b15cf5367d4c5712bdd412c16f4649827  Fail closed on malformed warehouse price state
-e01b7f8e6219558622a1c86c517c4d200f767992  Fail closed on malformed spool identity state
+d92b6f1c19a5d0c5c2abb3663410e9202bcd385e  Use authoritative winding validation for finalization
 ```
 
-Дополнительные material runtime commits находятся в текущей ветке для `CM_MaterialHistory.cpp`, `CM_MaterialAdjustment.cpp` и `CM_MaterialLedgerCurrency.cpp`; точная запись сессии находится в `10_SESSION_LOG.md`.
+Тот же guard используется и read-only finalization preview, и фактическим `POST /api/repairs/close`, поэтому CLOSED invariant сохранён.
 
-## Явно незакрытый repo-only кандидат
+### Manual wire writeoff completion proof
 
-`firmware/esp32/src/CM_MaterialLedger.cpp` всё ещё содержит несколько direct persisted-row paths со старым shape shortcut/выборочным parsing:
+`CM_WindingSessionCompletionAudit.cpp` раньше доказывал в основном наличие `RUN_COMPLETED` для session/run.
+
+Теперь перед lookup конкретного run выполняются:
+
+```text
+WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
+```
+
+То есть ручное списание не разрешается на основе изолированной `RUN_COMPLETED`, если журнал имеет schema corruption или нарушенную последовательность `RUN_STARTED → RUN_COMPLETED`.
+
+Commit:
+
+```text
+9e18cd076b8e1ad904e3893aab20cde1a4e596a8  Require authoritative winding integrity before writeoff
+```
+
+Это дополнительный read на ручной safety-critical операции; он введён по correctness-причине, а не как performance feature.
+
+### Transition audit JSON syntax
+
+`CM_WindingJournalTransitionAudit.cpp` теперь сам fail-closed проверяет flat JSON syntax перед state-machine parsing.
+
+Commit:
+
+```text
+6a9d47f889ef0197fcb5b85b3c838984d3fb4e74  Reject malformed JSON in winding transition audit
+```
+
+### `validateAll()` теперь действительно strict JSON authority
+
+Repository review выявил, что `WindingJournalQuery::validateAll()` вызывал schema1/schema2 validators, которые ранее проверяли внешние `{...}` и required fields, но не полный JSON syntax.
+
+`CM_WindingJournalQuery.cpp` теперь вызывает `FlatJsonObjectValidator::valid(line)` внутри обоих record validators.
+
+Commit:
+
+```text
+f3e02dadce34c7a85e11d23154652a469d6aa111  Make winding validateAll reject malformed JSON
+```
+
+Практически это усиливает сразу:
+
+- deep backup winding integrity;
+- finalization/CLOSED preflight;
+- manual writeoff completion proof;
+- cursor history API parsing.
+
+## Явно незакрытые repo-only correctness кандидаты
+
+### 1. `CM_MaterialLedger.cpp`
+
+В большом файле остаются direct persisted-row paths со старым selected-field parsing:
 
 - material catalog JSON output;
 - material row scan перед usage confirmation;
@@ -205,58 +228,54 @@ e01b7f8e6219558622a1c86c517c4d200f767992  Fail closed on malformed spool identit
 - generic next ID scan;
 - quantity rewrite/restore source rows.
 
-Файл был fetched и подготовлен к аналогичному hardening, но большой GitHub `update_file` был остановлен connector safety-filter **до записи**. Low-level Git object workflow для обхода этого filter намеренно не использовался. Поэтому `CM_MaterialLedger.cpp` не считать исправленным.
+Обычный большой `update_file` ранее был остановлен connector safety-filter **до записи**. Не использовать low-level Git object workflow для обхода filter. Если обычный SHA-guarded update проходит — harden rows shared validator’ом без broad audit перед каждой mutation.
 
-Если connector позже позволяет обычный SHA-guarded contents update — это следующий конкретный repo-only correctness fix. Не заменять его broad full-audit вызовом перед каждой mutation: это добавило бы лишний SD I/O и исказило performance contract.
+### 2. Startup `WindingJournal::begin()`
 
-## Repo-reviewable integration status
+`main.cpp` на boot делает:
 
-Подтверждено на уровне static repository review:
+```text
+journalReady = sdReady && journal.begin();
+```
 
-- winding `validateAll()` + transition audit сохранены;
-- session authoritative deep parser/cross-file identity audit не дублирован;
-- compatibility audit overloads сохранены;
-- Stage 0 telemetry не добавляет full scans;
-- shared flat-JSON validator self-contained через `Arduino.h`;
-- runtime/deep authoritative rows fail-closed по синтаксису в перечисленных modules;
-- repeated identity/reference scans не получили лишний parser multiplier;
-- `BackupActivityGuard::Safe` gating сохранён;
-- ручной writeoff transaction/provenance semantics не изменены.
+`CM_WindingJournal.cpp::validateJournalStructure()` всё ещё использует старый outer-brace/selected-field parsing. После изменения `WindingJournalQuery` backup/finalization/writeoff authority strict, но startup journal readiness ещё не полностью выровнена с новым flat-JSON contract.
 
-Это static repository review, а не доказательство успешной ESP32 сборки или hardware behavior.
+Перед изменением большого `CM_WindingJournal.cpp` выбрать аккуратный granular approach. Не добавлять `FlatJsonObjectValidator` во все повторные helper scans вслепую: event save path уже выполняет несколько full scans, поэтому parser multiplier надо оценивать отдельно.
 
-## Подтверждённые performance hotspots для измерения
+Приоритет: сделать startup authoritative syntax proof с минимальным дополнительным I/O/CPU и сохранить существующую transition/session-context semantics.
 
-Repository review показывает:
+## Performance hotspots — пока измерять, не рефакторить
 
-- `MaterialPersistenceIntegrityAudit::check()` транзитивно вызывает broad `WorkshopPersistenceIntegrityAudit::check()` + pricing audit, а backup затем проверяет часть domains снова;
-- `BackupBusinessDataIntegrityAudit` использует повторные uniqueness/reference lookups;
+Подтверждены:
+
+- `MaterialPersistenceIntegrityAudit::check()` транзитивно вызывает broad workshop/pricing dependency audits;
+- business uniqueness/reference lookups имеют повторные scans;
 - warehouse reference validation повторно ищет spool/repair references;
-- backup делает preliminary session-directory scan до authoritative deep session audit.
+- backup preliminary session-directory scan идёт перед authoritative deep session audit;
+- `WireWriteOffCoverageAudit` использует cursor pages журнала и повторный movements scan для completed runs.
 
-Это не correctness bugs. Per-domain durations позволяют сначала измерить цену каждого пути.
+Последний пункт может быть дорогим O(n*m), но сейчас он correctness-correct и закрывает coverage. Не заменять его новым index до фактического benchmark.
+
+## CI status
+
+Последняя ранее подтверждённая Actions failure была missing closing brace в `CM_MaterialLedger.cpp`, исправленная:
+
+```text
+77fd7dd4db3767c33106d63e6f9174e6559b9bc8
+```
+
+Новые commits не считать GREEN без фактического build result. Отсутствие status/workflow run в connector не является GREEN.
 
 ## Следующее практическое действие
 
-Внешне обязательный этап — реальный hardware E2E ESP32 + Arduino и benchmark одного backup manifest:
-
-```text
-items[].size_bytes
-все 29 Stage 0 metrics
-snapshot_stability_duration_ms
-```
-
-Сначала выбрать самый дорогой domain по `*_duration_ms`, затем объяснить его рост через record counts/session bytes/high-water. Только после этого решать bounded in-request index, duplicate-audit decomposition или rotation.
-
 Repo-only до стенда:
 
-1. `CM_MaterialLedger.cpp` — только если обычный SHA-guarded update проходит connector safety filter.
-2. Дальше только фактически найденные runtime/recovery readers с подтверждённой correctness-причиной; не угадывать пути и не добавлять metrics ради количества.
-3. Не начинать Stage 1 duplicate-scan refactor, rotation threshold, persistent optimistic cache или database migration до benchmark без отдельной correctness-причины.
+1. Попытаться закрыть `CM_MaterialLedger.cpp` только обычным SHA-guarded contents update.
+2. Спроектировать минимальный startup strict-validation change для `WindingJournal::begin()` без parser multiplier по всем helper scans.
+3. После каждого изменения — static compile/include review и фактический CI result, если connector его показывает.
+4. Не начинать Stage 1 performance refactor до benchmark без отдельной correctness-причины.
 
-## Hardware E2E — обязательно отдельно
-
-Repository review и CI не доказывают физический ESP32 + Arduino path. Проверить:
+Внешне обязательный этап — реальный hardware E2E ESP32 + Arduino:
 
 ```text
 linked repair → exact spool → JOB_ACK → physical START
@@ -264,6 +283,20 @@ linked repair → exact spool → JOB_ACK → physical START
 → costing → finalization preflight → CLOSED → stable backup
 ```
 
-И fault cases: reboot/manual-review, microSD loss, corrupted persistence, UART faults, duplicate writeoff, close without wire coverage, backup during active winding.
+На стенде сохранить один `/api/backup/manifest`:
 
-Safety invariants не менять: no automatic physical START, no auto-resume, no direct ESP32/web SSR control, no automatic wire writeoff on `RUN_COMPLETED`, corruption/storage loss fail closed.
+```text
+items[].size_bytes
+все 29 Stage 0 metrics
+snapshot_stability_duration_ms
+```
+
+И отдельно fault cases:
+
+- reboot/manual-review;
+- microSD loss;
+- corrupted persistence;
+- UART faults;
+- duplicate writeoff;
+- close without wire coverage;
+- backup during active winding.

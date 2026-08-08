@@ -216,47 +216,11 @@ Integrity guards:
 /data/winding-runs/events.ndjson
 ```
 
-Schema 2 содержит:
+Schema 2 содержит `job_id`, `session_id`, `run_id`, `event`, linkage, `completed_runs`, `uptime_ms`.
 
-```text
-job_id
-session_id
-run_id
-event
-repair_id/motor_id или null
-completed_runs
-uptime_ms
-```
-
-Реализованы:
-
-- composite event identity;
-- deduplication;
-- start-before-complete;
-- one active run per session;
-- monotonic run_id;
-- sequential completed_runs;
-- immutable session context;
-- strict canonical numeric/null parser;
-- duplicate-key rejection;
-- единственный `event`;
-- fail-closed scan при corruption.
-
-Последние writer-side commits:
-
-```text
-b33ff222617cce7ed1fd41a069a5bdeb8ff323d8
-a3b59cff66d48538cc38087c65c968346c86f54a
-```
+Реализованы composite identity, deduplication, start-before-complete, one active run per session, monotonic `run_id`, sequential `completed_runs`, immutable session context, strict canonical parser и fail-closed corruption scan.
 
 ## 12. Read-only winding history
-
-Реализованы:
-
-```text
-CM_WindingJournalQuery.h/.cpp
-CM_WindingJournalWeb.h/.cpp
-```
 
 API:
 
@@ -264,158 +228,39 @@ API:
 GET /api/winding-history
 ```
 
-Фильтр — ровно один из:
-
-```text
-session_id
-repair_id
-```
-
-Есть cursor pagination, `next_cursor`, `has_more` и fail-closed чтение corrupted schema 2.
-
-Для deep backup validation cursor pagination не используется: authoritative EOF validation находится в `CM_WindingJournalQueryValidation.cpp` и вызывается через `WindingJournalQuery::validateAll()`.
-
-Legacy schema 1 проверяется структурно, но не отдаётся новым API, потому что не содержит immutable repair/motor context.
-
-UI:
-
-```text
-mobile/winding-history.html
-desktop/winding-history.html
-```
+Cursor pagination используется только пользовательским history API. Deep backup использует authoritative EOF validation из `CM_WindingJournalQueryValidation.cpp` через `WindingJournalQuery::validateAll()`.
 
 ## 13. Runtime microSD readiness
 
-После boot критические компоненты больше не полагаются только на cached-ready флаг.
+Критические stores динамически fail-closed при потере microSD. При потере карты новое job блокируется до выделения ID/отправки UART.
 
-Динамически проверяются:
+## 14. Lifecycle API и UI
 
-- winding journal;
-- ID allocator;
-- snapshot store;
-- state store;
-- winding history;
-- static site storage;
-- RepairRegistry;
-- JobLinkageResolver.
+`/api/status` различает waiting/accepted/running/completed/rejected/timeout/cancel/manual-review states. Mobile/desktop UI синхронизированы с lifecycle и не выполняют physical START.
 
-При потере карты новое job блокируется до выделения ID/отправки UART.
+## 15. Linked winding и exact spool
 
-## 14. Lifecycle API и главные страницы
+Linked winding UI получает repair, authoritative motor `coil_program` и exact active CU/AL spool. Immutable spool selection сохраняется до UART delivery.
 
-`/api/status` явно различает:
+## 16. Motor catalogue
 
-```text
-WAITING_ARDUINO_ACK
-ACCEPTED_READY
-RUNNING
-PROGRAM_COMPLETED
-REJECTED
-TIMED_OUT
-CANCELLED
-MANUAL_REVIEW_REQUIRED
-```
-
-Исправлено отображение завершённого job: после `RUN_COMPLETED` UI показывает завершение, а не старое `ACCEPTED_READY`.
-
-Обычная занятость текущим job больше не выдаётся как `manual_review_required`; используется `current_job_not_complete`.
-
-Mobile/desktop index обновлены под эти состояния.
-
-Последние UI commits этого этапа:
-
-```text
-4e56ac07590be3eb44665b7a4f1f1c0fa39d5423
-0703f828163513007e2694af28467a684d0700b2
-```
-
-## 15. Linked winding UI
-
-Созданы mobile и desktop страницы связанной намотки:
-
-```text
-mobile/winding-job.html
-desktop/winding-job.html
-```
-
-Они:
-
-- получают `repair_id`;
-- загружают repair и motor;
-- показывают motor `coil_program` readonly;
-- отправляют repair_id + motor_id в `/api/jobs`;
-- не выполняют физический старт.
-
-## 16. Motor catalogue UI
-
-Mobile и desktop `motors.html`:
-
-- создают карточки двигателя;
-- ищут по каталогу;
-- вызывают similarity API;
-- предварительно валидируют программу;
-- канонизируют её в `N/N/...` до API.
-
-Коммиты последней UI-валидации:
-
-```text
-90841c8dc43fde2511a5180d528829ca0cc46d55
-b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
-```
+Motor catalogue/similarity реализованы; similarity не считается полным доказательством одинаковой обмотки.
 
 ## 17. Склад провода
 
-Реализованы и сохраняются:
+Реализованы CU/AL/UNKNOWN, exact spool selection, ручной confirmed writeoff, run-level provenance `source_session_id + source_run_id`, duplicate guard, recoverable `PENDING → CONFIRMED | ABORTED`, history и server-authoritative totals.
 
-- CU/AL/UNKNOWN;
-- каталог диаметров;
-- катушки и остатки;
-- exact spool selection для linked winding;
-- фильтры;
-- material summary;
-- ручной confirmed write-off;
-- run-level provenance `source_session_id + source_run_id`;
-- duplicate confirmed write-off guard для run;
-- recoverable `PENDING → CONFIRMED | ABORTED` movement transaction;
-- repair write-off history;
-- server authoritative material totals;
-- saved price/value/currency metadata.
+## 18. Материалы, costing, finalization
 
-Не начинать склад заново.
-
-## 18. Дополнительные материалы и калькуляция ремонта
-
-Реализованы:
-
-- MaterialLedger;
-- material usage transactions;
-- crash recovery;
-- repair reference validation;
-- KGS currency policy;
-- cost provenance;
-- rounding/value integrity;
-- repair costing;
-- wire value split by CU/AL/UNKNOWN;
-- pricing revision/history/audit UI;
-- finalization preflight и CLOSED flow;
-- archive/monthly reports.
-
-Не начинать эти подсистемы заново.
+Реализованы MaterialLedger, recovery, KGS policy, historical cost provenance, repair costing, pricing history, finalization preflight, CLOSED flow, archive/monthly reports.
 
 ## 19. Conductor calculator
 
-Реализованы:
-
-- bidirectional Al ↔ Cu calculator core;
-- server-authoritative settings;
-- warehouse-aware catalogue/recommendations;
-- mobile/desktop calculator UI.
-
-Расширенный генератор/справочник может развиваться отдельно, но существующий calculator не является пустым местом.
+Существующий bidirectional Al ↔ Cu calculator, server-authoritative settings и warehouse-aware recommendations реализованы. Расширенный генератор не начинать как замену существующего calculator без отдельной инженерной спецификации.
 
 ## 20. CI
 
-В ветке присутствуют:
+Workflows присутствуют:
 
 ```text
 .github/workflows/esp32-build.yml
@@ -427,7 +272,7 @@ b57a898d3921ef4c0c7dbf4a17a8e32770abbe4a
 
 ## 21. Read-only backup/export и deep persistence integrity
 
-Реализован whitelist export:
+Реализованы:
 
 ```text
 GET /api/backup/manifest
@@ -436,31 +281,36 @@ GET /api/backup/sessions
 GET /api/backup/session-file
 ```
 
-Heavy export/deep audit gated через `BackupActivityGuard::Safe`; при active winding deep scan не запускается.
+Heavy export/deep audit gated через `BackupActivityGuard::Safe`.
 
-Safe `snapshot_stable=true` требует integrity всего static whitelist и необходимых adjuncts:
+Safe `snapshot_stable=true` требует integrity allocator/settings, workshop/pricing, materials, winding journal + transitions, warehouse persistence/movements и содержимого snapshot/state/spool-selection session files с cross-file identity.
 
-- persistent allocator main/optional backup и отсутствие temp residue;
-- conductor settings и отсутствие recovery residue;
-- workshop clients/motors/repairs + repair-status;
-- repair pricing и references;
-- materials/usage/adjustments + formulas/references/recovery markers;
-- winding journal schema до EOF + `RUN_STARTED → RUN_COMPLETED` transition audit;
-- warehouse spools/price/movements;
-- содержимое snapshot/state/spool-selection session files штатными parsers и cross-file identity.
+`CM_WindingPersistenceIntegrityAudit` использует `WindingJournalQuery::validateAll()` + отдельный transition audit. `CM_WindingSessionPersistenceIntegrityAudit` остаётся authoritative deep parser/cross-identity audit.
 
-`CM_WindingPersistenceIntegrityAudit` использует authoritative `WindingJournalQuery::validateAll()` и отдельно `WindingJournalTransitionAudit::validate()`. `CM_WindingSessionPersistenceIntegrityAudit` остаётся отдельным deep parser/cross-identity audit и не дублируется.
+## 22. Stage 0 observability — 29 metrics
 
-HTTP/error semantics read-only backup/run-level endpoints отдельно audited в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`.
+Strategy: `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`.
 
-## 22. Stage 0 NDJSON/session observability
+Manifest возвращает 29 metrics без telemetry-only full scan.
 
-Решение зафиксировано в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`: сначала измерять, не мигрировать преждевременно в БД и не вводить arbitrary rotation threshold.
-
-Manifest возвращает 20 runtime metrics без отдельного telemetry full scan:
+Per-domain timing:
 
 ```text
 snapshot_stability_duration_ms
+persistent_id_audit_duration_ms
+conductor_settings_audit_duration_ms
+material_persistence_audit_duration_ms
+business_data_audit_duration_ms
+winding_persistence_audit_duration_ms
+warehouse_persistence_audit_duration_ms
+warehouse_movements_audit_duration_ms
+winding_session_directory_scan_duration_ms
+winding_session_persistence_audit_duration_ms
+```
+
+Population/high-water/bytes:
+
+```text
 winding_allocator_last_id
 material_catalog_record_count
 material_usage_record_count
@@ -482,40 +332,20 @@ warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
-Counts/high-water/byte totals собираются внутри уже существующих authoritative validation passes. Старые `check(storage)` contracts сохранены через compatibility overloads. Partial metrics после failed domain audit не публикуются.
+Timing измеряет только уже существующие audit calls через `millis()`; дополнительного SD I/O нет. Длительность failed domain публикуется, неисполненные последующие domains остаются `null`.
 
-Allocator high-water:
+Allocator high-water, counts и byte totals также собираются в существующих authoritative passes. Session byte overflow является telemetry-only и не меняет integrity result.
+
+Последние commits этого расширения:
 
 ```text
 4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
 b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water mark
 52fae7716034ccacebc41f1f11715f5eebf193c2  Expose allocator high-water mark in backup manifest
-```
-
-Winding session byte totals:
-
-```text
 1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
 cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
 a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
-```
-
-Byte totals являются telemetry-only: при 32-bit overflow три total-byte поля становятся `null`, но session persistence audit продолжает обычную fail-closed validation.
-
-Последний business observability batch:
-
-```text
-cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
-33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
-1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
-```
-
-Warehouse persistence observability:
-
-```text
-fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
-490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
-34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
+96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
 ```
 
 ## 23. Текущая точка после выполненного
@@ -531,8 +361,10 @@ client → motor → OPEN repair → costing → linked winding → exact spool
 
 Следующий обязательный внешний этап — реальный hardware E2E ESP32 + Arduino. Repository review не доказывает физический UART/START/SSR behavior.
 
-На E2E/эксплуатационном стенде одновременно снять пары `size_bytes + record_count`, `winding_allocator_last_id`, session file counts/total bytes и `snapshot_stability_duration_ms`. Только после фактических измерений выбирать bounded in-request index, duplicate-audit decomposition или rotation. Database migration, persistent optimistic cache и arbitrary rotation threshold пока не вводить.
+На стенде сохранить один manifest с `items[].size_bytes` и всеми 29 Stage 0 metrics. Сначала выбрать самый дорогой `*_duration_ms`, затем сопоставить его с counts/bytes/high-water. Только после измерений выбирать bounded index, duplicate-audit decomposition или rotation.
 
-Если hardware временно недоступен, следующий repo-only код допустим только как same-pass observability существующего authoritative validator без дополнительного full scan либо как исправление доказанной correctness/compile проблемы.
+Database migration, persistent optimistic cache и arbitrary rotation threshold пока не вводить.
 
-Точная последовательность следующей работы находится в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`; полный свежий snapshot — в `12_LATEST_HANDOFF_2026-08-08.md`.
+Если hardware временно недоступен, repo-only код допустим только как same-pass observability без дополнительного full scan либо как fix доказанной correctness/compile проблемы.
+
+Точная последовательность — `06_ACTIVE_WORK_AND_NEXT_STEPS.md`; полный свежий snapshot — `12_LATEST_HANDOFF_2026-08-08.md`.

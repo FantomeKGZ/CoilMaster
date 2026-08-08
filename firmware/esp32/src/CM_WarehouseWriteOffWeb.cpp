@@ -183,10 +183,8 @@ void WarehouseWeb::handleConfirmWriteOff()
 
     uint32_t sourceSessionId = 0UL;
     uint32_t sourceRunId = 0UL;
-    const bool hasSourceSession = m_server.hasArg("source_session_id") &&
-                                  m_server.arg("source_session_id").length() > 0U;
-    const bool hasSourceRun = m_server.hasArg("source_run_id") &&
-                              m_server.arg("source_run_id").length() > 0U;
+    const bool hasSourceSession = m_server.hasArg("source_session_id");
+    const bool hasSourceRun = m_server.hasArg("source_run_id");
     if (hasSourceSession != hasSourceRun)
     {
         m_server.send(400, "application/json; charset=utf-8",
@@ -196,7 +194,9 @@ void WarehouseWeb::handleConfirmWriteOff()
 
     if (hasSourceSession)
     {
-        if (!parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
+        if (m_server.arg("source_session_id").length() == 0U ||
+            m_server.arg("source_run_id").length() == 0U ||
+            !parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
                               sourceSessionId) ||
             !parseUnsignedArg(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
                               sourceRunId))

@@ -24,6 +24,61 @@
 
 ---
 
+## 2026-08-08 18:50 — Winding cleanup verification и material backup observability
+
+Цель:
+
+Продолжить с обязательного cleanup `CM_WindingPersistenceIntegrityAudit`, затем перейти к следующему repo-reviewable улучшению без изменения safety-инвариантов и синхронизировать handoff с фактическим HEAD `cmp-protocol-v1`.
+
+Что сделано:
+
+- перепроверен актуальный `CM_WindingPersistenceIntegrityAudit.cpp`: старого cursor-pagination full scan уже нет;
+- подтверждено использование `WindingJournalQuery::validateAll(recordCount)` и отдельного `WindingJournalTransitionAudit::validate()`;
+- найден отдельный implementation unit `CM_WindingJournalQueryValidation.cpp`, где реализованы оба `validateAll()` overloads; key-files index обновлён, чтобы следующий review не искал реализацию только в `CM_WindingJournalQuery.cpp`;
+- не дублировался `CM_WindingSessionPersistenceIntegrityAudit`, который остаётся authoritative deep parser/cross-file identity audit для snapshot/state/spool-selection;
+- в текущем HEAD уже присутствовал следующий same-pass observability batch для material persistence;
+- `MaterialPersistenceIntegrityAudit` теперь считает catalogue/usage/adjustment records в существующих validation loops и сохраняет старый `check(storage)` contract;
+- backup manifest публикует `material_catalog_record_count`, `material_usage_record_count`, `material_adjustment_record_count` вместе с winding/warehouse counts и общей duration;
+- static integration review подтвердил explicit public includes, compatibility overload, отсутствие публикации partial material counts при failed full audit и неизменённый `BackupActivityGuard::Safe` gating;
+- root `platformio.ini` подтверждает `+<firmware/esp32/src/*.cpp>`, поэтому отдельный `CM_WindingJournalQueryValidation.cpp` входит в ESP32 build source filter;
+- выявленный transitive duplicate-I/O path `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` зафиксирован как measured Stage 1 candidate, но не рефакторился до hardware benchmark;
+- синхронизированы `01_CURRENT_STATE.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и `09_KEY_FILES_INDEX.md`.
+
+Кодовые commits material observability, уже находившиеся в актуальной ветке в ходе этой сессии:
+
+```text
+ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
+6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
+38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
+0f10ed32d110c28b21af7c46c6be20a084c6ba2b  Document material backup observability
+899508534fc909d9baacada62bcda8629ddf0b4a  Advance active work to material observability
+```
+
+Документационные commits этой сессии:
+
+```text
+1a78e23bdfc3addb7826845fc8273b33d96f5e67  Record material backup observability in current state
+9f32a1c953017447a71d907535ac2cf0398a5098  Refresh backup and winding key file index
+5a7070d805eb902e11046b7dfe94af169d549e99  Record material metrics integration review
+```
+
+Проверка:
+
+Repository-level static review подтверждает текущую wiring/compatibility, но не заменяет фактический ESP32 build. GREEN CI для текущего head в этой записи не подтверждён. Hardware E2E также не выполнялся и остаётся внешним обязательным этапом.
+
+Где остановились:
+
+Deep backup integrity и winding `validateAll()` cleanup завершены. Stage 0 observability теперь включает material/winding/warehouse record counts и общую deep-audit duration без второго full-file scan ради метрик. До измерений не начинать rotation/database/persistent-cache и не делать Stage 1 duplicate-scan refactor только ради эстетики.
+
+Следующее действие:
+
+1. Реальный ESP32 + Arduino E2E production path.
+2. На backup этапе снять `materials.size_bytes`, `material_catalog_record_count`, `material-usage.size_bytes`, `material_usage_record_count`, `material-adjustments.size_bytes`, `material_adjustment_record_count`, `winding-events.size_bytes`, `winding_journal_record_count`, `warehouse-movements.size_bytes`, `warehouse_movement_record_count`, `snapshot_stability_duration_ms`.
+3. По фактическим latency/size выбрать hotspot и только после этого решать bounded in-request index / duplicate-audit decomposition / rotation.
+4. Если появляется новый Actions failure — читать фактический `build-esp32` log и исправлять первую реальную compile/link error.
+
+---
+
 ## 2026-08-08 12:35 — Deep backup integrity, Actions diagnosis и handoff
 
 Цель:

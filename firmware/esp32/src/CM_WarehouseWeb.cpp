@@ -55,6 +55,7 @@ void WarehouseWeb::begin()
     m_server.on("/api/warehouse/spools", HTTP_POST, [this]() { handleCreateSpool(); });
     m_server.on("/api/warehouse/price", HTTP_GET, [this]() { handleGetPrice(); });
     m_server.on("/api/warehouse/price", HTTP_POST, [this]() { handleSetPrice(); });
+    beginWriteOff();
 }
 
 void WarehouseWeb::handleSummary()

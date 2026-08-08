@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <WebServer.h>
 
+#include "CM_JobSpoolSelectionStore.h"
 #include "CM_WarehouseStore.h"
 
 namespace CM
@@ -11,7 +12,9 @@ namespace CM
 class WarehouseWeb
 {
 public:
-    WarehouseWeb(WebServer& server, WarehouseStore& store);
+    WarehouseWeb(WebServer& server,
+                 WarehouseStore& store,
+                 JobSpoolSelectionStore* spoolSelections = nullptr);
 
     void begin();
     void beginSpoolList();
@@ -36,6 +39,7 @@ private:
 
     WebServer& m_server;
     WarehouseStore& m_store;
+    JobSpoolSelectionStore* m_spoolSelections;
 };
 }
 

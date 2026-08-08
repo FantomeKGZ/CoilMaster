@@ -53,16 +53,33 @@ Costing, finalization preflight и operator histories также читают ap
 - scan duration/high-water mark;
 - число файлов session directories;
 - суммарный размер session directories во время уже выполняемого directory pass;
+- длительность каждого уже выполняемого deep-audit domain;
 - отдельно отмечать backup/finalization/costing scan.
 
 Не хранить optimistic cache как доказательство integrity после mutation/reboot.
 
-### Уже начато
+### Реализовано
 
-Manifest теперь возвращает двадцать runtime metrics:
+Manifest теперь возвращает **29 runtime metrics** без отдельного telemetry full scan.
+
+Общие и per-domain duration metrics:
 
 ```text
 snapshot_stability_duration_ms
+persistent_id_audit_duration_ms
+conductor_settings_audit_duration_ms
+material_persistence_audit_duration_ms
+business_data_audit_duration_ms
+winding_persistence_audit_duration_ms
+warehouse_persistence_audit_duration_ms
+warehouse_movements_audit_duration_ms
+winding_session_directory_scan_duration_ms
+winding_session_persistence_audit_duration_ms
+```
+
+Population/high-water/size metrics:
+
+```text
 winding_allocator_last_id
 material_catalog_record_count
 material_usage_record_count
@@ -84,23 +101,32 @@ warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
-Семантика `snapshot_stability_duration_ms`:
+### Duration semantics
 
-- при `snapshot_stability_checked=true` — длительность фактически выполненного deep audit;
+Все per-domain duration fields измеряются вокруг **уже существующего** вызова audit через `millis()` и wrap-safe unsigned subtraction. Дополнительного filesystem I/O ради timing нет.
+
+Если deep audit вообще не запускался из-за machine activity, duration fields равны `null`. Если audit дошёл до конкретного domain, его duration публикуется даже когда этот domain завершился failure; последующие неисполненные domains остаются `null`. Это позволяет отличить slow failure от domain, который вообще не запускался.
+
+`winding_session_directory_scan_duration_ms` отдельно измеряет уже существующий предварительный обход snapshot/spool-selection/state directories. `winding_session_persistence_audit_duration_ms` измеряет последующий authoritative deep parser/cross-identity audit. Это специально оставлено двумя полями, чтобы benchmark показал цену текущего предварительного directory scan до любого Stage 1 refactor.
+
+Duration metrics являются observability metadata и не влияют на `snapshot_stable`, `export_allowed`, порядок audit или safety behavior.
+
+### `snapshot_stability_duration_ms`
+
+- при `snapshot_stability_checked=true` — длительность полного фактически выполненного `snapshotStabilityReason()` до success или первого failure;
 - при `snapshot_stability_checked=false` — `null`;
-- измерение оборачивает уже существующий `snapshotStabilityReason()` и **не добавляет дополнительный filesystem scan**;
-- поле только observability metadata и не влияет на `snapshot_stable`/`export_allowed`.
+- поле не добавляет filesystem scan.
 
-Семантика `winding_allocator_last_id`:
+### `winding_allocator_last_id`
 
 - берётся из уже выполняемого `PersistentIdIntegrityAudit` чтения `id-state.txt`;
 - соответствует validated `last_job_id == last_session_id` и является high-water mark выделенных winding job/session IDs;
 - старый `PersistentIdIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
 - при отсутствующем `/data/winding-jobs` successful pristine audit возвращает `0`;
-- при failed allocator audit поле наружу не публикуется;
-- дополнительного чтения allocator state ради этой метрики нет.
+- при failed allocator audit high-water не публикуется;
+- дополнительного чтения allocator state ради метрики нет.
 
-Семантика material counters:
+### Material counters
 
 ```text
 material_catalog_record_count
@@ -108,15 +134,14 @@ material_usage_record_count
 material_adjustment_record_count
 ```
 
-- считаются внутри уже существующих scans `materials.ndjson`, `usage.ndjson`, `adjustments.ndjson`;
+- считаются внутри существующих scans `materials.ndjson`, `usage.ndjson`, `adjustments.ndjson`;
 - учитываются только непустые rows, прошедшие соответствующий parser/reference/arithmetic validation;
 - старый `MaterialPersistenceIntegrityAudit::check(storage)` сохранён и делегирует overload с metrics;
-- metrics публикуются только после полного успешного текущего `MaterialPersistenceIntegrityAudit::check()`, включая его существующие dependency audits;
-- если deep audit не запускался, до material audit не дошли или material persistence не доказана — поля `null`;
-- если audit успешен, но конкретный material файл отсутствует, его count равен `0`; наличие файла отдельно видно через `items[].exists`;
-- отдельного повторного чтения material NDJSON ради counters нет.
+- counts публикуются только после полного successful material persistence audit;
+- отсутствующий файл при successful audit даёт `0`, наличие отдельно видно через `items[].exists`;
+- отдельного чтения файлов ради counters нет.
 
-Семантика business/workshop counters:
+### Business/workshop counters
 
 ```text
 workshop_client_record_count
@@ -126,21 +151,17 @@ repair_status_record_count
 repair_pricing_record_count
 ```
 
-- считаются внутри уже существующих validation passes `BackupBusinessDataIntegrityAudit` по `clients.ndjson`, `motors.ndjson`, `repairs.ndjson`, `repair-status.ndjson` и `pricing.ndjson`;
-- `client/motor/repair` counts собираются в существующем uniqueness pass, status/pricing counts — в их текущих parser/reference passes;
-- старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
-- counts публикуются только после полного успешного business audit; partial counts при failure наружу не выдаются;
-- если соответствующий файл отсутствует и audit в целом успешен, count равен `0`, а наличие отдельно видно через `items[].exists`;
-- дополнительные full-file scans ради этих counters не добавлены.
+- считаются внутри существующих `BackupBusinessDataIntegrityAudit` validation passes;
+- client/motor/repair counts собираются в uniqueness passes, status/pricing — в parser/reference passes;
+- старый `check(storage)` сохранён через metrics overload;
+- partial counts при failure наружу не публикуются;
+- дополнительные full-file scans ради counters не добавлены.
 
-Семантика `winding_journal_record_count`:
+### Winding journal counter
 
-- считается внутри того же `WindingJournalQuery::validateAll()` прохода до EOF;
-- публикуется только после успешной schema validation **и** `WindingJournalTransitionAudit::validate()`;
-- если deep audit не запускался, до winding audit не дошли или winding integrity не доказана — `null`;
-- отдельного повторного чтения `/data/winding-runs/events.ndjson` ради count нет.
+`winding_journal_record_count` считается внутри того же authoritative `WindingJournalQuery::validateAll()` прохода до EOF и публикуется только после успешной schema + transition validation. Дополнительного чтения журнала ради count нет.
 
-Семантика session file counters и byte totals:
+### Session file counters и byte totals
 
 ```text
 winding_snapshot_file_count
@@ -151,39 +172,31 @@ winding_state_total_bytes
 winding_spool_selection_total_bytes
 ```
 
-- file counts считаются внутри уже существующих deep parser/cross-identity проходов `WindingSessionPersistenceIntegrityAudit` по snapshot/state/spool-selection directories;
-- byte totals суммируются из `entry.size()` в тех же directory passes до штатного parser/load; дополнительного directory/full-file scan ради bytes нет;
-- старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
-- file counts публикуются только после полного успешного session persistence audit; partial counts при failure наружу не выдаются;
-- если соответствующая directory отсутствует и audit в целом успешен, её count и total bytes равны `0`;
-- byte totals не влияют на integrity result: если 32-bit сумма размера не представима, session audit продолжает обычную fail-closed validation, а только три total-byte metrics становятся `null`;
-- штатные snapshot/state/spool-selection parser и cross-file identity checks не заменены телеметрией.
+- file counts считаются в существующих deep parser/cross-identity passes `WindingSessionPersistenceIntegrityAudit`;
+- byte totals суммируются из `entry.size()` в тех же directory passes до штатного parser/load;
+- старый `check(storage)` сохранён и делегирует metrics overload;
+- counts/bytes публикуются только после полного successful session audit;
+- отсутствующая directory при successful audit даёт `0`;
+- если 32-bit aggregate byte sum не представима, только три total-byte metrics становятся `null`; integrity audit продолжает обычную fail-closed validation;
+- дополнительного directory/full-file scan ради byte totals нет.
 
-Семантика warehouse persistence counters:
+### Warehouse persistence counters
 
 ```text
 warehouse_spool_record_count
 warehouse_price_record_count
 ```
 
-- считаются внутри уже существующих `WarehousePersistenceIntegrityAudit` проходов по `/data/warehouse/spools.ndjson` и `/data/warehouse/price.ndjson`;
-- spool count увеличивается только после полной проверки строки, включая canonical monotonic `spool_id`, diameter/weight/status/wire type и присутствующие optional string fields;
-- price count увеличивается только после успешной проверки persisted price row;
-- старый `WarehousePersistenceIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
-- оба counts публикуются только после полного успешного warehouse persistence audit, включая существующий movement-reference pass; partial counts при failure наружу не выдаются;
-- отсутствующий spool/price файл при успешном audit даёт `0`, наличие файла отдельно видно через `items[].exists`;
-- дополнительных full-file scans ради этих counters нет.
+- считаются внутри уже существующих `WarehousePersistenceIntegrityAudit` spool/price passes;
+- публикуются только после полного successful warehouse persistence audit, включая movement-reference validation;
+- старый `check(storage)` сохранён через metrics overload;
+- дополнительных full-file scans ради counters нет.
 
-Семантика `warehouse_movement_record_count`:
+### Warehouse movement counter
 
-- считается внутри уже выполняемого `WarehouseMovementIntegrityAudit::check()` прохода по `/data/warehouse/movements.ndjson`;
-- это число непустых NDJSON-records, включая transaction rows `PENDING` и завершающие `CONFIRMED|ABORTED`;
-- публикуется только если файл существует и warehouse movement audit завершился успешно;
-- если deep audit не запускался, до warehouse movement audit не дошли, файл отсутствует или integrity не доказана — `null`;
-- старый `WarehouseMovementIntegrityAudit::check(storage)` сохранён и делегирует overload с count;
-- отдельного повторного чтения `movements.ndjson` ради count нет.
+`warehouse_movement_record_count` считается внутри существующего `WarehouseMovementIntegrityAudit::check()` прохода по `/data/warehouse/movements.ndjson`. Это число непустых transaction rows, включая `PENDING` и завершающие `CONFIRMED|ABORTED`; отдельного чтения ради counter нет.
 
-Ключевые commits:
+## Ключевые Stage 0 commits
 
 ```text
 8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
@@ -191,7 +204,6 @@ c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation coun
 36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
 1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
 a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
-b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count
 fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
 a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
@@ -213,69 +225,63 @@ b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water 
 1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
 cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
 a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
+96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
 ```
 
-Теперь на стенде можно сопоставить как минимум:
+## Что снять на стенде
+
+Сохранять один manifest вместе с `items[].size_bytes` и следующими полями:
 
 ```text
-workshop-clients.size_bytes
-workshop_client_record_count
-workshop-motors.size_bytes
-workshop_motor_record_count
-workshop-repairs.size_bytes
-workshop_repair_record_count
-repair-status.size_bytes
-repair_status_record_count
-repair-pricing.size_bytes
-repair_pricing_record_count
-materials.size_bytes
-material_catalog_record_count
-material-usage.size_bytes
-material_usage_record_count
-material-adjustments.size_bytes
-material_adjustment_record_count
-winding-events.size_bytes
-winding_journal_record_count
+snapshot_stability_duration_ms
+persistent_id_audit_duration_ms
+conductor_settings_audit_duration_ms
+material_persistence_audit_duration_ms
+business_data_audit_duration_ms
+winding_persistence_audit_duration_ms
+warehouse_persistence_audit_duration_ms
+warehouse_movements_audit_duration_ms
+winding_session_directory_scan_duration_ms
+winding_session_persistence_audit_duration_ms
 winding_allocator_last_id
+material_catalog_record_count
+material_usage_record_count
+material_adjustment_record_count
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
+winding_journal_record_count
 winding_snapshot_file_count
 winding_snapshot_total_bytes
 winding_state_file_count
 winding_state_total_bytes
 winding_spool_selection_file_count
 winding_spool_selection_total_bytes
-warehouse-spools.size_bytes
 warehouse_spool_record_count
-warehouse-price.size_bytes
 warehouse_price_record_count
-warehouse-movements.size_bytes
 warehouse_movement_record_count
-snapshot_stability_duration_ms
 ```
 
-Это даёт сравнимые данные по растущим business/material/winding/warehouse persistence paths, allocator high-water и session-file population/bytes без изменения storage format и без дополнительного audit I/O.
+Per-domain durations позволяют выбирать hotspot напрямую, а counts/bytes/high-water помогают объяснить, почему он растёт.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
-При подтверждённой необходимости:
+Только после измерений или отдельной correctness-причины:
 
-- первым проверить влияние transitive `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` повторных scans;
-- отдельно сопоставить рост business reference scans с `workshop_*_record_count` и `repair_pricing_record_count`, потому что текущий business audit намеренно использует повторные uniqueness/reference lookups;
-- отдельно сопоставить warehouse reference-scan стоимость с `warehouse_spool_record_count` и `warehouse_movement_record_count`;
-- сопоставить `winding_allocator_last_id` с session file counts/bytes: большой разрыв сам по себе допустим из-за legacy/archive semantics, но полезен как сигнал накопления/истории;
-- если влияние заметно, разделить локальную material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
-- старые public contracts для других callers сохранять совместимыми, пока не доказано обратное;
-- переиспользовать authoritative validators вместо повторного JSON/page parsing;
-- строить bounded in-memory ID index только на время одного audit/request;
-- размер index должен иметь явный верхний предел и fail-closed результат при превышении;
-- использовать monotonic/sorted ID assumptions только там, где writer contract это гарантирует;
-- не создавать unbounded RAM mirror всего NDJSON на ESP32;
-- не ослаблять проверку corrupted references ради скорости.
-
-Это предпочтительнее миграции storage engine.
+- первым проверить `material_persistence_audit_duration_ms`, потому что `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` транзитивно повторяет broad cross-domain checks;
+- сравнить `business_data_audit_duration_ms` с workshop/pricing counts из-за повторных uniqueness/reference lookups;
+- сравнить `warehouse_persistence_audit_duration_ms` и `warehouse_movements_audit_duration_ms` с spool/movement population;
+- сравнить `winding_session_directory_scan_duration_ms` и `winding_session_persistence_audit_duration_ms`; preliminary directory pass и deep session audit намеренно пока не объединять до измерения;
+- при доказанной необходимости разделить local material validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
+- bounded in-memory ID indexes строить только на время одного request, с явным RAM limit и fail-closed поведением;
+- не создавать unbounded RAM mirror NDJSON;
+- не ослаблять corrupted-reference validation ради скорости.
 
 ## Этап 2 — bounded rotation immutable append histories
 
-После измерения реальных размеров рассматривать rotation прежде всего для append-only history/log файлов, например:
+После измерения реальных размеров рассматривать rotation прежде всего для append-only history/log файлов:
 
 ```text
 /data/winding-runs/events.ndjson
@@ -284,8 +290,6 @@ snapshot_stability_duration_ms
 /data/materials/adjustments.ndjson
 /data/repairs/pricing.ndjson
 ```
-
-Перед реализацией для каждого файла отдельно подтвердить writer semantics и immutable-history invariant.
 
 Рекомендуемая модель:
 
@@ -302,9 +306,9 @@ Rotation trigger выбирать по измеренному размеру/ч�
 - history API читает segments как один логический журнал;
 - integrity audit проверяет все segments и их порядок;
 - mutation не считается успешной, если active segment не сохранён;
-- rotation должна иметь atomic/recoverable marker protocol;
-- incomplete rotation после reboot должна определяться fail-closed и восстанавливаться явно;
-- backup whitelist/manifest должен перечислять/экспортировать все необходимые segments, иначе backup перестанет быть полным.
+- rotation имеет atomic/recoverable marker protocol;
+- incomplete rotation после reboot определяется fail-closed;
+- backup manifest/export включает все необходимые segments.
 
 Session snapshot/state/spool-selection уже разделены по session files и не требуют того же rotation-механизма.
 
@@ -312,33 +316,18 @@ Session snapshot/state/spool-selection уже разделены по session fi
 
 Для reports/dashboard можно добавить versioned read-only summary snapshots, если пересчёт полной истории станет заметно дорогим.
 
-Summary не должен становиться единственным источником для:
-
-- mutation authorization;
-- CLOSED/finalization integrity;
-- duplicate run/write-off prevention;
-- backup integrity proof.
-
-При сомнении authoritative history перечитывается fail-closed.
+Summary не должен становиться единственным источником для mutation authorization, CLOSED/finalization integrity, duplicate prevention или backup integrity proof.
 
 ## Когда рассматривать БД
 
-Только после фактических измерений, если одновременно выполняются несколько условий:
+Только после фактических измерений, если bounded rotation и RAM-bounded per-request indexes остаются недостаточными, transactional cross-entity queries доминируют, а migration/recovery имеет проверяемый rollback/compatibility plan.
 
-- bounded rotation всё ещё даёт неприемлемую latency;
-- RAM-bounded per-request indexes недостаточны;
-- transactional cross-entity queries стали доминирующей нагрузкой;
-- recovery/backup semantics можно сохранить или улучшить;
-- миграция имеет проверяемый rollback/compatibility plan.
-
-До этого SQLite/другая БД добавит migration/recovery complexity без доказанной необходимости.
+До этого SQLite/другая БД добавит complexity без доказанной необходимости.
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, business/material/winding/warehouse record counts, allocator high-water, session file counts/byte totals и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять один полный manifest с 29 Stage 0 metrics и `items[].size_bytes`, затем выбрать hotspot по фактической latency/size/population.
 
-Отдельно сравнить общую длительность deep audit с business/material/warehouse counts и количеством/объёмом session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, business audit использует повторные reference/uniqueness scans, а warehouse movement-reference audit повторно ищет spool/repair references.
-
-Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration/high-water/size **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
+До этого не вводить rotation trigger, persistent optimistic cache, database migration или Stage 1 duplicate-scan refactor только ради эстетики.
 
 Hardware E2E ESP32 + Arduino остаётся обязательным отдельным подтверждением и этим документом не считается выполненным.

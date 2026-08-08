@@ -27,8 +27,23 @@ struct RecoveryMarkerDefinition
     const char* reason;
 };
 
+struct AuditTimingMetric
+{
+    bool measured = false;
+    uint32_t durationMs = 0UL;
+};
+
 struct SnapshotAuditMetrics
 {
+    AuditTimingMetric persistentIdAuditTiming;
+    AuditTimingMetric conductorSettingsAuditTiming;
+    AuditTimingMetric materialPersistenceAuditTiming;
+    AuditTimingMetric businessDataAuditTiming;
+    AuditTimingMetric windingPersistenceAuditTiming;
+    AuditTimingMetric warehousePersistenceAuditTiming;
+    AuditTimingMetric warehouseMovementsAuditTiming;
+    AuditTimingMetric windingSessionDirectoryScanTiming;
+    AuditTimingMetric windingSessionPersistenceAuditTiming;
     bool allocatorHighWaterMeasured = false;
     uint32_t windingAllocatorLastId = 0UL;
     bool materialRecordCountsMeasured = false;
@@ -242,33 +257,7 @@ SessionScanResult scanSessionDirectory(fs::FS& storage,
 const char* snapshotStabilityReason(fs::FS& storage,
                                     SnapshotAuditMetrics& metrics)
 {
-    metrics.allocatorHighWaterMeasured = false;
-    metrics.windingAllocatorLastId = 0UL;
-    metrics.materialRecordCountsMeasured = false;
-    metrics.materialCatalogRecordCount = 0UL;
-    metrics.materialUsageRecordCount = 0UL;
-    metrics.materialAdjustmentRecordCount = 0UL;
-    metrics.businessRecordCountsMeasured = false;
-    metrics.workshopClientRecordCount = 0UL;
-    metrics.workshopMotorRecordCount = 0UL;
-    metrics.workshopRepairRecordCount = 0UL;
-    metrics.repairStatusRecordCount = 0UL;
-    metrics.repairPricingRecordCount = 0UL;
-    metrics.windingJournalRecordCountMeasured = false;
-    metrics.windingJournalRecordCount = 0UL;
-    metrics.windingSessionFileCountsMeasured = false;
-    metrics.windingSnapshotFileCount = 0UL;
-    metrics.windingStateFileCount = 0UL;
-    metrics.windingSpoolSelectionFileCount = 0UL;
-    metrics.windingSessionByteTotalsMeasured = false;
-    metrics.windingSnapshotTotalBytes = 0UL;
-    metrics.windingStateTotalBytes = 0UL;
-    metrics.windingSpoolSelectionTotalBytes = 0UL;
-    metrics.warehousePersistenceRecordCountsMeasured = false;
-    metrics.warehouseSpoolRecordCount = 0UL;
-    metrics.warehousePriceRecordCount = 0UL;
-    metrics.warehouseMovementRecordCountMeasured = false;
-    metrics.warehouseMovementRecordCount = 0UL;
+    metrics = SnapshotAuditMetrics();
 
     for (size_t i = 0U; i < RecoveryMarkerCount; ++i)
     {
@@ -277,16 +266,29 @@ const char* snapshotStabilityReason(fs::FS& storage,
     }
 
     PersistentIdIntegrityAuditMetrics allocatorMetrics;
-    if (!PersistentIdIntegrityAudit::check(storage, allocatorMetrics))
+    uint32_t startedAtMs = millis();
+    const bool allocatorValid = PersistentIdIntegrityAudit::check(storage, allocatorMetrics);
+    metrics.persistentIdAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.persistentIdAuditTiming.measured = true;
+    if (!allocatorValid)
         return "persistent_id_unstable_or_invalid";
     metrics.windingAllocatorLastId = allocatorMetrics.lastAllocatedId;
     metrics.allocatorHighWaterMeasured = true;
 
-    if (!ConductorSettingsIntegrityAudit::check(storage))
+    startedAtMs = millis();
+    const bool conductorSettingsValid = ConductorSettingsIntegrityAudit::check(storage);
+    metrics.conductorSettingsAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.conductorSettingsAuditTiming.measured = true;
+    if (!conductorSettingsValid)
         return "conductor_settings_unstable_or_invalid";
 
     MaterialPersistenceAuditMetrics materialMetrics;
-    if (!MaterialPersistenceIntegrityAudit::check(storage, materialMetrics))
+    startedAtMs = millis();
+    const bool materialPersistenceValid =
+        MaterialPersistenceIntegrityAudit::check(storage, materialMetrics);
+    metrics.materialPersistenceAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.materialPersistenceAuditTiming.measured = true;
+    if (!materialPersistenceValid)
         return "material_persistence_unstable_or_invalid";
     metrics.materialCatalogRecordCount = materialMetrics.materialRecordCount;
     metrics.materialUsageRecordCount = materialMetrics.usageRecordCount;
@@ -294,7 +296,12 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.materialRecordCountsMeasured = true;
 
     BackupBusinessDataAuditMetrics businessMetrics;
-    if (!BackupBusinessDataIntegrityAudit::check(storage, businessMetrics))
+    startedAtMs = millis();
+    const bool businessDataValid =
+        BackupBusinessDataIntegrityAudit::check(storage, businessMetrics);
+    metrics.businessDataAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.businessDataAuditTiming.measured = true;
+    if (!businessDataValid)
         return "business_data_unstable_or_invalid";
     metrics.workshopClientRecordCount = businessMetrics.clientRecordCount;
     metrics.workshopMotorRecordCount = businessMetrics.motorRecordCount;
@@ -304,16 +311,23 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.businessRecordCountsMeasured = true;
 
     uint32_t windingJournalRecordCount = 0UL;
-    if (!WindingPersistenceIntegrityAudit::check(storage,
-                                                 windingJournalRecordCount))
-    {
+    startedAtMs = millis();
+    const bool windingPersistenceValid =
+        WindingPersistenceIntegrityAudit::check(storage, windingJournalRecordCount);
+    metrics.windingPersistenceAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.windingPersistenceAuditTiming.measured = true;
+    if (!windingPersistenceValid)
         return "winding_persistence_unstable_or_invalid";
-    }
     metrics.windingJournalRecordCount = windingJournalRecordCount;
     metrics.windingJournalRecordCountMeasured = true;
 
     WarehousePersistenceAuditMetrics warehouseMetrics;
-    if (!WarehousePersistenceIntegrityAudit::check(storage, warehouseMetrics))
+    startedAtMs = millis();
+    const bool warehousePersistenceValid =
+        WarehousePersistenceIntegrityAudit::check(storage, warehouseMetrics);
+    metrics.warehousePersistenceAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.warehousePersistenceAuditTiming.measured = true;
+    if (!warehousePersistenceValid)
         return "warehouse_persistence_unstable_or_invalid";
     metrics.warehouseSpoolRecordCount = warehouseMetrics.spoolRecordCount;
     metrics.warehousePriceRecordCount = warehouseMetrics.priceRecordCount;
@@ -322,11 +336,14 @@ const char* snapshotStabilityReason(fs::FS& storage,
     if (storage.exists(WarehouseMovementsPath))
     {
         uint32_t warehouseMovementRecordCount = 0UL;
-        if (!WarehouseMovementIntegrityAudit::check(storage,
-                                                    warehouseMovementRecordCount))
-        {
+        startedAtMs = millis();
+        const bool warehouseMovementsValid =
+            WarehouseMovementIntegrityAudit::check(storage,
+                                                   warehouseMovementRecordCount);
+        metrics.warehouseMovementsAuditTiming.durationMs = millis() - startedAtMs;
+        metrics.warehouseMovementsAuditTiming.measured = true;
+        if (!warehouseMovementsValid)
             return "warehouse_movements_unstable_or_invalid";
-        }
         metrics.warehouseMovementRecordCount = warehouseMovementRecordCount;
         metrics.warehouseMovementRecordCountMeasured = true;
     }
@@ -338,6 +355,8 @@ const char* snapshotStabilityReason(fs::FS& storage,
         StateDirectory
     };
     uint32_t ignoredIds[1] = {};
+    const char* sessionDirectoryReason = nullptr;
+    startedAtMs = millis();
     for (uint8_t i = 0U; i < sizeof(directories) / sizeof(directories[0]); ++i)
     {
         uint8_t count = 0U;
@@ -346,19 +365,35 @@ const char* snapshotStabilityReason(fs::FS& storage,
             scanSessionDirectory(storage, directories[i], 0UL,
                                  ignoredIds, count, 1U, truncated);
         if (result == SessionScanResult::StorageUnavailable)
-            return "session_directory_unavailable";
+        {
+            sessionDirectoryReason = "session_directory_unavailable";
+            break;
+        }
         if (result == SessionScanResult::TemporaryFilePresent)
-            return "session_temp_present";
+        {
+            sessionDirectoryReason = "session_temp_present";
+            break;
+        }
         if (result == SessionScanResult::InvalidEntry)
-            return "session_directory_invalid";
+        {
+            sessionDirectoryReason = "session_directory_invalid";
+            break;
+        }
     }
+    metrics.windingSessionDirectoryScanTiming.durationMs = millis() - startedAtMs;
+    metrics.windingSessionDirectoryScanTiming.measured = true;
+    if (sessionDirectoryReason != nullptr)
+        return sessionDirectoryReason;
 
     WindingSessionPersistenceAuditMetrics windingSessionMetrics;
-    if (!WindingSessionPersistenceIntegrityAudit::check(storage,
-                                                        windingSessionMetrics))
-    {
+    startedAtMs = millis();
+    const bool windingSessionPersistenceValid =
+        WindingSessionPersistenceIntegrityAudit::check(storage,
+                                                       windingSessionMetrics);
+    metrics.windingSessionPersistenceAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.windingSessionPersistenceAuditTiming.measured = true;
+    if (!windingSessionPersistenceValid)
         return "winding_session_persistence_unstable_or_invalid";
-    }
     metrics.windingSnapshotFileCount = windingSessionMetrics.snapshotFileCount;
     metrics.windingStateFileCount = windingSessionMetrics.stateFileCount;
     metrics.windingSpoolSelectionFileCount =
@@ -422,6 +457,20 @@ bool requireSafeExport(WebServer& server, fs::FS& storage)
     server.send(503, "application/json; charset=utf-8",
                 "{\"error\":\"backup_activity_state_unavailable\"}");
     return false;
+}
+
+void appendTimingMetric(String& response,
+                        const __FlashStringHelper* key,
+                        bool stabilityChecked,
+                        const AuditTimingMetric& metric)
+{
+    response += F(",\"");
+    response += key;
+    response += F("\":");
+    if (!stabilityChecked || !metric.measured)
+        response += F("null");
+    else
+        response += metric.durationMs;
 }
 }
 
@@ -502,6 +551,24 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += stabilityDurationMs;
+    appendTimingMetric(response, F("persistent_id_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.persistentIdAuditTiming);
+    appendTimingMetric(response, F("conductor_settings_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.conductorSettingsAuditTiming);
+    appendTimingMetric(response, F("material_persistence_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.materialPersistenceAuditTiming);
+    appendTimingMetric(response, F("business_data_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.businessDataAuditTiming);
+    appendTimingMetric(response, F("winding_persistence_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.windingPersistenceAuditTiming);
+    appendTimingMetric(response, F("warehouse_persistence_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.warehousePersistenceAuditTiming);
+    appendTimingMetric(response, F("warehouse_movements_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.warehouseMovementsAuditTiming);
+    appendTimingMetric(response, F("winding_session_directory_scan_duration_ms"),
+                       stabilityChecked, auditMetrics.windingSessionDirectoryScanTiming);
+    appendTimingMetric(response, F("winding_session_persistence_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.windingSessionPersistenceAuditTiming);
     response += F(",\"winding_allocator_last_id\":");
     if (!stabilityChecked || !auditMetrics.allocatorHighWaterMeasured)
         response += F("null");
@@ -598,7 +665,7 @@ void BackupExportWeb::handleManifest()
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(5500U);
+    response.reserve(7000U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

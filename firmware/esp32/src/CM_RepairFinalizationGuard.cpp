@@ -3,6 +3,7 @@
 #include "CM_WarehouseMovementIntegrityAudit.h"
 #include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalTransitionAudit.h"
+#include "CM_WireWriteOffCoverageAudit.h"
 
 namespace CM
 {
@@ -17,8 +18,8 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
         return RepairFinalizationCheck::CostingStorageUnavailable;
 
     // The costing parser validates all monetary fields. Keep a separate full
-    // transaction audit here so non-monetary provenance such as source_session_id
-    // is also part of the server-authoritative closure invariant.
+    // transaction audit here so non-monetary provenance such as source session/run
+    // identity is also part of the server-authoritative closure invariant.
     if (!WarehouseMovementIntegrityAudit::check(storage))
     {
         return costing.ready()
@@ -101,6 +102,21 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
         return RepairFinalizationCheck::WindingStorageUnavailable;
     if (transitionAudit != WindingJournalTransitionAuditResult::Ok)
         return RepairFinalizationCheck::WindingIntegrityFailed;
+
+    const WireWriteOffCoverageCheck wireCoverage =
+        WireWriteOffCoverageAudit::check(storage, repairId);
+    switch (wireCoverage)
+    {
+        case WireWriteOffCoverageCheck::Covered:
+            break;
+        case WireWriteOffCoverageCheck::WriteOffRequired:
+            return RepairFinalizationCheck::WireWriteOffRequired;
+        case WireWriteOffCoverageCheck::StorageUnavailable:
+            return RepairFinalizationCheck::WireWriteOffStorageUnavailable;
+        case WireWriteOffCoverageCheck::IntegrityFailed:
+        default:
+            return RepairFinalizationCheck::WireWriteOffIntegrityFailed;
+    }
 
     return RepairFinalizationCheck::Ready;
 }

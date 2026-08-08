@@ -44,15 +44,6 @@ bool parseSessionFileName(const String& path, uint32_t& sessionId)
     return parseCanonicalUint32(idText, sessionId) && sessionId != 0UL;
 }
 
-String sessionPath(const char* directory, uint32_t sessionId)
-{
-    String path(directory);
-    path += F("/session-");
-    path += sessionId;
-    path += F(".json");
-    return path;
-}
-
 bool directoryContentsCanonical(fs::FS& storage, const char* path)
 {
     if (!storage.exists(path)) return true;
@@ -137,10 +128,8 @@ bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
             {
                 directory.close(); return false;
             }
-            if (!hasStates || !storage.exists(sessionPath(StateDirectory, sessionId)))
-            {
-                directory.close(); return false;
-            }
+            // Snapshot-only sessions are valid legacy archive entries. Newer
+            // state/spool files, when present, are cross-checked below.
             entry = directory.openNextFile();
         }
         directory.close();

@@ -45,6 +45,9 @@ struct SnapshotAuditMetrics
     uint32_t windingSnapshotFileCount = 0UL;
     uint32_t windingStateFileCount = 0UL;
     uint32_t windingSpoolSelectionFileCount = 0UL;
+    bool warehousePersistenceRecordCountsMeasured = false;
+    uint32_t warehouseSpoolRecordCount = 0UL;
+    uint32_t warehousePriceRecordCount = 0UL;
     bool warehouseMovementRecordCountMeasured = false;
     uint32_t warehouseMovementRecordCount = 0UL;
 };
@@ -249,6 +252,9 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.windingSnapshotFileCount = 0UL;
     metrics.windingStateFileCount = 0UL;
     metrics.windingSpoolSelectionFileCount = 0UL;
+    metrics.warehousePersistenceRecordCountsMeasured = false;
+    metrics.warehouseSpoolRecordCount = 0UL;
+    metrics.warehousePriceRecordCount = 0UL;
     metrics.warehouseMovementRecordCountMeasured = false;
     metrics.warehouseMovementRecordCount = 0UL;
 
@@ -291,8 +297,12 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.windingJournalRecordCount = windingJournalRecordCount;
     metrics.windingJournalRecordCountMeasured = true;
 
-    if (!WarehousePersistenceIntegrityAudit::check(storage))
+    WarehousePersistenceAuditMetrics warehouseMetrics;
+    if (!WarehousePersistenceIntegrityAudit::check(storage, warehouseMetrics))
         return "warehouse_persistence_unstable_or_invalid";
+    metrics.warehouseSpoolRecordCount = warehouseMetrics.spoolRecordCount;
+    metrics.warehousePriceRecordCount = warehouseMetrics.priceRecordCount;
+    metrics.warehousePersistenceRecordCountsMeasured = true;
 
     if (storage.exists(WarehouseMovementsPath))
     {
@@ -529,13 +539,23 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.windingSpoolSelectionFileCount;
+    response += F(",\"warehouse_spool_record_count\":");
+    if (!stabilityChecked || !auditMetrics.warehousePersistenceRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.warehouseSpoolRecordCount;
+    response += F(",\"warehouse_price_record_count\":");
+    if (!stabilityChecked || !auditMetrics.warehousePersistenceRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.warehousePriceRecordCount;
     response += F(",\"warehouse_movement_record_count\":");
     if (!stabilityChecked || !auditMetrics.warehouseMovementRecordCountMeasured)
         response += F("null");
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(4800U);
+    response.reserve(5000U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

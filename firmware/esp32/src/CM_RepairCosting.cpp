@@ -1,5 +1,6 @@
 #include "CM_RepairCosting.h"
 #include "CM_RepairLifecycle.h"
+#include "CM_WarehouseMovementIntegrityAudit.h"
 
 namespace CM
 {
@@ -63,6 +64,7 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
     summary = RepairCostSummary();
     summary.repairId = repairId;
     if (!ready() || repairId == 0UL || !repairExists(repairId)) return false;
+    if (!WarehouseMovementIntegrityAudit::check(m_storage)) return false;
 
     bool currencySet = false;
 

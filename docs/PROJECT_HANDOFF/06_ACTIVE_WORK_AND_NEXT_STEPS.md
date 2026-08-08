@@ -47,7 +47,7 @@ Safe `snapshot_stable=true` означает проверку static whitelist, 
 
 ## Stage 0 performance observability
 
-Без отдельного telemetry scan manifest теперь возвращает:
+Без отдельного telemetry scan manifest теперь возвращает шестнадцать metrics:
 
 ```text
 snapshot_stability_duration_ms
@@ -63,6 +63,8 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+warehouse_spool_record_count
+warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
@@ -71,6 +73,8 @@ Material/business/winding/warehouse record counts и session file counts соб�
 Session file counters считаются внутри существующих deep parser/cross-identity проходов `CM_WindingSessionPersistenceIntegrityAudit`; отдельного обхода directory ради telemetry не добавлено. Отсутствующая snapshot/state/spool-selection directory при успешном audit даёт `0`.
 
 Business counters считаются внутри уже существующих `CM_BackupBusinessDataIntegrityAudit` passes: client/motor/repair counts — в uniqueness scans, repair-status/pricing counts — в текущих parser/reference scans. Отдельного full-file чтения ради telemetry не добавлено; отсутствующий файл при успешном audit даёт `0`.
+
+Warehouse spool/price counters считаются внутри уже существующих `CM_WarehousePersistenceIntegrityAudit` passes. Старый `check(storage)` сохранён, а metrics публикуются только после успешных spool + price + movement-reference checks; отдельного full-file чтения ради telemetry не добавлено.
 
 Последнее расширение:
 
@@ -83,6 +87,11 @@ cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
 1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
 702edf98c9b993332fdaf17aa2359c1128391f27  Document business backup observability
+fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
+490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
+34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
+d43e2361fadffa0191f31a975cc639f17e90e0c3  Document warehouse persistence backup observability
+7e7521122bdde5060fef2e011f6b5a20f80079ea  Record warehouse backup observability in current state
 ```
 
 ## Repo-reviewable integration status
@@ -95,9 +104,11 @@ cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 - session counts увеличиваются только после успешного parser/load + identity validation соответствующего файла;
 - старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
 - business counts увеличиваются только внутри уже существующих successful validation passes и копируются наружу только после полного успешного business audit;
+- старый `WarehousePersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
+- warehouse spool/price counts увеличиваются только после успешной строки и публикуются только после полного successful warehouse persistence audit;
 - public metrics headers явно включают `FS.h` и `stdint.h`;
-- `CM_BackupExportWeb.cpp` использует оба metrics overload и сохраняет `BackupActivityGuard::Safe` gating;
-- partial business/session counts не публикуются при failed audit;
+- `CM_BackupExportWeb.cpp` использует metrics overloads и сохраняет `BackupActivityGuard::Safe` gating;
+- partial business/session/warehouse persistence counts не публикуются при failed audit;
 - safety semantics и порядок физических действий не изменены.
 
 Это static repository review, а не доказательство успешной ESP32 сборки или hardware behavior.
@@ -113,7 +124,7 @@ RepairPricingIntegrityAudit::check()
 
 А workshop audit снова проходит warehouse, allocator, session persistence, winding schema и transitions. Backup orchestration позже проверяет эти domains отдельно. Это реальный duplicate I/O path, но не correctness bug.
 
-Кроме того, `BackupBusinessDataIntegrityAudit` намеренно использует повторные uniqueness/reference lookups. Новые `workshop_*_record_count` и `repair_pricing_record_count` позволяют сопоставить эту стоимость с реальным размером данных до любого bounded-index refactor.
+Кроме того, `BackupBusinessDataIntegrityAudit` намеренно использует повторные uniqueness/reference lookups, а warehouse movement-reference validation повторно ищет spool/repair references. Новые population counts позволяют сопоставить эту стоимость с реальным размером данных до любого bounded-index refactor.
 
 До benchmark не делать Stage 1 refactor только ради эстетики. Если измерения покажут заметную цену, безопасный следующий refactor — разделить local material validation и cross-domain dependency validation так, чтобы backup выполнял каждый authoritative domain audit один раз, сохранив public contracts.
 
@@ -143,6 +154,10 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+warehouse-spools.size_bytes
+warehouse_spool_record_count
+warehouse-price.size_bytes
+warehouse_price_record_count
 warehouse-movements.size_bytes
 warehouse_movement_record_count
 snapshot_stability_duration_ms

@@ -21,6 +21,9 @@ public:
     bool begin();
     bool isReady() const;
 
+    // Read-only full-file schema validation. No filter/pagination short-circuit.
+    WindingJournalQueryResult validateAll() const;
+
     // Exactly one non-zero filter must be supplied. Only validated schema 2
     // records are returned. limit is clamped to 1..100.
     WindingJournalQueryResult appendHistoryJson(uint32_t sessionId,

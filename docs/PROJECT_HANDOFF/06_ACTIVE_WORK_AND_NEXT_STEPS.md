@@ -47,10 +47,26 @@ Safe `snapshot_stable=true` означает проверку static whitelist, 
 
 ## Stage 0 performance observability
 
-Без отдельного telemetry scan manifest теперь возвращает двадцать metrics:
+Manifest теперь возвращает **29 metrics без отдельного telemetry scan**.
+
+Per-domain timing:
 
 ```text
 snapshot_stability_duration_ms
+persistent_id_audit_duration_ms
+conductor_settings_audit_duration_ms
+material_persistence_audit_duration_ms
+business_data_audit_duration_ms
+winding_persistence_audit_duration_ms
+warehouse_persistence_audit_duration_ms
+warehouse_movements_audit_duration_ms
+winding_session_directory_scan_duration_ms
+winding_session_persistence_audit_duration_ms
+```
+
+Population/high-water/size:
+
+```text
 winding_allocator_last_id
 material_catalog_record_count
 material_usage_record_count
@@ -72,119 +88,70 @@ warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
-Material/business/winding/warehouse record counts, allocator high-water и session file counts/bytes собираются внутри уже выполняемых authoritative validation passes. Старые `check(storage)` contracts сохранены совместимо там, где добавлены metrics overloads. Partial metrics после failed audit наружу не публикуются.
+Timing оборачивает только уже существующие audit calls через `millis()`; filesystem I/O ради duration не добавляется. Если audit дошёл до domain, его duration публикуется даже при failure этого domain, а последующие неисполненные domains остаются `null`. Это позволяет локализовать slow failure.
 
-`winding_allocator_last_id` берётся из existing allocator state validation и соответствует validated `last_job_id == last_session_id`; отсутствующий pristine `/data/winding-jobs` даёт `0`. Дополнительного чтения `id-state.txt` ради high-water нет.
+`winding_session_directory_scan_duration_ms` отдельно измеряет уже существующий preliminary directory scan, а `winding_session_persistence_audit_duration_ms` — authoritative deep parser/cross-identity audit. До benchmark эти passes не объединять.
 
-Session file counters и byte totals считаются внутри существующих deep parser/cross-identity проходов `CM_WindingSessionPersistenceIntegrityAudit`; отдельного обхода directory ради telemetry не добавлено. Отсутствующая snapshot/state/spool-selection directory при успешном audit даёт `0`. Если суммарные bytes не помещаются в 32-bit telemetry, только три total-byte поля становятся `null`; integrity result этим не меняется.
+Record counts, allocator high-water и session file counts/bytes также собираются внутри уже выполняемых authoritative passes. Старые `check(storage)` contracts сохранены совместимо. Partial domain counts/high-water после failed domain audit наружу не публикуются.
 
-Business counters считаются внутри уже существующих `CM_BackupBusinessDataIntegrityAudit` passes: client/motor/repair counts — в uniqueness scans, repair-status/pricing counts — в текущих parser/reference scans. Отдельного full-file чтения ради telemetry не добавлено; отсутствующий файл при успешном audit даёт `0`.
+Session byte totals являются telemetry-only: при 32-bit aggregate overflow только total-byte fields становятся `null`; integrity result не меняется.
 
-Warehouse spool/price counters считаются внутри уже существующих `CM_WarehousePersistenceIntegrityAudit` passes. Старый `check(storage)` сохранён, а metrics публикуются только после успешных spool + price + movement-reference checks; отдельного full-file чтения ради telemetry не добавлено.
-
-Последнее расширение:
+Последний code commit:
 
 ```text
-9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
-afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
-abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
-7cb635d4088d38cef58dcb39bc170bf7f55dd0c7  Document winding session backup observability
-cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
-33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
-1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
-702edf98c9b993332fdaf17aa2359c1128391f27  Document business backup observability
-fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
-490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
-34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
-d43e2361fadffa0191f31a975cc639f17e90e0c3  Document warehouse persistence backup observability
-7e7521122bdde5060fef2e011f6b5a20f80079ea  Record warehouse backup observability in current state
+96a1c5bc8c4a5cb7f5b672d290bbac23867429c5  Measure deep backup domain durations
+```
+
+Ключевые предыдущие observability commits:
+
+```text
 4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
 b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water mark
 52fae7716034ccacebc41f1f11715f5eebf193c2  Expose allocator high-water mark in backup manifest
 1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
 cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
 a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
-19f026e778675a5423fa446e6595bc1115547f85  Document allocator and session byte observability
-5d39cef6b454c21aac37b2a80c360dcd81e6d615  Record allocator and session byte metrics
 ```
 
 ## Repo-reviewable integration status
 
 Подтверждено на уровне static repository review:
 
-- `CM_WindingPersistenceIntegrityAudit` уже использует authoritative `WindingJournalQuery::validateAll()` + отдельный `WindingJournalTransitionAudit::validate()`; cursor-pagination full scan отсутствует;
-- `CM_WindingSessionPersistenceIntegrityAudit` остаётся authoritative deep parser/cross-file identity audit и не дублируется;
-- старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
-- session counts увеличиваются только после успешного parser/load + identity validation соответствующего файла;
-- session byte totals берутся из `entry.size()` в тех же passes и не влияют на integrity result при telemetry overflow;
-- старый `PersistentIdIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
-- allocator high-water публикуется только после успешного main/optional-backup audit;
-- старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
-- business counts увеличиваются только внутри уже существующих successful validation passes и копируются наружу только после полного успешного business audit;
-- старый `WarehousePersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
-- warehouse spool/price counts увеличиваются только после успешной строки и публикуются только после полного successful warehouse persistence audit;
-- public metrics headers явно включают `FS.h` и `stdint.h`;
-- `CM_BackupExportWeb.cpp` использует metrics overloads и сохраняет `BackupActivityGuard::Safe` gating;
-- partial allocator/business/session/warehouse persistence metrics не публикуются при failed domain audit;
-- safety semantics и порядок физических действий не изменены.
+- `CM_WindingPersistenceIntegrityAudit` использует authoritative `WindingJournalQuery::validateAll()` + отдельный transition audit;
+- `CM_WindingSessionPersistenceIntegrityAudit` остаётся authoritative deep parser/cross-file identity audit;
+- compatibility `check(storage)` overloads сохранены;
+- allocator high-water, record counts и session bytes не добавляют telemetry-only full scans;
+- per-domain timing использует `uint32_t` `millis()` subtraction вокруг существующих вызовов;
+- `CM_BackupExportWeb.h` явно включает `Arduino.h`, поэтому timing/String/F types доступны напрямую;
+- `BackupActivityGuard::Safe` gating сохранён;
+- safety semantics физического START/SSR/manual writeoff не изменены.
 
 Это static repository review, а не доказательство успешной ESP32 сборки или hardware behavior.
 
-## Подтверждённый performance hotspot
+## Подтверждённые performance hotspots для измерения
 
-Repository review показал, что полный `MaterialPersistenceIntegrityAudit::check()` после собственных material scans транзитивно вызывает:
+Repository review показывает:
 
-```text
-WorkshopPersistenceIntegrityAudit::check()
-RepairPricingIntegrityAudit::check()
-```
+- `MaterialPersistenceIntegrityAudit::check()` транзитивно вызывает broad `WorkshopPersistenceIntegrityAudit::check()` + pricing audit, а backup затем проверяет часть domains снова;
+- `BackupBusinessDataIntegrityAudit` использует повторные uniqueness/reference lookups;
+- warehouse reference validation повторно ищет spool/repair references;
+- backup делает preliminary session-directory scan до authoritative deep session audit.
 
-А workshop audit снова проходит warehouse, allocator, session persistence, winding schema и transitions. Backup orchestration позже проверяет эти domains отдельно. Это реальный duplicate I/O path, но не correctness bug.
-
-Кроме того, `BackupBusinessDataIntegrityAudit` намеренно использует повторные uniqueness/reference lookups, а warehouse movement-reference validation повторно ищет spool/repair references. Новые population counts, allocator high-water и session byte totals позволяют сопоставить эту стоимость с реальным размером данных до любого bounded-index refactor.
-
-До benchmark не делать Stage 1 refactor только ради эстетики. Если измерения покажут заметную цену, безопасный следующий refactor — разделить local material validation и cross-domain dependency validation так, чтобы backup выполнял каждый authoritative domain audit один раз, сохранив public contracts.
+Это не correctness bugs. Новые per-domain durations позволяют сначала измерить цену каждого пути.
 
 ## Следующее практическое действие
 
-Обязательный следующий этап — реальный hardware E2E ESP32 + Arduino и одновременный benchmark backup manifest. На стенде снять вместе:
+Обязательный следующий этап — реальный hardware E2E ESP32 + Arduino и одновременный benchmark backup manifest. Сохранить один manifest с:
 
 ```text
-workshop-clients.size_bytes
-workshop_client_record_count
-workshop-motors.size_bytes
-workshop_motor_record_count
-workshop-repairs.size_bytes
-workshop_repair_record_count
-repair-status.size_bytes
-repair_status_record_count
-repair-pricing.size_bytes
-repair_pricing_record_count
-materials.size_bytes
-material_catalog_record_count
-material-usage.size_bytes
-material_usage_record_count
-material-adjustments.size_bytes
-material_adjustment_record_count
-winding-events.size_bytes
-winding_journal_record_count
-winding_allocator_last_id
-winding_snapshot_file_count
-winding_snapshot_total_bytes
-winding_state_file_count
-winding_state_total_bytes
-winding_spool_selection_file_count
-winding_spool_selection_total_bytes
-warehouse-spools.size_bytes
-warehouse_spool_record_count
-warehouse-price.size_bytes
-warehouse_price_record_count
-warehouse-movements.size_bytes
-warehouse_movement_record_count
+items[].size_bytes
+всеми 29 Stage 0 metrics
 snapshot_stability_duration_ms
 ```
 
-После измерений выбирать hotspot по фактической latency/size/population. Не вводить rotation threshold, persistent optimistic cache, Stage 1 duplicate-scan refactor или database migration до этих данных, если не появится отдельная correctness-причина.
+Сначала выбрать самый дорогой domain по `*_duration_ms`, затем объяснить его рост через record counts/session bytes/high-water. Только после этого решать bounded in-request index, duplicate-audit decomposition или rotation.
+
+Не вводить rotation threshold, persistent optimistic cache, Stage 1 duplicate-scan refactor или database migration до этих данных, если не появится отдельная correctness-причина.
 
 Если стенд пока недоступен, repo-only код допустим только как ещё одна same-pass observability существующего authoritative validator без дополнительного full scan либо как fix фактически подтверждённой compile/correctness проблемы.
 

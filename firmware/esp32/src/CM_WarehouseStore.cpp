@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_WarehouseMovementIntegrityAudit.h"
 
 namespace CM
 {
@@ -27,6 +28,10 @@ bool WarehouseStore::ready() const
 bool WarehouseStore::loadSummary(const char* monthPrefix)
 {
     if (!ready() || monthPrefix == nullptr)
+    {
+        return false;
+    }
+    if (!WarehouseMovementIntegrityAudit::check(m_storage))
     {
         return false;
     }

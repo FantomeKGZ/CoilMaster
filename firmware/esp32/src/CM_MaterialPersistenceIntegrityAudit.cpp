@@ -82,6 +82,12 @@ bool validLineShape(const String& line)
     return line.length() > 1U && line.startsWith("{") && line.endsWith("}");
 }
 
+bool validMaterialUnit(const String& unit)
+{
+    return unit == "PIECE" || unit == "GRAM" || unit == "MILLILITRE" ||
+           unit == "METRE" || unit == "SQUARE_METRE";
+}
+
 bool checkMaterials(fs::FS& storage)
 {
     constexpr const char* Path = "/data/materials/materials.ndjson";
@@ -102,11 +108,11 @@ bool checkMaterials(fs::FS& storage)
         if (!validLineShape(line) ||
             !findUnsigned(line, "material_id", materialId) || materialId == 0UL || materialId <= previousId ||
             !findString(line, "name", name) || name.length() == 0U ||
-            !findString(line, "unit", unit) || unit.length() == 0U ||
+            !findString(line, "unit", unit) || !validMaterialUnit(unit) ||
             !findUnsigned(line, "stock_quantity_milli", stock) ||
             !findUnsigned(line, "price_per_unit_minor", price) || price == 0UL ||
-            !findString(line, "currency", currency) || currency.length() != 3U ||
-            !findString(line, "status", status))
+            !findString(line, "currency", currency) || currency != "KGS" ||
+            !findString(line, "status", status) || status.length() == 0U)
         {
             file.close();
             return false;
@@ -152,7 +158,7 @@ bool checkUsage(fs::FS& storage)
             !findUnsigned(line, "quantity_milli", quantity) || quantity == 0UL ||
             !findUnsigned(line, "price_per_unit_minor", unitPrice) || unitPrice == 0UL ||
             !findUnsigned64(line, "line_cost_minor", lineCost) ||
-            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "currency", currency) || currency != "KGS" ||
             !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
             file.close();
@@ -208,8 +214,8 @@ bool checkAdjustments(fs::FS& storage)
             stockBefore > 0xFFFFFFFFUL - added || stockAfter != stockBefore + added ||
             !findUnsigned(line, "price_before_minor", priceBefore) || priceBefore == 0UL ||
             !findUnsigned(line, "price_after_minor", priceAfter) || priceAfter == 0UL ||
-            !findString(line, "currency_before", currencyBefore) || currencyBefore.length() != 3U ||
-            !findString(line, "currency_after", currencyAfter) || currencyAfter.length() != 3U ||
+            !findString(line, "currency_before", currencyBefore) || currencyBefore != "KGS" ||
+            !findString(line, "currency_after", currencyAfter) || currencyAfter != "KGS" ||
             !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
             file.close();

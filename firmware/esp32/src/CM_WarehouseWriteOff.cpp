@@ -282,8 +282,12 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     const bool isPendingLike = statusText == "PENDING" || statusText == "ABORTED";
     const bool isConfirmed = statusText == "CONFIRMED";
 
+    // A run without a session is never valid. A session without a run is
+    // accepted here only so startup recovery can close a legacy session-level
+    // PENDING created before run-level provenance was introduced. New writes are
+    // still forced to supply both by confirmSpoolWriteOff().
     if (movementId == 0UL || operation.spoolId == 0UL || operation.repairId == 0UL ||
-        ((operation.sourceSessionId == 0UL) != (operation.sourceRunId == 0UL)) ||
+        (operation.sourceRunId != 0UL && operation.sourceSessionId == 0UL) ||
         consumedGrams == 0UL || price.pricePerKgMinor == 0UL ||
         price.currency.length() != 3U || (!isPendingLike && !isConfirmed) ||
         (isPendingLike && (diameterHundredthsMm != 0U || wireType.length() != 0U)) ||
@@ -305,7 +309,10 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     if (operation.sourceSessionId != 0UL)
     {
         line += F(",\"source_session_id\":"); line += operation.sourceSessionId;
-        line += F(",\"source_run_id\":"); line += operation.sourceRunId;
+        if (operation.sourceRunId != 0UL)
+        {
+            line += F(",\"source_run_id\":"); line += operation.sourceRunId;
+        }
     }
     line += F(",\"diameter_hundredths_mm\":"); line += diameterHundredthsMm;
     if (wireType.length() > 0U)

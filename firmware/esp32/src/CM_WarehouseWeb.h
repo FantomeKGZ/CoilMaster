@@ -12,9 +12,13 @@ namespace CM
 class WarehouseWeb
 {
 public:
+    WarehouseWeb(WebServer& server, WarehouseStore& store);
     WarehouseWeb(WebServer& server,
                  WarehouseStore& store,
-                 JobSpoolSelectionStore* spoolSelections = nullptr);
+                 JobSpoolSelectionStore& spoolSelections)
+        : m_server(server), m_store(store), m_spoolSelections(&spoolSelections)
+    {
+    }
 
     void begin();
     void beginSpoolList();
@@ -39,7 +43,7 @@ private:
 
     WebServer& m_server;
     WarehouseStore& m_store;
-    JobSpoolSelectionStore* m_spoolSelections;
+    JobSpoolSelectionStore* m_spoolSelections = nullptr;
 };
 }
 

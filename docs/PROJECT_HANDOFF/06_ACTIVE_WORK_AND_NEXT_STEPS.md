@@ -24,7 +24,7 @@ Repository readiness немного повышена после закрытия
 ## Текущий code checkpoint
 
 ```text
-979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
+eb95164c1ecbc025835df1c20308b0d53605e558  Reject unstable spool selection temp state
 ```
 
 После возобновления закрыты следующие repo-level проблемы.
@@ -104,6 +104,7 @@ firmware/esp32/src/CM_JobSpoolSelectionLookup.cpp
 ```text
 aea99008f857c679b332fa6899bb774afb0ec61c  Expose read-only spool selection lookup
 b3a46d3784a134fc475ca745b214d8dc376fb34b  Add read-only spool selection lookup
+eb95164c1ecbc025835df1c20308b0d53605e558  Reject unstable spool selection temp state
 ```
 
 API:
@@ -118,7 +119,7 @@ JobSpoolSelectionStore::loadReadOnly(storage, sessionId, selection, found)
 /data/winding-jobs/spool-selection/session-<session_id>.json
 ```
 
-и использует существующий strict parser. Это позволяет core safety checks читать immutable selection без повторного полного directory audit.
+и использует существующий strict parser. Если для exact session присутствует `session-<id>.json.tmp`, lookup fail closed как unstable/ambiguous selection state. Это позволяет core safety checks читать immutable selection без повторного полного directory audit и без автоматического runtime recovery.
 
 ### 5. Exact spool selection теперь enforced на storage boundary
 
@@ -155,6 +156,7 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 - wire writeoff остаётся ручным;
 - новый writeoff требует exact `spool_id + source_session_id + source_run_id`;
 - storage boundary дополнительно требует immutable session → repair/spool match;
+- exact-session `.json.tmp` блокирует writeoff fail closed;
 - corrupted persistence/storage loss блокирует опасную операцию fail-closed.
 
 ## Exact-run writeoff provenance — закрытый блок
@@ -167,6 +169,7 @@ c7335631c660a7b5ee71da880a1f77e4e5faa83f  Require exact run provenance for new w
 ef0e64838ebb3f0519f6bfe756ade599a07450b9  Require exact run provenance in writeoff UI
 4c7051603fc8753ed04caed025b27dc61f628136  Restore warehouse writeoff provenance lookups
 979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
+eb95164c1ecbc025835df1c20308b0d53605e558  Reject unstable spool selection temp state
 ```
 
 Legacy session-only records остаются grandfathered/read-only compatibility старых данных; не выполнять автоматическую миграцию в guessed run IDs.
@@ -210,13 +213,13 @@ Stage 0 observability уже содержит **29 metrics**. Не добавл�
 
 ## CI / compile verification
 
-Текущий HEAD после code fixes:
+Последний code-only HEAD перед этим handoff update:
 
 ```text
-979e81acd4c67da66c1b74b9995c97bf648986d3
+eb95164c1ecbc025835df1c20308b0d53605e558
 ```
 
-Branch compare подтверждал `cmp-protocol-v1` identical этому SHA до handoff-only commit.
+Branch compare подтверждал `cmp-protocol-v1` identical этому SHA.
 
 GitHub connector возвращает пустой combined status. Публичная Actions страница также не была надёжно получена через доступный web fetch. Поэтому состояние остаётся:
 
@@ -246,11 +249,14 @@ linked repair
 → stable backup
 ```
 
-Особенно проверить новый negative case:
+Особенно проверить negative cases:
 
 ```text
 completed source_session_id/source_run_id
 + другой spool_id, не совпадающий с immutable selection
+=> writeoff MUST be rejected before PENDING/mutation
+
+exact session spool-selection .json.tmp present
 => writeoff MUST be rejected before PENDING/mutation
 ```
 
@@ -263,6 +269,7 @@ Fault cases:
 - duplicate writeoff;
 - missing/wrong session/run/spool;
 - wrong spool against immutable selection;
+- unstable exact-session spool-selection temp;
 - close without wire coverage;
 - backup during active winding.
 

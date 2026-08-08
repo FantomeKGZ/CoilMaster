@@ -52,16 +52,18 @@ Costing, finalization preflight и operator histories также читают ap
 - record count во время уже выполняемого scan;
 - scan duration/high-water mark;
 - число файлов session directories;
+- суммарный размер session directories во время уже выполняемого directory pass;
 - отдельно отмечать backup/finalization/costing scan.
 
 Не хранить optimistic cache как доказательство integrity после mutation/reboot.
 
 ### Уже начато
 
-Manifest теперь возвращает шестнадцать runtime metrics:
+Manifest теперь возвращает двадцать runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
+winding_allocator_last_id
 material_catalog_record_count
 material_usage_record_count
 material_adjustment_record_count
@@ -74,6 +76,9 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+winding_snapshot_total_bytes
+winding_state_total_bytes
+winding_spool_selection_total_bytes
 warehouse_spool_record_count
 warehouse_price_record_count
 warehouse_movement_record_count
@@ -85,6 +90,15 @@ warehouse_movement_record_count
 - при `snapshot_stability_checked=false` — `null`;
 - измерение оборачивает уже существующий `snapshotStabilityReason()` и **не добавляет дополнительный filesystem scan**;
 - поле только observability metadata и не влияет на `snapshot_stable`/`export_allowed`.
+
+Семантика `winding_allocator_last_id`:
+
+- берётся из уже выполняемого `PersistentIdIntegrityAudit` чтения `id-state.txt`;
+- соответствует validated `last_job_id == last_session_id` и является high-water mark выделенных winding job/session IDs;
+- старый `PersistentIdIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
+- при отсутствующем `/data/winding-jobs` successful pristine audit возвращает `0`;
+- при failed allocator audit поле наружу не публикуется;
+- дополнительного чтения allocator state ради этой метрики нет.
 
 Семантика material counters:
 
@@ -126,20 +140,24 @@ repair_pricing_record_count
 - если deep audit не запускался, до winding audit не дошли или winding integrity не доказана — `null`;
 - отдельного повторного чтения `/data/winding-runs/events.ndjson` ради count нет.
 
-Семантика session file counters:
+Семантика session file counters и byte totals:
 
 ```text
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+winding_snapshot_total_bytes
+winding_state_total_bytes
+winding_spool_selection_total_bytes
 ```
 
-- считаются внутри уже существующих deep parser/cross-identity проходов `WindingSessionPersistenceIntegrityAudit` по snapshot/state/spool-selection directories;
+- file counts считаются внутри уже существующих deep parser/cross-identity проходов `WindingSessionPersistenceIntegrityAudit` по snapshot/state/spool-selection directories;
+- byte totals суммируются из `entry.size()` в тех же directory passes до штатного parser/load; дополнительного directory/full-file scan ради bytes нет;
 - старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
-- учитываются только файлы, которые прошли canonical filename check, штатный parser/load и требуемые cross-file identity checks;
-- counts публикуются только после полного успешного session persistence audit; partial counts при failure наружу не выдаются;
-- если соответствующая directory отсутствует и audit в целом успешен, её count равен `0`;
-- отдельного directory/full-file scan ради этих counters не добавлено.
+- file counts публикуются только после полного успешного session persistence audit; partial counts при failure наружу не выдаются;
+- если соответствующая directory отсутствует и audit в целом успешен, её count и total bytes равны `0`;
+- byte totals не влияют на integrity result: если 32-bit сумма размера не представима, session audit продолжает обычную fail-closed validation, а только три total-byte metrics становятся `null`;
+- штатные snapshot/state/spool-selection parser и cross-file identity checks не заменены телеметрией.
 
 Семантика warehouse persistence counters:
 
@@ -179,7 +197,7 @@ fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
 a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
 ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
 6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
-38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
+38befe338cfc57879d2ad09fc6be20a084c6ba2b  Expose material audit counts in backup manifest
 9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
 afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
 abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
@@ -189,6 +207,12 @@ cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
 490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
 34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
+4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
+b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water mark
+52fae7716034ccacebc41f1f11715f5eebf193c2  Expose allocator high-water mark in backup manifest
+1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
+cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
+a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
 ```
 
 Теперь на стенде можно сопоставить как минимум:
@@ -212,9 +236,13 @@ material-adjustments.size_bytes
 material_adjustment_record_count
 winding-events.size_bytes
 winding_journal_record_count
+winding_allocator_last_id
 winding_snapshot_file_count
+winding_snapshot_total_bytes
 winding_state_file_count
+winding_state_total_bytes
 winding_spool_selection_file_count
+winding_spool_selection_total_bytes
 warehouse-spools.size_bytes
 warehouse_spool_record_count
 warehouse-price.size_bytes
@@ -224,7 +252,7 @@ warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-Это даёт сравнимые данные по растущим business/material/winding/warehouse persistence paths и session-file population без изменения storage format и без дополнительного audit I/O.
+Это даёт сравнимые данные по растущим business/material/winding/warehouse persistence paths, allocator high-water и session-file population/bytes без изменения storage format и без дополнительного audit I/O.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
@@ -233,6 +261,7 @@ snapshot_stability_duration_ms
 - первым проверить влияние transitive `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` повторных scans;
 - отдельно сопоставить рост business reference scans с `workshop_*_record_count` и `repair_pricing_record_count`, потому что текущий business audit намеренно использует повторные uniqueness/reference lookups;
 - отдельно сопоставить warehouse reference-scan стоимость с `warehouse_spool_record_count` и `warehouse_movement_record_count`;
+- сопоставить `winding_allocator_last_id` с session file counts/bytes: большой разрыв сам по себе допустим из-за legacy/archive semantics, но полезен как сигнал накопления/истории;
 - если влияние заметно, разделить локальную material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
 - старые public contracts для других callers сохранять совместимыми, пока не доказано обратное;
 - переиспользовать authoritative validators вместо повторного JSON/page parsing;
@@ -306,10 +335,10 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, business/material/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, business/material/winding/warehouse record counts, allocator high-water, session file counts/byte totals и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
-Отдельно сравнить общую длительность deep audit с business/material/warehouse counts и количеством session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, business audit использует повторные reference/uniqueness scans, а warehouse movement-reference audit повторно ищет spool/repair references.
+Отдельно сравнить общую длительность deep audit с business/material/warehouse counts и количеством/объёмом session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, business audit использует повторные reference/uniqueness scans, а warehouse movement-reference audit повторно ищет spool/repair references.
 
-Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
+Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration/high-water/size **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
 
 Hardware E2E ESP32 + Arduino остаётся обязательным отдельным подтверждением и этим документом не считается выполненным.

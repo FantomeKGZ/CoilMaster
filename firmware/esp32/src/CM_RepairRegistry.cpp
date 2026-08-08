@@ -483,8 +483,9 @@ bool RepairRegistry::validateUniqueIds(const char* path, const char* key) const
             const String candidateLine = duplicateScan.readStringUntil('\n');
             if (candidateLine.length() == 0U) continue;
             uint32_t candidate = 0UL;
-            if (!FlatJsonObjectValidator::valid(candidateLine) ||
-                !findUnsigned(candidateLine, key, candidate) || candidate == 0UL)
+            // The outer pass validates every non-empty record exactly once;
+            // keep the repeated duplicate scan focused on identity only.
+            if (!findUnsigned(candidateLine, key, candidate) || candidate == 0UL)
             {
                 duplicateScan.close();
                 source.close();
@@ -556,8 +557,9 @@ bool RepairRegistry::validateRepairStatusHistory() const
             uint32_t candidateRepairId = 0UL;
             String candidateStatus;
             String candidateClosedAt;
-            if (!FlatJsonObjectValidator::valid(candidateLine) ||
-                !findUnsigned(candidateLine, "repair_id", candidateRepairId) ||
+            // Syntax is validated once by the outer pass; this repeated scan
+            // keeps only the exact-one-match semantic checks.
+            if (!findUnsigned(candidateLine, "repair_id", candidateRepairId) ||
                 candidateRepairId == 0UL ||
                 !findString(candidateLine, "status", candidateStatus) ||
                 candidateStatus != "CLOSED" ||

@@ -12,7 +12,10 @@ enum class RepairFinalizationCheck : uint8_t
     CostingStorageUnavailable = 1,
     CostingIntegrityFailed = 2,
     WindingStorageUnavailable = 3,
-    WindingIntegrityFailed = 4
+    WindingIntegrityFailed = 4,
+    WireWriteOffRequired = 5,
+    WireWriteOffStorageUnavailable = 6,
+    WireWriteOffIntegrityFailed = 7
 };
 
 class RepairFinalizationGuard

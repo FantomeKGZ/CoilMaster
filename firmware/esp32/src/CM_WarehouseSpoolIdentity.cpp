@@ -1,4 +1,5 @@
 #include "CM_WarehouseStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -30,6 +31,11 @@ bool WarehouseStore::loadActiveSpoolIdentity(uint32_t spoolId,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+        if (!FlatJsonObjectValidator::valid(line))
+        {
+            file.close();
+            return false;
+        }
 
         uint32_t currentId = 0UL;
         uint32_t diameter = 0UL;

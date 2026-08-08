@@ -1,6 +1,6 @@
 # Где остановились и что делать дальше
 
-Дата обновления: 2026-08-08 22:28 +06  
+Дата обновления: 2026-08-08 23:49 +06  
 Ветка: `cmp-protocol-v1`
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
@@ -16,22 +16,23 @@ docs/PROJECT_HANDOFF/13_PAUSE_HANDOFF_2026-08-08_2222.md
 Ориентировочно:
 
 - реализованная функциональность production flow: **около 96%**;
-- repository/firmware readiness: **около 93%**;
+- repository/firmware readiness: **около 94%**;
 - общая эксплуатационная готовность: **около 90%**.
 
-Эксплуатационная оценка остаётся ниже repository readiness: для текущего HEAD нет подтверждённого GREEN Actions result, полный ESP32 + Arduino hardware E2E ещё не выполнен, Stage 0 benchmark на реальном dataset ещё не снят.
+Repository readiness немного повышена после закрытия конкретных compile/link и storage-boundary writeoff gaps. Эксплуатационная оценка остаётся ниже: для текущего HEAD нет подтверждённого GREEN Actions result, полный ESP32 + Arduino hardware E2E ещё не выполнен, Stage 0 benchmark на реальном dataset ещё не снят.
 
 ## Текущий code checkpoint
 
 ```text
-4c7051603fc8753ed04caed025b27dc61f628136  Restore warehouse writeoff provenance lookups
+979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
 ```
 
-Восстановлены определения объявленных методов:
+После возобновления закрыты следующие repo-level проблемы.
+
+### 1. Warehouse writeoff provenance lookup definitions
 
 ```text
-WarehouseStore::confirmedWriteOffForSourceSession(...)
-WarehouseStore::confirmedWriteOffForSourceRun(...)
+4c7051603fc8753ed04caed025b27dc61f628136  Restore warehouse writeoff provenance lookups
 ```
 
 Файл:
@@ -40,11 +41,100 @@ WarehouseStore::confirmedWriteOffForSourceRun(...)
 firmware/esp32/src/CM_WarehouseWriteOffLookup.cpp
 ```
 
-Перед read-only lookup выполняется authoritative `WarehouseMovementIntegrityAudit::check()`. Поэтому malformed movement history, broken PENDING → terminal transaction и ambiguous/duplicate provenance fail closed. Legacy session-only CONFIRMED запись может быть найдена только session-level lookup; она **не** считается exact-run совпадением.
+Восстановлены определения:
 
-`platformio.ini` включает `firmware/esp32/src/*.cpp`, поэтому новый translation unit входит в ESP32 build source filter. Статически сигнатуры совпадают с `CM_WarehouseStore.h` и с `CM_WarehouseMovementIntegrityAudit.h`.
+```text
+WarehouseStore::confirmedWriteOffForSourceSession(...)
+WarehouseStore::confirmedWriteOffForSourceRun(...)
+```
 
-Фактический ESP32 linker/build для этого HEAD всё ещё **CI NOT CONFIRMED**: GitHub connector возвращает пустой combined status и не показывает push workflow run.
+Lookup fail closed через authoritative `WarehouseMovementIntegrityAudit::check()`. Legacy session-only CONFIRMED запись не считается exact-run совпадением.
+
+### 2. HTTP repair lifecycle failure classification
+
+```text
+7c210f013d6a3fbc1d0534b37d56c8fa808882ee  Classify repair lifecycle integrity failures
+```
+
+`POST /api/warehouse/write-offs` теперь различает:
+
+```text
+storage/warehouse unavailable -> 503 repair_lifecycle_unavailable
+repair-status persistence/integrity failure при доступном storage -> 500 repair_lifecycle_integrity_failed
+closed repair -> 409 repair_closed
+```
+
+Списание блокируется во всех failure cases; менялась только корректная HTTP/error classification.
+
+### 3. Duplicate spool-selection symbol removed
+
+Был подтверждён реальный linker-risk: tri-state
+
+```text
+JobSpoolSelectionStore::load(uint32_t, JobSpoolSelection&, bool&) const
+```
+
+одновременно определялся в:
+
+```text
+CM_JobSpoolSelectionStore.cpp
+CM_JobSpoolSelectionLookup.cpp
+```
+
+Оба `.cpp` входят в `firmware/esp32/src/*.cpp`, поэтому duplicate definition был compile/link correctness problem.
+
+Исправлено:
+
+```text
+c243d37e8b2ec8c65ac6872fbd926d3bd52511fe  Remove duplicate spool selection lookup definition
+```
+
+Canonical tri-state implementation теперь находится только в:
+
+```text
+firmware/esp32/src/CM_JobSpoolSelectionLookup.cpp
+```
+
+`CM_JobSpoolSelectionStore.cpp` сохраняет обычный wrapper `load(sessionId, selection)`.
+
+### 4. Read-only immutable spool-selection lookup
+
+Добавлен exact-file read-only lookup без `begin()`, directory scan или temp recovery:
+
+```text
+aea99008f857c679b332fa6899bb774afb0ec61c  Expose read-only spool selection lookup
+b3a46d3784a134fc475ca745b214d8dc376fb34b  Add read-only spool selection lookup
+```
+
+API:
+
+```text
+JobSpoolSelectionStore::loadReadOnly(storage, sessionId, selection, found)
+```
+
+Он читает только canonical:
+
+```text
+/data/winding-jobs/spool-selection/session-<session_id>.json
+```
+
+и использует существующий strict parser. Это позволяет core safety checks читать immutable selection без повторного полного directory audit.
+
+### 5. Exact spool selection теперь enforced на storage boundary
+
+```text
+979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
+```
+
+`WarehouseStore::confirmSpoolWriteOff()` теперь до `RUN_COMPLETED` proof и до создания `PENDING` сам требует:
+
+```text
+source_session_id -> immutable spool selection exists
+selection.repair_id == operation.repair_id
+selection.spool_id  == operation.spool_id
+```
+
+Поэтому internal/direct caller больше не может обойти HTTP и списать другой spool для завершённого run. Web остаётся дополнительным preflight layer, но safety invariant теперь защищён на storage boundary.
 
 ## Production flow
 
@@ -64,37 +154,22 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 - `RUN_COMPLETED` сам по себе не выполняет wire writeoff;
 - wire writeoff остаётся ручным;
 - новый writeoff требует exact `spool_id + source_session_id + source_run_id`;
+- storage boundary дополнительно требует immutable session → repair/spool match;
 - corrupted persistence/storage loss блокирует опасную операцию fail-closed.
 
 ## Exact-run writeoff provenance — закрытый блок
 
-Storage boundary:
+Ключевые commits:
 
 ```text
 c7335631c660a7b5ee71da880a1f77e4e5faa83f  Require exact run provenance for new wire writeoffs
-```
-
-HTTP boundary:
-
-```text
 7b92010294342d2a9cc9a153f306673f5c66ffb9  Require run provenance in wire writeoff API
-```
-
-UI boundary:
-
-```text
 ef0e64838ebb3f0519f6bfe756ade599a07450b9  Require exact run provenance in writeoff UI
-```
-
-Lookup/link boundary:
-
-```text
 4c7051603fc8753ed04caed025b27dc61f628136  Restore warehouse writeoff provenance lookups
+979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
 ```
 
-Новые writeoff нельзя создавать без exact session/run. Shared mobile/desktop helper только предлагает immutable spool и attaches exact completed run; фактический расход/вес остаётся ручным подтверждением оператора.
-
-Legacy session-only records остаются grandfathered/read-only compatibility старых данных; не выполнять их автоматическую миграцию в guessed run IDs.
+Legacy session-only records остаются grandfathered/read-only compatibility старых данных; не выполнять автоматическую миграцию в guessed run IDs.
 
 ## Production bootstrap — актуальное состояние
 
@@ -133,9 +208,27 @@ Deep backup safe state охватывает allocator, conductor settings, works
 
 Stage 0 observability уже содержит **29 metrics**. Не добавлять новые telemetry scans до benchmark.
 
+## CI / compile verification
+
+Текущий HEAD после code fixes:
+
+```text
+979e81acd4c67da66c1b74b9995c97bf648986d3
+```
+
+Branch compare подтверждал `cmp-protocol-v1` identical этому SHA до handoff-only commit.
+
+GitHub connector возвращает пустой combined status. Публичная Actions страница также не была надёжно получена через доступный web fetch. Поэтому состояние остаётся:
+
+```text
+CI NOT CONFIRMED
+```
+
+Не называть текущий ESP32 build GREEN без фактического Actions result.
+
 ## Следующее действие
 
-Repository-only compile/link gap, ради которого была сделана пауза, закрыт кодом. Не продолжать бесконечный parser-hardening и не начинать Stage 1 performance refactor без измерений.
+После закрытия найденных compile/link и storage-boundary gaps не продолжать бесконечный parser-hardening и не начинать Stage 1 performance refactor без измерений.
 
 Обязательный следующий внешний этап — реальный ESP32 + Arduino hardware E2E:
 
@@ -153,6 +246,14 @@ linked repair
 → stable backup
 ```
 
+Особенно проверить новый negative case:
+
+```text
+completed source_session_id/source_run_id
++ другой spool_id, не совпадающий с immutable selection
+=> writeoff MUST be rejected before PENDING/mutation
+```
+
 Fault cases:
 
 - reboot/manual-review;
@@ -161,6 +262,7 @@ Fault cases:
 - UART timeout/reject/duplicate events;
 - duplicate writeoff;
 - missing/wrong session/run/spool;
+- wrong spool against immutable selection;
 - close without wire coverage;
 - backup during active winding.
 

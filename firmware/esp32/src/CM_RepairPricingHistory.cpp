@@ -1,4 +1,5 @@
 #include "CM_RepairCosting.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -27,7 +28,7 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
         String currency;
         String timestamp;
 
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
             !findUnsigned64(line, "labour_cost_minor", labour) ||
             !findUnsigned64(line, "client_price_minor", clientPrice) ||

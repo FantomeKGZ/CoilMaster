@@ -18,5 +18,8 @@ class WindingSessionCompletionAudit
 public:
     static WindingSessionCompletionCheck check(fs::FS& storage,
                                                uint32_t sessionId);
+    static WindingSessionCompletionCheck check(fs::FS& storage,
+                                               uint32_t sessionId,
+                                               uint32_t runId);
 };
 }

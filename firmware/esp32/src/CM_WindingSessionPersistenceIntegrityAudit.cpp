@@ -77,6 +77,28 @@ bool directoryContentsCanonical(fs::FS& storage, const char* path)
     directory.close();
     return true;
 }
+
+void addFileSizeMetric(File& entry,
+                       uint32_t& totalBytes,
+                       bool& byteTotalsAvailable)
+{
+    if (!byteTotalsAvailable) return;
+    const size_t fileSize = entry.size();
+    if (fileSize > 0xFFFFFFFFUL)
+    {
+        totalBytes = 0UL;
+        byteTotalsAvailable = false;
+        return;
+    }
+    const uint32_t sizeBytes = static_cast<uint32_t>(fileSize);
+    if (totalBytes > 0xFFFFFFFFUL - sizeBytes)
+    {
+        totalBytes = 0UL;
+        byteTotalsAvailable = false;
+        return;
+    }
+    totalBytes += sizeBytes;
+}
 }
 
 bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
@@ -134,6 +156,9 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             {
                 entry.close(); directory.close(); return false;
             }
+            addFileSizeMetric(entry,
+                              validatedMetrics.snapshotTotalBytes,
+                              validatedMetrics.byteTotalsAvailable);
             entry.close();
 
             JobSnapshot snapshot;
@@ -167,6 +192,9 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             {
                 entry.close(); directory.close(); return false;
             }
+            addFileSizeMetric(entry,
+                              validatedMetrics.stateTotalBytes,
+                              validatedMetrics.byteTotalsAvailable);
             entry.close();
 
             JobRuntimeState state;
@@ -199,6 +227,9 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             {
                 entry.close(); directory.close(); return false;
             }
+            addFileSizeMetric(entry,
+                              validatedMetrics.spoolSelectionTotalBytes,
+                              validatedMetrics.byteTotalsAvailable);
             entry.close();
 
             JobSpoolSelection selection;

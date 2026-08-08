@@ -5,6 +5,7 @@ const spoolSelect=document.getElementById('spool');
 if(!spoolSelect||!/^[1-9]\d*$/.test(repairId))return;
 
 delete document.body.dataset.writeoffSourceSessionId;
+delete document.body.dataset.writeoffSourceRunId;
 delete document.body.dataset.writeoffSourceSpoolId;
 
 if(!window.cmWriteoffProvenanceFetchWrapped){
@@ -13,12 +14,15 @@ if(!window.cmWriteoffProvenanceFetchWrapped){
         const url=typeof input==='string'?input:(input&&input.url)||'';
         if(url==='/api/warehouse/write-offs'&&init&&String(init.method||'GET').toUpperCase()==='POST'&&init.body instanceof URLSearchParams){
             const sessionId=document.body.dataset.writeoffSourceSessionId||'';
+            const runId=document.body.dataset.writeoffSourceRunId||'';
             const sourceSpoolId=document.body.dataset.writeoffSourceSpoolId||'';
             const postedSpoolId=String(init.body.get('spool_id')||'');
-            if(/^[1-9]\d*$/.test(sessionId)&&sourceSpoolId===postedSpoolId){
+            if(/^[1-9]\d*$/.test(sessionId)&&/^[1-9]\d*$/.test(runId)&&sourceSpoolId===postedSpoolId){
                 init.body.set('source_session_id',sessionId);
+                init.body.set('source_run_id',runId);
             }else{
                 init.body.delete('source_session_id');
+                init.body.delete('source_run_id');
             }
         }
         return originalFetch(input,init);
@@ -28,27 +32,29 @@ if(!window.cmWriteoffProvenanceFetchWrapped){
 
 const note=document.createElement('div');
 note.className='info muted';
-note.textContent='Проверка бухты из последней завершённой намотки…';
+note.textContent='Проверка бухты из последнего завершённого прогона…';
 const spoolInfo=document.getElementById('spoolInfo');
 if(spoolInfo&&spoolInfo.parentNode)spoolInfo.parentNode.insertBefore(note,spoolInfo);
 else spoolSelect.insertAdjacentElement('afterend',note);
 
 const escText=v=>String(v??'');
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-let suggestedSessionId='',suggestedSpoolId='';
+let suggestedSessionId='',suggestedRunId='',suggestedSpoolId='';
 
 function syncProvenance(){
-    if(suggestedSessionId&&suggestedSpoolId&&spoolSelect.value===suggestedSpoolId){
+    if(suggestedSessionId&&suggestedRunId&&suggestedSpoolId&&spoolSelect.value===suggestedSpoolId){
         document.body.dataset.writeoffSourceSessionId=suggestedSessionId;
+        document.body.dataset.writeoffSourceRunId=suggestedRunId;
         document.body.dataset.writeoffSourceSpoolId=suggestedSpoolId;
         return;
     }
     delete document.body.dataset.writeoffSourceSessionId;
+    delete document.body.dataset.writeoffSourceRunId;
     delete document.body.dataset.writeoffSourceSpoolId;
 }
 spoolSelect.addEventListener('change',syncProvenance);
 
-async function latestCompletedSession(){
+async function latestCompletedRun(){
     const events=[];
     let cursor=0,pages=0;
     for(;;){
@@ -66,22 +72,27 @@ async function latestCompletedSession(){
     }
     for(let i=events.length-1;i>=0;--i){
         const e=events[i];
-        if(e&&e.event==='RUN_COMPLETED'&&/^[1-9]\d*$/.test(String(e.session_id)))return String(e.session_id);
+        const sessionId=String(e&&e.session_id||''),runId=String(e&&e.run_id||'');
+        if(e&&e.event==='RUN_COMPLETED'&&/^[1-9]\d*$/.test(sessionId)&&/^[1-9]\d*$/.test(runId))return{sessionId,runId};
     }
-    return '';
+    return null;
 }
 
-async function sessionAlreadyWrittenOff(sessionId){
+async function runAlreadyWrittenOff(sessionId,runId){
     const r=await fetch('/api/warehouse/write-offs?repair_id='+encodeURIComponent(repairId),{cache:'no-store'});
     let j={};
     try{j=await r.json()}catch(_){throw new Error('writeoff_history_invalid_response')}
     if(!r.ok)throw new Error(j.error||'writeoff_history_read_failed');
     if(!Array.isArray(j.items))throw new Error('writeoff_history_items_missing');
     for(const item of j.items){
-        const source=item&&item.source_session_id;
-        if(source===null||source===undefined)continue;
-        if(!/^[1-9]\d*$/.test(String(source)))throw new Error('invalid_writeoff_source_session_id');
-        if(String(source)===sessionId)return true;
+        const sourceSession=item&&item.source_session_id;
+        if(sourceSession===null||sourceSession===undefined)continue;
+        if(!/^[1-9]\d*$/.test(String(sourceSession)))throw new Error('invalid_writeoff_source_session_id');
+        if(String(sourceSession)!==sessionId)continue;
+        const sourceRun=item.source_run_id;
+        if(sourceRun===null||sourceRun===undefined)return true;
+        if(!/^[1-9]\d*$/.test(String(sourceRun)))throw new Error('invalid_writeoff_source_run_id');
+        if(String(sourceRun)===runId)return true;
     }
     return false;
 }
@@ -109,21 +120,22 @@ async function waitForSpools(){
 
 async function run(){
     try{
-        const sessionId=await latestCompletedSession();
-        if(!sessionId){
+        const completed=await latestCompletedRun();
+        if(!completed){
             note.className='info muted';
             note.textContent='В истории ремонта нет подтверждённого RUN_COMPLETED. Бухта выбирается вручную.';
             return;
         }
-        if(await sessionAlreadyWrittenOff(sessionId)){
+        const {sessionId,runId}=completed;
+        if(await runAlreadyWrittenOff(sessionId,runId)){
             note.className='info muted';
-            note.textContent='Для последней завершённой сессии №'+sessionId+' уже есть подтверждённое ручное списание. Повторная подсказка бухты отключена.';
+            note.textContent='Для последнего завершённого прогона: сессия №'+sessionId+', проход №'+runId+' — уже есть подтверждённое ручное списание. Повторная подсказка отключена.';
             return;
         }
         const selection=await loadSelection(sessionId);
         if(!selection){
             note.className='info muted';
-            note.textContent='Последняя завершённая сессия №'+sessionId+' создана без immutable spool-selection (legacy). Бухта выбирается вручную.';
+            note.textContent='Сессия №'+sessionId+' создана без immutable spool-selection (legacy). Бухта выбирается вручную.';
             return;
         }
         if(!await waitForSpools())throw new Error('spool_catalog_not_loaded');
@@ -131,18 +143,20 @@ async function run(){
         const option=[...spoolSelect.options].find(o=>o.value===spoolId);
         if(!option){
             note.className='warning';
-            note.textContent='Сессия №'+sessionId+' была выполнена с бухтой №'+spoolId+', но эта бухта сейчас не доступна среди активных. Автоматической замены нет — проверьте склад и выберите бухту вручную.';
+            note.textContent='Сессия №'+sessionId+', проход №'+runId+' выполнялись с бухтой №'+spoolId+', но эта бухта сейчас не доступна среди активных. Автоматической замены нет — проверьте склад и выберите бухту вручную.';
             return;
         }
         suggestedSessionId=sessionId;
+        suggestedRunId=runId;
         suggestedSpoolId=spoolId;
         spoolSelect.value=spoolId;
         spoolSelect.dispatchEvent(new Event('change'));
         syncProvenance();
         note.className='info';
-        note.textContent='Предложена бухта №'+spoolId+' из immutable записи завершённой сессии №'+sessionId+'. Пока выбрана эта бухта, session-id будет сохранён как provenance ручного списания. Расход и подтверждение остаются ручными.';
+        note.textContent='Предложена бухта №'+spoolId+' из immutable записи сессии №'+sessionId+', проход №'+runId+'. Пока выбрана эта бухта, session/run будут сохранены как provenance ручного списания. Расход и подтверждение остаются ручными.';
     }catch(e){
         suggestedSessionId='';
+        suggestedRunId='';
         suggestedSpoolId='';
         syncProvenance();
         note.className='warning';

@@ -1,5 +1,6 @@
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_RepairCosting.h"
+#include "CM_WarehouseMovementIntegrityAudit.h"
 #include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalTransitionAudit.h"
 
@@ -14,6 +15,16 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
     RepairCosting costing(storage);
     if (!costing.begin() || !costing.ready())
         return RepairFinalizationCheck::CostingStorageUnavailable;
+
+    // The costing parser validates all monetary fields. Keep a separate full
+    // transaction audit here so non-monetary provenance such as source_session_id
+    // is also part of the server-authoritative closure invariant.
+    if (!WarehouseMovementIntegrityAudit::check(storage))
+    {
+        return costing.ready()
+                   ? RepairFinalizationCheck::CostingIntegrityFailed
+                   : RepairFinalizationCheck::CostingStorageUnavailable;
+    }
 
     RepairCostSummary summary;
     if (!costing.load(repairId, summary))

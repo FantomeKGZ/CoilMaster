@@ -38,6 +38,23 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 
 Deep backup при safe machine state проверяет allocator, conductor settings, workshop/pricing, materials, winding journal + transitions, warehouse persistence/movements и содержимое session snapshot/state/spool-selection. При active winding тяжёлый integrity scan не запускается.
 
+## Winding cleanup — перепроверен по актуальному коду
+
+`CM_WindingPersistenceIntegrityAudit` уже использует authoritative:
+
+```text
+WindingJournalQuery::validateAll(recordCount)
+WindingJournalTransitionAudit::validate()
+```
+
+Реализация `validateAll()` находится в отдельном translation unit:
+
+```text
+firmware/esp32/src/CM_WindingJournalQueryValidation.cpp
+```
+
+Root `platformio.ini` для `env:esp32` включает `firmware/esp32/src/*.cpp`, поэтому этот implementation unit входит в ESP32 source filter. `CM_WindingSessionPersistenceIntegrityAudit` остаётся отдельным authoritative deep audit для snapshot/state/spool-selection и cross-file identity; не дублировать его.
+
 ## Stage 0 performance observability
 
 Решение остаётся: не мигрировать в БД и не вводить rotation threshold до реальных измерений.
@@ -89,9 +106,27 @@ ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit coun
 ```text
 0f10ed32d110c28b21af7c46c6be20a084c6ba2b  Document material backup observability
 899508534fc909d9baacada62bcda8629ddf0b4a  Advance active work to material observability
+1a78e23bdfc3addb7826845fc8273b33d96f5e67  Record material backup observability in current state
+9f32a1c953017447a71d907535ac2cf0398a5098  Refresh backup and winding key file index
+5a7070d805eb902e11046b7dfe94af169d549e99  Record material metrics integration review
 ```
 
 Эти commits не считать GREEN без фактического Actions result.
+
+## Material metrics integration review
+
+Повторно просмотрены актуальные `CM_MaterialPersistenceIntegrityAudit.h/.cpp`, `CM_BackupExportWeb.cpp`, `CM_WorkshopPersistenceIntegrityAudit.cpp` и `CM_RepairPricingIntegrityAudit.cpp`.
+
+На уровне static repository review подтверждено:
+
+- compatibility `check(storage)` сохранён;
+- public metrics header самостоятельно включает `FS.h` и `stdint.h`;
+- counters считаются внутри уже существующих validation loops;
+- partial metrics не публикуются при failure полного material audit;
+- `BackupActivityGuard::Safe` gating не изменён;
+- winding/session deep audits не заменены и не продублированы material observability логикой.
+
+Отдельной correctness-причины для дополнительного code refactor в этом review не найдено. Это не доказательство успешного ESP32 build.
 
 ## Найденный composition hotspot
 
@@ -130,7 +165,7 @@ snapshot_stability_duration_ms
 
 ## Точная следующая repo-only точка
 
-Если hardware пока недоступен, продолжать только low-cost same-pass observability существующих authoritative validators, без второго full scan ради telemetry.
+Если hardware пока недоступен, продолжать только low-cost same-pass observability существующих authoritative validators, без второго full scan ради telemetry, либо исправлять отдельную доказанную correctness/compile проблему.
 
 Если новый Actions run доступен — проверять фактический `build-esp32` head и исправлять первую реальную compile/link error. Последняя ранее подтверждённая compile problem была missing namespace closing brace в `CM_MaterialLedger.cpp`, исправленная commit:
 

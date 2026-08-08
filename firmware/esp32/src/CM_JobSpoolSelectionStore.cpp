@@ -1,4 +1,5 @@
 #include "CM_JobSpoolSelectionStore.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include <string.h>
 
 namespace CM
@@ -282,7 +283,8 @@ bool JobSpoolSelectionStore::parse(const String& input,
                                    JobSpoolSelection& selection)
 {
     selection = JobSpoolSelection();
-    if (!input.startsWith(F("{\"schema_version\":1,")) ||
+    if (!FlatJsonObjectValidator::valid(input) ||
+        !input.startsWith(F("{\"schema_version\":1,")) ||
         !input.endsWith(F("}\n")) || input.length() >= 512U)
     {
         return false;

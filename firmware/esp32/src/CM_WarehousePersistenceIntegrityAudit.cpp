@@ -1,4 +1,5 @@
 #include "CM_WarehousePersistenceIntegrityAudit.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include <Arduino.h>
 
 namespace CM
@@ -112,7 +113,7 @@ bool checkSpools(fs::FS& storage, uint32_t& recordCount)
         uint32_t spoolId = 0UL, diameter = 0UL, weight = 0UL;
         String status, wireType, optional;
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL || spoolId <= previousSpoolId ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter == 0UL || diameter > 0xFFFFUL ||
             !findUnsigned(line, "current_weight_g", weight) ||
@@ -162,7 +163,7 @@ bool checkPrice(fs::FS& storage, uint32_t& recordCount)
         if (line.length() == 0U) continue;
         uint32_t price = 0UL;
         String currency;
-        if (!line.startsWith("{") || !line.endsWith("}") ||
+        if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !incrementRecordCount(recordCount))
@@ -194,7 +195,8 @@ bool checkMovementReferences(fs::FS& storage)
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t spoolId = 0UL, repairId = 0UL;
-        if (!findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
             !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
             !idExists(storage, SpoolsPath, "spool_id", spoolId) ||
             !idExists(storage, RepairsPath, "repair_id", repairId))

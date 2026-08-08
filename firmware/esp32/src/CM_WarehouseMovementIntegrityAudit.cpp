@@ -75,7 +75,9 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
     uint32_t pendingSpool = 0UL;
     uint32_t pendingRepair = 0UL;
     uint32_t pendingSourceSession = 0UL;
+    uint32_t pendingSourceRun = 0UL;
     bool pendingHasSourceSession = false;
+    bool pendingHasSourceRun = false;
     uint32_t pendingBefore = 0UL;
     uint32_t pendingAfter = 0UL;
     uint32_t pendingMass = 0UL;
@@ -93,10 +95,11 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
         }
 
         uint32_t movementId = 0UL, spoolId = 0UL, repairId = 0UL;
-        uint32_t sourceSessionId = 0UL, diameter = 0UL;
+        uint32_t sourceSessionId = 0UL, sourceRunId = 0UL, diameter = 0UL;
         uint32_t before = 0UL, after = 0UL, mass = 0UL, price = 0UL;
         String type, status, currency, timestamp, comment, wireType;
         const bool hasSourceSession = line.indexOf(F("\"source_session_id\":")) >= 0;
+        const bool hasSourceRun = line.indexOf(F("\"source_run_id\":")) >= 0;
         const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
 
@@ -114,6 +117,8 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
             !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
             (hasSourceSession &&
              (!findUnsigned(line, "source_session_id", sourceSessionId) || sourceSessionId == 0UL)) ||
+            (hasSourceRun &&
+             (!hasSourceSession || !findUnsigned(line, "source_run_id", sourceRunId) || sourceRunId == 0UL)) ||
             (hasComment && !findString(line, "comment", comment)) ||
             (hasWireType &&
              (!findString(line, "wire_type", wireType) ||
@@ -136,6 +141,8 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
             pendingRepair = repairId;
             pendingHasSourceSession = hasSourceSession;
             pendingSourceSession = sourceSessionId;
+            pendingHasSourceRun = hasSourceRun;
+            pendingSourceRun = sourceRunId;
             pendingBefore = before;
             pendingAfter = after;
             pendingMass = mass;
@@ -155,6 +162,8 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
             spoolId != pendingSpool || repairId != pendingRepair ||
             hasSourceSession != pendingHasSourceSession ||
             sourceSessionId != pendingSourceSession ||
+            hasSourceRun != pendingHasSourceRun ||
+            sourceRunId != pendingSourceRun ||
             before != pendingBefore || after != pendingAfter || mass != pendingMass ||
             price != pendingPrice || currency != pendingCurrency ||
             timestamp != pendingTimestamp || comment != pendingComment)
@@ -181,7 +190,9 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
 
         pendingId = 0UL;
         pendingSourceSession = 0UL;
+        pendingSourceRun = 0UL;
         pendingHasSourceSession = false;
+        pendingHasSourceRun = false;
     }
     file.close();
     return pendingId == 0UL;

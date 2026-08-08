@@ -6,9 +6,10 @@ namespace CM
 {
 namespace
 {
-constexpr const char* SettingsPath = "/data/settings/conductor-calculator.ndjson";
-constexpr const char* TempPath = "/data/settings/conductor-calculator.tmp";
-constexpr const char* BackupPath = "/data/settings/conductor-calculator.bak";
+constexpr const char* SettingsPath = "/data/settings/conductor.json";
+constexpr const char* LegacySettingsPath = "/data/settings/conductor-calculator.ndjson";
+constexpr const char* LegacyTempPath = "/data/settings/conductor-calculator.tmp";
+constexpr const char* LegacyBackupPath = "/data/settings/conductor-calculator.bak";
 
 bool findUnsigned(const String& line, const char* key, uint32_t& value)
 {
@@ -18,6 +19,7 @@ bool findUnsigned(const String& line, const char* key, uint32_t& value)
     if (pos < 0 || line.indexOf(marker, pos + marker.length()) >= 0) return false;
 
     int cursor = pos + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     if (cursor >= line.length() || !isDigit(line[cursor])) return false;
     if (line[cursor] == '0' && cursor + 1 < line.length() && isDigit(line[cursor + 1]))
         return false;
@@ -30,16 +32,43 @@ bool findUnsigned(const String& line, const char* key, uint32_t& value)
         parsed = parsed * 10UL + digit;
         ++cursor;
     }
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     if (cursor >= line.length() || (line[cursor] != ',' && line[cursor] != '}'))
         return false;
     value = parsed;
     return true;
 }
+
+bool optionalBooleanValid(const String& line, const char* key)
+{
+    const String marker = String("\"") + key + F("\":");
+    const int position = line.indexOf(marker);
+    if (position < 0) return true;
+    if (line.indexOf(marker, position + marker.length()) >= 0) return false;
+
+    int cursor = position + marker.length();
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    if (line.substring(cursor, cursor + 4) == "true") cursor += 4;
+    else if (line.substring(cursor, cursor + 5) == "false") cursor += 5;
+    else return false;
+
+    while (cursor < line.length() && line[cursor] == ' ') ++cursor;
+    return cursor < line.length() &&
+           (line[cursor] == ',' || line[cursor] == '}');
+}
 }
 
 bool ConductorSettingsIntegrityAudit::check(fs::FS& storage)
 {
-    if (storage.exists(TempPath) || storage.exists(BackupPath)) return false;
+    // The production API contract is /data/settings/conductor.json. Presence of
+    // the older experimental store is ambiguous and must not be called stable.
+    if (storage.exists(LegacySettingsPath) ||
+        storage.exists(LegacyTempPath) ||
+        storage.exists(LegacyBackupPath))
+    {
+        return false;
+    }
+
     if (!storage.exists(SettingsPath)) return true;
 
     File file = storage.open(SettingsPath, FILE_READ);
@@ -61,7 +90,8 @@ bool ConductorSettingsIntegrityAudit::check(fs::FS& storage)
     if (!findUnsigned(line, "aluminium_to_copper_permille", alToCu) ||
         !findUnsigned(line, "copper_to_aluminium_permille", cuToAl) ||
         !findUnsigned(line, "allowed_deviation_permille", deviation) ||
-        !findUnsigned(line, "max_target_strands", maxStrands))
+        !findUnsigned(line, "max_target_strands", maxStrands) ||
+        !optionalBooleanValid(line, "allow_mixed_diameters"))
     {
         return false;
     }

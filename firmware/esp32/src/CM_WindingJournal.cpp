@@ -1,4 +1,5 @@
 #include "CM_WindingJournal.h"
+#include "CM_FlatJsonObjectValidator.h"
 
 namespace CM
 {
@@ -155,8 +156,7 @@ bool WindingJournal::validateJournalStructure() const
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.length() == 0U || line[0] != '{' ||
-            line[line.length() - 1U] != '}')
+        if (line.length() == 0U || !FlatJsonObjectValidator::valid(line))
         {
             file.close();
             return false;

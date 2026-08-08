@@ -24,6 +24,79 @@
 
 ---
 
+## 2026-08-08 19:40 — Allocator high-water и winding session byte observability
+
+Цель:
+
+Продолжить Stage 0 repository-only observability без дополнительного full-file I/O, без изменения storage model и без ослабления safety-инвариантов.
+
+Что сделано:
+
+- подтверждено, что warehouse spool/price counters уже появились в актуальной ветке параллельной работой, поэтому этот блок не дублировался;
+- `PersistentIdIntegrityAudit` расширен совместимым `PersistentIdIntegrityAuditMetrics` overload;
+- authoritative allocator audit теперь возвращает validated `lastAllocatedId` из уже читаемого `id-state.txt`, где `last_job_id == last_session_id`;
+- backup manifest публикует `winding_allocator_last_id`; дополнительного чтения allocator state ради telemetry нет;
+- `WindingSessionPersistenceAuditMetrics` расширен `snapshotTotalBytes`, `stateTotalBytes`, `spoolSelectionTotalBytes` и флагом `byteTotalsAvailable`;
+- суммарные session bytes считаются через `entry.size()` в уже выполняемых snapshot/state/spool-selection directory passes до штатного parser/load;
+- дополнительного directory/full-file scan ради byte totals не добавлено;
+- telemetry overflow 32-bit суммы не считается persistence corruption: в таком случае только byte totals становятся недоступны, а authoritative session integrity audit продолжает прежнюю fail-closed validation;
+- manifest публикует `winding_snapshot_total_bytes`, `winding_state_total_bytes`, `winding_spool_selection_total_bytes` только после полного успешного session audit и при доступной 32-bit сумме;
+- Stage 0 observability доведён до 20 runtime metrics: duration, allocator high-water, material/business/winding/warehouse counts, session counts и session total bytes;
+- обновлены `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`, `01_CURRENT_STATE.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md`, `09_KEY_FILES_INDEX.md`, `12_LATEST_HANDOFF_2026-08-08.md`.
+
+Файлы:
+
+```text
+firmware/esp32/src/CM_PersistentIdIntegrityAudit.h
+firmware/esp32/src/CM_PersistentIdIntegrityAudit.cpp
+firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h
+firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp
+firmware/esp32/src/CM_BackupExportWeb.cpp
+docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
+docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
+```
+
+Кодовые коммиты:
+
+```text
+4a30e4ca08e1d2e010dded1ab3e93073f9ecaeed  Expose persistent allocator audit metrics
+b38bb3b5190bb99d261f5552cecedfea4048289b  Return validated allocator high-water mark
+52fae7716034ccacebc41f1f11715f5eebf193c2  Expose allocator high-water mark in backup manifest
+1470b866c0b91aee4bd8dff1eddc6c26926be578  Expose winding session byte totals
+cacdffa9ec822ad1425d6a4de34c10f836fbbab0  Measure winding session persistence bytes
+a0c83b08f64c05f0232d287146850f9e9fd37ce5  Expose winding session byte totals in backup manifest
+```
+
+Документационные коммиты до этой записи:
+
+```text
+19f026e778675a5423fa446e6595bc1115547f85  Document allocator and session byte observability
+5d39cef6b454c21aac37b2a80c360dcd81e6d615  Record allocator and session byte metrics
+ba8f7c89d5f23f0549608b7603f6503d4fd6d514  Advance active work observability metrics
+599610f1786f7e68cd45c6da40ee7acf9b8093fd  Index allocator and session byte metrics
+3352ef0e00b79aedd9b7df9224bd0a1075c42625  Refresh latest handoff Stage 0 metrics
+```
+
+Проверка:
+
+Static repository review подтверждает совместимость overloads/includes, отсутствие нового telemetry-only scan и сохранение `BackupActivityGuard::Safe` gating. Telemetry byte overflow отделён от integrity failure. Это не заменяет фактический ESP32 build. GREEN CI для текущего head в этой записи не подтверждён. Hardware E2E не выполнялся.
+
+Где остановились:
+
+Stage 0 теперь даёт достаточно данных для первого реального benchmark: размер статических NDJSON, record counts, allocator high-water, session population/bytes и общую длительность deep audit. Известные duplicate-I/O/reference-scan hotspots остаются Stage 1 кандидатами только после измерений или при отдельной correctness-причине.
+
+Следующее действие:
+
+1. Реальный ESP32 + Arduino E2E production path.
+2. Одновременно сохранить один backup manifest с `size_bytes`, всеми 20 Stage 0 metrics и `snapshot_stability_duration_ms`.
+3. По измеренной latency/size/population выбрать первый hotspot для bounded index / audit decomposition / rotation.
+4. Если доступен новый Actions run — проверить фактический `build-esp32` head и исправлять только подтверждённую compile/link ошибку.
+
+---
+
 ## 2026-08-08 19:03 — Business backup observability и handoff sync
 
 Цель:

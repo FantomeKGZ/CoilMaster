@@ -58,13 +58,18 @@ Costing, finalization preflight и operator histories также читают ap
 
 ### Уже начато
 
-Manifest теперь возвращает девять runtime metrics:
+Manifest теперь возвращает четырнадцать runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
 material_catalog_record_count
 material_usage_record_count
 material_adjustment_record_count
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
 winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
@@ -94,6 +99,23 @@ material_adjustment_record_count
 - если deep audit не запускался, до material audit не дошли или material persistence не доказана — поля `null`;
 - если audit успешен, но конкретный material файл отсутствует, его count равен `0`; наличие файла отдельно видно через `items[].exists`;
 - отдельного повторного чтения material NDJSON ради counters нет.
+
+Семантика business/workshop counters:
+
+```text
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
+```
+
+- считаются внутри уже существующих validation passes `BackupBusinessDataIntegrityAudit` по `clients.ndjson`, `motors.ndjson`, `repairs.ndjson`, `repair-status.ndjson` и `pricing.ndjson`;
+- `client/motor/repair` counts собираются в существующем uniqueness pass, status/pricing counts — в их текущих parser/reference passes;
+- старый `BackupBusinessDataIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
+- counts публикуются только после полного успешного business audit; partial counts при failure наружу не выдаются;
+- если соответствующий файл отсутствует и audit в целом успешен, count равен `0`, а наличие отдельно видно через `items[].exists`;
+- дополнительные full-file scans ради этих counters не добавлены.
 
 Семантика `winding_journal_record_count`:
 
@@ -144,11 +166,24 @@ ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit coun
 9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
 afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
 abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
+cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
+33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
+1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
 ```
 
 Теперь на стенде можно сопоставить как минимум:
 
 ```text
+workshop-clients.size_bytes
+workshop_client_record_count
+workshop-motors.size_bytes
+workshop_motor_record_count
+workshop-repairs.size_bytes
+workshop_repair_record_count
+repair-status.size_bytes
+repair_status_record_count
+repair-pricing.size_bytes
+repair_pricing_record_count
 materials.size_bytes
 material_catalog_record_count
 material-usage.size_bytes
@@ -165,14 +200,15 @@ warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-Это даёт сравнимые данные по нескольким растущим persistence paths и session-file population без изменения storage format и без дополнительного audit I/O.
+Это даёт сравнимые данные по растущим business/material/winding/warehouse persistence paths и session-file population без изменения storage format и без дополнительного audit I/O.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
 При подтверждённой необходимости:
 
 - первым проверить влияние transitive `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` повторных scans;
-- если оно заметно, разделить локальную material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
+- отдельно сопоставить рост business reference scans с `workshop_*_record_count` и `repair_pricing_record_count`, потому что текущий business audit намеренно использует повторные uniqueness/reference lookups;
+- если влияние заметно, разделить локальную material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
 - старые public contracts для других callers сохранять совместимыми, пока не доказано обратное;
 - переиспользовать authoritative validators вместо повторного JSON/page parsing;
 - строить bounded in-memory ID index только на время одного audit/request;
@@ -245,9 +281,9 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, material/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, business/material/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
-Отдельно сравнить общую длительность deep audit с material history counts и количеством session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, поэтому рост material histories и накопление session files могут сочетаться с уже существующим повторным cross-domain I/O.
+Отдельно сравнить общую длительность deep audit с business/material history counts и количеством session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, а business audit использует повторные reference/uniqueness scans, поэтому рост этих наборов может сочетаться с уже существующим повторным cross-domain I/O.
 
 Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
 

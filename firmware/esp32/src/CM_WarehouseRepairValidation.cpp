@@ -3,8 +3,9 @@
 
 namespace CM
 {
-bool WarehouseStore::repairExists(uint32_t repairId) const
+bool WarehouseStore::repairExists(uint32_t repairId, bool& found) const
 {
+    found = false;
     if (!m_ready || repairId == 0UL || !m_storage.exists(RepairsPath))
     {
         return false;
@@ -17,7 +18,7 @@ bool WarehouseStore::repairExists(uint32_t repairId) const
         return false;
     }
 
-    uint8_t matches = 0U;
+    uint32_t previousId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -26,20 +27,23 @@ bool WarehouseStore::repairExists(uint32_t repairId) const
         uint32_t currentRepairId = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "repair_id", currentRepairId) ||
-            currentRepairId == 0UL)
+            currentRepairId == 0UL || currentRepairId <= previousId)
         {
             file.close();
+            found = false;
             return false;
         }
-
-        if (currentRepairId == repairId && ++matches > 1U)
-        {
-            file.close();
-            return false;
-        }
+        previousId = currentRepairId;
+        if (currentRepairId == repairId) found = true;
     }
 
     file.close();
-    return matches == 1U;
+    return true;
+}
+
+bool WarehouseStore::repairExists(uint32_t repairId) const
+{
+    bool found = false;
+    return repairExists(repairId, found) && found;
 }
 }

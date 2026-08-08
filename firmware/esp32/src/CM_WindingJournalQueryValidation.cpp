@@ -4,6 +4,13 @@ namespace CM
 {
 WindingJournalQueryResult WindingJournalQuery::validateAll() const
 {
+    uint32_t ignoredRecordCount = 0UL;
+    return validateAll(ignoredRecordCount);
+}
+
+WindingJournalQueryResult WindingJournalQuery::validateAll(uint32_t& recordCount) const
+{
+    recordCount = 0UL;
     if (!isReady()) return WindingJournalQueryResult::StorageUnavailable;
     if (!m_storage.exists(JournalPath)) return WindingJournalQueryResult::Ok;
 
@@ -38,6 +45,7 @@ WindingJournalQueryResult WindingJournalQuery::validateAll() const
                 file.close();
                 return WindingJournalQueryResult::ReadFailed;
             }
+            ++recordCount;
             continue;
         }
 
@@ -49,6 +57,7 @@ WindingJournalQueryResult WindingJournalQuery::validateAll() const
             file.close();
             return WindingJournalQueryResult::ReadFailed;
         }
+        ++recordCount;
     }
 
     file.close();

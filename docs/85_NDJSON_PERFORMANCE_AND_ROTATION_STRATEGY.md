@@ -56,26 +56,39 @@ Costing, finalization preflight и operator histories также читают ap
 
 ### Уже начато
 
-Manifest теперь возвращает:
+Manifest теперь возвращает две runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
+winding_journal_record_count
 ```
 
-Семантика:
+Семантика `snapshot_stability_duration_ms`:
 
 - при `snapshot_stability_checked=true` — длительность фактически выполненного deep audit;
 - при `snapshot_stability_checked=false` — `null`;
 - измерение оборачивает уже существующий `snapshotStabilityReason()` и **не добавляет дополнительный filesystem scan**;
 - поле только observability metadata и не влияет на `snapshot_stable`/`export_allowed`.
 
-Commit:
+Семантика `winding_journal_record_count`:
+
+- считается внутри того же `WindingJournalQuery::validateAll()` прохода до EOF;
+- публикуется только после успешной schema validation **и** `WindingJournalTransitionAudit::validate()`;
+- если deep audit не запускался, до winding audit не дошли или winding integrity не доказана — `null`;
+- отдельного повторного чтения `/data/winding-runs/events.ndjson` ради count нет.
+
+Ключевые commits:
 
 ```text
 8b61f46e1cb9d866bf9aa94800dd6a95f347c6b0  Measure deep backup audit duration
+c35b87717f7b64178f7c942f0228bd301771a78e  Expose winding journal validation count
+36e0aee29506be33608f42bb2d7bfca87713b280  Count records during winding journal validation
+1101ab18ef6a39e087e5f3b62814ec5d584b871c  Return validated winding record count
+a1aa70381f53d10578fbb483a1335a96c8818551  Expose winding journal count in backup manifest
+b84da0162ba73492742a261807c645eb1263b44b  Make winding audit count type explicit
 ```
 
-Это первый runtime signal для сравнения реального роста persisted dataset на стенде. Следующие метрики добавлять только там, где их можно получить во время уже выполняемого прохода или с явно ограниченной стоимостью.
+Теперь на стенде можно сопоставить `winding-events.size_bytes`, `winding_journal_record_count` и общую `snapshot_stability_duration_ms` без изменения storage format и без дополнительного audit I/O.
 
 ## Этап 1 — убрать повторные сканы внутри одного request
 
@@ -152,8 +165,8 @@ Summary не должен становиться единственным ист
 
 ## Следующее практическое действие
 
-На hardware E2E/эксплуатационном стенде снять реальные `size_bytes` и `snapshot_stability_duration_ms`, затем выбрать один hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
+На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, `winding_journal_record_count` и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
-Если потребуется следующий repo-only шаг до стенда, предпочтительнее найти метрику, которую существующий validator может посчитать в том же проходе без дополнительного чтения файла, а не начинать storage refactor.
+Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O.
 
 Hardware E2E ESP32 + Arduino остаётся обязательным отдельным подтверждением и этим документом не считается выполненным.

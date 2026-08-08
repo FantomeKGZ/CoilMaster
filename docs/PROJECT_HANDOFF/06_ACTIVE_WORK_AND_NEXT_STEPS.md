@@ -37,7 +37,7 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 77fd7dd4db3767c33106d63e6f9174e6559b9bc8  Fix MaterialLedger namespace closure
 ```
 
-Новые commits не считать GREEN без фактического build result.
+Новые commits не считать GREEN без фактического build result. Для текущего head GREEN CI пока не подтверждён.
 
 ## Deep backup contract
 
@@ -47,48 +47,52 @@ Safe `snapshot_stable=true` означает проверку static whitelist, 
 
 ## Stage 0 performance observability
 
-Без дополнительного persistence scan manifest теперь возвращает:
+Без отдельного telemetry scan manifest теперь возвращает:
 
 ```text
 snapshot_stability_duration_ms
 material_catalog_record_count
 material_usage_record_count
 material_adjustment_record_count
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
 winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
 warehouse_movement_record_count
 ```
 
-Material counters считаются внутри уже существующих `materials.ndjson`, `usage.ndjson`, `adjustments.ndjson` scans. Старый `MaterialPersistenceIntegrityAudit::check(storage)` сохранён; добавлен совместимый metrics overload. Если audit успешен и конкретный файл отсутствует, count равен `0`, а наличие видно через `items[].exists`.
+Material/business/winding/warehouse record counts и session file counts собираются внутри уже выполняемых authoritative validation passes. Старые `check(storage)` contracts сохранены совместимо там, где добавлены metrics overloads. Partial metrics после failed audit наружу не публикуются.
 
-Warehouse/winding counters также считаются в существующих authoritative passes и не создают второй scan.
+Session file counters считаются внутри существующих deep parser/cross-identity проходов `CM_WindingSessionPersistenceIntegrityAudit`; отдельного обхода directory ради telemetry не добавлено. Отсутствующая snapshot/state/spool-selection directory при успешном audit даёт `0`.
 
-Текущий batch:
+Последнее расширение:
 
 ```text
-63614fe363adaf912fdf35775ecff6befad34ed6  Expose warehouse movement audit count
-fe024d6908e4488e114b633c97d06848d2d9bc38  Count warehouse movement audit records
-a78cf149dd5d1f588988ddda3e2d046459fd36b5  Expose warehouse movement audit count
-ac031d8cc14a74786e10c8adb782776b0d16e97f  Expose material persistence audit counts
-6cf4ad7da157c8e65f131b9a851c4243c0914e31  Count material persistence audit records
-38befe338cfc57879d2ad09fc6be54d54c190441  Expose material audit counts in backup manifest
-0f10ed32d110c28b21af7c46c6be20a084c6ba2b  Document material backup observability
+9c33178d8b580460e1d34962322fe81b9771dccc  Expose winding session persistence counts
+afd2c9e3df2e63b59553e4f10e12eb4d2199e46d  Count winding session persistence files
+abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in backup manifest
+7cb635d4088d38cef58dcb39bc170bf7f55dd0c7  Document winding session backup observability
+1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
 ```
 
 ## Repo-reviewable integration status
 
-Актуальные `CM_MaterialPersistenceIntegrityAudit.h/.cpp`, `CM_BackupExportWeb.cpp`, `CM_WorkshopPersistenceIntegrityAudit.cpp` и `CM_RepairPricingIntegrityAudit.cpp` повторно просмотрены после material observability batch.
-
 Подтверждено на уровне static repository review:
 
-- старый `MaterialPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
-- header явно включает `FS.h` и `stdint.h` для собственного public contract;
-- material counts считаются в уже существующих local validation loops;
-- partial counts не публикуются при failure полного material audit;
-- `BackupActivityGuard::Safe` gating не изменён;
-- winding schema audit остаётся через authoritative `WindingJournalQuery::validateAll()` + отдельный transition audit;
-- `CM_WindingSessionPersistenceIntegrityAudit` не дублируется новой observability логикой.
+- `CM_WindingPersistenceIntegrityAudit` уже использует authoritative `WindingJournalQuery::validateAll()` + отдельный `WindingJournalTransitionAudit::validate()`; cursor-pagination full scan отсутствует;
+- `CM_WindingSessionPersistenceIntegrityAudit` остаётся authoritative deep parser/cross-file identity audit и не дублируется;
+- старый `WindingSessionPersistenceIntegrityAudit::check(storage)` сохранён и делегирует metrics overload;
+- session counts увеличиваются только после успешного parser/load + identity validation соответствующего файла;
+- public session audit header явно включает `FS.h` и `stdint.h`;
+- `BackupActivityGuard::Safe` gating и safety semantics не изменены;
+- partial session counts не публикуются при failed audit.
 
-Отдельной correctness-причины для нового code refactor в этом review не найдено. Это не build/CI доказательство.
+Это static repository review, а не доказательство успешной ESP32 сборки или hardware behavior.
 
 ## Подтверждённый performance hotspot
 
@@ -99,13 +103,13 @@ WorkshopPersistenceIntegrityAudit::check()
 RepairPricingIntegrityAudit::check()
 ```
 
-А workshop audit снова проходит warehouse, allocator, session persistence, winding schema и transitions. Backup orchestration позже проверяет эти domains отдельно. Это означает реальный duplicate I/O path, но пока не является причиной менять storage format.
+А workshop audit снова проходит warehouse, allocator, session persistence, winding schema и transitions. Backup orchestration позже проверяет эти domains отдельно. Это реальный duplicate I/O path, но не correctness bug.
 
-До benchmark не делать Stage 1 refactor только ради эстетики. Если измерения покажут заметную цену, следующий безопасный refactor — разделить local material validation и cross-domain dependency validation так, чтобы backup выполнял каждый authoritative domain audit один раз, сохранив старые public contracts для других callers.
+До benchmark не делать Stage 1 refactor только ради эстетики. Если измерения покажут заметную цену, безопасный следующий refactor — разделить local material validation и cross-domain dependency validation так, чтобы backup выполнял каждый authoritative domain audit один раз, сохранив public contracts.
 
 ## Следующее практическое действие
 
-На стенде снять вместе:
+Обязательный следующий этап — реальный hardware E2E ESP32 + Arduino и одновременный benchmark backup manifest. На стенде снять вместе:
 
 ```text
 materials.size_bytes
@@ -114,16 +118,24 @@ material-usage.size_bytes
 material_usage_record_count
 material-adjustments.size_bytes
 material_adjustment_record_count
+workshop_client_record_count
+workshop_motor_record_count
+workshop_repair_record_count
+repair_status_record_count
+repair_pricing_record_count
 winding-events.size_bytes
 winding_journal_record_count
+winding_snapshot_file_count
+winding_state_file_count
+winding_spool_selection_file_count
 warehouse-movements.size_bytes
 warehouse_movement_record_count
 snapshot_stability_duration_ms
 ```
 
-После измерений выбирать один hotspot по фактической latency/size. Не вводить rotation threshold, persistent optimistic cache или database migration до этих данных.
+После измерений выбирать hotspot по фактической latency/size/population. Не вводить rotation threshold, persistent optimistic cache, Stage 1 duplicate-scan refactor или database migration до этих данных, если не появится отдельная correctness-причина.
 
-Если стенд пока недоступен, следующий repo-only код допустим только как same-pass observability существующего authoritative validator без дополнительного full scan или как fix отдельного доказанного correctness/compile issue.
+Если стенд пока недоступен, repo-only код допустим только как ещё одна same-pass observability существующего authoritative validator без дополнительного full scan либо как fix фактически подтверждённой compile/correctness проблемы.
 
 ## Hardware E2E — обязательно отдельно
 

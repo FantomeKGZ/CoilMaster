@@ -58,7 +58,7 @@ Costing, finalization preflight и operator histories также читают ap
 
 ### Уже начато
 
-Manifest теперь возвращает четырнадцать runtime metrics:
+Manifest теперь возвращает шестнадцать runtime metrics:
 
 ```text
 snapshot_stability_duration_ms
@@ -74,6 +74,8 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+warehouse_spool_record_count
+warehouse_price_record_count
 warehouse_movement_record_count
 ```
 
@@ -139,6 +141,21 @@ winding_spool_selection_file_count
 - если соответствующая directory отсутствует и audit в целом успешен, её count равен `0`;
 - отдельного directory/full-file scan ради этих counters не добавлено.
 
+Семантика warehouse persistence counters:
+
+```text
+warehouse_spool_record_count
+warehouse_price_record_count
+```
+
+- считаются внутри уже существующих `WarehousePersistenceIntegrityAudit` проходов по `/data/warehouse/spools.ndjson` и `/data/warehouse/price.ndjson`;
+- spool count увеличивается только после полной проверки строки, включая canonical monotonic `spool_id`, diameter/weight/status/wire type и присутствующие optional string fields;
+- price count увеличивается только после успешной проверки persisted price row;
+- старый `WarehousePersistenceIntegrityAudit::check(storage)` сохранён и делегирует совместимый metrics overload;
+- оба counts публикуются только после полного успешного warehouse persistence audit, включая существующий movement-reference pass; partial counts при failure наружу не выдаются;
+- отсутствующий spool/price файл при успешном audit даёт `0`, наличие файла отдельно видно через `items[].exists`;
+- дополнительных full-file scans ради этих counters нет.
+
 Семантика `warehouse_movement_record_count`:
 
 - считается внутри уже выполняемого `WarehouseMovementIntegrityAudit::check()` прохода по `/data/warehouse/movements.ndjson`;
@@ -169,6 +186,9 @@ abc4b02ef284ed86fdfc3e31149ccf8adf9d5e8b  Expose winding session file counts in 
 cf7df132d190bd359a4f4b85b2553f6dcdba5dd4  Expose business data audit counts
 33746bf301ee8a31417361ce6fd8f7a2ce1635f7  Count business backup audit records
 1871d140e1e493b6e64ada3502eaa5fbcb75f0f6  Expose business audit counts in backup manifest
+fdb2428895004b7f248504bab8ef85334651535a  Expose warehouse persistence audit counts
+490bee61c81f6425bde5623818fdf80abaa089dc  Count warehouse persistence audit records
+34645b743e5638d379287947a8a62ec61ea4ee90  Expose warehouse persistence counts in backup manifest
 ```
 
 Теперь на стенде можно сопоставить как минимум:
@@ -195,6 +215,10 @@ winding_journal_record_count
 winding_snapshot_file_count
 winding_state_file_count
 winding_spool_selection_file_count
+warehouse-spools.size_bytes
+warehouse_spool_record_count
+warehouse-price.size_bytes
+warehouse_price_record_count
 warehouse-movements.size_bytes
 warehouse_movement_record_count
 snapshot_stability_duration_ms
@@ -208,6 +232,7 @@ snapshot_stability_duration_ms
 
 - первым проверить влияние transitive `MaterialPersistenceIntegrityAudit → WorkshopPersistenceIntegrityAudit` повторных scans;
 - отдельно сопоставить рост business reference scans с `workshop_*_record_count` и `repair_pricing_record_count`, потому что текущий business audit намеренно использует повторные uniqueness/reference lookups;
+- отдельно сопоставить warehouse reference-scan стоимость с `warehouse_spool_record_count` и `warehouse_movement_record_count`;
 - если влияние заметно, разделить локальную material-file validation и cross-domain dependency validation так, чтобы backup orchestration выполнял каждый authoritative domain audit один раз;
 - старые public contracts для других callers сохранять совместимыми, пока не доказано обратное;
 - переиспользовать authoritative validators вместо повторного JSON/page parsing;
@@ -283,7 +308,7 @@ Summary не должен становиться единственным ист
 
 На hardware E2E/эксплуатационном стенде снять реальные `size_bytes`, business/material/winding/warehouse record counts, session file counts и `snapshot_stability_duration_ms`, затем выбрать hotspot по измерению. До этого не вводить rotation trigger и не строить постоянный cache.
 
-Отдельно сравнить общую длительность deep audit с business/material history counts и количеством session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, а business audit использует повторные reference/uniqueness scans, поэтому рост этих наборов может сочетаться с уже существующим повторным cross-domain I/O.
+Отдельно сравнить общую длительность deep audit с business/material/warehouse counts и количеством session files: текущий material audit транзитивно запускает broad workshop/winding/warehouse checks, business audit использует повторные reference/uniqueness scans, а warehouse movement-reference audit повторно ищет spool/repair references.
 
 Следующий repo-only шаг до стенда допустим только если ещё один authoritative validator может вернуть count/duration **в том же существующем проходе** и это не расширяет hot path дополнительным I/O. Не начинать Stage 1 refactor только ради эстетики до benchmark, если нет отдельной correctness причины.
 

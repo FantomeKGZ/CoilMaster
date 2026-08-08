@@ -90,6 +90,36 @@ bool validMaterialUnit(const String& unit)
            unit == "METRE" || unit == "SQUARE_METRE";
 }
 
+bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wanted)
+{
+    if (wanted == 0UL || !storage.exists(path)) return false;
+    File file = storage.open(path, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+    uint8_t matches = 0U;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t id = 0UL;
+        if (!findUnsigned(line, key, id) || id == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        if (id == wanted && ++matches > 1U)
+        {
+            file.close();
+            return false;
+        }
+    }
+    file.close();
+    return matches == 1U;
+}
+
 bool checkMaterials(fs::FS& storage)
 {
     constexpr const char* Path = "/data/materials/materials.ndjson";
@@ -137,6 +167,8 @@ bool checkMaterials(fs::FS& storage)
 bool checkUsage(fs::FS& storage)
 {
     constexpr const char* Path = "/data/materials/usage.ndjson";
+    constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
+    constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
     if (!storage.exists(Path)) return true;
     File file = storage.open(Path, FILE_READ);
     if (!file || file.isDirectory())
@@ -161,7 +193,9 @@ bool checkUsage(fs::FS& storage)
             !findUnsigned(line, "price_per_unit_minor", unitPrice) || unitPrice == 0UL ||
             !findUnsigned64(line, "line_cost_minor", lineCost) ||
             !findString(line, "currency", currency) || currency != "KGS" ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
+            !idExists(storage, MaterialsPath, "material_id", materialId) ||
+            !idExists(storage, RepairsPath, "repair_id", repairId))
         {
             file.close();
             return false;
@@ -190,6 +224,7 @@ bool checkUsage(fs::FS& storage)
 bool checkAdjustments(fs::FS& storage)
 {
     constexpr const char* Path = "/data/materials/adjustments.ndjson";
+    constexpr const char* MaterialsPath = "/data/materials/materials.ndjson";
     if (!storage.exists(Path)) return true;
     File file = storage.open(Path, FILE_READ);
     if (!file || file.isDirectory())
@@ -218,7 +253,8 @@ bool checkAdjustments(fs::FS& storage)
             !findUnsigned(line, "price_after_minor", priceAfter) || priceAfter == 0UL ||
             !findString(line, "currency_before", currencyBefore) || currencyBefore != "KGS" ||
             !findString(line, "currency_after", currencyAfter) || currencyAfter != "KGS" ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
+            !idExists(storage, MaterialsPath, "material_id", materialId))
         {
             file.close();
             return false;

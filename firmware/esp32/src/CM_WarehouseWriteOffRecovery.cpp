@@ -24,6 +24,7 @@ bool WarehouseStore::recoverPendingWriteOff()
         uint32_t spoolId = 0UL;
         uint32_t repairId = 0UL;
         uint32_t sourceSessionId = 0UL;
+        uint32_t sourceRunId = 0UL;
         uint32_t diameter = 0UL;
         uint32_t before = 0UL;
         uint32_t after = 0UL;
@@ -49,9 +50,13 @@ bool WarehouseStore::recoverPendingWriteOff()
         }
 
         const bool hasSourceSession = line.indexOf(F("\"source_session_id\":")) >= 0;
-        if (hasSourceSession &&
-            (!findUnsigned(line, "source_session_id", sourceSessionId) ||
-             sourceSessionId == 0UL))
+        const bool hasSourceRun = line.indexOf(F("\"source_run_id\":")) >= 0;
+        if ((hasSourceSession &&
+             (!findUnsigned(line, "source_session_id", sourceSessionId) ||
+              sourceSessionId == 0UL)) ||
+            (hasSourceRun &&
+             (!hasSourceSession || !findUnsigned(line, "source_run_id", sourceRunId) ||
+              sourceRunId == 0UL)))
         {
             file.close();
             return false;
@@ -84,6 +89,7 @@ bool WarehouseStore::recoverPendingWriteOff()
             pendingOperation.spoolId = spoolId;
             pendingOperation.repairId = repairId;
             pendingOperation.sourceSessionId = sourceSessionId;
+            pendingOperation.sourceRunId = sourceRunId;
             pendingOperation.weightBeforeGrams = before;
             pendingOperation.weightAfterGrams = after;
             pendingOperation.timestamp = timestamp;
@@ -101,11 +107,14 @@ bool WarehouseStore::recoverPendingWriteOff()
         }
 
         const bool pendingHasSourceSession = pendingOperation.sourceSessionId != 0UL;
+        const bool pendingHasSourceRun = pendingOperation.sourceRunId != 0UL;
         if (pendingId == 0UL || movementId != pendingId ||
             spoolId != pendingOperation.spoolId ||
             repairId != pendingOperation.repairId ||
             hasSourceSession != pendingHasSourceSession ||
             sourceSessionId != pendingOperation.sourceSessionId ||
+            hasSourceRun != pendingHasSourceRun ||
+            sourceRunId != pendingOperation.sourceRunId ||
             before != pendingOperation.weightBeforeGrams ||
             after != pendingOperation.weightAfterGrams ||
             mass != pendingConsumed ||

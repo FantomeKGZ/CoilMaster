@@ -1,6 +1,7 @@
 #include "CM_WorkshopPersistenceIntegrityAudit.h"
 #include "CM_RepairRegistry.h"
 #include "CM_WarehousePersistenceIntegrityAudit.h"
+#include "CM_PersistentIdIntegrityAudit.h"
 #include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalTransitionAudit.h"
 
@@ -25,7 +26,11 @@ bool WorkshopPersistenceIntegrityAudit::check(fs::FS& storage)
         if (!registry.begin()) return false;
     }
 
-    if (!WarehousePersistenceIntegrityAudit::check(storage)) return false;
+    if (!WarehousePersistenceIntegrityAudit::check(storage) ||
+        !PersistentIdIntegrityAudit::check(storage))
+    {
+        return false;
+    }
 
     WindingJournalQuery query(storage);
     if (!query.begin() || query.validateAll() != WindingJournalQueryResult::Ok)

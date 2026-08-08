@@ -65,6 +65,14 @@ firmware/esp32/src/CM_WindingProgramParser.h
 
 Единый parser для job creation, registry, similarity и UI-validation.
 
+## Flat persisted JSON validator
+
+```text
+firmware/esp32/src/CM_FlatJsonObjectValidator.h
+```
+
+Header-only syntax validator для уже прочитанной flat JSON object строки. Используется workshop/pricing/material/warehouse/settings authoritative readers. Не вызывать его повторно внутри O(n²)/O(n*m) identity/reference scans, если соответствующий authoritative outer pass уже проверяет каждую строку.
+
 ## Linked job и workshop registry
 
 ```text
@@ -84,6 +92,8 @@ firmware/esp32/src/CM_MotorSimilarityWeb.h/.cpp
 /data/workshop/repairs.ndjson
 /data/workshop/repair-status.ndjson
 ```
+
+`CM_RepairRegistry` теперь fail-closed проверяет flat JSON syntax в authoritative/runtime reads, поэтому corrupted persisted line не должна молча попасть в JSON API.
 
 ## Production UI
 
@@ -105,9 +115,9 @@ firmware/esp32/src/CM_RepairCosting*.h/.cpp
 firmware/esp32/src/CM_RepairPricing*.h/.cpp
 ```
 
-`CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload для catalogue/usage/adjustment counts; старый `check(storage)` сохранён.
+`CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload для catalogue/usage/adjustment counts; старый `check(storage)` сохранён. Authoritative material/usage/adjustment passes также требуют valid flat JSON syntax.
 
-`CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload для spool/price counts; старый `check(storage)` сохранён. Counts публикуются только после полного warehouse persistence audit, включая movement-reference validation.
+`CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload для spool/price counts; старый `check(storage)` сохранён. Counts публикуются только после полного warehouse persistence audit, включая movement-reference validation. Spool/price/movement authoritative passes требуют valid flat JSON syntax.
 
 ## Read-only backup/export и deep integrity
 
@@ -141,6 +151,8 @@ firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
 - Те же session passes возвращают `snapshotTotalBytes`, `stateTotalBytes`, `spoolSelectionTotalBytes`; 32-bit telemetry overflow не меняет integrity result.
 - `CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload; `lastAllocatedId` публикуется только после successful main/optional-backup audit.
 - `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; business counts берутся из существующих validation passes без telemetry-only full scan.
+- Business/material/warehouse/settings flat JSON authoritative rows теперь проходят `CM_FlatJsonObjectValidator`; malformed flat JSON должен fail closed.
+- Strict flat JSON validation выполняется на outer pass; repeated identity/reference scans остаются identity-focused, чтобы не умножать parser CPU внутри уже известных O(n²)/O(n*m) paths.
 - `CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload; spool/price counts считаются в authoritative passes, partial metrics при failure не публикуются.
 - `CM_BackupExportWeb.cpp` публикует **29 Stage 0 metrics**: total duration, 9 per-domain timings, allocator high-water, material/business/winding/warehouse record counts, session file counts и session byte totals.
 - Per-domain timing использует `millis()` вокруг уже существующих audit calls; дополнительного SD I/O нет.

@@ -51,7 +51,8 @@ CM::Lcd1602View lcdView(lcd);
 CM::DebouncedButton startButton(CM::Pins::StartButton,
                                 true,
                                 CM::Defaults::StartDebounceMs);
-CM::BuzzerService buzzer(CM::Pins::Buzzer, true);
+// The installed buzzer module is active-low: HIGH is idle, LOW sounds.
+CM::BuzzerService buzzer(CM::Pins::Buzzer, false);
 CM::SsrController ssr(CM::Pins::Ssr, true);
 CM::HallTurnSource hall(CM::Pins::Hall,
                         CM::Defaults::HallThreshold,
@@ -199,6 +200,13 @@ void processRemoteJobs()
         espTransport.sendJobResult(remoteJob.jobId,
                                    accepted,
                                    accepted ? "READY" : "BUSY_OR_INVALID");
+
+#if CM_FEATURE_BUZZER
+        if (accepted)
+        {
+            buzzer.startJobAcceptedSignal(millis());
+        }
+#endif
 
         Serial.print(F("CM_JOB RX id="));
         Serial.print(remoteJob.jobId);

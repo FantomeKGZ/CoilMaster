@@ -12,7 +12,13 @@ namespace CM
 class WarehouseWeb
 {
 public:
-    WarehouseWeb(WebServer& server, WarehouseStore& store);
+    WarehouseWeb(WebServer& server, WarehouseStore& store)
+        : m_server(server), m_store(store), m_spoolSelections(nullptr)
+    {
+    }
+    WarehouseWeb(WebServer& server,
+                 WarehouseStore& store,
+                 JobSpoolSelectionStore* spoolSelections);
     WarehouseWeb(WebServer& server,
                  WarehouseStore& store,
                  JobSpoolSelectionStore& spoolSelections)

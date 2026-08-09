@@ -4,9 +4,11 @@ namespace CM
 {
 namespace
 {
-constexpr uint16_t CoilSignalOnMs = 400U;
-constexpr uint16_t ProgramSignalOnMs = 150U;
-constexpr uint16_t ProgramSignalOffMs = 100U;
+constexpr uint16_t JobAcceptedSignalOnMs = 80U;
+constexpr uint16_t JobAcceptedSignalOffMs = 80U;
+constexpr uint16_t CoilSignalOnMs = 120U;
+constexpr uint16_t ProgramSignalOnMs = 120U;
+constexpr uint16_t ProgramSignalOffMs = 120U;
 }
 
 BuzzerService::BuzzerService(uint8_t pin, bool activeHigh)
@@ -27,6 +29,14 @@ void BuzzerService::begin()
 {
     pinMode(m_pin, OUTPUT);
     stop();
+}
+
+void BuzzerService::startJobAcceptedSignal(uint32_t nowMs)
+{
+    startPattern(nowMs,
+                 2U,
+                 JobAcceptedSignalOnMs,
+                 JobAcceptedSignalOffMs);
 }
 
 void BuzzerService::startCoilCompleteSignal(uint32_t nowMs)

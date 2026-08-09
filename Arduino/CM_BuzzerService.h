@@ -12,7 +12,10 @@ public:
 
     void begin();
 
-    /** One medium signal after an individual coil is completed. */
+    /** Two short signals when a remote winding job is accepted. */
+    void startJobAcceptedSignal(uint32_t nowMs);
+
+    /** One short signal after an individual coil is completed. */
     void startCoilCompleteSignal(uint32_t nowMs);
 
     /** Three short signals after the whole winding program is completed. */

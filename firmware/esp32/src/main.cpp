@@ -4,6 +4,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "CM_AutonomousWindingArchive.h"
+#include "CM_AutonomousWindingWeb.h"
 #include "CM_BackupActivityGuard.h"
 #include "CM_JobDisplayRecovery.h"
 #include "CM_JobLinkageRequest.h"
@@ -48,12 +50,16 @@ CM::JobStateStore jobStates(SD);
 CM::JobLinkageResolver jobLinkageResolver(SD);
 CM::WarehouseStore warehouse(SD);
 CM::RepairRegistry repairRegistry(SD);
+CM::AutonomousWindingArchive autonomousWindingArchive(SD);
 WebServer webServer(80);
 CM::JobSpoolSelectionWeb jobSpoolSelectionWeb(webServer, jobSpoolSelections);
 CM::StaticSiteServer staticSites(webServer, SD);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
 CM::RepairRegistryWeb repairRegistryWeb(webServer, repairRegistry);
 CM::MotorSimilarityWeb motorSimilarityWeb(webServer, repairRegistry);
+CM::AutonomousWindingWeb autonomousWindingWeb(webServer,
+                                               autonomousWindingArchive,
+                                               repairRegistry);
 
 uint32_t activeJobId = 0UL;
 uint32_t activeSessionId = 0UL;
@@ -72,6 +78,7 @@ bool stateRecovered = false;
 bool jobAwaitingAck = false;
 bool jobCancelAwaitingAck = false;
 bool runActive = false;
+bool autonomousRunActive = false;
 bool journalReady = false;
 bool idAllocatorReady = false;
 bool jobSnapshotStoreReady = false;
@@ -80,6 +87,7 @@ bool jobStateStoreReady = false;
 bool jobLinkageResolverReady = false;
 bool warehouseReady = false;
 bool repairRegistryReady = false;
+bool autonomousWindingArchiveReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -106,7 +114,7 @@ CM::BackupActivityCheck backupRuntimeActivity()
         return CM::BackupActivityCheck::Unavailable;
     if (manualReviewRequired())
         return CM::BackupActivityCheck::Safe;
-    if (runActive || jobAwaitingAck || jobCancelAwaitingAck ||
+    if (runActive || autonomousRunActive || jobAwaitingAck || jobCancelAwaitingAck ||
         (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns == 0U))
     {
         return CM::BackupActivityCheck::Busy;
@@ -119,6 +127,7 @@ bool jobCreationReady()
     return recoveryEvaluated &&
            recoveryInfo.mayCreateNewJob &&
            !manualReviewRequired() &&
+           !autonomousRunActive &&
            !jobCancelAwaitingAck &&
            journalReady && journal.isReady() &&
            idAllocatorReady && idAllocator.isReady() &&
@@ -138,6 +147,7 @@ bool linkedJobCreationReady()
 const char* jobStatusText()
 {
     if (manualReviewRequired()) return "MANUAL_REVIEW_REQUIRED";
+    if (autonomousRunActive) return "ARDUINO_LOCAL_RUNNING";
     if (runActive) return "RUNNING";
     if (jobCancelAwaitingAck) return "CANCELLING";
     if (jobAwaitingAck) return "WAITING_ARDUINO_ACK";
@@ -156,6 +166,7 @@ const char* jobStatusText()
 const char* machineStatusText()
 {
     if (manualReviewRequired()) return "Требуется проверка";
+    if (autonomousRunActive) return "Автономная намотка";
     if (runActive) return "Намотка";
     if (jobCancelAwaitingAck) return "Отмена";
     if (jobAwaitingAck) return "Передача";
@@ -284,7 +295,9 @@ void restoreLatestJobState()
 
 void printEvent(const CM::RemoteWindingEvent& event)
 {
-    Serial.print(F("CMP RX type="));
+    Serial.print(F("CMP RX source="));
+    Serial.print(event.localStandalone ? F("ARDUINO_LOCAL") : F("ESP32_JOB"));
+    Serial.print(F(" type="));
     Serial.print(event.type == CM::RemoteEventType::RunStarted ? F("RUN_STARTED") : F("RUN_COMPLETED"));
     Serial.print(F(" session=")); Serial.print(event.sessionId);
     Serial.print(F(" run=")); Serial.print(event.runId);
@@ -325,10 +338,49 @@ bool persistEventState(const CM::RemoteWindingEvent& event)
     return false;
 }
 
+void handleAutonomousEvent(const CM::RemoteWindingEvent& event)
+{
+    const CM::AutonomousWindingSaveResult result = autonomousWindingArchive.save(event);
+    if (result == CM::AutonomousWindingSaveResult::Saved ||
+        result == CM::AutonomousWindingSaveResult::Duplicate)
+    {
+        autonomousRunActive = event.type == CM::RemoteEventType::RunStarted;
+        receiver.sendAck(event.runId,
+                         result == CM::AutonomousWindingSaveResult::Duplicate
+                             ? "DUPLICATE"
+                             : (event.type == CM::RemoteEventType::RunCompleted
+                                    ? "SAVED" : "RECORDED"));
+        return;
+    }
+
+    switch (result)
+    {
+        case CM::AutonomousWindingSaveResult::StorageUnavailable:
+            autonomousWindingArchiveReady = false;
+            receiver.sendNack(event.runId, "LOCAL_ARCHIVE_UNAVAILABLE");
+            break;
+        case CM::AutonomousWindingSaveResult::Invalid:
+            receiver.sendNack(event.runId, "INVALID_LOCAL_EVENT");
+            break;
+        case CM::AutonomousWindingSaveResult::WriteFailed:
+        default:
+            autonomousWindingArchiveReady = false;
+            receiver.sendNack(event.runId, "LOCAL_ARCHIVE_WRITE_FAILED");
+            break;
+    }
+}
+
 void handleEvent(const CM::RemoteWindingEvent& event)
 {
     printEvent(event);
     lastArduinoEventMs = millis();
+
+    if (event.localStandalone)
+    {
+        handleAutonomousEvent(event);
+        return;
+    }
+
     const CM::JournalSaveResult result = journal.save(event);
     if (result == CM::JournalSaveResult::Saved ||
         result == CM::JournalSaveResult::Duplicate)
@@ -454,6 +506,7 @@ void sendJsonStatus()
     response += F(",\"completed_runs\":"); response += completedRuns;
     response += F(",\"last_run_id\":"); response += lastRunId;
     response += F(",\"run_active\":"); response += runActive ? F("true") : F("false");
+    response += F(",\"autonomous_run_active\":"); response += autonomousRunActive ? F("true") : F("false");
     response += F(",\"arduino_ack_pending\":"); response += jobAwaitingAck ? F("true") : F("false");
     response += F(",\"arduino_cancel_pending\":"); response += jobCancelAwaitingAck ? F("true") : F("false");
     response += F(",\"arduino_online\":"); response += arduinoOnline ? F("true") : F("false");
@@ -464,6 +517,7 @@ void sendJsonStatus()
     response += F(",\"linked_job_creation_ready\":"); response += linkedJobCreationReady() ? F("true") : F("false");
     response += F(",\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false,\"automatic_wire_writeoff_allowed\":false");
     response += F(",\"storage_ready\":"); response += journalReady && journal.isReady() ? F("true") : F("false");
+    response += F(",\"autonomous_winding_archive_ready\":"); response += autonomousWindingArchiveReady && autonomousWindingArchive.ready() ? F("true") : F("false");
     response += F(",\"id_allocator_ready\":"); response += idAllocatorReady && idAllocator.isReady() ? F("true") : F("false");
     response += F(",\"job_snapshot_store_ready\":"); response += jobSnapshotStoreReady && jobSnapshots.isReady() ? F("true") : F("false");
     response += F(",\"job_spool_selection_store_ready\":"); response += jobSpoolSelectionStoreReady && jobSpoolSelections.isReady() ? F("true") : F("false");
@@ -628,6 +682,11 @@ void handleCreateJob()
     if (!recoveryEvaluated)
     {
         webServer.send(503, "application/json", "{\"error\":\"job_recovery_not_evaluated\"}");
+        return;
+    }
+    if (autonomousRunActive)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"arduino_local_winding_active\"}");
         return;
     }
     if (jobCancelAwaitingAck)
@@ -873,6 +932,7 @@ void configureWebServer()
     jobSpoolSelectionWeb.begin();
     repairRegistryWeb.begin();
     motorSimilarityWeb.begin();
+    autonomousWindingWeb.begin();
     warehouseWeb.begin();
     warehouseWeb.beginSpoolList();
     staticSites.begin("/web");
@@ -1002,6 +1062,7 @@ void setup()
     jobLinkageResolverReady = sdReady && jobLinkageResolver.begin();
     warehouseReady = sdReady && warehouse.begin();
     repairRegistryReady = sdReady && repairRegistry.begin();
+    autonomousWindingArchiveReady = sdReady && autonomousWindingArchive.begin();
     restoreLatestJobState();
     CM::BackupActivityGuard::setRuntimeProbe(backupRuntimeActivity);
 
@@ -1010,6 +1071,7 @@ void setup()
     configureWebServer();
     Serial.println(F("CoilMaster ESP32 web portal ready"));
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
+    Serial.println(autonomousWindingArchiveReady ? F("autonomous Arduino winding archive ready") : F("WARNING: autonomous Arduino winding archive unavailable"));
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
     Serial.println(jobSpoolSelectionStoreReady ? F("immutable job spool selection store ready") : F("WARNING: job spool selection store unavailable; linked job creation blocked"));
@@ -1028,7 +1090,7 @@ void loop()
     const uint32_t nowMs = millis();
     webServer.handleClient();
     receiver.update(nowMs);
-    CM::RemoteWindingEvent event{};
+    CM::RemoteWindingEvent event;
     while (receiver.poll(event)) handleEvent(event);
     processJobDelivery();
     processJobCancel();

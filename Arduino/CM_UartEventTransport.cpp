@@ -36,13 +36,33 @@ void UartEventTransport::begin()
 
 bool UartEventTransport::enqueue(const WindingEvent& event)
 {
-    if (event.type == WindingEventType::None || m_count >= QueueCapacity)
+    return enqueueInternal(event, nullptr);
+}
+
+bool UartEventTransport::enqueue(const WindingEvent& event,
+                                 const WindingJob& job)
+{
+    return enqueueInternal(event, &job);
+}
+
+bool UartEventTransport::enqueueInternal(const WindingEvent& event,
+                                         const WindingJob* job)
+{
+    if (event.type == WindingEventType::None || event.sessionId == 0UL ||
+        event.runId == 0UL || m_count >= QueueCapacity)
     {
         return false;
     }
 
     const uint8_t tail = static_cast<uint8_t>((m_head + m_count) % QueueCapacity);
-    m_queue[tail] = event;
+    m_queue[tail] = QueuedEvent();
+    m_queue[tail].event = event;
+    if (job != nullptr && job->isValid() &&
+        job->sessionId == event.sessionId)
+    {
+        m_queue[tail].job = *job;
+        m_queue[tail].hasJobMetadata = true;
+    }
     ++m_count;
     return true;
 }
@@ -149,7 +169,17 @@ bool UartEventTransport::sendFront(uint32_t nowMs)
     return true;
 }
 
-bool UartEventTransport::writeFrame(const WindingEvent& event)
+bool UartEventTransport::writeFrame(const QueuedEvent& queued)
+{
+    if (queued.hasJobMetadata &&
+        queued.job.source == JobSource::LocalKeypad)
+    {
+        return writeLocalFrame(queued.event, queued.job);
+    }
+    return writeStandardFrame(queued.event);
+}
+
+bool UartEventTransport::writeStandardFrame(const WindingEvent& event)
 {
     char payload[80];
     const int payloadLength = snprintf(
@@ -172,22 +202,77 @@ bool UartEventTransport::writeFrame(const WindingEvent& event)
         static_cast<size_t>(payloadLength));
 
     char frame[96];
-    const int frameLength = snprintf(
-        frame,
-        sizeof(frame),
-        "%s|%04X\n",
-        payload,
-        static_cast<unsigned int>(crc));
+    const int frameLength = snprintf(frame,
+                                     sizeof(frame),
+                                     "%s|%04X\n",
+                                     payload,
+                                     static_cast<unsigned int>(crc));
+    if (frameLength <= 0 || static_cast<size_t>(frameLength) >= sizeof(frame))
+        return false;
 
-    if (frameLength <= 0 ||
-        static_cast<size_t>(frameLength) >= sizeof(frame))
+    return m_serial.write(reinterpret_cast<const uint8_t*>(frame),
+                          static_cast<size_t>(frameLength)) ==
+           static_cast<size_t>(frameLength);
+}
+
+bool UartEventTransport::writeLocalFrame(const WindingEvent& event,
+                                         const WindingJob& job)
+{
+    if (!job.isValid() || job.source != JobSource::LocalKeypad ||
+        job.sessionId != event.sessionId)
     {
         return false;
     }
 
-    return m_serial.write(
-               reinterpret_cast<const uint8_t*>(frame),
-               static_cast<size_t>(frameLength)) ==
+    char turnsText[64];
+    size_t used = 0U;
+    turnsText[0] = '\0';
+    for (uint8_t index = 0U; index < job.coilCount; ++index)
+    {
+        const int written = snprintf(turnsText + used,
+                                     sizeof(turnsText) - used,
+                                     index == 0U ? "%u" : ",%u",
+                                     static_cast<unsigned int>(job.targetTurns[index]));
+        if (written <= 0 ||
+            static_cast<size_t>(written) >= sizeof(turnsText) - used)
+        {
+            return false;
+        }
+        used += static_cast<size_t>(written);
+    }
+
+    char payload[160];
+    const int payloadLength = snprintf(
+        payload,
+        sizeof(payload),
+        "CMP1|LOCAL_EVT|%s|%lu|%lu|%u|%s|%u|%s",
+        eventName(event.type),
+        static_cast<unsigned long>(event.sessionId),
+        static_cast<unsigned long>(event.runId),
+        static_cast<unsigned int>(event.completedRuns),
+        windingTypeName(job.type),
+        static_cast<unsigned int>(job.coilCount),
+        turnsText);
+    if (payloadLength <= 0 ||
+        static_cast<size_t>(payloadLength) >= sizeof(payload))
+    {
+        return false;
+    }
+
+    const uint16_t crc = crc16Modbus(
+        reinterpret_cast<const uint8_t*>(payload),
+        static_cast<size_t>(payloadLength));
+    char frame[176];
+    const int frameLength = snprintf(frame,
+                                     sizeof(frame),
+                                     "%s|%04X\n",
+                                     payload,
+                                     static_cast<unsigned int>(crc));
+    if (frameLength <= 0 || static_cast<size_t>(frameLength) >= sizeof(frame))
+        return false;
+
+    return m_serial.write(reinterpret_cast<const uint8_t*>(frame),
+                          static_cast<size_t>(frameLength)) ==
            static_cast<size_t>(frameLength);
 }
 
@@ -196,19 +281,12 @@ void UartEventTransport::pollReplies(uint32_t nowMs)
     while (m_serial.available() > 0)
     {
         const char value = static_cast<char>(m_serial.read());
-
-        if (value == '\r')
-        {
-            continue;
-        }
+        if (value == '\r') continue;
 
         if (value == '\n')
         {
             m_reply[m_replyLength] = '\0';
-            if (m_replyLength > 0U)
-            {
-                processReply(m_reply, nowMs);
-            }
+            if (m_replyLength > 0U) processReply(m_reply, nowMs);
             m_replyLength = 0U;
             continue;
         }
@@ -262,7 +340,7 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
     }
 
     const uint32_t runId = strtoul(runText, nullptr, 10);
-    if (runId == 0UL || runId != m_queue[m_head].runId)
+    if (runId == 0UL || runId != m_queue[m_head].event.runId)
     {
         return;
     }
@@ -274,10 +352,7 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
                               strcmp(status, "RECORDED") == 0 ||
                               strcmp(status, "SAVED") == 0 ||
                               strcmp(status, "RECEIVED") == 0;
-        if (!accepted)
-        {
-            return;
-        }
+        if (!accepted) return;
 
         publishDelivery(duplicate ? UartDeliveryResult::Duplicate
                                   : UartDeliveryResult::Acknowledged,
@@ -301,16 +376,10 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
 bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
 {
     char* lastSeparator = strrchr(line, '|');
-    if (lastSeparator == nullptr)
-    {
-        return false;
-    }
+    if (lastSeparator == nullptr) return false;
 
     uint16_t receivedCrc = 0U;
-    if (!parseHex16(lastSeparator + 1, receivedCrc))
-    {
-        return false;
-    }
+    if (!parseHex16(lastSeparator + 1, receivedCrc)) return false;
 
     const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
     if (crc16Modbus(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
@@ -320,7 +389,6 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
     }
 
     *lastSeparator = '\0';
-
     char* save = nullptr;
     char* version = strtok_r(line, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
@@ -358,11 +426,7 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
     while (token != nullptr && index < job.coilCount)
     {
         const unsigned long value = strtoul(token, nullptr, 10);
-        if (value == 0UL || value > MaxTurnsPerCoil)
-        {
-            return false;
-        }
-
+        if (value == 0UL || value > MaxTurnsPerCoil) return false;
         job.targetTurns[index++] = static_cast<uint16_t>(value);
         token = strtok_r(nullptr, ",", &turnsSave);
     }
@@ -401,19 +465,15 @@ bool UartEventTransport::parseRemoteCancel(char* line, uint32_t& jobId) const
 
     char* end = nullptr;
     const unsigned long parsed = strtoul(jobText, &end, 10);
-    if (end == nullptr || *end != '\0' || parsed == 0UL)
-        return false;
+    if (end == nullptr || *end != '\0' || parsed == 0UL) return false;
     jobId = static_cast<uint32_t>(parsed);
     return true;
 }
 
 void UartEventTransport::removeFront()
 {
-    if (m_count == 0U)
-    {
-        return;
-    }
-
+    if (m_count == 0U) return;
+    m_queue[m_head] = QueuedEvent();
     m_head = static_cast<uint8_t>((m_head + 1U) % QueueCapacity);
     --m_count;
 }
@@ -430,22 +490,21 @@ const char* UartEventTransport::eventName(WindingEventType type)
 {
     switch (type)
     {
-        case WindingEventType::RunStarted:
-            return "RUN_STARTED";
-
-        case WindingEventType::RunCompleted:
-            return "RUN_COMPLETED";
-
+        case WindingEventType::RunStarted: return "RUN_STARTED";
+        case WindingEventType::RunCompleted: return "RUN_COMPLETED";
         case WindingEventType::None:
-        default:
-            return "NONE";
+        default: return "NONE";
     }
+}
+
+const char* UartEventTransport::windingTypeName(WindingType type)
+{
+    return type == WindingType::Starting ? "STARTING" : "WORKING";
 }
 
 uint16_t UartEventTransport::crc16Modbus(const uint8_t* data, size_t length)
 {
     uint16_t crc = 0xFFFFU;
-
     for (size_t index = 0U; index < length; ++index)
     {
         crc ^= data[index];
@@ -456,24 +515,15 @@ uint16_t UartEventTransport::crc16Modbus(const uint8_t* data, size_t length)
                       : static_cast<uint16_t>(crc >> 1U);
         }
     }
-
     return crc;
 }
 
 bool UartEventTransport::parseHex16(const char* text, uint16_t& value)
 {
-    if (text == nullptr || strlen(text) != 4U)
-    {
-        return false;
-    }
-
+    if (text == nullptr || strlen(text) != 4U) return false;
     char* end = nullptr;
     const unsigned long parsed = strtoul(text, &end, 16);
-    if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL)
-    {
-        return false;
-    }
-
+    if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL) return false;
     value = static_cast<uint16_t>(parsed);
     return true;
 }

@@ -6,7 +6,7 @@
 <title>Управление заданием — CoilMaster</title>
 <style>
 :root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa;--green:#18864b;--orange:#9a5b00;--red:#b42318}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:82px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px;z-index:2}header a{color:#fff;text-decoration:none}main{padding:12px}.card{background:var(--card);border-radius:15px;padding:16px;margin-bottom:12px}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #e8edf1}.row:last-child{border:0}.muted{color:var(--muted)}.note{padding:12px;border-radius:10px;margin-top:10px;background:#f3f7fa}.warning{background:#fff1d8;color:#7a4b00}.danger{background:#fde8e7;color:#8a1e18}.ok{background:#e8f7ee;color:#17683a}button,a.action{width:100%;display:block;padding:13px;border:0;border-radius:10px;margin-top:10px;font-size:16px;font-weight:bold;text-align:center;text-decoration:none}button{background:var(--blue);color:#fff}button.danger{background:#a72b23;color:#fff}.switch{background:#e8f1f8;color:#105b91}.checklist{margin:8px 0 0;padding-left:22px}.checklist li{margin:7px 0}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea;z-index:3}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:82px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px;z-index:2}header a{color:#fff;text-decoration:none}main{padding:12px}.card{background:var(--card);border-radius:15px;padding:16px;margin-bottom:12px}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #e8edf1}.row:last-child{border:0}.muted{color:var(--muted)}.note{padding:12px;border-radius:10px;margin-top:10px;background:#f3f7fa}.warning{background:#fff1d8;color:#7a4b00}.danger{background:#fde8e7;color:#8a1e18}.ok{background:#e8f7ee;color:#17683a}button,a.action{width:100%;display:block;padding:13px;border:0;border-radius:10px;margin-top:10px;font-size:16px;font-weight:bold;text-align:center;text-decoration:none}button{background:var(--blue);color:#fff}button.danger{background:#a72b23;color:#fff}button:disabled{background:#9aa7b1}.switch{background:#e8f1f8;color:#105b91}.checklist{margin:8px 0 0;padding-left:22px}.checklist li{margin:7px 0}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea;z-index:3}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
 </style>
 </head>
 <body>
@@ -33,8 +33,14 @@
 <button id="reviewButton" class="danger">Проверено — закрыть восстановление</button>
 </section>
 
+<section id="cancelCard" class="card" hidden>
+<h2>Отменить незапущенное задание</h2>
+<p class="muted">ESP32 отправит Arduino точную команду отмены. Задание будет закрыто только после подтверждения Arduino, что оно ещё не было запущено.</p>
+<button id="cancelButton" class="danger">Отменить задание на Arduino</button>
+</section>
+
 <section id="dismissCard" class="card" hidden>
-<h2>Убрать сервисное задание</h2>
+<h2>Убрать неактивное сервисное задание</h2>
 <p class="muted">Удаляется только из активного состояния. Immutable snapshot и история сохраняются.</p>
 <button id="dismissButton" class="danger">Убрать задание из активных</button>
 </section>
@@ -65,16 +71,23 @@ function render(s){
   $('program').textContent=s.program||'—';
   $('context').textContent=s.job_id?(s.linked?'Ремонт №'+s.repair_id+' · двигатель №'+s.motor_id:'Сервисное задание'):'Нет активного задания';
   const box=$('stateBox');
-  $('reviewCard').hidden=s.manual_review_required!==true;
-  const dismissAllowed=!!s.job_id&&s.linked!==true&&s.manual_review_required!==true&&safeDismissStatuses.has(s.job_status);
+  const reviewRequired=s.manual_review_required===true;
+  const cancelAllowed=!!s.job_id&&s.linked!==true&&!reviewRequired&&s.job_status==='ACCEPTED_READY'&&s.run_active!==true&&Number(s.last_run_id||0)===0&&Number(s.completed_runs||0)===0;
+  const dismissAllowed=!!s.job_id&&s.linked!==true&&!reviewRequired&&safeDismissStatuses.has(s.job_status);
+  $('reviewCard').hidden=!reviewRequired;
+  $('cancelCard').hidden=!cancelAllowed&&s.job_status!=='CANCELLING';
+  $('cancelButton').disabled=s.job_status==='CANCELLING'||s.arduino_cancel_pending===true;
+  $('cancelButton').textContent=s.job_status==='CANCELLING'||s.arduino_cancel_pending===true?'Ожидается подтверждение Arduino…':'Отменить задание на Arduino';
   $('dismissCard').hidden=!dismissAllowed;
-  if(s.manual_review_required===true){box.className='note warning';box.textContent='Продолжение заблокировано до ручной проверки.'}
+  if(reviewRequired){box.className='note warning';box.textContent='Продолжение заблокировано до ручной проверки.'}
   else if(!s.job_id){box.className='note ok';box.textContent='Активного задания нет. Можно создать новое.'}
-  else if(dismissAllowed){box.className='note';box.textContent='Задание уже безопасно неактивно. Его можно убрать с главного экрана.'}
+  else if(s.job_status==='CANCELLING'||s.arduino_cancel_pending===true){box.className='note warning';box.textContent='Команда отмены отправлена. ESP32 ждёт подтверждение Arduino; до него задание остаётся активным.'}
+  else if(cancelAllowed){box.className='note warning';box.textContent='Arduino приняла программу, но физический START ещё не зарегистрирован. Можно безопасно запросить отмену с обязательным ACK Arduino.'}
+  else if(dismissAllowed){box.className='note';box.textContent='Задание уже безопасно неактивно. Его можно убрать с главного экрана, сохранив историю.'}
   else if(s.linked===true){box.className='note';box.textContent='Это задание связано с ремонтом и управляется через карточку ремонта.'}
-  else if(s.job_status==='ACCEPTED_READY'||s.job_status==='WAITING_ARDUINO_ACK'||s.job_status==='RUNNING'){
-    box.className='note warning';box.textContent='Удаление заблокировано: Arduino может держать или выполнять программу.'
-  }else{box.className='note';box.textContent='Состояние задания не позволяет безопасно убрать его сейчас.'}
+  else if(s.job_status==='WAITING_ARDUINO_ACK'){box.className='note warning';box.textContent='Ожидается JOB_ACK. Пока неизвестно, получила ли Arduino программу, поэтому удаление заблокировано.'}
+  else if(s.job_status==='RUNNING'){box.className='note warning';box.textContent='Намотка уже запущена. Удаление или remote-cancel запрещены.'}
+  else{box.className='note';box.textContent='Состояние задания не позволяет безопасно убрать его сейчас.'}
 }
 async function refresh(){
   try{const r=await fetch('/api/status',{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'status_unavailable');render(j)}
@@ -92,9 +105,21 @@ $('reviewButton').onclick=async()=>{
     setTimeout(()=>location.href='/mobile/',1800);
   }catch(e){$('stateBox').className='note danger';$('stateBox').textContent='Ошибка: '+e.message;$('reviewButton').disabled=false}
 };
+$('cancelButton').onclick=async()=>{
+  if(!current||!current.job_id||current.linked===true||current.job_status!=='ACCEPTED_READY')return;
+  if(!confirm('Отменить это незапущенное сервисное задание? ESP32 закроет его только если Arduino подтвердит, что физический START ещё не был выполнен.'))return;
+  $('cancelButton').disabled=true;
+  try{
+    const body=new URLSearchParams({job_id:String(current.job_id),session_id:String(current.session_id),confirmed:'true'});
+    const r=await fetch('/api/jobs/cancel',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+    if(!r.ok)throw new Error(j.error||'cancel_failed');
+    $('stateBox').className='note warning';$('stateBox').textContent='Запрос отмены передан Arduino. Ожидается подтверждение…';
+    await refresh();
+  }catch(e){$('stateBox').className='note danger';$('stateBox').textContent='Ошибка отмены: '+e.message;$('cancelButton').disabled=false}
+};
 $('dismissButton').onclick=async()=>{
   if(!current||!current.job_id||current.linked===true)return;
-  if(!confirm('Убрать это сервисное задание из активных? История и snapshot останутся сохранены.'))return;
+  if(!confirm('Убрать это уже неактивное сервисное задание? История и snapshot останутся сохранены.'))return;
   $('dismissButton').disabled=true;
   try{
     const body=new URLSearchParams({job_id:String(current.job_id),session_id:String(current.session_id),confirmed:'true'});
@@ -105,7 +130,7 @@ $('dismissButton').onclick=async()=>{
   }catch(e){$('stateBox').className='note danger';$('stateBox').textContent='Ошибка: '+e.message;$('dismissButton').disabled=false}
 };
 refresh();
-setInterval(refresh,1500);
+setInterval(refresh,1200);
 </script>
 </body>
 </html>

@@ -13,7 +13,7 @@
 <header><b>CoilMaster</b><span id="health" style="float:right">Проверка</span></header>
 <main>
 <div class="grid"><section class="card metric"><span class="muted">Станок</span><strong id="machine">—</strong></section><section class="card metric"><span class="muted">Повторов</span><strong id="runs">0</strong></section></div>
-<section class="card"><h2>Намотка</h2><p id="program">Нет задания</p><div id="jobContext" class="context">Контекст задания: —</div><div id="hint" class="note">Ожидание данных ESP32.</div><a class="action" href="/mobile/service-job.html">🧭 Управление текущим заданием</a></section>
+<section class="card"><h2>Намотка</h2><p id="program">Нет задания</p><div id="jobContext" class="context">Контекст задания: —</div><div id="hint" class="note">Ожидание данных ESP32.</div><a class="action" href="/mobile/service-job.html">🧭 Управление текущим заданием</a><a class="action" href="/mobile/arduino-windings.html">🔌 Автономные намотки Arduino</a></section>
 <section class="card"><h2>Быстрая отправка</h2><form id="jobForm"><select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select><input name="turns" placeholder="140/100/80/40" required><button id="serviceSend" disabled>Отправить на Arduino</button></form><div id="serviceState" class="note">Проверка готовности сервисного режима.</div><div id="result" class="note">Сервисный режим без привязки к ремонту. Запуск выполняется физической кнопкой START.</div><a class="action" href="/mobile/service-job.html">Удалить/закрыть зависшее сервисное задание</a></section>
 </main>
 <nav><a href="/mobile/"><b>🏠</b>Главная</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
@@ -22,10 +22,11 @@ localStorage.setItem('cm-ui-version','mobile');
 const $=id=>document.getElementById(id);
 let serviceReady=false,sending=false;
 function updateServiceButton(){ $('serviceSend').disabled=sending||!serviceReady }
-function persistentHealthy(s){return s.storage_ready===true&&s.id_allocator_ready===true&&s.job_snapshot_store_ready===true&&s.job_state_store_ready===true}
+function persistentHealthy(s){return s.storage_ready===true&&s.autonomous_winding_archive_ready===true&&s.id_allocator_ready===true&&s.job_snapshot_store_ready===true&&s.job_state_store_ready===true}
 function statusHint(s){
   if(s.manual_review_required===true)return 'Требуется ручная проверка восстановления. Откройте «Управление текущим заданием».';
   switch(s.job_status){
+    case 'ARDUINO_LOCAL_RUNNING':return 'Arduino выполняет автономную намотку. Результат будет сохранён в отдельном Arduino-архиве.';
     case 'WAITING_ARDUINO_ACK':return 'Задание передаётся на Arduino. Ожидается подтверждение.';
     case 'ACCEPTED_READY':return 'Arduino приняла программу. Запуск выполняется физической кнопкой A или START.';
     case 'RUNNING':return 'Намотка выполняется.';
@@ -44,7 +45,7 @@ function renderServiceState(s){
     box.textContent='ESP32 готова к сервисному заданию без привязки к ремонту.';
   }else{
     box.className='note warning';
-    box.textContent=s.manual_review_required===true?'Требуется ручная проверка восстановления. Откройте управление текущим заданием.':s.new_job_allowed!==true?'Новое задание сейчас не разрешено. Откройте управление текущим заданием.':'Журнал или persistent-хранилища ESP32 недоступны. Сервисная отправка заблокирована.';
+    box.textContent=s.autonomous_run_active===true?'Arduino сейчас выполняет автономную намотку. Новая отправка с ESP32 заблокирована.':s.manual_review_required===true?'Требуется ручная проверка восстановления. Откройте управление текущим заданием.':s.new_job_allowed!==true?'Новое задание сейчас не разрешено. Откройте управление текущим заданием.':'Журнал или persistent-хранилища ESP32 недоступны. Сервисная отправка заблокирована.';
   }
   updateServiceButton();
 }
@@ -56,7 +57,10 @@ async function refresh(){
     $('runs').textContent=s.completed_runs;
     $('program').textContent=s.program||'Нет задания';
     const context=$('jobContext');
-    if(s.job_id&&s.linked){
+    if(s.autonomous_run_active===true){
+      context.className='context unlinked';
+      context.innerHTML='Автономная задача Arduino<br><a href="/mobile/arduino-windings.html">Открыть Arduino-архив</a>';
+    }else if(s.job_id&&s.linked){
       context.className='context';
       context.innerHTML='Ремонт №'+s.repair_id+' · Двигатель №'+s.motor_id+'<br><a href="/mobile/winding-history.html?repair_id='+s.repair_id+'">История намотки ремонта</a>';
     }else if(s.job_id){

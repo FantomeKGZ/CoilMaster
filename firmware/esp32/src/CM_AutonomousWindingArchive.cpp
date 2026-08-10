@@ -123,7 +123,21 @@ bool AutonomousWindingArchive::appendTasksJson(String& json,
             file.close();
             return false;
         }
-        if (event.type != RemoteEventType::RunCompleted) continue;
+
+        const bool completedRecord = event.type == RemoteEventType::RunCompleted;
+        if (event.type == RemoteEventType::RunStarted)
+        {
+            bool completionExists = false;
+            if (!containsEvent(event.sessionId,
+                               event.runId,
+                               RemoteEventType::RunCompleted,
+                               completionExists))
+            {
+                file.close();
+                return false;
+            }
+            if (completionExists) continue;
+        }
 
         const String program = programText(event);
         if (programQuery.length() > 0U &&
@@ -134,7 +148,8 @@ bool AutonomousWindingArchive::appendTasksJson(String& json,
 
         AutonomousWindingAssignment assignment;
         bool assigned = false;
-        if (!latestAssignment(event.sessionId, event.runId, assignment, assigned))
+        if (completedRecord &&
+            !latestAssignment(event.sessionId, event.runId, assignment, assigned))
         {
             file.close();
             return false;
@@ -156,7 +171,9 @@ bool AutonomousWindingArchive::appendTasksJson(String& json,
         json += event.sessionId;
         json += F(",\"run_id\":");
         json += event.runId;
-        json += F(",\"status\":\"COMPLETED\",\"winding_type\":\"");
+        json += F(",\"status\":\"");
+        json += completedRecord ? F("COMPLETED") : F("STARTED_NOT_COMPLETED");
+        json += F("\",\"winding_type\":\"");
         json += windingTypeName(event.jobType);
         json += F("\",\"coil_count\":");
         json += event.coilCount;

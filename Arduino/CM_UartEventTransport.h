@@ -52,16 +52,25 @@ private:
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;
 
+    struct LocalProgramSnapshot
+    {
+        WindingType type;
+        uint8_t coilCount;
+        uint16_t targetTurns[MaxCoilsPerJob];
+        bool valid;
+
+        LocalProgramSnapshot()
+            : type(WindingType::Working), coilCount(0U), targetTurns(), valid(false)
+        {
+        }
+    };
+
     struct QueuedEvent
     {
         WindingEvent event;
-        WindingJob job;
-        bool hasJobMetadata;
+        LocalProgramSnapshot localProgram;
 
-        QueuedEvent() : event(), job(), hasJobMetadata(false)
-        {
-            job.clear();
-        }
+        QueuedEvent() : event(), localProgram() {}
     };
 
     bool enqueueInternal(const WindingEvent& event,
@@ -70,7 +79,7 @@ private:
     bool writeFrame(const QueuedEvent& queued);
     bool writeStandardFrame(const WindingEvent& event);
     bool writeLocalFrame(const WindingEvent& event,
-                         const WindingJob& job);
+                         const LocalProgramSnapshot& program);
     void pollReplies(uint32_t nowMs);
     void processReply(char* line, uint32_t nowMs);
     bool parseRemoteJob(char* line, WindingJob& job) const;

@@ -1,0 +1,102 @@
+#ifndef CM_AUTONOMOUS_WINDING_ARCHIVE_H
+#define CM_AUTONOMOUS_WINDING_ARCHIVE_H
+
+#include <Arduino.h>
+#include <FS.h>
+
+#include "CM_UartEventReceiver.h"
+
+namespace CM
+{
+enum class AutonomousWindingSaveResult : uint8_t
+{
+    Saved = 0U,
+    Duplicate,
+    Invalid,
+    StorageUnavailable,
+    WriteFailed
+};
+
+struct AutonomousWindingAssignment
+{
+    uint32_t assignmentId;
+    uint32_t sessionId;
+    uint32_t runId;
+    uint32_t motorId;
+    String role;
+
+    AutonomousWindingAssignment()
+        : assignmentId(0UL), sessionId(0UL), runId(0UL), motorId(0UL), role() {}
+
+    bool isValid() const
+    {
+        return assignmentId != 0UL && sessionId != 0UL &&
+               runId != 0UL && motorId != 0UL && role.length() > 0U;
+    }
+};
+
+class AutonomousWindingArchive
+{
+public:
+    explicit AutonomousWindingArchive(fs::FS& storage);
+
+    bool begin();
+    bool ready() const;
+
+    AutonomousWindingSaveResult save(const RemoteWindingEvent& event);
+
+    bool appendTasksJson(String& json,
+                         const String& programQuery,
+                         uint8_t tolerancePercent,
+                         uint16_t& count) const;
+
+    bool completedTaskExists(uint32_t sessionId,
+                             uint32_t runId,
+                             bool& found) const;
+
+    bool assignMotor(uint32_t sessionId,
+                     uint32_t runId,
+                     uint32_t motorId,
+                     const String& role,
+                     uint32_t& assignmentId);
+
+private:
+    static constexpr const char* DirectoryPath = "/data/autonomous-windings";
+    static constexpr const char* EventsPath = "/data/autonomous-windings/events.ndjson";
+    static constexpr const char* AssignmentsPath = "/data/autonomous-windings/assignments.ndjson";
+
+    bool ensureDirectories();
+    bool validateEvents() const;
+    bool validateAssignments() const;
+    bool containsEvent(uint32_t sessionId,
+                       uint32_t runId,
+                       RemoteEventType type,
+                       bool& found) const;
+    bool matchingStartExists(const RemoteWindingEvent& event, bool& found) const;
+    bool latestAssignment(uint32_t sessionId,
+                          uint32_t runId,
+                          AutonomousWindingAssignment& assignment,
+                          bool& found) const;
+    bool nextAssignmentId(uint32_t& assignmentId) const;
+
+    static bool parseEventRecord(const String& line,
+                                 RemoteWindingEvent& event);
+    static bool parseAssignment(const String& line,
+                                AutonomousWindingAssignment& assignment);
+    static bool programMatches(const String& candidate,
+                               const String& query,
+                               uint8_t tolerancePercent);
+    static String programText(const RemoteWindingEvent& event);
+    static bool validRole(const String& role);
+    static bool findUnsigned(const String& line, const char* key, uint32_t& value);
+    static bool findString(const String& line, const char* key, String& value);
+    static String jsonEscape(const String& value);
+    static const char* eventName(RemoteEventType type);
+    static const char* windingTypeName(RemoteJobType type);
+
+    fs::FS& m_storage;
+    bool m_ready;
+};
+}
+
+#endif

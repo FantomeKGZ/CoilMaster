@@ -57,12 +57,19 @@ bool UartEventTransport::enqueueInternal(const WindingEvent& event,
     const uint8_t tail = static_cast<uint8_t>((m_head + m_count) % QueueCapacity);
     m_queue[tail] = QueuedEvent();
     m_queue[tail].event = event;
+
     if (job != nullptr && job->isValid() &&
+        job->source == JobSource::LocalKeypad &&
         job->sessionId == event.sessionId)
     {
-        m_queue[tail].job = *job;
-        m_queue[tail].hasJobMetadata = true;
+        LocalProgramSnapshot& snapshot = m_queue[tail].localProgram;
+        snapshot.type = job->type;
+        snapshot.coilCount = job->coilCount;
+        for (uint8_t index = 0U; index < job->coilCount; ++index)
+            snapshot.targetTurns[index] = job->targetTurns[index];
+        snapshot.valid = true;
     }
+
     ++m_count;
     return true;
 }
@@ -86,10 +93,7 @@ void UartEventTransport::update(uint32_t nowMs)
 
 bool UartEventTransport::takeDeliveryEvent(UartDeliveryEvent& event)
 {
-    if (!m_hasDeliveryEvent)
-    {
-        return false;
-    }
+    if (!m_hasDeliveryEvent) return false;
 
     event = m_deliveryEvent;
     m_deliveryEvent = UartDeliveryEvent();
@@ -99,10 +103,7 @@ bool UartEventTransport::takeDeliveryEvent(UartDeliveryEvent& event)
 
 bool UartEventTransport::takeRemoteJob(WindingJob& job)
 {
-    if (!m_hasRemoteJob)
-    {
-        return false;
-    }
+    if (!m_hasRemoteJob) return false;
 
     job = m_remoteJob;
     m_remoteJob.clear();
@@ -124,10 +125,7 @@ void UartEventTransport::sendJobResult(uint32_t jobId,
 
 bool UartEventTransport::takeRemoteCancel(uint32_t& jobId)
 {
-    if (!m_hasRemoteCancel)
-    {
-        return false;
-    }
+    if (!m_hasRemoteCancel) return false;
 
     jobId = m_remoteCancelJobId;
     m_remoteCancelJobId = 0UL;
@@ -159,10 +157,7 @@ bool UartEventTransport::waitingForAck() const
 
 bool UartEventTransport::sendFront(uint32_t nowMs)
 {
-    if (m_count == 0U || !writeFrame(m_queue[m_head]))
-    {
-        return false;
-    }
+    if (m_count == 0U || !writeFrame(m_queue[m_head])) return false;
 
     m_waitingAck = true;
     m_lastSendMs = nowMs;
@@ -171,109 +166,111 @@ bool UartEventTransport::sendFront(uint32_t nowMs)
 
 bool UartEventTransport::writeFrame(const QueuedEvent& queued)
 {
-    if (queued.hasJobMetadata &&
-        queued.job.source == JobSource::LocalKeypad)
-    {
-        return writeLocalFrame(queued.event, queued.job);
-    }
+    if (queued.localProgram.valid)
+        return writeLocalFrame(queued.event, queued.localProgram);
     return writeStandardFrame(queued.event);
 }
 
 bool UartEventTransport::writeStandardFrame(const WindingEvent& event)
 {
-    char payload[80];
+    // Build payload and CRC in one buffer to keep Uno stack usage small.
+    char frame[96];
     const int payloadLength = snprintf(
-        payload,
-        sizeof(payload),
+        frame,
+        sizeof(frame),
         "CMP1|EVT|%s|%lu|%lu|%u",
         eventName(event.type),
         static_cast<unsigned long>(event.sessionId),
         static_cast<unsigned long>(event.runId),
         static_cast<unsigned int>(event.completedRuns));
-
     if (payloadLength <= 0 ||
-        static_cast<size_t>(payloadLength) >= sizeof(payload))
+        static_cast<size_t>(payloadLength) >= sizeof(frame))
     {
         return false;
     }
 
     const uint16_t crc = crc16Modbus(
-        reinterpret_cast<const uint8_t*>(payload),
+        reinterpret_cast<const uint8_t*>(frame),
         static_cast<size_t>(payloadLength));
-
-    char frame[96];
-    const int frameLength = snprintf(frame,
-                                     sizeof(frame),
-                                     "%s|%04X\n",
-                                     payload,
-                                     static_cast<unsigned int>(crc));
-    if (frameLength <= 0 || static_cast<size_t>(frameLength) >= sizeof(frame))
+    const int suffixLength = snprintf(
+        frame + payloadLength,
+        sizeof(frame) - static_cast<size_t>(payloadLength),
+        "|%04X\n",
+        static_cast<unsigned int>(crc));
+    if (suffixLength <= 0 ||
+        static_cast<size_t>(payloadLength + suffixLength) >= sizeof(frame))
+    {
         return false;
+    }
 
-    return m_serial.write(reinterpret_cast<const uint8_t*>(frame),
-                          static_cast<size_t>(frameLength)) ==
-           static_cast<size_t>(frameLength);
+    const size_t frameLength = static_cast<size_t>(payloadLength + suffixLength);
+    return m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength) ==
+           frameLength;
 }
 
-bool UartEventTransport::writeLocalFrame(const WindingEvent& event,
-                                         const WindingJob& job)
+bool UartEventTransport::writeLocalFrame(
+    const WindingEvent& event,
+    const LocalProgramSnapshot& program)
 {
-    if (!job.isValid() || job.source != JobSource::LocalKeypad ||
-        job.sessionId != event.sessionId)
+    if (!program.valid || program.coilCount == 0U ||
+        program.coilCount > MaxCoilsPerJob)
     {
         return false;
     }
 
-    char turnsText[64];
-    size_t used = 0U;
-    turnsText[0] = '\0';
-    for (uint8_t index = 0U; index < job.coilCount; ++index)
-    {
-        const int written = snprintf(turnsText + used,
-                                     sizeof(turnsText) - used,
-                                     index == 0U ? "%u" : ",%u",
-                                     static_cast<unsigned int>(job.targetTurns[index]));
-        if (written <= 0 ||
-            static_cast<size_t>(written) >= sizeof(turnsText) - used)
-        {
-            return false;
-        }
-        used += static_cast<size_t>(written);
-    }
-
-    char payload[160];
-    const int payloadLength = snprintf(
-        payload,
-        sizeof(payload),
-        "CMP1|LOCAL_EVT|%s|%lu|%lu|%u|%s|%u|%s",
+    // One buffer is enough for the largest CMP1 LOCAL_EVT frame. Avoid the old
+    // turnsText + payload + frame triple allocation, which consumed ~400 bytes
+    // of Uno stack during a send.
+    char frame[176];
+    int used = snprintf(
+        frame,
+        sizeof(frame),
+        "CMP1|LOCAL_EVT|%s|%lu|%lu|%u|%s|%u|",
         eventName(event.type),
         static_cast<unsigned long>(event.sessionId),
         static_cast<unsigned long>(event.runId),
         static_cast<unsigned int>(event.completedRuns),
-        windingTypeName(job.type),
-        static_cast<unsigned int>(job.coilCount),
-        turnsText);
-    if (payloadLength <= 0 ||
-        static_cast<size_t>(payloadLength) >= sizeof(payload))
+        windingTypeName(program.type),
+        static_cast<unsigned int>(program.coilCount));
+    if (used <= 0 || static_cast<size_t>(used) >= sizeof(frame)) return false;
+
+    for (uint8_t index = 0U; index < program.coilCount; ++index)
+    {
+        const uint16_t turns = program.targetTurns[index];
+        if (turns == 0U || turns > MaxTurnsPerCoil) return false;
+
+        const int written = snprintf(
+            frame + used,
+            sizeof(frame) - static_cast<size_t>(used),
+            index == 0U ? "%u" : ",%u",
+            static_cast<unsigned int>(turns));
+        if (written <= 0 ||
+            static_cast<size_t>(written) >=
+                sizeof(frame) - static_cast<size_t>(used))
+        {
+            return false;
+        }
+        used += written;
+    }
+
+    const uint16_t crc = crc16Modbus(
+        reinterpret_cast<const uint8_t*>(frame),
+        static_cast<size_t>(used));
+    const int suffixLength = snprintf(
+        frame + used,
+        sizeof(frame) - static_cast<size_t>(used),
+        "|%04X\n",
+        static_cast<unsigned int>(crc));
+    if (suffixLength <= 0 ||
+        static_cast<size_t>(suffixLength) >=
+            sizeof(frame) - static_cast<size_t>(used))
     {
         return false;
     }
 
-    const uint16_t crc = crc16Modbus(
-        reinterpret_cast<const uint8_t*>(payload),
-        static_cast<size_t>(payloadLength));
-    char frame[176];
-    const int frameLength = snprintf(frame,
-                                     sizeof(frame),
-                                     "%s|%04X\n",
-                                     payload,
-                                     static_cast<unsigned int>(crc));
-    if (frameLength <= 0 || static_cast<size_t>(frameLength) >= sizeof(frame))
-        return false;
-
-    return m_serial.write(reinterpret_cast<const uint8_t*>(frame),
-                          static_cast<size_t>(frameLength)) ==
-           static_cast<size_t>(frameLength);
+    const size_t frameLength = static_cast<size_t>(used + suffixLength);
+    return m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength) ==
+           frameLength;
 }
 
 void UartEventTransport::pollReplies(uint32_t nowMs)
@@ -340,10 +337,7 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
     }
 
     const uint32_t runId = strtoul(runText, nullptr, 10);
-    if (runId == 0UL || runId != m_queue[m_head].event.runId)
-    {
-        return;
-    }
+    if (runId == 0UL || runId != m_queue[m_head].event.runId) return;
 
     if (strcmp(category, "ACK") == 0)
     {

@@ -7,10 +7,9 @@
 namespace CM
 {
 EepromPersistence::EepromPersistence()
-    : m_state(), m_metadata()
+    : m_state()
 {
     resetDefaults();
-    resetMetadata();
 }
 
 void EepromPersistence::begin()
@@ -22,13 +21,13 @@ void EepromPersistence::begin()
         persist();
     }
 
-    EEPROM.get(metadataAddress(), m_metadata);
-    if (!metadataValid())
+    StoredMetadataState metadata;
+    if (!loadMetadata(metadata) || !metadataValid(metadata))
     {
         // Metadata is an additive v1 sidecar. Rebuilding it must never reset the
         // already-valid nextSessionId/nextRunId stored in the original state.
-        resetMetadata();
-        persistMetadata();
+        resetMetadata(metadata);
+        persistMetadata(metadata);
     }
 }
 
@@ -45,14 +44,8 @@ uint32_t EepromPersistence::nextRunId() const
 void EepromPersistence::saveNextIdentifiers(uint32_t nextSessionId,
                                             uint32_t nextRunId)
 {
-    if (nextSessionId == 0UL)
-    {
-        nextSessionId = 1UL;
-    }
-    if (nextRunId == 0UL)
-    {
-        nextRunId = 1UL;
-    }
+    if (nextSessionId == 0UL) nextSessionId = 1UL;
+    if (nextRunId == 0UL) nextRunId = 1UL;
 
     if (m_state.nextSessionId == nextSessionId &&
         m_state.nextRunId == nextRunId)
@@ -81,15 +74,11 @@ bool EepromPersistence::addPendingCompleted(const WindingEvent& event)
         }
     }
 
-    if (m_state.count >= PendingCapacity)
-    {
-        return false;
-    }
+    if (m_state.count >= PendingCapacity) return false;
 
-    if (!metadataValid())
-    {
-        resetMetadata();
-    }
+    StoredMetadataState metadata;
+    if (!loadMetadata(metadata) || !metadataValid(metadata))
+        resetMetadata(metadata);
 
     const uint8_t index = m_state.count;
     StoredEvent& target = m_state.pending[index];
@@ -98,12 +87,12 @@ bool EepromPersistence::addPendingCompleted(const WindingEvent& event)
     target.completedRuns = event.completedRuns;
     ++m_state.count;
 
-    m_metadata.count = m_state.count;
-    memset(&m_metadata.pending[index], 0, sizeof(StoredJobMetadata));
-    m_metadata.pending[index].runId = event.runId;
+    metadata.count = m_state.count;
+    memset(&metadata.pending[index], 0, sizeof(StoredJobMetadata));
+    metadata.pending[index].runId = event.runId;
 
     persist();
-    persistMetadata();
+    persistMetadata(metadata);
     return true;
 }
 
@@ -112,11 +101,15 @@ bool EepromPersistence::addPendingCompleted(const WindingEvent& event,
 {
     if (!addPendingCompleted(event)) return false;
 
+    StoredMetadataState metadata;
+    if (!loadMetadata(metadata) || !metadataValid(metadata))
+        resetMetadata(metadata);
+
     for (uint8_t index = 0U; index < m_state.count; ++index)
     {
         if (m_state.pending[index].runId != event.runId) continue;
-        if (!storeMetadata(index, job)) return false;
-        persistMetadata();
+        if (!storeMetadata(metadata, index, job)) return false;
+        persistMetadata(metadata);
         return true;
     }
     return false;
@@ -126,25 +119,24 @@ bool EepromPersistence::removePendingCompleted(uint32_t runId)
 {
     for (uint8_t index = 0U; index < m_state.count; ++index)
     {
-        if (m_state.pending[index].runId != runId)
-        {
-            continue;
-        }
+        if (m_state.pending[index].runId != runId) continue;
 
-        if (!metadataValid()) resetMetadata();
+        StoredMetadataState metadata;
+        if (!loadMetadata(metadata) || !metadataValid(metadata))
+            resetMetadata(metadata);
 
         for (uint8_t move = index; move + 1U < m_state.count; ++move)
         {
             m_state.pending[move] = m_state.pending[move + 1U];
-            m_metadata.pending[move] = m_metadata.pending[move + 1U];
+            metadata.pending[move] = metadata.pending[move + 1U];
         }
 
         --m_state.count;
-        m_metadata.count = m_state.count;
+        metadata.count = m_state.count;
         memset(&m_state.pending[m_state.count], 0, sizeof(StoredEvent));
-        memset(&m_metadata.pending[m_metadata.count], 0, sizeof(StoredJobMetadata));
+        memset(&metadata.pending[metadata.count], 0, sizeof(StoredJobMetadata));
         persist();
-        persistMetadata();
+        persistMetadata(metadata);
         return true;
     }
 
@@ -158,10 +150,7 @@ uint8_t EepromPersistence::pendingCount() const
 
 bool EepromPersistence::pendingAt(uint8_t index, WindingEvent& event) const
 {
-    if (index >= m_state.count)
-    {
-        return false;
-    }
+    if (index >= m_state.count) return false;
 
     event.type = WindingEventType::RunCompleted;
     event.sessionId = m_state.pending[index].sessionId;
@@ -178,9 +167,15 @@ bool EepromPersistence::pendingAt(uint8_t index,
     hasJobMetadata = false;
     job.clear();
     if (!pendingAt(index, event)) return false;
-    if (!metadataValid() || index >= m_metadata.count) return true;
 
-    const StoredJobMetadata& source = m_metadata.pending[index];
+    StoredMetadataState metadata;
+    if (!loadMetadata(metadata) || !metadataValid(metadata) ||
+        index >= metadata.count)
+    {
+        return true;
+    }
+
+    const StoredJobMetadata& source = metadata.pending[index];
     if (source.valid == 0U || source.runId != event.runId) return true;
 
     job.sessionId = event.sessionId;
@@ -195,9 +190,8 @@ bool EepromPersistence::pendingAt(uint8_t index,
     job.coilCount = source.coilCount;
     job.status = JobStatus::Completed;
     for (uint8_t coil = 0U; coil < job.coilCount; ++coil)
-    {
         job.targetTurns[coil] = source.targetTurns[coil];
-    }
+
     hasJobMetadata = job.isValid();
     if (!hasJobMetadata) job.clear();
     return true;
@@ -246,48 +240,68 @@ int EepromPersistence::metadataAddress() const
     return EepromAddress + static_cast<int>(sizeof(StoredState));
 }
 
-void EepromPersistence::resetMetadata()
+bool EepromPersistence::loadMetadata(StoredMetadataState& metadata) const
 {
-    memset(&m_metadata, 0, sizeof(m_metadata));
-    m_metadata.magic = MetadataMagic;
-    m_metadata.version = MetadataVersion;
-    m_metadata.count = m_state.count;
+    const int address = metadataAddress();
+    if (address < 0 ||
+        static_cast<size_t>(address) + sizeof(StoredMetadataState) >
+            static_cast<size_t>(EEPROM.length()))
+    {
+        return false;
+    }
+    EEPROM.get(address, metadata);
+    return true;
+}
+
+void EepromPersistence::resetMetadata(StoredMetadataState& metadata) const
+{
+    memset(&metadata, 0, sizeof(metadata));
+    metadata.magic = MetadataMagic;
+    metadata.version = MetadataVersion;
+    metadata.count = m_state.count;
     for (uint8_t index = 0U; index < m_state.count; ++index)
     {
-        m_metadata.pending[index].runId = m_state.pending[index].runId;
-        m_metadata.pending[index].valid = 0U;
+        metadata.pending[index].runId = m_state.pending[index].runId;
+        metadata.pending[index].valid = 0U;
     }
-    m_metadata.crc = calculateCrc(
-        reinterpret_cast<const uint8_t*>(&m_metadata),
+    metadata.crc = calculateCrc(
+        reinterpret_cast<const uint8_t*>(&metadata),
         offsetof(StoredMetadataState, crc));
 }
 
-void EepromPersistence::persistMetadata()
+void EepromPersistence::persistMetadata(StoredMetadataState& metadata) const
 {
-    m_metadata.crc = calculateCrc(
-        reinterpret_cast<const uint8_t*>(&m_metadata),
+    const int address = metadataAddress();
+    if (address < 0 ||
+        static_cast<size_t>(address) + sizeof(StoredMetadataState) >
+            static_cast<size_t>(EEPROM.length()))
+    {
+        return;
+    }
+    metadata.crc = calculateCrc(
+        reinterpret_cast<const uint8_t*>(&metadata),
         offsetof(StoredMetadataState, crc));
-    EEPROM.put(metadataAddress(), m_metadata);
+    EEPROM.put(address, metadata);
 }
 
-bool EepromPersistence::metadataValid() const
+bool EepromPersistence::metadataValid(const StoredMetadataState& metadata) const
 {
-    if (m_metadata.magic != MetadataMagic ||
-        m_metadata.version != MetadataVersion ||
-        m_metadata.count != m_state.count ||
-        m_metadata.count > PendingCapacity)
+    if (metadata.magic != MetadataMagic ||
+        metadata.version != MetadataVersion ||
+        metadata.count != m_state.count ||
+        metadata.count > PendingCapacity)
     {
         return false;
     }
 
     const uint16_t expected = calculateCrc(
-        reinterpret_cast<const uint8_t*>(&m_metadata),
+        reinterpret_cast<const uint8_t*>(&metadata),
         offsetof(StoredMetadataState, crc));
-    if (expected != m_metadata.crc) return false;
+    if (expected != metadata.crc) return false;
 
-    for (uint8_t index = 0U; index < m_metadata.count; ++index)
+    for (uint8_t index = 0U; index < metadata.count; ++index)
     {
-        const StoredJobMetadata& item = m_metadata.pending[index];
+        const StoredJobMetadata& item = metadata.pending[index];
         if (item.runId != m_state.pending[index].runId) return false;
         if (item.valid == 0U) continue;
         if (item.valid != 1U ||
@@ -309,11 +323,13 @@ bool EepromPersistence::metadataValid() const
     return true;
 }
 
-bool EepromPersistence::storeMetadata(uint8_t index, const WindingJob& job)
+bool EepromPersistence::storeMetadata(StoredMetadataState& metadata,
+                                      uint8_t index,
+                                      const WindingJob& job) const
 {
     if (index >= m_state.count || !job.isValid()) return false;
 
-    StoredJobMetadata& target = m_metadata.pending[index];
+    StoredJobMetadata& target = metadata.pending[index];
     memset(&target, 0, sizeof(target));
     target.runId = m_state.pending[index].runId;
     target.valid = 1U;
@@ -321,9 +337,7 @@ bool EepromPersistence::storeMetadata(uint8_t index, const WindingJob& job)
     target.windingType = static_cast<uint8_t>(job.type);
     target.coilCount = job.coilCount;
     for (uint8_t coil = 0U; coil < job.coilCount; ++coil)
-    {
         target.targetTurns[coil] = job.targetTurns[coil];
-    }
     return true;
 }
 

@@ -1,63 +1,167 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-08**  
+Дата обновления: **2026-08-10**  
 Ветка: **`cmp-protocol-v1`**  
-Ориентировочная функциональная готовность: **около 90%**  
-Статус: **основной production workflow ремонта, намотки, склада и закрытия собран; остаются эксплуатационная доводка и hardware E2E**
+Статус: **основной production workflow собран; Arduino local path реально проверен; продолжается ESP32 backup/E2E доводка**
+
+## Source of truth
+
+Единственный источник кода — `cmp-protocol-v1`. `main` не использовать как источник реализации.
+
+Перед изменением существующего файла всегда заново fetch текущую версию из `cmp-protocol-v1` и использовать актуальный blob SHA.
 
 ## Safety boundary
 
 CoilMaster объединяет Arduino Uno и ESP32:
 
-- Arduino Uno — реальное время, SSR, Hall, физический START, клавиатура/LCD/buzzer;
-- ESP32 — WEB, microSD, задания, workshop registry, warehouse/materials, costing, reports и backup;
-- UART — delivery и события `RUN_STARTED` / `RUN_COMPLETED`.
+- Arduino Uno — real-time winding, SSR, Hall, физический START, keypad/LCD/buzzer;
+- ESP32 — WEB, microSD, задания, workshop registry, warehouse/materials, costing, reports, autonomous archive и backup;
+- UART — job delivery и winding events.
 
-Не менять базовые safety-правила:
+Safety invariants:
 
-- ESP32/WEB не управляют SSR напрямую;
-- физический START не запускается автоматически;
+- ESP32/Web не управляют SSR напрямую;
+- automatic physical START отсутствует;
 - после reboot нет auto-resume;
-- `RUN_COMPLETED` не выполняет automatic wire writeoff.
+- `RUN_COMPLETED` не выполняет automatic wire writeoff;
+- wire writeoff остаётся ручным и связан с exact `spool_id + source_session_id + source_run_id`.
 
-## Production path
+## Основной production flow
 
 ```text
-клиент
-→ двигатель + authoritative coil_program
-→ ремонт OPEN
+client
+→ motor + authoritative coil_program
+→ OPEN repair
 → costing
-→ linked winding + exact spool_id
+→ linked winding
+→ exact ACTIVE spool_id
 → immutable job snapshot + immutable spool selection
 → UART delivery
 → JOB_ACK ACCEPTED
 → physical START
 → RUN_STARTED / RUN_COMPLETED
-→ winding history
-→ ручной wire writeoff по фактическому весу
-→ source_session_id + source_run_id provenance
+→ manual exact-run wire writeoff
 → materials / pricing
 → read-only finalization preflight
 → CLOSED
-→ read-only archive / monthly report
-→ read-only backup/export
+→ reports/archive
+→ read-only backup
 ```
 
-## Намотка и persisted state
+## Подтверждённый Arduino hardware checkpoint
+
+После SRAM-оптимизации Arduino Uno больше не находится в reset-loop.
+
+Подтверждённый runtime:
+
+```text
+CM_BOOT stage=READY free_sram=357
+CM_ALIVE ... free_sram=366
+```
+
+Пользователь реально проверил:
+
+```text
+создание программы на Arduino
+→ подтверждение keypad
+→ physical START
+→ выполнение намотки
+→ LOCAL_EVT
+→ доставка на ESP32
+```
+
+Постоянный buzzer tone был аппаратной ошибкой подключения: buzzer был на D12 (SSR) вместо D11. После переноса проблема устранена.
+
+Pin-map:
+
+```text
+D11 = Buzzer
+D12 = SSR
+A0  = Hall
+A1  = Arduino TX → ESP32 RX
+A2  = Arduino RX ← ESP32 TX
+```
+
+## UART protocol
+
+Обычный web-linked event:
+
+```text
+CMP1|EVT|RUN_STARTED|session|run|0|CRC
+CMP1|EVT|RUN_COMPLETED|session|run|completed|CRC
+```
+
+Standalone Arduino event:
+
+```text
+CMP1|LOCAL_EVT|RUN_STARTED|session|run|0|WORKING|coil_count|turns|CRC
+CMP1|LOCAL_EVT|RUN_COMPLETED|session|run|completed|WORKING|coil_count|turns|CRC
+```
+
+`WORKING` может быть `STARTING`.
+
+ESP32 parser fail-closed требует:
+
+```text
+RUN_STARTED   -> completed_runs == 0
+RUN_COMPLETED -> completed_runs > 0
+```
+
+Никакой event сам по себе не запускает physical START и не списывает провод.
+
+## Автономные намотки Arduino
+
+Отдельный workflow для задач, созданных и выполненных непосредственно на Arduino:
+
+```text
+Arduino local keypad
+→ physical START
+→ LOCAL_EVT
+→ ESP32 autonomous archive
+→ completed/incomplete status
+→ поиск программы ±20%
+→ existing/similar motor
+→ ручная assignment completed task → motor
+```
+
+Persistent files:
+
+```text
+/data/autonomous-windings/events.ndjson
+/data/autonomous-windings/assignments.ndjson
+```
+
+Event сохраняет:
+
+- exact `session_id/run_id`;
+- `RUN_STARTED` или `RUN_COMPLETED`;
+- `WORKING/STARTING`;
+- coil count;
+- canonical program;
+- completed runs;
+- `start_observed`;
+- receive uptime.
+
+Incomplete task можно искать и просматривать, но нельзя назначить как completed evidence.
+
+Если ESP32 пропустила START, но Arduino позднее replay-ит persisted completion, запись сохраняется с `start_observed=0` и UI показывает предупреждение.
+
+Assignment log append-only. Completed autonomous tasks можно группировать на одном motor с ролями `WORKING`, `STARTING`, `AUXILIARY`. Исходные Arduino events не переписываются.
+
+## Намотка и persisted linked state
 
 Реализованы:
 
 - persistent `job_id/session_id` allocator;
 - immutable job snapshot;
-- immutable exact spool-selection для linked job;
-- persisted runtime-state;
-- fail-safe recovery/manual review acknowledgement;
+- immutable exact spool selection;
+- persisted runtime state;
+- recovery/manual-review flow;
 - strict repair/motor linkage;
-- server-authoritative `coil_program` + единый `CM_WindingProgramParser`;
+- authoritative `coil_program` parser;
 - winding journal schema 2;
-- cursor read-only history;
-- semantic transition audit `RUN_STARTED → RUN_COMPLETED`;
-- explicit lifecycle UI.
+- semantic `RUN_STARTED → RUN_COMPLETED` audit;
+- exact-run provenance для ручного wire writeoff.
 
 Session persistence:
 
@@ -70,73 +174,56 @@ Session persistence:
 /data/winding-runs/events.ndjson
 ```
 
-Deep winding backup validation уже использует authoritative `WindingJournalQuery::validateAll()` до EOF, затем отдельно `WindingJournalTransitionAudit::validate()`. Старого cursor-pagination полного scan в `CM_WindingPersistenceIntegrityAudit` нет; cursor остаётся только в пользовательском history API.
+Deep winding validation использует authoritative `WindingJournalQuery::validateAll()` до EOF и затем `WindingJournalTransitionAudit::validate()`.
 
-## Exact spool и ручное списание
+## Exact spool и wire writeoff
 
-Новый linked job требует конкретную `ACTIVE` CU/AL бухту с положительным остатком. Выбор сохраняется immutable до UART delivery.
+Новый linked job требует конкретную ACTIVE CU/AL бухту с положительным остатком. Выбор сохраняется immutable до UART delivery.
 
-После `RUN_COMPLETED` UI может только предложить immutable бухту. Оператор вручную вводит фактический остаток и подтверждает write-off.
+После `RUN_COMPLETED` оператор вручную вводит фактический расход/остаток. Server-side доказывает:
 
-Новая provenance-гранулярность:
-
-```text
-source_session_id + source_run_id
-```
-
-Server-side доказывается:
-
-- конкретный run имеет `RUN_COMPLETED`;
-- repair и spool совпадают с immutable selection;
+- exact run завершён;
+- repair/spool совпадают с immutable selection;
 - второй CONFIRMED для того же `(session, run)` запрещён;
 - recovery сохраняет provenance через `PENDING → CONFIRMED | ABORTED`.
 
-Run-level HTTP contract дополнительно hardened: если `source_session_id` / `source_run_id` присутствуют, они обязаны присутствовать вместе, быть непустыми и валидными non-zero IDs. Пустые параметры больше не могут молча перейти в legacy write-off path.
+Exact-session `spool-selection/session-<id>.json.tmp` блокирует writeoff fail-closed.
 
-Repair finalization требует ручное покрытие каждого нового completed linked run с immutable spool-selection. Legacy sessions/movements читаются совместимо.
+## CLOSED / finalization
 
-## CLOSED и finalization
+Перед `OPEN → CLOSED` backend проверяет:
 
-`CLOSED` — server-side финальное состояние. Перед `OPEN → CLOSED` backend проверяет:
-
-- нет незавершённого/recovery winding job;
+- нет unfinished/recovery winding job;
 - costing/material/warehouse persistence цела;
-- winding journal полностью читается;
-- winding transition state-machine согласована;
-- wire coverage для новых `(session_id, run_id)` подтверждён вручную.
+- winding journal и transitions целы;
+- каждый новый completed linked run покрыт ручным exact-run writeoff.
 
-Preflight read-only, реальный close независимо повторяет проверки. Повторный close уже закрытого ремонта идемпотентен.
+Preflight read-only. Реальный close повторяет проверки независимо.
 
 ## Warehouse / materials / costing
 
-Реализованы и hardened:
+Реализованы:
 
 - CU/AL + legacy UNKNOWN;
-- active spool catalogue;
-- recoverable spool-file swap;
-- warehouse write-off `PENDING → CONFIRMED | ABORTED` + startup recovery;
-- material ledger, usage, adjustments, pending/recovery и recoverable swap;
+- spool catalogue;
+- recoverable spool swap;
+- warehouse writeoff `PENDING → CONFIRMED | ABORTED`;
+- material catalogue/usage/adjustments + recovery;
 - warehouse price history;
-- strict persisted parsing/reference lookups;
-- `RepairCosting` с currency/formula/overflow/transaction checks;
-- одинаковое округление `NEAREST_MINOR_UNIT`.
+- strict persisted parsing/reference lookup;
+- RepairCosting с currency/formula/overflow/transaction checks.
 
-## Reports и UI
+## Mobile / desktop UI
 
-Mobile/desktop имеют:
+Основные разделы доступны в обеих версиях.
 
-- OPEN/CLOSED/ALL repair filters;
-- finalization preflight;
-- operator-facing причины блокировки;
-- read-only итог ремонта;
-- winding history + immutable spool audit;
-- write-off history с `session / run` provenance;
-- monthly closed-repair report;
-- client/motor/repair search и profit/loss filters.
+Дополнительно переключатель mobile ↔ desktop теперь централизованно добавляется `CM_StaticSiteServer` в конец каждой `/mobile/...` и `/desktop/...` HTML-страницы. Он сохраняет текущий path/query/hash, поэтому пользователь может вернуться на ту же страницу в другой версии интерфейса.
+
+Этот блок подтверждён пользователем в реальной работе.
 
 ## Read-only backup/export
 
-Whitelist endpoints:
+Endpoints:
 
 ```text
 GET /api/backup/manifest
@@ -145,32 +232,47 @@ GET /api/backup/sessions
 GET /api/backup/session-file?kind=...&session_id=...
 ```
 
-Arbitrary filesystem paths запрещены. Тяжёлый export и deep integrity scan не выполняются при active winding.
+Arbitrary filesystem paths запрещены. Export/deep audit блокируется во время active winding.
 
-Manifest разделяет:
+Static whitelist включает workshop, winding, warehouse, materials, pricing, allocator, conductor settings и теперь также:
 
-- `export_allowed` — можно ли сейчас безопасно выполнять export;
-- `snapshot_stability_checked` — запускался ли глубокий audit;
-- `snapshot_stable` — `true/false`, либо `null`, если глубокий scan намеренно не запускался из-за machine activity;
-- `snapshot_stability_reason` — первый доказанный recovery/integrity failure;
-- `snapshot_stability_duration_ms` — длительность всего выполненного deep audit до success/первого failure;
-- 9 per-domain duration fields — длительности уже существующих audit calls и предварительного session-directory scan;
-- `winding_allocator_last_id` — validated allocator high-water `last_job_id == last_session_id`;
-- `material_catalog_record_count`, `material_usage_record_count`, `material_adjustment_record_count` — validated material records;
-- `workshop_client_record_count`, `workshop_motor_record_count`, `workshop_repair_record_count`, `repair_status_record_count`, `repair_pricing_record_count` — validated business/workshop/pricing records;
-- `winding_journal_record_count` — записи authoritative winding schema scan;
-- `winding_snapshot_file_count`, `winding_state_file_count`, `winding_spool_selection_file_count` — validated session persistence files;
-- `winding_snapshot_total_bytes`, `winding_state_total_bytes`, `winding_spool_selection_total_bytes` — суммарный размер validated session files;
-- `warehouse_spool_record_count`, `warehouse_price_record_count` — validated warehouse catalogue/price records;
-- `warehouse_movement_record_count` — validated warehouse movement records.
+```text
+/data/autonomous-windings/events.ndjson
+/data/autonomous-windings/assignments.ndjson
+```
 
-Per-domain timing fields:
+Для autonomous archive добавлен read-only authoritative audit:
+
+```text
+AutonomousWindingArchive::validateStorage(...)
+```
+
+Он не вызывает `begin()`, не создаёт каталоги и не меняет microSD.
+
+При failure:
+
+```text
+snapshot_stability_reason = autonomous_winding_archive_unstable_or_invalid
+```
+
+Manifest дополнительно содержит:
+
+```text
+autonomous_winding_archive_audit_duration_ms
+autonomous_winding_event_record_count
+autonomous_winding_started_record_count
+autonomous_winding_completed_record_count
+autonomous_winding_assignment_record_count
+```
+
+Per-domain timing теперь включает 10 полей:
 
 ```text
 persistent_id_audit_duration_ms
 conductor_settings_audit_duration_ms
 material_persistence_audit_duration_ms
 business_data_audit_duration_ms
+autonomous_winding_archive_audit_duration_ms
 winding_persistence_audit_duration_ms
 warehouse_persistence_audit_duration_ms
 warehouse_movements_audit_duration_ms
@@ -178,89 +280,48 @@ winding_session_directory_scan_duration_ms
 winding_session_persistence_audit_duration_ms
 ```
 
-Если deep audit не запускался, timing fields `null`. Если audit дошёл до domain, его длительность публикуется даже при failure этого domain; более поздние неисполненные domains остаются `null`. Timing оборачивает уже существующие вызовы и не добавляет filesystem I/O.
+Stage 0 observability теперь содержит **34 metrics**: прежние 29 + autonomous audit duration + 4 autonomous record counters.
 
-Всего manifest сейчас содержит **29 Stage 0 performance/observability metrics**. Они не влияют на `snapshot_stable`/`export_allowed`. Allocator high-water, counts, session bytes и per-domain durations собираются внутри уже выполняемых authoritative passes. Session byte totals являются telemetry-only: если их 32-bit сумма не представима, они становятся `null`, но session integrity audit продолжает прежнюю fail-closed validation. Partial domain counts/high-water не публикуются при failed domain audit.
+При safe machine-state `snapshot_stable=true` означает успешную read-only проверку всего backup whitelist и необходимых recovery/session adjuncts, включая autonomous Arduino archive.
 
-При безопасном machine-state `snapshot_stable=true` означает успешную read-only проверку **всего backup whitelist**, а также необходимых recovery/session adjuncts.
+## Performance strategy
 
-Статический whitelist покрыт так:
+Не вводить database migration, arbitrary rotation threshold или persistent optimistic cache без измерений.
+
+На реальном dataset сначала сохранить manifest с:
+
+- `items[].size_bytes`;
+- `snapshot_stability_duration_ms`;
+- все per-domain durations;
+- record counts;
+- session file counts/bytes;
+- allocator high-water.
+
+Оптимизировать только подтверждённый hotspot.
+
+## Что ещё не подтверждено
+
+После последних ESP32 изменений текущий HEAD ещё не имеет подтверждённого clean build/CI результата:
 
 ```text
-/data/workshop/clients.ndjson
-/data/workshop/motors.ndjson
-/data/workshop/repairs.ndjson
-/data/workshop/repair-status.ndjson
-/data/winding-runs/events.ndjson
-/data/warehouse/spools.ndjson
-/data/warehouse/movements.ndjson
-/data/warehouse/price.ndjson
-/data/materials/materials.ndjson
-/data/materials/usage.ndjson
-/data/materials/adjustments.ndjson
-/data/repairs/pricing.ndjson
-/data/winding-jobs/id-state.txt
-/data/winding-jobs/id-state.bak          # optional, если существует
-/data/settings/conductor-calculator.ndjson
+BUILD NOT CONFIRMED
+CI NOT CONFIRMED
 ```
 
-Дополнительно deep audit проверяет:
-
-- material/warehouse recovery и swap markers;
-- allocator: canonical main state, optional `.bak`, отсутствие `id-state.tmp`;
-- conductor settings: canonical `conductor-calculator.ndjson`, отсутствие `conductor-calculator.tmp` и `.bak` recovery residue;
-- workshop/pricing/material/warehouse references и арифметику;
-- winding journal schema до EOF + transition semantics;
-- canonical session directories;
-- **содержимое всех** `snapshot/state/spool-selection` session files штатными stores/parsers;
-- cross-file `session_id/job_id/repair_id/motor_id/spool` identity.
-
-Flat persisted JSON дополнительно hardened через общий `CM_FlatJsonObjectValidator.h`. Authoritative passes теперь проверяют полный синтаксис flat JSON object для workshop clients/motors/repairs/repair-status, repair pricing, materials/usage/adjustments, warehouse spools/price/movements и conductor settings. `RepairRegistry` применяет ту же проверку в runtime reads/lookups, поэтому синтаксически повреждённая persisted строка не должна молча попасть в JSON API после boot.
-
-Strict JSON parser намеренно не дублируется внутри уже существующих O(n²)/O(n*m) duplicate/reference scans: каждая строка проверяется на authoritative outer pass, а repeated scans остаются identity-focused. Это correctness hardening без дополнительного filesystem I/O и без преждевременного Stage 1 refactor.
-
-Нестабильный snapshot можно скачать как diagnostic copy, если export разрешён, но UI не называет его чистым backup.
-
-Compile-safety audit новых backup observability/hardening changes выполнен на уровне repository review: `CM_BackupExportWeb.h` явно включает `Arduino.h`, timing использует `uint32_t` `millis()` subtraction, shared flat-JSON validator header-only и использует уже доступный Arduino `String`; старые audit contracts и порядок safety-проверок сохранены. Это **не** доказательство GREEN CI до фактического build result.
-
-HTTP/error semantics audit зафиксирован в `docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md`. Strategy для растущих NDJSON — в `docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md`; решение — измерять и оптимизировать bounded scans/rotation, без преждевременной миграции в БД.
-
-Repository review выявил composition hotspot: `MaterialPersistenceIntegrityAudit` после собственных material scans транзитивно вызывает broad workshop/pricing dependency audits, а backup orchestration затем отдельно проверяет часть тех же domains. Per-domain timing теперь позволяет измерить цену этого пути напрямую. `winding_session_directory_scan_duration_ms` отдельно позволяет измерить цену preliminary directory pass до deep session audit. Stage 1 refactor делать только после измерения влияния или отдельной correctness-причины.
-
-## Runtime microSD safety
-
-Критические stores динамически fail-closed при потере microSD. Corruption не должен превращаться в ложный `404`; для основных reference lookups используются tri-state `success + found` контракты.
-
-## Главный оставшийся внешний риск
-
-Repository review и даже зелёный CI не доказывают физический motor/UART path. Нужен реальный ESP32 + Arduino E2E:
+Arduino local hardware path подтверждён, но полный linked production E2E ещё нужен:
 
 ```text
 linked repair
-→ exact spool selection
+→ exact spool
 → JOB_ACK
 → physical START
 → RUN_STARTED
 → RUN_COMPLETED
-→ manual wire writeoff
+→ manual exact-run wire writeoff
 → costing
 → finalization preflight
 → CLOSED
 → stable backup
 ```
 
-На стенде сохранить один manifest с `items[].size_bytes`, всеми 29 Stage 0 metrics и итоговым `snapshot_stability_duration_ms`. Per-domain durations покажут первый latency hotspot, а counts/bytes/high-water объяснят его рост.
-
-Отдельно проверить reboot/manual-review, microSD loss, corrupted persistence и UART fault scenarios.
-
-## Намеренно не автоматизировать
-
-- physical START;
-- resume после reboot;
-- SSR control с ESP32/WEB;
-- wire writeoff только по `RUN_COMPLETED`;
-- обход fail-closed проверок.
-
-## Product decisions после E2E
-
-`analogue / unassigned winding` пока не имеет production-модели. Проектировать его только как отдельный workflow, если мастерской это реально нужно, не ослабляя строгий `repair ↔ motor ↔ coil_program` path.
+Отдельно проверить negative/fault cases: reboot/manual review, microSD loss, corrupted persistence, UART timeout/reject/duplicate, wrong spool/session/run, duplicate writeoff, close without coverage и backup during active winding.

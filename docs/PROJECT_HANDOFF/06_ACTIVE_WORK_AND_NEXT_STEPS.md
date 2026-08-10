@@ -1,141 +1,155 @@
 # Где остановились и что делать дальше
 
-Дата обновления: 2026-08-08 23:49 +06  
-Ветка: `cmp-protocol-v1`
+Дата обновления: **2026-08-10**  
+Ветка: **`cmp-protocol-v1`**
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
 
-Самый свежий pause-snapshot до возобновления:
+## Текущий подтверждённый hardware checkpoint
+
+Arduino Uno после SRAM-оптимизации работает стабильно:
 
 ```text
-docs/PROJECT_HANDOFF/13_PAUSE_HANDOFF_2026-08-08_2222.md
+CM_BOOT stage=READY free_sram=357
+CM_ALIVE ... free_sram=366
 ```
 
-## Текущая оценка готовности
-
-Ориентировочно:
-
-- реализованная функциональность production flow: **около 96%**;
-- repository/firmware readiness: **около 94%**;
-- общая эксплуатационная готовность: **около 90%**.
-
-Repository readiness немного повышена после закрытия конкретных compile/link и storage-boundary writeoff gaps. Эксплуатационная оценка остаётся ниже: для текущего HEAD нет подтверждённого GREEN Actions result, полный ESP32 + Arduino hardware E2E ещё не выполнен, Stage 0 benchmark на реальном dataset ещё не снят.
-
-## Текущий code checkpoint
+Reset-loop устранён. Пользователь дополнительно подтвердил реальную работу:
 
 ```text
-eb95164c1ecbc025835df1c20308b0d53605e558  Reject unstable spool selection temp state
+локальное создание программы на Arduino
+→ физический START
+→ выполнение намотки
+→ LOCAL_EVT
+→ отправка на ESP32
 ```
 
-После возобновления закрыты следующие repo-level проблемы.
+Постоянный звук buzzer оказался не firmware bug: пищалка была физически подключена к **D12**, который является SSR output. После переноса на **D11** проблема устранена.
 
-### 1. Warehouse writeoff provenance lookup definitions
+Актуальная Arduino pin-map:
 
 ```text
-4c7051603fc8753ed04caed025b27dc61f628136  Restore warehouse writeoff provenance lookups
+D11 = Buzzer
+D12 = SSR
+A0  = Hall
+A1  = Arduino TX → ESP32 RX
+A2  = Arduino RX ← ESP32 TX
 ```
 
-Файл:
+Safety boundary не менялся:
+
+- physical START только физический;
+- ESP32/Web не управляют SSR напрямую;
+- auto-resume после reboot отсутствует;
+- `RUN_COMPLETED` не выполняет automatic wire writeoff;
+- wire writeoff остаётся ручным и exact-run/exact-spool.
+
+## Автономные намотки Arduino
+
+Production path для standalone Arduino задания уже реализован:
 
 ```text
-firmware/esp32/src/CM_WarehouseWriteOffLookup.cpp
+Arduino local keypad
+→ physical START
+→ RUN_STARTED / RUN_COMPLETED
+→ LOCAL_EVT с winding_type + coil_count + program
+→ ESP32 autonomous archive
+→ поиск программы ±20%
+→ existing/similar motor
+→ ручная assignment completed task → motor
 ```
 
-Восстановлены определения:
+Persistent files:
 
 ```text
-WarehouseStore::confirmedWriteOffForSourceSession(...)
-WarehouseStore::confirmedWriteOffForSourceRun(...)
+/data/autonomous-windings/events.ndjson
+/data/autonomous-windings/assignments.ndjson
 ```
 
-Lookup fail closed через authoritative `WarehouseMovementIntegrityAudit::check()`. Legacy session-only CONFIRMED запись не считается exact-run совпадением.
+Incomplete `RUN_STARTED` records видны, но не могут быть назначены как completed evidence. Replayed `RUN_COMPLETED` после пропущенного START сохраняется с `start_observed=0` и предупреждением.
 
-### 2. HTTP repair lifecycle failure classification
+Последний protocol hardening:
 
 ```text
-7c210f013d6a3fbc1d0534b37d56c8fa808882ee  Classify repair lifecycle integrity failures
+a9fb6e395834c048d251f0475c27103b7c0160ad
 ```
 
-`POST /api/warehouse/write-offs` теперь различает:
+ESP32 UART parser теперь fail-closed требует:
 
 ```text
-storage/warehouse unavailable -> 503 repair_lifecycle_unavailable
-repair-status persistence/integrity failure при доступном storage -> 500 repair_lifecycle_integrity_failed
-closed repair -> 409 repair_closed
+RUN_STARTED   -> completed_runs == 0
+RUN_COMPLETED -> completed_runs > 0
 ```
 
-Списание блокируется во всех failure cases; менялась только корректная HTTP/error classification.
+## Backup / deep integrity — текущий блок
 
-### 3. Duplicate spool-selection symbol removed
-
-Был подтверждён реальный linker-risk: tri-state
+Добавлен read-only authoritative audit автономного архива:
 
 ```text
-JobSpoolSelectionStore::load(uint32_t, JobSpoolSelection&, bool&) const
+44a3b65114a1e29edcb7e78508c15986e747426f
+0748b74563dfc4ff90f9924e159017b37b8e73b2
 ```
 
-одновременно определялся в:
+API внутри firmware:
 
 ```text
-CM_JobSpoolSelectionStore.cpp
-CM_JobSpoolSelectionLookup.cpp
+AutonomousWindingArchive::validateStorage(...)
 ```
 
-Оба `.cpp` входят в `firmware/esp32/src/*.cpp`, поэтому duplicate definition был compile/link correctness problem.
+Audit не вызывает `begin()`, не создаёт каталоги и ничего не изменяет на microSD. Он использует production parsers/validators для `events.ndjson` и `assignments.ndjson`.
 
-Исправлено:
+Backup integration:
 
 ```text
-c243d37e8b2ec8c65ac6872fbd926d3bd52511fe  Remove duplicate spool selection lookup definition
+55318f1a6366e5163739e4b0447da13d95f76870
 ```
 
-Canonical tri-state implementation теперь находится только в:
+В read-only whitelist теперь входят:
 
 ```text
-firmware/esp32/src/CM_JobSpoolSelectionLookup.cpp
+autonomous-winding-events
+→ /data/autonomous-windings/events.ndjson
+
+autonomous-winding-assignments
+→ /data/autonomous-windings/assignments.ndjson
 ```
 
-`CM_JobSpoolSelectionStore.cpp` сохраняет обычный wrapper `load(sessionId, selection)`.
-
-### 4. Read-only immutable spool-selection lookup
-
-Добавлен exact-file read-only lookup без `begin()`, directory scan или temp recovery:
+`/api/backup/manifest` дополнительно публикует:
 
 ```text
-aea99008f857c679b332fa6899bb774afb0ec61c  Expose read-only spool selection lookup
-b3a46d3784a134fc475ca745b214d8dc376fb34b  Add read-only spool selection lookup
-eb95164c1ecbc025835df1c20308b0d53605e558  Reject unstable spool selection temp state
+autonomous_winding_archive_audit_duration_ms
+autonomous_winding_event_record_count
+autonomous_winding_started_record_count
+autonomous_winding_completed_record_count
+autonomous_winding_assignment_record_count
 ```
 
-API:
+Если archive integrity не доказана:
 
 ```text
-JobSpoolSelectionStore::loadReadOnly(storage, sessionId, selection, found)
+snapshot_stability_reason = autonomous_winding_archive_unstable_or_invalid
 ```
 
-Он читает только canonical:
+Mobile/desktop backup UI умеет объяснять эту причину:
 
 ```text
-/data/winding-jobs/spool-selection/session-<session_id>.json
+f4225a6d161675ed3314fa9925953461cad02d80
+b5848051146e778ef5fb072bfae22a5f5bc710e5
 ```
 
-и использует существующий strict parser. Если для exact session присутствует `session-<id>.json.tmp`, lookup fail closed как unstable/ambiguous selection state. Это позволяет core safety checks читать immutable selection без повторного полного directory audit и без автоматического runtime recovery.
+## UI version switching
 
-### 5. Exact spool selection теперь enforced на storage boundary
+Переключение mobile ↔ desktop теперь добавляется централизованно `CM_StaticSiteServer` в конец каждой `/mobile/...` и `/desktop/...` HTML-страницы. Сохраняются текущий path/query/hash.
+
+Текущий подтверждённый пользователем блок работает.
+
+Ключевой commit:
 
 ```text
-979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
+51f3e6d122d5bb7e48145f9cc5243f6ad4122050
 ```
 
-`WarehouseStore::confirmSpoolWriteOff()` теперь до `RUN_COMPLETED` proof и до создания `PENDING` сам требует:
-
-```text
-source_session_id -> immutable spool selection exists
-selection.repair_id == operation.repair_id
-selection.spool_id  == operation.spool_id
-```
-
-Поэтому internal/direct caller больше не может обойти HTTP и списать другой spool для завершённого run. Web остаётся дополнительным preflight layer, но safety invariant теперь защищён на storage boundary.
+Для этого переключателя HTML на microSD менять не требуется — footer инжектируется firmware server-side.
 
 ## Production flow
 
@@ -147,93 +161,44 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 → CLOSED → archive/report → read-only backup
 ```
 
-## Safety invariants — не менять
+Autonomous Arduino archive — отдельный ancillary flow и не ослабляет строгий linked-repair path.
 
-- physical START только физический;
-- ESP32/Web не управляют SSR напрямую;
-- automatic resume после reboot отсутствует;
-- `RUN_COMPLETED` сам по себе не выполняет wire writeoff;
-- wire writeoff остаётся ручным;
-- новый writeoff требует exact `spool_id + source_session_id + source_run_id`;
-- storage boundary дополнительно требует immutable session → repair/spool match;
-- exact-session `.json.tmp` блокирует writeoff fail closed;
-- corrupted persistence/storage loss блокирует опасную операцию fail-closed.
+## Что сейчас НЕ подтверждено
 
-## Exact-run writeoff provenance — закрытый блок
-
-Ключевые commits:
+Текущий ESP32 HEAD после новых backup/protocol changes ещё не имеет подтверждённого local build или GREEN CI result.
 
 ```text
-c7335631c660a7b5ee71da880a1f77e4e5faa83f  Require exact run provenance for new wire writeoffs
-7b92010294342d2a9cc9a153f306673f5c66ffb9  Require run provenance in wire writeoff API
-ef0e64838ebb3f0519f6bfe756ade599a07450b9  Require exact run provenance in writeoff UI
-4c7051603fc8753ed04caed025b27dc61f628136  Restore warehouse writeoff provenance lookups
-979e81acd4c67da66c1b74b9995c97bf648986d3  Enforce immutable spool selection in storage writeoff
-eb95164c1ecbc025835df1c20308b0d53605e558  Reject unstable spool selection temp state
-```
-
-Legacy session-only records остаются grandfathered/read-only compatibility старых данных; не выполнять автоматическую миграцию в guessed run IDs.
-
-## Production bootstrap — актуальное состояние
-
-Реально зарегистрированы:
-
-```text
-workshop clients/motors/repairs
-motor similarity
-warehouse summary/spools/price
-warehouse writeoff GET/POST
-materials CRUD/usage/adjustments
-repair costing/pricing history
-conductor calculator/settings
-backup manifest/file/session export
-winding history
-```
-
-`/api/winding-history` регистрируется только через `StaticSiteServer::begin()`. Не добавлять второй handler в `WarehouseWeb::begin()`.
-
-## Persistence / backup integrity
-
-Authoritative winding checks:
-
-```text
-WindingJournalQuery::validateAll()
-WindingJournalTransitionAudit::validate()
-```
-
-Production conductor settings source:
-
-```text
-/data/settings/conductor.json
-```
-
-Deep backup safe state охватывает allocator, conductor settings, workshop/pricing, materials, winding journal/transitions, warehouse movements, snapshot/state/spool-selection contents и cross-file identity.
-
-Stage 0 observability уже содержит **29 metrics**. Не добавлять новые telemetry scans до benchmark.
-
-## CI / compile verification
-
-Последний code-only HEAD перед этим handoff update:
-
-```text
-eb95164c1ecbc025835df1c20308b0d53605e558
-```
-
-Branch compare подтверждал `cmp-protocol-v1` identical этому SHA.
-
-GitHub connector возвращает пустой combined status. Публичная Actions страница также не была надёжно получена через доступный web fetch. Поэтому состояние остаётся:
-
-```text
+BUILD NOT CONFIRMED
 CI NOT CONFIRMED
 ```
 
-Не называть текущий ESP32 build GREEN без фактического Actions result.
+GitHub combined status через connector ранее возвращал пустой список.
 
 ## Следующее действие
 
-После закрытия найденных compile/link и storage-boundary gaps не продолжать бесконечный parser-hardening и не начинать Stage 1 performance refactor без измерений.
+Сначала clean ESP32 build текущего HEAD:
 
-Обязательный следующий внешний этап — реальный ESP32 + Arduino hardware E2E:
+```powershell
+pio run -e esp32 -t clean
+pio run -e esp32
+```
+
+Если build успешен:
+
+```powershell
+pio run -e esp32 -t upload
+```
+
+После upload проверить:
+
+1. `/api/backup/manifest` содержит два autonomous archive items;
+2. `snapshot_stable=true` на целой карте;
+3. новые autonomous record counts не `null` при выполненном audit;
+4. скачиваются `autonomous-winding-events.ndjson` и `autonomous-winding-assignments.ndjson`;
+5. обычный local Arduino task по-прежнему попадает в archive;
+6. mobile ↔ desktop footer остаётся рабочим.
+
+После этого продолжить полный production E2E:
 
 ```text
 linked repair
@@ -249,39 +214,4 @@ linked repair
 → stable backup
 ```
 
-Особенно проверить negative cases:
-
-```text
-completed source_session_id/source_run_id
-+ другой spool_id, не совпадающий с immutable selection
-=> writeoff MUST be rejected before PENDING/mutation
-
-exact session spool-selection .json.tmp present
-=> writeoff MUST be rejected before PENDING/mutation
-```
-
-Fault cases:
-
-- reboot/manual-review;
-- microSD loss;
-- corrupted persistence;
-- UART timeout/reject/duplicate events;
-- duplicate writeoff;
-- missing/wrong session/run/spool;
-- wrong spool against immutable selection;
-- unstable exact-session spool-selection temp;
-- close without wire coverage;
-- backup during active winding.
-
-Одновременно сохранить один `/api/backup/manifest` с:
-
-```text
-items[].size_bytes
-snapshot_stability_duration_ms
-9 per-domain *_duration_ms
-winding_allocator_last_id
-material/business/winding/warehouse record counts
-winding snapshot/state/spool-selection counts + total bytes
-```
-
-После benchmark выбрать самый дорогой `*_duration_ms` и только тогда решать, нужен ли bounded index, decomposition repeated scans или rotation. Database migration, persistent optimistic cache и arbitrary rotation threshold до измерений не вводить.
+На реальном dataset сохранить один manifest с audit durations/counts/bytes. Performance/rotation решения принимать только после измерений. Database migration и arbitrary rotation threshold преждевременно не вводить.

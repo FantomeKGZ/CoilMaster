@@ -45,10 +45,10 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
         return AutonomousWindingSaveResult::Invalid;
     if (duplicate) return AutonomousWindingSaveResult::Duplicate;
 
+    bool startObserved = event.type == RemoteEventType::RunStarted;
     if (event.type == RemoteEventType::RunCompleted)
     {
-        bool startFound = false;
-        if (!matchingStartExists(event, startFound) || !startFound)
+        if (!matchingStartExists(event, startObserved))
             return AutonomousWindingSaveResult::Invalid;
     }
 
@@ -60,7 +60,7 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
     }
 
     String record;
-    record.reserve(300U);
+    record.reserve(320U);
     record = F("{\"schema_version\":1,\"source\":\"ARDUINO_LOCAL\",\"session_id\":");
     record += event.sessionId;
     record += F(",\"run_id\":");
@@ -75,6 +75,8 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
     record += programText(event);
     record += F("\",\"completed_runs\":");
     record += event.completedRuns;
+    record += F(",\"start_observed\":");
+    record += startObserved ? 1 : 0;
     record += F(",\"received_uptime_ms\":");
     record += millis();
     record += F("}\n");
@@ -139,7 +141,10 @@ bool AutonomousWindingArchive::appendTasksJson(String& json,
         }
 
         uint32_t receivedUptimeMs = 0UL;
-        if (!findUnsigned(line, "received_uptime_ms", receivedUptimeMs))
+        uint32_t startObserved = 0UL;
+        if (!findUnsigned(line, "received_uptime_ms", receivedUptimeMs) ||
+            !findUnsigned(line, "start_observed", startObserved) ||
+            startObserved > 1UL)
         {
             file.close();
             return false;
@@ -159,6 +164,8 @@ bool AutonomousWindingArchive::appendTasksJson(String& json,
         json += program;
         json += F("\",\"completed_runs\":");
         json += event.completedRuns;
+        json += F(",\"start_observed\":");
+        json += startObserved == 1UL ? F("true") : F("false");
         json += F(",\"received_uptime_ms\":");
         json += receivedUptimeMs;
         json += F(",\"assigned_motor_id\":");
@@ -297,12 +304,21 @@ bool AutonomousWindingArchive::validateEvents() const
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         RemoteWindingEvent event;
-        if (!FlatJsonObjectValidator::valid(line) || !parseEventRecord(line, event))
+        uint32_t startObserved = 0UL;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !parseEventRecord(line, event) ||
+            !findUnsigned(line, "start_observed", startObserved) ||
+            startObserved > 1UL)
         {
             file.close();
             return false;
         }
-        if (event.type == RemoteEventType::RunCompleted)
+        if (event.type == RemoteEventType::RunStarted && startObserved != 1UL)
+        {
+            file.close();
+            return false;
+        }
+        if (event.type == RemoteEventType::RunCompleted && startObserved == 1UL)
         {
             bool startFound = false;
             if (!matchingStartExists(event, startFound) || !startFound)
@@ -383,7 +399,7 @@ bool AutonomousWindingArchive::containsEvent(uint32_t sessionId,
 }
 
 bool AutonomousWindingArchive::matchingStartExists(const RemoteWindingEvent& event,
-                                                   bool& found) const
+                                                    bool& found) const
 {
     found = false;
     if (!m_storage.exists(EventsPath)) return true;
@@ -478,6 +494,7 @@ bool AutonomousWindingArchive::parseEventRecord(const String& line,
     uint32_t schemaVersion = 0UL;
     uint32_t coilCount = 0UL;
     uint32_t completedRuns = 0UL;
+    uint32_t startObserved = 0UL;
     uint32_t uptimeMs = 0UL;
     String source;
     String eventText;
@@ -492,6 +509,7 @@ bool AutonomousWindingArchive::parseEventRecord(const String& line,
         !findUnsigned(line, "coil_count", coilCount) || coilCount == 0UL || coilCount > 10UL ||
         !findString(line, "program", program) ||
         !findUnsigned(line, "completed_runs", completedRuns) || completedRuns > 0xFFFFUL ||
+        !findUnsigned(line, "start_observed", startObserved) || startObserved > 1UL ||
         !findUnsigned(line, "received_uptime_ms", uptimeMs))
     {
         return false;
@@ -500,6 +518,9 @@ bool AutonomousWindingArchive::parseEventRecord(const String& line,
     if (eventText == "RUN_STARTED") event.type = RemoteEventType::RunStarted;
     else if (eventText == "RUN_COMPLETED") event.type = RemoteEventType::RunCompleted;
     else return false;
+
+    if (event.type == RemoteEventType::RunStarted && startObserved != 1UL)
+        return false;
 
     if (windingType == "WORKING") event.jobType = RemoteJobType::Working;
     else if (windingType == "STARTING") event.jobType = RemoteJobType::Starting;

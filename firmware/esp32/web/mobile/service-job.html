@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Управление заданием — CoilMaster</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa;--green:#18864b;--orange:#9a5b00;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:82px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px;z-index:2}header a{color:#fff;text-decoration:none}main{padding:12px}.card{background:var(--card);border-radius:15px;padding:16px;margin-bottom:12px}.row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #e8edf1}.row:last-child{border:0}.muted{color:var(--muted)}.note{padding:12px;border-radius:10px;margin-top:10px;background:#f3f7fa}.warning{background:#fff1d8;color:#7a4b00}.danger{background:#fde8e7;color:#8a1e18}.ok{background:#e8f7ee;color:#17683a}button,a.action{width:100%;display:block;padding:13px;border:0;border-radius:10px;margin-top:10px;font-size:16px;font-weight:bold;text-align:center;text-decoration:none}button{background:var(--blue);color:#fff}button.danger{background:#a72b23;color:#fff}.switch{background:#e8f1f8;color:#105b91}.checklist{margin:8px 0 0;padding-left:22px}.checklist li{margin:7px 0}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea;z-index:3}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
+</style>
+</head>
+<body>
+<header><a href="/mobile/">← Главная</a><b style="float:right">🧭 Задание</b></header>
+<main>
+<section class="card">
+<h2>Текущее задание</h2>
+<div class="row"><span class="muted">Задание</span><b id="job">—</b></div>
+<div class="row"><span class="muted">Сессия</span><b id="session">—</b></div>
+<div class="row"><span class="muted">Состояние</span><b id="status">—</b></div>
+<div class="row"><span class="muted">Программа</span><b id="program">—</b></div>
+<div class="row"><span class="muted">Контекст</span><b id="context">—</b></div>
+<div id="stateBox" class="note">Загрузка состояния…</div>
+</section>
+
+<section id="reviewCard" class="card" hidden>
+<h2>Ручная проверка восстановления</h2>
+<div class="note warning">ESP32 не продолжает и не заменяет такое задание автоматически. Перед закрытием требуется физическая проверка станка.</div>
+<ul class="checklist">
+<li>SSR/двигатель фактически не выполняют намотку.</li>
+<li>Arduino не должна продолжать старый проход после следующего START.</li>
+<li>Текущая незавершённая операция проверена оператором.</li>
+</ul>
+<button id="reviewButton" class="danger">Проверено — закрыть восстановление</button>
+</section>
+
+<section id="dismissCard" class="card" hidden>
+<h2>Убрать сервисное задание</h2>
+<p class="muted">Удаляется только из активного состояния. Immutable snapshot и история сохраняются.</p>
+<button id="dismissButton" class="danger">Убрать задание из активных</button>
+</section>
+
+<section class="card">
+<h2>Навигация</h2>
+<a class="action switch" href="/desktop/" onclick="localStorage.setItem('cm-ui-version','desktop')">🖥️ Перейти в версию для ПК</a>
+<a class="action switch" href="/mobile/settings.html">⚙️ Настройки</a>
+</section>
+</main>
+<nav>
+<a href="/mobile/"><b>🏠</b>Главная</a>
+<a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a>
+<a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a>
+<a href="/mobile/warehouse.html"><b>📦</b>Склад</a>
+<a href="/mobile/more.html"><b>☰</b>Ещё</a>
+</nav>
+<script>
+localStorage.setItem('cm-ui-version','mobile');
+const $=id=>document.getElementById(id);
+let current=null;
+const safeDismissStatuses=new Set(['REJECTED','TIMED_OUT','CANCELLED','PROGRAM_COMPLETED']);
+function render(s){
+  current=s;
+  $('job').textContent=s.job_id||'—';
+  $('session').textContent=s.session_id||'—';
+  $('status').textContent=s.job_status||'—';
+  $('program').textContent=s.program||'—';
+  $('context').textContent=s.job_id?(s.linked?'Ремонт №'+s.repair_id+' · двигатель №'+s.motor_id:'Сервисное задание'):'Нет активного задания';
+  const box=$('stateBox');
+  $('reviewCard').hidden=s.manual_review_required!==true;
+  const dismissAllowed=!!s.job_id&&s.linked!==true&&s.manual_review_required!==true&&safeDismissStatuses.has(s.job_status);
+  $('dismissCard').hidden=!dismissAllowed;
+  if(s.manual_review_required===true){box.className='note warning';box.textContent='Продолжение заблокировано до ручной проверки.'}
+  else if(!s.job_id){box.className='note ok';box.textContent='Активного задания нет. Можно создать новое.'}
+  else if(dismissAllowed){box.className='note';box.textContent='Задание уже безопасно неактивно. Его можно убрать с главного экрана.'}
+  else if(s.linked===true){box.className='note';box.textContent='Это задание связано с ремонтом и управляется через карточку ремонта.'}
+  else if(s.job_status==='ACCEPTED_READY'||s.job_status==='WAITING_ARDUINO_ACK'||s.job_status==='RUNNING'){
+    box.className='note warning';box.textContent='Удаление заблокировано: Arduino может держать или выполнять программу.'
+  }else{box.className='note';box.textContent='Состояние задания не позволяет безопасно убрать его сейчас.'}
+}
+async function refresh(){
+  try{const r=await fetch('/api/status',{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'status_unavailable');render(j)}
+  catch(e){$('stateBox').className='note danger';$('stateBox').textContent='Не удалось получить состояние ESP32.'}
+}
+$('reviewButton').onclick=async()=>{
+  if(!current||current.manual_review_required!==true)return;
+  if(!confirm('Подтверждаете физическую проверку станка и закрытие восстановленного состояния? Автоматического запуска не будет.'))return;
+  $('reviewButton').disabled=true;
+  try{
+    const body=new URLSearchParams({session_id:String(current.session_id),confirmed:'true'});
+    const r=await fetch('/api/recovery/acknowledge-and-restart',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+    if(!r.ok)throw new Error(j.error||'review_failed');
+    $('stateBox').className='note ok';$('stateBox').textContent='Проверка подтверждена. ESP32 перезапускается…';
+    setTimeout(()=>location.href='/mobile/',1800);
+  }catch(e){$('stateBox').className='note danger';$('stateBox').textContent='Ошибка: '+e.message;$('reviewButton').disabled=false}
+};
+$('dismissButton').onclick=async()=>{
+  if(!current||!current.job_id||current.linked===true)return;
+  if(!confirm('Убрать это сервисное задание из активных? История и snapshot останутся сохранены.'))return;
+  $('dismissButton').disabled=true;
+  try{
+    const body=new URLSearchParams({job_id:String(current.job_id),session_id:String(current.session_id),confirmed:'true'});
+    const r=await fetch('/api/jobs/dismiss',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+    if(!r.ok)throw new Error(j.error||'dismiss_failed');
+    $('stateBox').className='note ok';$('stateBox').textContent='Задание убрано из активных. ESP32 перезапускается…';
+    setTimeout(()=>location.href='/mobile/',1800);
+  }catch(e){$('stateBox').className='note danger';$('stateBox').textContent='Ошибка: '+e.message;$('dismissButton').disabled=false}
+};
+refresh();
+setInterval(refresh,1500);
+</script>
+</body>
+</html>

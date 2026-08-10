@@ -70,6 +70,7 @@ CM::JobRecoveryInfo recoveryInfo;
 bool recoveryEvaluated = false;
 bool stateRecovered = false;
 bool jobAwaitingAck = false;
+bool jobCancelAwaitingAck = false;
 bool runActive = false;
 bool journalReady = false;
 bool idAllocatorReady = false;
@@ -105,7 +106,7 @@ CM::BackupActivityCheck backupRuntimeActivity()
         return CM::BackupActivityCheck::Unavailable;
     if (manualReviewRequired())
         return CM::BackupActivityCheck::Safe;
-    if (runActive || jobAwaitingAck ||
+    if (runActive || jobAwaitingAck || jobCancelAwaitingAck ||
         (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns == 0U))
     {
         return CM::BackupActivityCheck::Busy;
@@ -118,6 +119,7 @@ bool jobCreationReady()
     return recoveryEvaluated &&
            recoveryInfo.mayCreateNewJob &&
            !manualReviewRequired() &&
+           !jobCancelAwaitingAck &&
            journalReady && journal.isReady() &&
            idAllocatorReady && idAllocator.isReady() &&
            jobSnapshotStoreReady && jobSnapshots.isReady() &&
@@ -137,6 +139,7 @@ const char* jobStatusText()
 {
     if (manualReviewRequired()) return "MANUAL_REVIEW_REQUIRED";
     if (runActive) return "RUNNING";
+    if (jobCancelAwaitingAck) return "CANCELLING";
     if (jobAwaitingAck) return "WAITING_ARDUINO_ACK";
     if (completedRuns > 0U) return "PROGRAM_COMPLETED";
     switch (lastJobResult)
@@ -154,6 +157,7 @@ const char* machineStatusText()
 {
     if (manualReviewRequired()) return "Требуется проверка";
     if (runActive) return "Намотка";
+    if (jobCancelAwaitingAck) return "Отмена";
     if (jobAwaitingAck) return "Передача";
     if (completedRuns > 0U) return "Завершено";
     if (lastJobResult == CM::JobDeliveryResult::Accepted) return "Готов";
@@ -190,9 +194,18 @@ void restoreLatestJobState()
     recoveryEvaluated = true;
     recoveryInfo = CM::JobRecoveryInfo();
     stateRecovered = false;
+    activeJobId = 0UL;
+    activeSessionId = 0UL;
+    lastRunId = 0UL;
+    completedRuns = 0U;
+    activeJobType = CM::RemoteJobType::Working;
     activeJobLinkage = CM::JobLinkage();
     activeJobSpoolSelection = CM::JobSpoolSelection();
     activeCoilCount = 0U;
+    lastJobResult = CM::JobDeliveryResult::None;
+    runActive = false;
+    jobAwaitingAck = false;
+    jobCancelAwaitingAck = false;
     for (uint8_t i = 0U; i < MaxWebCoils; ++i) activeTurns[i] = 0U;
 
     if (!jobStateStoreReady ||
@@ -207,7 +220,7 @@ void restoreLatestJobState()
 
     if (recoveryInfo.disposition == CM::JobRecoveryDisposition::None)
     {
-        Serial.println(F("No persisted winding job state found"));
+        Serial.println(F("No active persisted winding job state found"));
         return;
     }
 
@@ -249,6 +262,7 @@ void restoreLatestJobState()
 
     runActive = false;
     jobAwaitingAck = false;
+    jobCancelAwaitingAck = false;
 
     Serial.print(F("Recovered job state job=")); Serial.print(activeJobId);
     Serial.print(F(" session=")); Serial.print(activeSessionId);
@@ -329,6 +343,7 @@ void handleEvent(const CM::RemoteWindingEvent& event)
         lastRunId = event.runId;
         completedRuns = event.completedRuns;
         runActive = event.type == CM::RemoteEventType::RunStarted;
+        if (runActive) jobCancelAwaitingAck = false;
         recoveryInfo = CM::JobRecoveryInfo();
         recoveryInfo.mayCreateNewJob = event.type == CM::RemoteEventType::RunCompleted;
         recoveryEvaluated = true;
@@ -440,6 +455,7 @@ void sendJsonStatus()
     response += F(",\"last_run_id\":"); response += lastRunId;
     response += F(",\"run_active\":"); response += runActive ? F("true") : F("false");
     response += F(",\"arduino_ack_pending\":"); response += jobAwaitingAck ? F("true") : F("false");
+    response += F(",\"arduino_cancel_pending\":"); response += jobCancelAwaitingAck ? F("true") : F("false");
     response += F(",\"arduino_online\":"); response += arduinoOnline ? F("true") : F("false");
     response += F(",\"state_recovered\":"); response += stateRecovered ? F("true") : F("false");
     response += F(",\"manual_review_required\":"); response += manualReviewRequired() ? F("true") : F("false");
@@ -508,8 +524,6 @@ void handleRecoveryAcknowledge()
         return;
     }
 
-    runActive = false;
-    jobAwaitingAck = false;
     String response = F("{\"acknowledged\":true,\"session_id\":");
     response += sessionId;
     response += F(",\"state\":\"CLOSED_AFTER_REVIEW\",\"new_job_allowed\":true,");
@@ -518,11 +532,107 @@ void handleRecoveryAcknowledge()
     Serial.print(F("Operator review closed session=")); Serial.println(sessionId);
 }
 
+void handleCancelJob()
+{
+    if (!recoveryEvaluated)
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_recovery_not_evaluated\"}");
+        return;
+    }
+    if (manualReviewRequired())
+    {
+        webServer.send(409, "application/json", "{\"error\":\"manual_review_required\"}");
+        return;
+    }
+    if (!jobStateStoreReady || !jobStates.isReady())
+    {
+        webServer.send(503, "application/json", "{\"error\":\"job_state_store_unavailable\"}");
+        return;
+    }
+    if (jobCancelAwaitingAck || receiver.jobCancelPending())
+    {
+        webServer.send(409, "application/json", "{\"error\":\"job_cancel_already_pending\"}");
+        return;
+    }
+    if (!webServer.hasArg("job_id") || !webServer.hasArg("session_id") ||
+        !webServer.hasArg("confirmed"))
+    {
+        webServer.send(400, "application/json", "{\"error\":\"job_session_and_confirmation_required\"}");
+        return;
+    }
+    if (webServer.arg("confirmed") != "true")
+    {
+        webServer.send(400, "application/json", "{\"error\":\"explicit_confirmation_required\"}");
+        return;
+    }
+
+    uint32_t jobId = 0UL;
+    uint32_t sessionId = 0UL;
+    if (!parseCanonicalUint32(webServer.arg("job_id"), jobId) ||
+        !parseCanonicalUint32(webServer.arg("session_id"), sessionId) ||
+        jobId == 0UL || sessionId == 0UL)
+    {
+        webServer.send(400, "application/json", "{\"error\":\"invalid_job_or_session_id\"}");
+        return;
+    }
+    if (jobId != activeJobId || sessionId != activeSessionId)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"job_or_session_mismatch\"}");
+        return;
+    }
+    if (activeJobLinkage.linked)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"linked_job_cannot_be_cancelled_here\"}");
+        return;
+    }
+    if (runActive || completedRuns != 0U || lastRunId != 0UL || jobAwaitingAck ||
+        lastJobResult != CM::JobDeliveryResult::Accepted)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"job_not_waiting_physical_start\"}");
+        return;
+    }
+
+    CM::JobRuntimeState persisted;
+    if (!jobStates.load(sessionId, persisted))
+    {
+        webServer.send(500, "application/json", "{\"error\":\"job_state_read_failed\"}");
+        return;
+    }
+    if (persisted.jobId != jobId ||
+        persisted.deliveryState != CM::JobDeliveryState::Accepted ||
+        persisted.executionState != CM::JobExecutionState::WaitingPhysicalStart ||
+        persisted.lastRunId != 0UL || persisted.completedRuns != 0U)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"persisted_job_not_cancellable\"}");
+        return;
+    }
+
+    if (!receiver.requestJobCancel(jobId))
+    {
+        webServer.send(409, "application/json", "{\"error\":\"uart_cancel_sender_busy\"}");
+        return;
+    }
+
+    jobCancelAwaitingAck = true;
+    recoveryInfo.mayCreateNewJob = false;
+    String response = F("{\"cancel_requested\":true,\"job_id\":");
+    response += jobId;
+    response += F(",\"session_id\":");
+    response += sessionId;
+    response += F(",\"status\":\"CANCELLING\",\"automatic_resume_allowed\":false}");
+    webServer.send(202, "application/json; charset=utf-8", response);
+}
+
 void handleCreateJob()
 {
     if (!recoveryEvaluated)
     {
         webServer.send(503, "application/json", "{\"error\":\"job_recovery_not_evaluated\"}");
+        return;
+    }
+    if (jobCancelAwaitingAck)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"job_cancel_pending\"}");
         return;
     }
     if (manualReviewRequired())
@@ -726,6 +836,7 @@ void handleCreateJob()
     runActive = false;
     lastJobResult = CM::JobDeliveryResult::None;
     jobAwaitingAck = true;
+    jobCancelAwaitingAck = false;
     recoveryInfo = CM::JobRecoveryInfo();
     recoveryInfo.mayCreateNewJob = false;
     recoveryEvaluated = true;
@@ -757,6 +868,7 @@ void configureWebServer()
 {
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
+    webServer.on("/api/jobs/cancel", HTTP_POST, handleCancelJob);
     webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);
     jobSpoolSelectionWeb.begin();
     repairRegistryWeb.begin();
@@ -825,6 +937,55 @@ void processJobDelivery()
         Serial.println(delivery.result == CM::JobDeliveryResult::Accepted ? F("ACCEPTED_READY") : F("NOT_ACCEPTED"));
     }
 }
+
+void processJobCancel()
+{
+    CM::JobCancelEvent cancel;
+    while (receiver.takeJobCancel(cancel))
+    {
+        jobCancelAwaitingAck = false;
+        lastArduinoEventMs = millis();
+
+        if (cancel.jobId == 0UL || cancel.jobId != activeJobId)
+        {
+            Serial.println(F("WARNING: ignored mismatched JOB_CANCEL_ACK"));
+            continue;
+        }
+
+        if (cancel.result == CM::JobCancelResult::Cancelled)
+        {
+            const uint32_t sessionId = activeSessionId;
+            if (sessionId == 0UL || !jobStateStoreReady ||
+                !jobStates.closeAfterRemoteCancel(sessionId, millis()))
+            {
+                jobStateStoreReady = false;
+                recoveryInfo.mayCreateNewJob = false;
+                Serial.println(F("ERROR: acknowledged job cancellation persistence failed"));
+                continue;
+            }
+
+            restoreLatestJobState();
+            if (!jobStateStoreReady || manualReviewRequired())
+            {
+                recoveryInfo.mayCreateNewJob = false;
+                Serial.println(F("ERROR: cancelled job recovery verification failed"));
+                continue;
+            }
+
+            Serial.print(F("JOB_CANCEL_ACK id="));
+            Serial.print(cancel.jobId);
+            Serial.println(F(" result=CANCELLED"));
+            continue;
+        }
+
+        recoveryInfo.mayCreateNewJob = false;
+        Serial.print(F("JOB_CANCEL_ACK id="));
+        Serial.print(cancel.jobId);
+        Serial.print(F(" result="));
+        Serial.println(cancel.result == CM::JobCancelResult::TimedOut
+                           ? F("TIMED_OUT") : F("REJECTED"));
+    }
+}
 }
 
 void setup()
@@ -870,4 +1031,5 @@ void loop()
     CM::RemoteWindingEvent event{};
     while (receiver.poll(event)) handleEvent(event);
     processJobDelivery();
+    processJobCancel();
 }

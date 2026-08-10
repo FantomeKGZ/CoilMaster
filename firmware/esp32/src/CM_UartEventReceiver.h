@@ -12,18 +12,40 @@ enum class RemoteEventType : uint8_t
     RunCompleted
 };
 
-struct RemoteWindingEvent
-{
-    RemoteEventType type;
-    uint32_t sessionId;
-    uint32_t runId;
-    uint16_t completedRuns;
-};
-
 enum class RemoteJobType : uint8_t
 {
     Working = 0U,
     Starting
+};
+
+struct RemoteWindingEvent
+{
+    static constexpr uint8_t MaxCoils = 10U;
+
+    RemoteEventType type;
+    uint32_t sessionId;
+    uint32_t runId;
+    uint16_t completedRuns;
+    bool localStandalone;
+    RemoteJobType jobType;
+    uint8_t coilCount;
+    uint16_t turns[MaxCoils];
+
+    RemoteWindingEvent()
+        : type(RemoteEventType::None), sessionId(0UL), runId(0UL),
+          completedRuns(0U), localStandalone(false),
+          jobType(RemoteJobType::Working), coilCount(0U), turns()
+    {
+    }
+
+    bool hasProgram() const
+    {
+        if (!localStandalone || coilCount == 0U || coilCount > MaxCoils)
+            return false;
+        for (uint8_t index = 0U; index < coilCount; ++index)
+            if (turns[index] == 0U || turns[index] > 9999U) return false;
+        return true;
+    }
 };
 
 struct OutgoingWindingJob
@@ -93,8 +115,6 @@ public:
     bool takeJobDelivery(JobDeliveryEvent& event);
     bool jobPending() const;
 
-    // Requests Arduino to discard an already accepted job. Success is not
-    // assumed until an explicit JOB_CANCEL_ACK is received from Arduino.
     bool requestJobCancel(uint32_t jobId);
     bool takeJobCancel(JobCancelEvent& event);
     bool jobCancelPending() const;
@@ -103,7 +123,7 @@ public:
     void sendNack(uint32_t runId, const char* reason);
 
 private:
-    static constexpr size_t MaxLineLength = 128U;
+    static constexpr size_t MaxLineLength = 192U;
     static constexpr uint32_t JobRetryIntervalMs = 2000UL;
     static constexpr uint8_t MaxJobSendAttempts = 5U;
     static constexpr uint8_t MaxCancelSendAttempts = 3U;

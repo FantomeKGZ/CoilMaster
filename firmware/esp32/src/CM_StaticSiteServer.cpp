@@ -1,5 +1,32 @@
 #include "CM_StaticSiteServer.h"
 
+#include "CM_JobDisplayRecovery.h"
+#include "CM_JobSnapshotStore.h"
+#include "CM_JobStateStore.h"
+
+namespace
+{
+bool parseCanonicalUint32Value(const String& source, uint32_t& value)
+{
+    value = 0UL;
+    if (source.length() == 0U) return false;
+    if (source.length() > 1U && source[0] == '0') return false;
+
+    uint32_t parsed = 0UL;
+    for (size_t index = 0U; index < source.length(); ++index)
+    {
+        const char ch = source[index];
+        if (!isDigit(ch)) return false;
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+    }
+
+    value = parsed;
+    return true;
+}
+}
+
 namespace CM
 {
 StaticSiteServer::StaticSiteServer(WebServer& server, fs::FS& storage)
@@ -33,6 +60,186 @@ void StaticSiteServer::begin(const char* webRoot)
 
     m_server.on("/mobile", HTTP_GET, [this]() { redirect("/mobile/"); });
     m_server.on("/desktop", HTTP_GET, [this]() { redirect("/desktop/"); });
+
+    // Operator-only recovery closure. The persisted state and immutable snapshot
+    // are revalidated here before closure. No automatic resume or physical START
+    // is performed. A restart is intentional so the closed job cannot remain in
+    // the in-memory active display after acknowledgement.
+    m_server.on("/api/recovery/acknowledge-and-restart", HTTP_POST, [this]()
+    {
+        if (!m_server.hasArg("session_id") || !m_server.hasArg("confirmed"))
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"session_id_and_confirmation_required\"}");
+            return;
+        }
+        if (m_server.arg("confirmed") != "true")
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"explicit_confirmation_required\"}");
+            return;
+        }
+
+        uint32_t sessionId = 0UL;
+        if (!parseCanonicalUint32Value(m_server.arg("session_id"), sessionId) ||
+            sessionId == 0UL)
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"invalid_session_id\"}");
+            return;
+        }
+
+        JobStateStore states(m_storage);
+        if (!states.begin())
+        {
+            m_server.send(503, "application/json",
+                          "{\"error\":\"job_state_store_unavailable\"}");
+            return;
+        }
+
+        JobRuntimeState latest;
+        bool found = false;
+        if (!states.loadLatest(latest, found))
+        {
+            m_server.send(500, "application/json",
+                          "{\"error\":\"job_state_integrity_failed\"}");
+            return;
+        }
+        if (!found)
+        {
+            m_server.send(404, "application/json",
+                          "{\"error\":\"job_state_not_found\"}");
+            return;
+        }
+        if (latest.sessionId != sessionId)
+        {
+            m_server.send(409, "application/json",
+                          "{\"error\":\"session_mismatch\"}");
+            return;
+        }
+
+        JobSnapshotStore snapshots(m_storage);
+        if (!snapshots.begin() ||
+            !snapshots.validateIdentity(latest.jobId, latest.sessionId))
+        {
+            m_server.send(500, "application/json",
+                          "{\"error\":\"job_snapshot_identity_failed\"}");
+            return;
+        }
+
+        if (!states.closeAfterManualReview(sessionId, millis()))
+        {
+            m_server.send(409, "application/json",
+                          "{\"error\":\"manual_review_not_required_or_state_changed\"}");
+            return;
+        }
+
+        String response = F("{\"acknowledged\":true,\"session_id\":");
+        response += sessionId;
+        response += F(",\"state\":\"CLOSED_AFTER_REVIEW\",\"restarting\":true,");
+        response += F("\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+        delay(350);
+        ESP.restart();
+    });
+
+    // Removes only an already inactive unlinked/service job from the active
+    // machine view. Immutable snapshots/history remain on storage. Accepted,
+    // delivering and running jobs cannot be hidden through this route.
+    m_server.on("/api/jobs/dismiss", HTTP_POST, [this]()
+    {
+        if (!m_server.hasArg("job_id") || !m_server.hasArg("session_id") ||
+            !m_server.hasArg("confirmed"))
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"job_session_and_confirmation_required\"}");
+            return;
+        }
+        if (m_server.arg("confirmed") != "true")
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"explicit_confirmation_required\"}");
+            return;
+        }
+
+        uint32_t jobId = 0UL;
+        uint32_t sessionId = 0UL;
+        if (!parseCanonicalUint32Value(m_server.arg("job_id"), jobId) ||
+            !parseCanonicalUint32Value(m_server.arg("session_id"), sessionId) ||
+            jobId == 0UL || sessionId == 0UL)
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"invalid_job_or_session_id\"}");
+            return;
+        }
+
+        JobStateStore states(m_storage);
+        if (!states.begin())
+        {
+            m_server.send(503, "application/json",
+                          "{\"error\":\"job_state_store_unavailable\"}");
+            return;
+        }
+
+        JobRuntimeState latest;
+        bool found = false;
+        if (!states.loadLatest(latest, found))
+        {
+            m_server.send(500, "application/json",
+                          "{\"error\":\"job_state_integrity_failed\"}");
+            return;
+        }
+        if (!found)
+        {
+            m_server.send(404, "application/json",
+                          "{\"error\":\"job_state_not_found\"}");
+            return;
+        }
+        if (latest.jobId != jobId || latest.sessionId != sessionId)
+        {
+            m_server.send(409, "application/json",
+                          "{\"error\":\"job_or_session_mismatch\"}");
+            return;
+        }
+
+        JobSnapshotStore snapshots(m_storage);
+        if (!snapshots.begin())
+        {
+            m_server.send(503, "application/json",
+                          "{\"error\":\"job_snapshot_store_unavailable\"}");
+            return;
+        }
+
+        RecoveredJobDisplay display;
+        if (!JobDisplayRecovery::load(snapshots, jobId, sessionId, display))
+        {
+            m_server.send(500, "application/json",
+                          "{\"error\":\"job_snapshot_identity_failed\"}");
+            return;
+        }
+        if (display.linkage.linked)
+        {
+            m_server.send(409, "application/json",
+                          "{\"error\":\"linked_job_cannot_be_dismissed_here\"}");
+            return;
+        }
+
+        if (!states.dismissInactive(sessionId, millis()))
+        {
+            m_server.send(409, "application/json",
+                          "{\"error\":\"job_not_safely_inactive\"}");
+            return;
+        }
+
+        String response = F("{\"dismissed\":true,\"job_id\":");
+        response += jobId;
+        response += F(",\"session_id\":");
+        response += sessionId;
+        response += F(",\"history_preserved\":true,\"restarting\":true}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+        delay(350);
+        ESP.restart();
+    });
 
     m_server.on("/sites/reference", HTTP_GET, [this]()
     {

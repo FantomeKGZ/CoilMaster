@@ -22,7 +22,9 @@ UartEventTransport::UartEventTransport(uint8_t rxPin,
       m_deliveryEvent(),
       m_hasDeliveryEvent(false),
       m_remoteJob(),
-      m_hasRemoteJob(false)
+      m_hasRemoteJob(false),
+      m_remoteCancelJobId(0UL),
+      m_hasRemoteCancel(false)
 {
     m_remoteJob.clear();
 }
@@ -96,6 +98,31 @@ void UartEventTransport::sendJobResult(uint32_t jobId,
     m_serial.print(jobId);
     m_serial.print('|');
     m_serial.print(accepted ? F("ACCEPTED") : F("REJECTED"));
+    m_serial.print('|');
+    m_serial.println(reason != nullptr ? reason : "NONE");
+}
+
+bool UartEventTransport::takeRemoteCancel(uint32_t& jobId)
+{
+    if (!m_hasRemoteCancel)
+    {
+        return false;
+    }
+
+    jobId = m_remoteCancelJobId;
+    m_remoteCancelJobId = 0UL;
+    m_hasRemoteCancel = false;
+    return true;
+}
+
+void UartEventTransport::sendJobCancelResult(uint32_t jobId,
+                                             bool cancelled,
+                                             const char* reason)
+{
+    m_serial.print(F("CMP1|JOB_CANCEL_ACK|"));
+    m_serial.print(jobId);
+    m_serial.print('|');
+    m_serial.print(cancelled ? F("CANCELLED") : F("REJECTED"));
     m_serial.print('|');
     m_serial.println(reason != nullptr ? reason : "NONE");
 }
@@ -198,6 +225,17 @@ void UartEventTransport::pollReplies(uint32_t nowMs)
 
 void UartEventTransport::processReply(char* line, uint32_t nowMs)
 {
+    if (strncmp(line, "CMP1|JOB_CANCEL|", 16U) == 0)
+    {
+        uint32_t jobId = 0UL;
+        if (parseRemoteCancel(line, jobId) && !m_hasRemoteCancel)
+        {
+            m_remoteCancelJobId = jobId;
+            m_hasRemoteCancel = true;
+        }
+        return;
+    }
+
     if (strncmp(line, "CMP1|JOB|", 9U) == 0)
     {
         WindingJob parsed;
@@ -330,6 +368,43 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
     }
 
     return index == job.coilCount && token == nullptr && job.isValid();
+}
+
+bool UartEventTransport::parseRemoteCancel(char* line, uint32_t& jobId) const
+{
+    jobId = 0UL;
+    char* lastSeparator = strrchr(line, '|');
+    if (lastSeparator == nullptr) return false;
+
+    uint16_t receivedCrc = 0U;
+    if (!parseHex16(lastSeparator + 1, receivedCrc)) return false;
+
+    const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
+    if (crc16Modbus(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
+        receivedCrc)
+    {
+        return false;
+    }
+    *lastSeparator = '\0';
+
+    char* save = nullptr;
+    char* version = strtok_r(line, "|", &save);
+    char* category = strtok_r(nullptr, "|", &save);
+    char* jobText = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
+    if (version == nullptr || category == nullptr || jobText == nullptr ||
+        extra != nullptr || strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "JOB_CANCEL") != 0)
+    {
+        return false;
+    }
+
+    char* end = nullptr;
+    const unsigned long parsed = strtoul(jobText, &end, 10);
+    if (end == nullptr || *end != '\0' || parsed == 0UL)
+        return false;
+    jobId = static_cast<uint32_t>(parsed);
+    return true;
 }
 
 void UartEventTransport::removeFront()

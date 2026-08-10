@@ -11,19 +11,29 @@ namespace
 bool isValidJobAckDetail(const char* detail)
 {
     if (detail == nullptr) return true;
-
     const size_t length = strlen(detail);
     if (length == 0U || length > JobDeliveryEvent::MaxDetailLength)
         return false;
-
     for (size_t index = 0U; index < length; ++index)
     {
         const char value = detail[index];
         const bool upper = value >= 'A' && value <= 'Z';
         const bool digit = value >= '0' && value <= '9';
-        if (!upper && !digit && value != '_' && value != '-')
-            return false;
+        if (!upper && !digit && value != '_' && value != '-') return false;
     }
+    return true;
+}
+
+bool parseEventType(const char* text, RemoteEventType& type)
+{
+    type = RemoteEventType::None;
+    if (text == nullptr) return false;
+    if (strcmp(text, "RUN_STARTED") == 0)
+        type = RemoteEventType::RunStarted;
+    else if (strcmp(text, "RUN_COMPLETED") == 0)
+        type = RemoteEventType::RunCompleted;
+    else
+        return false;
     return true;
 }
 }
@@ -39,7 +49,6 @@ bool OutgoingWindingJob::isValid() const
     if (jobId == 0UL || sessionId == 0UL ||
         coilCount == 0U || coilCount > MaxCoils)
         return false;
-
     for (uint8_t index = 0U; index < coilCount; ++index)
         if (turns[index] == 0U || turns[index] > 9999U) return false;
     return true;
@@ -113,9 +122,7 @@ void UartEventReceiver::update(uint32_t nowMs)
     if (m_hasPendingJob)
     {
         if (!m_waitingJobAck)
-        {
             sendPendingJob(nowMs);
-        }
         else if (static_cast<uint32_t>(nowMs - m_lastJobSendMs) >= JobRetryIntervalMs)
         {
             if (m_jobSendAttempts >= MaxJobSendAttempts)
@@ -129,9 +136,7 @@ void UartEventReceiver::update(uint32_t nowMs)
                 m_jobSendAttempts = 0U;
             }
             else
-            {
                 sendPendingJob(nowMs);
-            }
         }
     }
 
@@ -159,7 +164,6 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
     if (m_hasPendingJob || m_hasJobDelivery || m_hasPendingCancel ||
         m_hasJobCancel || !job.isValid()) return false;
     if (m_hasLastQueuedJobId && job.jobId <= m_lastQueuedJobId) return false;
-
     m_pendingJob = job;
     m_hasPendingJob = true;
     m_waitingJobAck = false;
@@ -171,15 +175,10 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 
 bool UartEventReceiver::cancelPendingJob(const char* detail)
 {
-    // Cancellation is local only. Once a frame has been transmitted, Arduino may
-    // already have accepted it even when its acknowledgement has not arrived.
-    // Refuse to report a misleading cancellation after the first send attempt.
     if (!m_hasPendingJob || m_hasJobDelivery || m_waitingJobAck ||
         m_jobSendAttempts != 0U || m_hasPendingCancel || m_hasJobCancel ||
         !isValidJobAckDetail(detail))
-    {
         return false;
-    }
 
     publishJobDelivery(JobDeliveryResult::Cancelled,
                        m_pendingJob.jobId,
@@ -202,16 +201,16 @@ bool UartEventReceiver::takeJobDelivery(JobDeliveryEvent& event)
     return true;
 }
 
-bool UartEventReceiver::jobPending() const { return m_hasPendingJob; }
+bool UartEventReceiver::jobPending() const
+{
+    return m_hasPendingJob;
+}
 
 bool UartEventReceiver::requestJobCancel(uint32_t jobId)
 {
     if (jobId == 0UL || m_hasPendingJob || m_hasJobDelivery ||
         m_hasPendingCancel || m_hasJobCancel)
-    {
         return false;
-    }
-
     m_cancelJobId = jobId;
     m_hasPendingCancel = true;
     m_lastCancelSendMs = 0UL;
@@ -252,6 +251,7 @@ void UartEventReceiver::sendNack(uint32_t runId, const char* reason)
 bool UartEventReceiver::parseEventLine(char* line,
                                        RemoteWindingEvent& event) const
 {
+    event = RemoteWindingEvent();
     char* lastSeparator = strrchr(line, '|');
     if (lastSeparator == nullptr) return false;
     uint16_t receivedCrc = 0U;
@@ -263,31 +263,23 @@ bool UartEventReceiver::parseEventLine(char* line,
     char* save = nullptr;
     char* version = strtok_r(line, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
-    char* type = strtok_r(nullptr, "|", &save);
-    char* session = strtok_r(nullptr, "|", &save);
-    char* run = strtok_r(nullptr, "|", &save);
-    char* completed = strtok_r(nullptr, "|", &save);
-    char* extra = strtok_r(nullptr, "|", &save);
-    if (version == nullptr || category == nullptr || type == nullptr ||
-        session == nullptr || run == nullptr || completed == nullptr ||
-        extra != nullptr || strcmp(version, "CMP1") != 0 ||
-        strcmp(category, "EVT") != 0)
+    char* typeText = strtok_r(nullptr, "|", &save);
+    char* sessionText = strtok_r(nullptr, "|", &save);
+    char* runText = strtok_r(nullptr, "|", &save);
+    char* completedText = strtok_r(nullptr, "|", &save);
+    if (version == nullptr || category == nullptr || typeText == nullptr ||
+        sessionText == nullptr || runText == nullptr || completedText == nullptr ||
+        strcmp(version, "CMP1") != 0)
         return false;
 
     RemoteEventType parsedType = RemoteEventType::None;
-    if (strcmp(type, "RUN_STARTED") == 0)
-        parsedType = RemoteEventType::RunStarted;
-    else if (strcmp(type, "RUN_COMPLETED") == 0)
-        parsedType = RemoteEventType::RunCompleted;
-    else
-        return false;
-
     uint32_t parsedSession = 0UL;
     uint32_t parsedRun = 0UL;
     uint16_t parsedCompleted = 0U;
-    if (!parseDecimal32(session, parsedSession) || parsedSession == 0UL ||
-        !parseDecimal32(run, parsedRun) || parsedRun == 0UL ||
-        !parseDecimal16(completed, parsedCompleted))
+    if (!parseEventType(typeText, parsedType) ||
+        !parseDecimal32(sessionText, parsedSession) || parsedSession == 0UL ||
+        !parseDecimal32(runText, parsedRun) || parsedRun == 0UL ||
+        !parseDecimal16(completedText, parsedCompleted))
         return false;
     if ((parsedType == RemoteEventType::RunStarted && parsedCompleted != 0U) ||
         (parsedType == RemoteEventType::RunCompleted && parsedCompleted == 0U))
@@ -297,7 +289,48 @@ bool UartEventReceiver::parseEventLine(char* line,
     event.sessionId = parsedSession;
     event.runId = parsedRun;
     event.completedRuns = parsedCompleted;
-    return true;
+
+    if (strcmp(category, "EVT") == 0)
+    {
+        return strtok_r(nullptr, "|", &save) == nullptr;
+    }
+    if (strcmp(category, "LOCAL_EVT") != 0) return false;
+
+    char* jobTypeText = strtok_r(nullptr, "|", &save);
+    char* coilCountText = strtok_r(nullptr, "|", &save);
+    char* turnsText = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
+    if (jobTypeText == nullptr || coilCountText == nullptr || turnsText == nullptr ||
+        extra != nullptr)
+        return false;
+
+    if (strcmp(jobTypeText, "WORKING") == 0)
+        event.jobType = RemoteJobType::Working;
+    else if (strcmp(jobTypeText, "STARTING") == 0)
+        event.jobType = RemoteJobType::Starting;
+    else
+        return false;
+
+    uint32_t parsedCoilCount = 0UL;
+    if (!parseDecimal32(coilCountText, parsedCoilCount) ||
+        parsedCoilCount == 0UL || parsedCoilCount > RemoteWindingEvent::MaxCoils)
+        return false;
+    event.coilCount = static_cast<uint8_t>(parsedCoilCount);
+
+    char* turnsSave = nullptr;
+    char* token = strtok_r(turnsText, ",", &turnsSave);
+    uint8_t index = 0U;
+    while (token != nullptr && index < event.coilCount)
+    {
+        uint16_t value = 0U;
+        if (!parseDecimal16(token, value) || value == 0U || value > 9999U)
+            return false;
+        event.turns[index++] = value;
+        token = strtok_r(nullptr, ",", &turnsSave);
+    }
+    if (index != event.coilCount || token != nullptr) return false;
+    event.localStandalone = true;
+    return event.hasProgram();
 }
 
 bool UartEventReceiver::processJobAck(char* line)
@@ -309,7 +342,6 @@ bool UartEventReceiver::processJobAck(char* line)
     char* status = strtok_r(nullptr, "|", &save);
     char* detail = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
-
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "JOB_ACK") != 0 || !m_hasPendingJob ||
@@ -351,14 +383,11 @@ bool UartEventReceiver::processCancelAck(char* line)
     char* status = strtok_r(nullptr, "|", &save);
     char* detail = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
-
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "JOB_CANCEL_ACK") != 0 || !m_hasPendingCancel ||
         !isValidJobAckDetail(detail))
-    {
         return false;
-    }
 
     uint32_t jobId = 0UL;
     if (!parseDecimal32(jobText, jobId) || jobId != m_cancelJobId)
@@ -437,10 +466,7 @@ bool UartEventReceiver::sendPendingCancel(uint32_t nowMs)
     if (!m_hasPendingCancel || m_cancelJobId == 0UL ||
         m_cancelSendAttempts >= MaxCancelSendAttempts ||
         !writeCancelFrame(m_cancelJobId))
-    {
         return false;
-    }
-
     ++m_cancelSendAttempts;
     m_lastCancelSendMs = nowMs;
     return true;
@@ -449,7 +475,6 @@ bool UartEventReceiver::sendPendingCancel(uint32_t nowMs)
 bool UartEventReceiver::writeCancelFrame(uint32_t jobId)
 {
     if (jobId == 0UL) return false;
-
     char payload[48];
     const int payloadLength = snprintf(payload, sizeof(payload),
                                        "CMP1|JOB_CANCEL|%lu",

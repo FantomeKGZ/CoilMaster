@@ -35,6 +35,20 @@ struct AutonomousWindingAssignment
     }
 };
 
+struct AutonomousWindingIntegrityMetrics
+{
+    uint32_t eventRecordCount;
+    uint32_t startedRecordCount;
+    uint32_t completedRecordCount;
+    uint32_t assignmentRecordCount;
+
+    AutonomousWindingIntegrityMetrics()
+        : eventRecordCount(0UL), startedRecordCount(0UL),
+          completedRecordCount(0UL), assignmentRecordCount(0UL)
+    {
+    }
+};
+
 class AutonomousWindingArchive
 {
 public:
@@ -59,6 +73,11 @@ public:
                      uint32_t motorId,
                      const String& role,
                      uint32_t& assignmentId);
+
+    // Read-only authoritative audit used by backup/deep-integrity checks.
+    // It intentionally does not call begin(), create directories, or mutate SD.
+    static bool validateStorage(fs::FS& storage,
+                                AutonomousWindingIntegrityMetrics& metrics);
 
 private:
     static constexpr const char* DirectoryPath = "/data/autonomous-windings";
@@ -99,4 +118,4 @@ private:
 };
 }
 
-#endif
+#endif // CM_AUTONOMOUS_WINDING_ARCHIVE_H

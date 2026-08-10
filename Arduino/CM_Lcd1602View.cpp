@@ -1,6 +1,7 @@
 #include "CM_Lcd1602View.h"
 #include "Config/CM_Features.h"
 
+#include <Arduino.h>
 #include <string.h>
 
 #if defined(__AVR__)
@@ -67,11 +68,12 @@ namespace CM
 
 Lcd1602View::Lcd1602View(LiquidCrystal_I2C& lcd)
     : m_lcd(lcd),
-      m_lastLine1(),
-      m_lastLine2(),
+      m_lastLine1Hash(0UL),
+      m_lastLine2Hash(0UL),
+      m_hasLastLine1(false),
+      m_hasLastLine2(false),
       m_initialized(false)
 {
-    invalidate();
 }
 
 void Lcd1602View::begin()
@@ -99,20 +101,25 @@ void Lcd1602View::render(const UiModel& model)
     traceRenderStage(F("LCD_LINES_BUILT"));
 #endif
 
-    if (strncmp(line1, m_lastLine1, Columns) != 0)
+    const uint32_t hash1 = lineHash(line1);
+    const uint32_t hash2 = lineHash(line2);
+
+    if (!m_hasLastLine1 || hash1 != m_lastLine1Hash)
     {
         writeLine(0U, line1);
-        memcpy(m_lastLine1, line1, Columns + 1U);
+        m_lastLine1Hash = hash1;
+        m_hasLastLine1 = true;
     }
 
 #if CM_FEATURE_DIAGNOSTICS
     traceRenderStage(F("LCD_ROW1"));
 #endif
 
-    if (strncmp(line2, m_lastLine2, Columns) != 0)
+    if (!m_hasLastLine2 || hash2 != m_lastLine2Hash)
     {
         writeLine(1U, line2);
-        memcpy(m_lastLine2, line2, Columns + 1U);
+        m_lastLine2Hash = hash2;
+        m_hasLastLine2 = true;
     }
 
 #if CM_FEATURE_DIAGNOSTICS
@@ -124,8 +131,10 @@ void Lcd1602View::render(const UiModel& model)
 
 void Lcd1602View::invalidate()
 {
-    memset(m_lastLine1, 0, sizeof(m_lastLine1));
-    memset(m_lastLine2, 0, sizeof(m_lastLine2));
+    m_lastLine1Hash = 0UL;
+    m_lastLine2Hash = 0UL;
+    m_hasLastLine1 = false;
+    m_hasLastLine2 = false;
 }
 
 void Lcd1602View::buildLines(const UiModel& model,
@@ -270,6 +279,19 @@ void Lcd1602View::applySyncMarker(char (&line)[Columns + 1U],
         line[14] = 'O';
         line[15] = 'K';
     }
+}
+
+uint32_t Lcd1602View::lineHash(const char* line)
+{
+    if (line == nullptr) return 0UL;
+
+    uint32_t hash = 2166136261UL;
+    for (uint8_t index = 0U; index < Columns; ++index)
+    {
+        hash ^= static_cast<uint8_t>(line[index]);
+        hash *= 16777619UL;
+    }
+    return hash;
 }
 
 void Lcd1602View::writeLine(uint8_t row, const char* line)

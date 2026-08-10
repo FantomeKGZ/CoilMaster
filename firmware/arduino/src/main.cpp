@@ -88,10 +88,35 @@ void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
     const char key = keypad.getKey();
-    if (key != NO_KEY)
+    if (key == NO_KEY)
     {
-        input.handleKey(key);
+        return;
     }
+
+    bool handled = false;
+    if (key == '#')
+    {
+        // '#' is the physical confirmation key. Decode it explicitly here so
+        // manual numeric entry does not depend on any secondary key mapping.
+        CM::KeyEvent event;
+        event.action = CM::InputAction::Confirm;
+        handled = input.handleEvent(event);
+    }
+    else
+    {
+        handled = input.handleKey(key);
+    }
+
+#if CM_FEATURE_DIAGNOSTICS
+    Serial.print(F("CM_KEY key="));
+    Serial.print(key);
+    Serial.print(F(" code="));
+    Serial.print(static_cast<unsigned int>(static_cast<uint8_t>(key)));
+    Serial.print(F(" state="));
+    Serial.print(static_cast<unsigned int>(machine.state()));
+    Serial.print(F(" handled="));
+    Serial.println(handled ? F("1") : F("0"));
+#endif
 #endif
 }
 

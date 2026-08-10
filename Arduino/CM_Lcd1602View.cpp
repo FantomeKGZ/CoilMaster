@@ -1,4 +1,5 @@
 #include "CM_Lcd1602View.h"
+#include "Config/CM_Features.h"
 
 #include <string.h>
 
@@ -9,6 +10,18 @@
 namespace
 {
 constexpr uint8_t DisplayColumns = 16U;
+
+#if CM_FEATURE_DIAGNOSTICS
+bool firstRenderTrace = true;
+
+void traceRenderStage(const __FlashStringHelper* stage)
+{
+    if (!firstRenderTrace) return;
+    Serial.print(F("CM_BOOT stage="));
+    Serial.println(stage);
+    Serial.flush();
+}
+#endif
 
 void appendFlash(char (&line)[DisplayColumns + 1U],
                  uint8_t& position,
@@ -74,9 +87,17 @@ void Lcd1602View::render(const UiModel& model)
 {
     if (!m_initialized) return;
 
+#if CM_FEATURE_DIAGNOSTICS
+    traceRenderStage(F("LCD_RENDER_ENTER"));
+#endif
+
     char line1[Columns + 1U];
     char line2[Columns + 1U];
     buildLines(model, line1, line2);
+
+#if CM_FEATURE_DIAGNOSTICS
+    traceRenderStage(F("LCD_LINES_BUILT"));
+#endif
 
     if (strncmp(line1, m_lastLine1, Columns) != 0)
     {
@@ -84,11 +105,21 @@ void Lcd1602View::render(const UiModel& model)
         memcpy(m_lastLine1, line1, Columns + 1U);
     }
 
+#if CM_FEATURE_DIAGNOSTICS
+    traceRenderStage(F("LCD_ROW1"));
+#endif
+
     if (strncmp(line2, m_lastLine2, Columns) != 0)
     {
         writeLine(1U, line2);
         memcpy(m_lastLine2, line2, Columns + 1U);
     }
+
+#if CM_FEATURE_DIAGNOSTICS
+    traceRenderStage(F("LCD_ROW2"));
+    traceRenderStage(F("LCD_RENDERED"));
+    firstRenderTrace = false;
+#endif
 }
 
 void Lcd1602View::invalidate()

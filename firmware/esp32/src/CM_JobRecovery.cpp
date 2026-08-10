@@ -35,6 +35,15 @@ bool JobRecovery::evaluate(const JobStateStore& stateStore,
     recovery.mayAutoQueue = false;
     recovery.mayAutoResume = false;
 
+    // An operator-closed job remains on storage for audit/history, but it is no
+    // longer an active machine job and must not reappear after reboot.
+    if (latest.executionState == JobExecutionState::ClosedAfterReview)
+    {
+        recovery.disposition = JobRecoveryDisposition::None;
+        recovery.mayCreateNewJob = true;
+        return true;
+    }
+
     if (requiresManualReview(latest))
     {
         recovery.disposition = JobRecoveryDisposition::ManualReviewRequired;
@@ -44,8 +53,7 @@ bool JobRecovery::evaluate(const JobStateStore& stateStore,
 
     recovery.disposition = JobRecoveryDisposition::RestoredForDisplay;
     recovery.mayCreateNewJob = isTerminalDelivery(latest.deliveryState) ||
-        latest.executionState == JobExecutionState::ProgramCompleted ||
-        latest.executionState == JobExecutionState::ClosedAfterReview;
+        latest.executionState == JobExecutionState::ProgramCompleted;
     return true;
 }
 

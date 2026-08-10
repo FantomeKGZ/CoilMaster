@@ -6,17 +6,17 @@
 <title>CoilMaster Mobile</title>
 <style>
 :root{--bg:#eef2f6;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:78px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px}main{padding:12px}.card{background:#fff;border-radius:15px;padding:16px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric strong{display:block;font-size:25px}.muted{color:var(--muted)}input,select,button{width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid #cbd5df;font-size:17px}button{background:var(--blue);color:#fff;border:0;font-weight:bold}button:disabled{background:#9aa7b1}.note{background:#f3f7fa;padding:12px;border-radius:10px;margin-top:10px}.context{padding:10px 12px;border-radius:10px;background:#e8f1f8;margin-top:10px}.context a{display:inline-block;margin-top:6px;color:#105b91;font-weight:bold}.context.unlinked{background:#fff1d8}.warning{background:#fff1d8}.ok{background:#e8f7ee}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text);padding-bottom:78px}header{position:sticky;top:0;background:#142536;color:#fff;padding:14px 16px}main{padding:12px}.card{background:#fff;border-radius:15px;padding:16px;margin-bottom:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric strong{display:block;font-size:25px}.muted{color:var(--muted)}input,select,button{width:100%;padding:12px;margin-top:8px;border-radius:10px;border:1px solid #cbd5df;font-size:17px}button{background:var(--blue);color:#fff;border:0;font-weight:bold}button:disabled{background:#9aa7b1}.note{background:#f3f7fa;padding:12px;border-radius:10px;margin-top:10px}.context{padding:10px 12px;border-radius:10px;background:#e8f1f8;margin-top:10px}.context a{display:inline-block;margin-top:6px;color:#105b91;font-weight:bold}.context.unlinked{background:#fff1d8}.warning{background:#fff1d8}.ok{background:#e8f7ee}.action{display:block;padding:12px;margin-top:10px;border-radius:10px;background:#e8f1f8;color:#105b91;text-align:center;text-decoration:none;font-weight:bold}nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-top:1px solid #dbe3ea}nav a{padding:10px 3px;text-align:center;text-decoration:none;color:#45515c;font-size:12px}nav a b{display:block;font-size:20px}
 </style>
 </head>
 <body>
 <header><b>CoilMaster</b><span id="health" style="float:right">Проверка</span></header>
 <main>
 <div class="grid"><section class="card metric"><span class="muted">Станок</span><strong id="machine">—</strong></section><section class="card metric"><span class="muted">Повторов</span><strong id="runs">0</strong></section></div>
-<section class="card"><h2>Намотка</h2><p id="program">Нет задания</p><div id="jobContext" class="context">Контекст задания: —</div><div id="hint" class="note">Ожидание данных ESP32.</div></section>
-<section class="card"><h2>Быстрая отправка</h2><form id="jobForm"><select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select><input name="turns" placeholder="140/100/80/40" required><button id="serviceSend" disabled>Отправить на Arduino</button></form><div id="serviceState" class="note">Проверка готовности сервисного режима.</div><div id="result" class="note">Сервисный режим без привязки к ремонту. Запуск выполняется физической кнопкой START.</div></section>
+<section class="card"><h2>Намотка</h2><p id="program">Нет задания</p><div id="jobContext" class="context">Контекст задания: —</div><div id="hint" class="note">Ожидание данных ESP32.</div><a class="action" href="/mobile/service-job.html">🧭 Управление текущим заданием</a></section>
+<section class="card"><h2>Быстрая отправка</h2><form id="jobForm"><select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select><input name="turns" placeholder="140/100/80/40" required><button id="serviceSend" disabled>Отправить на Arduino</button></form><div id="serviceState" class="note">Проверка готовности сервисного режима.</div><div id="result" class="note">Сервисный режим без привязки к ремонту. Запуск выполняется физической кнопкой START.</div><a class="action" href="/mobile/service-job.html">Удалить/закрыть зависшее сервисное задание</a></section>
 </main>
-<nav><a href="/mobile/"><b>⚙️</b>Намотка</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
+<nav><a href="/mobile/"><b>🏠</b>Главная</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
 <script>
 localStorage.setItem('cm-ui-version','mobile');
 const $=id=>document.getElementById(id);
@@ -24,15 +24,15 @@ let serviceReady=false,sending=false;
 function updateServiceButton(){ $('serviceSend').disabled=sending||!serviceReady }
 function persistentHealthy(s){return s.storage_ready===true&&s.id_allocator_ready===true&&s.job_snapshot_store_ready===true&&s.job_state_store_ready===true}
 function statusHint(s){
-  if(s.manual_review_required===true)return 'Требуется ручная проверка восстановления перед продолжением.';
+  if(s.manual_review_required===true)return 'Требуется ручная проверка восстановления. Откройте «Управление текущим заданием».';
   switch(s.job_status){
     case 'WAITING_ARDUINO_ACK':return 'Задание передаётся на Arduino. Ожидается подтверждение.';
     case 'ACCEPTED_READY':return 'Arduino приняла программу. Запуск выполняется физической кнопкой A или START.';
     case 'RUNNING':return 'Намотка выполняется.';
     case 'PROGRAM_COMPLETED':return 'Программа намотки завершена. Можно подготовить следующее задание.';
-    case 'REJECTED':return 'Arduino отклонила последнее задание.';
-    case 'TIMED_OUT':return 'Arduino не подтвердила последнее задание вовремя.';
-    case 'CANCELLED':return 'Последнее задание отменено.';
+    case 'REJECTED':return 'Arduino отклонила последнее задание. Его можно убрать через управление заданием.';
+    case 'TIMED_OUT':return 'Arduino не подтвердила последнее задание. Его можно убрать через управление заданием.';
+    case 'CANCELLED':return 'Последнее задание отменено. Его можно убрать через управление заданием.';
     default:return s.job_id?'Текущее задание не запущено.':'Станок ожидает программу.';
   }
 }
@@ -44,7 +44,7 @@ function renderServiceState(s){
     box.textContent='ESP32 готова к сервисному заданию без привязки к ремонту.';
   }else{
     box.className='note warning';
-    box.textContent=s.manual_review_required===true?'Требуется ручная проверка восстановления. Сервисная отправка заблокирована.':s.new_job_allowed!==true?'Новое задание сейчас не разрешено. Завершите текущее состояние станка.':'Журнал или persistent-хранилища ESP32 недоступны. Сервисная отправка заблокирована.';
+    box.textContent=s.manual_review_required===true?'Требуется ручная проверка восстановления. Откройте управление текущим заданием.':s.new_job_allowed!==true?'Новое задание сейчас не разрешено. Откройте управление текущим заданием.':'Журнал или persistent-хранилища ESP32 недоступны. Сервисная отправка заблокирована.';
   }
   updateServiceButton();
 }

@@ -61,6 +61,24 @@ struct JobDeliveryEvent
     JobDeliveryEvent();
 };
 
+enum class JobCancelResult : uint8_t
+{
+    None = 0U,
+    Cancelled,
+    Rejected,
+    TimedOut
+};
+
+struct JobCancelEvent
+{
+    JobCancelResult result;
+    uint32_t jobId;
+    uint8_t sendAttempts;
+    char detail[JobDeliveryEvent::MaxDetailLength + 1U];
+
+    JobCancelEvent();
+};
+
 class UartEventReceiver
 {
 public:
@@ -75,6 +93,12 @@ public:
     bool takeJobDelivery(JobDeliveryEvent& event);
     bool jobPending() const;
 
+    // Requests Arduino to discard an already accepted job. Success is not
+    // assumed until an explicit JOB_CANCEL_ACK is received from Arduino.
+    bool requestJobCancel(uint32_t jobId);
+    bool takeJobCancel(JobCancelEvent& event);
+    bool jobCancelPending() const;
+
     void sendAck(uint32_t runId, const char* status);
     void sendNack(uint32_t runId, const char* reason);
 
@@ -82,15 +106,23 @@ private:
     static constexpr size_t MaxLineLength = 128U;
     static constexpr uint32_t JobRetryIntervalMs = 2000UL;
     static constexpr uint8_t MaxJobSendAttempts = 5U;
+    static constexpr uint8_t MaxCancelSendAttempts = 3U;
 
     bool parseEventLine(char* line, RemoteWindingEvent& event) const;
     bool processJobAck(char* line);
+    bool processCancelAck(char* line);
     bool sendPendingJob(uint32_t nowMs);
     bool writeJobFrame(const OutgoingWindingJob& job);
+    bool sendPendingCancel(uint32_t nowMs);
+    bool writeCancelFrame(uint32_t jobId);
     void publishJobDelivery(JobDeliveryResult result,
                             uint32_t jobId,
                             uint8_t sendAttempts,
                             const char* detail);
+    void publishJobCancel(JobCancelResult result,
+                          uint32_t jobId,
+                          uint8_t sendAttempts,
+                          const char* detail);
 
     static bool parseDecimal32(const char* text, uint32_t& value);
     static bool parseDecimal16(const char* text, uint16_t& value);
@@ -110,6 +142,13 @@ private:
     bool m_hasLastQueuedJobId;
     JobDeliveryEvent m_jobDelivery;
     bool m_hasJobDelivery;
+
+    uint32_t m_cancelJobId;
+    bool m_hasPendingCancel;
+    uint32_t m_lastCancelSendMs;
+    uint8_t m_cancelSendAttempts;
+    JobCancelEvent m_jobCancel;
+    bool m_hasJobCancel;
 };
 }
 

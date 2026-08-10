@@ -279,11 +279,11 @@ bool UartEventReceiver::parseEventLine(char* line,
     if (!parseEventType(typeText, parsedType) ||
         !parseDecimal32(sessionText, parsedSession) || parsedSession == 0UL ||
         !parseDecimal32(runText, parsedRun) || parsedRun == 0UL ||
-        !parseDecimal16(completedText, parsedCompleted))
-        return false;
-    if ((parsedType == RemoteEventType::RunStarted && parsedCompleted != 0U) ||
+        !parseDecimal16(completedText, parsedCompleted) ||
         (parsedType == RemoteEventType::RunCompleted && parsedCompleted == 0U))
+    {
         return false;
+    }
 
     event.type = parsedType;
     event.sessionId = parsedSession;

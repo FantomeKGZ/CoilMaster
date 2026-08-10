@@ -8,6 +8,7 @@
 #include "CM_WindingSessionPersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
 #include "CM_ConductorSettingsIntegrityAudit.h"
+#include "CM_AutonomousWindingArchive.h"
 
 namespace CM
 {
@@ -39,6 +40,7 @@ struct SnapshotAuditMetrics
     AuditTimingMetric conductorSettingsAuditTiming;
     AuditTimingMetric materialPersistenceAuditTiming;
     AuditTimingMetric businessDataAuditTiming;
+    AuditTimingMetric autonomousWindingArchiveAuditTiming;
     AuditTimingMetric windingPersistenceAuditTiming;
     AuditTimingMetric warehousePersistenceAuditTiming;
     AuditTimingMetric warehouseMovementsAuditTiming;
@@ -56,6 +58,11 @@ struct SnapshotAuditMetrics
     uint32_t workshopRepairRecordCount = 0UL;
     uint32_t repairStatusRecordCount = 0UL;
     uint32_t repairPricingRecordCount = 0UL;
+    bool autonomousRecordCountsMeasured = false;
+    uint32_t autonomousEventRecordCount = 0UL;
+    uint32_t autonomousStartedRecordCount = 0UL;
+    uint32_t autonomousCompletedRecordCount = 0UL;
+    uint32_t autonomousAssignmentRecordCount = 0UL;
     bool windingJournalRecordCountMeasured = false;
     uint32_t windingJournalRecordCount = 0UL;
     bool windingSessionFileCountsMeasured = false;
@@ -80,6 +87,8 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"workshop-repairs", "/data/workshop/repairs.ndjson", "application/x-ndjson", "repairs.ndjson"},
     {"repair-status", "/data/workshop/repair-status.ndjson", "application/x-ndjson", "repair-status.ndjson"},
     {"winding-events", "/data/winding-runs/events.ndjson", "application/x-ndjson", "winding-events.ndjson"},
+    {"autonomous-winding-events", "/data/autonomous-windings/events.ndjson", "application/x-ndjson", "autonomous-winding-events.ndjson"},
+    {"autonomous-winding-assignments", "/data/autonomous-windings/assignments.ndjson", "application/x-ndjson", "autonomous-winding-assignments.ndjson"},
     {"warehouse-spools", "/data/warehouse/spools.ndjson", "application/x-ndjson", "warehouse-spools.ndjson"},
     {"warehouse-movements", "/data/warehouse/movements.ndjson", "application/x-ndjson", "warehouse-movements.ndjson"},
     {"warehouse-price", "/data/warehouse/price.ndjson", "application/x-ndjson", "warehouse-price.ndjson"},
@@ -309,6 +318,20 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.repairStatusRecordCount = businessMetrics.repairStatusRecordCount;
     metrics.repairPricingRecordCount = businessMetrics.pricingRecordCount;
     metrics.businessRecordCountsMeasured = true;
+
+    AutonomousWindingIntegrityMetrics autonomousMetrics;
+    startedAtMs = millis();
+    const bool autonomousArchiveValid =
+        AutonomousWindingArchive::validateStorage(storage, autonomousMetrics);
+    metrics.autonomousWindingArchiveAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.autonomousWindingArchiveAuditTiming.measured = true;
+    if (!autonomousArchiveValid)
+        return "autonomous_winding_archive_unstable_or_invalid";
+    metrics.autonomousEventRecordCount = autonomousMetrics.eventRecordCount;
+    metrics.autonomousStartedRecordCount = autonomousMetrics.startedRecordCount;
+    metrics.autonomousCompletedRecordCount = autonomousMetrics.completedRecordCount;
+    metrics.autonomousAssignmentRecordCount = autonomousMetrics.assignmentRecordCount;
+    metrics.autonomousRecordCountsMeasured = true;
 
     uint32_t windingJournalRecordCount = 0UL;
     startedAtMs = millis();
@@ -559,6 +582,8 @@ void BackupExportWeb::handleManifest()
                        stabilityChecked, auditMetrics.materialPersistenceAuditTiming);
     appendTimingMetric(response, F("business_data_audit_duration_ms"),
                        stabilityChecked, auditMetrics.businessDataAuditTiming);
+    appendTimingMetric(response, F("autonomous_winding_archive_audit_duration_ms"),
+                       stabilityChecked, auditMetrics.autonomousWindingArchiveAuditTiming);
     appendTimingMetric(response, F("winding_persistence_audit_duration_ms"),
                        stabilityChecked, auditMetrics.windingPersistenceAuditTiming);
     appendTimingMetric(response, F("warehouse_persistence_audit_duration_ms"),
@@ -614,6 +639,26 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.repairPricingRecordCount;
+    response += F(",\"autonomous_winding_event_record_count\":");
+    if (!stabilityChecked || !auditMetrics.autonomousRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.autonomousEventRecordCount;
+    response += F(",\"autonomous_winding_started_record_count\":");
+    if (!stabilityChecked || !auditMetrics.autonomousRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.autonomousStartedRecordCount;
+    response += F(",\"autonomous_winding_completed_record_count\":");
+    if (!stabilityChecked || !auditMetrics.autonomousRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.autonomousCompletedRecordCount;
+    response += F(",\"autonomous_winding_assignment_record_count\":");
+    if (!stabilityChecked || !auditMetrics.autonomousRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.autonomousAssignmentRecordCount;
     response += F(",\"winding_journal_record_count\":");
     if (!stabilityChecked || !auditMetrics.windingJournalRecordCountMeasured)
         response += F("null");
@@ -665,7 +710,7 @@ void BackupExportWeb::handleManifest()
     else
         response += auditMetrics.warehouseMovementRecordCount;
     response += F(",\"items\":[");
-    response.reserve(7000U);
+    response.reserve(7600U);
     bool first = true;
 
     for (size_t i = 0U; i < ExportFileCount; ++i)

@@ -314,7 +314,10 @@ void StateMachine::publishEvent(WindingEventType type)
     m_pendingEvent.type = type;
     m_pendingEvent.sessionId = m_job.sessionId;
     m_pendingEvent.runId = m_job.currentRunId;
-    m_pendingEvent.completedRuns = m_job.completedRuns;
+    // CMP v1 deliberately reports zero on RUN_STARTED. The cumulative count is
+    // evidence of completed runs and is therefore emitted only on completion.
+    m_pendingEvent.completedRuns =
+        type == WindingEventType::RunStarted ? 0U : m_job.completedRuns;
     m_hasPendingEvent = true;
 }
 

@@ -1,5 +1,7 @@
 #include "CM_StaticSiteServer.h"
 
+#include <WiFi.h>
+
 #include "CM_JobDisplayRecovery.h"
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobStateStore.h"
@@ -24,6 +26,18 @@ bool parseCanonicalUint32Value(const String& source, uint32_t& value)
 
     value = parsed;
     return true;
+}
+
+const char* wifiModeName(wifi_mode_t mode)
+{
+    switch (mode)
+    {
+        case WIFI_MODE_STA: return "STA";
+        case WIFI_MODE_AP: return "AP";
+        case WIFI_MODE_APSTA: return "AP_STA";
+        case WIFI_MODE_NULL:
+        default: return "OFF";
+    }
 }
 }
 
@@ -60,6 +74,33 @@ void StaticSiteServer::begin(const char* webRoot)
 
     m_server.on("/mobile", HTTP_GET, [this]() { redirect("/mobile/"); });
     m_server.on("/desktop", HTTP_GET, [this]() { redirect("/desktop/"); });
+
+    // Runtime-only status. Configuration persistence for STA profiles and the
+    // FTP service are intentionally reported as unavailable until their firmware
+    // modules are implemented; the UI must not pretend those controls work.
+    m_server.on("/api/system/network", HTTP_GET, [this]()
+    {
+        const wifi_mode_t mode = WiFi.getMode();
+        String response = F("{\"mode\":\"");
+        response += wifiModeName(mode);
+        response += F("\",\"ap_active\":");
+        response += (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) ? F("true") : F("false");
+        response += F(",\"ap_ssid\":\"");
+        response += WiFi.softAPSSID();
+        response += F("\",\"ap_ip\":\"");
+        response += WiFi.softAPIP().toString();
+        response += F("\",\"sta_connected\":");
+        response += WiFi.status() == WL_CONNECTED ? F("true") : F("false");
+        response += F(",\"sta_ssid\":\"");
+        if (WiFi.status() == WL_CONNECTED) response += WiFi.SSID();
+        response += F("\",\"sta_ip\":\"");
+        if (WiFi.status() == WL_CONNECTED) response += WiFi.localIP().toString();
+        response += F("\",\"sta_rssi\":");
+        response += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
+        response += F(",\"saved_profiles_supported\":false,\"static_ip_supported\":false,");
+        response += F("\"ftp_supported\":false,\"ftp_enabled\":false}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+    });
 
     // Operator-only recovery closure. The persisted state and immutable snapshot
     // are revalidated here before closure. No automatic resume or physical START

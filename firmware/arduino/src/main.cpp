@@ -242,10 +242,36 @@ void processRemoteJobs()
     }
 }
 
+void processRemoteCancels()
+{
+    uint32_t jobId = 0UL;
+    while (espTransport.takeRemoteCancel(jobId))
+    {
+        const CM::WindingJob& active = machine.job();
+        const bool canCancel =
+            machine.state() == CM::MachineState::Ready &&
+            active.source == CM::JobSource::Esp32Web &&
+            active.jobId == jobId &&
+            active.currentRunId == 0UL &&
+            active.completedRuns == 0U;
+
+        const bool cancelled = canCancel && machine.cancel();
+        espTransport.sendJobCancelResult(jobId,
+                                         cancelled,
+                                         cancelled ? "CANCELLED" : "BUSY_OR_MISMATCH");
+
+        Serial.print(F("CM_JOB CANCEL id="));
+        Serial.print(jobId);
+        Serial.print(F(" result="));
+        Serial.println(cancelled ? F("CANCELLED") : F("REJECTED"));
+    }
+}
+
 void processUart(uint32_t nowMs)
 {
     espTransport.update(nowMs);
     processRemoteJobs();
+    processRemoteCancels();
 
     CM::UartDeliveryEvent delivery;
     while (espTransport.takeDeliveryEvent(delivery))

@@ -1,7 +1,53 @@
 #include "CM_Lcd1602View.h"
 
-#include <stdio.h>
 #include <string.h>
+
+#if defined(__AVR__)
+#include <avr/pgmspace.h>
+#endif
+
+namespace
+{
+constexpr uint8_t DisplayColumns = 16U;
+
+void appendFlash(char (&line)[DisplayColumns + 1U],
+                 uint8_t& position,
+                 const __FlashStringHelper* text)
+{
+    if (text == nullptr) return;
+
+#if defined(__AVR__)
+    const char* cursor = reinterpret_cast<const char*>(text);
+    while (position < DisplayColumns)
+    {
+        const char value = static_cast<char>(pgm_read_byte(cursor++));
+        if (value == '\0') break;
+        line[position++] = value;
+    }
+#else
+    const char* cursor = reinterpret_cast<const char*>(text);
+    while (position < DisplayColumns && *cursor != '\0')
+        line[position++] = *cursor++;
+#endif
+}
+
+void appendUnsigned(char (&line)[DisplayColumns + 1U],
+                    uint8_t& position,
+                    uint16_t value)
+{
+    char digits[5];
+    uint8_t count = 0U;
+    do
+    {
+        digits[count++] = static_cast<char>('0' + (value % 10U));
+        value = static_cast<uint16_t>(value / 10U);
+    }
+    while (value != 0U && count < sizeof(digits));
+
+    while (count > 0U && position < DisplayColumns)
+        line[position++] = digits[--count];
+}
+}
 
 namespace CM
 {
@@ -26,10 +72,7 @@ void Lcd1602View::begin()
 
 void Lcd1602View::render(const UiModel& model)
 {
-    if (!m_initialized)
-    {
-        return;
-    }
+    if (!m_initialized) return;
 
     char line1[Columns + 1U];
     char line2[Columns + 1U];
@@ -58,100 +101,106 @@ void Lcd1602View::buildLines(const UiModel& model,
                              char (&line1)[Columns + 1U],
                              char (&line2)[Columns + 1U]) const
 {
-    char buffer1[32];
-    char buffer2[32];
-    buffer1[0] = '\0';
-    buffer2[0] = '\0';
+    clearLine(line1);
+    clearLine(line2);
+    uint8_t p1 = 0U;
+    uint8_t p2 = 0U;
 
     switch (model.screen)
     {
         case UiScreen::EnterCoilCount:
-            snprintf(buffer1, sizeof(buffer1), "KOL-VO KATUSHEK?");
+            appendFlash(line1, p1, F("KOL-VO KATUSHEK?"));
             if (model.inputDigits > 0U)
             {
-                snprintf(buffer2, sizeof(buffer2), "VVOD:%u  #=OK",
-                         static_cast<unsigned int>(model.inputValue));
+                appendFlash(line2, p2, F("VVOD:"));
+                appendUnsigned(line2, p2, model.inputValue);
+                appendFlash(line2, p2, F("  #=OK"));
             }
             else
             {
-                snprintf(buffer2, sizeof(buffer2), "VVOD I NAZHMI #");
+                appendFlash(line2, p2, F("VVOD I NAZHMI #"));
             }
             break;
 
         case UiScreen::EnterTurns:
-            snprintf(buffer1, sizeof(buffer1), "VITKI KAT.%u/%u",
-                     static_cast<unsigned int>(model.coilNumber),
-                     static_cast<unsigned int>(model.coilCount));
+            appendFlash(line1, p1, F("VITKI KAT."));
+            appendUnsigned(line1, p1, model.coilNumber);
+            appendFlash(line1, p1, F("/"));
+            appendUnsigned(line1, p1, model.coilCount);
             if (model.inputDigits > 0U)
             {
-                snprintf(buffer2, sizeof(buffer2), "VVOD:%u  #=OK",
-                         static_cast<unsigned int>(model.inputValue));
+                appendFlash(line2, p2, F("VVOD:"));
+                appendUnsigned(line2, p2, model.inputValue);
+                appendFlash(line2, p2, F("  #=OK"));
             }
             else
             {
-                snprintf(buffer2, sizeof(buffer2), "VVOD I NAZHMI #");
+                appendFlash(line2, p2, F("VVOD I NAZHMI #"));
             }
             break;
 
         case UiScreen::Ready:
-            snprintf(buffer1, sizeof(buffer1), "GOTOVO KAT.%u/%u",
-                     static_cast<unsigned int>(model.coilNumber),
-                     static_cast<unsigned int>(model.coilCount));
-            snprintf(buffer2, sizeof(buffer2), "A=START C=RUCH");
+            appendFlash(line1, p1, F("GOTOVO KAT."));
+            appendUnsigned(line1, p1, model.coilNumber);
+            appendFlash(line1, p1, F("/"));
+            appendUnsigned(line1, p1, model.coilCount);
+            appendFlash(line2, p2, F("A=START C=RUCH"));
             break;
 
         case UiScreen::Winding:
-            snprintf(buffer1, sizeof(buffer1), "NAMOTKA KAT.%u/%u",
-                     static_cast<unsigned int>(model.coilNumber),
-                     static_cast<unsigned int>(model.coilCount));
-            snprintf(buffer2, sizeof(buffer2), "VITKI:%u/%u",
-                     static_cast<unsigned int>(model.currentTurns),
-                     static_cast<unsigned int>(model.targetTurns));
+            appendFlash(line1, p1, F("NAMOTKA KAT."));
+            appendUnsigned(line1, p1, model.coilNumber);
+            appendFlash(line1, p1, F("/"));
+            appendUnsigned(line1, p1, model.coilCount);
+            appendFlash(line2, p2, F("VITKI:"));
+            appendUnsigned(line2, p2, model.currentTurns);
+            appendFlash(line2, p2, F("/"));
+            appendUnsigned(line2, p2, model.targetTurns);
             break;
 
         case UiScreen::Paused:
-            snprintf(buffer1, sizeof(buffer1), "PAUZA KAT.%u/%u",
-                     static_cast<unsigned int>(model.coilNumber),
-                     static_cast<unsigned int>(model.coilCount));
-            snprintf(buffer2, sizeof(buffer2), "VITKI:%u/%u A=GO",
-                     static_cast<unsigned int>(model.currentTurns),
-                     static_cast<unsigned int>(model.targetTurns));
+            appendFlash(line1, p1, F("PAUZA KAT."));
+            appendUnsigned(line1, p1, model.coilNumber);
+            appendFlash(line1, p1, F("/"));
+            appendUnsigned(line1, p1, model.coilCount);
+            appendFlash(line2, p2, F("VITKI:"));
+            appendUnsigned(line2, p2, model.currentTurns);
+            appendFlash(line2, p2, F("/"));
+            appendUnsigned(line2, p2, model.targetTurns);
+            appendFlash(line2, p2, F(" A=GO"));
             break;
 
         case UiScreen::ManualRun:
-            snprintf(buffer1, sizeof(buffer1), "RUCHNOY REZHIM");
-            snprintf(buffer2, sizeof(buffer2), "C=STOP");
+            appendFlash(line1, p1, F("RUCHNOY REZHIM"));
+            appendFlash(line2, p2, F("C=STOP"));
             break;
 
         case UiScreen::CoilComplete:
-            snprintf(buffer1, sizeof(buffer1), "KATUSHKA GOTOVA");
-            snprintf(buffer2, sizeof(buffer2), "A=DAL'SHE");
+            appendFlash(line1, p1, F("KATUSHKA GOTOVA"));
+            appendFlash(line2, p2, F("A=DAL'SHE"));
             break;
 
         case UiScreen::JobComplete:
-            snprintf(buffer1, sizeof(buffer1), "GOTOVO: %u RAZ",
-                     static_cast<unsigned int>(model.completedRuns));
-            snprintf(buffer2, sizeof(buffer2), "A=POVTOR B=MENU");
+            appendFlash(line1, p1, F("GOTOVO: "));
+            appendUnsigned(line1, p1, model.completedRuns);
+            appendFlash(line1, p1, F(" RAZ"));
+            appendFlash(line2, p2, F("A=POVTOR B=MENU"));
             break;
 
         case UiScreen::Fault:
         default:
-            snprintf(buffer1, sizeof(buffer1), "OSHIBKA SISTEMY");
-            snprintf(buffer2, sizeof(buffer2), "B=SBROS");
+            appendFlash(line1, p1, F("OSHIBKA SISTEMY"));
+            appendFlash(line2, p2, F("B=SBROS"));
             break;
     }
 
-    copyPadded(line1, buffer1);
-    copyPadded(line2, buffer2);
     applySyncMarker(line1, model);
 }
 
 void Lcd1602View::clearLine(char (&line)[Columns + 1U])
 {
     for (uint8_t index = 0U; index < Columns; ++index)
-    {
         line[index] = ' ';
-    }
     line[Columns] = '\0';
 }
 
@@ -159,11 +208,7 @@ void Lcd1602View::copyPadded(char (&destination)[Columns + 1U],
                              const char* source)
 {
     clearLine(destination);
-
-    if (source == nullptr)
-    {
-        return;
-    }
+    if (source == nullptr) return;
 
     const size_t length = strlen(source);
     const size_t copyLength = length < Columns ? length : Columns;

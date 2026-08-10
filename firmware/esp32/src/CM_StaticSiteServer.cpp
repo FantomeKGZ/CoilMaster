@@ -8,6 +8,30 @@
 
 namespace
 {
+constexpr size_t HtmlStreamChunkSize = 512U;
+
+const char UiVersionSwitchScript[] PROGMEM = R"HTML(
+<script>
+(()=>{
+  if(document.getElementById('cm-version-switch'))return;
+  const p=location.pathname;
+  const m=p.match(/^\/(mobile|desktop)(\/.*)?$/);
+  if(!m)return;
+  const current=m[1],target=current==='mobile'?'desktop':'mobile',rest=m[2]||'/';
+  const box=document.createElement('div');
+  box.id='cm-version-switch';
+  box.style.cssText='box-sizing:border-box;max-width:760px;margin:18px auto '+(current==='mobile'?'94px':'26px')+';padding:0 12px;position:relative;z-index:10';
+  const a=document.createElement('a');
+  a.href='/'+target+rest+location.search+location.hash;
+  a.style.cssText='display:block;box-sizing:border-box;padding:14px 16px;border:1px solid #b9cddd;border-radius:12px;background:#e8f1f8;color:#105b91;text-align:center;text-decoration:none;font:700 16px Arial,sans-serif;box-shadow:0 2px 8px #17212b12';
+  a.textContent=current==='mobile'?'🖥️ Открыть эту страницу в версии для ПК':'📱 Вернуться на эту страницу в мобильной версии';
+  a.addEventListener('click',()=>localStorage.setItem('cm-ui-version',target));
+  box.appendChild(a);
+  document.body.appendChild(box);
+})();
+</script>
+)HTML";
+
 bool parseCanonicalUint32Value(const String& source, uint32_t& value)
 {
     value = 0UL;
@@ -38,6 +62,32 @@ const char* wifiModeName(wifi_mode_t mode)
         case WIFI_MODE_NULL:
         default: return "OFF";
     }
+}
+
+bool isUiVariantHtml(const String& uri, const String& path)
+{
+    if (!path.endsWith(".html") && !path.endsWith(".htm")) return false;
+    return uri == "/mobile" || uri.startsWith("/mobile/") ||
+           uri == "/desktop" || uri.startsWith("/desktop/");
+}
+
+bool streamHtmlWithUiSwitch(WebServer& server, File& file)
+{
+    server.sendHeader("Cache-Control", "no-cache");
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200, "text/html; charset=utf-8", "");
+
+    char buffer[HtmlStreamChunkSize];
+    while (file.available())
+    {
+        const size_t read = file.readBytes(buffer, sizeof(buffer));
+        if (read == 0U) return false;
+        server.sendContent(buffer, read);
+    }
+
+    server.sendContent_P(UiVersionSwitchScript,
+                         sizeof(UiVersionSwitchScript) - 1U);
+    return true;
 }
 }
 
@@ -423,6 +473,13 @@ bool StaticSiteServer::streamFile(const String& path)
     {
         if (file) file.close();
         return false;
+    }
+
+    if (isUiVariantHtml(m_server.uri(), path))
+    {
+        const bool streamed = streamHtmlWithUiSwitch(m_server, file);
+        file.close();
+        return streamed;
     }
 
     m_server.sendHeader("Cache-Control", "no-cache");

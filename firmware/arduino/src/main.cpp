@@ -51,7 +51,6 @@ CM::Lcd1602View lcdView(lcd);
 CM::DebouncedButton startButton(CM::Pins::StartButton,
                                 true,
                                 CM::Defaults::StartDebounceMs);
-// The installed buzzer module is active-low: HIGH is idle, LOW sounds.
 CM::BuzzerService buzzer(CM::Pins::Buzzer, false);
 CM::SsrController ssr(CM::Pins::Ssr, true);
 CM::HallTurnSource hall(CM::Pins::Hall,
@@ -88,16 +87,11 @@ void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
     const char key = keypad.getKey();
-    if (key == NO_KEY)
-    {
-        return;
-    }
+    if (key == NO_KEY) return;
 
     bool handled = false;
     if (key == '#')
     {
-        // '#' is the physical confirmation key. Decode it explicitly here so
-        // manual numeric entry does not depend on any secondary key mapping.
         CM::KeyEvent event;
         event.action = CM::InputAction::Confirm;
         handled = input.handleEvent(event);
@@ -136,40 +130,23 @@ void processExternalStart(uint32_t nowMs)
 
 void processTurnSource(uint32_t nowMs)
 {
-    if (machine.state() != CM::MachineState::Winding)
-    {
-        return;
-    }
-
-    if (activeTurnSource().pollTurn(nowMs))
-    {
-        machine.registerTurn();
-    }
+    if (machine.state() != CM::MachineState::Winding) return;
+    if (activeTurnSource().pollTurn(nowMs)) machine.registerTurn();
 }
 
 void processStateTransitions(uint32_t nowMs)
 {
     const CM::MachineState currentState = machine.state();
-
-    if (currentState == previousState)
-    {
-        return;
-    }
+    if (currentState == previousState) return;
 
     if (currentState == CM::MachineState::Winding)
-    {
         activeTurnSource().reset(nowMs);
-    }
 
 #if CM_FEATURE_BUZZER
     if (currentState == CM::MachineState::CoilComplete)
-    {
         buzzer.startCoilCompleteSignal(nowMs);
-    }
     else if (currentState == CM::MachineState::JobComplete)
-    {
         buzzer.startProgramCompleteSignal(nowMs);
-    }
 #endif
 
     if (currentState == CM::MachineState::EnterCoilCount ||
@@ -189,17 +166,19 @@ void processCoreEvents()
         persistence.saveNextIdentifiers(machine.nextSessionId(),
                                         machine.nextRunId());
 
+        // Capture the job before any later UI action can edit/reset it. For a
+        // local-keypad run this metadata is the immutable program description
+        // sent to the ESP32 autonomous archive.
+        const CM::WindingJob eventJob = machine.job();
+
         bool persisted = true;
         if (event.type == CM::WindingEventType::RunCompleted)
         {
-            persisted = persistence.addPendingCompleted(event);
+            persisted = persistence.addPendingCompleted(event, eventJob);
         }
 
-        const bool queued = persisted && espTransport.enqueue(event);
-        if (!queued)
-        {
-            synchronizationError = true;
-        }
+        const bool queued = persisted && espTransport.enqueue(event, eventJob);
+        if (!queued) synchronizationError = true;
 
         Serial.print(F("CM_UART "));
         Serial.print(queued ? F("QUEUED") : F("QUEUE_OR_EEPROM_FULL"));
@@ -207,6 +186,9 @@ void processCoreEvents()
         Serial.print(event.type == CM::WindingEventType::RunStarted
                          ? F("RUN_STARTED")
                          : F("RUN_COMPLETED"));
+        Serial.print(F(" source="));
+        Serial.print(eventJob.source == CM::JobSource::LocalKeypad
+                         ? F("LOCAL") : F("ESP32"));
         Serial.print(F(" session="));
         Serial.print(event.sessionId);
         Serial.print(F(" run="));
@@ -227,10 +209,7 @@ void processRemoteJobs()
                                    accepted ? "READY" : "BUSY_OR_INVALID");
 
 #if CM_FEATURE_BUZZER
-        if (accepted)
-        {
-            buzzer.startJobAcceptedSignal(millis());
-        }
+        if (accepted) buzzer.startJobAcceptedSignal(millis());
 #endif
 
         Serial.print(F("CM_JOB RX id="));
@@ -313,14 +292,21 @@ void restorePersistentState()
     machine.setNextIdentifiers(persistence.nextSessionId(),
                                persistence.nextRunId());
 
-    CM::WindingEvent event;
     for (uint8_t index = 0U; index < persistence.pendingCount(); ++index)
     {
-        if (persistence.pendingAt(index, event) &&
-            !espTransport.enqueue(event))
+        CM::WindingEvent event;
+        CM::WindingJob job;
+        bool hasJobMetadata = false;
+        if (!persistence.pendingAt(index, event, job, hasJobMetadata))
         {
             synchronizationError = true;
+            continue;
         }
+
+        const bool queued = hasJobMetadata
+            ? espTransport.enqueue(event, job)
+            : espTransport.enqueue(event);
+        if (!queued) synchronizationError = true;
     }
 
     Serial.print(F("CM_EEPROM restored_pending="));
@@ -351,17 +337,11 @@ void updateOutputs()
     model.pendingSyncCount = persistence.pendingCount();
 
     if (synchronizationError)
-    {
         model.syncState = CM::UiSyncState::Error;
-    }
     else if (model.pendingSyncCount > 0U || espTransport.queuedCount() > 0U)
-    {
         model.syncState = CM::UiSyncState::Pending;
-    }
     else
-    {
         model.syncState = CM::UiSyncState::Synchronized;
-    }
 
     lcdView.render(model);
 #endif
@@ -377,19 +357,15 @@ void setup()
 #if CM_FEATURE_SSR
     ssr.begin();
 #endif
-
 #if CM_FEATURE_BUZZER
     buzzer.begin();
 #endif
-
 #if CM_FEATURE_EXTERNAL_START
     startButton.begin();
 #endif
-
 #if CM_FEATURE_LCD1602
     lcdView.begin();
 #endif
-
 #if CM_FEATURE_SIMULATION
     simulator.setEnabled(true, millis());
 #endif

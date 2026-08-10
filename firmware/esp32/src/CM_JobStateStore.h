@@ -66,6 +66,10 @@ public:
     // It never queues, resumes, or controls the machine.
     bool closeAfterManualReview(uint32_t sessionId, uint32_t nowMs);
 
+    // Persists a cancellation only after Arduino has positively confirmed that
+    // the accepted job was still waiting for physical START and was discarded.
+    bool closeAfterRemoteCancel(uint32_t sessionId, uint32_t nowMs);
+
     // Hides an already inactive job from the active runtime view while keeping
     // its immutable snapshot and historical records. Only terminal delivery or
     // a completed program may be dismissed; accepted/running jobs are refused.

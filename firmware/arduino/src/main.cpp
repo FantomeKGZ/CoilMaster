@@ -243,13 +243,12 @@ void processStateTransitions(uint32_t nowMs)
         buzzer.startCoilCompleteSignal(nowMs);
     else if (currentState == CM::MachineState::JobComplete)
         buzzer.startProgramCompleteSignal(nowMs);
-#endif
-
-    if (currentState == CM::MachineState::EnterCoilCount ||
-        currentState == CM::MachineState::Fault)
-    {
+    else if (currentState == CM::MachineState::Winding ||
+             currentState == CM::MachineState::ManualRun ||
+             currentState == CM::MachineState::EnterCoilCount ||
+             currentState == CM::MachineState::Fault)
         buzzer.stop();
-    }
+#endif
 
     previousState = currentState;
 }

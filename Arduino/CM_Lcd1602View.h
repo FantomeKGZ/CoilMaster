@@ -11,8 +11,9 @@ namespace CM
 /**
  * @brief Arduino adapter that renders UiModel on a 16x2 I2C LCD.
  *
- * The class keeps the last rendered lines and only updates changed rows.
- * This avoids lcd.clear() flicker and unnecessary I2C traffic.
+ * The class keeps compact hashes of the last rendered rows and only updates
+ * changed rows. This avoids lcd.clear() flicker without keeping two complete
+ * 17-byte row copies resident in the Uno's limited SRAM.
  */
 class Lcd1602View
 {
@@ -36,11 +37,14 @@ private:
                            const char* source);
     static void applySyncMarker(char (&line)[Columns + 1U],
                                 const UiModel& model);
+    static uint32_t lineHash(const char* line);
     void writeLine(uint8_t row, const char* line);
 
     LiquidCrystal_I2C& m_lcd;
-    char m_lastLine1[Columns + 1U];
-    char m_lastLine2[Columns + 1U];
+    uint32_t m_lastLine1Hash;
+    uint32_t m_lastLine2Hash;
+    bool m_hasLastLine1;
+    bool m_hasLastLine2;
     bool m_initialized;
 };
 

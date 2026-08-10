@@ -176,9 +176,24 @@ bool JobStateStore::updateExecution(uint32_t sessionId,
 
     if (executionState == JobExecutionState::Running)
     {
+        // CMP v1 deliberately sends completed_runs=0 on RUN_STARTED. The
+        // cumulative count remains in persisted state until RUN_COMPLETED
+        // proves exactly one additional completed run.
         if (state.deliveryState != JobDeliveryState::Accepted ||
-            runId == 0UL || runId <= state.lastRunId ||
-            completedRuns != state.completedRuns)
+            runId == 0UL || completedRuns != 0U)
+        {
+            return false;
+        }
+
+        // A repeated RUN_STARTED frame for the same run is idempotent. This is
+        // required when Arduino retries because the previous ACK was lost.
+        if (state.executionState == JobExecutionState::Running &&
+            runId == state.lastRunId)
+        {
+            return true;
+        }
+
+        if (runId <= state.lastRunId)
         {
             return false;
         }

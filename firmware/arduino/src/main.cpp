@@ -2,6 +2,11 @@
 #include <Keypad.h>
 #include <LiquidCrystal_I2C.h>
 
+#if defined(__AVR__)
+#include <avr/io.h>
+#include <avr/wdt.h>
+#endif
+
 #include "../../../Arduino/Config/CM_Features.h"
 #include "../../../Arduino/Config/CM_Pins.h"
 
@@ -18,6 +23,21 @@
 #include "../../../Arduino/CM_Lcd1602View.h"
 #include "../../../Arduino/CM_SsrController.h"
 #include "../../../Arduino/CM_UartEventTransport.h"
+
+#if defined(__AVR__)
+uint8_t cmResetFlags __attribute__((section(".noinit")));
+
+void cmCaptureResetFlags() __attribute__((naked, section(".init3")));
+void cmCaptureResetFlags()
+{
+    cmResetFlags = MCUSR;
+    MCUSR = 0U;
+    wdt_disable();
+}
+
+extern char __heap_start;
+extern char* __brkval;
+#endif
 
 namespace
 {
@@ -64,6 +84,82 @@ CM::EepromPersistence persistence;
 
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
+uint32_t lastAliveReportMs = 0UL;
+
+int freeSramBytes()
+{
+#if defined(__AVR__)
+    char stackMarker = 0;
+    const uintptr_t stackAddress = reinterpret_cast<uintptr_t>(&stackMarker);
+    const uintptr_t heapAddress = reinterpret_cast<uintptr_t>(
+        __brkval != nullptr ? __brkval : &__heap_start);
+    if (stackAddress <= heapAddress) return 0;
+    return static_cast<int>(stackAddress - heapAddress);
+#else
+    return -1;
+#endif
+}
+
+void printResetCause()
+{
+#if CM_FEATURE_DIAGNOSTICS
+    Serial.print(F("CM_BOOT reset_flags=0x"));
+#if defined(__AVR__)
+    Serial.print(cmResetFlags, HEX);
+    Serial.print(F(" cause="));
+    bool reported = false;
+#ifdef PORF
+    if ((cmResetFlags & _BV(PORF)) != 0U)
+    {
+        Serial.print(F("POWER_ON"));
+        reported = true;
+    }
+#endif
+#ifdef EXTRF
+    if ((cmResetFlags & _BV(EXTRF)) != 0U)
+    {
+        if (reported) Serial.print('|');
+        Serial.print(F("EXTERNAL_RESET"));
+        reported = true;
+    }
+#endif
+#ifdef BORF
+    if ((cmResetFlags & _BV(BORF)) != 0U)
+    {
+        if (reported) Serial.print('|');
+        Serial.print(F("BROWN_OUT"));
+        reported = true;
+    }
+#endif
+#ifdef WDRF
+    if ((cmResetFlags & _BV(WDRF)) != 0U)
+    {
+        if (reported) Serial.print('|');
+        Serial.print(F("WATCHDOG"));
+        reported = true;
+    }
+#endif
+    if (!reported) Serial.print(F("NONE_OR_BOOTLOADER_CLEARED"));
+#else
+    Serial.print(F("NA cause=UNSUPPORTED"));
+#endif
+    Serial.println();
+    Serial.flush();
+#endif
+}
+
+void printBootStage(const __FlashStringHelper* stage)
+{
+#if CM_FEATURE_DIAGNOSTICS
+    Serial.print(F("CM_BOOT stage="));
+    Serial.print(stage);
+    Serial.print(F(" free_sram="));
+    Serial.println(freeSramBytes());
+    Serial.flush();
+#else
+    (void)stage;
+#endif
+}
 
 CM::ITurnSource& activeTurnSource()
 {
@@ -326,6 +422,22 @@ void processBuzzer(uint32_t nowMs)
 #endif
 }
 
+void processAliveReport(uint32_t nowMs)
+{
+#if CM_FEATURE_DIAGNOSTICS
+    if (static_cast<uint32_t>(nowMs - lastAliveReportMs) < 5000UL) return;
+    lastAliveReportMs = nowMs;
+    Serial.print(F("CM_ALIVE uptime_ms="));
+    Serial.print(nowMs);
+    Serial.print(F(" state="));
+    Serial.print(static_cast<unsigned int>(machine.state()));
+    Serial.print(F(" free_sram="));
+    Serial.println(freeSramBytes());
+#else
+    (void)nowMs;
+#endif
+}
+
 void updateOutputs()
 {
 #if CM_FEATURE_SSR
@@ -351,29 +463,44 @@ void updateOutputs()
 void setup()
 {
     Serial.begin(115200);
+    printResetCause();
+    printBootStage(F("SERIAL"));
+
     espTransport.begin();
+    printBootStage(F("UART"));
+
     restorePersistentState();
+    printBootStage(F("EEPROM"));
 
 #if CM_FEATURE_SSR
     ssr.begin();
+    printBootStage(F("SSR"));
 #endif
 #if CM_FEATURE_BUZZER
     buzzer.begin();
+    printBootStage(F("BUZZER"));
 #endif
 #if CM_FEATURE_EXTERNAL_START
     startButton.begin();
+    printBootStage(F("START_BUTTON"));
 #endif
 #if CM_FEATURE_LCD1602
     lcdView.begin();
+    printBootStage(F("LCD"));
 #endif
 #if CM_FEATURE_SIMULATION
     simulator.setEnabled(true, millis());
+    printBootStage(F("SIMULATION"));
 #endif
 
     machine.resetToHome();
     previousState = CM::MachineState::Fault;
     processStateTransitions(millis());
+    printBootStage(F("STATE"));
+
     updateOutputs();
+    printBootStage(F("OUTPUTS"));
+    printBootStage(F("READY"));
 }
 
 void loop()
@@ -394,4 +521,5 @@ void loop()
     processStateTransitions(nowMs);
 
     updateOutputs();
+    processAliveReport(nowMs);
 }

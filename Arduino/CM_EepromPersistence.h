@@ -81,15 +81,19 @@ private:
     bool isValid() const;
 
     int metadataAddress() const;
-    void resetMetadata();
-    void persistMetadata();
-    bool metadataValid() const;
-    bool storeMetadata(uint8_t index, const WindingJob& job);
+    bool loadMetadata(StoredMetadataState& metadata) const;
+    void resetMetadata(StoredMetadataState& metadata) const;
+    void persistMetadata(StoredMetadataState& metadata) const;
+    bool metadataValid(const StoredMetadataState& metadata) const;
+    bool storeMetadata(StoredMetadataState& metadata,
+                       uint8_t index,
+                       const WindingJob& job) const;
 
     static uint16_t calculateCrc(const uint8_t* data, size_t length);
 
+    // Keep only the original small state resident in Uno SRAM. The larger
+    // metadata sidecar is loaded from EEPROM only while it is actually needed.
     StoredState m_state;
-    StoredMetadataState m_metadata;
 };
 }
 

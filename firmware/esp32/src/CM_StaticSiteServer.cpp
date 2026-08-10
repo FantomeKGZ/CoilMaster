@@ -80,7 +80,8 @@ bool streamHtmlWithUiSwitch(WebServer& server, File& file)
     char buffer[HtmlStreamChunkSize];
     while (file.available())
     {
-        const size_t read = file.readBytes(buffer, sizeof(buffer));
+        const size_t read = file.read(reinterpret_cast<uint8_t*>(buffer),
+                                      sizeof(buffer));
         if (read == 0U) return false;
         server.sendContent(buffer, read);
     }

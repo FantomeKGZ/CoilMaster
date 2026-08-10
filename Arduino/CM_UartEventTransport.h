@@ -48,7 +48,10 @@ public:
 
 private:
     static constexpr uint8_t QueueCapacity = 4U;
-    static constexpr size_t MaxReplyLength = 128U;
+    // Longest supported CMP1|JOB frame (10 coils, 4-digit turns, 32-bit ids)
+    // stays below 104 bytes including the terminating NUL. Keeping this tight
+    // returns SRAM to the Uno without reducing protocol capacity.
+    static constexpr size_t MaxReplyLength = 104U;
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;
 

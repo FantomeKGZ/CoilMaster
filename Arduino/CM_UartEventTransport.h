@@ -35,6 +35,7 @@ public:
 
     void begin();
     bool enqueue(const WindingEvent& event);
+    bool enqueue(const WindingEvent& event, const WindingJob& job);
     void update(uint32_t nowMs);
     bool takeDeliveryEvent(UartDeliveryEvent& event);
     bool takeRemoteJob(WindingJob& job);
@@ -51,8 +52,25 @@ private:
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;
 
+    struct QueuedEvent
+    {
+        WindingEvent event;
+        WindingJob job;
+        bool hasJobMetadata;
+
+        QueuedEvent() : event(), job(), hasJobMetadata(false)
+        {
+            job.clear();
+        }
+    };
+
+    bool enqueueInternal(const WindingEvent& event,
+                         const WindingJob* job);
     bool sendFront(uint32_t nowMs);
-    bool writeFrame(const WindingEvent& event);
+    bool writeFrame(const QueuedEvent& queued);
+    bool writeStandardFrame(const WindingEvent& event);
+    bool writeLocalFrame(const WindingEvent& event,
+                         const WindingJob& job);
     void pollReplies(uint32_t nowMs);
     void processReply(char* line, uint32_t nowMs);
     bool parseRemoteJob(char* line, WindingJob& job) const;
@@ -61,12 +79,13 @@ private:
     void publishDelivery(UartDeliveryResult result, uint32_t runId);
 
     static const char* eventName(WindingEventType type);
+    static const char* windingTypeName(WindingType type);
     static uint16_t crc16Modbus(const uint8_t* data, size_t length);
     static bool parseHex16(const char* text, uint16_t& value);
 
     SoftwareSerial m_serial;
     uint32_t m_baudRate;
-    WindingEvent m_queue[QueueCapacity];
+    QueuedEvent m_queue[QueueCapacity];
     uint8_t m_head;
     uint8_t m_count;
     bool m_waitingAck;

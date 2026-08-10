@@ -39,6 +39,8 @@ public:
     bool takeDeliveryEvent(UartDeliveryEvent& event);
     bool takeRemoteJob(WindingJob& job);
     void sendJobResult(uint32_t jobId, bool accepted, const char* reason);
+    bool takeRemoteCancel(uint32_t& jobId);
+    void sendJobCancelResult(uint32_t jobId, bool cancelled, const char* reason);
 
     uint8_t queuedCount() const;
     bool waitingForAck() const;
@@ -54,6 +56,7 @@ private:
     void pollReplies(uint32_t nowMs);
     void processReply(char* line, uint32_t nowMs);
     bool parseRemoteJob(char* line, WindingJob& job) const;
+    bool parseRemoteCancel(char* line, uint32_t& jobId) const;
     void removeFront();
     void publishDelivery(UartDeliveryResult result, uint32_t runId);
 
@@ -75,6 +78,8 @@ private:
     bool m_hasDeliveryEvent;
     WindingJob m_remoteJob;
     bool m_hasRemoteJob;
+    uint32_t m_remoteCancelJobId;
+    bool m_hasRemoteCancel;
 };
 }
 

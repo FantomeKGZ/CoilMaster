@@ -33,14 +33,11 @@ bool parseCanonicalUint32Text(const String& source, uint32_t& value)
 }
 
 bool parsePaging(WebServer& server,
-                 bool& requested,
                  uint32_t& cursor,
                  uint8_t& limit)
 {
-    requested = server.hasArg("cursor") || server.hasArg("limit");
     cursor = 0UL;
     limit = 20U;
-    if (!requested) return true;
 
     if (server.hasArg("cursor") &&
         !parseCanonicalUint32Text(server.arg("cursor"), cursor))
@@ -115,10 +112,9 @@ void RepairRegistryWeb::handleListClients()
         return;
     }
 
-    bool paged = false;
     uint32_t cursor = 0UL;
     uint8_t limit = 20U;
-    if (!parsePaging(m_server, paged, cursor, limit))
+    if (!parsePaging(m_server, cursor, limit))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_cursor_or_limit\"}");
@@ -126,40 +122,24 @@ void RepairRegistryWeb::handleListClients()
     }
 
     String response = F("{\"items\":[");
+    response.reserve(384U + static_cast<unsigned int>(limit) * 320U);
     uint16_t count = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
     const String query = m_server.hasArg("phone") ? m_server.arg("phone") : String();
-
-    if (paged)
+    if (!m_registry.appendClientsPageJson(response,
+                                          query,
+                                          cursor,
+                                          limit,
+                                          count,
+                                          nextCursor,
+                                          hasMore))
     {
-        response.reserve(384U + static_cast<unsigned int>(limit) * 320U);
-        uint32_t nextCursor = 0UL;
-        bool hasMore = false;
-        if (!m_registry.appendClientsPageJson(response,
-                                              query,
-                                              cursor,
-                                              limit,
-                                              count,
-                                              nextCursor,
-                                              hasMore))
-        {
-            m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"clients_read_failed\"}");
-            return;
-        }
-        appendPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"clients_read_failed\"}");
+        return;
     }
-    else
-    {
-        response.reserve(4096U);
-        if (!m_registry.appendClientsJson(response, query, count))
-        {
-            m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"clients_read_failed\"}");
-            return;
-        }
-        response += F("],\"count\":"); response += count; response += '}';
-    }
-
+    appendPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 
@@ -199,7 +179,8 @@ void RepairRegistryWeb::handleCreateClient()
         return;
     }
     String response = F("{\"created\":true,\"client_id\":");
-    response += clientId; response += '}';
+    response += clientId;
+    response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 
@@ -212,10 +193,9 @@ void RepairRegistryWeb::handleListMotors()
         return;
     }
 
-    bool paged = false;
     uint32_t cursor = 0UL;
     uint8_t limit = 20U;
-    if (!parsePaging(m_server, paged, cursor, limit))
+    if (!parsePaging(m_server, cursor, limit))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_cursor_or_limit\"}");
@@ -227,38 +207,23 @@ void RepairRegistryWeb::handleListMotors()
     else if (m_server.hasArg("name")) query = m_server.arg("name");
 
     String response = F("{\"items\":[");
+    response.reserve(384U + static_cast<unsigned int>(limit) * 560U);
     uint16_t count = 0U;
-    if (paged)
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_registry.appendMotorsPageJson(response,
+                                         query,
+                                         cursor,
+                                         limit,
+                                         count,
+                                         nextCursor,
+                                         hasMore))
     {
-        response.reserve(384U + static_cast<unsigned int>(limit) * 560U);
-        uint32_t nextCursor = 0UL;
-        bool hasMore = false;
-        if (!m_registry.appendMotorsPageJson(response,
-                                             query,
-                                             cursor,
-                                             limit,
-                                             count,
-                                             nextCursor,
-                                             hasMore))
-        {
-            m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"motors_read_failed\"}");
-            return;
-        }
-        appendPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motors_read_failed\"}");
+        return;
     }
-    else
-    {
-        response.reserve(4096U);
-        if (!m_registry.appendMotorsJson(response, query, count))
-        {
-            m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"motors_read_failed\"}");
-            return;
-        }
-        response += F("],\"count\":"); response += count; response += '}';
-    }
-
+    appendPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 
@@ -307,7 +272,8 @@ void RepairRegistryWeb::handleCreateMotor()
         return;
     }
     String response = F("{\"created\":true,\"motor_id\":");
-    response += motorId; response += '}';
+    response += motorId;
+    response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 
@@ -319,6 +285,7 @@ void RepairRegistryWeb::handleListRepairs()
                       "{\"error\":\"repair_registry_unavailable\"}");
         return;
     }
+
     uint32_t clientId = 0UL;
     if (m_server.hasArg("client_id") && m_server.arg("client_id").length() > 0U &&
         !parseUnsigned(m_server, "client_id", 1UL, 0xFFFFFFFFUL, clientId))
@@ -328,10 +295,9 @@ void RepairRegistryWeb::handleListRepairs()
         return;
     }
 
-    bool paged = false;
     uint32_t cursor = 0UL;
     uint8_t limit = 20U;
-    if (!parsePaging(m_server, paged, cursor, limit))
+    if (!parsePaging(m_server, cursor, limit))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_cursor_or_limit\"}");
@@ -339,38 +305,23 @@ void RepairRegistryWeb::handleListRepairs()
     }
 
     String response = F("{\"items\":[");
+    response.reserve(384U + static_cast<unsigned int>(limit) * 520U);
     uint16_t count = 0U;
-    if (paged)
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_registry.appendRepairsPageJson(response,
+                                          clientId,
+                                          cursor,
+                                          limit,
+                                          count,
+                                          nextCursor,
+                                          hasMore))
     {
-        response.reserve(384U + static_cast<unsigned int>(limit) * 520U);
-        uint32_t nextCursor = 0UL;
-        bool hasMore = false;
-        if (!m_registry.appendRepairsPageJson(response,
-                                              clientId,
-                                              cursor,
-                                              limit,
-                                              count,
-                                              nextCursor,
-                                              hasMore))
-        {
-            m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"repairs_read_failed\"}");
-            return;
-        }
-        appendPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repairs_read_failed\"}");
+        return;
     }
-    else
-    {
-        response.reserve(4096U);
-        if (!m_registry.appendRepairsJson(response, clientId, count))
-        {
-            m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"repairs_read_failed\"}");
-            return;
-        }
-        response += F("],\"count\":"); response += count; response += '}';
-    }
-
+    appendPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 
@@ -415,8 +366,10 @@ void RepairRegistryWeb::handleCreateRepair()
     }
     String response = F("{\"created\":true,\"repair_id\":");
     response += repairId;
-    response += F(",\"client_id\":"); response += clientId;
-    response += F(",\"motor_id\":"); response += motorId;
+    response += F(",\"client_id\":");
+    response += clientId;
+    response += F(",\"motor_id\":");
+    response += motorId;
     response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
 }

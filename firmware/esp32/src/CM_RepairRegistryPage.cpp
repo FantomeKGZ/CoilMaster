@@ -234,6 +234,7 @@ bool RepairRegistry::resolveRepairPageStatuses(
 
 bool RepairRegistry::appendRepairsPageJson(String& json,
                                            uint32_t clientId,
+                                           const String& statusFilter,
                                            uint32_t cursor,
                                            uint8_t limit,
                                            uint16_t& count,
@@ -243,7 +244,12 @@ bool RepairRegistry::appendRepairsPageJson(String& json,
     count = 0U;
     nextCursor = 0UL;
     hasMore = false;
-    if (!ready() || limit == 0U || limit > MaxListPageSize) return false;
+    if (!ready() || limit == 0U || limit > MaxListPageSize ||
+        (statusFilter.length() > 0U &&
+         statusFilter != "OPEN" && statusFilter != "CLOSED"))
+    {
+        return false;
+    }
     if (!m_storage.exists(RepairsPath)) return cursor == 0UL;
 
     File file = m_storage.open(RepairsPath, FILE_READ);
@@ -260,68 +266,99 @@ bool RepairRegistry::appendRepairsPageJson(String& json,
         return false;
     }
 
-    String pageLines[MaxListPageSize];
-    uint32_t repairIds[MaxListPageSize];
-    while (file.available() && count < limit)
+    bool first = true;
+    bool pageFull = false;
+    while (file.available() && !pageFull)
     {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
+        String pageLines[MaxListPageSize];
+        uint32_t repairIds[MaxListPageSize];
+        uint32_t recordStarts[MaxListPageSize];
+        uint8_t batchCount = 0U;
+
+        while (file.available() && batchCount < MaxListPageSize)
+        {
+            const uint32_t recordStart = static_cast<uint32_t>(file.position());
+            const String line = file.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            if (!FlatJsonObjectValidator::valid(line))
+            {
+                file.close();
+                return false;
+            }
+
+            uint32_t repairId = 0UL;
+            uint32_t lineClientId = 0UL;
+            if (!findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+                !findUnsigned(line, "client_id", lineClientId) ||
+                lineClientId == 0UL)
+            {
+                file.close();
+                return false;
+            }
+            if (clientId > 0UL && lineClientId != clientId) continue;
+
+            pageLines[batchCount] = line;
+            repairIds[batchCount] = repairId;
+            recordStarts[batchCount] = recordStart;
+            ++batchCount;
+        }
+
+        if (batchCount == 0U) continue;
+
+        bool closed[MaxListPageSize];
+        String closedAt[MaxListPageSize];
+        if (!resolveRepairPageStatuses(repairIds, batchCount, closed, closedAt))
         {
             file.close();
             return false;
         }
 
-        uint32_t repairId = 0UL;
-        uint32_t lineClientId = 0UL;
-        if (!findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
-            !findUnsigned(line, "client_id", lineClientId) || lineClientId == 0UL)
+        for (uint8_t index = 0U; index < batchCount; ++index)
         {
-            file.close();
-            return false;
-        }
-        if (clientId > 0UL && lineClientId != clientId) continue;
+            const bool statusMatches =
+                statusFilter.length() == 0U ||
+                (statusFilter == "CLOSED" && closed[index]) ||
+                (statusFilter == "OPEN" && !closed[index]);
+            if (!statusMatches) continue;
 
-        pageLines[count] = line;
-        repairIds[count] = repairId;
-        ++count;
+            String& decorated = pageLines[index];
+            decorated.remove(decorated.length() - 1U);
+            decorated += F(",\"current_status\":\"");
+            decorated += closed[index] ? F("CLOSED") : F("OPEN");
+            decorated += F("\",\"closed_at\":");
+            if (closed[index])
+            {
+                decorated += '"';
+                decorated += jsonEscape(closedAt[index]);
+                decorated += '"';
+            }
+            else
+            {
+                decorated += F("null");
+            }
+            decorated += '}';
+
+            if (!first) json += ',';
+            first = false;
+            json += decorated;
+            ++count;
+
+            if (count >= limit)
+            {
+                if (index + 1U < batchCount &&
+                    !file.seek(recordStarts[index + 1U]))
+                {
+                    file.close();
+                    return false;
+                }
+                pageFull = true;
+                break;
+            }
+        }
     }
 
     finishPage(file, fileSize, nextCursor, hasMore);
     file.close();
-
-    bool closed[MaxListPageSize];
-    String closedAt[MaxListPageSize];
-    if (!resolveRepairPageStatuses(repairIds,
-                                   static_cast<uint8_t>(count),
-                                   closed,
-                                   closedAt))
-    {
-        return false;
-    }
-
-    for (uint16_t index = 0U; index < count; ++index)
-    {
-        String& decorated = pageLines[index];
-        decorated.remove(decorated.length() - 1U);
-        decorated += F(",\"current_status\":\"");
-        decorated += closed[index] ? F("CLOSED") : F("OPEN");
-        decorated += F("\",\"closed_at\":");
-        if (closed[index])
-        {
-            decorated += '"';
-            decorated += jsonEscape(closedAt[index]);
-            decorated += '"';
-        }
-        else
-        {
-            decorated += F("null");
-        }
-        decorated += '}';
-
-        if (index > 0U) json += ',';
-        json += decorated;
-    }
     return true;
 }
 }

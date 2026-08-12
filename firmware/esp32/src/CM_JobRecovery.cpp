@@ -68,6 +68,12 @@ bool JobRecovery::requiresManualReview(const JobRuntimeState& state)
         return true;
     }
 
+    // A delivery timeout is ambiguous: Arduino may have accepted the JOB while
+    // every ACK was lost. Treat it like an interrupted delivery and require the
+    // operator to prove the machine is idle before another job can be created.
+    if (state.deliveryState == JobDeliveryState::TimedOut)
+        return true;
+
     // Delivery may have reached Arduino while ESP32 was restarting. Never resend
     // or replace such a job automatically because Arduino may already hold it.
     return state.deliveryState == JobDeliveryState::Delivering ||
@@ -77,8 +83,10 @@ bool JobRecovery::requiresManualReview(const JobRuntimeState& state)
 
 bool JobRecovery::isTerminalDelivery(JobDeliveryState state)
 {
+    // REJECTED is an explicit Arduino decision and CANCELLED is persisted only
+    // when the job is known not to be physically active. TIMED_OUT is not
+    // terminal because loss of every ACK cannot prove whether Arduino accepted.
     return state == JobDeliveryState::Rejected ||
-           state == JobDeliveryState::TimedOut ||
            state == JobDeliveryState::Cancelled;
 }
 }

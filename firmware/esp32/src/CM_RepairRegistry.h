@@ -65,7 +65,7 @@ public:
     }
 
     // Legacy unbounded formatters kept temporarily for compatibility while the
-    // web UI migrates to bounded cursor pages.
+    // last web consumer migrates to bounded/exact lookup routes.
     bool appendClientsJson(String& json, const String& phoneQuery,
                            uint16_t& count) const;
     bool appendMotorsJson(String& json, const String& query,
@@ -119,8 +119,6 @@ private:
     static constexpr const char* RepairStatusPath = "/data/workshop/repair-status.ndjson";
 
     bool ensureDirectories();
-    bool validateUniqueIds(const char* path, const char* key) const;
-    bool validateRepairStatusHistory() const;
     bool repairClosed(uint32_t repairId, bool& closed, String& closedAt) const;
     bool nextId(const char* path, const char* key, uint32_t& id) const;
     bool idExists(const char* path, const char* key, uint32_t id) const;

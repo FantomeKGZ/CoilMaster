@@ -21,6 +21,11 @@ bool PersistentIdAllocator::begin()
 
     if (!ensureDirectories()) return false;
 
+    // A dangling temp means an allocation transaction was interrupted. Do not
+    // guess whether StatePath or TempPath is authoritative; require operator/
+    // recovery handling and keep new job creation blocked.
+    if (m_fileSystem.exists(TempPath)) return false;
+
     if (!m_fileSystem.exists(StatePath))
     {
         // A missing state file is valid only for first initialization.

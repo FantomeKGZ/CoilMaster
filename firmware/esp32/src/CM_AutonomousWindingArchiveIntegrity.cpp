@@ -35,6 +35,14 @@ bool sameProgram(const RemoteWindingEvent& left,
     }
     return true;
 }
+
+bool requireNdjsonTermination(File& file)
+{
+    const size_t size = file.size();
+    if (size == 0U) return true;
+    if (!file.seek(size - 1U) || file.read() != '\n') return false;
+    return file.seek(0U);
+}
 }
 
 bool AutonomousWindingArchive::validateStorage(
@@ -102,6 +110,11 @@ bool AutonomousWindingArchive::validateStorage(
         if (!file || file.isDirectory())
         {
             if (file) file.close();
+            return false;
+        }
+        if (!requireNdjsonTermination(file))
+        {
+            file.close();
             return false;
         }
 
@@ -223,6 +236,11 @@ bool AutonomousWindingArchive::validateStorage(
         if (!assignments || assignments.isDirectory())
         {
             if (assignments) assignments.close();
+            return false;
+        }
+        if (!requireNdjsonTermination(assignments))
+        {
+            assignments.close();
             return false;
         }
 

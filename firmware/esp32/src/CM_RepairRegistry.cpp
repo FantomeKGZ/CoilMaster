@@ -1,87 +1,40 @@
 #include "CM_RepairRegistry.h"
+
+#include "CM_BackupBusinessDataIntegrityAudit.h"
 #include "CM_FlatJsonObjectValidator.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
 {
-RepairRegistry::RepairRegistry(fs::FS& storage) : m_storage(storage), m_ready(false) {}
+namespace
+{
+bool prepareNdjson(File& file)
+{
+    if (!file || file.isDirectory()) return false;
+    const size_t rawSize = file.size();
+    if (rawSize > 0xFFFFFFFFUL) return false;
+    if (rawSize == 0U) return file.seek(0U);
+    if (!file.seek(static_cast<uint32_t>(rawSize - 1U)) || file.read() != '\n')
+        return false;
+    return file.seek(0U);
+}
+}
+
+RepairRegistry::RepairRegistry(fs::FS& storage)
+    : m_storage(storage), m_ready(false)
+{
+}
 
 bool RepairRegistry::begin()
 {
     m_ready = false;
     if (!ensureDirectories()) return false;
-    if (!validateUniqueIds(ClientsPath, "client_id") ||
-        !validateUniqueIds(MotorsPath, "motor_id") ||
-        !validateUniqueIds(RepairsPath, "repair_id"))
-    {
+
+    BackupBusinessDataAuditMetrics metrics;
+    if (!BackupBusinessDataIntegrityAudit::checkWorkshopRegistry(m_storage, metrics))
         return false;
-    }
 
-    if (m_storage.exists(MotorsPath))
-    {
-        File motors = m_storage.open(MotorsPath, FILE_READ);
-        if (!motors || motors.isDirectory())
-        {
-            if (motors) motors.close();
-            return false;
-        }
-
-        while (motors.available())
-        {
-            const String line = motors.readStringUntil('\n');
-            if (line.length() == 0U) continue;
-            String coilProgram;
-            if (!FlatJsonObjectValidator::valid(line) ||
-                !findString(line, "coil_program", coilProgram) ||
-                !WindingProgramParser::valid(coilProgram))
-            {
-                motors.close();
-                return false;
-            }
-        }
-        motors.close();
-    }
-
-    // Reference checks deliberately run only after all three registries have
-    // passed their structural/identity validation. Temporarily mark the store
-    // ready so the existing exact-one-match lookup functions can be reused.
     m_ready = true;
-    if (m_storage.exists(RepairsPath))
-    {
-        File repairs = m_storage.open(RepairsPath, FILE_READ);
-        if (!repairs || repairs.isDirectory())
-        {
-            if (repairs) repairs.close();
-            m_ready = false;
-            return false;
-        }
-
-        while (repairs.available())
-        {
-            const String line = repairs.readStringUntil('\n');
-            if (line.length() == 0U) continue;
-
-            uint32_t clientId = 0UL;
-            uint32_t motorId = 0UL;
-            if (!FlatJsonObjectValidator::valid(line) ||
-                !findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
-                !findUnsigned(line, "motor_id", motorId) || motorId == 0UL ||
-                !clientExists(clientId) || !motorExists(motorId))
-            {
-                repairs.close();
-                m_ready = false;
-                return false;
-            }
-        }
-        repairs.close();
-    }
-
-    if (!validateRepairStatusHistory())
-    {
-        m_ready = false;
-        return false;
-    }
-
     return true;
 }
 
@@ -100,7 +53,10 @@ bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
     clientId = 0UL;
     const String normalized = normalizePhone(client.phone);
     if (!ready() || client.name.length() == 0U || normalized.length() < 7U ||
-        !nextId(ClientsPath, "client_id", clientId)) return false;
+        !nextId(ClientsPath, "client_id", clientId))
+    {
+        return false;
+    }
 
     File file = m_storage.open(ClientsPath, FILE_APPEND);
     if (!file)
@@ -108,6 +64,7 @@ bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
         m_ready = false;
         return false;
     }
+
     String line;
     line.reserve(320U);
     line = F("{\"client_id\":"); line += clientId;
@@ -117,11 +74,15 @@ bool RepairRegistry::addClient(const NewClient& client, uint32_t& clientId)
     line += F("\",\"status\":\"ACTIVE\"");
     if (client.comment.length() > 0U)
     {
-        line += F(",\"comment\":\""); line += jsonEscape(client.comment); line += '"';
+        line += F(",\"comment\":\"");
+        line += jsonEscape(client.comment);
+        line += '"';
     }
     line += F("}\n");
+
     const size_t written = file.print(line);
-    file.flush(); file.close();
+    file.flush();
+    file.close();
     if (written != line.length())
     {
         m_ready = false;
@@ -136,7 +97,10 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
     String canonicalProgram;
     if (!ready() || motor.name.length() == 0U ||
         !WindingProgramParser::canonicalize(motor.coilProgram, canonicalProgram) ||
-        !nextId(MotorsPath, "motor_id", motorId)) return false;
+        !nextId(MotorsPath, "motor_id", motorId))
+    {
+        return false;
+    }
 
     File file = m_storage.open(MotorsPath, FILE_APPEND);
     if (!file)
@@ -144,6 +108,7 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
         m_ready = false;
         return false;
     }
+
     String line;
     line.reserve(560U);
     line = F("{\"motor_id\":"); line += motorId;
@@ -155,11 +120,15 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
     line += F("\",\"status\":\"ACTIVE\"");
     if (motor.comment.length() > 0U)
     {
-        line += F(",\"comment\":\""); line += jsonEscape(motor.comment); line += '"';
+        line += F(",\"comment\":\"");
+        line += jsonEscape(motor.comment);
+        line += '"';
     }
     line += F("}\n");
+
     const size_t written = file.print(line);
-    file.flush(); file.close();
+    file.flush();
+    file.close();
     if (written != line.length())
     {
         m_ready = false;
@@ -172,9 +141,12 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
 {
     repairId = 0UL;
     if (!ready() || repair.clientId == 0UL || repair.motorId == 0UL ||
-        repair.receivedAt.length() < 10U || !clientExists(repair.clientId) ||
-        !motorExists(repair.motorId) ||
-        !nextId(RepairsPath, "repair_id", repairId)) return false;
+        repair.receivedAt.length() < 10U ||
+        !clientExists(repair.clientId) || !motorExists(repair.motorId) ||
+        !nextId(RepairsPath, "repair_id", repairId))
+    {
+        return false;
+    }
 
     File file = m_storage.open(RepairsPath, FILE_APPEND);
     if (!file)
@@ -182,6 +154,7 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
         m_ready = false;
         return false;
     }
+
     String line;
     line.reserve(420U);
     line = F("{\"repair_id\":"); line += repairId;
@@ -191,15 +164,21 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
     line += F("\",\"status\":\"OPEN\"");
     if (repair.complaint.length() > 0U)
     {
-        line += F(",\"complaint\":\""); line += jsonEscape(repair.complaint); line += '"';
+        line += F(",\"complaint\":\"");
+        line += jsonEscape(repair.complaint);
+        line += '"';
     }
     if (repair.comment.length() > 0U)
     {
-        line += F(",\"comment\":\""); line += jsonEscape(repair.comment); line += '"';
+        line += F(",\"comment\":\"");
+        line += jsonEscape(repair.comment);
+        line += '"';
     }
     line += F("}\n");
+
     const size_t written = file.print(line);
-    file.flush(); file.close();
+    file.flush();
+    file.close();
     if (written != line.length())
     {
         m_ready = false;
@@ -208,7 +187,8 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
     return true;
 }
 
-bool RepairRegistry::closeRepair(uint32_t repairId, const String& closedAt,
+bool RepairRegistry::closeRepair(uint32_t repairId,
+                                 const String& closedAt,
                                  bool& alreadyClosed)
 {
     alreadyClosed = false;
@@ -253,15 +233,22 @@ bool RepairRegistry::closeRepair(uint32_t repairId, const String& closedAt,
     return true;
 }
 
-bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
+bool RepairRegistry::appendClientsJson(String& json,
+                                       const String& phoneQuery,
                                        uint16_t& count) const
 {
     count = 0U;
     if (!ready()) return false;
     if (!m_storage.exists(ClientsPath)) return true;
+
     const String query = normalizePhone(phoneQuery);
     File file = m_storage.open(ClientsPath, FILE_READ);
-    if (!file) return false;
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
     bool first = true;
     while (file.available())
     {
@@ -272,10 +259,15 @@ bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
             file.close();
             return false;
         }
+
         String normalized;
         if (query.length() > 0U &&
             (!findString(line, "phone_normalized", normalized) ||
-             normalized.indexOf(query) < 0)) continue;
+             normalized.indexOf(query) < 0))
+        {
+            continue;
+        }
+
         if (!first) json += ',';
         first = false;
         json += line;
@@ -285,17 +277,24 @@ bool RepairRegistry::appendClientsJson(String& json, const String& phoneQuery,
     return true;
 }
 
-bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
+bool RepairRegistry::appendMotorsJson(String& json,
+                                      const String& searchQuery,
                                       uint16_t& count) const
 {
     count = 0U;
     if (!ready()) return false;
     if (!m_storage.exists(MotorsPath)) return true;
+
     String query = searchQuery;
     query.trim();
     query.toLowerCase();
     File file = m_storage.open(MotorsPath, FILE_READ);
-    if (!file) return false;
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
     bool first = true;
     while (file.available())
     {
@@ -306,6 +305,7 @@ bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
             file.close();
             return false;
         }
+
         if (query.length() > 0U)
         {
             String searchable;
@@ -318,6 +318,7 @@ bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
             searchable.toLowerCase();
             if (searchable.indexOf(query) < 0) continue;
         }
+
         if (!first) json += ',';
         first = false;
         json += line;
@@ -327,14 +328,21 @@ bool RepairRegistry::appendMotorsJson(String& json, const String& searchQuery,
     return true;
 }
 
-bool RepairRegistry::appendRepairsJson(String& json, uint32_t clientId,
+bool RepairRegistry::appendRepairsJson(String& json,
+                                       uint32_t clientId,
                                        uint16_t& count) const
 {
     count = 0U;
     if (!ready()) return false;
     if (!m_storage.exists(RepairsPath)) return true;
+
     File file = m_storage.open(RepairsPath, FILE_READ);
-    if (!file) return false;
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
     bool first = true;
     while (file.available())
     {
@@ -365,6 +373,11 @@ bool RepairRegistry::appendRepairsJson(String& json, uint32_t clientId,
         }
 
         String decorated = line;
+        if (decorated.length() == 0U || decorated[decorated.length() - 1U] != '}')
+        {
+            file.close();
+            return false;
+        }
         decorated.remove(decorated.length() - 1U);
         decorated += F(",\"current_status\":\"");
         decorated += closed ? F("CLOSED") : F("OPEN");
@@ -400,11 +413,17 @@ bool RepairRegistry::motorExists(uint32_t motorId) const
     return idExists(MotorsPath, "motor_id", motorId);
 }
 
-bool RepairRegistry::idExists(const char* path, const char* key, uint32_t id) const
+bool RepairRegistry::idExists(const char* path,
+                              const char* key,
+                              uint32_t id) const
 {
     if (!ready() || id == 0UL || !m_storage.exists(path)) return false;
     File file = m_storage.open(path, FILE_READ);
-    if (!file) return false;
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
 
     uint8_t matches = 0U;
     while (file.available())
@@ -432,164 +451,26 @@ String RepairRegistry::normalizePhone(const String& phone)
 {
     String result;
     result.reserve(phone.length());
-    for (size_t i = 0U; i < phone.length(); ++i)
-        if (isDigit(phone[i])) result += phone[i];
+    for (size_t index = 0U; index < phone.length(); ++index)
+    {
+        if (isDigit(phone[index])) result += phone[index];
+    }
     return result;
 }
 
 bool RepairRegistry::ensureDirectories()
 {
     if (!m_storage.exists("/data") && !m_storage.mkdir("/data")) return false;
-    if (!m_storage.exists("/data/workshop") && !m_storage.mkdir("/data/workshop")) return false;
-    return true;
-}
-
-bool RepairRegistry::validateUniqueIds(const char* path, const char* key) const
-{
-    if (!m_storage.exists(path)) return true;
-    File source = m_storage.open(path, FILE_READ);
-    if (!source || source.isDirectory())
+    if (!m_storage.exists("/data/workshop") &&
+        !m_storage.mkdir("/data/workshop"))
     {
-        if (source) source.close();
         return false;
     }
-
-    while (source.available())
-    {
-        const String line = source.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
-        {
-            source.close();
-            return false;
-        }
-
-        uint32_t id = 0UL;
-        if (!findUnsigned(line, key, id) || id == 0UL)
-        {
-            source.close();
-            return false;
-        }
-
-        File duplicateScan = m_storage.open(path, FILE_READ);
-        if (!duplicateScan)
-        {
-            source.close();
-            return false;
-        }
-        uint8_t matches = 0U;
-        while (duplicateScan.available())
-        {
-            const String candidateLine = duplicateScan.readStringUntil('\n');
-            if (candidateLine.length() == 0U) continue;
-            uint32_t candidate = 0UL;
-            // The outer pass validates every non-empty record exactly once;
-            // keep the repeated duplicate scan focused on identity only.
-            if (!findUnsigned(candidateLine, key, candidate) || candidate == 0UL)
-            {
-                duplicateScan.close();
-                source.close();
-                return false;
-            }
-            if (candidate == id && ++matches > 1U)
-            {
-                duplicateScan.close();
-                source.close();
-                return false;
-            }
-        }
-        duplicateScan.close();
-        if (matches != 1U)
-        {
-            source.close();
-            return false;
-        }
-    }
-
-    source.close();
     return true;
 }
 
-bool RepairRegistry::validateRepairStatusHistory() const
-{
-    if (!m_storage.exists(RepairStatusPath)) return true;
-
-    File source = m_storage.open(RepairStatusPath, FILE_READ);
-    if (!source || source.isDirectory())
-    {
-        if (source) source.close();
-        return false;
-    }
-
-    while (source.available())
-    {
-        const String line = source.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
-        {
-            source.close();
-            return false;
-        }
-
-        uint32_t repairId = 0UL;
-        String status;
-        String closedAt;
-        if (!findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
-            !findString(line, "status", status) || status != "CLOSED" ||
-            !findString(line, "closed_at", closedAt) || closedAt.length() < 10U ||
-            !idExists(RepairsPath, "repair_id", repairId))
-        {
-            source.close();
-            return false;
-        }
-
-        File duplicateScan = m_storage.open(RepairStatusPath, FILE_READ);
-        if (!duplicateScan)
-        {
-            source.close();
-            return false;
-        }
-        uint8_t matches = 0U;
-        while (duplicateScan.available())
-        {
-            const String candidateLine = duplicateScan.readStringUntil('\n');
-            if (candidateLine.length() == 0U) continue;
-            uint32_t candidateRepairId = 0UL;
-            String candidateStatus;
-            String candidateClosedAt;
-            // Syntax is validated once by the outer pass; this repeated scan
-            // keeps only the exact-one-match semantic checks.
-            if (!findUnsigned(candidateLine, "repair_id", candidateRepairId) ||
-                candidateRepairId == 0UL ||
-                !findString(candidateLine, "status", candidateStatus) ||
-                candidateStatus != "CLOSED" ||
-                !findString(candidateLine, "closed_at", candidateClosedAt) ||
-                candidateClosedAt.length() < 10U)
-            {
-                duplicateScan.close();
-                source.close();
-                return false;
-            }
-            if (candidateRepairId == repairId && ++matches > 1U)
-            {
-                duplicateScan.close();
-                source.close();
-                return false;
-            }
-        }
-        duplicateScan.close();
-        if (matches != 1U)
-        {
-            source.close();
-            return false;
-        }
-    }
-
-    source.close();
-    return true;
-}
-
-bool RepairRegistry::repairClosed(uint32_t repairId, bool& closed,
+bool RepairRegistry::repairClosed(uint32_t repairId,
+                                  bool& closed,
                                   String& closedAt) const
 {
     closed = false;
@@ -598,7 +479,7 @@ bool RepairRegistry::repairClosed(uint32_t repairId, bool& closed,
     if (!m_storage.exists(RepairStatusPath)) return true;
 
     File file = m_storage.open(RepairStatusPath, FILE_READ);
-    if (!file || file.isDirectory())
+    if (!prepareNdjson(file))
     {
         if (file) file.close();
         return false;
@@ -630,40 +511,49 @@ bool RepairRegistry::repairClosed(uint32_t repairId, bool& closed,
         closed = true;
         closedAt = candidateClosedAt;
     }
-
     file.close();
     return true;
 }
 
-bool RepairRegistry::nextId(const char* path, const char* key, uint32_t& id) const
+bool RepairRegistry::nextId(const char* path,
+                            const char* key,
+                            uint32_t& id) const
 {
     id = 1UL;
     if (!m_storage.exists(path)) return true;
-    if (!validateUniqueIds(path, key)) return false;
 
     File file = m_storage.open(path, FILE_READ);
-    if (!file) return false;
-    uint32_t maximum = 0UL;
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint32_t previousId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t candidate = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, key, candidate) || candidate == 0UL)
+            !findUnsigned(line, key, candidate) || candidate == 0UL ||
+            candidate <= previousId)
         {
             file.close();
             return false;
         }
-        if (candidate > maximum) maximum = candidate;
+        previousId = candidate;
     }
     file.close();
-    if (maximum == 0xFFFFFFFFUL) return false;
-    id = maximum + 1UL;
+
+    if (previousId == 0xFFFFFFFFUL) return false;
+    id = previousId + 1UL;
     return true;
 }
 
-bool RepairRegistry::findUnsigned(const String& line, const char* key, uint32_t& value)
+bool RepairRegistry::findUnsigned(const String& line,
+                                  const char* key,
+                                  uint32_t& value)
 {
     value = 0UL;
     const String marker = String("\"") + key + F("\":");
@@ -674,7 +564,10 @@ bool RepairRegistry::findUnsigned(const String& line, const char* key, uint32_t&
     while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     if (cursor >= line.length() || !isDigit(line[cursor])) return false;
     if (line[cursor] == '0' && cursor + 1 < line.length() &&
-        isDigit(line[cursor + 1])) return false;
+        isDigit(line[cursor + 1]))
+    {
+        return false;
+    }
 
     uint32_t parsed = 0UL;
     while (cursor < line.length() && isDigit(line[cursor]))
@@ -686,13 +579,18 @@ bool RepairRegistry::findUnsigned(const String& line, const char* key, uint32_t&
     }
     while (cursor < line.length() && line[cursor] == ' ') ++cursor;
     if (cursor >= line.length() ||
-        (line[cursor] != ',' && line[cursor] != '}')) return false;
+        (line[cursor] != ',' && line[cursor] != '}'))
+    {
+        return false;
+    }
 
     value = parsed;
     return true;
 }
 
-bool RepairRegistry::findString(const String& line, const char* key, String& value)
+bool RepairRegistry::findString(const String& line,
+                                const char* key,
+                                String& value)
 {
     value = String();
     const String marker = String("\"") + key + F("\":\"");
@@ -729,9 +627,9 @@ String RepairRegistry::jsonEscape(const String& value)
 {
     String escaped;
     escaped.reserve(value.length() + 8U);
-    for (size_t i = 0U; i < value.length(); ++i)
+    for (size_t index = 0U; index < value.length(); ++index)
     {
-        const char ch = value[i];
+        const char ch = value[index];
         if (ch == '\\') escaped += F("\\\\");
         else if (ch == '"') escaped += F("\\\"");
         else if (ch == '\n') escaped += F("\\n");

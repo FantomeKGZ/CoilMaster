@@ -38,7 +38,10 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
     if (!ready()) return AutonomousWindingSaveResult::StorageUnavailable;
     if (!event.localStandalone || !event.hasProgram() ||
         event.sessionId == 0UL || event.runId == 0UL ||
-        event.type == RemoteEventType::None)
+        (event.type != RemoteEventType::RunStarted &&
+         event.type != RemoteEventType::RunCompleted) ||
+        (event.type == RemoteEventType::RunStarted && event.completedRuns != 0U) ||
+        (event.type == RemoteEventType::RunCompleted && event.completedRuns == 0U))
     {
         return AutonomousWindingSaveResult::Invalid;
     }
@@ -196,12 +199,11 @@ bool AutonomousWindingArchive::ensureDirectories()
     return true;
 }
 
-bool AutonomousWindingArchive::findEventReplay(const RemoteWindingEvent& event,
-                                               bool& exactMatch,
-                                               bool& conflict) const
+bool AutonomousWindingArchive::loadLastEvent(RemoteWindingEvent& event,
+                                             bool& found) const
 {
-    exactMatch = false;
-    conflict = false;
+    event = RemoteWindingEvent();
+    found = false;
     if (!m_storage.exists(EventsPath)) return true;
 
     File file = m_storage.open(EventsPath, FILE_READ);
@@ -211,47 +213,125 @@ bool AutonomousWindingArchive::findEventReplay(const RemoteWindingEvent& event,
         return false;
     }
 
-    const String expectedProgram = programText(event);
-    while (file.available())
+    const size_t rawSize = file.size();
+    if (rawSize == 0U)
     {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-
-        RemoteWindingEvent candidate;
-        if (!FlatJsonObjectValidator::valid(line) || !parseEventRecord(line, candidate))
-        {
-            file.close();
-            return false;
-        }
-        if (candidate.sessionId != event.sessionId ||
-            candidate.runId != event.runId || candidate.type != event.type)
-        {
-            continue;
-        }
-
-        const bool same =
-            candidate.completedRuns == event.completedRuns &&
-            candidate.jobType == event.jobType &&
-            candidate.coilCount == event.coilCount &&
-            programText(candidate) == expectedProgram;
-        if (!same)
-        {
-            conflict = true;
-            file.close();
-            return true;
-        }
-        if (exactMatch)
-        {
-            // The archive itself contains duplicate identity records; do not
-            // hide this integrity failure behind another DUPLICATE acknowledgement.
-            conflict = true;
-            file.close();
-            return true;
-        }
-        exactMatch = true;
+        file.close();
+        return true;
+    }
+    if (rawSize > 0xFFFFFFFFUL)
+    {
+        file.close();
+        return false;
     }
 
+    // Records produced by this archive are well below 512 bytes. Read only the
+    // bounded tail instead of rescanning the complete append-only file for every
+    // UART retry or completion. A longer unterminated record fails closed.
+    constexpr size_t TailBytes = 512U;
+    const uint32_t fileSize = static_cast<uint32_t>(rawSize);
+    const size_t readLength = rawSize < TailBytes ? rawSize : TailBytes;
+    const uint32_t start = fileSize - static_cast<uint32_t>(readLength);
+    if (!file.seek(start))
+    {
+        file.close();
+        return false;
+    }
+
+    char buffer[TailBytes + 1U];
+    const size_t readCount =
+        file.read(reinterpret_cast<uint8_t*>(buffer), readLength);
     file.close();
+    if (readCount != readLength || readLength == 0U ||
+        buffer[readLength - 1U] != '\n')
+    {
+        return false;
+    }
+
+    size_t end = readLength - 1U;
+    while (end > 0U && buffer[end - 1U] == '\n') --end;
+    if (end == 0U)
+    {
+        return start == 0UL;
+    }
+
+    int previousNewline = -1;
+    for (int index = static_cast<int>(end) - 1; index >= 0; --index)
+    {
+        if (buffer[index] == '\n')
+        {
+            previousNewline = index;
+            break;
+        }
+    }
+    if (previousNewline < 0 && start > 0UL) return false;
+
+    buffer[end] = '\0';
+    const char* record = buffer + (previousNewline >= 0 ? previousNewline + 1 : 0);
+    const String line(record);
+    if (line.length() == 0U || !FlatJsonObjectValidator::valid(line) ||
+        !parseEventRecord(line, event))
+    {
+        return false;
+    }
+
+    found = true;
+    return true;
+}
+
+bool AutonomousWindingArchive::findEventReplay(const RemoteWindingEvent& event,
+                                               bool& exactMatch,
+                                               bool& conflict) const
+{
+    exactMatch = false;
+    conflict = false;
+
+    RemoteWindingEvent latest;
+    bool found = false;
+    if (!loadLastEvent(latest, found)) return false;
+    if (!found) return true;
+
+    if (event.runId < latest.runId ||
+        (event.runId > latest.runId && event.sessionId < latest.sessionId))
+    {
+        conflict = true;
+        return true;
+    }
+    if (event.runId > latest.runId) return true;
+
+    if (event.sessionId != latest.sessionId ||
+        event.jobType != latest.jobType ||
+        event.coilCount != latest.coilCount)
+    {
+        conflict = true;
+        return true;
+    }
+    for (uint8_t index = 0U; index < event.coilCount; ++index)
+    {
+        if (event.turns[index] != latest.turns[index])
+        {
+            conflict = true;
+            return true;
+        }
+    }
+
+    if (event.type == latest.type)
+    {
+        if (event.completedRuns != latest.completedRuns)
+            conflict = true;
+        else
+            exactMatch = true;
+        return true;
+    }
+
+    // The only valid same-run non-replay transition is START -> COMPLETE.
+    if (latest.type == RemoteEventType::RunStarted &&
+        event.type == RemoteEventType::RunCompleted)
+    {
+        return true;
+    }
+
+    conflict = true;
     return true;
 }
 
@@ -259,31 +339,25 @@ bool AutonomousWindingArchive::matchingStartExists(const RemoteWindingEvent& eve
                                                     bool& found) const
 {
     found = false;
-    if (!m_storage.exists(EventsPath)) return true;
-    File file = m_storage.open(EventsPath, FILE_READ);
-    if (!file) return false;
-    const String expectedProgram = programText(event);
-    while (file.available())
+
+    RemoteWindingEvent latest;
+    bool latestFound = false;
+    if (!loadLastEvent(latest, latestFound)) return false;
+    if (!latestFound) return true;
+
+    if (latest.type != RemoteEventType::RunStarted ||
+        latest.sessionId != event.sessionId || latest.runId != event.runId ||
+        latest.jobType != event.jobType || latest.coilCount != event.coilCount)
     {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        RemoteWindingEvent candidate;
-        if (!FlatJsonObjectValidator::valid(line) || !parseEventRecord(line, candidate))
-        {
-            file.close();
-            return false;
-        }
-        if (candidate.sessionId == event.sessionId && candidate.runId == event.runId &&
-            candidate.type == RemoteEventType::RunStarted &&
-            candidate.jobType == event.jobType && candidate.coilCount == event.coilCount &&
-            programText(candidate) == expectedProgram)
-        {
-            found = true;
-            file.close();
-            return true;
-        }
+        return true;
     }
-    file.close();
+
+    for (uint8_t index = 0U; index < event.coilCount; ++index)
+    {
+        if (latest.turns[index] != event.turns[index]) return true;
+    }
+
+    found = true;
     return true;
 }
 

@@ -1,0 +1,33 @@
+[
+  {
+    "name": "АИР 80A2",
+    "model": "80A2",
+    "manufacturer": "ПРИМЕР — ЗАМЕНИТЬ",
+    "coil_program": "120/120/120",
+    "rated_power_w": 1500,
+    "rated_voltage_v": 380,
+    "rated_current_ma": 3400,
+    "rated_speed_rpm": 2850,
+    "frequency_hz": 50,
+    "phases": 3,
+    "connection": "Y/DELTA",
+    "slot_count": 24,
+    "pole_count": 2,
+    "coil_pitch": 10,
+    "turns_per_coil": 120,
+    "wire_diameter_hundredths_mm": 71,
+    "parallel_strands": 1,
+    "wire_material": "CU",
+    "winding_type": "однослойная",
+    "stator_bore_mm": 80,
+    "stator_core_length_mm": 70,
+    "tags": "пример, требует проверки",
+    "source_type": "UNVERIFIED",
+    "source_title": "Демонстрационная запись — не является техническим источником",
+    "source_url": "",
+    "source_retrieved_at": "2026-08-12",
+    "confidence": "UNVERIFIED",
+    "calculated_fields": false,
+    "comment": "Все числовые значения приведены только для демонстрации формата."
+  }
+]

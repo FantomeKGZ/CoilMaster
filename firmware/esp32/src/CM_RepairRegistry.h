@@ -112,6 +112,10 @@ private:
 
     bool ensureDirectories();
     bool repairClosed(uint32_t repairId, bool& closed, String& closedAt) const;
+    bool resolveRepairPageStatuses(const uint32_t* repairIds,
+                                   uint8_t repairCount,
+                                   bool* closed,
+                                   String* closedAt) const;
     bool nextId(const char* path, const char* key, uint32_t& id) const;
     bool idExists(const char* path, const char* key, uint32_t id) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);

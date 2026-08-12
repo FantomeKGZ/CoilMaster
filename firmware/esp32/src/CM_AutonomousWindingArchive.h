@@ -17,6 +17,16 @@ enum class AutonomousWindingSaveResult : uint8_t
     WriteFailed
 };
 
+enum class AutonomousWindingAssignResult : uint8_t
+{
+    Assigned = 0U,
+    Invalid,
+    TaskNotFound,
+    ArchiveIntegrityFailed,
+    StorageUnavailable,
+    WriteFailed
+};
+
 struct AutonomousWindingAssignment
 {
     uint32_t assignmentId;
@@ -82,6 +92,15 @@ public:
                      uint32_t motorId,
                      const String& role,
                      uint32_t& assignmentId);
+
+    // Performs the completed-task lookup and append in one archive operation so
+    // HTTP callers do not scan events.ndjson once before assignMotor() and then
+    // a second time inside it. Result preserves not-found vs integrity semantics.
+    AutonomousWindingAssignResult assignMotorChecked(uint32_t sessionId,
+                                                      uint32_t runId,
+                                                      uint32_t motorId,
+                                                      const String& role,
+                                                      uint32_t& assignmentId);
 
     // Read-only authoritative audit used both at boot and by backup/deep-integrity
     // checks. It never creates directories or mutates persisted archive data.

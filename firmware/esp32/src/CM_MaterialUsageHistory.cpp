@@ -38,23 +38,57 @@ bool findUnsigned64Local(const String& line, const char* key, uint64_t& value)
 }
 }
 
-bool MaterialLedger::appendUsageHistoryJson(String& json,
-                                            uint32_t repairId,
-                                            uint32_t materialId,
-                                            uint16_t limit,
-                                            uint16_t& count) const
+bool MaterialLedger::appendUsageHistoryPageJson(
+    String& json,
+    uint32_t repairId,
+    uint32_t materialId,
+    uint32_t cursor,
+    uint8_t limit,
+    uint16_t& count,
+    uint32_t& nextCursor,
+    bool& hasMore) const
 {
     count = 0U;
-    if (!ready()) return false;
-    if (!m_storage.exists(UsagePath)) return true;
-    if (limit == 0U) limit = 50U;
+    nextCursor = 0UL;
+    hasMore = false;
+    if (!ready() || limit == 0U || limit > MaxListPageSize) return false;
+    if (!m_storage.exists(UsagePath)) return cursor == 0UL;
 
     File file = m_storage.open(UsagePath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    const size_t rawSize = file.size();
+    if (rawSize > 0xFFFFFFFFUL || cursor > rawSize)
+    {
+        file.close();
+        return false;
+    }
+    const uint32_t fileSize = static_cast<uint32_t>(rawSize);
+    if (fileSize > 0UL &&
+        (!file.seek(fileSize - 1UL) || file.read() != '\n'))
+    {
+        file.close();
+        return false;
+    }
+    if (cursor > 0UL &&
+        (!file.seek(cursor - 1UL) || file.read() != '\n'))
+    {
+        file.close();
+        return false;
+    }
+    if (!file.seek(cursor))
+    {
+        file.close();
+        return false;
+    }
 
     bool first = true;
     uint32_t previousUsageId = 0UL;
-    while (file.available())
+    while (file.available() && count < limit)
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
@@ -73,13 +107,17 @@ bool MaterialLedger::appendUsageHistoryJson(String& json,
         String currency, timestamp;
         if (!findUnsigned(line, "usage_id", usageId) || usageId == 0UL ||
             usageId <= previousUsageId ||
-            !findUnsigned(line, "repair_id", currentRepairId) || currentRepairId == 0UL ||
-            !findUnsigned(line, "material_id", currentMaterialId) || currentMaterialId == 0UL ||
+            !findUnsigned(line, "repair_id", currentRepairId) ||
+            currentRepairId == 0UL ||
+            !findUnsigned(line, "material_id", currentMaterialId) ||
+            currentMaterialId == 0UL ||
             !findUnsigned(line, "quantity_milli", quantity) || quantity == 0UL ||
-            !findUnsigned(line, "price_per_unit_minor", unitPrice) || unitPrice == 0UL ||
+            !findUnsigned(line, "price_per_unit_minor", unitPrice) ||
+            unitPrice == 0UL ||
             !findUnsigned64Local(line, "line_cost_minor", lineCost) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+            !findString(line, "timestamp", timestamp) ||
+            timestamp.length() < 10U)
         {
             file.close();
             return false;
@@ -107,13 +145,15 @@ bool MaterialLedger::appendUsageHistoryJson(String& json,
 
         if (repairId > 0UL && currentRepairId != repairId) continue;
         if (materialId > 0UL && currentMaterialId != materialId) continue;
-        if (count >= limit) continue;
         if (!first) json += ',';
-        json += line;
         first = false;
+        json += line;
         ++count;
     }
 
+    const uint32_t pageEnd = static_cast<uint32_t>(file.position());
+    hasMore = pageEnd < fileSize;
+    nextCursor = hasMore ? pageEnd : 0UL;
     file.close();
     return true;
 }

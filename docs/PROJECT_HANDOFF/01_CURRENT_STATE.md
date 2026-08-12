@@ -1,8 +1,8 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-10**  
+Дата обновления: **2026-08-12**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **основной production workflow собран; Arduino local path реально проверен; продолжается ESP32 backup/E2E доводка**
+Статус: **основной production workflow собран; Arduino local path реально проверен; ESP32 clean build подтверждён; продолжается backup/E2E доводка**
 
 ## Source of truth
 
@@ -81,6 +81,18 @@ A0  = Hall
 A1  = Arduino TX → ESP32 RX
 A2  = Arduino RX ← ESP32 TX
 ```
+
+## Подтверждённый ESP32 build checkpoint
+
+Clean local PlatformIO build текущего ESP32 firmware подтверждён пользователем 2026-08-12:
+
+```text
+RAM:   14.4% (used 47320 bytes from 327680 bytes)
+Flash: 86.7% (used 1136229 bytes from 1310720 bytes)
+SUCCESS Took 31.04 seconds
+```
+
+Это подтверждает compile/link текущего ESP32 кода, включая UART hardening, autonomous archive integrity, backup integration и server-side UI switch footer. Это не заменяет hardware/runtime E2E и не является GitHub CI result.
 
 ## UART protocol
 
@@ -301,10 +313,10 @@ Stage 0 observability теперь содержит **34 metrics**: прежни
 
 ## Что ещё не подтверждено
 
-После последних ESP32 изменений текущий HEAD ещё не имеет подтверждённого clean build/CI результата:
+Текущий ESP32 clean local build **подтверждён**. GitHub CI остаётся неподтверждённым:
 
 ```text
-BUILD NOT CONFIRMED
+LOCAL ESP32 BUILD: SUCCESS
 CI NOT CONFIRMED
 ```
 

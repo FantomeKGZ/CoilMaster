@@ -112,8 +112,11 @@ CM::BackupActivityCheck backupRuntimeActivity()
 {
     if (!recoveryEvaluated || !jobStateStoreReady || !jobStates.isReady())
         return CM::BackupActivityCheck::Unavailable;
+    // Manual review means ESP32 cannot prove that Arduino is physically idle
+    // after a reboot/fault/delivery interruption. Keep heavy backup scans blocked
+    // until the operator explicitly closes the recovery state.
     if (manualReviewRequired())
-        return CM::BackupActivityCheck::Safe;
+        return CM::BackupActivityCheck::Busy;
     if (runActive || autonomousRunActive || jobAwaitingAck || jobCancelAwaitingAck ||
         (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns == 0U))
     {

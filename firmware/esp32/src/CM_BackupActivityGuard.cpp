@@ -52,11 +52,12 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
     if (!found) return BackupActivityCheck::Safe;
 
     // Fail closed on every persisted state where physical inactivity cannot be
-    // proven. In particular, Fault may be the post-reboot/manual-review state
-    // of a machine that ESP32 can no longer observe authoritatively.
+    // proven. TIMED_OUT is ambiguous because Arduino may have accepted the JOB
+    // while every acknowledgement was lost.
     const bool busy =
         latest.deliveryState == JobDeliveryState::Created ||
         latest.deliveryState == JobDeliveryState::Delivering ||
+        latest.deliveryState == JobDeliveryState::TimedOut ||
         latest.executionState == JobExecutionState::WaitingPhysicalStart ||
         latest.executionState == JobExecutionState::Running ||
         latest.executionState == JobExecutionState::Fault;

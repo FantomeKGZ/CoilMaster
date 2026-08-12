@@ -64,18 +64,10 @@ public:
         return true;
     }
 
-    // Legacy unbounded formatters kept temporarily for compatibility while the
-    // last web consumer migrates to bounded/exact lookup routes.
-    bool appendClientsJson(String& json, const String& phoneQuery,
-                           uint16_t& count) const;
-    bool appendMotorsJson(String& json, const String& query,
-                          uint16_t& count) const;
     bool appendSimilarMotorsJson(String& json,
                                  const NewMotor& candidate,
                                  uint16_t& sameProgramCount,
                                  uint16_t& identityMatchCount) const;
-    bool appendRepairsJson(String& json, uint32_t clientId,
-                           uint16_t& count) const;
 
     // Bounded page readers. Cursor is an opaque byte offset returned by the
     // previous call and must point to an NDJSON record boundary.

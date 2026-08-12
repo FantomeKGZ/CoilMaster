@@ -89,6 +89,7 @@ public:
                               bool& hasMore) const;
     bool appendRepairsPageJson(String& json,
                                uint32_t clientId,
+                               const String& statusFilter,
                                uint32_t cursor,
                                uint8_t limit,
                                uint16_t& count,

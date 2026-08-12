@@ -44,10 +44,15 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event,
     if (event.type == RemoteEventType::RunStarted && event.completedRuns != 0U)
         return JournalSaveResult::InvalidTransition;
 
+    // A replay is idempotent only when the persisted event semantics match
+    // exactly. Same session/run/type with a different completed_runs value must
+    // continue through transition validation and fail closed rather than being
+    // treated as a harmless duplicate.
     bool duplicateFound = false;
     if (!containsRunEvent(event.sessionId,
                           event.runId,
                           event.type,
+                          event.completedRuns,
                           duplicateFound))
     {
         return JournalSaveResult::InvalidTransition;
@@ -335,6 +340,7 @@ bool WindingJournal::sessionContextMatches(
 bool WindingJournal::containsRunEvent(uint32_t sessionId,
                                       uint32_t runId,
                                       RemoteEventType type,
+                                      uint16_t completedRuns,
                                       bool& found) const
 {
     found = false;
@@ -383,7 +389,9 @@ bool WindingJournal::containsRunEvent(uint32_t sessionId,
         }
 
         if (lineSessionId == sessionId &&
-            lineRunId == runId && lineType == type)
+            lineRunId == runId &&
+            lineType == type &&
+            lineCompletedRuns == completedRuns)
         {
             found = true;
             file.close();
@@ -402,6 +410,7 @@ bool WindingJournal::hasRunStart(uint32_t sessionId,
     return containsRunEvent(sessionId,
                             runId,
                             RemoteEventType::RunStarted,
+                            0U,
                             found);
 }
 

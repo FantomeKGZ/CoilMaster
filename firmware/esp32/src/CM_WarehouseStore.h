@@ -8,6 +8,7 @@
 namespace CM
 {
 constexpr uint8_t WarehouseMaxDiameters = 32U;
+constexpr uint8_t WarehouseMaxListPageSize = 32U;
 
 struct WireStockSummary{uint16_t diameterHundredthsMm;uint32_t remainingGrams;uint8_t activeSpoolCount;uint32_t consumedMonthGrams;uint32_t consumedAllTimeGrams;WireStockSummary():diameterHundredthsMm(0U),remainingGrams(0UL),activeSpoolCount(0U),consumedMonthGrams(0UL),consumedAllTimeGrams(0UL){}};
 struct NewWireSpool{uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;String wireType;String manufacturer;String supplier;String batch;String storageLocation;String comment;NewWireSpool():diameterHundredthsMm(0U),currentWeightGrams(0UL){}};
@@ -33,14 +34,14 @@ public:
     bool confirmedWriteOffForSourceSession(uint32_t sourceSessionId,bool& found) const;
     bool confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
-    bool appendConfirmedWriteOffsJson(String& json,uint32_t repairId,uint16_t& appendedCount,uint32_t& totalConsumedGrams,uint64_t& totalConsumedValueMinor,WriteOffMaterialTotals& materialTotals) const;
+    bool appendConfirmedWriteOffsPageJson(String& json,uint32_t repairId,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore,uint32_t& totalConsumedGrams,uint64_t& totalConsumedValueMinor,WriteOffMaterialTotals& materialTotals) const;
     bool setWarehousePrice(const WarehousePrice& price);
     bool loadWarehousePrice(WarehousePrice& price) const;
     bool loadWarehousePrice(WarehousePrice& price,bool& configured) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;
     bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,uint16_t& appendedCount) const;
-    bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,const char* materialFilter,uint16_t& appendedCount) const;
+    bool appendActiveSpoolsPageJson(String& json,uint16_t diameterHundredthsMm,const char* materialFilter,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore) const;
     bool appendMaterialSummaryJson(String& json,const char* monthPrefix) const;
     bool loadKnownWireDiameters(KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;
     bool loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;

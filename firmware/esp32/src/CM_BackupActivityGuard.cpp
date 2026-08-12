@@ -51,11 +51,15 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
         return BackupActivityCheck::Unavailable;
     if (!found) return BackupActivityCheck::Safe;
 
+    // Fail closed on every persisted state where physical inactivity cannot be
+    // proven. In particular, Fault may be the post-reboot/manual-review state
+    // of a machine that ESP32 can no longer observe authoritatively.
     const bool busy =
         latest.deliveryState == JobDeliveryState::Created ||
         latest.deliveryState == JobDeliveryState::Delivering ||
         latest.executionState == JobExecutionState::WaitingPhysicalStart ||
-        latest.executionState == JobExecutionState::Running;
+        latest.executionState == JobExecutionState::Running ||
+        latest.executionState == JobExecutionState::Fault;
 
     return busy ? BackupActivityCheck::Busy : BackupActivityCheck::Safe;
 }

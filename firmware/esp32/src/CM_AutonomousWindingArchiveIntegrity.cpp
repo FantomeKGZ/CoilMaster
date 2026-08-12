@@ -35,51 +35,6 @@ bool sameProgram(const RemoteWindingEvent& left,
     }
     return true;
 }
-
-bool validateAssignmentBatch(fs::FS& storage,
-                             AssignmentReference* references,
-                             uint8_t count)
-{
-    if (count == 0U) return true;
-    if (!storage.exists(AutonomousWindingArchive::EventsPath)) return false;
-
-    File events = storage.open(AutonomousWindingArchive::EventsPath, FILE_READ);
-    if (!events || events.isDirectory())
-    {
-        if (events) events.close();
-        return false;
-    }
-
-    uint8_t unresolved = count;
-    while (events.available() && unresolved > 0U)
-    {
-        const String line = events.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-
-        RemoteWindingEvent event;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !AutonomousWindingArchive::parseEventRecord(line, event))
-        {
-            events.close();
-            return false;
-        }
-        if (event.type != RemoteEventType::RunCompleted) continue;
-
-        for (uint8_t index = 0U; index < count; ++index)
-        {
-            AssignmentReference& reference = references[index];
-            if (!reference.found &&
-                reference.sessionId == event.sessionId &&
-                reference.runId == event.runId)
-            {
-                reference.found = true;
-                --unresolved;
-            }
-        }
-    }
-    events.close();
-    return unresolved == 0U;
-}
 }
 
 bool AutonomousWindingArchive::validateStorage(
@@ -87,6 +42,53 @@ bool AutonomousWindingArchive::validateStorage(
     AutonomousWindingIntegrityMetrics& metrics)
 {
     metrics = AutonomousWindingIntegrityMetrics();
+
+    // This lambda lives inside the class member so it can reuse the archive's
+    // authoritative private parser while keeping the batched scan implementation
+    // local to the read-only audit.
+    const auto validateAssignmentBatch =
+        [&](AssignmentReference* references, uint8_t count) -> bool
+    {
+        if (count == 0U) return true;
+        if (!storage.exists(EventsPath)) return false;
+
+        File events = storage.open(EventsPath, FILE_READ);
+        if (!events || events.isDirectory())
+        {
+            if (events) events.close();
+            return false;
+        }
+
+        uint8_t unresolved = count;
+        while (events.available() && unresolved > 0U)
+        {
+            const String line = events.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+
+            RemoteWindingEvent event;
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !parseEventRecord(line, event))
+            {
+                events.close();
+                return false;
+            }
+            if (event.type != RemoteEventType::RunCompleted) continue;
+
+            for (uint8_t index = 0U; index < count; ++index)
+            {
+                AssignmentReference& reference = references[index];
+                if (!reference.found &&
+                    reference.sessionId == event.sessionId &&
+                    reference.runId == event.runId)
+                {
+                    reference.found = true;
+                    --unresolved;
+                }
+            }
+        }
+        events.close();
+        return unresolved == 0U;
+    };
 
     // events.ndjson is append-only and Arduino emits LOCAL_EVT through a FIFO.
     // run_id is globally monotonic; a normal completion therefore immediately
@@ -251,7 +253,7 @@ bool AutonomousWindingArchive::validateStorage(
 
             if (batchCount == AssignmentAuditBatchSize)
             {
-                if (!validateAssignmentBatch(storage, references, batchCount))
+                if (!validateAssignmentBatch(references, batchCount))
                 {
                     assignments.close();
                     return false;
@@ -261,7 +263,7 @@ bool AutonomousWindingArchive::validateStorage(
         }
 
         if (batchCount > 0U &&
-            !validateAssignmentBatch(storage, references, batchCount))
+            !validateAssignmentBatch(references, batchCount))
         {
             assignments.close();
             return false;

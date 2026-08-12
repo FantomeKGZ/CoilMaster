@@ -79,6 +79,7 @@ private:
     bool containsRunEvent(uint32_t sessionId,
                           uint32_t runId,
                           RemoteEventType type,
+                          uint16_t completedRuns,
                           bool& found) const;
     bool hasRunStart(uint32_t sessionId,
                      uint32_t runId,

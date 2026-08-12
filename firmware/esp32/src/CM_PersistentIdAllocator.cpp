@@ -39,10 +39,22 @@ bool PersistentIdAllocator::begin()
     uint32_t sessionId = 0UL;
     if (!loadState(StatePath, jobId, sessionId))
     {
-        // Recover only from a complete valid backup. Never silently reset IDs.
+        // Recover only from a complete valid backup. Never rotate the corrupt
+        // main state back into BackupPath: the verified backup itself becomes
+        // the new authoritative state, and the next successful allocation will
+        // recreate a fresh backup through the normal transaction path.
         if (!m_fileSystem.exists(BackupPath) ||
             !loadState(BackupPath, jobId, sessionId) ||
-            !persistState(jobId, sessionId))
+            (m_fileSystem.exists(StatePath) && !m_fileSystem.remove(StatePath)) ||
+            !m_fileSystem.rename(BackupPath, StatePath))
+        {
+            return false;
+        }
+
+        uint32_t verifiedJobId = 0UL;
+        uint32_t verifiedSessionId = 0UL;
+        if (!loadState(StatePath, verifiedJobId, verifiedSessionId) ||
+            verifiedJobId != jobId || verifiedSessionId != sessionId)
         {
             return false;
         }
@@ -225,9 +237,14 @@ bool PersistentIdAllocator::persistState(uint32_t jobId, uint32_t sessionId)
 
     if (!m_fileSystem.rename(TempPath, StatePath))
     {
-        // Best-effort rollback. Failure leaves begin() able to recover from backup.
-        if (!m_fileSystem.exists(StatePath) && m_fileSystem.exists(BackupPath))
-            m_fileSystem.rename(BackupPath, StatePath);
+        // If the old authoritative state can be restored, the candidate temp is
+        // no longer needed. If rollback or temp cleanup fails, leave evidence on
+        // disk so begin() fails closed instead of guessing after reboot.
+        bool rollbackRestored = m_fileSystem.exists(StatePath);
+        if (!rollbackRestored && m_fileSystem.exists(BackupPath))
+            rollbackRestored = m_fileSystem.rename(BackupPath, StatePath);
+        if (rollbackRestored && m_fileSystem.exists(TempPath))
+            m_fileSystem.remove(TempPath);
         return false;
     }
 

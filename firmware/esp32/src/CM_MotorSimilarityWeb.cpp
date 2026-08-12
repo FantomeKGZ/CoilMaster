@@ -44,9 +44,13 @@ void MotorSimilarityWeb::handleLookup()
     response.reserve(4096U);
     uint16_t sameProgramCount = 0U;
     uint16_t identityMatchCount = 0U;
+    uint8_t returnedCount = 0U;
+    bool itemsTruncated = false;
     if (!m_registry.appendSimilarMotorsJson(response, candidate,
                                             sameProgramCount,
-                                            identityMatchCount))
+                                            identityMatchCount,
+                                            returnedCount,
+                                            itemsTruncated))
     {
         m_server.send(500, "application/json; charset=utf-8",
                       "{\"error\":\"similarity_lookup_failed\"}");
@@ -56,6 +60,12 @@ void MotorSimilarityWeb::handleLookup()
     response += sameProgramCount;
     response += F(",\"identity_match_count\":");
     response += identityMatchCount;
+    response += F(",\"returned_count\":");
+    response += returnedCount;
+    response += F(",\"max_items\":");
+    response += RepairRegistry::MaxListPageSize;
+    response += F(",\"items_truncated\":");
+    response += itemsTruncated ? F("true") : F("false");
     response += F(",\"creation_blocked\":false}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }

@@ -305,3 +305,16 @@ materials
 Segmentation/rotation threshold вводить только по фактическим latency/size metrics. DB migration/destructive compaction без доказанной необходимости не вводить.
 
 Основная новая функциональность сейчас не приоритет. Проект находится в production-hardening/performance phase.
+
+## Closed checkpoint — batched repair-status paging (2026-08-12)
+
+The previously identified repeated `repairClosed()` scan inside `appendRepairsPageJson()` is closed. The page reader now resolves up to 32 repair statuses through one authoritative status-ledger pass while preserving exact-one CLOSED and fail-closed semantics.
+
+```text
+6a64bf66045281bf2f37e8f9d7ad2250205f1369
+52b6e2a69664bc150a51978b292b437079bd1933
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+Next work must be selected from measured populated-dataset timings or a concrete correctness/fault-test result. Do not introduce a database migration, destructive compaction, or arbitrary rotation threshold without evidence.

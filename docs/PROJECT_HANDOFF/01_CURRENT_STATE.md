@@ -389,3 +389,26 @@ CMP Protocol Tests: SUCCESS
 ```
 
 The monthly financial total intentionally still verifies every CLOSED repair in the selected month; only visible report rows are paged. This preserves authoritative totals while bounding rendered DOM size.
+
+
+## Materials and warehouse pagination checkpoint — 2026-08-12
+
+The remaining unbounded catalogue/history endpoints now use bounded cursor pages at the storage and HTTP boundaries:
+
+- `GET /api/materials`;
+- `GET /api/materials/adjustments`;
+- `GET /api/materials/usage`;
+- `GET /api/warehouse/spools`;
+- `GET /api/warehouse/write-offs`.
+
+Default page size is 20 records and the hard server maximum is 32. Desktop and mobile provide independent Previous/Next controls for material catalogues, adjustment history, repair material selection, active spools, spool selection and repair write-off history.
+
+Warehouse write-off mass, value and material-group totals still cover every confirmed movement for the repair even though only one page of rows is returned. Exact `spool_id + source_session_id + source_run_id` write-off provenance and all existing fail-closed safety rules are unchanged.
+
+Code checkpoint:
+
+```text
+53285422a646b488776013029a438f24faeabfc6
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```

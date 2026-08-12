@@ -83,6 +83,7 @@ struct RepairMaterialUsageResult
 class MaterialLedger
 {
 public:
+    static constexpr uint8_t MaxListPageSize = 32U;
     explicit MaterialLedger(fs::FS& storage);
 
     bool begin();
@@ -96,7 +97,12 @@ public:
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);
-    bool appendMaterialsJson(String& json, uint16_t& count) const;
+    bool appendMaterialsPageJson(String& json,
+                                 uint32_t cursor,
+                                 uint8_t limit,
+                                 uint16_t& count,
+                                 uint32_t& nextCursor,
+                                 bool& hasMore) const;
     bool appendAdjustmentHistoryJson(String& json,
                                      uint32_t materialId,
                                      uint16_t limit,

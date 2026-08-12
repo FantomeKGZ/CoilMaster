@@ -49,8 +49,9 @@ public:
     bool create(uint32_t jobId, uint32_t sessionId, uint32_t nowMs);
     bool load(uint32_t sessionId, JobRuntimeState& state) const;
 
-    // Finds the highest valid persisted session. Temporary and malformed files
-    // are ignored. found=false is a valid result when no state exists yet.
+    // Finds the highest valid persisted session. Any malformed, temporary or
+    // unexpected regular file fails the scan closed. found=false is valid only
+    // when the state directory contains no persisted session.
     bool loadLatest(JobRuntimeState& state, bool& found) const;
 
     bool updateDelivery(uint32_t sessionId,

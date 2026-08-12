@@ -5,28 +5,48 @@
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
 
-## Текущий подтверждённый hardware checkpoint
+## Подтверждённый production hardware checkpoint
 
-Arduino Uno после SRAM-оптимизации работает стабильно:
+На реальном стенде подтверждены оба пути.
 
-```text
-CM_BOOT stage=READY free_sram=357
-CM_ALIVE ... free_sram=366
-```
-
-Reset-loop устранён. Пользователь дополнительно подтвердил реальную работу:
+Standalone Arduino:
 
 ```text
 локальное создание программы на Arduino
-→ физический START
-→ выполнение намотки
+→ physical START
+→ реальная намотка
 → LOCAL_EVT
-→ отправка на ESP32
+→ ESP32 autonomous archive
 ```
 
-Постоянный звук buzzer оказался не firmware bug: пищалка была физически подключена к **D12**, который является SSR output. После переноса на **D11** проблема устранена.
+Основной linked production flow:
 
-Актуальная Arduino pin-map:
+```text
+client / motor / OPEN repair
+→ linked winding
+→ exact spool selection
+→ UART delivery
+→ physical START
+→ реальная намотка
+→ RUN_STARTED / RUN_COMPLETED
+→ manual exact-run wire writeoff
+→ данные списания отображаются
+→ costing / finalization
+→ CLOSED / итоговые данные находятся
+→ backup/manifest читается
+```
+
+Основной happy-path hardware E2E **закрыт** и больше не считается внешним неподтверждённым риском.
+
+## Safety boundary — не менять
+
+- physical START только физический;
+- ESP32/Web не управляют SSR напрямую;
+- auto-resume после reboot отсутствует;
+- `RUN_COMPLETED` не выполняет automatic wire writeoff;
+- wire writeoff остаётся ручным и exact `spool_id + source_session_id + source_run_id`.
+
+Arduino pin-map:
 
 ```text
 D11 = Buzzer
@@ -36,17 +56,9 @@ A1  = Arduino TX → ESP32 RX
 A2  = Arduino RX ← ESP32 TX
 ```
 
-Safety boundary не менялся:
+## Build / runtime checkpoints
 
-- physical START только физический;
-- ESP32/Web не управляют SSR напрямую;
-- auto-resume после reboot отсутствует;
-- `RUN_COMPLETED` не выполняет automatic wire writeoff;
-- wire writeoff остаётся ручным и exact-run/exact-spool.
-
-## Подтверждённый ESP32 build checkpoint
-
-Clean local PlatformIO build текущего ESP32 firmware успешно завершён:
+Предыдущий clean ESP32 build был подтверждён пользователем:
 
 ```text
 RAM:   14.4% (used 47320 bytes from 327680 bytes)
@@ -54,22 +66,30 @@ Flash: 86.7% (used 1136229 bytes from 1310720 bytes)
 SUCCESS Took 31.04 seconds
 ```
 
-Это подтверждает compile/link новых backup/protocol/UI server changes. GitHub CI result по-прежнему отдельно не подтверждён.
-
-## Автономные намотки Arduino
-
-Production path для standalone Arduino задания уже реализован:
+После него manifest на реальном ESP32 подтвердил:
 
 ```text
-Arduino local keypad
-→ physical START
-→ RUN_STARTED / RUN_COMPLETED
-→ LOCAL_EVT с winding_type + coil_count + program
-→ ESP32 autonomous archive
-→ поиск программы ±20%
-→ existing/similar motor
-→ ручная assignment completed task → motor
+export_allowed=true
+activity_state_verified=true
+snapshot_stability_checked=true
+snapshot_stable=true
+snapshot_stability_reason=null
+snapshot_stability_duration_ms=1429
 ```
+
+Baseline сохранён в:
+
+```text
+docs/PROJECT_HANDOFF/14_HARDWARE_MANIFEST_BASELINE_2026-08-12.md
+```
+
+Полный hardware production E2E сохранён в:
+
+```text
+docs/PROJECT_HANDOFF/15_HARDWARE_PRODUCTION_E2E_2026-08-12.md
+```
+
+## Autonomous Arduino archive
 
 Persistent files:
 
@@ -78,55 +98,14 @@ Persistent files:
 /data/autonomous-windings/assignments.ndjson
 ```
 
-Incomplete `RUN_STARTED` records видны, но не могут быть назначены как completed evidence. Replayed `RUN_COMPLETED` после пропущенного START сохраняется с `start_observed=0` и предупреждением.
-
-Последний protocol hardening:
-
-```text
-a9fb6e395834c048d251f0475c27103b7c0160ad
-```
-
-ESP32 UART parser теперь fail-closed требует:
+ESP32 parser fail-closed требует:
 
 ```text
 RUN_STARTED   -> completed_runs == 0
 RUN_COMPLETED -> completed_runs > 0
 ```
 
-## Backup / deep integrity — текущий блок
-
-Добавлен read-only authoritative audit автономного архива:
-
-```text
-44a3b65114a1e29edcb7e78508c15986e747426f
-0748b74563dfc4ff90f9924e159017b37b8e73b2
-```
-
-API внутри firmware:
-
-```text
-AutonomousWindingArchive::validateStorage(...)
-```
-
-Audit не вызывает `begin()`, не создаёт каталоги и ничего не изменяет на microSD. Он использует production parsers/validators для `events.ndjson` и `assignments.ndjson`.
-
-Backup integration:
-
-```text
-55318f1a6366e5163739e4b0447da13d95f76870
-```
-
-В read-only whitelist теперь входят:
-
-```text
-autonomous-winding-events
-→ /data/autonomous-windings/events.ndjson
-
-autonomous-winding-assignments
-→ /data/autonomous-windings/assignments.ndjson
-```
-
-`/api/backup/manifest` дополнительно публикует:
+Backup whitelist/deep audit включает autonomous events + assignments и публикует:
 
 ```text
 autonomous_winding_archive_audit_duration_ms
@@ -136,85 +115,87 @@ autonomous_winding_completed_record_count
 autonomous_winding_assignment_record_count
 ```
 
-Если archive integrity не доказана:
+Исторический `STARTED_NOT_COMPLETED` не трактовать автоматически как физически активную намотку после reboot: архив может содержать старые прерванные задачи. Для authoritative post-reboot Arduino state потребуется отдельный handshake/recovery protocol, если такой блок будет реализовываться.
+
+## Fault hardening — текущий блок
+
+После hardware E2E начат negative/fault pass.
+
+Закрыт конкретный reboot/backup gap:
 
 ```text
-snapshot_stability_reason = autonomous_winding_archive_unstable_or_invalid
+f9e405b08a30d1d9f8413655c10cda6acf090b79  Block backup during manual recovery review
+817d1eb0040a1164ed808fc325252fb65d648aa8  Fail closed on faulted backup activity
 ```
 
-Mobile/desktop backup UI умеет объяснять эту причину:
+До исправления `backupRuntimeActivity()` возвращал `Safe` для `MANUAL_REVIEW_REQUIRED`. Это было слишком оптимистично: после reboot ESP32 не может доказать, что Arduino физически idle.
+
+Теперь:
 
 ```text
-f4225a6d161675ed3314fa9925953461cad02d80
-b5848051146e778ef5fb072bfae22a5f5bc710e5
+MANUAL_REVIEW_REQUIRED -> BackupActivityCheck::Busy
 ```
 
-## UI version switching
-
-Переключение mobile ↔ desktop теперь добавляется централизованно `CM_StaticSiteServer` в конец каждой `/mobile/...` и `/desktop/...` HTML-страницы. Сохраняются текущий path/query/hash.
-
-Текущий подтверждённый пользователем блок работает.
-
-Ключевой commit:
+а fallback по persisted state также считает небезопасным:
 
 ```text
-51f3e6d122d5bb7e48145f9cc5243f6ad4122050
+Created
+Delivering
+WaitingPhysicalStart
+Running
+Fault
 ```
 
-Для этого переключателя HTML на microSD менять не требуется — footer инжектируется firmware server-side.
+Heavy backup/deep audit остаётся заблокирован до явного operator recovery/closure. Никакого auto-resume, physical START или writeoff это изменение не добавляет.
 
-## Production flow
+## Verification status текущего HEAD
+
+Предыдущий ESP32 build и production E2E подтверждены, но после двух новых fault-hardening commits текущий HEAD ещё не пересобран:
 
 ```text
-client → motor → OPEN repair → costing → linked winding → exact spool_id
-→ immutable snapshot + spool-selection → UART → physical START
-→ RUN_STARTED/RUN_COMPLETED → manual exact-run wire writeoff
-→ materials/pricing → finalization preflight
-→ CLOSED → archive/report → read-only backup
+CURRENT HEAD BUILD: NOT CONFIRMED
+CI: NOT CONFIRMED
 ```
 
-Autonomous Arduino archive — отдельный ancillary flow и не ослабляет строгий linked-repair path.
-
-## Текущий verification status
-
-```text
-LOCAL ESP32 BUILD: SUCCESS
-CI NOT CONFIRMED
-```
-
-GitHub combined status через connector ранее возвращал пустой список. Не называть GitHub CI green без отдельного подтверждения.
+GitHub CI не считать green без фактического result.
 
 ## Следующее действие
 
-Прошить уже успешно собранный ESP32 firmware:
+Сначала clean-build текущего ESP32 HEAD:
+
+```powershell
+pio run -e esp32 -t clean
+pio run -e esp32
+```
+
+После успешного build прошить:
 
 ```powershell
 pio run -e esp32 -t upload
 ```
 
-После upload проверить:
-
-1. `/api/backup/manifest` содержит два autonomous archive items;
-2. `snapshot_stable=true` на целой карте;
-3. новые autonomous record counts не `null` при выполненном audit;
-4. скачиваются `autonomous-winding-events.ndjson` и `autonomous-winding-assignments.ndjson`;
-5. обычный local Arduino task по-прежнему попадает в archive;
-6. mobile ↔ desktop footer остаётся рабочим.
-
-После этого продолжить полный production E2E:
+Ближайший безопасный negative test при следующей короткой намотке:
 
 ```text
-linked repair
-→ exact spool
-→ JOB_ACK
-→ physical START
-→ RUN_STARTED
-→ RUN_COMPLETED
-→ manual exact-run wire writeoff
-→ costing
-→ finalization preflight
-→ CLOSED
-→ stable backup
+RUN_STARTED / run_active=true
+→ запрос GET /api/backup/manifest
+→ export_allowed MUST be false
+→ snapshot_stability_checked MUST be false
+→ heavy deep audit не должен запускаться
 ```
 
-На реальном dataset сохранить один manifest с audit durations/counts/bytes. Performance/rotation решения принимать только после измерений. Database migration и arbitrary rotation threshold преждевременно не вводить.
+Reboot/manual-review test проводить отдельно и только контролируемо, не прерывая рабочий двигатель без необходимости. После reboot из persisted `Running/Delivering/WaitingPhysicalStart/Fault` backup должен оставаться blocked до operator review.
+
+## Оставшиеся production-hardening сценарии
+
+- reboot/manual-review controlled test;
+- microSD loss / unavailable storage;
+- corrupted persisted data;
+- UART timeout / reject / duplicate event;
+- wrong spool / session / run;
+- duplicate writeoff;
+- close без required writeoff coverage;
+- backup request во время active winding;
+- populated-dataset benchmark перед Stage 1 performance work.
+
+Основная новая функциональность сейчас не приоритет. Следующий этап — доказать fail-closed поведение этих сценариев и исправлять только найденные реальные gaps.

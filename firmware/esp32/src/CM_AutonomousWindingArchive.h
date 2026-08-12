@@ -61,13 +61,6 @@ public:
 
     AutonomousWindingSaveResult save(const RemoteWindingEvent& event);
 
-    // Legacy unbounded formatter kept for source compatibility. New HTTP/UI
-    // callers must use appendTasksPageJson() so response RAM is bounded.
-    bool appendTasksJson(String& json,
-                         const String& programQuery,
-                         uint8_t tolerancePercent,
-                         uint16_t& count) const;
-
     // Cursor is a byte offset into append-only events.ndjson and must point to a
     // logical task boundary. The returned cursor always starts the next task and
     // never splits RUN_STARTED/RUN_COMPLETED for one run.
@@ -90,8 +83,8 @@ public:
                      const String& role,
                      uint32_t& assignmentId);
 
-    // Read-only authoritative audit used by backup/deep-integrity checks.
-    // It intentionally does not call begin(), create directories, or mutate SD.
+    // Read-only authoritative audit used both at boot and by backup/deep-integrity
+    // checks. It never creates directories or mutates persisted archive data.
     static bool validateStorage(fs::FS& storage,
                                 AutonomousWindingIntegrityMetrics& metrics);
 
@@ -101,20 +94,10 @@ private:
     static constexpr const char* AssignmentsPath = "/data/autonomous-windings/assignments.ndjson";
 
     bool ensureDirectories();
-    bool validateEvents() const;
-    bool validateAssignments() const;
-    bool containsEvent(uint32_t sessionId,
-                       uint32_t runId,
-                       RemoteEventType type,
-                       bool& found) const;
     bool findEventReplay(const RemoteWindingEvent& event,
                          bool& exactMatch,
                          bool& conflict) const;
     bool matchingStartExists(const RemoteWindingEvent& event, bool& found) const;
-    bool latestAssignment(uint32_t sessionId,
-                          uint32_t runId,
-                          AutonomousWindingAssignment& assignment,
-                          bool& found) const;
     bool nextAssignmentId(uint32_t& assignmentId) const;
 
     static bool parseEventRecord(const String& line,

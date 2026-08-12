@@ -3,26 +3,44 @@
 
 namespace CM
 {
-bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
-                                                   uint32_t repairId,
-                                                   uint16_t& appendedCount,
-                                                   uint32_t& totalConsumedGrams,
-                                                   uint64_t& totalValueMinor,
-                                                   WriteOffMaterialTotals& materialTotals) const
+bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
+                                                       uint32_t repairId,
+                                                       uint32_t cursor,
+                                                       uint8_t limit,
+                                                       uint16_t& appendedCount,
+                                                       uint16_t& totalMatchingCount,
+                                                       uint32_t& nextCursor,
+                                                       bool& hasMore,
+                                                       uint32_t& totalConsumedGrams,
+                                                       uint64_t& totalValueMinor,
+                                                       WriteOffMaterialTotals& materialTotals) const
 {
     appendedCount = 0U;
+    totalMatchingCount = 0U;
+    nextCursor = 0UL;
+    hasMore = false;
     totalConsumedGrams = 0UL;
     totalValueMinor = 0ULL;
     materialTotals = WriteOffMaterialTotals();
-    if (!ready() || repairId == 0UL) return false;
-    if (!m_storage.exists(MovementsPath)) return true;
+    if (!ready() || repairId == 0UL ||
+        limit == 0U || limit > WarehouseMaxListPageSize)
+        return false;
+    if (!m_storage.exists(MovementsPath)) return cursor == 0UL;
 
     File file = m_storage.open(MovementsPath, FILE_READ);
     if (!file) return false;
+    if (cursor > static_cast<uint32_t>(file.size()))
+    {
+        file.close();
+        return false;
+    }
 
     bool first = true;
+    bool cursorSeen = cursor == 0UL;
+    uint32_t pageEndCursor = 0UL;
     uint32_t maximumId = 0UL;
     uint32_t pendingId = 0UL;
+    uint32_t pendingRecordStart = 0UL;
     uint32_t pendingSpoolId = 0UL;
     uint32_t pendingRepairId = 0UL;
     uint32_t pendingSourceSessionId = 0UL;
@@ -39,6 +57,8 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
 
     while (file.available())
     {
+        const uint32_t lineStart = static_cast<uint32_t>(file.position());
+        if (lineStart == cursor) cursorSeen = true;
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         if (!FlatJsonObjectValidator::valid(line))
@@ -115,6 +135,7 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
 
             maximumId = movementId;
             pendingId = movementId;
+            pendingRecordStart = lineStart;
             pendingSpoolId = spoolId;
             pendingRepairId = currentRepairId;
             pendingSourceSessionId = sourceSessionId;
@@ -179,52 +200,11 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
 
             if (totalConsumedGrams > 0xFFFFFFFFUL - mass ||
                 totalValueMinor > 0xFFFFFFFFFFFFFFFFULL - consumedValueMinor ||
-                appendedCount == 0xFFFFU)
+                totalMatchingCount == 0xFFFFU)
             {
                 file.close();
                 return false;
             }
-
-            char valueBuffer[24];
-            snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
-                     static_cast<unsigned long long>(consumedValueMinor));
-
-            if (!first) json += ',';
-            first = false;
-            json += F("{\"movement_id\":"); json += movementId;
-            json += F(",\"spool_id\":"); json += spoolId;
-            json += F(",\"repair_id\":"); json += currentRepairId;
-            json += F(",\"source_session_id\":");
-            if (hasSourceSession) json += sourceSessionId;
-            else json += F("null");
-            json += F(",\"source_run_id\":");
-            if (hasSourceRun) json += sourceRunId;
-            else json += F("null");
-            json += F(",\"diameter_hundredths_mm\":"); json += diameter;
-            json += F(",\"wire_type\":");
-            if (hasWireType)
-            {
-                json += '"'; json += jsonEscape(wireType); json += '"';
-            }
-            else json += F("null");
-            json += F(",\"legacy_unknown_material\":");
-            json += hasWireType ? F("false") : F("true");
-            json += F(",\"weight_before_g\":"); json += before;
-            json += F(",\"weight_after_g\":"); json += after;
-            json += F(",\"consumed_g\":"); json += mass;
-            json += F(",\"price_per_kg_minor\":"); json += price;
-            json += F(",\"consumed_value_minor\":"); json += valueBuffer;
-            json += F(",\"currency\":\""); json += jsonEscape(currency); json += '"';
-            json += F(",\"timestamp\":\""); json += jsonEscape(timestamp); json += '"';
-            if (hasComment)
-            {
-                json += F(",\"comment\":\""); json += jsonEscape(comment); json += '"';
-            }
-            json += '}';
-
-            ++appendedCount;
-            totalConsumedGrams += mass;
-            totalValueMinor += consumedValueMinor;
 
             WriteOffMaterialTotals* totals = &materialTotals;
             uint32_t* gramsTarget = &totals->unknownGrams;
@@ -250,9 +230,63 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
                 file.close();
                 return false;
             }
+
+            ++totalMatchingCount;
+            totalConsumedGrams += mass;
+            totalValueMinor += consumedValueMinor;
             *gramsTarget += mass;
             *valueTarget += consumedValueMinor;
             ++(*countTarget);
+
+            if (cursorSeen && pendingRecordStart >= cursor)
+            {
+                if (appendedCount >= limit)
+                {
+                    hasMore = true;
+                }
+                else
+                {
+                    char valueBuffer[24];
+                    snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
+                             static_cast<unsigned long long>(consumedValueMinor));
+
+                    if (!first) json += ',';
+                    first = false;
+                    json += F("{\"movement_id\":"); json += movementId;
+                    json += F(",\"spool_id\":"); json += spoolId;
+                    json += F(",\"repair_id\":"); json += currentRepairId;
+                    json += F(",\"source_session_id\":");
+                    if (hasSourceSession) json += sourceSessionId;
+                    else json += F("null");
+                    json += F(",\"source_run_id\":");
+                    if (hasSourceRun) json += sourceRunId;
+                    else json += F("null");
+                    json += F(",\"diameter_hundredths_mm\":"); json += diameter;
+                    json += F(",\"wire_type\":");
+                    if (hasWireType)
+                    {
+                        json += '"'; json += jsonEscape(wireType); json += '"';
+                    }
+                    else json += F("null");
+                    json += F(",\"legacy_unknown_material\":");
+                    json += hasWireType ? F("false") : F("true");
+                    json += F(",\"weight_before_g\":"); json += before;
+                    json += F(",\"weight_after_g\":"); json += after;
+                    json += F(",\"consumed_g\":"); json += mass;
+                    json += F(",\"price_per_kg_minor\":"); json += price;
+                    json += F(",\"consumed_value_minor\":"); json += valueBuffer;
+                    json += F(",\"currency\":\""); json += jsonEscape(currency); json += '"';
+                    json += F(",\"timestamp\":\""); json += jsonEscape(timestamp); json += '"';
+                    if (hasComment)
+                    {
+                        json += F(",\"comment\":\""); json += jsonEscape(comment); json += '"';
+                    }
+                    json += '}';
+
+                    ++appendedCount;
+                    pageEndCursor = static_cast<uint32_t>(file.position());
+                }
+            }
         }
 
         pendingId = 0UL;
@@ -262,9 +296,12 @@ bool WarehouseStore::appendConfirmedWriteOffsJson(String& json,
         pendingHasSourceRun = false;
     }
 
+    const uint32_t endPosition = static_cast<uint32_t>(file.position());
     file.close();
+    if (cursor == endPosition) cursorSeen = true;
+    if (hasMore) nextCursor = pageEndCursor;
     // WarehouseStore::begin() reconciles a dangling PENDING before m_ready=true.
     // Seeing one here therefore means runtime corruption or storage loss.
-    return pendingId == 0UL;
+    return pendingId == 0UL && cursorSeen;
 }
 }

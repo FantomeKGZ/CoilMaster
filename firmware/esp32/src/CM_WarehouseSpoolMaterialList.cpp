@@ -36,22 +36,41 @@ String withMaterialClass(const String& source, const char* material)
 }
 }
 
-bool WarehouseStore::appendActiveSpoolsJson(String& json,
-                                            uint16_t diameterHundredthsMm,
-                                            const char* materialFilter,
-                                            uint16_t& appendedCount) const
+bool WarehouseStore::appendActiveSpoolsPageJson(String& json,
+                                                uint16_t diameterHundredthsMm,
+                                                const char* materialFilter,
+                                                uint32_t cursor,
+                                                uint8_t limit,
+                                                uint16_t& appendedCount,
+                                                uint16_t& totalMatchingCount,
+                                                uint32_t& nextCursor,
+                                                bool& hasMore) const
 {
     appendedCount = 0U;
-    if (!ready() || materialFilter == nullptr) return false;
-    if (!m_storage.exists(SpoolsPath)) return true;
+    totalMatchingCount = 0U;
+    nextCursor = 0UL;
+    hasMore = false;
+    if (!ready() || materialFilter == nullptr ||
+        limit == 0U || limit > WarehouseMaxListPageSize)
+        return false;
+    if (!m_storage.exists(SpoolsPath)) return cursor == 0UL;
 
     File file = m_storage.open(SpoolsPath, FILE_READ);
     if (!file) return false;
+    if (cursor > static_cast<uint32_t>(file.size()))
+    {
+        file.close();
+        return false;
+    }
 
     bool first = true;
+    bool cursorSeen = cursor == 0UL;
+    uint32_t pageEndCursor = 0UL;
     uint32_t previousId = 0UL;
     while (file.available())
     {
+        const uint32_t lineStart = static_cast<uint32_t>(file.position());
+        if (lineStart == cursor) cursorSeen = true;
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
 
@@ -102,9 +121,22 @@ bool WarehouseStore::appendActiveSpoolsJson(String& json,
 
         const char* material = classifyMaterial(wireType);
         if (!filterMatches(materialFilter, material)) continue;
+        if (totalMatchingCount == 0xFFFFU)
+        {
+            file.close();
+            return false;
+        }
+        ++totalMatchingCount;
+
+        if (!cursorSeen || lineStart < cursor) continue;
+        if (appendedCount >= limit)
+        {
+            hasMore = true;
+            continue;
+        }
 
         const String enriched = withMaterialClass(line, material);
-        if (enriched.length() == 0U || appendedCount == 0xFFFFU)
+        if (enriched.length() == 0U)
         {
             file.close();
             return false;
@@ -113,8 +145,14 @@ bool WarehouseStore::appendActiveSpoolsJson(String& json,
         first = false;
         json += enriched;
         ++appendedCount;
+        pageEndCursor = static_cast<uint32_t>(file.position());
     }
+
+    const uint32_t endPosition = static_cast<uint32_t>(file.position());
     file.close();
+    if (cursor == endPosition) cursorSeen = true;
+    if (!cursorSeen) return false;
+    if (hasMore) nextCursor = pageEndCursor;
     return true;
 }
 }

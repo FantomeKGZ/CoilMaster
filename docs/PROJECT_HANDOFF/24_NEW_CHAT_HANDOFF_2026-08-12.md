@@ -622,3 +622,19 @@ CMP Protocol Tests: SUCCESS
 ```
 
 The next production-hardening choice must be driven by populated-dataset backup metrics or a concrete negative/fault test. The safety invariants and storage formats remain unchanged.
+
+## 17. Post-handoff continuation — visible collection pagination
+
+The user identified that bounded backend pages were still being reassembled into complete browser catalogs. This is now corrected for the main visible growing collections.
+
+Both mobile and desktop now keep one visible page (20 records) for clients, motors, repairs and winding history. Reports render 20 rows at a time while still reading every CLOSED repair required for a trustworthy monthly financial aggregate. Repair selectors use exact selected client/motor lookups and no longer enumerate both registries. Costing processes winding history with streaming counters rather than a full event array.
+
+Code HEAD and verification:
+
+```text
+df632cd17aec82af6861fcdcf552a3ef90e20224
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+The next confirmed scaling block is storage/API pagination for materials, material usage/adjustments, warehouse spools and warehouse writeoff history. Pagination must be implemented server-side before UI migration; existing exact provenance, integrity and safety rules remain unchanged.

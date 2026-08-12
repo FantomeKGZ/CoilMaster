@@ -27,3 +27,6 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build/cmp-protocol --output-on-failure
+
+      - name: Audit web JavaScript and navigation
+        run: node Tests/Web/check_web_assets.js

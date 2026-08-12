@@ -26,18 +26,39 @@ bool PersistentIdAllocator::begin()
     // recovery handling and keep new job creation blocked.
     if (m_fileSystem.exists(TempPath)) return false;
 
-    if (!m_fileSystem.exists(StatePath))
-    {
-        // A missing state file is valid only for first initialization.
-        // Persist zero as the last allocated value before serving requests.
-        if (!persistState(0UL, 0UL)) return false;
-        m_ready = true;
-        return true;
-    }
-
     uint32_t jobId = 0UL;
     uint32_t sessionId = 0UL;
-    if (!loadState(StatePath, jobId, sessionId))
+
+    if (!m_fileSystem.exists(StatePath))
+    {
+        if (m_fileSystem.exists(BackupPath))
+        {
+            // Missing main + valid backup is an interrupted/partially recovered
+            // transaction, not a first boot. Preserve the allocator high-water.
+            if (!loadState(BackupPath, jobId, sessionId) ||
+                !m_fileSystem.rename(BackupPath, StatePath))
+            {
+                return false;
+            }
+
+            uint32_t verifiedJobId = 0UL;
+            uint32_t verifiedSessionId = 0UL;
+            if (!loadState(StatePath, verifiedJobId, verifiedSessionId) ||
+                verifiedJobId != jobId || verifiedSessionId != sessionId)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // Only the complete absence of main, temp and backup is a genuine
+            // first initialization. Persist zero before serving allocations.
+            if (!persistState(0UL, 0UL)) return false;
+            jobId = 0UL;
+            sessionId = 0UL;
+        }
+    }
+    else if (!loadState(StatePath, jobId, sessionId))
     {
         // Recover only from a complete valid backup. Never rotate the corrupt
         // main state back into BackupPath: the verified backup itself becomes

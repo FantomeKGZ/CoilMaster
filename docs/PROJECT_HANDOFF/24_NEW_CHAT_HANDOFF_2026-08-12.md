@@ -638,3 +638,30 @@ CMP Protocol Tests: SUCCESS
 ```
 
 The next confirmed scaling block is storage/API pagination for materials, material usage/adjustments, warehouse spools and warehouse writeoff history. Pagination must be implemented server-side before UI migration; existing exact provenance, integrity and safety rules remain unchanged.
+
+
+## 18. Materials and warehouse pagination completed
+
+The remaining confirmed scaling block is closed. These endpoints now return bounded cursor pages with a default of 20 and hard maximum of 32:
+
+```text
+GET /api/materials
+GET /api/materials/adjustments
+GET /api/materials/usage
+GET /api/warehouse/spools
+GET /api/warehouse/write-offs
+```
+
+Desktop and mobile now page the material catalogue, material adjustment history, repair material selector, warehouse spool catalogue, write-off spool selector and repair write-off history. Material usage history is bounded at the API/storage boundary for its existing consumers.
+
+For write-off history, full server totals remain authoritative across the complete repair history; only the visible operation rows are paged. The safety contract is unchanged: no automatic write-off, no physical START from ESP32/Web, and manual write-off still requires the exact persisted `spool_id + source_session_id + source_run_id`.
+
+Verified final code checkpoint:
+
+```text
+53285422a646b488776013029a438f24faeabfc6
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+Next work should be chosen from populated-device timing/RAM measurements, hardware smoke testing, or a concrete negative/fault result. Do not reopen already bounded registries without measured evidence.

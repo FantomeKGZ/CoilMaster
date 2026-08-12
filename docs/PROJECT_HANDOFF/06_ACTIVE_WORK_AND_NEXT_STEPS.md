@@ -58,15 +58,17 @@ A2  = Arduino RX ← ESP32 TX
 
 ## Build / runtime checkpoints
 
-Предыдущий clean ESP32 build был подтверждён пользователем:
+Clean ESP32 build текущего fault-hardening HEAD подтверждён пользователем:
 
 ```text
 RAM:   14.4% (used 47320 bytes from 327680 bytes)
-Flash: 86.7% (used 1136229 bytes from 1310720 bytes)
-SUCCESS Took 31.04 seconds
+Flash: 86.7% (used 1136237 bytes from 1310720 bytes)
+SUCCESS Took 28.57 seconds
 ```
 
-После него manifest на реальном ESP32 подтвердил:
+По сравнению с предыдущим подтверждённым build RAM не вырос, Flash увеличился на 8 bytes.
+
+Предыдущий manifest на реальном ESP32 подтвердил:
 
 ```text
 export_allowed=true
@@ -148,12 +150,14 @@ Fault
 
 Heavy backup/deep audit остаётся заблокирован до явного operator recovery/closure. Никакого auto-resume, physical START или writeoff это изменение не добавляет.
 
+Repo-review exact-run writeoff подтвердил, что storage boundary до `PENDING` требует одновременно OPEN repair, immutable session→repair/spool identity, exact completed `(session_id, run_id)` и отсутствие предыдущего CONFIRMED для того же run. Wrong spool/session/run и duplicate writeoff уже блокируются до warehouse mutation; дополнительное дублирование логики не добавлялось.
+
 ## Verification status текущего HEAD
 
-Предыдущий ESP32 build и production E2E подтверждены, но после двух новых fault-hardening commits текущий HEAD ещё не пересобран:
-
 ```text
-CURRENT HEAD BUILD: NOT CONFIRMED
+CURRENT ESP32 BUILD: SUCCESS
+RAM: 47320 / 327680 bytes (14.4%)
+Flash: 1136237 / 1310720 bytes (86.7%)
 CI: NOT CONFIRMED
 ```
 
@@ -161,14 +165,7 @@ GitHub CI не считать green без фактического result.
 
 ## Следующее действие
 
-Сначала clean-build текущего ESP32 HEAD:
-
-```powershell
-pio run -e esp32 -t clean
-pio run -e esp32
-```
-
-После успешного build прошить:
+Прошить текущий успешно собранный ESP32 firmware:
 
 ```powershell
 pio run -e esp32 -t upload
@@ -192,8 +189,6 @@ Reboot/manual-review test проводить отдельно и только к
 - microSD loss / unavailable storage;
 - corrupted persisted data;
 - UART timeout / reject / duplicate event;
-- wrong spool / session / run;
-- duplicate writeoff;
 - close без required writeoff coverage;
 - backup request во время active winding;
 - populated-dataset benchmark перед Stage 1 performance work.

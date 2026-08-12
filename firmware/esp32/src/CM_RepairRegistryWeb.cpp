@@ -3,6 +3,7 @@
 #include "CM_BackupExportWeb.h"
 #include "CM_RepairClosureGuard.h"
 #include "CM_RepairFinalizationGuard.h"
+#include "CM_RepairRegistryLookupWeb.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -90,7 +91,9 @@ RepairRegistryWeb::RepairRegistryWeb(WebServer& server, RepairRegistry& registry
 void RepairRegistryWeb::begin()
 {
     static BackupExportWeb backupExportWeb(m_server, SD);
+    static RepairRegistryLookupWeb lookupWeb(m_server, m_registry);
     backupExportWeb.begin();
+    lookupWeb.begin();
     m_server.on("/api/clients", HTTP_GET, [this]() { handleListClients(); });
     m_server.on("/api/clients", HTTP_POST, [this]() { handleCreateClient(); });
     m_server.on("/api/motors", HTTP_GET, [this]() { handleListMotors(); });

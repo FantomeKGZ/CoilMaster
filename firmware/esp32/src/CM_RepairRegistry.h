@@ -101,6 +101,12 @@ public:
                                uint32_t& nextCursor,
                                bool& hasMore) const;
 
+    // Exact read-only lookups for screens that already know the identity and
+    // should not enumerate an entire catalog just to render one repair card.
+    bool appendClientByIdJson(String& json, uint32_t clientId, bool& found) const;
+    bool appendMotorByIdJson(String& json, uint32_t motorId, bool& found) const;
+    bool appendRepairByIdJson(String& json, uint32_t repairId, bool& found) const;
+
     bool clientExists(uint32_t clientId) const;
     bool motorExists(uint32_t motorId) const;
 

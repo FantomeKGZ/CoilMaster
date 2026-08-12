@@ -5,38 +5,44 @@
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
 
-## Подтверждённый production hardware checkpoint
+## Hardware production status
 
-На реальном стенде подтверждены оба пути.
-
-Standalone Arduino:
+На реальном стенде подтверждены:
 
 ```text
-локальное создание программы на Arduino
+Standalone Arduino local program
 → physical START
-→ реальная намотка
+→ real winding
 → LOCAL_EVT
 → ESP32 autonomous archive
 ```
 
-Основной linked production flow:
+и полный linked production flow:
 
 ```text
 client / motor / OPEN repair
 → linked winding
-→ exact spool selection
-→ UART delivery
+→ exact spool
+→ UART
 → physical START
-→ реальная намотка
 → RUN_STARTED / RUN_COMPLETED
 → manual exact-run wire writeoff
-→ данные списания отображаются
 → costing / finalization
-→ CLOSED / итоговые данные находятся
-→ backup/manifest читается
+→ CLOSED
+→ final data found
+→ backup/manifest readable
 ```
 
-Основной happy-path hardware E2E **закрыт** и больше не считается внешним неподтверждённым риском.
+Основной happy-path hardware E2E закрыт.
+
+Hardware negative checkpoint также подтверждён:
+
+```text
+active RUN_STARTED
+→ backup request
+→ export blocked
+→ deep stability scan not started
+```
 
 ## Safety boundary — не менять
 
@@ -56,19 +62,28 @@ A1  = Arduino TX → ESP32 RX
 A2  = Arduino RX ← ESP32 TX
 ```
 
-## Build / runtime checkpoints
+## Последний подтверждённый build
 
-Clean ESP32 build текущего fault-hardening HEAD подтверждён пользователем:
+Последний пользовательский clean ESP32 build до текущих paging/recovery изменений:
 
 ```text
-RAM:   14.4% (used 47320 bytes from 327680 bytes)
-Flash: 86.7% (used 1136237 bytes from 1310720 bytes)
-SUCCESS Took 28.57 seconds
+RAM:   14.4% (47320 / 327680 bytes)
+Flash: 86.7% (1136237 / 1310720 bytes)
+SUCCESS
 ```
 
-По сравнению с предыдущим подтверждённым build RAM не вырос, Flash увеличился на 8 bytes.
+Текущий HEAD изменён после этого build, поэтому сейчас:
 
-Предыдущий manifest на реальном ESP32 подтвердил:
+```text
+BUILD NOT CONFIRMED
+CI NOT CONFIRMED
+```
+
+GitHub CI не считать green без фактического result.
+
+## Backup / integrity hardware baseline
+
+Реальный manifest ранее подтвердил:
 
 ```text
 export_allowed=true
@@ -79,118 +94,171 @@ snapshot_stability_reason=null
 snapshot_stability_duration_ms=1429
 ```
 
-Baseline сохранён в:
+Baseline:
 
 ```text
 docs/PROJECT_HANDOFF/14_HARDWARE_MANIFEST_BASELINE_2026-08-12.md
 ```
 
-Полный hardware production E2E сохранён в:
+Production E2E:
 
 ```text
 docs/PROJECT_HANDOFF/15_HARDWARE_PRODUCTION_E2E_2026-08-12.md
 ```
 
-## Autonomous Arduino archive
+## Закрытый fault-hardening
 
-Persistent files:
+### Backup / reboot
+
+`MANUAL_REVIEW_REQUIRED` и persisted ambiguous states fail-closed блокируют backup.
+
+### Runtime storage corruption
+
+Allocator/state paths заново проверяются перед новой session; `.tmp`, повреждённые state/high-water и неоднозначный recovery блокируют job creation.
+
+### UART timeout / replay
+
+`JOB_ACK` timeout больше не считается безопасным terminal state:
+
+```text
+TIMED_OUT
+→ MANUAL_REVIEW_REQUIRED
+→ new job blocked
+→ backup blocked
+→ no auto resend / auto resume
+```
+
+Linked duplicate требует exact event semantics. Autonomous duplicate требует exact:
+
+```text
+session_id
+run_id
+event_type
+completed_runs
+job_type
+coil_count
+program
+```
+
+### Controlled recovery
+
+Оба recovery endpoint теперь перед `CLOSED_AFTER_REVIEW` перепроверяют persisted latest state + immutable snapshot; linked job дополнительно требует exact immutable spool-selection. Recovery closure выполняет ESP32 restart.
+
+Backup activity guard также повторно доказывает persisted state/snapshot/spool identity даже при runtime `Safe`, поэтому повреждённый linked recovery не может использовать file-export как обход deep integrity.
+
+Подробнее:
+
+```text
+docs/PROJECT_HANDOFF/17_RUNTIME_STORAGE_CORRUPTION_HARDENING_2026-08-12.md
+docs/PROJECT_HANDOFF/18_UART_TIMEOUT_REPLAY_HARDENING_2026-08-12.md
+docs/PROJECT_HANDOFF/19_CONTROLLED_RECOVERY_AND_ARCHIVE_SCALING_2026-08-12.md
+```
+
+## Autonomous Arduino archive — current scaling state
+
+Authoritative storage остаётся:
 
 ```text
 /data/autonomous-windings/events.ndjson
 /data/autonomous-windings/assignments.ndjson
 ```
 
-ESP32 parser fail-closed требует:
+Формат не мигрирован в БД и не ротируется автоматически.
+
+Deep backup audit уже переведён с repeated per-record scans на:
 
 ```text
-RUN_STARTED   -> completed_runs == 0
-RUN_COMPLETED -> completed_runs > 0
+events       O(E)
+assignments  fixed batches of 32 references
 ```
 
-Backup whitelist/deep audit включает autonomous events + assignments и публикует:
+Теперь также закрыт unbounded HTTP/UI growth.
+
+`GET /api/autonomous-windings`:
 
 ```text
-autonomous_winding_archive_audit_duration_ms
-autonomous_winding_event_record_count
-autonomous_winding_started_record_count
-autonomous_winding_completed_record_count
-autonomous_winding_assignment_record_count
+limit default 20
+limit max 32
+cursor opaque byte offset
+has_more
+next_cursor
 ```
 
-Исторический `STARTED_NOT_COMPLETED` не трактовать автоматически как физически активную намотку после reboot: архив может содержать старые прерванные задачи. Для authoritative post-reboot Arduino state потребуется отдельный handshake/recovery protocol, если такой блок будет реализовываться.
+Cursor выдаётся только на logical task boundary и не разрезает normal `RUN_STARTED/RUN_COMPLETED` pair.
 
-## Fault hardening — текущий блок
-
-После hardware E2E начат negative/fault pass.
-
-Закрыт конкретный reboot/backup gap:
+Mobile/Desktop UI:
 
 ```text
-f9e405b08a30d1d9f8413655c10cda6acf090b79  Block backup during manual recovery review
-817d1eb0040a1164ed808fc325252fb65d648aa8  Fail closed on faulted backup activity
+20 tasks per normal page
+→ Показать ещё
+→ next_cursor
 ```
 
-До исправления `backupRuntimeActivity()` возвращал `Safe` для `MANUAL_REVIEW_REQUIRED`. Это было слишком оптимистично: после reboot ESP32 не может доказать, что Arduino физически idle.
+Полный проход для раздела «Скомплектованные двигатели» больше не происходит автоматически при каждом поиске; он запускается отдельной кнопкой и также читается pages по 32.
 
-Теперь:
+Checkpoint:
 
 ```text
-MANUAL_REVIEW_REQUIRED -> BackupActivityCheck::Busy
+docs/PROJECT_HANDOFF/20_AUTONOMOUS_ARCHIVE_PAGING_2026-08-12.md
 ```
 
-а fallback по persisted state также считает небезопасным:
+## Важный UI deployment note
+
+Paging меняет HTML assets:
 
 ```text
-Created
-Delivering
-WaitingPhysicalStart
-Running
-Fault
+firmware/esp32/web/mobile/arduino-windings.html
+firmware/esp32/web/desktop/arduino-windings.html
 ```
 
-Heavy backup/deep audit остаётся заблокирован до явного operator recovery/closure. Никакого auto-resume, physical START или writeoff это изменение не добавляет.
+После успешного firmware build/upload заменить microSD `/web` актуальным содержимым repo `firmware/esp32/web`.
 
-Repo-review exact-run writeoff подтвердил, что storage boundary до `PENDING` требует одновременно OPEN repair, immutable session→repair/spool identity, exact completed `(session_id, run_id)` и отсутствие предыдущего CONFIRMED для того же run. Wrong spool/session/run и duplicate writeoff уже блокируются до warehouse mutation; дополнительное дублирование логики не добавлялось.
-
-## Verification status текущего HEAD
-
-```text
-CURRENT ESP32 BUILD: SUCCESS
-RAM: 47320 / 327680 bytes (14.4%)
-Flash: 1136237 / 1310720 bytes (86.7%)
-CI: NOT CONFIRMED
-```
-
-GitHub CI не считать green без фактического result.
+Предпочтительно полное replacement `/web`, а не overlay поверх старых файлов.
 
 ## Следующее действие
 
-Прошить текущий успешно собранный ESP32 firmware:
+Сначала clean build текущего HEAD:
+
+```powershell
+pio run -e esp32 -t clean
+pio run -e esp32
+```
+
+После `SUCCESS`:
 
 ```powershell
 pio run -e esp32 -t upload
 ```
 
-Ближайший безопасный negative test при следующей короткой намотке:
+и обновить microSD `/web`.
+
+Минимальная runtime paging проверка:
 
 ```text
-RUN_STARTED / run_active=true
-→ запрос GET /api/backup/manifest
-→ export_allowed MUST be false
-→ snapshot_stability_checked MUST be false
-→ heavy deep audit не должен запускаться
+GET /api/autonomous-windings?limit=1
 ```
 
-Reboot/manual-review test проводить отдельно и только контролируемо, не прерывая рабочий двигатель без необходимости. После reboot из persisted `Running/Delivering/WaitingPhysicalStart/Fault` backup должен оставаться blocked до operator review.
+Если архив содержит больше одной logical task:
 
-## Оставшиеся production-hardening сценарии
+```text
+count=1
+has_more=true
+next_cursor=<number>
+```
 
-- reboot/manual-review controlled test;
-- microSD loss / unavailable storage;
-- corrupted persisted data;
-- UART timeout / reject / duplicate event;
-- close без required writeoff coverage;
-- backup request во время active winding;
-- populated-dataset benchmark перед Stage 1 performance work.
+Затем:
 
-Основная новая функциональность сейчас не приоритет. Следующий этап — доказать fail-closed поведение этих сценариев и исправлять только найденные реальные gaps.
+```text
+GET /api/autonomous-windings?limit=1&cursor=<next_cursor>
+```
+
+должен вернуть следующую logical task без повторения и без разделения START/COMPLETE pair.
+
+## Следующий repo-reviewable performance блок после build
+
+1. Перевести boot-time `AutonomousWindingArchive::begin()` со старых repeated validators на authoritative bounded-complexity `validateStorage()`.
+2. Снять populated-dataset timings через `/api/backup/manifest`.
+3. Оценить NDJSON rotation/segmentation только по реальным размерам и latency.
+4. Не вводить DB migration или destructive compaction без доказанной необходимости.
+
+Основная новая функциональность сейчас не приоритет; проект находится в production-hardening/performance phase.

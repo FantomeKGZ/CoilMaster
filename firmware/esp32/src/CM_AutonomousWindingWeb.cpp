@@ -2,6 +2,11 @@
 
 namespace CM
 {
+namespace
+{
+constexpr uint8_t DefaultTaskPageSize = 20U;
+}
+
 AutonomousWindingWeb::AutonomousWindingWeb(WebServer& server,
                                            AutonomousWindingArchive& archive,
                                            RepairRegistry& registry)
@@ -38,24 +43,67 @@ void AutonomousWindingWeb::handleList()
         }
     }
 
-    const String program = m_server.hasArg("program")
-        ? m_server.arg("program") : String();
-    String response = F("{\"items\":[");
-    response.reserve(8192U);
-    uint16_t count = 0U;
-    if (!m_archive.appendTasksJson(response,
-                                   program,
-                                   static_cast<uint8_t>(tolerance),
-                                   count))
+    uint32_t cursor = 0UL;
+    if (m_server.hasArg("cursor") &&
+        !parseCanonicalUint32(m_server.arg("cursor"), cursor))
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"invalid_program_or_archive_read_failed\"}");
+                      "{\"error\":\"invalid_cursor\"}");
         return;
     }
+
+    uint32_t limitValue = DefaultTaskPageSize;
+    if (m_server.hasArg("limit"))
+    {
+        if (!parseCanonicalUint32(m_server.arg("limit"), limitValue) ||
+            limitValue == 0UL ||
+            limitValue > AutonomousWindingArchive::MaxTaskPageSize)
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_limit\"}");
+            return;
+        }
+    }
+    const uint8_t limit = static_cast<uint8_t>(limitValue);
+
+    const String program = m_server.hasArg("program")
+        ? m_server.arg("program") : String();
+
+    String response = F("{\"items\":[");
+    response.reserve(768U + static_cast<unsigned int>(limit) * 320U);
+
+    uint16_t count = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_archive.appendTasksPageJson(response,
+                                       program,
+                                       static_cast<uint8_t>(tolerance),
+                                       cursor,
+                                       limit,
+                                       count,
+                                       nextCursor,
+                                       hasMore))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_program_cursor_or_archive_read_failed\"}");
+        return;
+    }
+
     response += F("],\"count\":");
     response += count;
+    response += F(",\"limit\":");
+    response += limit;
+    response += F(",\"cursor\":");
+    response += cursor;
+    response += F(",\"has_more\":");
+    response += hasMore ? F("true") : F("false");
+    response += F(",\"next_cursor\":");
+    if (hasMore) response += nextCursor;
+    else response += F("null");
     response += F(",\"tolerance_percent\":");
     response += tolerance;
+    response += F(",\"max_page_size\":");
+    response += AutonomousWindingArchive::MaxTaskPageSize;
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
 }

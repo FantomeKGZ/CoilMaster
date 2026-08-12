@@ -189,4 +189,3 @@ void WarehouseWeb::handleListSpools()
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 }
-}

@@ -18,6 +18,14 @@ struct BackupBusinessDataAuditMetrics
 class BackupBusinessDataIntegrityAudit
 {
 public:
+    // Workshop-only audit used by RepairRegistry::begin(). It validates clients,
+    // motors, repairs and CLOSED status history but intentionally does not make
+    // core registry readiness depend on the separate pricing ledger.
+    static bool checkWorkshopRegistry(fs::FS& storage,
+                                      BackupBusinessDataAuditMetrics& metrics);
+
+    // Backup/deep-integrity adds pricing validation on top of the same
+    // authoritative workshop checks.
     static bool check(fs::FS& storage);
     static bool check(fs::FS& storage, BackupBusinessDataAuditMetrics& metrics);
 };

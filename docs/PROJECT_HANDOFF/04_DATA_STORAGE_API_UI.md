@@ -360,3 +360,17 @@ UI должен:
 - Списание не должно появляться без существующей карточки ремонта.
 - UNKNOWN должен оставаться видимым, но не использоваться как медь по умолчанию.
 - Смешанные валюты нельзя молча суммировать. Сейчас проект фактически придерживается KGS_ONLY для дополнительных материалов; при дальнейшем расширении нужна явная политика для всех денежных подсистем.
+
+
+## Motor and winding data import — 2026-08-12
+
+`POST /api/motors` remains a one-record append endpoint and now accepts optional structured motor, winding, geometry, and provenance fields documented in `docs/MOTOR_IMPORT_FORMAT.md`.
+
+Browser import pages:
+
+- `/desktop/motor-import.html`
+- `/mobile/motor-import.html`
+
+They accept a JSON array of 1–50 records. Preview validates every object and queries `GET /api/motors/similar`; it performs no writes. Exact identity matches are excluded by default. Import requires explicit selection and confirmation, then submits records sequentially so one failed record does not silently hide the remaining result.
+
+Every sourced import requires `source_type + source_title + confidence`. Calculated values are explicitly marked by `calculated_fields`. Existing motor NDJSON records remain readable because all new fields are optional.

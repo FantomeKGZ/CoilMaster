@@ -1,6 +1,6 @@
 # Где остановились и что делать дальше
 
-Дата обновления: **2026-08-10**  
+Дата обновления: **2026-08-12**  
 Ветка: **`cmp-protocol-v1`**
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
@@ -43,6 +43,18 @@ Safety boundary не менялся:
 - auto-resume после reboot отсутствует;
 - `RUN_COMPLETED` не выполняет automatic wire writeoff;
 - wire writeoff остаётся ручным и exact-run/exact-spool.
+
+## Подтверждённый ESP32 build checkpoint
+
+Clean local PlatformIO build текущего ESP32 firmware успешно завершён:
+
+```text
+RAM:   14.4% (used 47320 bytes from 327680 bytes)
+Flash: 86.7% (used 1136229 bytes from 1310720 bytes)
+SUCCESS Took 31.04 seconds
+```
+
+Это подтверждает compile/link новых backup/protocol/UI server changes. GitHub CI result по-прежнему отдельно не подтверждён.
 
 ## Автономные намотки Arduino
 
@@ -163,27 +175,18 @@ client → motor → OPEN repair → costing → linked winding → exact spool_
 
 Autonomous Arduino archive — отдельный ancillary flow и не ослабляет строгий linked-repair path.
 
-## Что сейчас НЕ подтверждено
-
-Текущий ESP32 HEAD после новых backup/protocol changes ещё не имеет подтверждённого local build или GREEN CI result.
+## Текущий verification status
 
 ```text
-BUILD NOT CONFIRMED
+LOCAL ESP32 BUILD: SUCCESS
 CI NOT CONFIRMED
 ```
 
-GitHub combined status через connector ранее возвращал пустой список.
+GitHub combined status через connector ранее возвращал пустой список. Не называть GitHub CI green без отдельного подтверждения.
 
 ## Следующее действие
 
-Сначала clean ESP32 build текущего HEAD:
-
-```powershell
-pio run -e esp32 -t clean
-pio run -e esp32
-```
-
-Если build успешен:
+Прошить уже успешно собранный ESP32 firmware:
 
 ```powershell
 pio run -e esp32 -t upload

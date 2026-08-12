@@ -44,6 +44,32 @@ bool JobStateStore::create(uint32_t jobId,
         return false;
     }
 
+    // Re-scan every persisted state immediately before opening a new session.
+    // This catches card loss or runtime corruption that happened after boot and
+    // prevents a new job from being layered on top of an unsafe persisted job.
+    JobRuntimeState latest;
+    bool found = false;
+    if (!loadLatest(latest, found))
+    {
+        m_ready = false;
+        return false;
+    }
+    if (found)
+    {
+        const bool terminalDelivery =
+            latest.deliveryState == JobDeliveryState::Rejected ||
+            latest.deliveryState == JobDeliveryState::TimedOut ||
+            latest.deliveryState == JobDeliveryState::Cancelled;
+        const bool terminalExecution =
+            latest.executionState == JobExecutionState::ProgramCompleted ||
+            latest.executionState == JobExecutionState::ClosedAfterReview;
+        if (latest.sessionId >= sessionId ||
+            (!terminalDelivery && !terminalExecution))
+        {
+            return false;
+        }
+    }
+
     JobRuntimeState state;
     state.jobId = jobId;
     state.sessionId = sessionId;

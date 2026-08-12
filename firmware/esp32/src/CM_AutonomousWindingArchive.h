@@ -91,6 +91,9 @@ private:
                        uint32_t runId,
                        RemoteEventType type,
                        bool& found) const;
+    bool findEventReplay(const RemoteWindingEvent& event,
+                         bool& exactMatch,
+                         bool& conflict) const;
     bool matchingStartExists(const RemoteWindingEvent& event, bool& found) const;
     bool latestAssignment(uint32_t sessionId,
                           uint32_t runId,

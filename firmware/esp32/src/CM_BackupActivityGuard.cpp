@@ -1,4 +1,6 @@
 #include "CM_BackupActivityGuard.h"
+#include "CM_JobSnapshotStore.h"
+#include "CM_JobSpoolSelectionStore.h"
 #include "CM_JobStateStore.h"
 
 namespace CM
@@ -25,11 +27,15 @@ void BackupActivityGuard::setRuntimeProbe(RuntimeProbe probe)
 
 BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
 {
+    BackupActivityCheck runtime = BackupActivityCheck::Unavailable;
     if (RuntimeActivityProbe != nullptr)
     {
-        const BackupActivityCheck runtime = RuntimeActivityProbe();
-        if (runtime != BackupActivityCheck::Unavailable)
-            return runtime;
+        runtime = RuntimeActivityProbe();
+        if (runtime == BackupActivityCheck::Busy)
+            return BackupActivityCheck::Busy;
+        // Even a runtime Safe result is not enough for export. Revalidate the
+        // persisted latest state/snapshot identity below so a damaged linked
+        // recovery cannot be exported merely because the machine is idle.
     }
 
     if (!directoryReady(storage, "/data") ||
@@ -39,8 +45,8 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
         return BackupActivityCheck::Unavailable;
     }
 
-    // Fallback for callers that have not registered a runtime probe. Directories
-    // already exist, so begin() validates persisted state without creating them.
+    // Directories already exist, so begin() is validation-only here and does not
+    // create storage as a side effect of a backup safety check.
     JobStateStore states(storage);
     if (!states.begin() || !states.isReady())
         return BackupActivityCheck::Unavailable;
@@ -49,12 +55,9 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
     bool found = false;
     if (!states.loadLatest(latest, found))
         return BackupActivityCheck::Unavailable;
-    if (!found) return BackupActivityCheck::Safe;
-
-    // CLOSED_AFTER_REVIEW is an explicit operator-confirmed terminal state. It
-    // overrides the historical delivery state that led to manual review.
-    if (latest.executionState == JobExecutionState::ClosedAfterReview)
-        return BackupActivityCheck::Safe;
+    if (!found)
+        return runtime == BackupActivityCheck::Unavailable
+            ? BackupActivityCheck::Safe : runtime;
 
     // Fail closed on every persisted state where physical inactivity cannot be
     // proven. TIMED_OUT is ambiguous because Arduino may have accepted the JOB
@@ -66,7 +69,44 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
         latest.executionState == JobExecutionState::WaitingPhysicalStart ||
         latest.executionState == JobExecutionState::Running ||
         latest.executionState == JobExecutionState::Fault;
+    if (latest.executionState != JobExecutionState::ClosedAfterReview && busy)
+        return BackupActivityCheck::Busy;
 
-    return busy ? BackupActivityCheck::Busy : BackupActivityCheck::Safe;
+    // For an otherwise inactive state, storage identity must still be provable.
+    // This matters especially after reboot: file export does not run the complete
+    // deep audit on every request, so it must not trust RAM readiness alone.
+    if (!directoryReady(storage, "/data/winding-jobs/snapshots"))
+        return BackupActivityCheck::Unavailable;
+
+    JobSnapshotStore snapshots(storage);
+    JobSnapshot snapshot;
+    if (!snapshots.begin() || !snapshots.load(latest.sessionId, snapshot) ||
+        snapshot.jobId != latest.jobId || snapshot.sessionId != latest.sessionId)
+    {
+        return BackupActivityCheck::Unavailable;
+    }
+
+    if (snapshot.linkage.linked)
+    {
+        if (!directoryReady(storage, "/data/winding-jobs/spool-selection"))
+            return BackupActivityCheck::Unavailable;
+
+        JobSpoolSelection selection;
+        bool selectionFound = false;
+        if (!JobSpoolSelectionStore::loadReadOnly(storage,
+                                                   latest.sessionId,
+                                                   selection,
+                                                   selectionFound) ||
+            !selectionFound || !selection.isValid() ||
+            selection.jobId != latest.jobId ||
+            selection.sessionId != latest.sessionId ||
+            selection.repairId != snapshot.linkage.repairId ||
+            selection.motorId != snapshot.linkage.motorId)
+        {
+            return BackupActivityCheck::Unavailable;
+        }
+    }
+
+    return BackupActivityCheck::Safe;
 }
 }

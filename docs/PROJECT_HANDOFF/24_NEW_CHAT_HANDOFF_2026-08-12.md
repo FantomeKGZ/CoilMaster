@@ -602,3 +602,23 @@ pio run -e esp32
 
 Только после успешного build/smoke-test переходить к следующему scaling кандидату: repairClosed()/repair-status lookup внутри paged repairs, желательно bounded/batched и строго fail-closed. Никаких преждевременных DB/rotation thresholds без populated-dataset measurements.
 ```
+
+## 16. Post-handoff continuation — batched repair status resolution
+
+The workshop scaling candidate recorded in section 10 has now been implemented and compile-tested.
+
+```text
+6a64bf66045281bf2f37e8f9d7ad2250205f1369  Batch repair status resolution for paged registry
+52b6e2a69664bc150a51978b292b437079bd1933  Resolve paged repair statuses in one scan
+```
+
+`appendRepairsPageJson()` collects the bounded page first and resolves every page repair against `repair-status.ndjson` in one strict forward pass. It still rejects malformed JSON, unterminated NDJSON and duplicate CLOSED evidence for a selected repair.
+
+Verified for `52b6e2a69664bc150a51978b292b437079bd1933`:
+
+```text
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+The next production-hardening choice must be driven by populated-dataset backup metrics or a concrete negative/fault test. The safety invariants and storage formats remain unchanged.

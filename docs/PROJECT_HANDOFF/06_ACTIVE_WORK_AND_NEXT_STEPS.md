@@ -371,3 +371,10 @@ Exact repair filters, spool/material semantics, strict provenance and fail-close
 Implemented a backward-compatible sourced motor schema plus desktop/mobile JSON import pages. A batch is limited to 50 records in browser memory, preview is non-mutating, similarity checks run before import, and identity matches are skipped by default. Every sourced entry carries an explicit source category, title and confidence; calculated values remain visibly marked.
 
 This prepares the database for researched data packages without treating web search results as verified factory truth. Actual collection/import should proceed in reviewed manufacturer/series batches.
+
+
+## Completed: settings navigation and operability audit — 2026-08-12
+
+All existing desktop/mobile maintenance pages are now reachable from Settings, and CI enforces embedded-JavaScript syntax plus internal-link integrity. Warehouse price and calculator settings are backed by validated persistent APIs; load failures are now shown as failures.
+
+Wi-Fi/FTP audit result: the fixed local AP is implemented, but configurable STA profiles/static IP and the FTP server are still planned rather than operational. Their current pages intentionally remain read-only status/capability pages. Implementing those services is a separate firmware/security block requiring credential persistence, fallback/recovery and real-device network tests.

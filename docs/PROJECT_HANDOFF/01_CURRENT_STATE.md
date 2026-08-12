@@ -337,3 +337,29 @@ linked repair
 ```
 
 Отдельно проверить negative/fault cases: reboot/manual review, microSD loss, corrupted persistence, UART timeout/reject/duplicate, wrong spool/session/run, duplicate writeoff, close without coverage и backup during active winding.
+
+## Workshop repair-status paging checkpoint — 2026-08-12
+
+Paged repair responses no longer scan `/data/workshop/repair-status.ndjson` once per returned repair. A bounded page (maximum 32 repairs) is collected first, then all current CLOSED states are resolved in one strict forward pass.
+
+Commits:
+
+```text
+6a64bf66045281bf2f37e8f9d7ad2250205f1369  Batch repair status resolution for paged registry
+52b6e2a69664bc150a51978b292b437079bd1933  Resolve paged repair statuses in one scan
+```
+
+Preserved semantics:
+
+- full flat-JSON validation of the status ledger;
+- required newline termination;
+- exact-one CLOSED occurrence for every repair in the page;
+- fail-closed response on storage/integrity failure;
+- unchanged bounded API and NDJSON storage format.
+
+Verification for code HEAD `52b6e2a69664bc150a51978b292b437079bd1933`:
+
+```text
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```

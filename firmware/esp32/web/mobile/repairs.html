@@ -12,31 +12,8 @@
 <body>
 <header><a href="/mobile/">← Главная</a><b style="float:right">🧰 Ремонты</b></header>
 <main>
-<section class="card">
-<h2>Новый ремонт</h2>
-<div class="picker-links">
-<a href="/mobile/clients.html">👤 Добавить / выбрать клиента</a>
-<a href="/mobile/motors.html">⚙️ Добавить / выбрать двигатель</a>
-</div>
-<form id="form">
-<label>Клиент</label>
-<select id="clientId" name="client_id" required><option value="">Загрузка клиентов…</option></select>
-<label>Двигатель</label>
-<select id="motorId" name="motor_id" required><option value="">Загрузка двигателей…</option></select>
-<label>Дата приёмки</label>
-<input id="received" name="received_at" type="datetime-local" required>
-<textarea name="complaint" placeholder="Жалоба клиента"></textarea>
-<textarea name="comment" placeholder="Комментарий"></textarea>
-<button>Создать ремонт</button>
-</form>
-<p id="result" class="muted"></p>
-</section>
-<section class="card">
-<h2>Ремонты</h2>
-<label class="filter-label" for="repairFilter">Показывать</label>
-<select id="repairFilter"><option value="OPEN">Открытые</option><option value="CLOSED">Закрытые</option><option value="ALL">Все</option></select>
-<div id="items" class="muted">Загрузка…</div>
-</section>
+<section class="card"><h2>Новый ремонт</h2><div class="picker-links"><a href="/mobile/clients.html">👤 Добавить / выбрать клиента</a><a href="/mobile/motors.html">⚙️ Добавить / выбрать двигатель</a></div><form id="form"><label>Клиент</label><select id="clientId" name="client_id" required><option value="">Загрузка клиентов…</option></select><label>Двигатель</label><select id="motorId" name="motor_id" required><option value="">Загрузка двигателей…</option></select><label>Дата приёмки</label><input id="received" name="received_at" type="datetime-local" required><textarea name="complaint" placeholder="Жалоба клиента"></textarea><textarea name="comment" placeholder="Комментарий"></textarea><button>Создать ремонт</button></form><p id="result" class="muted"></p></section>
+<section class="card"><h2>Ремонты</h2><label class="filter-label" for="repairFilter">Показывать</label><select id="repairFilter"><option value="OPEN">Открытые</option><option value="CLOSED">Закрытые</option><option value="ALL">Все</option></select><div id="items" class="muted">Загрузка…</div></section>
 </main>
 <nav><a href="/mobile/"><b>🏠</b>Главная</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
 <script>
@@ -53,10 +30,14 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const dateLabel=v=>{if(!v)return'';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString('ru-RU')};
 function clientLabel(x){return(x.name||'Клиент')+' · '+(x.phone||'без телефона')}
 function motorLabel(x){return(x.name||'Двигатель')+(x.model?' · '+x.model:'')+(x.manufacturer?' · '+x.manufacturer:'')+' · '+(x.coil_program||'без программы')}
+async function fetchAllPaged(base,params=new URLSearchParams()){
+  const items=[];let cursor=0;
+  for(;;){const q=new URLSearchParams(params);q.set('limit','32');if(cursor)q.set('cursor',String(cursor));const r=await fetch(base+'?'+q,{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'catalog_unavailable');items.push(...(j.items||[]));if(!j.has_more)break;const next=Number(j.next_cursor);if(!Number.isInteger(next)||next<=cursor)throw new Error('invalid_paging_cursor');cursor=next}
+  return items;
+}
 async function fill(url,items,select,idKey,label,selected){
-  const r=await fetch(url,{cache:'no-store'}),j=await r.json();
-  if(!r.ok)throw new Error(j.error||'catalog_unavailable');
-  items.splice(0,items.length,...(j.items||[]));
+  const loaded=await fetchAllPaged(url);
+  items.splice(0,items.length,...loaded);
   select.innerHTML='<option value="">Выберите</option>';
   items.forEach(x=>{const o=document.createElement('option');o.value=x[idKey];o.textContent=label(x);select.appendChild(o)});
   if(selected&&items.some(x=>String(x[idKey])===String(selected)))select.value=String(selected);
@@ -65,74 +46,12 @@ async function loadClients(selected){try{await fill('/api/clients',clients,$('cl
 async function loadMotors(selected){try{await fill('/api/motors',motors,$('motorId'),'motor_id',motorLabel,selected||requestedMotor);if(!motors.length)$('motorId').innerHTML='<option value="">Сначала добавьте двигатель</option>'}catch(e){$('motorId').innerHTML='<option value="">Каталог двигателей недоступен</option>'}}
 $('clientId').onchange=()=>{$('clientId').value?localStorage.setItem('cm-selected-client',$('clientId').value):localStorage.removeItem('cm-selected-client')};
 $('motorId').onchange=()=>{$('motorId').value?localStorage.setItem('cm-selected-motor',$('motorId').value):localStorage.removeItem('cm-selected-motor')};
-function closeErrorMessage(error){
-  if(error==='repair_has_unfinished_winding_job')return'Нельзя закрыть ремонт: намотка ещё не завершена или требует ручной проверки.';
-  if(error==='repair_finalization_wire_writeoff_required')return'Нельзя закрыть ремонт: завершённая намотка ещё не покрыта ручным списанием провода.';
-  if(error==='repair_finalization_wire_writeoff_storage_unavailable')return'Нельзя проверить списание провода: хранилище временно недоступно.';
-  if(error==='repair_finalization_wire_writeoff_integrity_failed')return'Связь завершённой намотки и списания провода не прошла проверку целостности.';
-  if(error==='repair_finalization_costing_storage_unavailable')return'Недоступны данные склада, материалов или калькуляции.';
-  if(error==='repair_finalization_winding_storage_unavailable')return'История намотки временно недоступна.';
-  if(error==='repair_finalization_costing_integrity_failed')return'Калькуляция или списания не прошли проверку целостности.';
-  if(error==='repair_finalization_winding_integrity_failed')return'История намотки не прошла проверку целостности.';
-  if(error==='repair_closure_state_unavailable')return'Нельзя проверить состояние последней намотки.';
-  return'Не удалось закрыть ремонт: '+(error||'unknown');
-}
-function preflightMessage(reason){
-  if(!reason)return'Проверка пройдена. Ремонт готов к закрытию.';
-  if(reason==='repair_has_unfinished_winding_job')return'Не готов: намотка ещё не завершена или требует ручной проверки.';
-  if(reason==='repair_finalization_wire_writeoff_required')return'Не готов: требуется подтверждённое ручное списание провода.';
-  if(reason==='repair_finalization_wire_writeoff_storage_unavailable')return'Не готов: хранилище списаний временно недоступно.';
-  if(reason==='repair_finalization_wire_writeoff_integrity_failed')return'Не готов: намотка и списание провода не прошли проверку целостности.';
-  if(reason==='repair_finalization_costing_storage_unavailable')return'Не готов: недоступны данные калькуляции.';
-  if(reason==='repair_finalization_winding_storage_unavailable')return'Не готов: недоступна история намотки.';
-  if(reason==='repair_finalization_costing_integrity_failed')return'Не готов: калькуляция или списания не прошли проверку целостности.';
-  if(reason==='repair_finalization_winding_integrity_failed')return'Не готов: история намотки не прошла проверку целостности.';
-  if(reason==='already_closed')return'Ремонт уже закрыт.';
-  return'Готовность не подтверждена: '+reason;
-}
-async function checkFinalization(id,box,closeButton,checkButton){
-  checkButton.disabled=true;box.className='preflight';box.textContent='Проверка итогов…';
-  try{const r=await fetch('/api/repairs/finalization?repair_id='+encodeURIComponent(id),{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(closeErrorMessage(j.error));const ready=j.ready_to_close===true;box.className='preflight '+(ready?'ready':'blocked');box.textContent=preflightMessage(j.reason);closeButton.disabled=!ready}
-  catch(e){box.className='preflight blocked';box.textContent=e.message||'Не удалось проверить готовность.';closeButton.disabled=true}
-  finally{checkButton.disabled=false}
-}
-async function closeRepair(id){
-  if(!confirm('Закрыть ремонт №'+id+'? ESP32 повторно проверит намотку, списания и калькуляцию.'))return;
-  try{const body=new URLSearchParams({repair_id:String(id),closed_at:new Date().toISOString(),confirmed:'true'}),r=await fetch('/api/repairs/close',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();if(!r.ok)throw new Error(closeErrorMessage(j.error));await loadRepairs()}
-  catch(e){alert(e.message||'Не удалось закрыть ремонт.')}
-}
-async function loadRepairs(){
-  try{
-    const q=params.get('client_id')?'?client_id='+encodeURIComponent(params.get('client_id')):'';
-    const r=await fetch('/api/repairs'+q,{cache:'no-store'}),j=await r.json();
-    if(!r.ok)throw new Error(j.error||'repairs_unavailable');
-    const filter=$('repairFilter').value,visible=(j.items||[]).filter(x=>{const s=x.current_status||x.status||'OPEN';return filter==='ALL'||s===filter});
-    $('items').innerHTML='';
-    visible.forEach(x=>{
-      const m=motors.find(v=>Number(v.motor_id)===Number(x.motor_id)),c=clients.find(v=>Number(v.client_id)===Number(x.client_id));
-      const status=x.current_status||x.status||'OPEN',closed=status==='CLOSED',id=x.repair_id,d=document.createElement('div');
-      d.className='item';
-      const mutable=closed?'':'<a data-id="'+esc(id)+'" href="/mobile/winding-job.html?repair_id='+encodeURIComponent(id)+'">Намотка</a><a data-id="'+esc(id)+'" href="/mobile/writeoff.html?repair_id='+encodeURIComponent(id)+'">Списание провода</a>';
-      const costingLabel=closed?'Итог ремонта':'Калькуляция';
-      const controls=closed?'':'<div class="preflight" data-preflight-id="'+esc(id)+'">Готовность к закрытию ещё не проверена.</div><button class="secondary" type="button" data-check-id="'+esc(id)+'">Проверить готовность</button><button class="close-repair" type="button" data-close-id="'+esc(id)+'" disabled>Закрыть ремонт</button>';
-      d.innerHTML='<b>Ремонт №'+esc(id)+' — '+esc(m?motorLabel(m):'Двигатель ID '+x.motor_id)+'</b><div>'+esc(c?clientLabel(c):'Клиент ID '+x.client_id)+'</div><div><span class="status'+(closed?' closed':'')+'">'+(closed?'Закрыт':'Открыт')+'</span> <span class="muted">· принят '+esc(dateLabel(x.received_at))+(closed&&x.closed_at?' · закрыт '+esc(dateLabel(x.closed_at)):'')+'</span></div><div class="links">'+mutable+'<a data-id="'+esc(id)+'" href="/mobile/costing.html?repair_id='+encodeURIComponent(id)+'">'+costingLabel+'</a><a data-id="'+esc(id)+'" href="/mobile/winding-history.html?repair_id='+encodeURIComponent(id)+'">История намотки</a></div>'+controls;
-      d.querySelectorAll('a[data-id]').forEach(a=>a.onclick=()=>localStorage.setItem('cm-active-repair',String(a.dataset.id)));
-      const close=d.querySelector('[data-close-id]'),check=d.querySelector('[data-check-id]'),box=d.querySelector('[data-preflight-id]');
-      if(close)close.onclick=()=>closeRepair(close.dataset.closeId);
-      if(check&&close&&box)check.onclick=()=>checkFinalization(check.dataset.checkId,box,close,check);
-      $('items').appendChild(d);
-    });
-    if(!visible.length)$('items').textContent=filter==='OPEN'?'Открытых ремонтов нет.':filter==='CLOSED'?'Закрытых ремонтов нет.':'Ремонтов пока нет.';
-  }catch(e){$('items').textContent='Каталог ремонтов недоступен: '+(e.message||'unknown')}
-}
-$('form').onsubmit=async e=>{
-  e.preventDefault();
-  const received=new Date($('received').value);
-  if(Number.isNaN(received.getTime())){$('result').textContent='Укажите корректную дату приёмки.';return}
-  const fd=new FormData(e.target);fd.set('received_at',received.toISOString());
-  try{const r=await fetch('/api/repairs',{method:'POST',body:fd}),j=await r.json();if(r.ok){localStorage.setItem('cm-active-repair',j.repair_id);localStorage.setItem('cm-selected-client',j.client_id);localStorage.setItem('cm-selected-motor',j.motor_id);location.href='/mobile/costing.html?repair_id='+encodeURIComponent(j.repair_id)}else $('result').textContent=j.error||'Ошибка создания ремонта'}
-  catch(err){$('result').textContent='Нет связи с ESP32'}
-};
+function closeErrorMessage(error){if(error==='repair_has_unfinished_winding_job')return'Нельзя закрыть ремонт: намотка ещё не завершена или требует ручной проверки.';if(error==='repair_finalization_wire_writeoff_required')return'Нельзя закрыть ремонт: завершённая намотка ещё не покрыта ручным списанием провода.';if(error==='repair_finalization_wire_writeoff_storage_unavailable')return'Нельзя проверить списание провода: хранилище временно недоступно.';if(error==='repair_finalization_wire_writeoff_integrity_failed')return'Связь завершённой намотки и списания провода не прошла проверку целостности.';if(error==='repair_finalization_costing_storage_unavailable')return'Недоступны данные склада, материалов или калькуляции.';if(error==='repair_finalization_winding_storage_unavailable')return'История намотки временно недоступна.';if(error==='repair_finalization_costing_integrity_failed')return'Калькуляция или списания не прошли проверку целостности.';if(error==='repair_finalization_winding_integrity_failed')return'История намотки не прошла проверку целостности.';if(error==='repair_closure_state_unavailable')return'Нельзя проверить состояние последней намотки.';return'Не удалось закрыть ремонт: '+(error||'unknown')}
+function preflightMessage(reason){if(!reason)return'Проверка пройдена. Ремонт готов к закрытию.';if(reason==='repair_has_unfinished_winding_job')return'Не готов: намотка ещё не завершена или требует ручной проверки.';if(reason==='repair_finalization_wire_writeoff_required')return'Не готов: требуется подтверждённое ручное списание провода.';if(reason==='repair_finalization_wire_writeoff_storage_unavailable')return'Не готов: хранилище списаний временно недоступно.';if(reason==='repair_finalization_wire_writeoff_integrity_failed')return'Не готов: намотка и списание провода не прошли проверку целостности.';if(reason==='repair_finalization_costing_storage_unavailable')return'Не готов: недоступны данные калькуляции.';if(reason==='repair_finalization_winding_storage_unavailable')return'Не готов: недоступна история намотки.';if(reason==='repair_finalization_costing_integrity_failed')return'Не готов: калькуляция или списания не прошли проверку целостности.';if(reason==='repair_finalization_winding_integrity_failed')return'Не готов: история намотки не прошла проверку целостности.';if(reason==='already_closed')return'Ремонт уже закрыт.';return'Готовность не подтверждена: '+reason}
+async function checkFinalization(id,box,closeButton,checkButton){checkButton.disabled=true;box.className='preflight';box.textContent='Проверка итогов…';try{const r=await fetch('/api/repairs/finalization?repair_id='+encodeURIComponent(id),{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(closeErrorMessage(j.error));const ready=j.ready_to_close===true;box.className='preflight '+(ready?'ready':'blocked');box.textContent=preflightMessage(j.reason);closeButton.disabled=!ready}catch(e){box.className='preflight blocked';box.textContent=e.message||'Не удалось проверить готовность.';closeButton.disabled=true}finally{checkButton.disabled=false}}
+async function closeRepair(id){if(!confirm('Закрыть ремонт №'+id+'? ESP32 повторно проверит намотку, списания и калькуляцию.'))return;try{const body=new URLSearchParams({repair_id:String(id),closed_at:new Date().toISOString(),confirmed:'true'}),r=await fetch('/api/repairs/close',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();if(!r.ok)throw new Error(closeErrorMessage(j.error));await loadRepairs()}catch(e){alert(e.message||'Не удалось закрыть ремонт.')}}
+async function loadRepairs(){try{const q=new URLSearchParams();if(params.get('client_id'))q.set('client_id',params.get('client_id'));const all=await fetchAllPaged('/api/repairs',q);const filter=$('repairFilter').value,visible=all.filter(x=>{const s=x.current_status||x.status||'OPEN';return filter==='ALL'||s===filter});$('items').innerHTML='';visible.forEach(x=>{const m=motors.find(v=>Number(v.motor_id)===Number(x.motor_id)),c=clients.find(v=>Number(v.client_id)===Number(x.client_id));const status=x.current_status||x.status||'OPEN',closed=status==='CLOSED',id=x.repair_id,d=document.createElement('div');d.className='item';const mutable=closed?'':'<a data-id="'+esc(id)+'" href="/mobile/winding-job.html?repair_id='+encodeURIComponent(id)+'">Намотка</a><a data-id="'+esc(id)+'" href="/mobile/writeoff.html?repair_id='+encodeURIComponent(id)+'">Списание провода</a>';const costingLabel=closed?'Итог ремонта':'Калькуляция';const controls=closed?'':'<div class="preflight" data-preflight-id="'+esc(id)+'">Готовность к закрытию ещё не проверена.</div><button class="secondary" type="button" data-check-id="'+esc(id)+'">Проверить готовность</button><button class="close-repair" type="button" data-close-id="'+esc(id)+'" disabled>Закрыть ремонт</button>';d.innerHTML='<b>Ремонт №'+esc(id)+' — '+esc(m?motorLabel(m):'Двигатель ID '+x.motor_id)+'</b><div>'+esc(c?clientLabel(c):'Клиент ID '+x.client_id)+'</div><div><span class="status'+(closed?' closed':'')+'">'+(closed?'Закрыт':'Открыт')+'</span> <span class="muted">· принят '+esc(dateLabel(x.received_at))+(closed&&x.closed_at?' · закрыт '+esc(dateLabel(x.closed_at)):'')+'</span></div><div class="links">'+mutable+'<a data-id="'+esc(id)+'" href="/mobile/costing.html?repair_id='+encodeURIComponent(id)+'">'+costingLabel+'</a><a data-id="'+esc(id)+'" href="/mobile/winding-history.html?repair_id='+encodeURIComponent(id)+'">История намотки</a></div>'+controls;d.querySelectorAll('a[data-id]').forEach(a=>a.onclick=()=>localStorage.setItem('cm-active-repair',String(a.dataset.id)));const close=d.querySelector('[data-close-id]'),check=d.querySelector('[data-check-id]'),box=d.querySelector('[data-preflight-id]');if(close)close.onclick=()=>closeRepair(close.dataset.closeId);if(check&&close&&box)check.onclick=()=>checkFinalization(check.dataset.checkId,box,close,check);$('items').appendChild(d)});if(!visible.length)$('items').textContent=filter==='OPEN'?'Открытых ремонтов нет.':filter==='CLOSED'?'Закрытых ремонтов нет.':'Ремонтов пока нет.'}catch(e){$('items').textContent='Каталог ремонтов недоступен: '+(e.message||'unknown')}}
+$('form').onsubmit=async e=>{e.preventDefault();const received=new Date($('received').value);if(Number.isNaN(received.getTime())){$('result').textContent='Укажите корректную дату приёмки.';return}const fd=new FormData(e.target);fd.set('received_at',received.toISOString());try{const r=await fetch('/api/repairs',{method:'POST',body:fd}),j=await r.json();if(r.ok){localStorage.setItem('cm-active-repair',j.repair_id);localStorage.setItem('cm-selected-client',j.client_id);localStorage.setItem('cm-selected-motor',j.motor_id);location.href='/mobile/costing.html?repair_id='+encodeURIComponent(j.repair_id)}else $('result').textContent=j.error||'Ошибка создания ремонта'}catch(err){$('result').textContent='Нет связи с ESP32'}};
 (async()=>{await loadClients();await loadMotors();await loadRepairs()})();
 </script>
 </body>

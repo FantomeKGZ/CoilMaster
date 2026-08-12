@@ -5,6 +5,8 @@
 
 namespace CM
 {
+constexpr uint8_t AutonomousWindingArchive::MaxTaskPageSize;
+
 namespace
 {
 struct PageTask
@@ -98,8 +100,6 @@ bool AutonomousWindingArchive::appendTasksPageJson(
 
     while (file.available() && count < limit)
     {
-        const uint32_t recordStart =
-            static_cast<uint32_t>(file.position());
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
 
@@ -219,8 +219,6 @@ bool AutonomousWindingArchive::appendTasksPageJson(
 
         tasks[count] = task;
         ++count;
-
-        (void)recordStart;
     }
 
     const uint32_t pageEnd = static_cast<uint32_t>(file.position());

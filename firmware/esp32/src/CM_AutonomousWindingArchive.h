@@ -52,6 +52,8 @@ struct AutonomousWindingIntegrityMetrics
 class AutonomousWindingArchive
 {
 public:
+    static constexpr uint8_t MaxTaskPageSize = 32U;
+
     explicit AutonomousWindingArchive(fs::FS& storage);
 
     bool begin();
@@ -59,10 +61,24 @@ public:
 
     AutonomousWindingSaveResult save(const RemoteWindingEvent& event);
 
+    // Legacy unbounded formatter kept for source compatibility. New HTTP/UI
+    // callers must use appendTasksPageJson() so response RAM is bounded.
     bool appendTasksJson(String& json,
                          const String& programQuery,
                          uint8_t tolerancePercent,
                          uint16_t& count) const;
+
+    // Cursor is a byte offset into append-only events.ndjson and must point to a
+    // logical task boundary. The returned cursor always starts the next task and
+    // never splits RUN_STARTED/RUN_COMPLETED for one run.
+    bool appendTasksPageJson(String& json,
+                             const String& programQuery,
+                             uint8_t tolerancePercent,
+                             uint32_t cursor,
+                             uint8_t limit,
+                             uint16_t& count,
+                             uint32_t& nextCursor,
+                             bool& hasMore) const;
 
     bool completedTaskExists(uint32_t sessionId,
                              uint32_t runId,

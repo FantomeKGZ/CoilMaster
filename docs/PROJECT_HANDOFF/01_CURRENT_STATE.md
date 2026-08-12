@@ -412,3 +412,15 @@ Code checkpoint:
 ESP32 Build: SUCCESS
 CMP Protocol Tests: SUCCESS
 ```
+
+
+## Safe motor database import checkpoint — 2026-08-12
+
+CoilMaster now has a review-first JSON import path for motor and winding records. The persistent motor record supports nameplate data, winding geometry, conductor data, stator dimensions, source citation, confidence classification, and an explicit calculated-fields flag.
+
+The import preview is read-only, checks the complete package locally, and queries the bounded similarity endpoint before any write. Exact identity matches are unchecked by default. Import remains an explicit user-confirmed sequence of individual append operations; there is no autonomous data ingestion.
+
+Format and example:
+
+- `docs/MOTOR_IMPORT_FORMAT.md`
+- `docs/examples/motor-import.example.json`

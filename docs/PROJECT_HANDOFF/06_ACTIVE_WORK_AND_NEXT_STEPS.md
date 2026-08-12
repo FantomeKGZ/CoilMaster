@@ -7,19 +7,17 @@
 
 ## Hardware production status
 
-На реальном стенде подтверждены оба основных пути.
-
-Standalone Arduino:
+На реальном стенде подтверждены:
 
 ```text
-local program on Arduino
+Standalone Arduino local program
 → physical START
 → real winding
 → LOCAL_EVT
 → ESP32 autonomous archive
 ```
 
-Linked production:
+и полный linked production flow:
 
 ```text
 client / motor / OPEN repair
@@ -54,19 +52,9 @@ active RUN_STARTED
 - `RUN_COMPLETED` не выполняет automatic wire writeoff;
 - wire writeoff остаётся ручным и exact `spool_id + source_session_id + source_run_id`.
 
-Arduino pin-map:
-
-```text
-D11 = Buzzer
-D12 = SSR
-A0  = Hall
-A1  = Arduino TX → ESP32 RX
-A2  = Arduino RX ← ESP32 TX
-```
-
 ## Verification status текущего HEAD
 
-Последний подтверждённый пользователем ESP32 build был до текущих paging/archive-scaling изменений:
+Последний подтверждённый пользователем ESP32 build был до текущих archive/workshop scaling изменений:
 
 ```text
 RAM:   14.4% (47320 / 327680 bytes)
@@ -83,86 +71,54 @@ CI NOT CONFIRMED
 
 GitHub CI не считать green без фактического result.
 
-## Backup / integrity hardware baseline
+## Закрытый production-hardening
 
-Ранее на реальном ESP32 подтверждено:
-
-```text
-export_allowed=true
-activity_state_verified=true
-snapshot_stability_checked=true
-snapshot_stable=true
-snapshot_stability_reason=null
-snapshot_stability_duration_ms=1429
-```
-
-Документы:
+Закрыты и задокументированы:
 
 ```text
-docs/PROJECT_HANDOFF/14_HARDWARE_MANIFEST_BASELINE_2026-08-12.md
-docs/PROJECT_HANDOFF/15_HARDWARE_PRODUCTION_E2E_2026-08-12.md
-docs/PROJECT_HANDOFF/16_HARDWARE_NEGATIVE_BACKUP_ACTIVE_2026-08-12.md
+14_HARDWARE_MANIFEST_BASELINE_2026-08-12.md
+15_HARDWARE_PRODUCTION_E2E_2026-08-12.md
+16_HARDWARE_NEGATIVE_BACKUP_ACTIVE_2026-08-12.md
+17_RUNTIME_STORAGE_CORRUPTION_HARDENING_2026-08-12.md
+18_UART_TIMEOUT_REPLAY_HARDENING_2026-08-12.md
+19_CONTROLLED_RECOVERY_AND_ARCHIVE_SCALING_2026-08-12.md
+20_AUTONOMOUS_ARCHIVE_PAGING_2026-08-12.md
+21_AUTONOMOUS_ARCHIVE_BOOT_AND_APPEND_SCALING_2026-08-12.md
+22_WORKSHOP_REGISTRY_SCALING_2026-08-12.md
 ```
 
-## Закрытый fault-hardening
-
-### Backup / reboot
-
-`MANUAL_REVIEW_REQUIRED` и ambiguous persisted states fail-closed блокируют backup.
-
-### Runtime storage corruption
-
-Allocator/state paths заново проверяются перед новой session; `.tmp`, повреждённые state/high-water и неоднозначный recovery блокируют job creation.
-
-### UART timeout / replay
+Ключевые safety результаты:
 
 ```text
-TIMED_OUT
-→ MANUAL_REVIEW_REQUIRED
-→ new job blocked
-→ backup blocked
-→ no auto resend / auto resume
+TIMED_OUT → MANUAL_REVIEW_REQUIRED
+manual-review / ambiguous persisted state → backup blocked
+linked recovery → exact snapshot + exact immutable spool-selection
+wrong spool/session/run → writeoff rejected before warehouse mutation
+RUN_COMPLETED alone → no automatic wire writeoff
 ```
 
-Linked duplicate требует exact event semantics. Autonomous duplicate требует exact session/run/event/completed/program semantics.
+## Autonomous Arduino archive — scaling state
 
-### Controlled recovery
-
-Оба recovery endpoint перед `CLOSED_AFTER_REVIEW` перепроверяют persisted latest state + immutable snapshot; linked job дополнительно требует exact immutable spool-selection. Recovery closure выполняет ESP32 restart.
-
-Backup activity guard повторно доказывает persisted state/snapshot/spool identity даже при runtime `Safe`.
-
-Документы:
-
-```text
-docs/PROJECT_HANDOFF/17_RUNTIME_STORAGE_CORRUPTION_HARDENING_2026-08-12.md
-docs/PROJECT_HANDOFF/18_UART_TIMEOUT_REPLAY_HARDENING_2026-08-12.md
-docs/PROJECT_HANDOFF/19_CONTROLLED_RECOVERY_AND_ARCHIVE_SCALING_2026-08-12.md
-```
-
-## Autonomous Arduino archive — current scaling state
-
-Authoritative files остаются append-only:
+Authoritative append-only files:
 
 ```text
 /data/autonomous-windings/events.ndjson
 /data/autonomous-windings/assignments.ndjson
 ```
 
-DB migration, destructive compaction и automatic rotation не вводились.
-
-### Deep audit
+### Deep/boot audit
 
 ```text
 events       O(E)
 assignments  fixed batches of 32 references
 ```
 
-### HTTP/UI paging
+`AutonomousWindingArchive::begin()` использует тот же authoritative `validateStorage()`.
 
-`GET /api/autonomous-windings`:
+### HTTP/UI
 
 ```text
+GET /api/autonomous-windings
 limit default 20
 limit max 32
 cursor opaque byte offset
@@ -170,105 +126,110 @@ has_more
 next_cursor
 ```
 
-Cursor выдаётся только на logical task boundary и не разрезает normal `RUN_STARTED/RUN_COMPLETED` pair.
+Cursor не разделяет normal `RUN_STARTED/RUN_COMPLETED` pair.
 
-Mobile/Desktop:
+### Runtime append
 
-```text
-20 tasks
-→ Показать ещё
-→ next_cursor
-```
+`LOCAL_EVT` replay/completion использует bounded tail-state, а не full history scan.
 
-Полный проход для «Скомплектованные двигатели» запускается только явно и также идёт bounded pages.
+Непустой NDJSON обязан заканчиваться `\n`; interrupted append fail-closed.
 
-### Boot validation
+## Workshop registry — scaling state
 
-`AutonomousWindingArchive::begin()` больше не вызывает legacy repeated validators.
-
-Теперь:
+Authoritative files:
 
 ```text
-ensureDirectories()
-→ authoritative validateStorage()
+/data/workshop/clients.ndjson
+/data/workshop/motors.ndjson
+/data/workshop/repairs.ndjson
+/data/workshop/repair-status.ndjson
+/data/repairs/pricing.ndjson
 ```
 
-Legacy unbounded formatter/validators удалены из production class/code.
+### Bounded list readers
 
-### Runtime LOCAL_EVT append
-
-`save()` больше не перечитывает весь `events.ndjson` для каждого replay/completion.
-
-Используется bounded tail-state:
+Добавлены cursor pages max 32 для:
 
 ```text
-old run_id                        → INVALID
-same run exact replay             → DUPLICATE
-same run START → COMPLETE         → allowed
-same run conflicting semantics    → INVALID
-new monotonic run                 → append
+/api/clients
+/api/motors
+/api/repairs
 ```
 
-Таким образом normal UART append/retry latency больше не растёт линейно вместе со всей history.
-
-### Power-loss tail integrity
-
-Непустые `events.ndjson` и `assignments.ndjson` обязаны заканчиваться `\n`; unterminated append fail-closed отклоняется boot/deep audit.
-
-Документы:
+Если request содержит `limit` или `cursor`, response содержит:
 
 ```text
-docs/PROJECT_HANDOFF/20_AUTONOMOUS_ARCHIVE_PAGING_2026-08-12.md
-docs/PROJECT_HANDOFF/21_AUTONOMOUS_ARCHIVE_BOOT_AND_APPEND_SCALING_2026-08-12.md
+count
+limit
+cursor
+has_more
+next_cursor
+max_page_size
 ```
+
+Основные mobile/desktop clients, motors, repairs и Arduino archive уже используют paged reads.
+
+Legacy GET без `limit/cursor` временно оставлен, потому что ещё есть старые страницы, которые ожидают полный list response. Не удалять его до окончания consumer migration.
+
+### Exact lookup
+
+Добавлены:
+
+```text
+GET /api/clients/by-id?client_id=...
+GET /api/motors/by-id?motor_id=...
+GET /api/repairs/by-id?repair_id=...
+```
+
+Mobile costing уже использует exact lookup и больше не перечисляет всю business database ради одной карточки.
+
+Desktop costing и как минимум один winding-job screen на текущем checkpoint ещё используют legacy full GET; их мигрировать до bounded-default switch.
+
+### Business-data integrity / boot
+
+Старый O(n^2) audit заменён authoritative bounded-complexity audit:
+
+```text
+client IDs      strict monotonic append-only pass
+motor IDs       strict monotonic pass + coil_program validation
+repair IDs      strict monotonic pass
+repair refs     batches of 32
+CLOSED status   batches of 32 + exact-one status occurrence
+pricing refs    batches of 32
+```
+
+`RepairRegistry::begin()` теперь использует:
+
+```text
+BackupBusinessDataIntegrityAudit::checkWorkshopRegistry()
+```
+
+и больше не запускает legacy nested validators.
+
+`nextId()` также один раз проходит monotonic ID ledger вместо O(n^2) duplicate scans.
 
 ## UI deployment note
 
-Paging изменил:
+Изменены несколько файлов `firmware/esp32/web/mobile` и `desktop`.
 
-```text
-firmware/esp32/web/mobile/arduino-windings.html
-firmware/esp32/web/desktop/arduino-windings.html
-```
-
-После успешного firmware build/upload заменить microSD `/web` актуальным содержимым repo `firmware/esp32/web` целиком, а не overlay поверх старой версии.
+После успешного firmware build/upload полностью заменить microSD `/web` актуальным repo `firmware/esp32/web`. Не делать overlay поверх старого `/web`.
 
 ## Следующее действие
 
-Сначала clean build текущего HEAD:
+Перед дальнейшим крупным firmware refactor нужен clean build текущего HEAD:
 
 ```powershell
 pio run -e esp32 -t clean
 pio run -e esp32
 ```
 
-После `SUCCESS`:
+После `SUCCESS` продолжить:
 
-```powershell
-pio run -e esp32 -t upload
-```
-
-и заменить `/web` на microSD.
-
-Минимальная runtime проверка после upload:
-
-```text
-1. local Arduino task → physical START → RUN_COMPLETED → LOCAL_EVT saved
-2. autonomous archive page opens
-3. GET /api/autonomous-windings?limit=1
-4. if has_more=true, request next_cursor and verify no duplicate/split pair
-5. GET /api/backup/manifest → snapshot_stable=true on intact SD
-```
-
-## Следующий repo-reviewable шаг после build
-
-1. снять populated-dataset metrics:
-   - autonomous event/assignment record counts;
-   - autonomous audit duration;
-   - total backup stability duration;
-   - real NDJSON file sizes;
-2. сравнить с baseline 1429 ms;
-3. только после metrics решать, нужен ли segmentation/rotation threshold;
-4. не вводить DB migration/destructive compaction без доказанной необходимости.
+1. мигрировать desktop costing и оставшиеся legacy registry consumers на exact/paged reads;
+2. сделать clients/motors/repairs bounded mode default и удалить unbounded formatter path;
+3. оптимизировать repair status lookup внутри repair pages только если build/runtime текущего batch успешен;
+4. снять populated-dataset timings через `/api/backup/manifest`;
+5. segmentation/rotation thresholds вводить только по фактическим latency и размерам файлов;
+6. DB migration/destructive compaction не вводить без доказанной необходимости.
 
 Основная новая функциональность сейчас не приоритет. Проект находится в production-hardening/performance phase.

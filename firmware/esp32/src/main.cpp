@@ -262,16 +262,29 @@ void restoreLatestJobState()
     completedRuns = recoveryInfo.state.completedRuns;
     lastJobResult = deliveryResultFor(recoveryInfo.state.deliveryState);
 
-    if (activeJobLinkage.linked && jobSpoolSelectionStoreReady)
+    if (activeJobLinkage.linked)
     {
-        CM::JobSpoolSelection recoveredSelection;
-        if (jobSpoolSelections.load(activeSessionId, recoveredSelection) &&
-            recoveredSelection.jobId == activeJobId &&
-            recoveredSelection.repairId == activeJobLinkage.repairId &&
-            recoveredSelection.motorId == activeJobLinkage.motorId)
+        if (!jobSpoolSelectionStoreReady || !jobSpoolSelections.isReady())
         {
-            activeJobSpoolSelection = recoveredSelection;
+            recoveryInfo.mayCreateNewJob = false;
+            Serial.println(F("ERROR: linked job spool selection store unavailable; job creation blocked"));
+            return;
         }
+
+        CM::JobSpoolSelection recoveredSelection;
+        if (!jobSpoolSelections.load(activeSessionId, recoveredSelection) ||
+            !recoveredSelection.isValid() ||
+            recoveredSelection.jobId != activeJobId ||
+            recoveredSelection.sessionId != activeSessionId ||
+            recoveredSelection.repairId != activeJobLinkage.repairId ||
+            recoveredSelection.motorId != activeJobLinkage.motorId)
+        {
+            jobSpoolSelectionStoreReady = false;
+            recoveryInfo.mayCreateNewJob = false;
+            Serial.println(F("ERROR: immutable linked spool selection recovery failed; job creation blocked"));
+            return;
+        }
+        activeJobSpoolSelection = recoveredSelection;
     }
 
     runActive = false;
@@ -285,10 +298,7 @@ void restoreLatestJobState()
     {
         Serial.print(F(" repair=")); Serial.print(activeJobLinkage.repairId);
         Serial.print(F(" motor=")); Serial.print(activeJobLinkage.motorId);
-        if (activeJobSpoolSelection.isValid())
-        {
-            Serial.print(F(" spool=")); Serial.print(activeJobSpoolSelection.spoolId);
-        }
+        Serial.print(F(" spool=")); Serial.print(activeJobSpoolSelection.spoolId);
     }
     Serial.print(F(" run=")); Serial.print(lastRunId);
     Serial.print(F(" completed=")); Serial.println(completedRuns);
@@ -543,9 +553,10 @@ void handleRecoveryAcknowledge()
         webServer.send(409, "application/json", "{\"error\":\"manual_review_not_required\"}");
         return;
     }
-    if (!jobStateStoreReady || !jobStates.isReady())
+    if (!jobStateStoreReady || !jobStates.isReady() ||
+        !jobSnapshotStoreReady || !jobSnapshots.isReady())
     {
-        webServer.send(503, "application/json", "{\"error\":\"job_state_store_unavailable\"}");
+        webServer.send(503, "application/json", "{\"error\":\"job_recovery_storage_unavailable\"}");
         return;
     }
     if (!webServer.hasArg("session_id") || !webServer.hasArg("confirmed"))
@@ -554,10 +565,10 @@ void handleRecoveryAcknowledge()
         return;
     }
 
-    const String sessionText = webServer.arg("session_id");
     uint32_t sessionId = 0UL;
-    if (!parseCanonicalUint32(sessionText, sessionId) || sessionId == 0UL ||
-        sessionId != activeSessionId || sessionId != recoveryInfo.state.sessionId)
+    if (!parseCanonicalUint32(webServer.arg("session_id"), sessionId) ||
+        sessionId == 0UL || sessionId != activeSessionId ||
+        sessionId != recoveryInfo.state.sessionId)
     {
         webServer.send(409, "application/json", "{\"error\":\"session_mismatch\"}");
         return;
@@ -567,6 +578,46 @@ void handleRecoveryAcknowledge()
         webServer.send(400, "application/json", "{\"error\":\"explicit_confirmation_required\"}");
         return;
     }
+
+    CM::JobRuntimeState latest;
+    bool found = false;
+    if (!jobStates.loadLatest(latest, found))
+    {
+        webServer.send(500, "application/json", "{\"error\":\"job_state_integrity_failed\"}");
+        return;
+    }
+    if (!found || latest.jobId != activeJobId || latest.sessionId != sessionId ||
+        latest.jobId != recoveryInfo.state.jobId)
+    {
+        webServer.send(409, "application/json", "{\"error\":\"recovery_state_changed\"}");
+        return;
+    }
+
+    CM::JobSnapshot snapshot;
+    if (!jobSnapshots.load(sessionId, snapshot) || snapshot.jobId != latest.jobId)
+    {
+        webServer.send(500, "application/json", "{\"error\":\"job_snapshot_identity_failed\"}");
+        return;
+    }
+
+    if (snapshot.linkage.linked)
+    {
+        if (!jobSpoolSelectionStoreReady || !jobSpoolSelections.isReady())
+        {
+            webServer.send(503, "application/json", "{\"error\":\"job_spool_selection_store_unavailable\"}");
+            return;
+        }
+        CM::JobSpoolSelection selection;
+        if (!jobSpoolSelections.load(sessionId, selection) || !selection.isValid() ||
+            selection.jobId != latest.jobId || selection.sessionId != sessionId ||
+            selection.repairId != snapshot.linkage.repairId ||
+            selection.motorId != snapshot.linkage.motorId)
+        {
+            webServer.send(500, "application/json", "{\"error\":\"job_spool_selection_identity_failed\"}");
+            return;
+        }
+    }
+
     if (!jobStates.closeAfterManualReview(sessionId, millis()))
     {
         jobStateStoreReady = false;
@@ -574,19 +625,14 @@ void handleRecoveryAcknowledge()
         return;
     }
 
-    restoreLatestJobState();
-    if (!jobStateStoreReady || manualReviewRequired() || !recoveryInfo.mayCreateNewJob)
-    {
-        webServer.send(503, "application/json", "{\"error\":\"review_closure_verification_failed\"}");
-        return;
-    }
-
     String response = F("{\"acknowledged\":true,\"session_id\":");
     response += sessionId;
-    response += F(",\"state\":\"CLOSED_AFTER_REVIEW\",\"new_job_allowed\":true,");
+    response += F(",\"state\":\"CLOSED_AFTER_REVIEW\",\"restarting\":true,");
     response += F("\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false}");
     webServer.send(200, "application/json; charset=utf-8", response);
     Serial.print(F("Operator review closed session=")); Serial.println(sessionId);
+    delay(350);
+    ESP.restart();
 }
 
 void handleCancelJob()

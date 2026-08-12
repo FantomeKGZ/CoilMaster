@@ -41,7 +41,8 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
     }
 
     bool duplicate = false;
-    if (!containsEvent(event.sessionId, event.runId, event.type, duplicate))
+    bool replayConflict = false;
+    if (!findEventReplay(event, duplicate, replayConflict) || replayConflict)
         return AutonomousWindingSaveResult::Invalid;
     if (duplicate) return AutonomousWindingSaveResult::Duplicate;
 
@@ -411,6 +412,65 @@ bool AutonomousWindingArchive::containsEvent(uint32_t sessionId,
             return true;
         }
     }
+    file.close();
+    return true;
+}
+
+bool AutonomousWindingArchive::findEventReplay(const RemoteWindingEvent& event,
+                                               bool& exactMatch,
+                                               bool& conflict) const
+{
+    exactMatch = false;
+    conflict = false;
+    if (!m_storage.exists(EventsPath)) return true;
+
+    File file = m_storage.open(EventsPath, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    const String expectedProgram = programText(event);
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        RemoteWindingEvent candidate;
+        if (!FlatJsonObjectValidator::valid(line) || !parseEventRecord(line, candidate))
+        {
+            file.close();
+            return false;
+        }
+        if (candidate.sessionId != event.sessionId ||
+            candidate.runId != event.runId || candidate.type != event.type)
+        {
+            continue;
+        }
+
+        const bool same =
+            candidate.completedRuns == event.completedRuns &&
+            candidate.jobType == event.jobType &&
+            candidate.coilCount == event.coilCount &&
+            programText(candidate) == expectedProgram;
+        if (!same)
+        {
+            conflict = true;
+            file.close();
+            return true;
+        }
+        if (exactMatch)
+        {
+            // The archive itself contains duplicate identity records; do not
+            // hide this integrity failure behind another DUPLICATE acknowledgement.
+            conflict = true;
+            file.close();
+            return true;
+        }
+        exactMatch = true;
+    }
+
     file.close();
     return true;
 }

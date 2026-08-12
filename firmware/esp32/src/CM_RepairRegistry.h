@@ -37,6 +37,8 @@ struct NewRepair
 class RepairRegistry
 {
 public:
+    static constexpr uint8_t MaxListPageSize = 32U;
+
     explicit RepairRegistry(fs::FS& storage);
 
     bool begin();
@@ -62,6 +64,8 @@ public:
         return true;
     }
 
+    // Legacy unbounded formatters kept temporarily for compatibility while the
+    // web UI migrates to bounded cursor pages.
     bool appendClientsJson(String& json, const String& phoneQuery,
                            uint16_t& count) const;
     bool appendMotorsJson(String& json, const String& query,
@@ -72,6 +76,30 @@ public:
                                  uint16_t& identityMatchCount) const;
     bool appendRepairsJson(String& json, uint32_t clientId,
                            uint16_t& count) const;
+
+    // Bounded page readers. Cursor is an opaque byte offset returned by the
+    // previous call and must point to an NDJSON record boundary.
+    bool appendClientsPageJson(String& json,
+                               const String& phoneQuery,
+                               uint32_t cursor,
+                               uint8_t limit,
+                               uint16_t& count,
+                               uint32_t& nextCursor,
+                               bool& hasMore) const;
+    bool appendMotorsPageJson(String& json,
+                              const String& query,
+                              uint32_t cursor,
+                              uint8_t limit,
+                              uint16_t& count,
+                              uint32_t& nextCursor,
+                              bool& hasMore) const;
+    bool appendRepairsPageJson(String& json,
+                               uint32_t clientId,
+                               uint32_t cursor,
+                               uint8_t limit,
+                               uint16_t& count,
+                               uint32_t& nextCursor,
+                               bool& hasMore) const;
 
     bool clientExists(uint32_t clientId) const;
     bool motorExists(uint32_t motorId) const;

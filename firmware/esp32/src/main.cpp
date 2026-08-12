@@ -986,18 +986,42 @@ void processJobDelivery()
             jobStateStoreReady = false;
             jobAwaitingAck = false;
             lastJobResult = CM::JobDeliveryResult::Rejected;
+            recoveryInfo.mayCreateNewJob = false;
             Serial.println(F("ERROR: job delivery state persistence failed"));
+            continue;
+        }
+
+        jobAwaitingAck = false;
+        lastArduinoEventMs = millis();
+
+        if (delivery.result == CM::JobDeliveryResult::TimedOut)
+        {
+            // No ACK is not proof of rejection: Arduino may have accepted the
+            // JOB while every acknowledgement was lost. Re-evaluate the just-
+            // persisted state through the same recovery path used after reboot
+            // so operator review is required immediately, without auto resend.
+            restoreLatestJobState();
+            if (!jobStateStoreReady || !manualReviewRequired())
+            {
+                recoveryInfo.mayCreateNewJob = false;
+                Serial.println(F("ERROR: timed-out job recovery verification failed"));
+                continue;
+            }
+
+            Serial.print(F("JOB_ACK id=")); Serial.print(delivery.jobId);
+            Serial.println(F(" result=TIMED_OUT_MANUAL_REVIEW"));
             continue;
         }
 
         activeJobId = delivery.jobId;
         lastJobResult = delivery.result;
-        jobAwaitingAck = false;
-        lastArduinoEventMs = millis();
-        recoveryInfo.mayCreateNewJob = delivery.result != CM::JobDeliveryResult::Accepted;
+        recoveryInfo.mayCreateNewJob =
+            delivery.result == CM::JobDeliveryResult::Rejected ||
+            delivery.result == CM::JobDeliveryResult::Cancelled;
         Serial.print(F("JOB_ACK id=")); Serial.print(delivery.jobId);
         Serial.print(F(" result="));
-        Serial.println(delivery.result == CM::JobDeliveryResult::Accepted ? F("ACCEPTED_READY") : F("NOT_ACCEPTED"));
+        Serial.println(delivery.result == CM::JobDeliveryResult::Accepted
+                           ? F("ACCEPTED_READY") : F("NOT_ACCEPTED"));
     }
 }
 

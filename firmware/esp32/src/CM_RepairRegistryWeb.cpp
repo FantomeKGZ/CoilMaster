@@ -295,6 +295,18 @@ void RepairRegistryWeb::handleListRepairs()
         return;
     }
 
+    String statusFilter;
+    if (m_server.hasArg("status"))
+    {
+        statusFilter = m_server.arg("status");
+        if (statusFilter != "OPEN" && statusFilter != "CLOSED")
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_repair_status\"}");
+            return;
+        }
+    }
+
     uint32_t cursor = 0UL;
     uint8_t limit = 20U;
     if (!parsePaging(m_server, cursor, limit))
@@ -311,6 +323,7 @@ void RepairRegistryWeb::handleListRepairs()
     bool hasMore = false;
     if (!m_registry.appendRepairsPageJson(response,
                                           clientId,
+                                          statusFilter,
                                           cursor,
                                           limit,
                                           count,

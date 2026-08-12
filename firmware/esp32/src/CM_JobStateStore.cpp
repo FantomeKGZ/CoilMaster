@@ -56,9 +56,10 @@ bool JobStateStore::create(uint32_t jobId,
     }
     if (found)
     {
+        // TIMED_OUT is deliberately not terminal: all JOB_ACK frames may have
+        // been lost after Arduino accepted the job, so operator review is needed.
         const bool terminalDelivery =
             latest.deliveryState == JobDeliveryState::Rejected ||
-            latest.deliveryState == JobDeliveryState::TimedOut ||
             latest.deliveryState == JobDeliveryState::Cancelled;
         const bool terminalExecution =
             latest.executionState == JobExecutionState::ProgramCompleted ||
@@ -259,6 +260,7 @@ bool JobStateStore::closeAfterManualReview(uint32_t sessionId,
         state.executionState == JobExecutionState::Running ||
         state.executionState == JobExecutionState::Fault ||
         state.deliveryState == JobDeliveryState::Delivering ||
+        state.deliveryState == JobDeliveryState::TimedOut ||
         (state.deliveryState == JobDeliveryState::Accepted &&
          state.executionState == JobExecutionState::WaitingPhysicalStart);
     if (!reviewRequired) return false;

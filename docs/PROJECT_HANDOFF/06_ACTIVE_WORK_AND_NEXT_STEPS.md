@@ -341,16 +341,26 @@ ESP32 Build: SUCCESS
 CMP Protocol Tests: SUCCESS
 ```
 
-## Next pagination boundary
+## Completed: materials and warehouse pagination — 2026-08-12
 
-Repo audit confirmed remaining unbounded storage/API readers:
+The remaining growing material and warehouse readers are now bounded at storage + HTTP boundaries:
 
 ```text
-GET /api/materials
-GET /api/materials/adjustments
-GET /api/materials/usage
-GET /api/warehouse/spools
-GET /api/warehouse/write-offs
+GET /api/materials               default 20, maximum 32
+GET /api/materials/adjustments   default 20, maximum 32
+GET /api/materials/usage         default 20, maximum 32
+GET /api/warehouse/spools        default 20, maximum 32
+GET /api/warehouse/write-offs    default 20, maximum 32
 ```
 
-Next implement cursor pagination at storage + HTTP boundaries first, then update mobile/desktop consumers. Preserve exact repair filters, spool/material semantics, strict NDJSON validation and fail-closed behavior. Do not implement UI-only truncation that leaves an unbounded ESP32 response.
+Mobile and desktop consumers now keep only the selected page and expose Previous/Next navigation for catalogues, histories and repair selectors. Write-off aggregate mass/value/material totals still scan and validate the complete repair history, while the response contains only the requested row page.
+
+Verified code HEAD:
+
+```text
+53285422a646b488776013029a438f24faeabfc6
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+Exact repair filters, spool/material semantics, strict provenance and fail-closed behavior remain unchanged. The next scaling action should be selected from populated-device timing/RAM measurements or a concrete fault-test result, not another speculative catalogue refactor.

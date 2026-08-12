@@ -1,4 +1,5 @@
 #include "CM_RepairRegistry.h"
+#include "CM_FlatJsonObjectValidator.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -6,11 +7,15 @@ namespace CM
 bool RepairRegistry::appendSimilarMotorsJson(String& json,
                                              const NewMotor& candidate,
                                              uint16_t& sameProgramCount,
-                                             uint16_t& identityMatchCount) const
+                                             uint16_t& identityMatchCount,
+                                             uint8_t& returnedCount,
+                                             bool& itemsTruncated) const
 {
     sameProgramCount = 0U;
     identityMatchCount = 0U;
-    if (!m_ready) return false;
+    returnedCount = 0U;
+    itemsTruncated = false;
+    if (!ready()) return false;
     if (!WindingProgramParser::valid(candidate.coilProgram)) return false;
     if (!m_storage.exists(MotorsPath)) return true;
 
@@ -22,24 +27,50 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
     candidateManufacturer.trim(); candidateManufacturer.toLowerCase();
 
     File file = m_storage.open(MotorsPath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+    const size_t rawSize = file.size();
+    if (rawSize > 0xFFFFFFFFUL ||
+        (rawSize > 0U &&
+         (!file.seek(static_cast<uint32_t>(rawSize - 1U)) ||
+          file.read() != '\n' || !file.seek(0U))))
+    {
+        file.close();
+        return false;
+    }
 
     bool first = true;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        String program;
-        if (!findString(line, "coil_program", program) ||
-            !WindingProgramParser::equivalent(program, candidate.coilProgram))
-        {
-            continue;
-        }
+        if (line.length() == 0U) continue;
 
+        String program;
+        String name;
+        String model;
+        String manufacturer;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findString(line, "coil_program", program) ||
+            !findString(line, "name", name) ||
+            !findString(line, "model", model) ||
+            !findString(line, "manufacturer", manufacturer) ||
+            !WindingProgramParser::valid(program))
+        {
+            file.close();
+            return false;
+        }
+        if (!WindingProgramParser::equivalent(program, candidate.coilProgram))
+            continue;
+        if (sameProgramCount == 0xFFFFU)
+        {
+            file.close();
+            return false;
+        }
         ++sameProgramCount;
-        String name, model, manufacturer;
-        findString(line, "name", name);
-        findString(line, "model", model);
-        findString(line, "manufacturer", manufacturer);
+
         name.trim(); name.toLowerCase();
         model.trim(); model.toLowerCase();
         manufacturer.trim(); manufacturer.toLowerCase();
@@ -47,8 +78,26 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
         uint8_t identityScore = 0U;
         if (candidateName.length() > 0U && name == candidateName) ++identityScore;
         if (candidateModel.length() > 0U && model == candidateModel) ++identityScore;
-        if (candidateManufacturer.length() > 0U && manufacturer == candidateManufacturer) ++identityScore;
-        if (identityScore > 0U) ++identityMatchCount;
+        if (candidateManufacturer.length() > 0U &&
+            manufacturer == candidateManufacturer)
+        {
+            ++identityScore;
+        }
+        if (identityScore > 0U)
+        {
+            if (identityMatchCount == 0xFFFFU)
+            {
+                file.close();
+                return false;
+            }
+            ++identityMatchCount;
+        }
+
+        if (returnedCount >= MaxListPageSize)
+        {
+            itemsTruncated = true;
+            continue;
+        }
 
         if (!first) json += ',';
         first = false;
@@ -61,6 +110,7 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
         json += F("\",\"motor\":");
         json += line;
         json += '}';
+        ++returnedCount;
     }
     file.close();
     return true;

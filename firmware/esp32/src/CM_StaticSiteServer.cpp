@@ -4,6 +4,7 @@
 
 #include "CM_JobDisplayRecovery.h"
 #include "CM_JobSnapshotStore.h"
+#include "CM_JobSpoolSelectionStore.h"
 #include "CM_JobStateStore.h"
 
 namespace
@@ -153,10 +154,10 @@ void StaticSiteServer::begin(const char* webRoot)
         m_server.send(200, "application/json; charset=utf-8", response);
     });
 
-    // Operator-only recovery closure. The persisted state and immutable snapshot
-    // are revalidated here before closure. No automatic resume or physical START
-    // is performed. A restart is intentional so the closed job cannot remain in
-    // the in-memory active display after acknowledgement.
+    // Operator-only recovery closure. The persisted state, immutable snapshot
+    // and (for linked jobs) immutable exact spool selection are revalidated
+    // immediately before closure. No automatic resume or physical START occurs.
+    // Restart is intentional so no stale in-memory active job survives review.
     m_server.on("/api/recovery/acknowledge-and-restart", HTTP_POST, [this]()
     {
         if (!m_server.hasArg("session_id") || !m_server.hasArg("confirmed"))
@@ -211,12 +212,34 @@ void StaticSiteServer::begin(const char* webRoot)
         }
 
         JobSnapshotStore snapshots(m_storage);
+        JobSnapshot snapshot;
         if (!snapshots.begin() ||
-            !snapshots.validateIdentity(latest.jobId, latest.sessionId))
+            !snapshots.load(latest.sessionId, snapshot) ||
+            snapshot.jobId != latest.jobId)
         {
             m_server.send(500, "application/json",
                           "{\"error\":\"job_snapshot_identity_failed\"}");
             return;
+        }
+
+        if (snapshot.linkage.linked)
+        {
+            JobSpoolSelection selection;
+            bool selectionFound = false;
+            if (!JobSpoolSelectionStore::loadReadOnly(m_storage,
+                                                       latest.sessionId,
+                                                       selection,
+                                                       selectionFound) ||
+                !selectionFound || !selection.isValid() ||
+                selection.jobId != latest.jobId ||
+                selection.sessionId != latest.sessionId ||
+                selection.repairId != snapshot.linkage.repairId ||
+                selection.motorId != snapshot.linkage.motorId)
+            {
+                m_server.send(500, "application/json",
+                              "{\"error\":\"job_spool_selection_identity_failed\"}");
+                return;
+            }
         }
 
         if (!states.closeAfterManualReview(sessionId, millis()))

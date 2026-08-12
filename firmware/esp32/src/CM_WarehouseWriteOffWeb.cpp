@@ -29,6 +29,19 @@ void WarehouseWeb::handleListWriteOffs()
                       "{\"error\":\"repair_id_required\"}");
         return;
     }
+    uint32_t cursor = 0UL;
+    uint32_t parsedLimit = 20UL;
+    if ((m_server.hasArg("cursor") &&
+         !parseUnsignedArg(m_server, "cursor", 0UL, 0xFFFFFFFFUL, cursor)) ||
+        (m_server.hasArg("limit") &&
+         !parseUnsignedArg(m_server, "limit", 1UL,
+                           WarehouseMaxListPageSize, parsedLimit)))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_paging_parameters\"}");
+        return;
+    }
+
     bool repairFound = false;
     if (!m_store.repairExists(repairId, repairFound))
     {
@@ -53,15 +66,16 @@ void WarehouseWeb::handleListWriteOffs()
     response += repairId;
     response += F(",\"items\":[");
     uint16_t count = 0U;
+    uint16_t totalMatchingCount = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
     uint32_t totalConsumed = 0UL;
     uint64_t totalValueMinor = 0ULL;
     WriteOffMaterialTotals materialTotals;
-    if (!m_store.appendConfirmedWriteOffsJson(response,
-                                               repairId,
-                                               count,
-                                               totalConsumed,
-                                               totalValueMinor,
-                                               materialTotals))
+    if (!m_store.appendConfirmedWriteOffsPageJson(
+            response, repairId, cursor, static_cast<uint8_t>(parsedLimit),
+            count, totalMatchingCount, nextCursor, hasMore,
+            totalConsumed, totalValueMinor, materialTotals))
     {
         if (!m_store.ready())
         {
@@ -88,6 +102,15 @@ void WarehouseWeb::handleListWriteOffs()
     char valueBuffer[24];
 
     response += F("],\"count\":"); response += count;
+    response += F(",\"returned_count\":"); response += count;
+    response += F(",\"total_count\":"); response += totalMatchingCount;
+    response += F(",\"cursor\":"); response += cursor;
+    response += F(",\"limit\":"); response += parsedLimit;
+    response += F(",\"max_page_size\":"); response += WarehouseMaxListPageSize;
+    response += F(",\"has_more\":"); response += hasMore ? F("true") : F("false");
+    response += F(",\"next_cursor\":");
+    if (hasMore) response += nextCursor;
+    else response += F("null");
     response += F(",\"total_consumed_g\":"); response += totalConsumed;
     snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
              static_cast<unsigned long long>(totalValueMinor));
@@ -112,7 +135,7 @@ void WarehouseWeb::handleListWriteOffs()
     response += F(",\"material_totals_match_total\":");
     response += materialConsumed == totalConsumed ? F("true") : F("false");
     response += F(",\"material_count_match_count\":");
-    response += materialCount == static_cast<uint32_t>(count) ? F("true") : F("false");
+    response += materialCount == static_cast<uint32_t>(totalMatchingCount) ? F("true") : F("false");
     response += F(",\"material_values_match_total\":");
     response += materialValue == totalValueMinor ? F("true") : F("false");
     response += F(",\"value_rounding\":\"NEAREST_MINOR_UNIT\"}");

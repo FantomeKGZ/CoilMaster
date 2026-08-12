@@ -155,6 +155,83 @@ bool RepairRegistry::appendMotorsPageJson(String& json,
     return true;
 }
 
+bool RepairRegistry::resolveRepairPageStatuses(
+    const uint32_t* repairIds,
+    uint8_t repairCount,
+    bool* closed,
+    String* closedAt) const
+{
+    if (!ready() || repairIds == nullptr || closed == nullptr ||
+        closedAt == nullptr || repairCount > MaxListPageSize)
+    {
+        return false;
+    }
+
+    for (uint8_t index = 0U; index < repairCount; ++index)
+    {
+        if (repairIds[index] == 0UL) return false;
+        closed[index] = false;
+        closedAt[index] = String();
+    }
+    if (repairCount == 0U || !m_storage.exists(RepairStatusPath)) return true;
+
+    File statusFile = m_storage.open(RepairStatusPath, FILE_READ);
+    if (!statusFile || statusFile.isDirectory())
+    {
+        if (statusFile) statusFile.close();
+        return false;
+    }
+    const size_t rawSize = statusFile.size();
+    if (rawSize > 0xFFFFFFFFUL)
+    {
+        statusFile.close();
+        return false;
+    }
+    if (rawSize > 0U &&
+        (!statusFile.seek(static_cast<uint32_t>(rawSize - 1U)) ||
+         statusFile.read() != '\n' || !statusFile.seek(0U)))
+    {
+        statusFile.close();
+        return false;
+    }
+
+    while (statusFile.available())
+    {
+        const String line = statusFile.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        uint32_t candidateRepairId = 0UL;
+        String status;
+        String candidateClosedAt;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "repair_id", candidateRepairId) ||
+            candidateRepairId == 0UL ||
+            !findString(line, "status", status) || status != "CLOSED" ||
+            !findString(line, "closed_at", candidateClosedAt) ||
+            candidateClosedAt.length() < 10U)
+        {
+            statusFile.close();
+            return false;
+        }
+
+        for (uint8_t index = 0U; index < repairCount; ++index)
+        {
+            if (repairIds[index] != candidateRepairId) continue;
+            if (closed[index])
+            {
+                statusFile.close();
+                return false;
+            }
+            closed[index] = true;
+            closedAt[index] = candidateClosedAt;
+            break;
+        }
+    }
+
+    statusFile.close();
+    return true;
+}
+
 bool RepairRegistry::appendRepairsPageJson(String& json,
                                            uint32_t clientId,
                                            uint32_t cursor,
@@ -183,7 +260,8 @@ bool RepairRegistry::appendRepairsPageJson(String& json,
         return false;
     }
 
-    bool first = true;
+    String pageLines[MaxListPageSize];
+    uint32_t repairIds[MaxListPageSize];
     while (file.available() && count < limit)
     {
         const String line = file.readStringUntil('\n');
@@ -204,23 +282,35 @@ bool RepairRegistry::appendRepairsPageJson(String& json,
         }
         if (clientId > 0UL && lineClientId != clientId) continue;
 
-        bool closed = false;
-        String closedAt;
-        if (!repairClosed(repairId, closed, closedAt))
-        {
-            file.close();
-            return false;
-        }
+        pageLines[count] = line;
+        repairIds[count] = repairId;
+        ++count;
+    }
 
-        String decorated = line;
+    finishPage(file, fileSize, nextCursor, hasMore);
+    file.close();
+
+    bool closed[MaxListPageSize];
+    String closedAt[MaxListPageSize];
+    if (!resolveRepairPageStatuses(repairIds,
+                                   static_cast<uint8_t>(count),
+                                   closed,
+                                   closedAt))
+    {
+        return false;
+    }
+
+    for (uint16_t index = 0U; index < count; ++index)
+    {
+        String& decorated = pageLines[index];
         decorated.remove(decorated.length() - 1U);
         decorated += F(",\"current_status\":\"");
-        decorated += closed ? F("CLOSED") : F("OPEN");
+        decorated += closed[index] ? F("CLOSED") : F("OPEN");
         decorated += F("\",\"closed_at\":");
-        if (closed)
+        if (closed[index])
         {
             decorated += '"';
-            decorated += jsonEscape(closedAt);
+            decorated += jsonEscape(closedAt[index]);
             decorated += '"';
         }
         else
@@ -229,14 +319,9 @@ bool RepairRegistry::appendRepairsPageJson(String& json,
         }
         decorated += '}';
 
-        if (!first) json += ',';
-        first = false;
+        if (index > 0U) json += ',';
         json += decorated;
-        ++count;
     }
-
-    finishPage(file, fileSize, nextCursor, hasMore);
-    file.close();
     return true;
 }
 }

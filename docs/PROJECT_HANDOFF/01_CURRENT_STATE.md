@@ -363,3 +363,29 @@ Verification for code HEAD `52b6e2a69664bc150a51978b292b437079bd1933`:
 ESP32 Build: SUCCESS
 CMP Protocol Tests: SUCCESS
 ```
+
+## Browser-visible pagination checkpoint — 2026-08-12
+
+The main growing UI collections no longer reconstruct an entire paged registry/archive in browser memory.
+
+Paged at 20 visible records with cursor-backed Previous/Next navigation in both mobile and desktop:
+
+- clients;
+- motors;
+- repairs;
+- winding history;
+- monthly report rows.
+
+Repair creation now loads only the selected client and motor through exact `/by-id` endpoints instead of downloading both complete catalogs into `select` elements. Costing scans the exact repair winding archive page-by-page using streaming counters and latest-completion state rather than storing every event.
+
+A pre-existing invalid desktop repair winding-program regex was also corrected.
+
+Code checkpoint:
+
+```text
+df632cd17aec82af6861fcdcf552a3ef90e20224
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+The monthly financial total intentionally still verifies every CLOSED repair in the selected month; only visible report rows are paged. This preserves authoritative totals while bounding rendered DOM size.

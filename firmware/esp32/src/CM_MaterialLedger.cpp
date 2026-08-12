@@ -70,18 +70,54 @@ bool MaterialLedger::addMaterial(const NewMaterial& material,
     return true;
 }
 
-bool MaterialLedger::appendMaterialsJson(String& json, uint16_t& count) const
+bool MaterialLedger::appendMaterialsPageJson(String& json,
+                                               uint32_t cursor,
+                                               uint8_t limit,
+                                               uint16_t& count,
+                                               uint32_t& nextCursor,
+                                               bool& hasMore) const
 {
     count = 0U;
-    if (!ready()) return false;
-    if (!m_storage.exists(MaterialsPath)) return true;
+    nextCursor = 0UL;
+    hasMore = false;
+    if (!ready() || limit == 0U || limit > MaxListPageSize) return false;
+    if (!m_storage.exists(MaterialsPath)) return cursor == 0UL;
 
     File file = m_storage.open(MaterialsPath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    const size_t rawSize = file.size();
+    if (rawSize > 0xFFFFFFFFUL || cursor > rawSize)
+    {
+        file.close();
+        return false;
+    }
+    const uint32_t fileSize = static_cast<uint32_t>(rawSize);
+    if (fileSize > 0UL &&
+        (!file.seek(fileSize - 1UL) || file.read() != '\n'))
+    {
+        file.close();
+        return false;
+    }
+    if (cursor > 0UL &&
+        (!file.seek(cursor - 1UL) || file.read() != '\n'))
+    {
+        file.close();
+        return false;
+    }
+    if (!file.seek(cursor))
+    {
+        file.close();
+        return false;
+    }
 
     bool first = true;
     uint32_t previousId = 0UL;
-    while (file.available())
+    while (file.available() && count < limit)
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
@@ -123,13 +159,12 @@ bool MaterialLedger::appendMaterialsJson(String& json, uint16_t& count) const
         if (!first) json += ',';
         first = false;
         json += line;
-        if (count == 0xFFFFU)
-        {
-            file.close();
-            return false;
-        }
         ++count;
     }
+
+    const uint32_t pageEnd = static_cast<uint32_t>(file.position());
+    hasMore = pageEnd < fileSize;
+    nextCursor = hasMore ? pageEnd : 0UL;
     file.close();
     return true;
 }

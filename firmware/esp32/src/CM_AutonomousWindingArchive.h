@@ -94,6 +94,7 @@ private:
     static constexpr const char* AssignmentsPath = "/data/autonomous-windings/assignments.ndjson";
 
     bool ensureDirectories();
+    bool loadLastEvent(RemoteWindingEvent& event, bool& found) const;
     bool findEventReplay(const RemoteWindingEvent& event,
                          bool& exactMatch,
                          bool& conflict) const;

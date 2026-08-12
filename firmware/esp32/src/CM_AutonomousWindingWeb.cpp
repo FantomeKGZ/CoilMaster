@@ -160,26 +160,43 @@ void AutonomousWindingWeb::handleAssign()
         return;
     }
 
-    bool taskFound = false;
-    if (!m_archive.completedTaskExists(sessionId, runId, taskFound))
-    {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"autonomous_winding_archive_integrity_failed\"}");
-        return;
-    }
-    if (!taskFound)
-    {
-        m_server.send(404, "application/json; charset=utf-8",
-                      "{\"error\":\"autonomous_winding_not_found\"}");
-        return;
-    }
-
     uint32_t assignmentId = 0UL;
-    if (!m_archive.assignMotor(sessionId, runId, motorId, role, assignmentId))
+    const AutonomousWindingAssignResult result =
+        m_archive.assignMotorChecked(sessionId,
+                                     runId,
+                                     motorId,
+                                     role,
+                                     assignmentId);
+
+    switch (result)
     {
-        m_server.send(500, "application/json; charset=utf-8",
-                      "{\"error\":\"autonomous_winding_assignment_failed\"}");
-        return;
+        case AutonomousWindingAssignResult::TaskNotFound:
+            m_server.send(404, "application/json; charset=utf-8",
+                          "{\"error\":\"autonomous_winding_not_found\"}");
+            return;
+
+        case AutonomousWindingAssignResult::ArchiveIntegrityFailed:
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"autonomous_winding_archive_integrity_failed\"}");
+            return;
+
+        case AutonomousWindingAssignResult::StorageUnavailable:
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"autonomous_winding_archive_unavailable\"}");
+            return;
+
+        case AutonomousWindingAssignResult::Invalid:
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_autonomous_winding_assignment\"}");
+            return;
+
+        case AutonomousWindingAssignResult::WriteFailed:
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"autonomous_winding_assignment_failed\"}");
+            return;
+
+        case AutonomousWindingAssignResult::Assigned:
+            break;
     }
 
     String response = F("{\"assigned\":true,\"assignment_id\":");

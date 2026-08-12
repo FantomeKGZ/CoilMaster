@@ -424,3 +424,27 @@ Format and example:
 
 - `docs/MOTOR_IMPORT_FORMAT.md`
 - `docs/examples/motor-import.example.json`
+
+
+## Settings and navigation audit — 2026-08-12
+
+Desktop and mobile settings now link to motor import, material catalogue, backup export, pricing audit, winding history, autonomous Arduino archive, recovery, Wi-Fi and FTP status pages.
+
+The warehouse price and conductor conversion settings were traced through their real GET/POST handlers and persistent stores. Their UIs now reject non-success GET responses instead of presenting an API error as an unconfigured/default value.
+
+Network capability boundary remains explicit:
+
+- fixed password-protected `CoilMaster` fallback AP is implemented and starts in firmware;
+- saved STA profiles, priority selection and static IP are not implemented;
+- FTP backend, credentials and start/stop control are not implemented;
+- the Wi-Fi/FTP pages therefore remain truthful read-only capability/status pages and expose no fake controls.
+
+CI now runs `Tests/Web/check_web_assets.js` to compile every embedded script, reject duplicate HTML IDs, and reject missing static internal page targets.
+
+Verified code checkpoint:
+
+```text
+a2faccb7a19bb4e96cf6982c93af241cc46da6f6
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web navigation audit: SUCCESS
+```

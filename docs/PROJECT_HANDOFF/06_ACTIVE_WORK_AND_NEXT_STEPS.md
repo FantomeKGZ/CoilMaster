@@ -318,3 +318,39 @@ CMP Protocol Tests: SUCCESS
 ```
 
 Next work must be selected from measured populated-dataset timings or a concrete correctness/fault-test result. Do not introduce a database migration, destructive compaction, or arbitrary rotation threshold without evidence.
+
+## Completed: browser pagination of growing collections — 2026-08-12
+
+Closed for mobile + desktop:
+
+```text
+clients              20/page, cursor Previous/Next
+motors               20/page, cursor Previous/Next
+repairs              20/page, cursor Previous/Next
+winding history      20/page, cursor Previous/Next
+monthly report rows  20 visible/page
+repair selectors     exact selected client/motor only
+costing winding scan streaming counters, no full event array
+```
+
+Verified code HEAD:
+
+```text
+df632cd17aec82af6861fcdcf552a3ef90e20224
+ESP32 Build: SUCCESS
+CMP Protocol Tests: SUCCESS
+```
+
+## Next pagination boundary
+
+Repo audit confirmed remaining unbounded storage/API readers:
+
+```text
+GET /api/materials
+GET /api/materials/adjustments
+GET /api/materials/usage
+GET /api/warehouse/spools
+GET /api/warehouse/write-offs
+```
+
+Next implement cursor pagination at storage + HTTP boundaries first, then update mobile/desktop consumers. Preserve exact repair filters, spool/material semantics, strict NDJSON validation and fail-closed behavior. Do not implement UI-only truncation that leaves an unbounded ESP32 response.

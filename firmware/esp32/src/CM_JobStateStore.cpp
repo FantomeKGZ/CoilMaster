@@ -63,7 +63,7 @@ bool JobStateStore::create(uint32_t jobId,
         const bool terminalExecution =
             latest.executionState == JobExecutionState::ProgramCompleted ||
             latest.executionState == JobExecutionState::ClosedAfterReview;
-        if (latest.sessionId >= sessionId ||
+        if (latest.sessionId >= sessionId || latest.jobId >= jobId ||
             (!terminalDelivery && !terminalExecution))
         {
             return false;
@@ -119,44 +119,48 @@ bool JobStateStore::loadLatest(JobRuntimeState& state, bool& found) const
         if (!entry.isDirectory())
         {
             const String name = entry.name();
-            if (name.endsWith(F(".json")))
+            if (!name.endsWith(F(".json")))
             {
-                if (entry.size() == 0U || entry.size() >= 320U)
-                {
-                    entry.close();
-                    directory.close();
-                    return false;
-                }
+                entry.close();
+                directory.close();
+                return false;
+            }
 
-                const String input = entry.readString();
-                JobRuntimeState candidate;
-                if (!parse(input, candidate))
-                {
-                    entry.close();
-                    directory.close();
-                    return false;
-                }
+            if (entry.size() == 0U || entry.size() >= 320U)
+            {
+                entry.close();
+                directory.close();
+                return false;
+            }
 
-                const String expectedName = String(F("session-")) +
-                                            candidate.sessionId +
-                                            F(".json");
-                const int separator = name.lastIndexOf('/');
-                const String baseName = separator >= 0
-                    ? name.substring(separator + 1)
-                    : name;
-                if (baseName != expectedName)
-                {
-                    entry.close();
-                    directory.close();
-                    return false;
-                }
+            const String input = entry.readString();
+            JobRuntimeState candidate;
+            if (!parse(input, candidate))
+            {
+                entry.close();
+                directory.close();
+                return false;
+            }
 
-                if (candidate.sessionId > highestSessionId)
-                {
-                    highestSessionId = candidate.sessionId;
-                    state = candidate;
-                    found = true;
-                }
+            const String expectedName = String(F("session-")) +
+                                        candidate.sessionId +
+                                        F(".json");
+            const int separator = name.lastIndexOf('/');
+            const String baseName = separator >= 0
+                ? name.substring(separator + 1)
+                : name;
+            if (baseName != expectedName)
+            {
+                entry.close();
+                directory.close();
+                return false;
+            }
+
+            if (candidate.sessionId > highestSessionId)
+            {
+                highestSessionId = candidate.sessionId;
+                state = candidate;
+                found = true;
             }
         }
         entry.close();

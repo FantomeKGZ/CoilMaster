@@ -13,8 +13,11 @@ AutonomousWindingArchive::AutonomousWindingArchive(fs::FS& storage)
 bool AutonomousWindingArchive::begin()
 {
     m_ready = false;
-    if (!ensureDirectories() || !validateEvents() || !validateAssignments())
-        return false;
+    if (!ensureDirectories()) return false;
+
+    AutonomousWindingIntegrityMetrics metrics;
+    if (!validateStorage(m_storage, metrics)) return false;
+
     m_ready = true;
     return true;
 }
@@ -91,121 +94,6 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
         return AutonomousWindingSaveResult::WriteFailed;
     }
     return AutonomousWindingSaveResult::Saved;
-}
-
-bool AutonomousWindingArchive::appendTasksJson(String& json,
-                                               const String& programQuery,
-                                               uint8_t tolerancePercent,
-                                               uint16_t& count) const
-{
-    count = 0U;
-    if (!ready() || tolerancePercent > 50U) return false;
-    if (programQuery.length() > 0U && !WindingProgramParser::valid(programQuery))
-        return false;
-    if (!m_storage.exists(EventsPath)) return true;
-
-    File file = m_storage.open(EventsPath, FILE_READ);
-    if (!file || file.isDirectory())
-    {
-        if (file) file.close();
-        return false;
-    }
-
-    bool first = true;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-
-        RemoteWindingEvent event;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !parseEventRecord(line, event))
-        {
-            file.close();
-            return false;
-        }
-
-        const bool completedRecord = event.type == RemoteEventType::RunCompleted;
-        if (event.type == RemoteEventType::RunStarted)
-        {
-            bool completionExists = false;
-            if (!containsEvent(event.sessionId,
-                               event.runId,
-                               RemoteEventType::RunCompleted,
-                               completionExists))
-            {
-                file.close();
-                return false;
-            }
-            if (completionExists) continue;
-        }
-
-        const String program = programText(event);
-        if (programQuery.length() > 0U &&
-            !programMatches(program, programQuery, tolerancePercent))
-        {
-            continue;
-        }
-
-        AutonomousWindingAssignment assignment;
-        bool assigned = false;
-        if (completedRecord &&
-            !latestAssignment(event.sessionId, event.runId, assignment, assigned))
-        {
-            file.close();
-            return false;
-        }
-
-        uint32_t receivedUptimeMs = 0UL;
-        uint32_t startObserved = 0UL;
-        if (!findUnsigned(line, "received_uptime_ms", receivedUptimeMs) ||
-            !findUnsigned(line, "start_observed", startObserved) ||
-            startObserved > 1UL)
-        {
-            file.close();
-            return false;
-        }
-
-        if (!first) json += ',';
-        first = false;
-        json += F("{\"session_id\":");
-        json += event.sessionId;
-        json += F(",\"run_id\":");
-        json += event.runId;
-        json += F(",\"status\":\"");
-        json += completedRecord ? F("COMPLETED") : F("STARTED_NOT_COMPLETED");
-        json += F("\",\"winding_type\":\"");
-        json += windingTypeName(event.jobType);
-        json += F("\",\"coil_count\":");
-        json += event.coilCount;
-        json += F(",\"program\":\"");
-        json += program;
-        json += F("\",\"completed_runs\":");
-        json += event.completedRuns;
-        json += F(",\"start_observed\":");
-        json += startObserved == 1UL ? F("true") : F("false");
-        json += F(",\"received_uptime_ms\":");
-        json += receivedUptimeMs;
-        json += F(",\"assigned_motor_id\":");
-        if (assigned) json += assignment.motorId;
-        else json += F("null");
-        json += F(",\"assignment_role\":");
-        if (assigned)
-        {
-            json += '"';
-            json += jsonEscape(assignment.role);
-            json += '"';
-        }
-        else json += F("null");
-        json += F(",\"assignment_id\":");
-        if (assigned) json += assignment.assignmentId;
-        else json += F("null");
-        json += '}';
-        ++count;
-    }
-
-    file.close();
-    return true;
 }
 
 bool AutonomousWindingArchive::completedTaskExists(uint32_t sessionId,
@@ -308,114 +196,6 @@ bool AutonomousWindingArchive::ensureDirectories()
     return true;
 }
 
-bool AutonomousWindingArchive::validateEvents() const
-{
-    if (!m_storage.exists(EventsPath)) return true;
-    File file = m_storage.open(EventsPath, FILE_READ);
-    if (!file || file.isDirectory())
-    {
-        if (file) file.close();
-        return false;
-    }
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        RemoteWindingEvent event;
-        uint32_t startObserved = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !parseEventRecord(line, event) ||
-            !findUnsigned(line, "start_observed", startObserved) ||
-            startObserved > 1UL)
-        {
-            file.close();
-            return false;
-        }
-        if (event.type == RemoteEventType::RunStarted && startObserved != 1UL)
-        {
-            file.close();
-            return false;
-        }
-        if (event.type == RemoteEventType::RunCompleted && startObserved == 1UL)
-        {
-            bool startFound = false;
-            if (!matchingStartExists(event, startFound) || !startFound)
-            {
-                file.close();
-                return false;
-            }
-        }
-    }
-    file.close();
-    return true;
-}
-
-bool AutonomousWindingArchive::validateAssignments() const
-{
-    if (!m_storage.exists(AssignmentsPath)) return true;
-    File file = m_storage.open(AssignmentsPath, FILE_READ);
-    if (!file || file.isDirectory())
-    {
-        if (file) file.close();
-        return false;
-    }
-
-    uint32_t previousId = 0UL;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        AutonomousWindingAssignment assignment;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !parseAssignment(line, assignment) ||
-            assignment.assignmentId <= previousId)
-        {
-            file.close();
-            return false;
-        }
-        bool taskFound = false;
-        if (!completedTaskExists(assignment.sessionId, assignment.runId, taskFound) ||
-            !taskFound)
-        {
-            file.close();
-            return false;
-        }
-        previousId = assignment.assignmentId;
-    }
-    file.close();
-    return true;
-}
-
-bool AutonomousWindingArchive::containsEvent(uint32_t sessionId,
-                                             uint32_t runId,
-                                             RemoteEventType type,
-                                             bool& found) const
-{
-    found = false;
-    if (!m_storage.exists(EventsPath)) return true;
-    File file = m_storage.open(EventsPath, FILE_READ);
-    if (!file) return false;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        RemoteWindingEvent event;
-        if (!FlatJsonObjectValidator::valid(line) || !parseEventRecord(line, event))
-        {
-            file.close();
-            return false;
-        }
-        if (event.sessionId == sessionId && event.runId == runId && event.type == type)
-        {
-            found = true;
-            file.close();
-            return true;
-        }
-    }
-    file.close();
-    return true;
-}
-
 bool AutonomousWindingArchive::findEventReplay(const RemoteWindingEvent& event,
                                                bool& exactMatch,
                                                bool& conflict) const
@@ -501,37 +281,6 @@ bool AutonomousWindingArchive::matchingStartExists(const RemoteWindingEvent& eve
             found = true;
             file.close();
             return true;
-        }
-    }
-    file.close();
-    return true;
-}
-
-bool AutonomousWindingArchive::latestAssignment(
-    uint32_t sessionId,
-    uint32_t runId,
-    AutonomousWindingAssignment& assignment,
-    bool& found) const
-{
-    assignment = AutonomousWindingAssignment();
-    found = false;
-    if (!m_storage.exists(AssignmentsPath)) return true;
-    File file = m_storage.open(AssignmentsPath, FILE_READ);
-    if (!file) return false;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        AutonomousWindingAssignment candidate;
-        if (!FlatJsonObjectValidator::valid(line) || !parseAssignment(line, candidate))
-        {
-            file.close();
-            return false;
-        }
-        if (candidate.sessionId == sessionId && candidate.runId == runId)
-        {
-            assignment = candidate;
-            found = true;
         }
     }
     file.close();

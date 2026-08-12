@@ -71,6 +71,34 @@ bool PersistentIdAllocator::allocate(uint32_t& jobId, uint32_t& sessionId)
         return false;
     }
 
+    // Re-read the authoritative state immediately before allocation. The
+    // allocator must fail closed if the card disappeared or id-state was
+    // modified/corrupted after begin(); RAM high-water alone is not authority.
+    uint32_t persistedJobId = 0UL;
+    uint32_t persistedSessionId = 0UL;
+    if (m_fileSystem.exists(TempPath) ||
+        !m_fileSystem.exists(StatePath) ||
+        !loadState(StatePath, persistedJobId, persistedSessionId) ||
+        persistedJobId != m_lastJobId ||
+        persistedSessionId != m_lastSessionId)
+    {
+        m_ready = false;
+        return false;
+    }
+
+    if (m_fileSystem.exists(BackupPath))
+    {
+        uint32_t backupJobId = 0UL;
+        uint32_t backupSessionId = 0UL;
+        if (!loadState(BackupPath, backupJobId, backupSessionId) ||
+            backupJobId > persistedJobId ||
+            backupSessionId > persistedSessionId)
+        {
+            m_ready = false;
+            return false;
+        }
+    }
+
     const uint32_t candidateJobId = m_lastJobId + 1UL;
     const uint32_t candidateSessionId = m_lastSessionId + 1UL;
     if (candidateJobId == 0UL || candidateSessionId == 0UL ||

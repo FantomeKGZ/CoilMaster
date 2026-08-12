@@ -364,3 +364,10 @@ CMP Protocol Tests: SUCCESS
 ```
 
 Exact repair filters, spool/material semantics, strict provenance and fail-closed behavior remain unchanged. The next scaling action should be selected from populated-device timing/RAM measurements or a concrete fault-test result, not another speculative catalogue refactor.
+
+
+## Completed: safe motor and winding import preparation — 2026-08-12
+
+Implemented a backward-compatible sourced motor schema plus desktop/mobile JSON import pages. A batch is limited to 50 records in browser memory, preview is non-mutating, similarity checks run before import, and identity matches are skipped by default. Every sourced entry carries an explicit source category, title and confidence; calculated values remain visibly marked.
+
+This prepares the database for researched data packages without treating web search results as verified factory truth. Actual collection/import should proceed in reviewed manufacturer/series batches.

@@ -61,9 +61,9 @@ void MotorSimilarityWeb::handleLookup()
     response += F(",\"identity_match_count\":");
     response += identityMatchCount;
     response += F(",\"returned_count\":");
-    response += returnedCount;
+    response += static_cast<unsigned int>(returnedCount);
     response += F(",\"max_items\":");
-    response += RepairRegistry::MaxListPageSize;
+    response += static_cast<unsigned int>(RepairRegistry::MaxListPageSize);
     response += F(",\"items_truncated\":");
     response += itemsTruncated ? F("true") : F("false");
     response += F(",\"creation_blocked\":false}");

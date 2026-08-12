@@ -992,7 +992,6 @@ void processJobDelivery()
         }
 
         jobAwaitingAck = false;
-        lastArduinoEventMs = millis();
 
         if (delivery.result == CM::JobDeliveryResult::TimedOut)
         {
@@ -1013,6 +1012,13 @@ void processJobDelivery()
             continue;
         }
 
+        if (delivery.result == CM::JobDeliveryResult::Accepted ||
+            delivery.result == CM::JobDeliveryResult::Rejected)
+        {
+            // Only a parsed JOB_ACK proves that Arduino was heard. Locally
+            // generated timeout/cancel results must not make arduino_online true.
+            lastArduinoEventMs = millis();
+        }
         activeJobId = delivery.jobId;
         lastJobResult = delivery.result;
         recoveryInfo.mayCreateNewJob =
@@ -1031,7 +1037,8 @@ void processJobCancel()
     while (receiver.takeJobCancel(cancel))
     {
         jobCancelAwaitingAck = false;
-        lastArduinoEventMs = millis();
+        if (cancel.result != CM::JobCancelResult::TimedOut)
+            lastArduinoEventMs = millis();
 
         if (cancel.jobId == 0UL || cancel.jobId != activeJobId)
         {

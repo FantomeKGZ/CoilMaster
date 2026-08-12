@@ -5,6 +5,12 @@
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
 
+Полный актуальный continuation checkpoint текущего чата сохранён в:
+
+```text
+23_CHAT_CONTINUATION_2026-08-12.md
+```
+
 ## Hardware production status
 
 На реальном стенде подтверждены:
@@ -85,6 +91,7 @@ GitHub CI не считать green без фактического result.
 20_AUTONOMOUS_ARCHIVE_PAGING_2026-08-12.md
 21_AUTONOMOUS_ARCHIVE_BOOT_AND_APPEND_SCALING_2026-08-12.md
 22_WORKSHOP_REGISTRY_SCALING_2026-08-12.md
+23_CHAT_CONTINUATION_2026-08-12.md
 ```
 
 Ключевые safety результаты:
@@ -134,7 +141,7 @@ Cursor не разделяет normal `RUN_STARTED/RUN_COMPLETED` pair.
 
 Непустой NDJSON обязан заканчиваться `\n`; interrupted append fail-closed.
 
-## Workshop registry — scaling state
+## Workshop registry — current scaling state
 
 Authoritative files:
 
@@ -146,34 +153,58 @@ Authoritative files:
 /data/repairs/pricing.ndjson
 ```
 
-### Bounded list readers
+### Bounded list readers are now mandatory/default
 
-Добавлены cursor pages max 32 для:
+Для:
 
 ```text
-/api/clients
-/api/motors
-/api/repairs
+GET /api/clients
+GET /api/motors
+GET /api/repairs
 ```
 
-Если request содержит `limit` или `cursor`, response содержит:
+любой list request теперь bounded, даже если `cursor`/`limit` отсутствуют:
 
 ```text
+cursor default 0
+limit default 20
+limit max 32
 count
-limit
-cursor
 has_more
 next_cursor
 max_page_size
 ```
 
-Основные mobile/desktop clients, motors, repairs и Arduino archive уже используют paged reads.
+Legacy unbounded response mode удалён.
 
-Legacy GET без `limit/cursor` временно оставлен, потому что ещё есть старые страницы, которые ожидают полный list response. Не удалять его до окончания consumer migration.
+Ключевой commit:
+
+```text
+a6a136d0ed595825441b58faedae932dd89b1586
+Make workshop list paging mandatory
+```
+
+Legacy formatter declarations и implementations удалены:
+
+```text
+e81f34c98600393b160f5f1b0f9c0234e3031498
+Remove legacy unbounded registry formatters
+
+a4282018b5deeaa989494ec46f57975f8f47edad
+Remove legacy unbounded registry readers
+```
+
+Удалены:
+
+```text
+appendClientsJson()
+appendMotorsJson()
+appendRepairsJson()
+```
+
+`appendSimilarMotorsJson()` остаётся отдельным similarity API.
 
 ### Exact lookup
-
-Добавлены:
 
 ```text
 GET /api/clients/by-id?client_id=...
@@ -181,9 +212,23 @@ GET /api/motors/by-id?motor_id=...
 GET /api/repairs/by-id?repair_id=...
 ```
 
-Mobile costing уже использует exact lookup и больше не перечисляет всю business database ради одной карточки.
+Exact lookup fail-closed отклоняет duplicate matching identity.
 
-Desktop costing и как минимум один winding-job screen на текущем checkpoint ещё используют legacy full GET; их мигрировать до bounded-default switch.
+### Legacy consumers migrated
+
+На exact/paged reads переведены:
+
+```text
+desktop costing
+mobile + desktop linked winding
+mobile + desktop reports
+mobile + desktop wire writeoff lifecycle
+mobile + desktop materials lifecycle
+```
+
+Reports агрегируют repair pages по 32 и exact lookup client/motor только для нужных ремонтов. Финансовый итог остаётся fail-closed.
+
+Pricing-audit уже использовал scoped costing/history API и отдельной миграции не требовал.
 
 ### Business-data integrity / boot
 
@@ -198,38 +243,67 @@ CLOSED status   batches of 32 + exact-one status occurrence
 pricing refs    batches of 32
 ```
 
-`RepairRegistry::begin()` теперь использует:
+`RepairRegistry::begin()` использует:
 
 ```text
 BackupBusinessDataIntegrityAudit::checkWorkshopRegistry()
 ```
 
-и больше не запускает legacy nested validators.
+`nextId()` проходит monotonic ID ledger одним строгим проходом.
 
-`nextId()` также один раз проходит monotonic ID ledger вместо O(n^2) duplicate scans.
+## Текущая точка выполнения
 
-## UI deployment note
+Consumer migration и удаление legacy unbounded workshop readers завершены в repo.
 
-Изменены несколько файлов `firmware/esp32/web/mobile` и `desktop`.
+Активная задача — compile-safety audit после этого cleanup:
 
-После успешного firmware build/upload полностью заменить microSD `/web` актуальным repo `firmware/esp32/web`. Не делать overlay поверх старого `/web`.
+1. сверить declarations/definitions между:
+   - `CM_RepairRegistry.h`;
+   - `CM_RepairRegistry.cpp`;
+   - `CM_RepairRegistryPage.cpp`;
+   - `CM_RepairRegistryLookup.cpp`;
+   - `CM_RepairRegistrySimilarity.cpp`;
+2. убедиться, что нет stale references на удалённые `appendClientsJson / appendMotorsJson / appendRepairsJson`;
+3. проверить cursor semantics: default `0/20`, max `32`, record-boundary validation, корректный progress `has_more/next_cursor`, filters across pages;
+4. после repo compile-safety — clean ESP32 build.
 
 ## Следующее действие
-
-Перед дальнейшим крупным firmware refactor нужен clean build текущего HEAD:
 
 ```powershell
 pio run -e esp32 -t clean
 pio run -e esp32
 ```
 
-После `SUCCESS` продолжить:
+Build считать подтверждённым только после реального `SUCCESS` от пользователя.
 
-1. мигрировать desktop costing и оставшиеся legacy registry consumers на exact/paged reads;
-2. сделать clients/motors/repairs bounded mode default и удалить unbounded formatter path;
-3. оптимизировать repair status lookup внутри repair pages только если build/runtime текущего batch успешен;
-4. снять populated-dataset timings через `/api/backup/manifest`;
-5. segmentation/rotation thresholds вводить только по фактическим latency и размерам файлов;
-6. DB migration/destructive compaction не вводить без доказанной необходимости.
+После `SUCCESS`:
+
+```powershell
+pio run -e esp32 -t upload
+```
+
+Затем полностью заменить microSD `/web` актуальным repo `firmware/esp32/web`. Не делать overlay поверх старого `/web`.
+
+Runtime smoke check после upload:
+
+```text
+/api/clients
+/api/motors
+/api/repairs
+```
+
+Без args каждый endpoint должен вернуть только bounded first page с page metadata.
+
+Также проверить exact by-ID endpoints и основные mobile/desktop screens: clients, motors, repairs, costing, linked winding context, reports, writeoff, materials.
+
+## Следующий performance review после успешного build/runtime
+
+`appendRepairsPageJson()` уже ограничивает число repair rows максимум 32, но текущий `repairClosed()` может сканировать status ledger отдельно для каждой строки страницы. Это потенциальный growing-I/O path.
+
+Оптимизировать его только после успешного build/runtime текущего batch, предпочтительно через bounded/batched status resolution для одной страницы, без преждевременной смены storage format.
+
+После этого снять populated-dataset timings через `/api/backup/manifest`.
+
+Segmentation/rotation threshold вводить только по фактическим latency/size metrics. DB migration/destructive compaction без доказанной необходимости не вводить.
 
 Основная новая функциональность сейчас не приоритет. Проект находится в production-hardening/performance phase.

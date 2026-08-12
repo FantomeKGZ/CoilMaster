@@ -67,7 +67,9 @@ public:
     bool appendSimilarMotorsJson(String& json,
                                  const NewMotor& candidate,
                                  uint16_t& sameProgramCount,
-                                 uint16_t& identityMatchCount) const;
+                                 uint16_t& identityMatchCount,
+                                 uint8_t& returnedCount,
+                                 bool& itemsTruncated) const;
 
     // Bounded page readers. Cursor is an opaque byte offset returned by the
     // previous call and must point to an NDJSON record boundary.

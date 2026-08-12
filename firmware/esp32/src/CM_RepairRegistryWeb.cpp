@@ -256,6 +256,165 @@ void RepairRegistryWeb::handleCreateMotor()
     motor.tags = m_server.arg("tags");
     motor.coilProgram = m_server.arg("coil_program");
     motor.comment = m_server.arg("comment");
+
+    auto optionalUnsigned = [this](const char* name,
+                                   uint32_t maximum,
+                                   uint32_t& value) -> bool
+    {
+        value = 0UL;
+        if (!m_server.hasArg(name) || m_server.arg(name).length() == 0U)
+            return true;
+        return parseUnsigned(m_server, name, 1UL, maximum, value);
+    };
+    uint32_t parsed = 0UL;
+    if (!optionalUnsigned("rated_power_w", 100000000UL, motor.ratedPowerW) ||
+        !optionalUnsigned("rated_voltage_v", 50000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.ratedVoltageV = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("rated_current_ma", 100000000UL, motor.ratedCurrentMa) ||
+        !optionalUnsigned("rated_speed_rpm", 60000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.ratedSpeedRpm = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("frequency_hz", 1000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.frequencyHz = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("phases", 3UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.phases = static_cast<uint8_t>(parsed);
+    if (!optionalUnsigned("slot_count", 1000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.slotCount = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("pole_count", 128UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.poleCount = static_cast<uint8_t>(parsed);
+    if (!optionalUnsigned("coil_pitch", 1000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.coilPitch = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("turns_per_coil", 9999UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.turnsPerCoil = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("wire_diameter_hundredths_mm", 10000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.wireDiameterHundredthsMm = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("parallel_strands", 255UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.parallelStrands = static_cast<uint8_t>(parsed);
+    if (!optionalUnsigned("stator_bore_mm", 10000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.statorBoreMm = static_cast<uint16_t>(parsed);
+    if (!optionalUnsigned("stator_core_length_mm", 10000UL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_numeric_field\"}");
+        return;
+    }
+    motor.statorCoreLengthMm = static_cast<uint16_t>(parsed);
+
+    motor.connection = m_server.arg("connection");
+    motor.connection.toUpperCase();
+    motor.windingType = m_server.arg("winding_type");
+    motor.wireMaterial = m_server.arg("wire_material");
+    motor.wireMaterial.toUpperCase();
+    motor.sourceType = m_server.arg("source_type");
+    motor.sourceType.toUpperCase();
+    motor.sourceUrl = m_server.arg("source_url");
+    motor.sourceTitle = m_server.arg("source_title");
+    motor.sourceRetrievedAt = m_server.arg("source_retrieved_at");
+    motor.confidence = m_server.arg("confidence");
+    motor.confidence.toUpperCase();
+
+    const bool validConnection = motor.connection.length() == 0U ||
+                                 motor.connection == "Y" ||
+                                 motor.connection == "DELTA" ||
+                                 motor.connection == "Y/DELTA";
+    const bool validWireMaterial = motor.wireMaterial.length() == 0U ||
+                                   motor.wireMaterial == "CU" ||
+                                   motor.wireMaterial == "AL";
+    const bool validSourceType = motor.sourceType.length() == 0U ||
+                                 motor.sourceType == "MANUFACTURER" ||
+                                 motor.sourceType == "TECHNICAL_REFERENCE" ||
+                                 motor.sourceType == "REPAIR_RECORD" ||
+                                 motor.sourceType == "CALCULATED" ||
+                                 motor.sourceType == "UNVERIFIED";
+    const bool validConfidence = motor.confidence.length() == 0U ||
+                                 motor.confidence == "VERIFIED" ||
+                                 motor.confidence == "CORROBORATED" ||
+                                 motor.confidence == "CALCULATED" ||
+                                 motor.confidence == "UNVERIFIED";
+    if (!validConnection || !validWireMaterial ||
+        !validSourceType || !validConfidence)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_classification_field\"}");
+        return;
+    }
+
+    if (m_server.hasArg("calculated_fields"))
+    {
+        const String value = m_server.arg("calculated_fields");
+        if (value != "true" && value != "false" &&
+            value != "1" && value != "0")
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_calculated_fields\"}");
+            return;
+        }
+        motor.calculatedFields = value == "true" || value == "1";
+    }
+
+    if (motor.sourceType.length() > 0U &&
+        (motor.sourceTitle.length() == 0U ||
+         motor.confidence.length() == 0U))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"source_title_and_confidence_required\"}");
+        return;
+    }
+
     uint32_t motorId = 0UL;
     if (!m_registry.addMotor(motor, motorId))
     {

@@ -51,6 +51,11 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
         return BackupActivityCheck::Unavailable;
     if (!found) return BackupActivityCheck::Safe;
 
+    // CLOSED_AFTER_REVIEW is an explicit operator-confirmed terminal state. It
+    // overrides the historical delivery state that led to manual review.
+    if (latest.executionState == JobExecutionState::ClosedAfterReview)
+        return BackupActivityCheck::Safe;
+
     // Fail closed on every persisted state where physical inactivity cannot be
     // proven. TIMED_OUT is ambiguous because Arduino may have accepted the JOB
     // while every acknowledgement was lost.

@@ -21,6 +21,39 @@ struct NewMotor
     String tags;
     String coilProgram;
     String comment;
+    uint32_t ratedPowerW;
+    uint16_t ratedVoltageV;
+    uint32_t ratedCurrentMa;
+    uint16_t ratedSpeedRpm;
+    uint16_t frequencyHz;
+    uint8_t phases;
+    uint16_t slotCount;
+    uint8_t poleCount;
+    uint16_t coilPitch;
+    uint16_t turnsPerCoil;
+    uint16_t wireDiameterHundredthsMm;
+    uint8_t parallelStrands;
+    uint16_t statorBoreMm;
+    uint16_t statorCoreLengthMm;
+    String connection;
+    String windingType;
+    String wireMaterial;
+    String sourceType;
+    String sourceUrl;
+    String sourceTitle;
+    String sourceRetrievedAt;
+    String confidence;
+    bool calculatedFields;
+
+    NewMotor()
+        : ratedPowerW(0UL), ratedVoltageV(0U), ratedCurrentMa(0UL),
+          ratedSpeedRpm(0U), frequencyHz(0U), phases(0U), slotCount(0U),
+          poleCount(0U), coilPitch(0U), turnsPerCoil(0U),
+          wireDiameterHundredthsMm(0U), parallelStrands(0U),
+          statorBoreMm(0U), statorCoreLengthMm(0U),
+          calculatedFields(false)
+    {
+    }
 };
 
 struct NewRepair

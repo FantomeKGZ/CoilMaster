@@ -103,15 +103,21 @@ public:
                                  uint16_t& count,
                                  uint32_t& nextCursor,
                                  bool& hasMore) const;
-    bool appendAdjustmentHistoryJson(String& json,
-                                     uint32_t materialId,
-                                     uint16_t limit,
-                                     uint16_t& count) const;
-    bool appendUsageHistoryJson(String& json,
-                                uint32_t repairId,
-                                uint32_t materialId,
-                                uint16_t limit,
-                                uint16_t& count) const;
+    bool appendAdjustmentHistoryPageJson(String& json,
+                                         uint32_t materialId,
+                                         uint32_t cursor,
+                                         uint8_t limit,
+                                         uint16_t& count,
+                                         uint32_t& nextCursor,
+                                         bool& hasMore) const;
+    bool appendUsageHistoryPageJson(String& json,
+                                    uint32_t repairId,
+                                    uint32_t materialId,
+                                    uint32_t cursor,
+                                    uint8_t limit,
+                                    uint16_t& count,
+                                    uint32_t& nextCursor,
+                                    bool& hasMore) const;
     bool confirmUsage(const RepairMaterialUsage& usage,
                       RepairMaterialUsageResult& result);
 

@@ -29,6 +29,11 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
   a.addEventListener('click',()=>localStorage.setItem('cm-ui-version',target));
   box.appendChild(a);
   document.body.appendChild(box);
+  if(rest==='/backup.html'){
+    const helper=document.createElement('script');
+    helper.src='/shared/backup-remote-upload.js';
+    document.body.appendChild(helper);
+  }
 })();
 </script>
 )HTML";

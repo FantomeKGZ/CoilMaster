@@ -3,6 +3,7 @@
 #include <WiFi.h>
 
 #include "CM_BackupActivityGuard.h"
+#include "CM_BackupExportWeb.h"
 
 namespace CM
 {
@@ -97,7 +98,8 @@ RemoteBackupWeb::RemoteBackupWeb(WebServer& server,
                                  RemoteBackupSettingsStore& settingsStore)
     : m_server(server),
       m_storage(storage),
-      m_settingsStore(settingsStore) {}
+      m_settingsStore(settingsStore),
+      m_transfer(storage) {}
 
 void RemoteBackupWeb::begin()
 {
@@ -107,6 +109,21 @@ void RemoteBackupWeb::begin()
                 [this]() { handleSetConfiguration(); });
     m_server.on("/api/backup/remote/test", HTTP_POST,
                 [this]() { handleTestConnection(); });
+    m_server.on("/api/backup/remote/upload", HTTP_POST,
+                [this]() { handleStartUpload(); });
+    m_server.on("/api/backup/remote/status", HTTP_GET,
+                [this]() { handleUploadStatus(); });
+}
+
+void RemoteBackupWeb::update(uint32_t nowMs)
+{
+    m_transfer.update(nowMs);
+}
+
+void RemoteBackupWeb::setActivityProbe(
+    BackupActivityGuard::RuntimeProbe activityProbe)
+{
+    m_transfer.setActivityProbe(activityProbe);
 }
 
 void RemoteBackupWeb::handleGetConfiguration()
@@ -288,5 +305,95 @@ void RemoteBackupWeb::handleTestConnection()
     }
     m_server.send(200, "application/json; charset=utf-8",
                   "{\"connected\":true,\"authenticated\":true,\"remote_directory_ready\":true}");
+}
+
+void RemoteBackupWeb::handleStartUpload()
+{
+    if (m_transfer.active())
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    if (!m_server.hasArg("name"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_name_required\"}");
+        return;
+    }
+    String stabilityReason;
+    if (!BackupExportWeb::snapshotStable(m_storage, stabilityReason))
+    {
+        String response = F("{\"error\":\"snapshot_unstable\",\"reason\":\"");
+        response += stabilityReason;
+        response += F("\"}");
+        m_server.send(409, "application/json; charset=utf-8", response);
+        return;
+    }
+    String localPath, remoteName;
+    const String logicalName = m_server.arg("name");
+    if (!BackupExportWeb::resolveExportFile(logicalName,
+                                            localPath,
+                                            remoteName))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_file_not_allowed\"}");
+        return;
+    }
+    if (!m_storage.exists(localPath))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"backup_file_not_found\"}");
+        return;
+    }
+    RemoteBackupSettings settings;
+    bool configured = false;
+    if (!m_settingsStore.load(settings, configured) || !configured ||
+        !settings.enabled)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_not_enabled\"}");
+        return;
+    }
+    if (!m_transfer.start(settings, logicalName, localPath, remoteName))
+    {
+        m_server.send(502, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_start_failed\"}");
+        return;
+    }
+    m_server.send(202, "application/json; charset=utf-8",
+                  "{\"accepted\":true,\"state\":\"FTP_NEGOTIATION\"}");
+}
+
+void RemoteBackupWeb::handleUploadStatus()
+{
+    String response;
+    response.reserve(260U);
+    response = F("{\"state\":\""); response += m_transfer.stateName();
+    response += F("\",\"active\":");
+    response += m_transfer.active() ? F("true") : F("false");
+    response += F(",\"succeeded\":");
+    response += m_transfer.succeeded() ? F("true") : F("false");
+    response += F(",\"name\":\""); response += m_transfer.logicalName();
+    response += F("\",\"bytes_sent\":"); response += m_transfer.bytesSent();
+    response += F(",\"bytes_total\":"); response += m_transfer.bytesTotal();
+    response += F(",\"error\":");
+    if (m_transfer.error().length() > 0U)
+    {
+        response += '"'; response += m_transfer.error(); response += '"';
+    }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 }

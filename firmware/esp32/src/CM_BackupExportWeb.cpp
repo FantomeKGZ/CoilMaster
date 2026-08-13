@@ -521,6 +521,27 @@ bool BackupExportWeb::ready() const
     return available;
 }
 
+bool BackupExportWeb::resolveExportFile(const String& name,
+                                        String& path,
+                                        String& downloadName)
+{
+    path = String();
+    downloadName = String();
+    const ExportFileDefinition* definition = findDefinition(name);
+    if (definition == nullptr) return false;
+    path = definition->path;
+    downloadName = definition->downloadName;
+    return true;
+}
+
+bool BackupExportWeb::snapshotStable(fs::FS& storage, String& reason)
+{
+    SnapshotAuditMetrics metrics;
+    const char* failure = snapshotStabilityReason(storage, metrics);
+    reason = failure != nullptr ? failure : "";
+    return failure == nullptr;
+}
+
 void BackupExportWeb::handleManifest()
 {
     if (!ready())

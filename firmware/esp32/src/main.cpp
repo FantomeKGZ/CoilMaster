@@ -1162,6 +1162,7 @@ void setup()
     networkProfilesReady = sdReady && networkProfiles.begin();
     restoreLatestJobState();
     CM::BackupActivityGuard::setRuntimeProbe(backupRuntimeActivity);
+    remoteBackupWeb.setActivityProbe(backupRuntimeActivity);
 
     networkManagerReady =
         networkManager.begin(AccessPointName, AccessPointPassword);
@@ -1194,4 +1195,5 @@ void loop()
     while (receiver.poll(event)) handleEvent(event);
     processJobDelivery();
     processJobCancel();
+    remoteBackupWeb.update(nowMs);
 }

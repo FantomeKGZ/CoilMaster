@@ -22,6 +22,13 @@ public:
     void handleSessions();
     void handleSessionFile();
 
+    // Resolves only the fixed backup whitelist. The returned path is never
+    // derived from a request path.
+    static bool resolveExportFile(const String& name,
+                                  String& path,
+                                  String& downloadName);
+    static bool snapshotStable(fs::FS& storage, String& reason);
+
 private:
     WebServer& m_server;
     fs::FS& m_storage;

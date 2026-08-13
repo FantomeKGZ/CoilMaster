@@ -28,6 +28,22 @@ public:
                                   String& path,
                                   String& downloadName);
     static bool snapshotStable(fs::FS& storage, String& reason);
+    static size_t exportFileCount();
+    static bool resolveExportFileAt(size_t index,
+                                    String& logicalName,
+                                    String& path,
+                                    String& downloadName);
+    static bool nextSessionId(fs::FS& storage,
+                              uint32_t afterSessionId,
+                              uint32_t& sessionId,
+                              bool& found);
+    static bool resolveSessionFile(fs::FS& storage,
+                                   uint32_t sessionId,
+                                   uint8_t kindIndex,
+                                   String& logicalName,
+                                   String& path,
+                                   String& downloadName,
+                                   bool& exists);
 
 private:
     WebServer& m_server;

@@ -9,6 +9,15 @@ namespace CM
 {
 namespace
 {
+constexpr const char* BatchSequencePath =
+    "/data/settings/remote-backup-sequence.txt";
+constexpr const char* BatchSequenceTempPath =
+    "/data/settings/remote-backup-sequence.tmp";
+constexpr const char* BatchSequenceBackupPath =
+    "/data/settings/remote-backup-sequence.bak";
+constexpr const char* BatchMarkerPath =
+    "/data/settings/remote-backup-complete.txt";
+
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
                             uint32_t maximum,
@@ -113,11 +122,35 @@ void RemoteBackupWeb::begin()
                 [this]() { handleStartUpload(); });
     m_server.on("/api/backup/remote/status", HTTP_GET,
                 [this]() { handleUploadStatus(); });
+    m_server.on("/api/backup/remote/batch", HTTP_POST,
+                [this]() { handleStartBatch(); });
+    m_server.on("/api/backup/remote/batch-status", HTTP_GET,
+                [this]() { handleBatchStatus(); });
 }
 
 void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
+    if (m_batchStage != BatchStage::MainFiles &&
+        m_batchStage != BatchStage::SessionFiles &&
+        m_batchStage != BatchStage::Marker) return;
+    if (m_transfer.active()) return;
+    if (!m_transfer.succeeded())
+    {
+        failBatch(m_transfer.error().c_str());
+        return;
+    }
+    ++m_batchFilesCompleted;
+    if (m_batchStage == BatchStage::Marker)
+    {
+        m_storage.remove(BatchMarkerPath);
+        m_batchStage = BatchStage::Complete;
+        return;
+    }
+    if (!startNextBatchFile() &&
+        m_batchStage != BatchStage::Complete &&
+        m_batchStage != BatchStage::Failed)
+        failBatch("batch_next_file_failed");
 }
 
 void RemoteBackupWeb::setActivityProbe(
@@ -309,7 +342,9 @@ void RemoteBackupWeb::handleTestConnection()
 
 void RemoteBackupWeb::handleStartUpload()
 {
-    if (m_transfer.active())
+    if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
+        m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Marker)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -395,5 +430,249 @@ void RemoteBackupWeb::handleUploadStatus()
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleStartBatch()
+{
+    if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
+        m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Marker)
+    {
+        m_server.send(409, "application/json",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    String stabilityReason;
+    if (activity != BackupActivityCheck::Safe ||
+        !BackupExportWeb::snapshotStable(m_storage, stabilityReason))
+    {
+        m_server.send(activity == BackupActivityCheck::Unavailable ? 503 : 409,
+                      "application/json",
+                      "{\"error\":\"stable_snapshot_required\"}");
+        return;
+    }
+    bool configured = false;
+    if (!m_settingsStore.load(m_batchSettings, configured) || !configured ||
+        !m_batchSettings.enabled || WiFi.status() != WL_CONNECTED)
+    {
+        m_server.send(409, "application/json",
+                      "{\"error\":\"remote_backup_not_ready\"}");
+        return;
+    }
+    if (!allocateBatchId(m_batchId))
+    {
+        m_server.send(500, "application/json",
+                      "{\"error\":\"backup_batch_id_failed\"}");
+        return;
+    }
+    m_batchMainIndex = 0U;
+    m_batchAfterSessionId = 0UL;
+    m_batchSessionId = 0UL;
+    m_batchKindIndex = 0U;
+    m_batchFilesCompleted = 0UL;
+    m_batchError = String();
+    m_batchStage = BatchStage::MainFiles;
+    if (!startNextBatchFile())
+    {
+        failBatch("batch_first_file_failed");
+        m_server.send(500, "application/json",
+                      "{\"error\":\"backup_batch_start_failed\"}");
+        return;
+    }
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += m_batchId; response += '}';
+    m_server.send(202, "application/json", response);
+}
+
+void RemoteBackupWeb::handleBatchStatus()
+{
+    const char* state = "IDLE";
+    if (m_batchStage == BatchStage::MainFiles) state = "MAIN_FILES";
+    else if (m_batchStage == BatchStage::SessionFiles) state = "SESSION_FILES";
+    else if (m_batchStage == BatchStage::Marker) state = "FINALIZING";
+    else if (m_batchStage == BatchStage::Complete) state = "COMPLETED";
+    else if (m_batchStage == BatchStage::Failed) state = "FAILED";
+    String response = F("{\"state\":\""); response += state;
+    response += F("\",\"active\":");
+    response += (m_batchStage == BatchStage::MainFiles ||
+                 m_batchStage == BatchStage::SessionFiles ||
+                 m_batchStage == BatchStage::Marker) ? F("true") : F("false");
+    response += F(",\"batch_id\":");
+    if (m_batchId > 0UL) response += m_batchId; else response += F("null");
+    response += F(",\"files_completed\":"); response += m_batchFilesCompleted;
+    response += F(",\"current_name\":\""); response += m_transfer.logicalName();
+    response += F("\",\"bytes_sent\":"); response += m_transfer.bytesSent();
+    response += F(",\"bytes_total\":"); response += m_transfer.bytesTotal();
+    response += F(",\"error\":");
+    if (m_batchError.length() > 0U)
+    { response += '"'; response += m_batchError; response += '"'; }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+bool RemoteBackupWeb::allocateBatchId(uint32_t& batchId)
+{
+    batchId = 0UL;
+    auto readSequence = [this](const char* path, uint32_t& value) -> bool
+    {
+        value = 0UL;
+        if (!m_storage.exists(path)) return false;
+        File file = m_storage.open(path, FILE_READ);
+        if (!file || file.isDirectory())
+        { if (file) file.close(); return false; }
+        const String line = file.readStringUntil('\n');
+        const String extra = file.readStringUntil('\n');
+        file.close();
+        return extra.length() == 0U &&
+               parseCanonicalUnsigned(line, 0UL, 0xFFFFFFFEUL, value);
+    };
+    uint32_t mainValue = 0UL, tempValue = 0UL, backupValue = 0UL;
+    bool mainValid = readSequence(BatchSequencePath, mainValue);
+    const bool tempExists = m_storage.exists(BatchSequenceTempPath);
+    const bool backupExists = m_storage.exists(BatchSequenceBackupPath);
+    if (tempExists || backupExists)
+    {
+        const bool tempValid = readSequence(BatchSequenceTempPath, tempValue);
+        const bool backupValid = readSequence(BatchSequenceBackupPath, backupValue);
+        if (mainValid)
+        {
+            if (tempExists && !m_storage.remove(BatchSequenceTempPath)) return false;
+            if (backupExists && !m_storage.remove(BatchSequenceBackupPath)) return false;
+        }
+        else if (tempValid)
+        {
+            if (m_storage.exists(BatchSequencePath) &&
+                !m_storage.remove(BatchSequencePath)) return false;
+            if (!m_storage.rename(BatchSequenceTempPath, BatchSequencePath)) return false;
+            if (backupExists && !m_storage.remove(BatchSequenceBackupPath)) return false;
+            mainValue = tempValue;
+            mainValid = true;
+        }
+        else if (backupValid)
+        {
+            if (m_storage.exists(BatchSequencePath) &&
+                !m_storage.remove(BatchSequencePath)) return false;
+            if (tempExists && !m_storage.remove(BatchSequenceTempPath)) return false;
+            if (!m_storage.rename(BatchSequenceBackupPath, BatchSequencePath)) return false;
+            mainValue = backupValue;
+            mainValid = true;
+        }
+        else return false;
+    }
+    uint32_t current = 0UL;
+    if (m_storage.exists(BatchSequencePath))
+    {
+        if (!mainValid) return false;
+        current = mainValue;
+    }
+    const uint32_t next = current + 1UL;
+    File temp = m_storage.open(BatchSequenceTempPath, FILE_WRITE);
+    if (!temp) return false;
+    String value = String(next) + '\n';
+    const bool written = temp.print(value) == value.length();
+    temp.flush(); temp.close();
+    if (!written) { m_storage.remove(BatchSequenceTempPath); return false; }
+    if (m_storage.exists(BatchSequenceBackupPath) &&
+        !m_storage.remove(BatchSequenceBackupPath))
+    { m_storage.remove(BatchSequenceTempPath); return false; }
+    if (m_storage.exists(BatchSequencePath) &&
+        !m_storage.rename(BatchSequencePath, BatchSequenceBackupPath))
+    { m_storage.remove(BatchSequenceTempPath); return false; }
+    if (!m_storage.rename(BatchSequenceTempPath, BatchSequencePath))
+    {
+        if (!m_storage.exists(BatchSequencePath) &&
+            m_storage.exists(BatchSequenceBackupPath))
+            m_storage.rename(BatchSequenceBackupPath, BatchSequencePath);
+        return false;
+    }
+    if (m_storage.exists(BatchSequenceBackupPath) &&
+        !m_storage.remove(BatchSequenceBackupPath)) return false;
+    batchId = next;
+    return true;
+}
+
+bool RemoteBackupWeb::startNextBatchFile()
+{
+    const String prefix = String(F("cm-b")) + m_batchId + '-';
+    String logical, path, name;
+    if (m_batchStage == BatchStage::MainFiles)
+    {
+        while (m_batchMainIndex < BackupExportWeb::exportFileCount())
+        {
+            if (!BackupExportWeb::resolveExportFileAt(m_batchMainIndex++,
+                                                      logical, path, name))
+                return false;
+            if (!m_storage.exists(path)) continue;
+            return m_transfer.start(m_batchSettings, logical, path,
+                                    prefix + F("main-") + name);
+        }
+        m_batchStage = BatchStage::SessionFiles;
+    }
+    while (m_batchStage == BatchStage::SessionFiles)
+    {
+        if (m_batchSessionId == 0UL)
+        {
+            bool found = false;
+            if (!BackupExportWeb::nextSessionId(m_storage,
+                                                m_batchAfterSessionId,
+                                                m_batchSessionId,
+                                                found)) return false;
+            if (!found)
+            {
+                m_batchStage = BatchStage::Marker;
+                break;
+            }
+            m_batchKindIndex = 0U;
+        }
+        while (m_batchKindIndex < 3U)
+        {
+            bool exists = false;
+            if (!BackupExportWeb::resolveSessionFile(m_storage,
+                                                     m_batchSessionId,
+                                                     m_batchKindIndex++,
+                                                     logical, path, name,
+                                                     exists)) return false;
+            if (!exists) continue;
+            return m_transfer.start(m_batchSettings, logical, path,
+                                    prefix + F("session-") + name);
+        }
+        m_batchAfterSessionId = m_batchSessionId;
+        m_batchSessionId = 0UL;
+    }
+    if (m_batchStage == BatchStage::Marker)
+    {
+        String stabilityReason;
+        if (!BackupExportWeb::snapshotStable(m_storage, stabilityReason) ||
+            !createCompletionMarker()) return false;
+        return m_transfer.start(m_batchSettings, F("batch-complete"),
+                                BatchMarkerPath,
+                                prefix + F("COMPLETE.txt"));
+    }
+    return false;
+}
+
+bool RemoteBackupWeb::createCompletionMarker()
+{
+    if (m_storage.exists(BatchMarkerPath) &&
+        !m_storage.remove(BatchMarkerPath)) return false;
+    File marker = m_storage.open(BatchMarkerPath, FILE_WRITE);
+    if (!marker) return false;
+    String content = F("COILMASTER_BACKUP_COMPLETE\nbatch_id=");
+    content += m_batchId;
+    content += F("\nfiles_before_marker=");
+    content += m_batchFilesCompleted;
+    content += '\n';
+    const bool written = marker.print(content) == content.length();
+    marker.flush(); marker.close();
+    return written;
+}
+
+void RemoteBackupWeb::failBatch(const char* reason)
+{
+    m_batchError = reason != nullptr ? reason : "backup_batch_failed";
+    m_storage.remove(BatchMarkerPath);
+    m_batchStage = BatchStage::Failed;
 }
 }

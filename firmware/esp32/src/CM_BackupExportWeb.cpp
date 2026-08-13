@@ -542,6 +542,70 @@ bool BackupExportWeb::snapshotStable(fs::FS& storage, String& reason)
     return failure == nullptr;
 }
 
+size_t BackupExportWeb::exportFileCount()
+{
+    return ExportFileCount;
+}
+
+bool BackupExportWeb::resolveExportFileAt(size_t index,
+                                          String& logicalName,
+                                          String& path,
+                                          String& downloadName)
+{
+    logicalName = String(); path = String(); downloadName = String();
+    if (index >= ExportFileCount) return false;
+    logicalName = ExportFiles[index].name;
+    path = ExportFiles[index].path;
+    downloadName = ExportFiles[index].downloadName;
+    return true;
+}
+
+bool BackupExportWeb::nextSessionId(fs::FS& storage,
+                                    uint32_t afterSessionId,
+                                    uint32_t& sessionId,
+                                    bool& found)
+{
+    sessionId = 0UL;
+    found = false;
+    uint32_t ids[1] = {};
+    uint8_t count = 0U;
+    bool truncated = false;
+    SessionScanResult result = scanSessionDirectory(storage, SnapshotDirectory,
+                                                    afterSessionId, ids, count,
+                                                    1U, truncated);
+    if (result == SessionScanResult::Ok)
+        result = scanSessionDirectory(storage, SpoolSelectionDirectory,
+                                      afterSessionId, ids, count, 1U, truncated);
+    if (result == SessionScanResult::Ok)
+        result = scanSessionDirectory(storage, StateDirectory, afterSessionId,
+                                      ids, count, 1U, truncated);
+    if (result != SessionScanResult::Ok) return false;
+    if (count > 0U) { sessionId = ids[0]; found = true; }
+    return true;
+}
+
+bool BackupExportWeb::resolveSessionFile(fs::FS& storage,
+                                         uint32_t sessionId,
+                                         uint8_t kindIndex,
+                                         String& logicalName,
+                                         String& path,
+                                         String& downloadName,
+                                         bool& exists)
+{
+    logicalName = String(); path = String(); downloadName = String();
+    exists = false;
+    const char* kind = nullptr;
+    if (kindIndex == 0U) kind = "snapshot";
+    else if (kindIndex == 1U) kind = "spool-selection";
+    else if (kindIndex == 2U) kind = "state";
+    else return false;
+    path = sessionPath(kind, sessionId);
+    exists = storage.exists(path);
+    logicalName = String(kind) + F("-session-") + sessionId;
+    downloadName = logicalName + F(".json");
+    return true;
+}
+
 void BackupExportWeb::handleManifest()
 {
     if (!ready())

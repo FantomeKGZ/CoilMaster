@@ -26,6 +26,7 @@
 #include "CM_RemoteBackupWeb.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
+#include "CM_WebRecoveryFtpServer.h"
 #include "CM_WarehouseStore.h"
 #include "CM_WarehouseWeb.h"
 #include "CM_WindingJournal.h"
@@ -60,10 +61,11 @@ CM::RemoteBackupSettingsStore remoteBackupSettings(SD);
 CM::NetworkProfileStore networkProfiles(SD);
 CM::NetworkManager networkManager(networkProfiles);
 WebServer webServer(80);
+CM::WebRecoveryFtpServer webRecoveryFtp(webServer, SD);
 CM::RemoteBackupWeb remoteBackupWeb(webServer, SD, remoteBackupSettings);
 CM::NetworkWeb networkWeb(webServer, networkProfiles, networkManager);
 CM::JobSpoolSelectionWeb jobSpoolSelectionWeb(webServer, jobSpoolSelections);
-CM::StaticSiteServer staticSites(webServer, SD, networkManager);
+CM::StaticSiteServer staticSites(webServer, SD, networkManager, webRecoveryFtp);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
 CM::RepairRegistryWeb repairRegistryWeb(webServer, repairRegistry);
 CM::MotorSimilarityWeb motorSimilarityWeb(webServer, repairRegistry);
@@ -101,6 +103,7 @@ bool autonomousWindingArchiveReady = false;
 bool remoteBackupSettingsReady = false;
 bool networkProfilesReady = false;
 bool networkManagerReady = false;
+bool webRecoveryRequired = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -111,7 +114,9 @@ main{background:#fff;border-radius:16px;padding:24px;box-shadow:0 3px 16px #1721
 a{display:block;margin-top:12px;padding:13px;border-radius:10px;background:#1769aa;color:#fff;text-decoration:none;text-align:center}
 .warn{padding:12px;border-radius:10px;background:#fff1d8;color:#8a5300}
 </style></head><body><main><h1>CoilMaster</h1>
-<p class="warn">Веб-файлы на microSD не найдены. Скопируйте содержимое папки firmware/esp32/web в папку /web на карте памяти.</p>
+<p class="warn">Веб-файлы на microSD не найдены. Подключитесь к Wi-Fi <b>CoilMaster</b> и загрузите содержимое папки firmware/esp32/web через FTP в корень.</p>
+<p><b>FTP:</b> 192.168.4.1:21<br><b>Логин:</b> CoilMaster<br><b>Пароль:</b> CoilMaster123</p>
+<p>FTP видит только папку <code>/web</code>. После полной загрузки перезагрузите CoilMaster.</p>
 <a href="/api/status">Проверить API состояния</a></main></body></html>
 )HTML";
 
@@ -997,6 +1002,7 @@ void configureWebServer()
     autonomousWindingWeb.begin();
     remoteBackupWeb.begin();
     networkWeb.begin();
+    webRecoveryFtp.begin(webRecoveryRequired);
     warehouseWeb.begin();
     warehouseWeb.beginSpoolList();
     staticSites.begin("/web");
@@ -1149,6 +1155,7 @@ void setup()
     receiver.begin(ArduinoBaud, ArduinoRxPin, ArduinoTxPin);
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);
     const bool sdReady = SD.begin(SdCsPin, SPI);
+    webRecoveryRequired = sdReady && !SD.exists("/web");
     journalReady = sdReady && journal.begin();
     idAllocatorReady = sdReady && idAllocator.begin();
     jobSnapshotStoreReady = sdReady && jobSnapshots.begin();
@@ -1163,6 +1170,7 @@ void setup()
     restoreLatestJobState();
     CM::BackupActivityGuard::setRuntimeProbe(backupRuntimeActivity);
     remoteBackupWeb.setActivityProbe(backupRuntimeActivity);
+    webRecoveryFtp.setActivityProbe(backupRuntimeActivity);
 
     networkManagerReady =
         networkManager.begin(AccessPointName, AccessPointPassword);
@@ -1182,6 +1190,7 @@ void setup()
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(staticSites.windingHistoryReady() ? F("read-only winding history API ready") : F("WARNING: winding history API unavailable"));
     Serial.println(networkManagerReady ? F("Wi-Fi AP+STA manager ready") : F("WARNING: Wi-Fi manager unavailable"));
+    Serial.println(webRecoveryFtp.running() ? F("restricted /web recovery FTP ready at 192.168.4.1:21") : F("recovery FTP stopped; operator start available"));
     Serial.print(F("Open http://")); Serial.println(WiFi.softAPIP());
 }
 
@@ -1196,4 +1205,5 @@ void loop()
     processJobDelivery();
     processJobCancel();
     remoteBackupWeb.update(nowMs);
+    webRecoveryFtp.update(nowMs);
 }

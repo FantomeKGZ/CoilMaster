@@ -102,12 +102,14 @@ namespace CM
 {
 StaticSiteServer::StaticSiteServer(WebServer& server,
                                    fs::FS& storage,
-                                   NetworkManager& networkManager)
+                                   NetworkManager& networkManager,
+                                   WebRecoveryFtpServer& ftpServer)
     : m_server(server),
       m_storage(storage),
       m_windingHistoryQuery(storage),
       m_windingHistoryWeb(server, m_windingHistoryQuery),
       m_networkManager(networkManager),
+      m_ftpServer(ftpServer),
       m_webRoot("/web"),
       m_ready(false)
 {
@@ -166,7 +168,11 @@ void StaticSiteServer::begin(const char* webRoot)
         response += F("\",\"sta_rssi\":");
         response += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
         response += F(",\"saved_profiles_supported\":true,\"static_ip_supported\":false,");
-        response += F("\"ftp_supported\":false,\"ftp_enabled\":false}");
+        response += F("\"ftp_supported\":true,\"ftp_enabled\":");
+        response += m_ftpServer.running() ? F("true") : F("false");
+        response += F(",\"ftp_automatic_recovery\":");
+        response += m_ftpServer.automaticRecovery() ? F("true") : F("false");
+        response += F("}");
         m_server.send(200, "application/json; charset=utf-8", response);
     });
 
@@ -401,10 +407,10 @@ bool StaticSiteServer::serveCurrentRequest()
 
 bool StaticSiteServer::storageReady() const
 {
-    if (!m_ready) return false;
     File root = m_storage.open(m_webRoot, FILE_READ);
     if (!root) return false;
-    const bool ready = root.isDirectory();
+    const bool ready = root.isDirectory() &&
+                       m_storage.exists(m_webRoot + F("/index.html"));
     root.close();
     return ready;
 }

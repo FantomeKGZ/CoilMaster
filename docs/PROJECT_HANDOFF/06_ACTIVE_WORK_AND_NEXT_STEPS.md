@@ -378,3 +378,28 @@ This prepares the database for researched data packages without treating web sea
 All existing desktop/mobile maintenance pages are now reachable from Settings, and CI enforces embedded-JavaScript syntax plus internal-link integrity. Warehouse price and calculator settings are backed by validated persistent APIs; load failures are now shown as failures.
 
 Wi-Fi/FTP audit result: the fixed local AP is implemented, but configurable STA profiles/static IP and the FTP server are still planned rather than operational. Their current pages intentionally remain read-only status/capability pages. Implementing those services is a separate firmware/security block requiring credential persistence, fallback/recovery and real-device network tests.
+
+
+## Completed: verified ESP32 3 MiB application partition — 2026-08-13
+
+The 4 MiB ESP32-D0WD-V3 target has no PSRAM. Arduino IDE and PlatformIO now use the matching `Huge APP (3MB No OTA/1MB SPIFFS)` / `huge_app.csv` layout. Local and CI builds both report 14.4% static RAM and 36.8% application Flash use.
+
+Confirmed local build:
+
+```text
+RAM:   47336 / 327680 bytes (14.4%)
+Flash: 1158929 / 3145728 bytes (36.8%)
+ESP32 build: SUCCESS
+```
+
+Confirmed CI build at `fb656563da7737ebd51d2853b7f42c077790236d`:
+
+```text
+RAM:   47336 / 327680 bytes (14.4%)
+Flash: 1158861 / 3145728 bytes (36.8%)
+ESP32 Build: SUCCESS
+Arduino Uno Build: SUCCESS
+CMP Protocol Tests + web navigation audit: SUCCESS
+```
+
+There is now sufficient application-partition headroom for the bounded Wi-Fi manager and subsequently a restricted single-client FTP service. Runtime heap and real-device UART/SD concurrency still require measurement after each network stage.

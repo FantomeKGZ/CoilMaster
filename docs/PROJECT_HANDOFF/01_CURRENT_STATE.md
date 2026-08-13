@@ -448,3 +448,34 @@ a2faccb7a19bb4e96cf6982c93af241cc46da6f6
 ESP32 Build: SUCCESS
 CMP Protocol Tests + web navigation audit: SUCCESS
 ```
+
+
+## ESP32 application partition baseline — 2026-08-13
+
+The physical target was measured on-device:
+
+```text
+ESP32-D0WD-V3
+physical flash: 4 MiB
+PSRAM: absent
+CPU: 2 cores, 240 MHz
+flash mode: QIO, 80 MHz
+```
+
+Arduino IDE `Huge APP (3MB No OTA/1MB SPIFFS)` was tested successfully on the device. PlatformIO now pins the equivalent layout:
+
+```ini
+board_build.partitions = huge_app.csv
+```
+
+Verified at code commit `fb656563da7737ebd51d2853b7f42c077790236d`:
+
+```text
+ESP32 Build: SUCCESS
+RAM:   14.4% (47336 / 327680 bytes)
+Flash: 36.8% (1158861 / 3145728 bytes)
+Arduino Uno Build: SUCCESS
+CMP Protocol Tests + web navigation audit: SUCCESS
+```
+
+OTA is unavailable with this layout. CoilMaster is updated through USB; website and business data remain on microSD. This change does not alter START, reboot recovery, SSR ownership, or manual write-off rules.

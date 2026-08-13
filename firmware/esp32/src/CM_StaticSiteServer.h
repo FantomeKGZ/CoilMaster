@@ -7,13 +7,16 @@
 
 #include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalWeb.h"
+#include "CM_NetworkManager.h"
 
 namespace CM
 {
 class StaticSiteServer
 {
 public:
-    StaticSiteServer(WebServer& server, fs::FS& storage);
+    StaticSiteServer(WebServer& server,
+                     fs::FS& storage,
+                     NetworkManager& networkManager);
 
     // Registers explicit entry routes and static-file handling. webRoot
     // contains index.html, mobile/, desktop/ and sites/ on microSD.
@@ -38,6 +41,7 @@ private:
     fs::FS& m_storage;
     WindingJournalQuery m_windingHistoryQuery;
     WindingJournalWeb m_windingHistoryWeb;
+    NetworkManager& m_networkManager;
     String m_webRoot;
     bool m_ready;
 };

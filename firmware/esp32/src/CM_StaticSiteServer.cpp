@@ -95,11 +95,14 @@ bool streamHtmlWithUiSwitch(WebServer& server, File& file)
 
 namespace CM
 {
-StaticSiteServer::StaticSiteServer(WebServer& server, fs::FS& storage)
+StaticSiteServer::StaticSiteServer(WebServer& server,
+                                   fs::FS& storage,
+                                   NetworkManager& networkManager)
     : m_server(server),
       m_storage(storage),
       m_windingHistoryQuery(storage),
       m_windingHistoryWeb(server, m_windingHistoryQuery),
+      m_networkManager(networkManager),
       m_webRoot("/web"),
       m_ready(false)
 {
@@ -127,15 +130,23 @@ void StaticSiteServer::begin(const char* webRoot)
     m_server.on("/mobile", HTTP_GET, [this]() { redirect("/mobile/"); });
     m_server.on("/desktop", HTTP_GET, [this]() { redirect("/desktop/"); });
 
-    // Runtime-only status. Configuration persistence for STA profiles and the
-    // FTP service are intentionally reported as unavailable until their firmware
-    // modules are implemented; the UI must not pretend those controls work.
+    // Runtime-only status. Profile secrets remain in the separate bounded API.
     m_server.on("/api/system/network", HTTP_GET, [this]()
     {
         const wifi_mode_t mode = WiFi.getMode();
         String response = F("{\"mode\":\"");
         response += wifiModeName(mode);
-        response += F("\",\"ap_active\":");
+        response += F("\",\"network_state\":\"");
+        response += m_networkManager.stateName();
+        response += F("\",\"network_last_result\":\"");
+        response += m_networkManager.lastResult();
+        response += F("\",\"active_profile_id\":");
+        if (m_networkManager.activeProfileId() != 0U)
+            response += m_networkManager.activeProfileId();
+        else response += F("null");
+        response += F(",\"sta_connecting\":");
+        response += m_networkManager.connecting() ? F("true") : F("false");
+        response += F(",\"ap_active\":");
         response += (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) ? F("true") : F("false");
         response += F(",\"ap_ssid\":\"");
         response += WiFi.softAPSSID();
@@ -149,7 +160,7 @@ void StaticSiteServer::begin(const char* webRoot)
         if (WiFi.status() == WL_CONNECTED) response += WiFi.localIP().toString();
         response += F("\",\"sta_rssi\":");
         response += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
-        response += F(",\"saved_profiles_supported\":false,\"static_ip_supported\":false,");
+        response += F(",\"saved_profiles_supported\":true,\"static_ip_supported\":false,");
         response += F("\"ftp_supported\":false,\"ftp_enabled\":false}");
         m_server.send(200, "application/json; charset=utf-8", response);
     });

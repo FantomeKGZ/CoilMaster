@@ -16,6 +16,9 @@
 #include "CM_JobSpoolSelectionWeb.h"
 #include "CM_JobStateStore.h"
 #include "CM_MotorSimilarityWeb.h"
+#include "CM_NetworkManager.h"
+#include "CM_NetworkProfileStore.h"
+#include "CM_NetworkWeb.h"
 #include "CM_PersistentIdAllocator.h"
 #include "CM_RepairRegistry.h"
 #include "CM_RepairRegistryWeb.h"
@@ -54,10 +57,13 @@ CM::WarehouseStore warehouse(SD);
 CM::RepairRegistry repairRegistry(SD);
 CM::AutonomousWindingArchive autonomousWindingArchive(SD);
 CM::RemoteBackupSettingsStore remoteBackupSettings(SD);
+CM::NetworkProfileStore networkProfiles(SD);
+CM::NetworkManager networkManager(networkProfiles);
 WebServer webServer(80);
 CM::RemoteBackupWeb remoteBackupWeb(webServer, SD, remoteBackupSettings);
+CM::NetworkWeb networkWeb(webServer, networkProfiles, networkManager);
 CM::JobSpoolSelectionWeb jobSpoolSelectionWeb(webServer, jobSpoolSelections);
-CM::StaticSiteServer staticSites(webServer, SD);
+CM::StaticSiteServer staticSites(webServer, SD, networkManager);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
 CM::RepairRegistryWeb repairRegistryWeb(webServer, repairRegistry);
 CM::MotorSimilarityWeb motorSimilarityWeb(webServer, repairRegistry);
@@ -93,6 +99,8 @@ bool warehouseReady = false;
 bool repairRegistryReady = false;
 bool autonomousWindingArchiveReady = false;
 bool remoteBackupSettingsReady = false;
+bool networkProfilesReady = false;
+bool networkManagerReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -988,6 +996,7 @@ void configureWebServer()
     motorSimilarityWeb.begin();
     autonomousWindingWeb.begin();
     remoteBackupWeb.begin();
+    networkWeb.begin();
     warehouseWeb.begin();
     warehouseWeb.beginSpoolList();
     staticSites.begin("/web");
@@ -1150,16 +1159,18 @@ void setup()
     repairRegistryReady = sdReady && repairRegistry.begin();
     autonomousWindingArchiveReady = sdReady && autonomousWindingArchive.begin();
     remoteBackupSettingsReady = sdReady && remoteBackupSettings.begin();
+    networkProfilesReady = sdReady && networkProfiles.begin();
     restoreLatestJobState();
     CM::BackupActivityGuard::setRuntimeProbe(backupRuntimeActivity);
 
-    WiFi.mode(WIFI_AP);
-    const bool accessPointReady = WiFi.softAP(AccessPointName, AccessPointPassword);
+    networkManagerReady =
+        networkManager.begin(AccessPointName, AccessPointPassword);
     configureWebServer();
     Serial.println(F("CoilMaster ESP32 web portal ready"));
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
     Serial.println(autonomousWindingArchiveReady ? F("autonomous Arduino winding archive ready") : F("WARNING: autonomous Arduino winding archive unavailable"));
     Serial.println(remoteBackupSettingsReady ? F("remote FTP backup settings ready") : F("WARNING: remote FTP backup settings unavailable"));
+    Serial.println(networkProfilesReady ? F("Wi-Fi profile storage ready") : F("WARNING: Wi-Fi profile storage unavailable"));
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
     Serial.println(jobSpoolSelectionStoreReady ? F("immutable job spool selection store ready") : F("WARNING: job spool selection store unavailable; linked job creation blocked"));
@@ -1169,13 +1180,14 @@ void setup()
     Serial.println(warehouseReady ? F("microSD warehouse store ready") : F("WARNING: microSD warehouse store unavailable"));
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(staticSites.windingHistoryReady() ? F("read-only winding history API ready") : F("WARNING: winding history API unavailable"));
-    Serial.println(accessPointReady ? F("Wi-Fi AP CoilMaster ready") : F("WARNING: Wi-Fi AP failed"));
+    Serial.println(networkManagerReady ? F("Wi-Fi AP+STA manager ready") : F("WARNING: Wi-Fi manager unavailable"));
     Serial.print(F("Open http://")); Serial.println(WiFi.softAPIP());
 }
 
 void loop()
 {
     const uint32_t nowMs = millis();
+    networkManager.update(nowMs);
     webServer.handleClient();
     receiver.update(nowMs);
     CM::RemoteWindingEvent event;

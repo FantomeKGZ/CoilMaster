@@ -274,6 +274,29 @@ CMP Protocol Tests + web asset/navigation audit: SUCCESS
 REAL COMPLETE-BATCH TEST: PENDING
 ```
 
+Incoming website recovery FTP is now implemented. At boot the absence of
+`/web` is captured before the service creates that directory, and the server
+starts automatically on the fixed AP at `192.168.4.1:21`. If `/web` already
+exists it stays stopped until the operator uses the desktop/mobile FTP settings
+page. The fixed recovery account is `CoilMaster` / `CoilMaster123`.
+
+The service accepts one client from the CoilMaster AP subnet, maps FTP `/`
+strictly to microSD `/web`, rejects traversal, exposes no `/data` path, and has
+no anonymous login. It supports directory upload through passive FTP. `STOR`
+writes to `.part` and only replaces the target by rename after a complete data
+connection; an existing target is temporarily preserved as `.bak`. Runtime
+activity is fail-closed: the server cannot start unless safe idle is proven and
+is stopped if that condition changes. It never controls Arduino, SSR or START.
+
+```text
+2505e1f06a55cf251cfb54614e99d4c6277c5c8e
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 14.8% (48352 / 327680 bytes)
+Flash: 38.6% (1215773 / 3145728 bytes)
+REAL INCOMING-FTP DIRECTORY/INTERRUPTION TEST: PENDING
+```
+
 ## Read-only backup/export
 
 Endpoints:
@@ -473,12 +496,15 @@ Desktop and mobile settings now link to motor import, material catalogue, backup
 
 The warehouse price and conductor conversion settings were traced through their real GET/POST handlers and persistent stores. Their UIs now reject non-success GET responses instead of presenting an API error as an unconfigured/default value.
 
-Network capability boundary remains explicit:
+The older capability audit below is superseded by the network checkpoints in
+this file. Current network capability boundary is:
 
 - fixed password-protected `CoilMaster` fallback AP is implemented and starts in firmware;
-- saved STA profiles, priority selection and static IP are not implemented;
-- FTP backend, credentials and start/stop control are not implemented;
-- the Wi-Fi/FTP pages therefore remain truthful read-only capability/status pages and expose no fake controls.
+- up to five saved DHCP STA profiles and priority selection are implemented;
+- static IP and nearby-network scanning are not implemented;
+- restricted incoming `/web` FTP and its start/stop/status controls are implemented;
+- incoming FTP credentials are fixed recovery credentials and are intentionally
+  shown in the trusted-local-network UI; no business-data FTP root exists.
 
 CI now runs `Tests/Web/check_web_assets.js` to compile every embedded script, reject duplicate HTML IDs, and reject missing static internal page targets.
 

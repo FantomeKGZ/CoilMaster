@@ -487,3 +487,43 @@ Exact next verification:
    `COMPLETE.txt` marker.
 
 Do not enable retention until these checks pass.
+
+## Completed in firmware: restricted incoming `/web` FTP — 2026-08-13
+
+Implemented in `CM_WebRecoveryFtpServer` and integrated with `main.cpp`,
+`CM_StaticSiteServer` and both FTP settings pages.
+
+- automatic start is captured only when `/web` is absent at boot;
+- otherwise only explicit operator start/stop is available;
+- control address `192.168.4.1:21`, one client, no anonymous access;
+- fixed recovery credentials `CoilMaster` / `CoilMaster123`;
+- FTP `/` is strictly mapped to microSD `/web`; `/data` is unreachable;
+- passive directory listing/upload, mkdir, delete and rename are supported;
+- uploads use `.part`, target `.bak` rollback and final rename;
+- start and runtime remain fail-closed on the shared winding activity probe;
+- fallback HTTP page displays recovery instructions when `index.html` is absent.
+
+Verified checkpoint:
+
+```text
+2505e1f06a55cf251cfb54614e99d4c6277c5c8e
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 14.8% (48352 / 327680 bytes)
+Flash: 38.6% (1215773 / 3145728 bytes)
+```
+
+Exact next incoming-FTP verification on hardware:
+
+1. use a test microSD without `/web` and confirm automatic server start;
+2. connect to Wi-Fi `CoilMaster`, then FTP `192.168.4.1:21` with the recovery account;
+3. upload the complete contents of `firmware/esp32/web`, including subfolders;
+4. confirm an interrupted upload leaves no replaced/truncated target;
+5. reboot and confirm the site loads while FTP remains stopped;
+6. start and stop FTP manually from desktop/mobile settings while safely idle;
+7. confirm invalid login, traversal and a non-AP client cannot access files;
+8. start a controlled machine activity transition and confirm FTP stops.
+
+Do not call the incoming FTP hardware-confirmed until this matrix passes. The
+complete outgoing backup batch interruption test and retention gate remain
+separate pending work.

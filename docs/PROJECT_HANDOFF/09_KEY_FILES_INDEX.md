@@ -10,6 +10,26 @@ firmware/esp32/src/main.cpp
 
 Содержит `/api/status`, `/api/jobs`, `/api/recovery/acknowledge`, регистрацию web/API, startup persistent-компонентов и lifecycle текущего job.
 
+## Сеть, исходящий backup FTP и входящий recovery FTP
+
+```text
+firmware/esp32/src/CM_NetworkProfileStore.h/.cpp
+firmware/esp32/src/CM_NetworkManager.h/.cpp
+firmware/esp32/src/CM_NetworkWeb.h/.cpp
+firmware/esp32/src/CM_RemoteBackupSettings.h/.cpp
+firmware/esp32/src/CM_RemoteBackupTransfer.h/.cpp
+firmware/esp32/src/CM_RemoteBackupWeb.h/.cpp
+firmware/esp32/src/CM_WebRecoveryFtpServer.h/.cpp
+firmware/esp32/src/CM_StaticSiteServer.h/.cpp
+firmware/esp32/web/shared/settings-wifi.js
+firmware/esp32/web/shared/settings-remote-backup.js
+```
+
+`CM_WebRecoveryFtpServer` — отдельный одноклиентный входящий FTP только для
+`/web`. Не путать с `CM_RemoteBackupTransfer`, который является исходящим FTP-
+клиентом для резервных копий на USB-хранилище роутера. Оба пути используют
+общий fail-closed runtime activity probe, но имеют разные корни и назначение.
+
 ## Persistent job identity и recovery
 
 ```text

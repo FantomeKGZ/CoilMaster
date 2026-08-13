@@ -451,3 +451,18 @@ CMP Protocol Tests + web asset/navigation audit: SUCCESS
 Maximum five DHCP profiles, priority ordering, hidden SSID, enable/disable,
 masked passwords, atomic NDJSON recovery and bounded non-blocking attempts are
 implemented. Static IP and nearby-network scan remain explicitly incomplete.
+
+Remote FTP upload checkpoint:
+
+```text
+bc910d773a15f8c3fd5d7b261ae22046b2732826
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Main manifest files can now be uploaded individually through an asynchronous
+FTP state machine with deep snapshot audit, `.part`, exact `SIZE` check and
+final rename. The next required step is real-device testing against TL-WR942N
+v1, followed by a bounded complete-backup batch that includes paged session
+files and versioned snapshot naming. Retention and scheduling must remain
+disabled until batch completeness and interruption recovery are proven.

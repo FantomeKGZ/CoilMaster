@@ -448,3 +448,50 @@ CMP Protocol Tests + web asset/navigation audit: SUCCESS
 
 Still requires real-device testing with TL-WR942N v1. Static IP and nearby
 network scan remain later stages.
+
+## Asynchronous remote FTP file upload checkpoint — 2026-08-13
+
+Implemented in `bc910d773a15f8c3fd5d7b261ae22046b2732826`:
+
+```text
+POST /api/backup/remote/upload  name=<fixed-whitelist-name>
+GET  /api/backup/remote/status
+```
+
+The backup page adds `На сервер` only to main files already returned by the
+authoritative manifest. The server resolves the logical name through the same
+fixed `BackupExportWeb` whitelist; arbitrary local or remote paths are rejected.
+
+Transfer semantics:
+
+```text
+deep read-only snapshot audit
+→ FTP control login + CWD
+→ TYPE I
+→ PASV data connection to the same control-server IP
+→ STOR <name>.part in 512-byte loop slices
+→ close data channel
+→ SIZE <name>.part == exact local size
+→ remove previous final file
+→ RNFR <name>.part
+→ RNTO <name>
+```
+
+The transfer state machine is advanced from the main loop rather than one large
+HTTP handler. UART/event processing therefore continues between chunks. A
+runtime activity probe is checked on every transfer update; active or unprovable
+winding state aborts the operation. The next attempt removes a stale `.part`.
+The passive reply cannot redirect the data connection to another host.
+
+Verified:
+
+```text
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Current boundary: main manifest files can be sent individually. Session files,
+one-click complete backup batches, versioned snapshot directories, retention
+cleanup and scheduling are not implemented yet. Real transfer compatibility,
+heap behaviour, interruption and router-loss cases must be tested on the
+TL-WR942N v1 before declaring operational backup complete.

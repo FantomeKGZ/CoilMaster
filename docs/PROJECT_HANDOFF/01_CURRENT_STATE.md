@@ -250,6 +250,17 @@ ESP32 Build: SUCCESS
 CMP Protocol Tests + web asset/navigation audit: SUCCESS
 ```
 
+Remote backup has since gained asynchronous per-file upload for the fixed main
+manifest whitelist. It uses `.part`, exact FTP `SIZE` verification and final
+rename, and aborts if runtime winding activity becomes busy/unprovable. Session
+files and complete versioned batches remain incomplete.
+
+```text
+bc910d773a15f8c3fd5d7b261ae22046b2732826
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
 ## Read-only backup/export
 
 Endpoints:

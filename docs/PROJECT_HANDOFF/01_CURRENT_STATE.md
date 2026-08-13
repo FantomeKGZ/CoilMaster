@@ -233,6 +233,23 @@ Preflight read-only. Реальный close повторяет проверки 
 
 Этот блок подтверждён пользователем в реальной работе.
 
+## Network and local backup target
+
+The service AP has been extended to a bounded non-blocking AP+STA manager. Up to
+five DHCP profiles are stored atomically and attempted by priority while the
+`CoilMaster` AP remains at `192.168.4.1`. Passwords are never returned through
+the API. Desktop/mobile pages manage the bounded profiles.
+
+The external backup target is a TP-Link TL-WR942N hardware v1. Remote FTP
+configuration and greeting/login/CWD testing are implemented. Actual backup
+upload and incoming recovery FTP are not implemented yet.
+
+```text
+d7a541acc2f752137783a0b6a0cfb6a86c4d727c
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
 ## Read-only backup/export
 
 Endpoints:

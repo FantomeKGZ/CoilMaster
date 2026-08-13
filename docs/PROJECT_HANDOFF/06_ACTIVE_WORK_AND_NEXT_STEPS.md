@@ -430,12 +430,24 @@ Implemented:
 
 Exact next network work:
 
-1. implement bounded Wi-Fi STA profile persistence and AP+STA connection flow;
-2. keep the fallback AP at `192.168.4.1` without any automatic winding action;
-3. implement actual outbound backup upload from the authoritative whitelist via
+1. hardware-test the bounded DHCP AP+STA manager with TL-WR942N v1 while
+   confirming the service AP remains at `192.168.4.1`;
+2. implement actual outbound backup upload from the authoritative whitelist via
    temporary `.part`, size/integrity verification and final rename;
-4. then implement the restricted single-client incoming FTP service, automatic
+3. then implement the restricted single-client incoming FTP service, automatic
    only when `/web` is absent and otherwise operator-started from the web UI.
 
 Do not describe remote backup upload or incoming FTP as operational until those
 later runtime stages and real-device transfer tests are complete.
+
+Wi-Fi checkpoint:
+
+```text
+d7a541acc2f752137783a0b6a0cfb6a86c4d727c
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Maximum five DHCP profiles, priority ordering, hidden SSID, enable/disable,
+masked passwords, atomic NDJSON recovery and bounded non-blocking attempts are
+implemented. Static IP and nearby-network scan remain explicitly incomplete.

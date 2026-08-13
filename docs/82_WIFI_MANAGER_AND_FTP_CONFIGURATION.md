@@ -362,12 +362,11 @@ At minimum test:
 
 ## Status boundary
 
-The following are not currently considered implemented merely because the project already starts a fixed access point:
+The following are still not considered implemented:
 
-- multi-network Wi-Fi storage;
-- automatic priority connection;
-- configurable fallback AP;
-- Wi-Fi settings API and pages;
+- per-profile static IP;
+- asynchronous scan of nearby networks;
+- configurable AP identity/credentials;
 - FTP server;
 - incoming FTP server credentials and policy;
 - recovery FTP upload service.
@@ -410,8 +409,42 @@ CMP Protocol Tests + web asset/navigation audit: SUCCESS
 
 Not yet implemented by this checkpoint:
 
-- Wi-Fi STA profile storage and connection manager;
 - actual backup file upload, `.part` verification and atomic rename;
 - retention cleanup and scheduling;
 - incoming single-client FTP server;
 - automatic recovery FTP at `192.168.4.1` when `/web` is absent.
+
+## Bounded AP+STA Wi-Fi checkpoint — 2026-08-13
+
+Implemented in `d7a541acc2f752137783a0b6a0cfb6a86c4d727c`:
+
+```text
+GET  /api/network/profiles
+POST /api/network/profiles
+POST /api/network/profiles/delete
+POST /api/network/reconnect
+```
+
+The profile store is bounded to five records. Each record contains stable ID,
+SSID, secret password, priority, enabled state and hidden-network flag. Secrets
+are never returned by API or written to diagnostics. Persistence uses validated
+NDJSON plus atomic `.tmp/.bak` replacement and boot recovery.
+
+Runtime now uses non-blocking `WIFI_AP_STA`: the service AP `CoilMaster` remains
+at `192.168.4.1`; enabled DHCP profiles are attempted by priority with a
+15-second bound; after all fail, AP remains available and retry starts after 30
+seconds. No connection wait blocks the web/UART loop and no network operation
+starts/resumes winding or controls SSR.
+
+Desktop/mobile pages support add, edit, enable/disable, priority, hidden SSID,
+delete, masked password and explicit reconnect.
+
+Verified:
+
+```text
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Still requires real-device testing with TL-WR942N v1. Static IP and nearby
+network scan remain later stages.

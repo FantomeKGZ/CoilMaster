@@ -495,3 +495,36 @@ one-click complete backup batches, versioned snapshot directories, retention
 cleanup and scheduling are not implemented yet. Real transfer compatibility,
 heap behaviour, interruption and router-loss cases must be tested on the
 TL-WR942N v1 before declaring operational backup complete.
+
+Hardware result: the user confirmed that the single-file FTP transfer test on
+the real TL-WR942N v1 completed normally.
+
+## Complete remote backup batch checkpoint — 2026-08-13
+
+Implemented in `b2e1adac054ae88b1afc873eeac37fc9c53267a5`:
+
+- one operator action starts all existing main whitelist files;
+- every session ID is discovered incrementally across snapshot,
+  spool-selection and state directories;
+- session files are transferred without an in-memory all-session list;
+- a persistent power-loss-recoverable batch sequence creates a common
+  `cm-b<id>-` prefix;
+- each file retains `.part → SIZE → rename` semantics;
+- a second deep audit runs before finalization;
+- `cm-b<id>-COMPLETE.txt` is uploaded last and records the batch ID and count;
+- a set without `COMPLETE.txt` is explicitly incomplete and must not be used for
+  future automatic retention decisions.
+
+The UI reports batch phase, current file, progress and completed file count.
+The operator is warned not to edit business data during the copy. Runtime
+winding activity remains checked continuously and aborts the current transfer.
+
+```text
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+REAL TL-WR942N v1 COMPLETE-BATCH TEST: PENDING
+```
+
+Retention cleanup remains disabled. It may be implemented only after a real
+complete batch produces all expected prefixed files and the final marker, and
+after interrupted batch behaviour is inspected on the router.

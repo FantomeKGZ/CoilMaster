@@ -261,6 +261,19 @@ ESP32 Build: SUCCESS
 CMP Protocol Tests + web asset/navigation audit: SUCCESS
 ```
 
+The single-file FTP transfer has now been confirmed by the user on the real
+TL-WR942N v1. A complete asynchronous batch is also implemented: main whitelist
+plus all session snapshot/spool-selection/state files, a persistent `cm-b<id>`
+prefix and a final `COMPLETE.txt` marker. The complete batch is compile/CI
+confirmed but still requires hardware execution.
+
+```text
+b2e1adac054ae88b1afc873eeac37fc9c53267a5
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+REAL COMPLETE-BATCH TEST: PENDING
+```
+
 ## Read-only backup/export
 
 Endpoints:

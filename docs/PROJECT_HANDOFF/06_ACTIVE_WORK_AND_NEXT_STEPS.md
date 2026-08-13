@@ -466,3 +466,24 @@ final rename. The next required step is real-device testing against TL-WR942N
 v1, followed by a bounded complete-backup batch that includes paged session
 files and versioned snapshot naming. Retention and scheduling must remain
 disabled until batch completeness and interruption recovery are proven.
+
+Single-file hardware transfer to TL-WR942N v1 is now user-confirmed. The
+complete batch described above has been implemented in:
+
+```text
+b2e1adac054ae88b1afc873eeac37fc9c53267a5
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Exact next verification:
+
+1. flash this firmware and update microSD `/web`;
+2. press `Создать полную копию на сервере` while the machine is idle;
+3. confirm files share one `cm-b<id>-` prefix;
+4. confirm main files and session snapshot/spool-selection/state files exist;
+5. confirm `cm-b<id>-COMPLETE.txt` is the last successful file;
+6. interrupt one later test and confirm that the incomplete prefix has no
+   `COMPLETE.txt` marker.
+
+Do not enable retention until these checks pass.

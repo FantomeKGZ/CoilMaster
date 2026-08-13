@@ -403,3 +403,39 @@ CMP Protocol Tests + web navigation audit: SUCCESS
 ```
 
 There is now sufficient application-partition headroom for the bounded Wi-Fi manager and subsequently a restricted single-client FTP service. Runtime heap and real-device UART/SD concurrency still require measurement after each network stage.
+
+
+## Completed: remote FTP backup configuration foundation — 2026-08-13
+
+The local backup target is a TP-Link TL-WR942N hardware v1 with USB storage.
+Router firmware remains replaceable: CoilMaster uses standard configurable FTP
+rather than a vendor-specific interface.
+
+Checkpoint:
+
+```text
+4f13a394b2b7467ec71b92022d1f36059c1d6919
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Implemented:
+
+- atomic versioned remote FTP configuration with recovery from `.tmp/.bak`;
+- hidden credential semantics (`password_configured`, never password output);
+- desktop/mobile settings UI;
+- FTP greeting, USER/PASS and remote CWD test;
+- STA prerequisite and `BackupActivityGuard` fail-closed blocking during active
+  or unprovable machine state.
+
+Exact next network work:
+
+1. implement bounded Wi-Fi STA profile persistence and AP+STA connection flow;
+2. keep the fallback AP at `192.168.4.1` without any automatic winding action;
+3. implement actual outbound backup upload from the authoritative whitelist via
+   temporary `.part`, size/integrity verification and final rename;
+4. then implement the restricted single-client incoming FTP service, automatic
+   only when `/web` is absent and otherwise operator-started from the web UI.
+
+Do not describe remote backup upload or incoming FTP as operational until those
+later runtime stages and real-device transfer tests are complete.

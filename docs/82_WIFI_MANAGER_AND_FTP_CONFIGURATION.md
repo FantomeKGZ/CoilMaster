@@ -369,5 +369,49 @@ The following are not currently considered implemented merely because the projec
 - configurable fallback AP;
 - Wi-Fi settings API and pages;
 - FTP server;
-- FTP credentials and policy;
-- FTP settings API and pages.
+- incoming FTP server credentials and policy;
+- recovery FTP upload service.
+
+## Remote router backup checkpoint — 2026-08-13
+
+The target local storage router is a TP-Link TL-WR942N hardware v1. CoilMaster
+does not depend on a particular router firmware: it uses a configurable standard
+FTP endpoint on the trusted LAN.
+
+Implemented in `4f13a394b2b7467ec71b92022d1f36059c1d6919`:
+
+```text
+GET  /api/backup/remote/configuration
+POST /api/backup/remote/configuration
+POST /api/backup/remote/test
+```
+
+The versioned settings contain host, port, username, secret password, remote
+directory, enabled state and retention count. Persistence uses verified
+`remote-backup.json -> .bak` and `.tmp -> remote-backup.json` replacement with
+boot recovery. The API reports only `password_configured`; it never returns the
+secret. Desktop and mobile FTP pages can edit the configuration and perform an
+FTP greeting/login/CWD test.
+
+The test is fail-closed:
+
+- STA must already be connected to the router;
+- `BackupActivityGuard` must prove a safe inactive winding state;
+- FTP greeting, login and configured remote directory must all succeed;
+- the password is never logged or returned;
+- FTP is explicitly documented as trusted-LAN-only because it is unencrypted.
+
+Verified for the checkpoint:
+
+```text
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+```
+
+Not yet implemented by this checkpoint:
+
+- Wi-Fi STA profile storage and connection manager;
+- actual backup file upload, `.part` verification and atomic rename;
+- retention cleanup and scheduling;
+- incoming single-client FTP server;
+- automatic recovery FTP at `192.168.4.1` when `/web` is absent.

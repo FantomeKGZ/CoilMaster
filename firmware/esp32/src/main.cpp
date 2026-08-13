@@ -19,6 +19,8 @@
 #include "CM_PersistentIdAllocator.h"
 #include "CM_RepairRegistry.h"
 #include "CM_RepairRegistryWeb.h"
+#include "CM_RemoteBackupSettings.h"
+#include "CM_RemoteBackupWeb.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
 #include "CM_WarehouseStore.h"
@@ -51,7 +53,9 @@ CM::JobLinkageResolver jobLinkageResolver(SD);
 CM::WarehouseStore warehouse(SD);
 CM::RepairRegistry repairRegistry(SD);
 CM::AutonomousWindingArchive autonomousWindingArchive(SD);
+CM::RemoteBackupSettingsStore remoteBackupSettings(SD);
 WebServer webServer(80);
+CM::RemoteBackupWeb remoteBackupWeb(webServer, SD, remoteBackupSettings);
 CM::JobSpoolSelectionWeb jobSpoolSelectionWeb(webServer, jobSpoolSelections);
 CM::StaticSiteServer staticSites(webServer, SD);
 CM::WarehouseWeb warehouseWeb(webServer, warehouse);
@@ -88,6 +92,7 @@ bool jobLinkageResolverReady = false;
 bool warehouseReady = false;
 bool repairRegistryReady = false;
 bool autonomousWindingArchiveReady = false;
+bool remoteBackupSettingsReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -982,6 +987,7 @@ void configureWebServer()
     repairRegistryWeb.begin();
     motorSimilarityWeb.begin();
     autonomousWindingWeb.begin();
+    remoteBackupWeb.begin();
     warehouseWeb.begin();
     warehouseWeb.beginSpoolList();
     staticSites.begin("/web");
@@ -1143,6 +1149,7 @@ void setup()
     warehouseReady = sdReady && warehouse.begin();
     repairRegistryReady = sdReady && repairRegistry.begin();
     autonomousWindingArchiveReady = sdReady && autonomousWindingArchive.begin();
+    remoteBackupSettingsReady = sdReady && remoteBackupSettings.begin();
     restoreLatestJobState();
     CM::BackupActivityGuard::setRuntimeProbe(backupRuntimeActivity);
 
@@ -1152,6 +1159,7 @@ void setup()
     Serial.println(F("CoilMaster ESP32 web portal ready"));
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
     Serial.println(autonomousWindingArchiveReady ? F("autonomous Arduino winding archive ready") : F("WARNING: autonomous Arduino winding archive unavailable"));
+    Serial.println(remoteBackupSettingsReady ? F("remote FTP backup settings ready") : F("WARNING: remote FTP backup settings unavailable"));
     Serial.println(idAllocatorReady ? F("persistent job/session ID allocator ready") : F("WARNING: persistent ID allocator unavailable; job creation blocked"));
     Serial.println(jobSnapshotStoreReady ? F("immutable job snapshot store ready") : F("WARNING: job snapshot store unavailable; job creation blocked"));
     Serial.println(jobSpoolSelectionStoreReady ? F("immutable job spool selection store ready") : F("WARNING: job spool selection store unavailable; linked job creation blocked"));

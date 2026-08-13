@@ -620,7 +620,7 @@ void WebRecoveryFtpServer::enterPassive(bool extended)
 
 bool WebRecoveryFtpServer::running() const { return m_running; }
 bool WebRecoveryFtpServer::automaticRecovery() const { return m_automaticRecovery; }
-bool WebRecoveryFtpServer::clientConnected() const
+bool WebRecoveryFtpServer::clientConnected()
 {
     return m_controlClient && m_controlClient.connected();
 }

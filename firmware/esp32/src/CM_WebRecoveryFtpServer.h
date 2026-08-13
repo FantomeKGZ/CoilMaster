@@ -23,7 +23,7 @@ public:
 
     bool running() const;
     bool automaticRecovery() const;
-    bool clientConnected() const;
+    bool clientConnected();
     bool transferActive() const;
     const String& lastResult() const;
 

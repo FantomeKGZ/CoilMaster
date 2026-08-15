@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <Wire.h>
 
 #include "CM_AutonomousWindingArchive.h"
 #include "CM_AutonomousWindingWeb.h"
@@ -25,6 +26,7 @@
 #include "CM_RepairRegistryWeb.h"
 #include "CM_RemoteBackupSettings.h"
 #include "CM_RemoteBackupWeb.h"
+#include "CM_RtcClock.h"
 #include "CM_StaticSiteServer.h"
 #include "CM_UartEventReceiver.h"
 #include "CM_WebRecoveryFtpServer.h"
@@ -42,6 +44,8 @@ constexpr int8_t SdCsPin = 5;
 constexpr int8_t SdSckPin = 18;
 constexpr int8_t SdMisoPin = 19;
 constexpr int8_t SdMosiPin = 23;
+constexpr int8_t RtcSdaPin = 21;
+constexpr int8_t RtcSclPin = 22;
 constexpr char AccessPointName[] = "CoilMaster";
 constexpr char AccessPointPassword[] = "CoilMaster123";
 constexpr char LocalHostname[] = "coil";
@@ -60,6 +64,7 @@ CM::WarehouseStore warehouse(SD);
 CM::RepairRegistry repairRegistry(SD);
 CM::AutonomousWindingArchive autonomousWindingArchive(SD);
 CM::RemoteBackupSettingsStore remoteBackupSettings(SD);
+CM::RtcClock rtcClock;
 CM::NetworkProfileStore networkProfiles(SD);
 CM::NetworkManager networkManager(networkProfiles);
 WebServer webServer(80);
@@ -996,6 +1001,34 @@ void handleCreateJob()
 void configureWebServer()
 {
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
+    webServer.on("/api/system/time", HTTP_GET, []()
+    {
+        CM::RtcDateTime value;
+        const bool valid = rtcClock.read(value);
+        String response;
+        response.reserve(180U);
+        response = F("{\"source\":\"DS3231\",\"detected\":");
+        response += rtcClock.detected() ? F("true") : F("false");
+        response += F(",\"time_valid\":");
+        response += valid ? F("true") : F("false");
+        response += F(",\"local_time\":");
+        if (valid)
+        {
+            char timestamp[20];
+            snprintf(timestamp, sizeof(timestamp),
+                     "%04u-%02u-%02uT%02u:%02u:%02u",
+                     static_cast<unsigned>(value.year),
+                     static_cast<unsigned>(value.month),
+                     static_cast<unsigned>(value.day),
+                     static_cast<unsigned>(value.hour),
+                     static_cast<unsigned>(value.minute),
+                     static_cast<unsigned>(value.second));
+            response += '"'; response += timestamp; response += '"';
+        }
+        else response += F("null");
+        response += F(",\"timezone_configured\":false,\"scheduling_ready\":false}");
+        webServer.send(200, "application/json; charset=utf-8", response);
+    });
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
     webServer.on("/api/jobs/cancel", HTTP_POST, handleCancelJob);
     webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);
@@ -1155,6 +1188,7 @@ void processJobCancel()
 void setup()
 {
     Serial.begin(115200);
+    const bool rtcDetected = rtcClock.begin(RtcSdaPin, RtcSclPin);
     receiver.begin(ArduinoBaud, ArduinoRxPin, ArduinoTxPin);
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);
     const bool sdReady = SD.begin(SdCsPin, SPI);
@@ -1196,6 +1230,11 @@ void setup()
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(staticSites.windingHistoryReady() ? F("read-only winding history API ready") : F("WARNING: winding history API unavailable"));
     Serial.println(networkManagerReady ? F("Wi-Fi AP+STA manager ready") : F("WARNING: Wi-Fi manager unavailable"));
+    Serial.println(rtcDetected
+                       ? (rtcClock.timeValid()
+                              ? F("DS3231 RTC ready")
+                              : F("WARNING: DS3231 detected but time is invalid"))
+                       : F("WARNING: DS3231 RTC unavailable"));
     Serial.println(mdnsReady ? F("mDNS ready at http://coil.local/") : F("WARNING: mDNS coil.local unavailable; use IP address"));
     Serial.println(webRecoveryFtp.running() ? F("restricted /web recovery FTP ready at 192.168.4.1:21") : F("recovery FTP stopped; operator start available"));
     Serial.print(F("Open http://")); Serial.println(WiFi.softAPIP());

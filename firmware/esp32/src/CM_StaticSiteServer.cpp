@@ -79,6 +79,11 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
     helper.src='/shared/costing-pricing-history.js';
     document.body.appendChild(helper);
   }
+  if(rest==='/settings.html'){
+    const helper=document.createElement('script');
+    helper.src='/shared/settings-time-status.js';
+    document.body.appendChild(helper);
+  }
 })();
 </script>
 )HTML";

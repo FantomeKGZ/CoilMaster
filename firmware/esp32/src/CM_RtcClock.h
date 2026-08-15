@@ -21,6 +21,7 @@ class RtcClock
 public:
     bool begin(int8_t sdaPin, int8_t sclPin);
     bool read(RtcDateTime& value);
+    bool set(const RtcDateTime& value);
     bool detected() const;
     bool timeValid() const;
 
@@ -28,6 +29,7 @@ private:
     static constexpr uint8_t Address = 0x68U;
 
     bool readRegisters(uint8_t start, uint8_t* destination, uint8_t count);
+    bool writeRegisters(uint8_t start, const uint8_t* source, uint8_t count);
 
     TwoWire* m_wire = nullptr;
     bool m_detected = false;

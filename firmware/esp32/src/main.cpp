@@ -1029,6 +1029,62 @@ void configureWebServer()
         response += F(",\"timezone_configured\":false,\"scheduling_ready\":false}");
         webServer.send(200, "application/json; charset=utf-8", response);
     });
+    webServer.on("/api/system/time", HTTP_POST, []()
+    {
+        const CM::BackupActivityCheck activity = backupRuntimeActivity();
+        if (activity != CM::BackupActivityCheck::Safe)
+        {
+            webServer.send(activity == CM::BackupActivityCheck::Busy ? 409 : 503,
+                           "application/json",
+                           activity == CM::BackupActivityCheck::Busy
+                               ? "{\"error\":\"machine_must_be_safely_idle\"}"
+                               : "{\"error\":\"activity_state_unavailable\"}");
+            return;
+        }
+        const char* fields[] =
+            {"year", "month", "day", "hour", "minute", "second"};
+        uint32_t parsed[6] = {};
+        for (uint8_t i = 0U; i < 6U; ++i)
+        {
+            if (!webServer.hasArg(fields[i]) ||
+                !parseCanonicalUint32(webServer.arg(fields[i]), parsed[i]))
+            {
+                webServer.send(400, "application/json",
+                               "{\"error\":\"invalid_rtc_datetime_fields\"}");
+                return;
+            }
+        }
+        if (!webServer.hasArg("confirmed") ||
+            webServer.arg("confirmed") != "true")
+        {
+            webServer.send(400, "application/json",
+                           "{\"error\":\"explicit_confirmation_required\"}");
+            return;
+        }
+        if (parsed[0] > 0xFFFFUL || parsed[1] > 0xFFUL ||
+            parsed[2] > 0xFFUL || parsed[3] > 0xFFUL ||
+            parsed[4] > 0xFFUL || parsed[5] > 0xFFUL)
+        {
+            webServer.send(400, "application/json",
+                           "{\"error\":\"rtc_datetime_out_of_range\"}");
+            return;
+        }
+        CM::RtcDateTime value;
+        value.year = static_cast<uint16_t>(parsed[0]);
+        value.month = static_cast<uint8_t>(parsed[1]);
+        value.day = static_cast<uint8_t>(parsed[2]);
+        value.hour = static_cast<uint8_t>(parsed[3]);
+        value.minute = static_cast<uint8_t>(parsed[4]);
+        value.second = static_cast<uint8_t>(parsed[5]);
+        if (!rtcClock.set(value))
+        {
+            webServer.send(500, "application/json",
+                           "{\"error\":\"rtc_write_or_verify_failed\"}");
+            return;
+        }
+        webServer.send(200, "application/json; charset=utf-8",
+                       "{\"saved\":true,\"verified\":true,\"source\":\"BROWSER_LOCAL_TIME\"}");
+    });
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
     webServer.on("/api/jobs/cancel", HTTP_POST, handleCancelJob);
     webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);

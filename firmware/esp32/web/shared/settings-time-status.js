@@ -38,6 +38,39 @@
             refresh.textContent='Обновить время';
             refresh.onclick=load;
             panel.appendChild(refresh);
+            const synchronize=document.createElement('button');
+            synchronize.type='button';
+            synchronize.textContent='Установить время с этого устройства';
+            synchronize.onclick=async()=>{
+                if(!confirm('Записать в DS3231 текущие дату и время этого телефона или компьютера?'))return;
+                synchronize.disabled=true;
+                const now=new Date();
+                const body=new URLSearchParams({
+                    year:String(now.getFullYear()),
+                    month:String(now.getMonth()+1),
+                    day:String(now.getDate()),
+                    hour:String(now.getHours()),
+                    minute:String(now.getMinutes()),
+                    second:String(now.getSeconds()),
+                    confirmed:'true'
+                });
+                try{
+                    const response=await fetch('/api/system/time',{
+                        method:'POST',
+                        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                        body
+                    });
+                    const result=await response.json();
+                    if(!response.ok)throw new Error(result.error||'rtc_write_failed');
+                    await load();
+                }catch(error){
+                    panel.className='note bad';
+                    panel.textContent='Время не установлено: '+error.message;
+                }finally{
+                    synchronize.disabled=false;
+                }
+            };
+            panel.appendChild(synchronize);
             if(!data.detected||!data.time_valid)panel.className='note warn';
         }catch(error){
             panel.className='note bad';

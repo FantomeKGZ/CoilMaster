@@ -992,11 +992,11 @@ source dates/calculated classification, and accidental resubmission of rows that
 had already succeeded.
 
 ```text
-c626d5b1ac34e96adf0607561c0a996930ed32ef
+684e848c235b5f37607e9ca814e8bc11647c1b5d
 CMP Protocol Tests + executable motor-import web audit: SUCCESS
 ESP32 Build: SUCCESS
 RAM: 15.7% (51408 / 327680 bytes)
-Flash: 41.8% (1314501 / 3145728 bytes)
+Flash: 41.8% (1314657 / 3145728 bytes)
 ```
 
 Next hardware check: update firmware and the complete `/web` directory, open

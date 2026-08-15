@@ -615,7 +615,7 @@ future catalogue, analytics or automation feature.
 Weighted result: **90%**.
 
 The old motor/winding JSON importer was re-audited and hardened at
-`c626d5b1ac34e96adf0607561c0a996930ed32ef`. Desktop and mobile now reject
+`684e848c235b5f37607e9ca814e8bc11647c1b5d`. Desktop and mobile now reject
 unknown fields, impossible source dates, non-HTTP(S) source URLs, oversized text,
 calculated-provenance mismatches and duplicate identities inside one package.
 Successfully created rows are disabled in the current preview so they cannot be
@@ -627,7 +627,7 @@ for both UIs. CMP Protocol Tests and ESP32 Build are confirmed successful:
 
 ```text
 RAM:   15.7% (51408 / 327680 bytes)
-Flash: 41.8% (1314501 / 3145728 bytes)
+Flash: 41.8% (1314657 / 3145728 bytes)
 ```
 
 This is code/CI confirmation. A real-device import of a small disposable reviewed

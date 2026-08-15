@@ -674,9 +674,9 @@ remaining work are recorded in `01_CURRENT_STATE.md` and
 `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
 
 The motor/winding JSON import path was re-audited and hardened in
-`c626d5b1ac34e96adf0607561c0a996930ed32ef`. Unknown fields, invalid source
+`684e848c235b5f37607e9ca814e8bc11647c1b5d`. Unknown fields, invalid source
 dates/URLs, provenance inconsistencies, package-internal duplicates and
 same-preview resubmission of successful rows are now blocked. Firmware and both
 web UIs enforce the relevant checks. CMP Protocol Tests, executable web import
-audit and ESP32 Build are confirmed successful (RAM 51408 bytes, Flash 1314501
+audit and ESP32 Build are confirmed successful (RAM 51408 bytes, Flash 1314657
 bytes). Real-device disposable-package verification remains pending.

@@ -7,6 +7,12 @@ Import UI:
 
 The input is a UTF-8 JSON array containing 1–50 objects. Preview performs local validation and calls the existing similarity endpoint for every valid object. Preview never writes to microSD. Exact identity matches are unchecked by default. Only explicitly selected objects are submitted, one record at a time, to `POST /api/motors`.
 
+Field names are strict: an unknown field is an error instead of being silently
+ignored. Duplicate identities inside the same JSON package are rejected before
+any write. After a successful row import, that row is disabled in the current
+preview so the same button cannot submit it twice; failed rows remain available
+for a deliberate retry.
+
 ## Required fields
 
 | Field | Meaning |
@@ -32,6 +38,13 @@ The input is a UTF-8 JSON array containing 1–50 objects. Preview performs loca
 ## Source fields
 
 `source_url`, `source_retrieved_at`, and `calculated_fields` are optional. Use an ISO date beginning with `YYYY-MM-DD`. Set `calculated_fields: true` whenever at least one imported winding value was calculated rather than copied from the cited source.
+
+`source_retrieved_at`, when present, must be a real calendar date in exact
+`YYYY-MM-DD` form (years 2000–2199). `source_url`, when present, must use HTTP or
+HTTPS. `CALCULATED` in either `source_type` or `confidence` requires
+`calculated_fields: true`; records without a calculated classification require
+it to be false or omitted. The firmware repeats these provenance and text-size
+checks before appending the NDJSON record.
 
 Confidence rules:
 

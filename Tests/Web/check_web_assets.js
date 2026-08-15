@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const root = path.resolve(__dirname, '../../firmware/esp32/web');
 const files = [];
@@ -61,6 +62,74 @@ for (const file of files) {
   }
 }
 
+function auditMotorImport(relative) {
+  const html = fs.readFileSync(path.join(root, relative), 'utf8');
+  const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
+  if (scripts.length !== 1) {
+    failures.push(relative + ': expected one embedded import script');
+    return;
+  }
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      id, value: '', textContent: '', className: '', disabled: false,
+      files: [], onclick: null, onchange: null
+    });
+    return elements.get(id);
+  };
+  const context = vm.createContext({
+    document: {getElementById: element, querySelectorAll: () => []},
+    URL, URLSearchParams, Date, FormData: class { set() {} },
+    fetch: async () => { throw new Error('unexpected fetch'); },
+    confirm: () => false, console
+  });
+  try {
+    vm.runInContext(scripts[0][1], context, {filename: relative});
+    const run = expression => vm.runInContext(expression, context);
+    const valid = run('JSON.parse(JSON.stringify(example[0]))');
+    let errors = run('validate')(valid);
+    if (errors.length) failures.push(relative + ': documented example rejected: ' + errors.join('; '));
+    if (valid.name !== 'АИР 80A2' || valid.coil_program !== '120/120/120') {
+      failures.push(relative + ': valid import normalization changed unexpectedly');
+    }
+
+    const unknown = run('JSON.parse(JSON.stringify(example[0]))');
+    unknown.slot_counts = 24;
+    errors = run('validate')(unknown);
+    if (!errors.some(x => x.includes('неизвестное поле slot_counts'))) {
+      failures.push(relative + ': unknown import field is not rejected');
+    }
+
+    const badDate = run('JSON.parse(JSON.stringify(example[0]))');
+    badDate.source_retrieved_at = '2026-02-30';
+    errors = run('validate')(badDate);
+    if (!errors.some(x => x.includes('source_retrieved_at'))) {
+      failures.push(relative + ': invalid source date is not rejected');
+    }
+
+    const calculated = run('JSON.parse(JSON.stringify(example[0]))');
+    calculated.confidence = 'CALCULATED';
+    errors = run('validate')(calculated);
+    if (!errors.some(x => x.includes('calculated_fields'))) {
+      failures.push(relative + ': calculated provenance mismatch is not rejected');
+    }
+    calculated.calculated_fields = true;
+    errors = run('validate')(calculated);
+    if (errors.length) failures.push(relative + ': valid calculated record rejected: ' + errors.join('; '));
+
+    const duplicateA = run('JSON.parse(JSON.stringify(example[0]))');
+    const duplicateB = run('JSON.parse(JSON.stringify(example[0]))');
+    duplicateB.name = duplicateB.name.toLowerCase();
+    if (!run('packageIdentityMatch')(duplicateA, duplicateB)) {
+      failures.push(relative + ': duplicate records inside one package are not matched');
+    }
+  } catch (error) {
+    failures.push(relative + ': executable import audit: ' + error.message);
+  }
+}
+auditMotorImport('desktop/motor-import.html');
+auditMotorImport('mobile/motor-import.html');
+
 const staticSiteServerPath = path.resolve(
   __dirname, '../../firmware/esp32/src/CM_StaticSiteServer.cpp');
 const staticSiteServer = fs.readFileSync(staticSiteServerPath, 'utf8');
@@ -86,4 +155,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, and desktop navigation icons OK.');
+console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, desktop navigation icons, and motor-import validation OK.');

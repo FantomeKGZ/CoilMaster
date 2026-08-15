@@ -32,6 +32,29 @@ bool parseCanonicalUint32Text(const String& source, uint32_t& value)
     return true;
 }
 
+bool validIsoDate(const String& value)
+{
+    if (value.length() != 10U || value[4] != '-' || value[7] != '-')
+        return false;
+    for (uint8_t i = 0U; i < 10U; ++i)
+    {
+        if (i == 4U || i == 7U) continue;
+        if (!isDigit(value[i])) return false;
+    }
+    const uint16_t year = static_cast<uint16_t>(value.substring(0U, 4U).toInt());
+    const uint8_t month = static_cast<uint8_t>(value.substring(5U, 7U).toInt());
+    const uint8_t day = static_cast<uint8_t>(value.substring(8U, 10U).toInt());
+    if (year < 2000U || year > 2199U || month < 1U || month > 12U || day < 1U)
+        return false;
+    static constexpr uint8_t daysPerMonth[] =
+        {31U, 28U, 31U, 30U, 31U, 30U, 31U, 31U, 30U, 31U, 30U, 31U};
+    uint8_t maximum = daysPerMonth[month - 1U];
+    const bool leap = (year % 4U == 0U && year % 100U != 0U) ||
+                      year % 400U == 0U;
+    if (month == 2U && leap) maximum = 29U;
+    return day <= maximum;
+}
+
 bool parsePaging(WebServer& server,
                  uint32_t& cursor,
                  uint8_t& limit)
@@ -367,6 +390,26 @@ void RepairRegistryWeb::handleCreateMotor()
     motor.confidence = m_server.arg("confidence");
     motor.confidence.toUpperCase();
 
+    motor.name.trim();
+    motor.model.trim();
+    motor.manufacturer.trim();
+    motor.tags.trim();
+    motor.comment.trim();
+    motor.windingType.trim();
+    motor.sourceUrl.trim();
+    motor.sourceTitle.trim();
+    motor.sourceRetrievedAt.trim();
+    if (motor.name.length() == 0U || motor.name.length() > 120U ||
+        motor.model.length() > 80U || motor.manufacturer.length() > 80U ||
+        motor.tags.length() > 240U || motor.comment.length() > 500U ||
+        motor.windingType.length() > 80U || motor.sourceUrl.length() > 300U ||
+        motor.sourceTitle.length() > 200U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_text_field_too_long\"}");
+        return;
+    }
+
     const bool validConnection = motor.connection.length() == 0U ||
                                  motor.connection == "Y" ||
                                  motor.connection == "DELTA" ||
@@ -406,12 +449,42 @@ void RepairRegistryWeb::handleCreateMotor()
         motor.calculatedFields = value == "true" || value == "1";
     }
 
-    if (motor.sourceType.length() > 0U &&
-        (motor.sourceTitle.length() == 0U ||
+    const bool hasSourceMetadata = motor.sourceType.length() > 0U ||
+                                   motor.sourceUrl.length() > 0U ||
+                                   motor.sourceTitle.length() > 0U ||
+                                   motor.sourceRetrievedAt.length() > 0U ||
+                                   motor.confidence.length() > 0U ||
+                                   motor.calculatedFields;
+    if (hasSourceMetadata &&
+        (motor.sourceType.length() == 0U ||
+         motor.sourceTitle.length() == 0U ||
          motor.confidence.length() == 0U))
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"source_title_and_confidence_required\"}");
+                      "{\"error\":\"source_type_title_and_confidence_required\"}");
+        return;
+    }
+    if (motor.sourceRetrievedAt.length() > 0U &&
+        !validIsoDate(motor.sourceRetrievedAt))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_source_retrieved_at\"}");
+        return;
+    }
+    if (motor.sourceUrl.length() > 0U &&
+        !motor.sourceUrl.startsWith("http://") &&
+        !motor.sourceUrl.startsWith("https://"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_source_url\"}");
+        return;
+    }
+    const bool classifiedAsCalculated = motor.sourceType == "CALCULATED" ||
+                                        motor.confidence == "CALCULATED";
+    if (classifiedAsCalculated != motor.calculatedFields)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_calculated_provenance\"}");
         return;
     }
 

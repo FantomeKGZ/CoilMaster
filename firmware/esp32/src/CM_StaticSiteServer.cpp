@@ -119,8 +119,15 @@ StaticSiteServer::StaticSiteServer(WebServer& server,
 
 void StaticSiteServer::setLocalHostnameStatus(const char* hostname, bool active)
 {
-    m_localHostname = hostname != nullptr && hostname[0] != '\0'
-        ? String(hostname) + F(".local") : F("coil.local");
+    if (hostname != nullptr && hostname[0] != '\0')
+    {
+        m_localHostname = hostname;
+        m_localHostname += F(".local");
+    }
+    else
+    {
+        m_localHostname = F("coil.local");
+    }
     m_mdnsActive = active;
 }
 

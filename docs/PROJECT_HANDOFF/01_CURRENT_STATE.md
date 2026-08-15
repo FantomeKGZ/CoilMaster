@@ -224,6 +224,9 @@ Preflight read-only. Реальный close повторяет проверки 
 - warehouse price history;
 - strict persisted parsing/reference lookup;
 - RepairCosting с currency/formula/overflow/transaction checks.
+- pricing history API/UI с обязательной пагинацией: default 20, max 32,
+  opaque byte-offset cursor; полный журнал продолжает проверяться для
+  `total_count/latest/current pricing` consistency.
 
 ## Mobile / desktop UI
 

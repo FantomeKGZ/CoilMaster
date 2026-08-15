@@ -500,8 +500,8 @@ The older capability audit below is superseded by the network checkpoints in
 this file. Current network capability boundary is:
 
 - fixed password-protected `CoilMaster` fallback AP is implemented and starts in firmware;
-- up to five saved DHCP STA profiles and priority selection are implemented;
-- static IP and nearby-network scanning are not implemented;
+- up to five saved DHCP/static-IP STA profiles and priority selection are implemented;
+- asynchronous nearby-network scanning is implemented with 20 unique visible SSIDs per result;
 - restricted incoming `/web` FTP and its start/stop/status controls are implemented;
 - incoming FTP credentials are fixed recovery credentials and are intentionally
   shown in the trusted-local-network UI; no business-data FTP root exists.

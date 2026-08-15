@@ -448,9 +448,23 @@ ESP32 Build: SUCCESS
 CMP Protocol Tests + web asset/navigation audit: SUCCESS
 ```
 
-Maximum five DHCP profiles, priority ordering, hidden SSID, enable/disable,
-masked passwords, atomic NDJSON recovery and bounded non-blocking attempts are
-implemented. Static IP and nearby-network scan remain explicitly incomplete.
+Maximum five DHCP/static-IP profiles, priority ordering, hidden SSID,
+enable/disable, masked passwords, atomic NDJSON recovery and bounded
+non-blocking attempts are implemented. Nearby-network scan is also implemented
+as an asynchronous bounded API returning at most 20 unique visible SSIDs.
+
+Current network checkpoint:
+
+```text
+1710343ede275aa2c49c0f6ad84c6f55b663df53
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.5% (50712 / 327680 bytes)
+Flash: 39.9% (1254225 / 3145728 bytes)
+```
+
+Static addressing and nearby scan still require real-router smoke tests. DHCP
+remains the default and service AP `192.168.4.1` remains active.
 
 Remote FTP upload checkpoint:
 

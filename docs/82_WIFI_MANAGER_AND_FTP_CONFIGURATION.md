@@ -446,8 +446,10 @@ ESP32 Build: SUCCESS
 CMP Protocol Tests + web asset/navigation audit: SUCCESS
 ```
 
-Still requires real-device testing with TL-WR942N v1. Static IP and nearby
-network scan remain later stages.
+Static-IP profiles and an asynchronous nearby-network scan are now implemented.
+The scan returns at most 20 unique visible SSIDs with RSSI, channel and security
+status and never blocks the ESP32 main loop. Both paths still require
+real-device testing with TL-WR942N v1.
 
 ## Asynchronous remote FTP file upload checkpoint — 2026-08-13
 

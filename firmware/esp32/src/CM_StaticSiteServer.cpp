@@ -224,6 +224,7 @@ void StaticSiteServer::begin(const char* webRoot)
         response += F("\",\"sta_rssi\":");
         response += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
         response += F(",\"saved_profiles_supported\":true,\"static_ip_supported\":true,");
+        response += F("\"nearby_scan_supported\":true,");
         response += F("\"ftp_supported\":true,\"ftp_enabled\":");
         response += m_ftpServer.running() ? F("true") : F("false");
         response += F(",\"ftp_automatic_recovery\":");

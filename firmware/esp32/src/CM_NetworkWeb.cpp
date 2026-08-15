@@ -42,7 +42,8 @@ String escaped(const String& value)
 NetworkWeb::NetworkWeb(WebServer& server,
                        NetworkProfileStore& store,
                        NetworkManager& manager)
-    : m_server(server), m_store(store), m_manager(manager) {}
+    : m_server(server), m_store(store), m_manager(manager),
+      m_scanRequested(false) {}
 
 void NetworkWeb::begin()
 {
@@ -54,6 +55,10 @@ void NetworkWeb::begin()
                 [this]() { handleDelete(); });
     m_server.on("/api/network/reconnect", HTTP_POST,
                 [this]() { handleReconnect(); });
+    m_server.on("/api/network/scan", HTTP_POST,
+                [this]() { handleScanStart(); });
+    m_server.on("/api/network/scan", HTTP_GET,
+                [this]() { handleScanResult(); });
 }
 
 void NetworkWeb::handleProfiles()
@@ -184,5 +189,94 @@ void NetworkWeb::handleReconnect()
 {
     m_manager.reload();
     m_server.send(202, "application/json", "{\"reconnecting\":true}");
+}
+
+void NetworkWeb::handleScanStart()
+{
+    const int16_t current = WiFi.scanComplete();
+    if (m_scanRequested && current == WIFI_SCAN_RUNNING)
+    {
+        m_server.send(202, "application/json",
+                      "{\"started\":false,\"active\":true}");
+        return;
+    }
+    if (!m_manager.prepareScan())
+    {
+        m_server.send(409, "application/json",
+                      "{\"error\":\"network_connection_in_progress\"}");
+        return;
+    }
+    WiFi.scanDelete();
+    const int16_t started = WiFi.scanNetworks(true, true);
+    if (started != WIFI_SCAN_RUNNING)
+    {
+        m_scanRequested = false;
+        m_server.send(500, "application/json",
+                      "{\"error\":\"network_scan_start_failed\"}");
+        return;
+    }
+    m_scanRequested = true;
+    m_server.send(202, "application/json",
+                  "{\"started\":true,\"active\":true}");
+}
+
+void NetworkWeb::handleScanResult()
+{
+    if (!m_scanRequested)
+    {
+        m_server.send(200, "application/json",
+                      "{\"active\":false,\"complete\":false,\"items\":[],\"count\":0,\"max_results\":20}");
+        return;
+    }
+    const int16_t found = WiFi.scanComplete();
+    if (found == WIFI_SCAN_RUNNING)
+    {
+        m_server.send(200, "application/json",
+                      "{\"active\":true,\"complete\":false,\"items\":[],\"count\":0,\"max_results\":20}");
+        return;
+    }
+    if (found < 0)
+    {
+        m_scanRequested = false;
+        WiFi.scanDelete();
+        m_server.send(500, "application/json",
+                      "{\"error\":\"network_scan_failed\"}");
+        return;
+    }
+
+    constexpr uint8_t MaxResults = 20U;
+    int16_t selected[MaxResults];
+    uint8_t count = 0U;
+    for (int16_t i = 0; i < found && count < MaxResults; ++i)
+    {
+        const String ssid = WiFi.SSID(i);
+        if (ssid.length() == 0U || ssid.length() > 32U) continue;
+        bool duplicate = false;
+        for (uint8_t j = 0U; j < count; ++j)
+        {
+            if (WiFi.SSID(selected[j]) == ssid) { duplicate = true; break; }
+        }
+        if (!duplicate) selected[count++] = i;
+    }
+
+    String response = F("{\"active\":false,\"complete\":true,\"items\":[");
+    response.reserve(160U + static_cast<unsigned int>(count) * 100U);
+    for (uint8_t i = 0U; i < count; ++i)
+    {
+        if (i > 0U) response += ',';
+        const int16_t index = selected[i];
+        response += F("{\"ssid\":\""); response += escaped(WiFi.SSID(index));
+        response += F("\",\"rssi\":"); response += WiFi.RSSI(index);
+        response += F(",\"encrypted\":");
+        response += WiFi.encryptionType(index) == WIFI_AUTH_OPEN ? F("false") : F("true");
+        response += F(",\"channel\":"); response += WiFi.channel(index);
+        response += '}';
+    }
+    response += F("],\"count\":"); response += count;
+    response += F(",\"total_found\":"); response += found;
+    response += F(",\"max_results\":20,\"duplicates_removed\":true}");
+    m_scanRequested = false;
+    m_server.send(200, "application/json; charset=utf-8", response);
+    WiFi.scanDelete();
 }
 }

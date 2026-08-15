@@ -16,6 +16,7 @@ public:
     bool begin(const char* apName, const char* apPassword);
     void update(uint32_t nowMs);
     void reload();
+    bool prepareScan();
 
     bool ready() const;
     bool connecting() const;
@@ -26,6 +27,7 @@ public:
 private:
     static constexpr uint32_t ConnectionTimeoutMs = 15000UL;
     static constexpr uint32_t RetryDelayMs = 30000UL;
+    static constexpr uint32_t ScanGraceMs = 15000UL;
 
     bool loadProfiles();
     bool startNextProfile(uint32_t nowMs);

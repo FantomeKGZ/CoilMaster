@@ -21,10 +21,13 @@ private:
     void handleSave();
     void handleDelete();
     void handleReconnect();
+    void handleScanStart();
+    void handleScanResult();
 
     WebServer& m_server;
     NetworkProfileStore& m_store;
     NetworkManager& m_manager;
+    bool m_scanRequested;
 };
 }
 

@@ -69,6 +69,16 @@ void NetworkManager::reload()
     startNextProfile(millis());
 }
 
+bool NetworkManager::prepareScan()
+{
+    if (!m_ready || m_connecting) return false;
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        m_retryAtMs = millis() + ScanGraceMs;
+    }
+    return true;
+}
+
 bool NetworkManager::ready() const { return m_ready; }
 bool NetworkManager::connecting() const { return m_connecting; }
 uint8_t NetworkManager::activeProfileId() const { return m_activeProfileId; }

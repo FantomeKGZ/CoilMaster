@@ -886,3 +886,36 @@ Inspect one older V1 batch and confirm it succeeds with the explicit
 presence-only warning. For a controlled negative test, rename one data file in
 a disposable copied batch or alter its expected V2 size; inspection must fail
 without changing any working data.
+
+## Completed in firmware: safe remote restore staging — 2026-08-15
+
+After a successful V2 inspection, the operator can explicitly select
+`Загрузить во временную область`. Every listed data file is downloaded into the
+dedicated `/data/settings/remote-restore-staging` directory through a local
+`.part`, exact remote SIZE and exact received-byte check. Duplicate names are
+rejected instead of overwritten. A bounded validated manifest limits each file
+to 512 MiB and the complete staged set to 1 GiB.
+
+The staging directory never overlaps authoritative business paths. Completion
+creates `STAGED.txt` with `restore_enabled=0`; there is no apply endpoint,
+automatic restore, reboot continuation, physical START, SSR action or wire
+writeoff. Any runtime failure deletes the incomplete dedicated staging set. A
+directory surviving reboot is reported as `STALE` and blocks another inspection
+until the operator explicitly removes only the staging directory through the
+web button.
+
+```text
+063d7080d1c82987c68f5206888d14f4ce755f37
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.7% (51328 / 327680 bytes)
+Flash: 41.6% (1307109 / 3145728 bytes)
+```
+
+Hardware test: inspect a new V2 batch, start temporary loading and confirm all
+file/byte counters reach the manifest totals. The final message must state that
+restore is disabled and was not performed. Verify current clients, motors,
+repairs, warehouse and winding history are unchanged. Press `Удалить временные
+файлы` and confirm a new inspection can start. For the reboot test, stage the
+set, reboot, confirm the `STALE` warning and explicit cleanup requirement, and
+confirm that no working file was replaced automatically.

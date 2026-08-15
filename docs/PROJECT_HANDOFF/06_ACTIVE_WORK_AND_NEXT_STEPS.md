@@ -656,3 +656,29 @@ Runtime smoke test after flashing: change the saved limit to a value below the
 current managed-batch count, press the new button while the machine is idle,
 and confirm the UI reports completion without creating a new `cm-b<id>-`
 prefix.
+
+## Completed in firmware: interrupted remote-batch cleanup — 2026-08-15
+
+Every intended remote batch filename is now appended and flushed to the local
+temporary manifest before its FTP upload starts. A failed batch keeps that
+`.tmp` manifest instead of discarding the only exact cleanup evidence.
+
+The next successful full backup or the manual retention action first processes
+old incomplete manifests. For each canonical batch it deletes the exact
+`COMPLETE.txt` name first, then only the manifest-recorded final names and their
+`.part` variants. FTP directory listing, prefix guessing and deletion of legacy
+or unrelated router files remain prohibited. The local `.tmp` manifest is
+removed only after all exact idempotent deletes finish.
+
+```text
+1984011d80ee92a904b923bf8c56b219d7251556
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.5% (50784 / 327680 bytes)
+Flash: 40.2% (1264201 / 3145728 bytes)
+```
+
+Required hardware fault test: interrupt one full backup after at least one file
+has appeared on the router, reboot, then press `Применить лимит копий сейчас`.
+Confirm that the interrupted `cm-b<id>-` final/`.part` files disappear, no new
+batch prefix is created, and older completed batches remain readable.

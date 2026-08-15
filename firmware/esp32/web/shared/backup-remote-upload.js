@@ -30,6 +30,10 @@
     stage.type='button';
     stage.id='remoteBackupStage';
     stage.textContent='Загрузить во временную область';
+    const plan=document.createElement('button');
+    plan.type='button';
+    plan.id='remoteBackupRestorePlan';
+    plan.textContent='Проверить план восстановления';
     const discard=document.createElement('button');
     discard.type='button';
     discard.id='remoteBackupStageDiscard';
@@ -40,7 +44,8 @@
     retention.insertAdjacentElement('afterend',inspectId);
     inspectId.insertAdjacentElement('afterend',inspect);
     inspect.insertAdjacentElement('afterend',stage);
-    stage.insertAdjacentElement('afterend',discard);
+    stage.insertAdjacentElement('afterend',plan);
+    plan.insertAdjacentElement('afterend',discard);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -66,6 +71,7 @@
         inspectId.disabled=disabled;
         inspect.disabled=disabled;
         stage.disabled=disabled;
+        plan.disabled=disabled;
         discard.disabled=disabled;
     }
     async function pollBatch(){
@@ -189,6 +195,30 @@
             status.textContent='Статус временной загрузки недоступен: '+e.message;
         }
     }
+    async function pollRestorePlan(fallback){
+        try{
+            const r=await fetch('/api/backup/remote/restore-plan-status',{cache:'no-store'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'restore_plan_status_failed');
+            if(j.active){
+                buttons(true);
+                status.className='muted';
+                status.textContent='Проверка плана копии №'+j.batch_id+': файлов '+j.files_planned+' из '+j.files_total+' · '+size(j.bytes_planned)+' из '+size(j.bytes_total)+'. Рабочие данные не изменяются.';
+                timer=setTimeout(()=>pollRestorePlan(false),300);
+            }else if(j.state==='VALID'){
+                buttons(false);
+                status.className='ok';
+                status.textContent='План копии №'+j.batch_id+' проверен: '+j.files_planned+' файлов сопоставлены только с разрешёнными путями, размеры подтверждены. Применение данных отключено.';
+            }else if(j.state==='FAILED'){
+                buttons(false);
+                status.className='bad';
+                status.textContent='План восстановления отклонён: '+(j.error||'unknown')+'. Рабочие данные не изменены.';
+            }else if(fallback)pollStaging(true);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Статус плана восстановления недоступен: '+e.message;
+        }
+    }
     async function upload(name){
         clearTimeout(timer);
         buttons(true);
@@ -282,6 +312,28 @@
             status.textContent='Временная загрузка не запущена: '+e.message;
         }
     }
+    async function buildRestorePlan(){
+        const batchId=String(inspectId.value||'').trim();
+        if(!/^[1-9]\d*$/.test(batchId)){
+            status.className='bad';
+            status.textContent='Сначала укажите ID загруженной во временную область копии.';
+            return;
+        }
+        clearTimeout(timer);
+        buttons(true);
+        status.className='muted';
+        status.textContent='Формирование строгого плана восстановления копии №'+batchId+'…';
+        try{
+            const body=new URLSearchParams({batch_id:batchId});
+            const r=await fetch('/api/backup/remote/restore-plan',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'restore_plan_start_failed');
+            pollRestorePlan(false);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='План восстановления не создан: '+e.message;
+        }
+    }
     async function discardStaging(){
         if(!confirm('Удалить только временно загруженные файлы восстановления? Рабочие данные не изменятся.'))return;
         clearTimeout(timer);
@@ -306,7 +358,8 @@
     retention.onclick=applyRetention;
     inspect.onclick=inspectBatch;
     stage.onclick=stageBatch;
+    plan.onclick=buildRestorePlan;
     discard.onclick=discardStaging;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
-    pollStaging(true);
+    pollRestorePlan(true);
 })();

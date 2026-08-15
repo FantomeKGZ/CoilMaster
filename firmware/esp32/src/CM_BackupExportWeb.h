@@ -44,6 +44,12 @@ public:
                                    String& path,
                                    String& downloadName,
                                    bool& exists);
+    // Maps only canonical names produced by a managed full backup to fixed
+    // restore destinations. No path supplied by a manifest is accepted.
+    static bool resolveRestoreTarget(uint32_t batchId,
+                                     const String& remoteName,
+                                     String& logicalName,
+                                     String& targetPath);
 
 private:
     WebServer& m_server;

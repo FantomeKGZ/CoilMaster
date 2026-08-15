@@ -36,6 +36,8 @@ private:
     void handleStartStaging();
     void handleStagingStatus();
     void handleDiscardStaging();
+    void handleStartRestorePlan();
+    void handleRestorePlanStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startFullBatch(bool scheduled,
                         uint16_t& statusCode,
@@ -60,6 +62,9 @@ private:
     bool startNextStagingFile();
     bool clearStagingDirectory();
     void failStaging(const char* reason);
+    bool validateStagingMarker() const;
+    bool processNextRestorePlanEntry();
+    void failRestorePlan(const char* reason);
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
@@ -102,6 +107,14 @@ private:
         Failed
     };
 
+    enum class RestorePlanStage : uint8_t
+    {
+        Idle,
+        Files,
+        Complete,
+        Failed
+    };
+
     WebServer& m_server;
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
@@ -132,6 +145,12 @@ private:
     uint32_t m_stagingExpectedBytes = 0UL;
     uint32_t m_stagingBytesCompleted = 0UL;
     String m_stagingError;
+    RestorePlanStage m_restorePlanStage = RestorePlanStage::Idle;
+    File m_restorePlanManifest;
+    File m_restorePlanOutput;
+    uint32_t m_restorePlanFiles = 0UL;
+    uint32_t m_restorePlanBytes = 0UL;
+    String m_restorePlanError;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;

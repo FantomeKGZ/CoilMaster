@@ -31,6 +31,10 @@ constexpr const char* StagingDirectory =
     "/data/settings/remote-restore-staging";
 constexpr const char* StagingMarkerPath =
     "/data/settings/remote-restore-staging/STAGED.txt";
+constexpr const char* RestorePlanPath =
+    "/data/settings/remote-restore-staging/RESTORE_PLAN.tsv";
+constexpr const char* RestorePlanTempPath =
+    "/data/settings/remote-restore-staging/RESTORE_PLAN.tsv.part";
 
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
@@ -191,11 +195,21 @@ void RemoteBackupWeb::begin()
                 [this]() { handleStagingStatus(); });
     m_server.on("/api/backup/remote/staging", HTTP_DELETE,
                 [this]() { handleDiscardStaging(); });
+    m_server.on("/api/backup/remote/restore-plan", HTTP_POST,
+                [this]() { handleStartRestorePlan(); });
+    m_server.on("/api/backup/remote/restore-plan-status", HTTP_GET,
+                [this]() { handleRestorePlanStatus(); });
 }
 
 void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
+    if (m_restorePlanStage == RestorePlanStage::Files)
+    {
+        if (!processNextRestorePlanEntry())
+            failRestorePlan("restore_plan_entry_failed");
+        return;
+    }
     if (m_stagingStage == StagingStage::Files)
     {
         if (m_transfer.active()) return;
@@ -391,7 +405,8 @@ void RemoteBackupWeb::handleSetConfiguration()
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        m_stagingStage == StagingStage::Files)
+        m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -508,7 +523,8 @@ void RemoteBackupWeb::handleTestConnection()
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        m_stagingStage == StagingStage::Files)
+        m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -602,7 +618,8 @@ void RemoteBackupWeb::handleStartUpload()
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        m_stagingStage == StagingStage::Files)
+        m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -721,7 +738,8 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        m_stagingStage == StagingStage::Files)
+        m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         statusCode = 409U;
         error = "remote_backup_busy";
@@ -790,7 +808,8 @@ void RemoteBackupWeb::handleStartRetention()
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        m_stagingStage == StagingStage::Files)
+        m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -891,7 +910,8 @@ void RemoteBackupWeb::handleStartInspection()
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        m_stagingStage == StagingStage::Files)
+        m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -1024,6 +1044,7 @@ void RemoteBackupWeb::handleInspectionStatus()
 void RemoteBackupWeb::handleStartStaging()
 {
     if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files ||
         m_inspectionStage != InspectionStage::Complete)
     {
         m_server.send(409, "application/json; charset=utf-8",
@@ -1127,7 +1148,8 @@ void RemoteBackupWeb::handleStagingStatus()
 
 void RemoteBackupWeb::handleDiscardStaging()
 {
-    if (m_transfer.active() || m_stagingStage == StagingStage::Files)
+    if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -1153,8 +1175,131 @@ void RemoteBackupWeb::handleDiscardStaging()
     m_stagingFilesCompleted = 0UL;
     m_stagingBytesCompleted = 0UL;
     m_stagingError = String();
+    m_restorePlanStage = RestorePlanStage::Idle;
+    m_restorePlanFiles = 0UL;
+    m_restorePlanBytes = 0UL;
+    m_restorePlanError = String();
     m_server.send(200, "application/json; charset=utf-8",
                   "{\"discarded\":true,\"working_data_changed\":false}");
+}
+
+void RemoteBackupWeb::handleStartRestorePlan()
+{
+    if (m_transfer.active() || m_stagingStage != StagingStage::Complete ||
+        m_inspectionStage != InspectionStage::Complete ||
+        !m_inspectionHasSizes ||
+        m_restorePlanStage == RestorePlanStage::Files)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"completed_staging_required\"}");
+        return;
+    }
+    if (!m_server.hasArg("batch_id"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"batch_id_required\"}");
+        return;
+    }
+    uint32_t batchId = 0UL;
+    if (!parseCanonicalUnsigned(m_server.arg("batch_id"), 1UL,
+                                0xFFFFFFFFUL, batchId) ||
+        batchId != m_inspectionBatchId)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_batch_id_mismatch\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    if (!validateStagingMarker() ||
+        !m_storage.exists(InspectionManifestPath))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_metadata_missing\"}");
+        return;
+    }
+    m_storage.remove(RestorePlanTempPath);
+    m_storage.remove(RestorePlanPath);
+    m_restorePlanManifest = m_storage.open(InspectionManifestPath, FILE_READ);
+    m_restorePlanOutput = m_storage.open(RestorePlanTempPath, FILE_WRITE);
+    if (!m_restorePlanManifest || m_restorePlanManifest.isDirectory() ||
+        !m_restorePlanOutput || m_restorePlanOutput.isDirectory())
+    {
+        failRestorePlan("restore_plan_open_failed");
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"restore_plan_open_failed\"}");
+        return;
+    }
+    String ignored;
+    for (uint8_t i = 0U; i < 3U; ++i)
+    {
+        if (!readInspectionLine(m_restorePlanManifest, ignored))
+        {
+            failRestorePlan("restore_plan_manifest_invalid");
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"restore_plan_manifest_invalid\"}");
+            return;
+        }
+    }
+    String header = F("COILMASTER_RESTORE_PLAN_V1\nbatch_id=");
+    header += batchId;
+    header += F("\nfiles="); header += m_inspectionDataFiles;
+    header += F("\nbytes="); header += m_inspectionTotalBytes;
+    header += F("\napply_enabled=0\n\n");
+    if (m_restorePlanOutput.print(header) != header.length())
+    {
+        failRestorePlan("restore_plan_write_failed");
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"restore_plan_write_failed\"}");
+        return;
+    }
+    m_restorePlanFiles = 0UL;
+    m_restorePlanBytes = 0UL;
+    m_restorePlanError = String();
+    m_restorePlanStage = RestorePlanStage::Files;
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += batchId;
+    response += F(",\"apply_enabled\":false,\"working_data_changed\":false}");
+    m_server.send(202, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleRestorePlanStatus()
+{
+    const char* state = "IDLE";
+    if (m_restorePlanStage == RestorePlanStage::Files) state = "PLANNING";
+    else if (m_restorePlanStage == RestorePlanStage::Complete) state = "VALID";
+    else if (m_restorePlanStage == RestorePlanStage::Failed) state = "FAILED";
+    else if (m_storage.exists(RestorePlanPath)) state = "STALE";
+    String response;
+    response.reserve(300U);
+    response = F("{\"state\":\""); response += state;
+    response += F("\",\"active\":");
+    response += m_restorePlanStage == RestorePlanStage::Files
+                    ? F("true") : F("false");
+    response += F(",\"valid\":");
+    response += m_restorePlanStage == RestorePlanStage::Complete
+                    ? F("true") : F("false");
+    response += F(",\"batch_id\":");
+    if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
+    else response += F("null");
+    response += F(",\"files_planned\":"); response += m_restorePlanFiles;
+    response += F(",\"files_total\":"); response += m_inspectionDataFiles;
+    response += F(",\"bytes_planned\":"); response += m_restorePlanBytes;
+    response += F(",\"bytes_total\":"); response += m_inspectionTotalBytes;
+    response += F(",\"apply_enabled\":false,\"working_data_changed\":false,\"error\":");
+    if (m_restorePlanError.length() > 0U)
+    { response += '"'; response += m_restorePlanError; response += '"'; }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 bool RemoteBackupWeb::validateInspectionManifest(uint32_t& dataFiles)
@@ -1374,7 +1519,7 @@ bool RemoteBackupWeb::startNextStagingFile()
 bool RemoteBackupWeb::clearStagingDirectory()
 {
     if (!m_storage.exists(StagingDirectory)) return true;
-    for (uint16_t removed = 0U; removed <= 4097U; ++removed)
+    for (uint16_t removed = 0U; removed <= 4098U; ++removed)
     {
         File directory = m_storage.open(StagingDirectory, FILE_READ);
         if (!directory || !directory.isDirectory())
@@ -1416,6 +1561,112 @@ void RemoteBackupWeb::failStaging(const char* reason)
     m_stagingError = reason != nullptr ? reason : "staging_failed";
     clearStagingDirectory();
     m_stagingStage = StagingStage::Failed;
+}
+
+bool RemoteBackupWeb::validateStagingMarker() const
+{
+    File marker = m_storage.open(StagingMarkerPath, FILE_READ);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String line;
+    uint32_t parsed = 0UL;
+    bool valid = readInspectionLine(marker, line) &&
+                 line == F("COILMASTER_RESTORE_STAGING_V1");
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("batch_id=") &&
+                parseCanonicalUnsigned(line.substring(9), 1UL,
+                                       0xFFFFFFFFUL, parsed) &&
+                parsed == m_inspectionBatchId;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("files=") &&
+                parseCanonicalUnsigned(line.substring(6), 1UL, 4096UL,
+                                       parsed) &&
+                parsed == m_inspectionDataFiles;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("bytes=") &&
+                parseCanonicalUnsigned(line.substring(6), 0UL,
+                                       1073741824UL, parsed) &&
+                parsed == m_inspectionTotalBytes;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line == F("restore_enabled=0") && !marker.available();
+    marker.close();
+    return valid;
+}
+
+bool RemoteBackupWeb::processNextRestorePlanEntry()
+{
+    if (!m_restorePlanManifest || !m_restorePlanOutput) return false;
+    if (m_restorePlanManifest.available())
+    {
+        const String entry = m_restorePlanManifest.readStringUntil('\n');
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
+        if (!parseManagedManifestEntry(entry, m_inspectionBatchId,
+                                       remoteName, hasExpectedBytes,
+                                       expectedBytes) ||
+            !hasExpectedBytes || expectedBytes > 536870912UL)
+            return false;
+
+        String logicalName;
+        String targetPath;
+        if (!BackupExportWeb::resolveRestoreTarget(m_inspectionBatchId,
+                                                   remoteName,
+                                                   logicalName,
+                                                   targetPath))
+            return false;
+        const String stagedPath = String(StagingDirectory) + '/' + remoteName;
+        File staged = m_storage.open(stagedPath, FILE_READ);
+        if (!staged || staged.isDirectory())
+        {
+            if (staged) staged.close();
+            return false;
+        }
+        const uint32_t stagedBytes = static_cast<uint32_t>(staged.size());
+        staged.close();
+        if (stagedBytes != expectedBytes ||
+            expectedBytes > 1073741824UL - m_restorePlanBytes)
+            return false;
+
+        String line = remoteName;
+        line += '\t'; line += expectedBytes;
+        line += '\t'; line += logicalName;
+        line += '\t'; line += targetPath;
+        line += '\n';
+        if (m_restorePlanOutput.print(line) != line.length()) return false;
+        ++m_restorePlanFiles;
+        m_restorePlanBytes += expectedBytes;
+        return true;
+    }
+
+    m_restorePlanManifest.close();
+    if (m_restorePlanFiles != m_inspectionDataFiles ||
+        m_restorePlanBytes != m_inspectionTotalBytes)
+        return false;
+    m_restorePlanOutput.flush();
+    m_restorePlanOutput.close();
+    if (m_storage.exists(RestorePlanPath) &&
+        !m_storage.remove(RestorePlanPath)) return false;
+    if (!m_storage.rename(RestorePlanTempPath, RestorePlanPath)) return false;
+    m_restorePlanStage = RestorePlanStage::Complete;
+    return true;
+}
+
+void RemoteBackupWeb::failRestorePlan(const char* reason)
+{
+    if (m_restorePlanManifest) m_restorePlanManifest.close();
+    if (m_restorePlanOutput) m_restorePlanOutput.close();
+    m_storage.remove(RestorePlanTempPath);
+    m_storage.remove(RestorePlanPath);
+    m_restorePlanError = reason != nullptr ? reason : "restore_plan_failed";
+    m_restorePlanStage = RestorePlanStage::Failed;
 }
 
 uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)

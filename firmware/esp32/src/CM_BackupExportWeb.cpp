@@ -606,6 +606,58 @@ bool BackupExportWeb::resolveSessionFile(fs::FS& storage,
     return true;
 }
 
+bool BackupExportWeb::resolveRestoreTarget(uint32_t batchId,
+                                           const String& remoteName,
+                                           String& logicalName,
+                                           String& targetPath)
+{
+    logicalName = String();
+    targetPath = String();
+    if (batchId == 0UL) return false;
+    const String prefix = String(F("cm-b")) + batchId + '-';
+    const String mainPrefix = prefix + F("main-");
+    if (remoteName.startsWith(mainPrefix))
+    {
+        const String name = remoteName.substring(mainPrefix.length());
+        for (size_t i = 0U; i < ExportFileCount; ++i)
+        {
+            if (name != ExportFiles[i].downloadName) continue;
+            logicalName = ExportFiles[i].name;
+            targetPath = ExportFiles[i].path;
+            return true;
+        }
+        return false;
+    }
+
+    const String sessionPrefix = prefix + F("session-");
+    if (!remoteName.startsWith(sessionPrefix)) return false;
+    const String name = remoteName.substring(sessionPrefix.length());
+    const char* kinds[] = {"snapshot", "spool-selection", "state"};
+    for (uint8_t i = 0U; i < 3U; ++i)
+    {
+        const String kindPrefix = String(kinds[i]) + F("-session-");
+        if (!name.startsWith(kindPrefix) || !name.endsWith(".json"))
+            continue;
+        const String idText = name.substring(kindPrefix.length(),
+                                             name.length() - 5U);
+        if (idText.length() == 0U ||
+            (idText.length() > 1U && idText[0] == '0')) return false;
+        uint32_t sessionId = 0UL;
+        for (size_t n = 0U; n < idText.length(); ++n)
+        {
+            if (!isDigit(idText[n])) return false;
+            const uint8_t digit = static_cast<uint8_t>(idText[n] - '0');
+            if (sessionId > (0xFFFFFFFFUL - digit) / 10UL) return false;
+            sessionId = sessionId * 10UL + digit;
+        }
+        if (sessionId == 0UL) return false;
+        logicalName = String(kinds[i]) + F("-session-") + sessionId;
+        targetPath = sessionPath(kinds[i], sessionId);
+        return name == logicalName + F(".json");
+    }
+    return false;
+}
+
 void BackupExportWeb::handleManifest()
 {
     if (!ready())

@@ -953,7 +953,7 @@ Hardware test: inspect and stage a fresh V2 batch, then press `Проверит�
 восстановления`. Confirm the planned file and byte counters reach the staged
 totals and the final message says every file maps to an allowed path while
 application remains disabled. Confirm clients, motors, repairs, warehouse and
-winding history remain unchanged. For a disposable negative test, alter one
-staged filename or size on the microSD before planning; the plan must be rejected
-and no working file may change. Finally press `Удалить временные файлы` and
-confirm the staged files and plan are removed together.
+winding history remain unchanged. Do not hot-remove or edit the microSD for a negative runtime test; malformed-name
+and size-mismatch rejection belongs in a controlled test image or harness.
+Finally press `Удалить временные файлы` and confirm the staged files and plan are
+removed together.

@@ -6,7 +6,32 @@ namespace CM
 {
 namespace
 {
-constexpr uint32_t SchemaVersion = 1UL;
+constexpr uint32_t SchemaVersion = 2UL;
+
+bool validIpv4(const String& value, bool allowEmpty = false)
+{
+    if (value.length() == 0U) return allowEmpty;
+    if (value.length() > 15U) return false;
+    uint8_t octets = 0U;
+    size_t start = 0U;
+    while (start < value.length())
+    {
+        const int endFound = value.indexOf('.', start);
+        const size_t end = endFound < 0 ? value.length() : static_cast<size_t>(endFound);
+        if (end == start || end - start > 3U) return false;
+        uint16_t octet = 0U;
+        for (size_t i = start; i < end; ++i)
+        {
+            if (!isDigit(value[i])) return false;
+            if (i == start && end - start > 1U && value[i] == '0') return false;
+            octet = static_cast<uint16_t>(octet * 10U + value[i] - '0');
+        }
+        if (octet > 255U || ++octets > 4U) return false;
+        if (endFound < 0) break;
+        start = end + 1U;
+    }
+    return octets == 4U;
+}
 
 char hexDigit(uint8_t value)
 {
@@ -234,6 +259,10 @@ bool NetworkProfileStore::valid(const NetworkProfile& profile)
         profile.ssid.length() > 32U || profile.password.length() > 63U ||
         (profile.password.length() > 0U && profile.password.length() < 8U))
         return false;
+    if (profile.useStaticIp &&
+        (!validIpv4(profile.localIp) || !validIpv4(profile.gateway) ||
+         !validIpv4(profile.subnet) || !validIpv4(profile.dns1, true) ||
+         !validIpv4(profile.dns2, true))) return false;
     for (size_t i = 0U; i < profile.ssid.length(); ++i)
         if (static_cast<uint8_t>(profile.ssid[i]) < 0x20U) return false;
     for (size_t i = 0U; i < profile.password.length(); ++i)
@@ -298,10 +327,11 @@ bool NetworkProfileStore::loadFromPath(const char* path,
             return false;
         }
         uint32_t schema = 0UL, id = 0UL, priority = 0UL;
-        bool enabled = false, hidden = false;
-        String ssidHex, passwordHex;
+        bool enabled = false, hidden = false, useStaticIp = false;
+        String ssidHex, passwordHex, localIp, gateway, subnet, dns1, dns2;
         NetworkProfile profile;
-        if (!findUnsigned(line, "schema", schema) || schema != SchemaVersion ||
+        if (!findUnsigned(line, "schema", schema) ||
+            (schema != 1UL && schema != SchemaVersion) ||
             !findUnsigned(line, "id", id) || id == 0UL || id > MaxProfiles ||
             !findString(line, "ssid_hex", ssidHex) ||
             !decodeHex(ssidHex, profile.ssid, 32U) ||
@@ -314,10 +344,26 @@ bool NetworkProfileStore::loadFromPath(const char* path,
         {
             file.close(); count = 0U; return false;
         }
+        if (schema >= 2UL &&
+            (!findBoolean(line, "use_static_ip", useStaticIp) ||
+             !findString(line, "local_ip", localIp) ||
+             !findString(line, "gateway", gateway) ||
+             !findString(line, "subnet", subnet) ||
+             !findString(line, "dns1", dns1) ||
+             !findString(line, "dns2", dns2)))
+        {
+            file.close(); count = 0U; return false;
+        }
         profile.id = static_cast<uint8_t>(id);
         profile.priority = static_cast<uint8_t>(priority);
         profile.enabled = enabled;
         profile.hidden = hidden;
+        profile.useStaticIp = useStaticIp;
+        profile.localIp = localIp;
+        profile.gateway = gateway;
+        profile.subnet = subnet;
+        profile.dns1 = dns1;
+        profile.dns2 = dns2;
         if (!valid(profile)) { file.close(); count = 0U; return false; }
         for (uint8_t i = 0U; i < count; ++i)
             if (profiles[i].id == profile.id) { file.close(); count = 0U; return false; }
@@ -338,12 +384,19 @@ bool NetworkProfileStore::saveAll(const NetworkProfile* profiles, uint8_t count)
     for (uint8_t i = 0U; i < count; ++i)
     {
         if (!valid(profiles[i])) { written = false; break; }
-        String line = F("{\"schema\":1,\"id\":"); line += profiles[i].id;
+        String line = F("{\"schema\":2,\"id\":"); line += profiles[i].id;
         line += F(",\"ssid_hex\":\""); line += encodeHex(profiles[i].ssid);
         line += F("\",\"password_hex\":\""); line += encodeHex(profiles[i].password);
         line += F("\",\"priority\":"); line += profiles[i].priority;
         line += F(",\"enabled\":"); line += profiles[i].enabled ? F("true") : F("false");
         line += F(",\"hidden\":"); line += profiles[i].hidden ? F("true") : F("false");
+        line += F(",\"use_static_ip\":"); line += profiles[i].useStaticIp ? F("true") : F("false");
+        line += F(",\"local_ip\":\""); line += profiles[i].localIp;
+        line += F("\",\"gateway\":\""); line += profiles[i].gateway;
+        line += F("\",\"subnet\":\""); line += profiles[i].subnet;
+        line += F("\",\"dns1\":\""); line += profiles[i].dns1;
+        line += F("\",\"dns2\":\""); line += profiles[i].dns2;
+        line += '"';
         line += F("}\n");
         if (file.print(line) != line.length()) { written = false; break; }
     }

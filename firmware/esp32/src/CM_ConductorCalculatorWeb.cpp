@@ -32,16 +32,44 @@ void ConductorCalculatorWeb::handleCalculate()
         return;
     }
 
-    uint32_t sourceDiameter = 0UL;
-    uint32_t sourceStrands = 0UL;
-    if (!parseUnsignedArg(m_server, "source_diameter_hundredths_mm", 1UL, 500UL,
-                          sourceDiameter) ||
-        !parseUnsignedArg(m_server, "source_parallel_strands", 1UL, 12UL,
-                          sourceStrands))
+    SourceConductorSet source;
+    source.material = sourceMaterial;
+    uint32_t componentCount = 1UL;
+    const bool multiComponent = m_server.hasArg("source_component_count");
+    if (multiComponent &&
+        !parseUnsignedArg(m_server, "source_component_count", 1UL,
+                          MaxSourceConversionComponents, componentCount))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_source_bundle\"}");
         return;
+    }
+    source.componentCount = static_cast<uint8_t>(componentCount);
+    for (uint8_t i = 0U; i < source.componentCount; ++i)
+    {
+        String diameterName;
+        String strandsName;
+        if (multiComponent)
+        {
+            diameterName = F("source_diameter_"); diameterName += i + 1U;
+            diameterName += F("_hundredths_mm");
+            strandsName = F("source_strands_"); strandsName += i + 1U;
+        }
+        else
+        {
+            diameterName = F("source_diameter_hundredths_mm");
+            strandsName = F("source_parallel_strands");
+        }
+        uint32_t diameter = 0UL, strands = 0UL;
+        if (!parseUnsignedArg(m_server, diameterName.c_str(), 1UL, 500UL, diameter) ||
+            !parseUnsignedArg(m_server, strandsName.c_str(), 1UL, 12UL, strands))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_source_components\"}");
+            return;
+        }
+        source.components[i].diameterHundredthsMm = static_cast<uint16_t>(diameter);
+        source.components[i].parallelStrands = static_cast<uint8_t>(strands);
     }
 
     ConversionSettings settings;
@@ -95,11 +123,6 @@ void ConductorCalculatorWeb::handleCalculate()
         candidates[i].catalogKnown = true;
     }
 
-    ConductorBundle source;
-    source.material = sourceMaterial;
-    source.diameterHundredthsMm = static_cast<uint16_t>(sourceDiameter);
-    source.parallelStrands = static_cast<uint8_t>(sourceStrands);
-
     ConversionOption options[MaxRecommendedConversionOptions];
     const uint8_t optionCount = ConductorCalculator::findRecommendedOptions(
         source, targetMaterial, settings, candidates, knownCount, options);
@@ -108,8 +131,19 @@ void ConductorCalculatorWeb::handleCalculate()
     response.reserve(3200U);
     response = F("{\"source_material\":\""); response += materialText(sourceMaterial);
     response += F("\",\"target_material\":\""); response += targetWireType;
-    response += F("\",\"source_diameter_hundredths_mm\":"); response += source.diameterHundredthsMm;
-    response += F(",\"source_parallel_strands\":"); response += source.parallelStrands;
+    response += F("\",\"source_component_count\":"); response += source.componentCount;
+    response += F(",\"source_components\":[");
+    for (uint8_t i = 0U; i < source.componentCount; ++i)
+    {
+        if (i > 0U) response += ',';
+        response += F("{\"diameter_hundredths_mm\":");
+        response += source.components[i].diameterHundredthsMm;
+        response += F(",\"parallel_strands\":");
+        response += source.components[i].parallelStrands;
+        response += '}';
+    }
+    response += F("],\"source_area_um2\":");
+    response += ConductorCalculator::sourceSetAreaMicrometre2(source);
     response += F(",\"required_target_area_um2\":");
     response += ConductorCalculator::requiredTargetAreaMicrometre2(source, targetMaterial, settings);
     response += F(",\"catalogue_material\":\""); response += targetWireType;

@@ -76,6 +76,13 @@ void NetworkWeb::handleProfiles()
         response += F("\",\"priority\":"); response += profiles[i].priority;
         response += F(",\"enabled\":"); response += profiles[i].enabled ? F("true") : F("false");
         response += F(",\"hidden\":"); response += profiles[i].hidden ? F("true") : F("false");
+        response += F(",\"use_static_ip\":"); response += profiles[i].useStaticIp ? F("true") : F("false");
+        response += F(",\"local_ip\":\""); response += profiles[i].localIp;
+        response += F("\",\"gateway\":\""); response += profiles[i].gateway;
+        response += F("\",\"subnet\":\""); response += profiles[i].subnet;
+        response += F("\",\"dns1\":\""); response += profiles[i].dns1;
+        response += F("\",\"dns2\":\""); response += profiles[i].dns2;
+        response += '"';
         response += F(",\"password_configured\":"); response += profiles[i].password.length() > 0U ? F("true") : F("false");
         response += '}';
     }
@@ -96,12 +103,14 @@ void NetworkWeb::handleSave()
         return;
     }
     uint32_t id = 0UL, priority = 0UL;
-    bool enabled = false, hidden = false;
+    bool enabled = false, hidden = false, useStaticIp = false;
     if ((m_server.hasArg("id") && m_server.arg("id").length() > 0U &&
          !parseUnsigned(m_server.arg("id"), NetworkProfileStore::MaxProfiles, id)) ||
         !parseUnsigned(m_server.arg("priority"), NetworkProfileStore::MaxProfiles, priority) ||
         priority == 0UL || !parseBoolean(m_server.arg("enabled"), enabled) ||
-        !parseBoolean(m_server.arg("hidden"), hidden))
+        !parseBoolean(m_server.arg("hidden"), hidden) ||
+        (m_server.hasArg("use_static_ip") &&
+         !parseBoolean(m_server.arg("use_static_ip"), useStaticIp)))
     {
         m_server.send(400, "application/json",
                       "{\"error\":\"invalid_network_profile_fields\"}");
@@ -113,6 +122,22 @@ void NetworkWeb::handleSave()
     profile.priority = static_cast<uint8_t>(priority);
     profile.enabled = enabled;
     profile.hidden = hidden;
+    profile.useStaticIp = useStaticIp;
+    if (useStaticIp)
+    {
+        if (!m_server.hasArg("local_ip") || !m_server.hasArg("gateway") ||
+            !m_server.hasArg("subnet"))
+        {
+            m_server.send(400, "application/json",
+                          "{\"error\":\"static_ip_fields_required\"}");
+            return;
+        }
+        profile.localIp = m_server.arg("local_ip");
+        profile.gateway = m_server.arg("gateway");
+        profile.subnet = m_server.arg("subnet");
+        if (m_server.hasArg("dns1")) profile.dns1 = m_server.arg("dns1");
+        if (m_server.hasArg("dns2")) profile.dns2 = m_server.arg("dns2");
+    }
     if (profile.id != 0U)
     {
         NetworkProfile existing[NetworkProfileStore::MaxProfiles];

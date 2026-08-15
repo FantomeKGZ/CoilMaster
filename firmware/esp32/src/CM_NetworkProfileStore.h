@@ -14,6 +14,12 @@ struct NetworkProfile
     uint8_t priority = 1U;
     bool enabled = true;
     bool hidden = false;
+    bool useStaticIp = false;
+    String localIp;
+    String gateway;
+    String subnet;
+    String dns1;
+    String dns2;
 };
 
 class NetworkProfileStore

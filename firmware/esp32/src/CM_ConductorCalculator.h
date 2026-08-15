@@ -7,6 +7,7 @@ namespace CM
 {
 constexpr uint8_t MaxRecommendedConversionOptions = 3U;
 constexpr uint8_t MaxConversionComponents = 2U;
+constexpr uint8_t MaxSourceConversionComponents = 5U;
 
 enum class ConductorMaterial : uint8_t
 {
@@ -30,6 +31,25 @@ struct ConductorBundle
         : material(ConductorMaterial::Copper),
           diameterHundredthsMm(0U),
           parallelStrands(1U) {}
+};
+
+struct SourceConductorComponent
+{
+    uint16_t diameterHundredthsMm;
+    uint8_t parallelStrands;
+
+    SourceConductorComponent()
+        : diameterHundredthsMm(0U), parallelStrands(0U) {}
+};
+
+struct SourceConductorSet
+{
+    ConductorMaterial material;
+    uint8_t componentCount;
+    SourceConductorComponent components[MaxSourceConversionComponents];
+
+    SourceConductorSet()
+        : material(ConductorMaterial::Copper), componentCount(0U) {}
 };
 
 struct ConversionSettings
@@ -97,9 +117,14 @@ class ConductorCalculator
 {
 public:
     static uint32_t bundleAreaMicrometre2(const ConductorBundle& bundle);
+    static uint32_t sourceSetAreaMicrometre2(const SourceConductorSet& source);
 
     static uint32_t requiredTargetAreaMicrometre2(
         const ConductorBundle& source,
+        ConductorMaterial targetMaterial,
+        const ConversionSettings& settings);
+    static uint32_t requiredTargetAreaMicrometre2(
+        const SourceConductorSet& source,
         ConductorMaterial targetMaterial,
         const ConversionSettings& settings);
 
@@ -113,6 +138,13 @@ public:
 
     static uint8_t findRecommendedOptions(
         const ConductorBundle& source,
+        ConductorMaterial targetMaterial,
+        const ConversionSettings& settings,
+        const WireCandidate* candidates,
+        uint8_t candidateCount,
+        ConversionOption options[MaxRecommendedConversionOptions]);
+    static uint8_t findRecommendedOptions(
+        const SourceConductorSet& source,
         ConductorMaterial targetMaterial,
         const ConversionSettings& settings,
         const WireCandidate* candidates,
@@ -132,6 +164,13 @@ private:
                                uint32_t requiredArea,
                                uint16_t allowedDeviationPermille,
                                ConversionOption options[MaxRecommendedConversionOptions]);
+    static uint8_t findRecommendedOptionsForArea(
+        uint32_t requiredArea,
+        ConductorMaterial targetMaterial,
+        const ConversionSettings& settings,
+        const WireCandidate* candidates,
+        uint8_t candidateCount,
+        ConversionOption options[MaxRecommendedConversionOptions]);
 };
 }
 

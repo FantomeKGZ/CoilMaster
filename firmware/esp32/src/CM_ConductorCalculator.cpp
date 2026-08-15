@@ -34,12 +34,47 @@ uint32_t ConductorCalculator::bundleAreaMicrometre2(const ConductorBundle& bundl
     return area > 0xFFFFFFFFULL ? 0xFFFFFFFFUL : static_cast<uint32_t>(area);
 }
 
+uint32_t ConductorCalculator::sourceSetAreaMicrometre2(const SourceConductorSet& source)
+{
+    if (source.componentCount == 0U ||
+        source.componentCount > MaxSourceConversionComponents) return 0UL;
+    uint64_t total = 0ULL;
+    for (uint8_t i = 0U; i < source.componentCount; ++i)
+    {
+        if (source.components[i].diameterHundredthsMm == 0U ||
+            source.components[i].parallelStrands == 0U) return 0UL;
+        total += static_cast<uint64_t>(singleWireAreaMicrometre2(
+                     source.components[i].diameterHundredthsMm)) *
+                 source.components[i].parallelStrands;
+        if (total > 0xFFFFFFFFULL) return 0xFFFFFFFFUL;
+    }
+    return static_cast<uint32_t>(total);
+}
+
 uint32_t ConductorCalculator::requiredTargetAreaMicrometre2(
     const ConductorBundle& source,
     ConductorMaterial targetMaterial,
     const ConversionSettings& settings)
 {
     const uint32_t sourceArea = bundleAreaMicrometre2(source);
+    if (sourceArea == 0UL || source.material == targetMaterial) return sourceArea;
+    const uint16_t ratio = source.material == ConductorMaterial::Aluminium &&
+                                   targetMaterial == ConductorMaterial::Copper
+                               ? settings.aluminiumToCopperPermille
+                               : settings.copperToAluminiumPermille;
+    if (ratio == 0U) return 0UL;
+    const uint64_t required =
+        (static_cast<uint64_t>(sourceArea) * ratio + 500ULL) / 1000ULL;
+    return required > 0xFFFFFFFFULL ? 0xFFFFFFFFUL
+                                    : static_cast<uint32_t>(required);
+}
+
+uint32_t ConductorCalculator::requiredTargetAreaMicrometre2(
+    const SourceConductorSet& source,
+    ConductorMaterial targetMaterial,
+    const ConversionSettings& settings)
+{
+    const uint32_t sourceArea = sourceSetAreaMicrometre2(source);
     if (sourceArea == 0UL || source.material == targetMaterial) return sourceArea;
     const uint16_t ratio = source.material == ConductorMaterial::Aluminium &&
                                    targetMaterial == ConductorMaterial::Copper
@@ -81,6 +116,32 @@ uint8_t ConductorCalculator::findRecommendedOptions(
     uint8_t candidateCount,
     ConversionOption options[MaxRecommendedConversionOptions])
 {
+    return findRecommendedOptionsForArea(
+        requiredTargetAreaMicrometre2(source, targetMaterial, settings),
+        targetMaterial, settings, candidates, candidateCount, options);
+}
+
+uint8_t ConductorCalculator::findRecommendedOptions(
+    const SourceConductorSet& source,
+    ConductorMaterial targetMaterial,
+    const ConversionSettings& settings,
+    const WireCandidate* candidates,
+    uint8_t candidateCount,
+    ConversionOption options[MaxRecommendedConversionOptions])
+{
+    return findRecommendedOptionsForArea(
+        requiredTargetAreaMicrometre2(source, targetMaterial, settings),
+        targetMaterial, settings, candidates, candidateCount, options);
+}
+
+uint8_t ConductorCalculator::findRecommendedOptionsForArea(
+    uint32_t requiredArea,
+    ConductorMaterial targetMaterial,
+    const ConversionSettings& settings,
+    const WireCandidate* candidates,
+    uint8_t candidateCount,
+    ConversionOption options[MaxRecommendedConversionOptions])
+{
     for (uint8_t i = 0U; i < MaxRecommendedConversionOptions; ++i)
     {
         options[i] = ConversionOption();
@@ -93,8 +154,6 @@ uint8_t ConductorCalculator::findRecommendedOptions(
         return 0U;
     }
 
-    const uint32_t requiredArea =
-        requiredTargetAreaMicrometre2(source, targetMaterial, settings);
     if (requiredArea == 0UL) return 0U;
 
     for (uint8_t firstIndex = 0U; firstIndex < candidateCount; ++firstIndex)

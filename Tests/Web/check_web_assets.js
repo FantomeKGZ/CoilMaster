@@ -23,6 +23,15 @@ for (const file of files) {
 }
 
 const failures = [];
+for (const entry of fs.readdirSync(path.join(root, 'shared'))) {
+  if (!entry.endsWith('.js')) continue;
+  const relative = 'shared/' + entry;
+  try {
+    new Function(fs.readFileSync(path.join(root, relative), 'utf8'));
+  } catch (error) {
+    failures.push(relative + ': JavaScript syntax: ' + error.message);
+  }
+}
 for (const file of files) {
   const relative = path.relative(root, file).split(path.sep).join('/');
   const html = fs.readFileSync(file, 'utf8');

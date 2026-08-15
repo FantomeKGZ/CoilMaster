@@ -52,6 +52,7 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
       a.appendChild(labelNode);
     });
   }
+  document.querySelectorAll('a[href="#"]').forEach(a=>a.hidden=true);
   if(document.getElementById('cm-version-switch'))return;
   const box=document.createElement('div');
   box.id='cm-version-switch';
@@ -66,6 +67,11 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
   if(rest==='/backup.html'){
     const helper=document.createElement('script');
     helper.src='/shared/backup-remote-upload.js';
+    document.body.appendChild(helper);
+  }
+  if(rest==='/calculator.html'){
+    const helper=document.createElement('script');
+    helper.src='/shared/calculator-multisource.js';
     document.body.appendChild(helper);
   }
 })();
@@ -217,7 +223,7 @@ void StaticSiteServer::begin(const char* webRoot)
         if (WiFi.status() == WL_CONNECTED) response += WiFi.localIP().toString();
         response += F("\",\"sta_rssi\":");
         response += WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0;
-        response += F(",\"saved_profiles_supported\":true,\"static_ip_supported\":false,");
+        response += F(",\"saved_profiles_supported\":true,\"static_ip_supported\":true,");
         response += F("\"ftp_supported\":true,\"ftp_enabled\":");
         response += m_ftpServer.running() ? F("true") : F("false");
         response += F(",\"ftp_automatic_recovery\":");

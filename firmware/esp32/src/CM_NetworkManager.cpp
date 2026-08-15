@@ -110,6 +110,29 @@ bool NetworkManager::startNextProfile(uint32_t nowMs)
     m_attemptStartedMs = nowMs;
     m_connecting = true;
     m_lastResult = "CONNECTING";
+    bool configured = false;
+    if (profile.useStaticIp)
+    {
+        IPAddress local, gateway, subnet, dns1, dns2;
+        if (local.fromString(profile.localIp) && gateway.fromString(profile.gateway) &&
+            subnet.fromString(profile.subnet) &&
+            (profile.dns1.length() == 0U || dns1.fromString(profile.dns1)) &&
+            (profile.dns2.length() == 0U || dns2.fromString(profile.dns2)))
+        {
+            if (profile.dns1.length() == 0U) dns1 = gateway;
+            configured = WiFi.config(local, gateway, subnet, dns1, dns2);
+        }
+    }
+    else
+    {
+        configured = WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    }
+    if (!configured)
+    {
+        m_connecting = false;
+        m_lastResult = "IP_CONFIG_FAILED";
+        return startNextProfile(nowMs);
+    }
     WiFi.begin(profile.ssid.c_str(), profile.password.c_str());
     return true;
 }

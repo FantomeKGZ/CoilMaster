@@ -51,8 +51,8 @@
                 status.className='muted';
                 if(j.state==='RETENTION'){
                     status.textContent=j.operation==='RETENTION_ONLY'
-                        ?'Применение лимита: удалено файлов '+j.retention_files_deleted+'.'
-                        :'Полная копия №'+j.batch_id+' завершена. Очистка старых управляемых копий · удалено файлов '+j.retention_files_deleted+'.';
+                        ?'Применение лимита: удалено файлов '+j.retention_files_deleted+' · незавершённых наборов '+j.incomplete_batches_deleted+'.'
+                        :'Полная копия №'+j.batch_id+' завершена. Очистка старых и незавершённых управляемых копий · удалено файлов '+j.retention_files_deleted+'.';
                 }else{
                     status.textContent='Полная копия №'+j.batch_id+': '+j.state+' · файлов '+j.files_completed+' · '+size(j.bytes_sent)+' из '+size(j.bytes_total);
                 }
@@ -65,7 +65,7 @@
                 status.textContent='Не удалось применить лимит копий: '+(j.retention_error||'unknown')+'. Действующие копии не повреждены.';
             }else if(j.state==='COMPLETED'&&j.operation==='RETENTION_ONLY'){
                 status.className='ok';
-                status.textContent='Лимит применён. Удалено файлов: '+j.retention_files_deleted+'.';
+                status.textContent='Лимит применён. Удалено файлов: '+j.retention_files_deleted+'; незавершённых наборов: '+j.incomplete_batches_deleted+'.';
             }else if(j.state==='COMPLETED'&&j.retention_succeeded===false){
                 status.className='warning';
                 status.textContent='Полная копия №'+j.batch_id+' завершена и имеет COMPLETE, но очистка старых копий не закончена: '+(j.retention_error||'unknown')+'. Новая копия действительна.';

@@ -31,6 +31,9 @@ private:
     void handleBatchStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startNextBatchFile();
+    bool startTrackedBatchFile(const String& logicalName,
+                               const String& localPath,
+                               const String& remoteName);
     bool createCompletionMarker();
     bool beginBatchManifest();
     bool appendBatchManifestName(const String& remoteName);
@@ -38,6 +41,9 @@ private:
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
+    bool selectOldestIncompleteBatch(uint32_t& batchId) const;
+    bool startIncompleteCleanup(uint32_t batchId);
+    bool startNextIncompleteDelete();
     bool startRetentionBatch(uint32_t batchId);
     bool startNextRetentionFile();
     void failRetention(const char* reason);
@@ -71,9 +77,13 @@ private:
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;
+    uint16_t m_incompleteBatchesDeleted = 0U;
     bool m_retentionMarkerDeleted = false;
     bool m_retentionSucceeded = true;
     bool m_retentionOnly = false;
+    bool m_retentionIncomplete = false;
+    bool m_retentionDeletingPart = false;
+    String m_retentionPendingName;
     String m_retentionError;
 };
 }

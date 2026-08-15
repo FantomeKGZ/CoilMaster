@@ -151,6 +151,12 @@ void RemoteBackupWeb::update(uint32_t nowMs)
     if (m_batchStage == BatchStage::Retention)
     {
         ++m_retentionFilesDeleted;
+        if (m_retentionIncomplete)
+        {
+            if (!startNextIncompleteDelete())
+                failRetention("incomplete_manifest_cleanup_failed");
+            return;
+        }
         if (!m_retentionMarkerDeleted)
         {
             m_retentionMarkerDeleted = true;
@@ -161,26 +167,13 @@ void RemoteBackupWeb::update(uint32_t nowMs)
             failRetention("retention_manifest_read_failed");
         return;
     }
-    if (!appendBatchManifestName(m_transfer.remoteName()))
-    {
-        if (m_batchStage == BatchStage::Marker)
-        {
-            m_storage.remove(BatchMarkerPath);
-            m_storage.remove(batchManifestPath(m_batchId, true));
-            failRetention("batch_manifest_write_failed");
-        }
-        else
-            failBatch("batch_manifest_write_failed");
-        return;
-    }
     ++m_batchFilesCompleted;
     if (m_batchStage == BatchStage::Marker)
     {
         m_storage.remove(BatchMarkerPath);
         if (!finalizeBatchManifest())
         {
-            m_storage.remove(batchManifestPath(m_batchId, true));
-            failRetention("batch_manifest_finalize_failed");
+            failBatch("batch_manifest_finalize_failed");
             return;
         }
         if (!startRetention())
@@ -515,6 +508,7 @@ void RemoteBackupWeb::handleStartBatch()
     m_batchFilesCompleted = 0UL;
     m_batchError = String();
     m_retentionFilesDeleted = 0UL;
+    m_incompleteBatchesDeleted = 0U;
     m_retentionSucceeded = true;
     m_retentionOnly = false;
     m_retentionError = String();
@@ -572,6 +566,7 @@ void RemoteBackupWeb::handleStartRetention()
     m_batchFilesCompleted = 0UL;
     m_batchError = String();
     m_retentionFilesDeleted = 0UL;
+    m_incompleteBatchesDeleted = 0U;
     m_retentionSucceeded = true;
     m_retentionOnly = true;
     m_retentionError = String();
@@ -617,6 +612,8 @@ void RemoteBackupWeb::handleBatchStatus()
     response += m_batchSettings.retentionCount;
     response += F(",\"retention_files_deleted\":");
     response += m_retentionFilesDeleted;
+    response += F(",\"incomplete_batches_deleted\":");
+    response += m_incompleteBatchesDeleted;
     response += F(",\"retention_succeeded\":");
     response += m_retentionSucceeded ? F("true") : F("false");
     response += F(",\"retention_error\":");
@@ -720,8 +717,8 @@ bool RemoteBackupWeb::startNextBatchFile()
                                                       logical, path, name))
                 return false;
             if (!m_storage.exists(path)) continue;
-            return m_transfer.start(m_batchSettings, logical, path,
-                                    prefix + F("main-") + name);
+            return startTrackedBatchFile(logical, path,
+                                         prefix + F("main-") + name);
         }
         m_batchStage = BatchStage::SessionFiles;
     }
@@ -750,8 +747,8 @@ bool RemoteBackupWeb::startNextBatchFile()
                                                      logical, path, name,
                                                      exists)) return false;
             if (!exists) continue;
-            return m_transfer.start(m_batchSettings, logical, path,
-                                    prefix + F("session-") + name);
+            return startTrackedBatchFile(logical, path,
+                                         prefix + F("session-") + name);
         }
         m_batchAfterSessionId = m_batchSessionId;
         m_batchSessionId = 0UL;
@@ -761,11 +758,19 @@ bool RemoteBackupWeb::startNextBatchFile()
         String stabilityReason;
         if (!BackupExportWeb::snapshotStable(m_storage, stabilityReason) ||
             !createCompletionMarker()) return false;
-        return m_transfer.start(m_batchSettings, F("batch-complete"),
-                                BatchMarkerPath,
-                                prefix + F("COMPLETE.txt"));
+        return startTrackedBatchFile(F("batch-complete"), BatchMarkerPath,
+                                     prefix + F("COMPLETE.txt"));
     }
     return false;
+}
+
+bool RemoteBackupWeb::startTrackedBatchFile(const String& logicalName,
+                                             const String& localPath,
+                                             const String& remoteName)
+{
+    return appendBatchManifestName(remoteName) &&
+           m_transfer.start(m_batchSettings, logicalName, localPath,
+                            remoteName);
 }
 
 bool RemoteBackupWeb::createCompletionMarker()
@@ -896,6 +901,11 @@ bool RemoteBackupWeb::selectOldestManagedBatch(
 
 bool RemoteBackupWeb::startRetention()
 {
+    uint32_t incompleteBatchId = 0UL;
+    if (!selectOldestIncompleteBatch(incompleteBatchId)) return false;
+    if (incompleteBatchId > 0UL)
+        return startIncompleteCleanup(incompleteBatchId);
+
     uint32_t oldestBatchId = 0UL;
     uint16_t manifestCount = 0U;
     if (!selectOldestManagedBatch(oldestBatchId, manifestCount)) return false;
@@ -906,6 +916,111 @@ bool RemoteBackupWeb::startRetention()
         return true;
     }
     return startRetentionBatch(oldestBatchId);
+}
+
+bool RemoteBackupWeb::selectOldestIncompleteBatch(uint32_t& batchId) const
+{
+    batchId = 0UL;
+    if (!m_storage.exists(BatchManifestDirectory)) return true;
+    File directory = m_storage.open(BatchManifestDirectory, FILE_READ);
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        return false;
+    }
+    File entry = directory.openNextFile();
+    while (entry)
+    {
+        if (!entry.isDirectory())
+        {
+            String name = entry.name();
+            const int slash = name.lastIndexOf('/');
+            if (slash >= 0)
+                name = name.substring(static_cast<unsigned>(slash + 1));
+            if (name.endsWith(F(".tmp")))
+            {
+                const String number = name.substring(0U, name.length() - 4U);
+                uint32_t parsed = 0UL;
+                if (!parseCanonicalUnsigned(number, 1UL, 0xFFFFFFFFUL,
+                                            parsed))
+                {
+                    entry.close();
+                    directory.close();
+                    return false;
+                }
+                if (batchId == 0UL || parsed < batchId) batchId = parsed;
+            }
+        }
+        entry.close();
+        entry = directory.openNextFile();
+    }
+    directory.close();
+    return true;
+}
+
+bool RemoteBackupWeb::startIncompleteCleanup(uint32_t batchId)
+{
+    if (batchId == 0UL || m_retentionManifest) return false;
+    m_retentionBatchId = batchId;
+    m_retentionMarkerDeleted = false;
+    m_retentionIncomplete = true;
+    m_retentionDeletingPart = false;
+    m_retentionPendingName = String(F("cm-b")) + batchId +
+                             F("-COMPLETE.txt");
+    m_batchStage = BatchStage::Retention;
+    return m_transfer.startDelete(m_batchSettings,
+                                  F("incomplete-marker"),
+                                  m_retentionPendingName);
+}
+
+bool RemoteBackupWeb::startNextIncompleteDelete()
+{
+    if (m_retentionPendingName.length() > 0U &&
+        !m_retentionDeletingPart)
+    {
+        m_retentionDeletingPart = true;
+        return m_transfer.startDelete(m_batchSettings,
+                                      F("incomplete-part"),
+                                      m_retentionPendingName + F(".part"));
+    }
+
+    m_retentionDeletingPart = false;
+    m_retentionPendingName = String();
+    if (!m_retentionManifest)
+    {
+        m_retentionManifest = m_storage.open(
+            batchManifestPath(m_retentionBatchId, true), FILE_READ);
+        if (!m_retentionManifest || m_retentionManifest.isDirectory())
+        {
+            if (m_retentionManifest) m_retentionManifest.close();
+            return false;
+        }
+    }
+
+    const String prefix = String(F("cm-b")) + m_retentionBatchId + '-';
+    const String markerName = prefix + F("COMPLETE.txt");
+    while (m_retentionManifest.available())
+    {
+        String remoteName = m_retentionManifest.readStringUntil('\n');
+        if (remoteName.endsWith("\r"))
+            remoteName.remove(remoteName.length() - 1U);
+        if (remoteName.length() == 0U || remoteName == markerName) continue;
+        if (!remoteName.startsWith(prefix) || remoteName.length() > 180U ||
+            remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
+            remoteName.indexOf('\r') >= 0 || remoteName.indexOf('\n') >= 0)
+            return false;
+        m_retentionPendingName = remoteName;
+        return m_transfer.startDelete(m_batchSettings,
+                                      F("incomplete-file"), remoteName);
+    }
+
+    m_retentionManifest.close();
+    const String manifestPath = batchManifestPath(m_retentionBatchId, true);
+    if (!m_storage.remove(manifestPath)) return false;
+    ++m_incompleteBatchesDeleted;
+    m_retentionBatchId = 0UL;
+    m_retentionIncomplete = false;
+    return startRetention();
 }
 
 bool RemoteBackupWeb::startRetentionBatch(uint32_t batchId)
@@ -961,6 +1076,9 @@ void RemoteBackupWeb::failRetention(const char* reason)
     if (m_retentionManifest) m_retentionManifest.close();
     m_transfer.finishDeleteSession();
     m_retentionSucceeded = false;
+    m_retentionIncomplete = false;
+    m_retentionDeletingPart = false;
+    m_retentionPendingName = String();
     m_retentionError = reason != nullptr ? reason : "retention_failed";
     m_batchStage = BatchStage::Complete;
 }
@@ -969,8 +1087,6 @@ void RemoteBackupWeb::failBatch(const char* reason)
 {
     m_batchError = reason != nullptr ? reason : "backup_batch_failed";
     m_storage.remove(BatchMarkerPath);
-    if (m_batchId > 0UL)
-        m_storage.remove(batchManifestPath(m_batchId, true));
     m_batchStage = BatchStage::Failed;
 }
 }

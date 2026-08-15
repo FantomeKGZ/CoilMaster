@@ -665,3 +665,32 @@ Flash: 42.1% (1324989 / 3145728 bytes)
 This checkpoint is hardware-confirmed by the user on the real device. Creation,
 CRC32 completion, unchanged working data, reboot `STALE` behavior and explicit
 cleanup all passed. The rounded CoilMaster v1 estimate is now **91%**.
+
+## Completed in firmware: restore apply preflight — 2026-08-15
+
+After a verified rollback snapshot, the operator can explicitly run a final
+read-only preflight across the strict restore plan. The state machine rechecks
+every current working file against the rollback CRC32, rereads every rollback
+copy, and calculates CRC32 for every staged file in bounded 1 KiB steps.
+Targets marked `MISSING` must still be absent from both the working and rollback
+paths.
+
+Successful completion atomically creates `APPLY_PREFLIGHT.tsv` and
+`APPLY_READY.txt` under the rollback directory. Both explicitly retain
+`restore_apply_enabled=0` and `working_data_changed=0`. No working data is
+opened for writing, no staged file is applied, and a reboot never resumes the
+operation. Surviving readiness metadata is reported as `STALE` and requires
+explicit operator cleanup.
+
+Code checkpoint:
+
+```text
+9ad5a889e26e0da717577bdd06b23546b6951de7
+f4f6b20bfc52a50e26af0673bf54be76f0eff8f7
+228a99e40ace0a25cd7b0a1d6d65e3db7940d999
+CMP Protocol Tests: SUCCESS (run 31889384628)
+ESP32 Build: SUCCESS (run 31889384626)
+```
+
+Hardware confirmation for this new preflight remains pending, so the rounded
+CoilMaster v1 estimate remains **91%**.

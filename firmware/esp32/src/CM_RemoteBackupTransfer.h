@@ -20,12 +20,16 @@ public:
                const String& logicalName,
                const String& localPath,
                const String& remoteName);
+    bool startDelete(const RemoteBackupSettings& settings,
+                     const String& logicalName,
+                     const String& remoteName);
     void update(uint32_t nowMs);
     bool active() const;
     bool succeeded() const;
     const char* stateName() const;
     const String& error() const;
     const String& logicalName() const;
+    const String& remoteName() const;
     uint32_t bytesTotal() const;
     uint32_t bytesSent() const;
 
@@ -47,8 +51,15 @@ private:
         DeleteFinal,
         RenameFrom,
         RenameTo,
+        DeleteOnly,
         Complete,
         Failed
+    };
+
+    enum class Operation : uint8_t
+    {
+        Upload,
+        Delete
     };
 
     bool readReply(uint16_t& code, String& line);
@@ -69,6 +80,7 @@ private:
     String m_tempName;
     String m_replyLine;
     String m_error;
+    Operation m_operation;
     Phase m_phase;
     uint32_t m_deadlineMs;
     uint32_t m_totalBytes;

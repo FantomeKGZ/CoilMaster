@@ -27,7 +27,8 @@ bool parseSizeReply(const String& line, uint32_t& size)
 }
 
 RemoteBackupTransfer::RemoteBackupTransfer(fs::FS& storage)
-    : m_storage(storage), m_activityProbe(nullptr), m_phase(Phase::Idle),
+    : m_storage(storage), m_activityProbe(nullptr),
+      m_operation(Operation::Upload), m_phase(Phase::Idle),
       m_deadlineMs(0UL), m_totalBytes(0UL), m_sentBytes(0UL) {}
 
 void RemoteBackupTransfer::setActivityProbe(
@@ -54,10 +55,40 @@ bool RemoteBackupTransfer::start(const RemoteBackupSettings& settings,
         return false;
     }
     m_settings = settings;
+    m_operation = Operation::Upload;
     m_logicalName = logicalName;
     m_remoteName = remoteName;
     m_tempName = remoteName + F(".part");
     m_totalBytes = static_cast<uint32_t>(m_file.size());
+    m_sentBytes = 0UL;
+    m_error = String();
+    m_replyLine = String();
+    m_control.setTimeout(300UL);
+    if (!m_control.connect(settings.host.c_str(), settings.port, 300))
+    {
+        fail("ftp_connect_failed");
+        return false;
+    }
+    m_phase = Phase::Greeting;
+    resetDeadline(millis());
+    return true;
+}
+
+bool RemoteBackupTransfer::startDelete(const RemoteBackupSettings& settings,
+                                       const String& logicalName,
+                                       const String& remoteName)
+{
+    if (active() || !RemoteBackupSettingsStore::valid(settings) ||
+        !settings.enabled || WiFi.status() != WL_CONNECTED ||
+        logicalName.length() == 0U || remoteName.length() == 0U ||
+        remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0)
+        return false;
+    m_settings = settings;
+    m_operation = Operation::Delete;
+    m_logicalName = logicalName;
+    m_remoteName = remoteName;
+    m_tempName = String();
+    m_totalBytes = 0UL;
     m_sentBytes = 0UL;
     m_error = String();
     m_replyLine = String();
@@ -142,9 +173,16 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
                 fail("ftp_authentication_failed");
             break;
         case Phase::ChangeDirectory:
-            if (code < 200U || code >= 300U ||
-                !sendCommand(F("TYPE I"), Phase::BinaryMode, nowMs))
+            if (code < 200U || code >= 300U)
                 fail("ftp_remote_directory_unavailable");
+            else if (m_operation == Operation::Delete)
+            {
+                if (!sendCommand(String(F("DELE ")) + m_remoteName,
+                                 Phase::DeleteOnly, nowMs))
+                    fail("ftp_command_failed");
+            }
+            else if (!sendCommand(F("TYPE I"), Phase::BinaryMode, nowMs))
+                fail("ftp_command_failed");
             break;
         case Phase::BinaryMode:
             if (code < 200U || code >= 300U ||
@@ -204,6 +242,18 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
                 m_phase = Phase::Complete;
             }
             break;
+        case Phase::DeleteOnly:
+            // Retention deletion is idempotent: 550 means the exact managed
+            // file is already absent, which is safe after an interrupted pass.
+            if ((code < 200U || code >= 300U) && code != 550U)
+                fail("ftp_delete_failed");
+            else
+            {
+                m_control.print(F("QUIT\r\n"));
+                closeTransfer();
+                m_phase = Phase::Complete;
+            }
+            break;
         case Phase::Idle:
         case Phase::Sending:
         case Phase::Complete:
@@ -231,6 +281,7 @@ const char* RemoteBackupTransfer::stateName() const
 
 const String& RemoteBackupTransfer::error() const { return m_error; }
 const String& RemoteBackupTransfer::logicalName() const { return m_logicalName; }
+const String& RemoteBackupTransfer::remoteName() const { return m_remoteName; }
 uint32_t RemoteBackupTransfer::bytesTotal() const { return m_totalBytes; }
 uint32_t RemoteBackupTransfer::bytesSent() const { return m_sentBytes; }
 

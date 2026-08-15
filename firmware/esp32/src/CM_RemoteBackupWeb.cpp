@@ -17,6 +17,8 @@ constexpr const char* BatchSequenceBackupPath =
     "/data/settings/remote-backup-sequence.bak";
 constexpr const char* BatchMarkerPath =
     "/data/settings/remote-backup-complete.txt";
+constexpr const char* BatchManifestDirectory =
+    "/data/settings/remote-backup-batches";
 
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
@@ -133,18 +135,54 @@ void RemoteBackupWeb::update(uint32_t nowMs)
     m_transfer.update(nowMs);
     if (m_batchStage != BatchStage::MainFiles &&
         m_batchStage != BatchStage::SessionFiles &&
-        m_batchStage != BatchStage::Marker) return;
+        m_batchStage != BatchStage::Marker &&
+        m_batchStage != BatchStage::Retention) return;
     if (m_transfer.active()) return;
     if (!m_transfer.succeeded())
     {
-        failBatch(m_transfer.error().c_str());
+        if (m_batchStage == BatchStage::Retention)
+            failRetention(m_transfer.error().c_str());
+        else
+            failBatch(m_transfer.error().c_str());
+        return;
+    }
+    if (m_batchStage == BatchStage::Retention)
+    {
+        ++m_retentionFilesDeleted;
+        if (!m_retentionMarkerDeleted)
+        {
+            m_retentionMarkerDeleted = true;
+            if (!startNextRetentionFile())
+                failRetention("retention_manifest_read_failed");
+        }
+        else if (!startNextRetentionFile())
+            failRetention("retention_manifest_read_failed");
+        return;
+    }
+    if (!appendBatchManifestName(m_transfer.remoteName()))
+    {
+        if (m_batchStage == BatchStage::Marker)
+        {
+            m_storage.remove(BatchMarkerPath);
+            m_storage.remove(batchManifestPath(m_batchId, true));
+            failRetention("batch_manifest_write_failed");
+        }
+        else
+            failBatch("batch_manifest_write_failed");
         return;
     }
     ++m_batchFilesCompleted;
     if (m_batchStage == BatchStage::Marker)
     {
         m_storage.remove(BatchMarkerPath);
-        m_batchStage = BatchStage::Complete;
+        if (!finalizeBatchManifest())
+        {
+            m_storage.remove(batchManifestPath(m_batchId, true));
+            failRetention("batch_manifest_finalize_failed");
+            return;
+        }
+        if (!startRetention())
+            failRetention("retention_start_failed");
         return;
     }
     if (!startNextBatchFile() &&
@@ -344,7 +382,8 @@ void RemoteBackupWeb::handleStartUpload()
 {
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
-        m_batchStage == BatchStage::Marker)
+        m_batchStage == BatchStage::Marker ||
+        m_batchStage == BatchStage::Retention)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -436,7 +475,8 @@ void RemoteBackupWeb::handleStartBatch()
 {
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
-        m_batchStage == BatchStage::Marker)
+        m_batchStage == BatchStage::Marker ||
+        m_batchStage == BatchStage::Retention)
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -472,6 +512,16 @@ void RemoteBackupWeb::handleStartBatch()
     m_batchKindIndex = 0U;
     m_batchFilesCompleted = 0UL;
     m_batchError = String();
+    m_retentionFilesDeleted = 0UL;
+    m_retentionSucceeded = true;
+    m_retentionError = String();
+    if (!beginBatchManifest())
+    {
+        failBatch("batch_manifest_create_failed");
+        m_server.send(500, "application/json",
+                      "{\"error\":\"backup_batch_manifest_failed\"}");
+        return;
+    }
     m_batchStage = BatchStage::MainFiles;
     if (!startNextBatchFile())
     {
@@ -491,13 +541,15 @@ void RemoteBackupWeb::handleBatchStatus()
     if (m_batchStage == BatchStage::MainFiles) state = "MAIN_FILES";
     else if (m_batchStage == BatchStage::SessionFiles) state = "SESSION_FILES";
     else if (m_batchStage == BatchStage::Marker) state = "FINALIZING";
+    else if (m_batchStage == BatchStage::Retention) state = "RETENTION";
     else if (m_batchStage == BatchStage::Complete) state = "COMPLETED";
     else if (m_batchStage == BatchStage::Failed) state = "FAILED";
     String response = F("{\"state\":\""); response += state;
     response += F("\",\"active\":");
     response += (m_batchStage == BatchStage::MainFiles ||
                  m_batchStage == BatchStage::SessionFiles ||
-                 m_batchStage == BatchStage::Marker) ? F("true") : F("false");
+                 m_batchStage == BatchStage::Marker ||
+                 m_batchStage == BatchStage::Retention) ? F("true") : F("false");
     response += F(",\"batch_id\":");
     if (m_batchId > 0UL) response += m_batchId; else response += F("null");
     response += F(",\"files_completed\":"); response += m_batchFilesCompleted;
@@ -507,6 +559,16 @@ void RemoteBackupWeb::handleBatchStatus()
     response += F(",\"error\":");
     if (m_batchError.length() > 0U)
     { response += '"'; response += m_batchError; response += '"'; }
+    else response += F("null");
+    response += F(",\"retention_configured\":");
+    response += m_batchSettings.retentionCount;
+    response += F(",\"retention_files_deleted\":");
+    response += m_retentionFilesDeleted;
+    response += F(",\"retention_succeeded\":");
+    response += m_retentionSucceeded ? F("true") : F("false");
+    response += F(",\"retention_error\":");
+    if (m_retentionError.length() > 0U)
+    { response += '"'; response += m_retentionError; response += '"'; }
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
@@ -669,10 +731,191 @@ bool RemoteBackupWeb::createCompletionMarker()
     return written;
 }
 
+String RemoteBackupWeb::batchManifestPath(uint32_t batchId,
+                                          bool temporary) const
+{
+    String path = String(BatchManifestDirectory) + '/';
+    path += batchId;
+    path += temporary ? F(".tmp") : F(".lst");
+    return path;
+}
+
+bool RemoteBackupWeb::beginBatchManifest()
+{
+    if (!m_storage.exists(BatchManifestDirectory) &&
+        !m_storage.mkdir(BatchManifestDirectory)) return false;
+    File directory = m_storage.open(BatchManifestDirectory, FILE_READ);
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        return false;
+    }
+    directory.close();
+
+    const String temporaryPath = batchManifestPath(m_batchId, true);
+    const String finalPath = batchManifestPath(m_batchId, false);
+    if ((m_storage.exists(temporaryPath) &&
+         !m_storage.remove(temporaryPath)) ||
+        m_storage.exists(finalPath)) return false;
+    File manifest = m_storage.open(temporaryPath, FILE_WRITE);
+    if (!manifest || manifest.isDirectory())
+    {
+        if (manifest) manifest.close();
+        return false;
+    }
+    manifest.close();
+    return true;
+}
+
+bool RemoteBackupWeb::appendBatchManifestName(const String& remoteName)
+{
+    const String prefix = String(F("cm-b")) + m_batchId + '-';
+    if (!remoteName.startsWith(prefix) || remoteName.length() > 180U ||
+        remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
+        remoteName.indexOf('\r') >= 0 || remoteName.indexOf('\n') >= 0)
+        return false;
+    File manifest = m_storage.open(batchManifestPath(m_batchId, true),
+                                   FILE_APPEND);
+    if (!manifest || manifest.isDirectory())
+    {
+        if (manifest) manifest.close();
+        return false;
+    }
+    const String line = remoteName + '\n';
+    const bool written = manifest.print(line) == line.length();
+    manifest.flush();
+    manifest.close();
+    return written;
+}
+
+bool RemoteBackupWeb::finalizeBatchManifest()
+{
+    const String temporaryPath = batchManifestPath(m_batchId, true);
+    const String finalPath = batchManifestPath(m_batchId, false);
+    return m_storage.exists(temporaryPath) &&
+           !m_storage.exists(finalPath) &&
+           m_storage.rename(temporaryPath, finalPath);
+}
+
+bool RemoteBackupWeb::selectOldestManagedBatch(
+    uint32_t& batchId,
+    uint16_t& manifestCount) const
+{
+    batchId = 0UL;
+    manifestCount = 0U;
+    if (!m_storage.exists(BatchManifestDirectory)) return true;
+    File directory = m_storage.open(BatchManifestDirectory, FILE_READ);
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        return false;
+    }
+    File entry = directory.openNextFile();
+    while (entry)
+    {
+        if (!entry.isDirectory())
+        {
+            String name = entry.name();
+            const int slash = name.lastIndexOf('/');
+            if (slash >= 0) name = name.substring(static_cast<unsigned>(slash + 1));
+            if (name.endsWith(F(".lst")))
+            {
+                const String number = name.substring(0U, name.length() - 4U);
+                uint32_t parsed = 0UL;
+                if (!parseCanonicalUnsigned(number, 1UL, 0xFFFFFFFFUL,
+                                            parsed) ||
+                    manifestCount == 0xFFFFU)
+                {
+                    entry.close();
+                    directory.close();
+                    return false;
+                }
+                ++manifestCount;
+                if (batchId == 0UL || parsed < batchId) batchId = parsed;
+            }
+        }
+        entry.close();
+        entry = directory.openNextFile();
+    }
+    directory.close();
+    return true;
+}
+
+bool RemoteBackupWeb::startRetention()
+{
+    uint32_t oldestBatchId = 0UL;
+    uint16_t manifestCount = 0U;
+    if (!selectOldestManagedBatch(oldestBatchId, manifestCount)) return false;
+    if (manifestCount <= m_batchSettings.retentionCount)
+    {
+        m_batchStage = BatchStage::Complete;
+        return true;
+    }
+    return startRetentionBatch(oldestBatchId);
+}
+
+bool RemoteBackupWeb::startRetentionBatch(uint32_t batchId)
+{
+    if (batchId == 0UL || m_retentionManifest) return false;
+    m_retentionBatchId = batchId;
+    m_retentionMarkerDeleted = false;
+    m_batchStage = BatchStage::Retention;
+    const String markerName = String(F("cm-b")) + batchId +
+                              F("-COMPLETE.txt");
+    return m_transfer.startDelete(m_batchSettings, F("retention-marker"),
+                                  markerName);
+}
+
+bool RemoteBackupWeb::startNextRetentionFile()
+{
+    if (!m_retentionManifest)
+    {
+        m_retentionManifest = m_storage.open(
+            batchManifestPath(m_retentionBatchId, false), FILE_READ);
+        if (!m_retentionManifest || m_retentionManifest.isDirectory())
+        {
+            if (m_retentionManifest) m_retentionManifest.close();
+            return false;
+        }
+    }
+
+    const String prefix = String(F("cm-b")) + m_retentionBatchId + '-';
+    const String markerName = prefix + F("COMPLETE.txt");
+    while (m_retentionManifest.available())
+    {
+        String remoteName = m_retentionManifest.readStringUntil('\n');
+        if (remoteName.endsWith("\r"))
+            remoteName.remove(remoteName.length() - 1U);
+        if (remoteName.length() == 0U || remoteName == markerName) continue;
+        if (!remoteName.startsWith(prefix) || remoteName.length() > 180U ||
+            remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
+            remoteName.indexOf('\r') >= 0 || remoteName.indexOf('\n') >= 0)
+            return false;
+        return m_transfer.startDelete(m_batchSettings, F("retention-file"),
+                                      remoteName);
+    }
+
+    m_retentionManifest.close();
+    const String manifestPath = batchManifestPath(m_retentionBatchId, false);
+    if (!m_storage.remove(manifestPath)) return false;
+    m_retentionBatchId = 0UL;
+    return startRetention();
+}
+
+void RemoteBackupWeb::failRetention(const char* reason)
+{
+    if (m_retentionManifest) m_retentionManifest.close();
+    m_retentionSucceeded = false;
+    m_retentionError = reason != nullptr ? reason : "retention_failed";
+    m_batchStage = BatchStage::Complete;
+}
+
 void RemoteBackupWeb::failBatch(const char* reason)
 {
     m_batchError = reason != nullptr ? reason : "backup_batch_failed";
     m_storage.remove(BatchMarkerPath);
+    if (m_batchId > 0UL)
+        m_storage.remove(batchManifestPath(m_batchId, true));
     m_batchStage = BatchStage::Failed;
 }
 }

@@ -31,6 +31,16 @@ private:
     bool allocateBatchId(uint32_t& batchId);
     bool startNextBatchFile();
     bool createCompletionMarker();
+    bool beginBatchManifest();
+    bool appendBatchManifestName(const String& remoteName);
+    bool finalizeBatchManifest();
+    bool startRetention();
+    bool selectOldestManagedBatch(uint32_t& batchId,
+                                  uint16_t& manifestCount) const;
+    bool startRetentionBatch(uint32_t batchId);
+    bool startNextRetentionFile();
+    void failRetention(const char* reason);
+    String batchManifestPath(uint32_t batchId, bool temporary) const;
     void failBatch(const char* reason);
 
     enum class BatchStage : uint8_t
@@ -39,6 +49,7 @@ private:
         MainFiles,
         SessionFiles,
         Marker,
+        Retention,
         Complete,
         Failed
     };
@@ -56,6 +67,12 @@ private:
     uint32_t m_batchFilesCompleted = 0UL;
     uint8_t m_batchKindIndex = 0U;
     String m_batchError;
+    File m_retentionManifest;
+    uint32_t m_retentionBatchId = 0UL;
+    uint32_t m_retentionFilesDeleted = 0UL;
+    bool m_retentionMarkerDeleted = false;
+    bool m_retentionSucceeded = true;
+    String m_retentionError;
 };
 }
 

@@ -126,6 +126,8 @@ void RemoteBackupWeb::begin()
                 [this]() { handleUploadStatus(); });
     m_server.on("/api/backup/remote/batch", HTTP_POST,
                 [this]() { handleStartBatch(); });
+    m_server.on("/api/backup/remote/retention", HTTP_POST,
+                [this]() { handleStartRetention(); });
     m_server.on("/api/backup/remote/batch-status", HTTP_GET,
                 [this]() { handleBatchStatus(); });
 }
@@ -514,6 +516,7 @@ void RemoteBackupWeb::handleStartBatch()
     m_batchError = String();
     m_retentionFilesDeleted = 0UL;
     m_retentionSucceeded = true;
+    m_retentionOnly = false;
     m_retentionError = String();
     if (!beginBatchManifest())
     {
@@ -535,6 +538,54 @@ void RemoteBackupWeb::handleStartBatch()
     m_server.send(202, "application/json", response);
 }
 
+void RemoteBackupWeb::handleStartRetention()
+{
+    if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
+        m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Marker ||
+        m_batchStage == BatchStage::Retention)
+    {
+        m_server.send(409, "application/json",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    bool configured = false;
+    if (!m_settingsStore.load(m_batchSettings, configured) || !configured ||
+        !m_batchSettings.enabled || WiFi.status() != WL_CONNECTED)
+    {
+        m_server.send(409, "application/json",
+                      "{\"error\":\"remote_backup_not_ready\"}");
+        return;
+    }
+
+    m_batchId = 0UL;
+    m_batchFilesCompleted = 0UL;
+    m_batchError = String();
+    m_retentionFilesDeleted = 0UL;
+    m_retentionSucceeded = true;
+    m_retentionOnly = true;
+    m_retentionError = String();
+    if (!startRetention())
+    {
+        failRetention("retention_start_failed");
+        m_server.send(500, "application/json",
+                      "{\"error\":\"retention_start_failed\"}");
+        return;
+    }
+    m_server.send(202, "application/json",
+                  "{\"accepted\":true,\"operation\":\"RETENTION_ONLY\"}");
+}
+
 void RemoteBackupWeb::handleBatchStatus()
 {
     const char* state = "IDLE";
@@ -545,6 +596,8 @@ void RemoteBackupWeb::handleBatchStatus()
     else if (m_batchStage == BatchStage::Complete) state = "COMPLETED";
     else if (m_batchStage == BatchStage::Failed) state = "FAILED";
     String response = F("{\"state\":\""); response += state;
+    response += F("\",\"operation\":\"");
+    response += m_retentionOnly ? F("RETENTION_ONLY") : F("FULL_BACKUP");
     response += F("\",\"active\":");
     response += (m_batchStage == BatchStage::MainFiles ||
                  m_batchStage == BatchStage::SessionFiles ||

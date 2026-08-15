@@ -11,8 +11,13 @@
     full.type='button';
     full.id='remoteBackupBatch';
     full.textContent='Создать полную копию на сервере';
+    const retention=document.createElement('button');
+    retention.type='button';
+    retention.id='remoteBackupRetention';
+    retention.textContent='Применить лимит копий сейчас';
     manifestState.parentNode.insertBefore(status,manifestState.nextSibling);
     status.insertAdjacentElement('afterend',full);
+    full.insertAdjacentElement('afterend',retention);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -34,6 +39,7 @@
     function buttons(disabled){
         document.querySelectorAll('[data-remote-backup]').forEach(b=>b.disabled=disabled);
         full.disabled=disabled;
+        retention.disabled=disabled;
     }
     async function pollBatch(){
         enhance();
@@ -44,7 +50,9 @@
                 buttons(true);
                 status.className='muted';
                 if(j.state==='RETENTION'){
-                    status.textContent='Полная копия №'+j.batch_id+' завершена. Очистка старых управляемых копий · удалено файлов '+j.retention_files_deleted+'.';
+                    status.textContent=j.operation==='RETENTION_ONLY'
+                        ?'Применение лимита: удалено файлов '+j.retention_files_deleted+'.'
+                        :'Полная копия №'+j.batch_id+' завершена. Очистка старых управляемых копий · удалено файлов '+j.retention_files_deleted+'.';
                 }else{
                     status.textContent='Полная копия №'+j.batch_id+': '+j.state+' · файлов '+j.files_completed+' · '+size(j.bytes_sent)+' из '+size(j.bytes_total);
                 }
@@ -52,7 +60,13 @@
                 return;
             }
             buttons(false);
-            if(j.state==='COMPLETED'&&j.retention_succeeded===false){
+            if(j.state==='COMPLETED'&&j.operation==='RETENTION_ONLY'&&j.retention_succeeded===false){
+                status.className='bad';
+                status.textContent='Не удалось применить лимит копий: '+(j.retention_error||'unknown')+'. Действующие копии не повреждены.';
+            }else if(j.state==='COMPLETED'&&j.operation==='RETENTION_ONLY'){
+                status.className='ok';
+                status.textContent='Лимит применён. Удалено файлов: '+j.retention_files_deleted+'.';
+            }else if(j.state==='COMPLETED'&&j.retention_succeeded===false){
                 status.className='warning';
                 status.textContent='Полная копия №'+j.batch_id+' завершена и имеет COMPLETE, но очистка старых копий не закончена: '+(j.retention_error||'unknown')+'. Новая копия действительна.';
             }else if(j.state==='COMPLETED'){
@@ -126,11 +140,28 @@
             status.textContent='Полная копия не запущена: '+e.message;
         }
     }
+    async function applyRetention(){
+        if(!confirm('Применить текущий лимит и удалить самые старые управляемые копии?'))return;
+        clearTimeout(timer);
+        buttons(true);
+        status.className='muted';
+        status.textContent='Проверка и применение лимита копий…';
+        try{
+            const r=await fetch('/api/backup/remote/retention',{method:'POST'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'retention_start_failed');
+            pollBatch();
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Лимит копий не применён: '+e.message;
+        }
+    }
     document.addEventListener('click',e=>{
         const b=e.target.closest('[data-remote-backup]');
         if(b)upload(b.dataset.remoteBackup);
     });
     full.onclick=batch;
+    retention.onclick=applyRetention;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
     pollBatch();
 })();

@@ -27,6 +27,7 @@ private:
     void handleStartUpload();
     void handleUploadStatus();
     void handleStartBatch();
+    void handleStartRetention();
     void handleBatchStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startNextBatchFile();
@@ -72,6 +73,7 @@ private:
     uint32_t m_retentionFilesDeleted = 0UL;
     bool m_retentionMarkerDeleted = false;
     bool m_retentionSucceeded = true;
+    bool m_retentionOnly = false;
     String m_retentionError;
 };
 }

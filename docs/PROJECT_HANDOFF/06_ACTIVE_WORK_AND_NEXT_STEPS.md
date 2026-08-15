@@ -554,3 +554,18 @@ Hardware verification remains required:
 4. confirm `http://192.168.4.1/` still works if `.local` resolution is blocked;
 5. record router guest/client-isolation behavior separately, because those
    modes may intentionally block multicast UDP 5353.
+
+## Closed: missing desktop sidebar icons — 2026-08-15
+
+The missing-icon issue was caused by inconsistent historical sidebar markup and
+compact CSS that hides anchor text. It is fixed centrally in the HTML script
+appended by `CM_StaticSiteServer`; no per-page navigation fork was introduced.
+Existing icons are preserved, missing icons are assigned by link/label, and the
+icon has its own responsive font size. The injected script is now syntax-checked
+by the web asset audit.
+
+```text
+c065ede2ebf439cc55a95bff4cd460e4709cfef2
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation/injected-script audit: SUCCESS
+```

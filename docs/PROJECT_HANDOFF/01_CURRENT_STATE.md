@@ -571,3 +571,22 @@ RAM: 15.3% (50288 / 327680 bytes)
 Flash: 39.5% (1243269 / 3145728 bytes)
 REAL AP/STA mDNS TEST: PENDING
 ```
+
+## Desktop navigation icon normalization — 2026-08-15
+
+Desktop pages previously used inconsistent sidebar markup: some links already
+contained emoji icons while many secondary pages contained text only. Compact
+sidebars also set the anchor font size to zero, which made text-only entries
+appear empty. `CM_StaticSiteServer` now normalizes every `aside a` on streamed
+desktop HTML, preserves explicit existing icons, assigns missing icons from the
+route/label and renders icon and label in separate spans. The icon therefore
+keeps a visible size when the compact layout hides the label.
+
+`Tests/Web/check_web_assets.js` now compiles the injected PROGMEM UI script and
+requires the desktop icon normalizer in addition to checking all 48 HTML files.
+
+```text
+c065ede2ebf439cc55a95bff4cd460e4709cfef2
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation/injected-script audit: SUCCESS
+```

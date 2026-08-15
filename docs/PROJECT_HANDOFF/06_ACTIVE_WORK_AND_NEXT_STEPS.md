@@ -738,3 +738,43 @@ Hardware check: while the machine is idle, deliberately change the RTC time,
 press the synchronization button and confirm Settings immediately shows the
 phone/computer local time. Also confirm that the same POST is rejected while
 the activity state is busy or unavailable.
+
+## Completed in firmware: safe daily remote-backup schedule — 2026-08-15
+
+Remote backup settings schema 2 adds an optional daily local DS3231 time. Schema
+1 files remain readable and migrate atomically on the next settings save.
+
+The scheduler checks at a bounded 30-second interval and starts the existing
+full manifest backup only when all gates are true:
+
+- remote backup and schedule are enabled;
+- DS3231 date/time is valid;
+- the configured local time has arrived;
+- STA is connected to the router;
+- machine state is provably idle;
+- the same RTC date has not already completed a scheduled batch.
+
+If Wi-Fi or the safe-idle condition is unavailable, the scheduler waits. Once
+the expensive stable-snapshot attempt begins, it is not repeatedly retried on
+the same boot/date after a failure. A completed batch stores
+`last_scheduled_date` atomically; rebooting later that day cannot create a
+duplicate scheduled copy. A missed time after reboot is caught up once the
+gates become safe.
+
+The scheduled path reuses the exact full-batch, COMPLETE marker, interrupted
+batch cleanup and retention state machines. It has no connection to physical
+START, Arduino SSR control, auto-resume or wire writeoff.
+
+```text
+0b6c0613957f5faf7c2f3a1ed41af447f8eabe99
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.6% (51168 / 327680 bytes)
+Flash: 41.0% (1289409 / 3145728 bytes)
+```
+
+Hardware test: set the daily time two or three minutes ahead, enable the
+schedule and leave the machine safely idle. Confirm exactly one new complete
+batch appears, Settings reports `Плановая копия за сегодня выполнена`, and a
+reboot on the same RTC date does not create a second scheduled batch. Then set
+the intended production time.

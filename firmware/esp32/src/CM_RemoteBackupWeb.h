@@ -40,6 +40,8 @@ private:
     void handleRestorePlanStatus();
     void handleStartRollbackSnapshot();
     void handleRollbackSnapshotStatus();
+    void handleStartApplyPreflight();
+    void handleApplyPreflightStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startFullBatch(bool scheduled,
                         uint16_t& statusCode,
@@ -76,6 +78,15 @@ private:
     bool clearRollbackDirectory();
     void failRollbackSnapshot(const char* reason);
     bool rollbackActive() const;
+    bool validateRollbackMarker() const;
+    bool processNextApplyPreflightEntry();
+    bool continueApplyPreflightCrc();
+    bool openApplyPreflightInput(const String& path, uint32_t expectedBytes,
+                                 uint8_t nextStage);
+    bool appendApplyPreflightEntry();
+    bool finalizeApplyPreflight();
+    void failApplyPreflight(const char* reason);
+    bool applyPreflightActive() const;
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
@@ -136,6 +147,17 @@ private:
         Failed
     };
 
+    enum class ApplyPreflightStage : uint8_t
+    {
+        Idle,
+        Entries,
+        CurrentFile,
+        RollbackFile,
+        StagedFile,
+        Complete,
+        Failed
+    };
+
     WebServer& m_server;
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
@@ -190,6 +212,28 @@ private:
     uint32_t m_rollbackVerifyCrc = 0xFFFFFFFFUL;
     uint32_t m_rollbackVerifyBytes = 0UL;
     String m_rollbackError;
+    ApplyPreflightStage m_applyPreflightStage = ApplyPreflightStage::Idle;
+    File m_applyPreflightPlan;
+    File m_applyPreflightRollback;
+    File m_applyPreflightOutput;
+    File m_applyPreflightInput;
+    String m_applyPreflightRemoteName;
+    String m_applyPreflightTargetPath;
+    String m_applyPreflightStagedPath;
+    String m_applyPreflightRollbackPath;
+    bool m_applyPreflightPreviousPresent = false;
+    uint32_t m_applyPreflightFiles = 0UL;
+    uint32_t m_applyPreflightBytes = 0UL;
+    uint32_t m_applyPreflightStagedBytes = 0UL;
+    uint32_t m_applyPreflightPreviousBytes = 0UL;
+    uint32_t m_applyPreflightPreviousCrc = 0UL;
+    uint32_t m_applyPreflightCurrentCrc = 0UL;
+    uint32_t m_applyPreflightRollbackCrc = 0UL;
+    uint32_t m_applyPreflightStagedCrc = 0UL;
+    uint32_t m_applyPreflightInputBytes = 0UL;
+    uint32_t m_applyPreflightInputExpected = 0UL;
+    uint32_t m_applyPreflightInputCrc = 0xFFFFFFFFUL;
+    String m_applyPreflightError;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;

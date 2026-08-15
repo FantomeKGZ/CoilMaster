@@ -609,10 +609,10 @@ future catalogue, analytics or automation feature.
 | Client → repair → winding → manual writeoff → close flow | 20% | 94% |
 | Persistent data integrity, exact lookup and pagination | 15% | 93% |
 | Warehouse, calculator and reviewed motor import | 15% | 90% |
-| Wi-Fi, FTP, scheduled backup and recovery preparation | 15% | 85% |
-| Final hardware acceptance, recovery drill and release documentation | 15% | 80% |
+| Wi-Fi, FTP, scheduled backup and recovery preparation | 15% | 88% |
+| Final hardware acceptance, recovery drill and release documentation | 15% | 82% |
 
-Weighted result: **90%**.
+Weighted result: **91%**.
 
 The old motor/winding JSON importer was re-audited and hardened at
 `684e848c235b5f37607e9ca814e8bc11647c1b5d`. Desktop and mobile now reject
@@ -662,6 +662,6 @@ RAM: 15.7% (51608 / 327680 bytes)
 Flash: 42.1% (1324989 / 3145728 bytes)
 ```
 
-This checkpoint is firmware/CI-confirmed and still requires real-device
-verification. The overall rounded v1 estimate remains 90% until that hardware
-gate is closed.
+This checkpoint is hardware-confirmed by the user on the real device. Creation,
+CRC32 completion, unchanged working data, reboot `STALE` behavior and explicit
+cleanup all passed. The rounded CoilMaster v1 estimate is now **91%**.

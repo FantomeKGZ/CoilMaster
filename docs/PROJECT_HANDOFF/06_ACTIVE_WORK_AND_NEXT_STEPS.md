@@ -961,7 +961,7 @@ removed together.
 
 ## Current completion estimate — 2026-08-15
 
-CoilMaster v1 is estimated at **90% complete**. This percentage is scoped to the
+CoilMaster v1 is estimated at **91% complete**. This percentage is scoped to the
 defined workshop product, not unlimited future features.
 
 ```text
@@ -969,12 +969,12 @@ Winding hardware/UART/safety                 95% (weight 20%)
 Business production flow                    94% (weight 20%)
 Data integrity/exact lookup/pagination       93% (weight 15%)
 Warehouse/calculator/reviewed motor import   90% (weight 15%)
-Wi-Fi/FTP/backup/recovery preparation        85% (weight 15%)
-Final acceptance/recovery drill/release      80% (weight 15%)
-Weighted total                               90%
+Wi-Fi/FTP/backup/recovery preparation        88% (weight 15%)
+Final acceptance/recovery drill/release      82% (weight 15%)
+Weighted total                               91%
 ```
 
-The remaining approximately 10% is concentrated in:
+The remaining approximately 9% is concentrated in:
 
 1. hardware verification of the strict read-only restore plan;
 2. hardware import of a small reviewed motor package and post-import exact/paged
@@ -1042,3 +1042,12 @@ hardware-confirmed. The future apply path must recreate or revalidate a fresh
 rollback snapshot immediately before replacement, remain operator-only, and
 support deterministic rollback; automatic restore and reboot continuation stay
 prohibited.
+
+
+Hardware confirmation: the verified local rollback snapshot checkpoint passed on
+the real device. The operator flow reached CRC32-complete readiness, working
+clients/motors/repairs/warehouse/winding data remained unchanged, reboot exposed
+the temporary area as `STALE` without applying anything, and explicit cleanup
+removed the staging and rollback areas. The next implementation block may now
+prepare the operator-only target-replacement transaction, retaining mandatory
+fresh rollback validation and deterministic rollback.

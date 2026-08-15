@@ -669,7 +669,7 @@ Next work should be chosen from populated-device timing/RAM measurements, hardwa
 
 ## 2026-08-15 addendum: current percentage and importer checkpoint
 
-Current CoilMaster v1 completion estimate is **90%**. The weighted basis and
+Current CoilMaster v1 completion estimate is **91%**. The weighted basis and
 remaining work are recorded in `01_CURRENT_STATE.md` and
 `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
 
@@ -680,3 +680,13 @@ same-preview resubmission of successful rows are now blocked. Firmware and both
 web UIs enforce the relevant checks. CMP Protocol Tests, executable web import
 audit and ESP32 Build are confirmed successful (RAM 51408 bytes, Flash 1314657
 bytes). Real-device disposable-package verification remains pending.
+
+
+## 2026-08-15 addendum: rollback snapshot hardware-confirmed
+
+The user confirmed the real-device rollback-snapshot test for
+`1e7af6c3031f513b97cbfa974c922cd593d02c78`: CRC32 completion, unchanged
+working data, reboot `STALE` behavior and explicit cleanup all passed. No restore
+was applied. The next restore block may be implemented only as an explicit
+operator transaction with a freshly validated rollback snapshot; automatic
+restore and reboot continuation remain prohibited.

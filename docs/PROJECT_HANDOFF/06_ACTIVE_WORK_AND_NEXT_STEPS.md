@@ -623,8 +623,36 @@ RAM: 15.5% (50760 / 327680 bytes)
 Flash: 40.1% (1261073 / 3145728 bytes)
 ```
 
-Remaining hardware check: create more complete backups than the configured
-retention count, verify that the oldest managed prefix is removed, then
-interrupt one cleanup and confirm the new backup remains valid while the old
-prefix has no `COMPLETE.txt`. Do not describe retention itself as
-hardware-confirmed until that check passes.
+Hardware retention is now user-confirmed on the real device. Creating more
+complete backups than the configured limit correctly removes the oldest
+managed batch. The FTP-session reuse fix that closed the multi-delete failure
+is recorded in:
+
+```text
+4f8261da92f581fdbfb45351f5987fa31a75eed7
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.5% (50760 / 327680 bytes)
+Flash: 40.1% (1261397 / 3145728 bytes)
+```
+
+## Completed: manual application of backup retention — 2026-08-15
+
+The backup page now exposes `Применить лимит копий сейчас`. It applies the
+saved `retention_count` without creating an extra full backup. The endpoint is
+fail-closed on machine activity, requires configured/enabled remote backup and
+an active STA connection, and reuses the exact trusted-manifest deletion path.
+Legacy or arbitrary FTP files remain outside automatic deletion.
+
+```text
+dd5e52bfa984471844c1bb38c5db21098e08a129
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.5% (50760 / 327680 bytes)
+Flash: 40.1% (1262133 / 3145728 bytes)
+```
+
+Runtime smoke test after flashing: change the saved limit to a value below the
+current managed-batch count, press the new button while the machine is idle,
+and confirm the UI reports completion without creating a new `cm-b<id>-`
+prefix.

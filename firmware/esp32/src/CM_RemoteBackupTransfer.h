@@ -28,6 +28,10 @@ public:
                        const String& remoteName,
                        const String& localPath,
                        uint32_t maximumBytes);
+    bool startSizeProbe(const RemoteBackupSettings& settings,
+                        const String& logicalName,
+                        const String& remoteName);
+    void finishProbeSession();
     void finishDeleteSession();
     void update(uint32_t nowMs);
     bool active() const;
@@ -55,6 +59,7 @@ private:
         StoreComplete,
         Size,
         DownloadSize,
+        ProbeSize,
         RetrieveReady,
         Receiving,
         RetrieveComplete,
@@ -70,7 +75,8 @@ private:
     {
         Upload,
         Delete,
-        Download
+        Download,
+        SizeProbe
     };
 
     bool readReply(uint16_t& code, String& line);

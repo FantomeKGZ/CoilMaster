@@ -130,12 +130,14 @@
             if(j.active){
                 buttons(true);
                 status.className='muted';
-                status.textContent='Проверка копии №'+j.batch_id+': '+j.state+' · '+size(j.bytes_received)+' из '+size(j.bytes_total)+'. Рабочие данные не изменяются.';
+                status.textContent=j.state==='FILES'
+                    ?'Проверка копии №'+j.batch_id+': файлов '+j.files_verified+' из '+j.data_files+(j.sizes_verified?' · сверка размеров.':' · проверка наличия (старый манифест V1).')+' Рабочие данные не изменяются.'
+                    :'Проверка копии №'+j.batch_id+': '+j.state+' · '+size(j.bytes_received)+' из '+size(j.bytes_total)+'. Рабочие данные не изменяются.';
                 timer=setTimeout(()=>pollInspection(false),700);
             }else if(j.state==='VALID'){
                 buttons(false);
                 status.className='ok';
-                status.textContent='Копия №'+j.batch_id+': манифест и COMPLETE действительны, файлов данных '+j.data_files+'. Восстановление не выполнялось.';
+                status.textContent='Копия №'+j.batch_id+': '+(j.sizes_verified?'наличие и размеры всех файлов подтверждены':'наличие всех файлов подтверждено; размеры недоступны в старом манифесте V1')+', файлов данных '+j.data_files+'. Восстановление не выполнялось.';
             }else if(j.state==='FAILED'){
                 buttons(false);
                 status.className='bad';

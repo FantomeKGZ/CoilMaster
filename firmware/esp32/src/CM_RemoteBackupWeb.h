@@ -47,10 +47,12 @@ private:
     bool createRemoteBatchManifest();
     bool createCompletionMarker();
     bool beginBatchManifest();
-    bool appendBatchManifestName(const String& remoteName);
+    bool appendBatchManifestEntry(const String& remoteName,
+                                  uint32_t expectedBytes);
     bool finalizeBatchManifest();
     bool validateInspectionManifest(uint32_t& dataFiles);
     bool validateInspectionMarker() const;
+    bool startNextInspectionFile();
     void failInspection(const char* reason);
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
@@ -81,6 +83,7 @@ private:
         Idle,
         Manifest,
         Marker,
+        Files,
         Complete,
         Failed
     };
@@ -102,6 +105,11 @@ private:
     InspectionStage m_inspectionStage = InspectionStage::Idle;
     uint32_t m_inspectionBatchId = 0UL;
     uint32_t m_inspectionDataFiles = 0UL;
+    uint32_t m_inspectionFilesVerified = 0UL;
+    uint32_t m_inspectionExpectedBytes = 0UL;
+    bool m_inspectionHasSizes = false;
+    bool m_inspectionExpectedSizeValid = false;
+    File m_inspectionManifest;
     String m_inspectionError;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;

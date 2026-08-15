@@ -174,6 +174,65 @@ bool RemoteBackupTransfer::startDownload(
     return true;
 }
 
+bool RemoteBackupTransfer::startSizeProbe(
+    const RemoteBackupSettings& settings,
+    const String& logicalName,
+    const String& remoteName)
+{
+    if (active() || !RemoteBackupSettingsStore::valid(settings) ||
+        !settings.enabled || WiFi.status() != WL_CONNECTED ||
+        logicalName.length() == 0U || remoteName.length() == 0U ||
+        remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0)
+        return false;
+
+    const bool reusableSession =
+        m_operation == Operation::SizeProbe && m_phase == Phase::Complete &&
+        m_control.connected() && m_settings.host == settings.host &&
+        m_settings.port == settings.port &&
+        m_settings.username == settings.username &&
+        m_settings.password == settings.password &&
+        m_settings.remoteDirectory == settings.remoteDirectory;
+    m_settings = settings;
+    m_operation = Operation::SizeProbe;
+    m_logicalName = logicalName;
+    m_remoteName = remoteName;
+    m_tempName = String();
+    m_localPath = String();
+    m_localTempPath = String();
+    m_totalBytes = 0UL;
+    m_sentBytes = 0UL;
+    m_error = String();
+    m_replyLine = String();
+    if (reusableSession)
+    {
+        if (!sendCommand(String(F("SIZE ")) + m_remoteName,
+                         Phase::ProbeSize, millis()))
+        {
+            fail("ftp_command_failed");
+            return false;
+        }
+        return true;
+    }
+
+    closeTransfer();
+    m_control.setTimeout(300UL);
+    if (!m_control.connect(settings.host.c_str(), settings.port, 300))
+    {
+        fail("ftp_connect_failed");
+        return false;
+    }
+    m_phase = Phase::Greeting;
+    resetDeadline(millis());
+    return true;
+}
+
+void RemoteBackupTransfer::finishProbeSession()
+{
+    if (m_operation == Operation::SizeProbe && m_control.connected())
+        m_control.print(F("QUIT\r\n"));
+    closeTransfer();
+}
+
 void RemoteBackupTransfer::finishDeleteSession()
 {
     if (m_operation == Operation::Delete && m_control.connected())
@@ -292,6 +351,11 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
                                  Phase::DeleteOnly, nowMs))
                     fail("ftp_command_failed");
             }
+            else if (m_operation == Operation::SizeProbe)
+            {
+                if (!sendCommand(F("TYPE I"), Phase::BinaryMode, nowMs))
+                    fail("ftp_command_failed");
+            }
             else if (!sendCommand(F("TYPE I"), Phase::BinaryMode, nowMs))
                 fail("ftp_command_failed");
             break;
@@ -302,6 +366,12 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
             {
                 if (!sendCommand(String(F("SIZE ")) + m_remoteName,
                                  Phase::DownloadSize, nowMs))
+                    fail("ftp_command_failed");
+            }
+            else if (m_operation == Operation::SizeProbe)
+            {
+                if (!sendCommand(String(F("SIZE ")) + m_remoteName,
+                                 Phase::ProbeSize, nowMs))
                     fail("ftp_command_failed");
             }
             else if (!sendCommand(String(F("DELE ")) + m_tempName,
@@ -352,6 +422,18 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
             if (!m_file || m_file.isDirectory() ||
                 !sendCommand(F("PASV"), Phase::Passive, nowMs))
                 fail("ftp_download_prepare_failed");
+            break;
+        }
+        case Phase::ProbeSize:
+        {
+            uint32_t remoteSize = 0UL;
+            if (code != 213U || !parseSizeReply(reply, remoteSize))
+                fail("ftp_size_probe_failed");
+            else
+            {
+                m_totalBytes = remoteSize;
+                m_phase = Phase::Complete;
+            }
             break;
         }
         case Phase::RetrieveReady:

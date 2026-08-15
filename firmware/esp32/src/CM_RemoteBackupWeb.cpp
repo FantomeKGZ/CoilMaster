@@ -75,6 +75,35 @@ bool readInspectionLine(File& file, String& line)
     return line.length() <= 200U;
 }
 
+bool parseManagedManifestEntry(const String& source,
+                               uint32_t batchId,
+                               String& remoteName,
+                               bool& hasExpectedBytes,
+                               uint32_t& expectedBytes)
+{
+    String line = source;
+    if (line.endsWith("\r")) line.remove(line.length() - 1U);
+    hasExpectedBytes = false;
+    expectedBytes = 0UL;
+    const int separator = line.indexOf('\t');
+    if (separator >= 0)
+    {
+        if (line.indexOf('\t', separator + 1) >= 0) return false;
+        const String sizeText = line.substring(separator + 1);
+        if (!parseCanonicalUnsigned(sizeText, 0UL, 0xFFFFFFFFUL,
+                                    expectedBytes)) return false;
+        remoteName = line.substring(0U, static_cast<unsigned>(separator));
+        hasExpectedBytes = true;
+    }
+    else remoteName = line;
+
+    const String prefix = String(F("cm-b")) + batchId + '-';
+    return remoteName.length() > 0U && remoteName.length() <= 180U &&
+           remoteName.startsWith(prefix) && remoteName.indexOf('/') < 0 &&
+           remoteName.indexOf("..") < 0 && remoteName.indexOf('\r') < 0 &&
+           remoteName.indexOf('\n') < 0;
+}
+
 bool readFtpReply(WiFiClient& client, uint16_t& code)
 {
     code = 0U;
@@ -158,7 +187,8 @@ void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
     if (m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         if (m_transfer.active()) return;
         if (!m_transfer.succeeded())
@@ -187,12 +217,28 @@ void RemoteBackupWeb::update(uint32_t nowMs)
                 failInspection("inspection_marker_start_failed");
             return;
         }
+        if (m_inspectionStage == InspectionStage::Files)
+        {
+            if (m_inspectionExpectedSizeValid &&
+                m_transfer.bytesTotal() != m_inspectionExpectedBytes)
+            {
+                failInspection("inspection_file_size_mismatch");
+                return;
+            }
+            ++m_inspectionFilesVerified;
+            if (!startNextInspectionFile())
+                failInspection("inspection_file_probe_failed");
+            return;
+        }
         if (!validateInspectionMarker())
         {
             failInspection("inspection_complete_invalid");
             return;
         }
-        m_inspectionStage = InspectionStage::Complete;
+        m_inspectionFilesVerified = 0UL;
+        m_inspectionStage = InspectionStage::Files;
+        if (!startNextInspectionFile())
+            failInspection("inspection_file_probe_failed");
         return;
     }
     if (m_batchStage != BatchStage::MainFiles &&
@@ -316,7 +362,8 @@ void RemoteBackupWeb::handleSetConfiguration()
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -431,7 +478,8 @@ void RemoteBackupWeb::handleTestConnection()
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -523,7 +571,8 @@ void RemoteBackupWeb::handleStartUpload()
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -640,7 +689,8 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         statusCode = 409U;
         error = "remote_backup_busy";
@@ -707,7 +757,8 @@ void RemoteBackupWeb::handleStartRetention()
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -806,7 +857,8 @@ void RemoteBackupWeb::handleStartInspection()
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
-        m_inspectionStage == InspectionStage::Marker)
+        m_inspectionStage == InspectionStage::Marker ||
+        m_inspectionStage == InspectionStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -861,10 +913,16 @@ void RemoteBackupWeb::handleStartInspection()
     }
     directory.close();
 
+    if (m_inspectionManifest) m_inspectionManifest.close();
+    m_transfer.finishProbeSession();
     m_storage.remove(InspectionManifestPath);
     m_storage.remove(InspectionMarkerPath);
     m_inspectionBatchId = batchId;
     m_inspectionDataFiles = 0UL;
+    m_inspectionFilesVerified = 0UL;
+    m_inspectionExpectedBytes = 0UL;
+    m_inspectionExpectedSizeValid = false;
+    m_inspectionHasSizes = false;
     m_inspectionError = String();
     m_inspectionStage = InspectionStage::Manifest;
     const String manifestName = String(F("cm-b")) + batchId +
@@ -891,6 +949,7 @@ void RemoteBackupWeb::handleInspectionStatus()
     const char* state = "IDLE";
     if (m_inspectionStage == InspectionStage::Manifest) state = "MANIFEST";
     else if (m_inspectionStage == InspectionStage::Marker) state = "COMPLETE_MARKER";
+    else if (m_inspectionStage == InspectionStage::Files) state = "FILES";
     else if (m_inspectionStage == InspectionStage::Complete) state = "VALID";
     else if (m_inspectionStage == InspectionStage::Failed) state = "FAILED";
     String response;
@@ -898,7 +957,8 @@ void RemoteBackupWeb::handleInspectionStatus()
     response = F("{\"state\":\""); response += state;
     response += F("\",\"active\":");
     response += (m_inspectionStage == InspectionStage::Manifest ||
-                 m_inspectionStage == InspectionStage::Marker)
+                 m_inspectionStage == InspectionStage::Marker ||
+                 m_inspectionStage == InspectionStage::Files)
                     ? F("true") : F("false");
     response += F(",\"valid\":");
     response += m_inspectionStage == InspectionStage::Complete
@@ -907,6 +967,9 @@ void RemoteBackupWeb::handleInspectionStatus()
     if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
     else response += F("null");
     response += F(",\"data_files\":"); response += m_inspectionDataFiles;
+    response += F(",\"files_verified\":"); response += m_inspectionFilesVerified;
+    response += F(",\"sizes_verified\":");
+    response += m_inspectionHasSizes ? F("true") : F("false");
     response += F(",\"bytes_received\":"); response += m_transfer.bytesSent();
     response += F(",\"bytes_total\":"); response += m_transfer.bytesTotal();
     response += F(",\"working_data_changed\":false,\"error\":");
@@ -928,7 +991,10 @@ bool RemoteBackupWeb::validateInspectionManifest(uint32_t& dataFiles)
     }
     String line;
     bool valid = readInspectionLine(manifest, line) &&
-                 line == F("COILMASTER_BACKUP_MANIFEST_V1");
+                 (line == F("COILMASTER_BACKUP_MANIFEST_V1") ||
+                  line == F("COILMASTER_BACKUP_MANIFEST_V2"));
+    m_inspectionHasSizes = valid &&
+                           line == F("COILMASTER_BACKUP_MANIFEST_V2");
     if (valid)
     {
         valid = readInspectionLine(manifest, line) &&
@@ -954,12 +1020,15 @@ bool RemoteBackupWeb::validateInspectionManifest(uint32_t& dataFiles)
     uint32_t counted = 0UL;
     while (valid && manifest.available())
     {
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
         valid = readInspectionLine(manifest, line) &&
-                line.length() > 0U && line.startsWith(prefix) &&
-                line.length() <= 180U && line != manifestName &&
-                line != markerName && line.indexOf('/') < 0 &&
-                line.indexOf("..") < 0 && line.indexOf('\r') < 0 &&
-                line.indexOf('\n') < 0;
+                parseManagedManifestEntry(line, m_inspectionBatchId,
+                                          remoteName, hasExpectedBytes,
+                                          expectedBytes) &&
+                hasExpectedBytes == m_inspectionHasSizes &&
+                remoteName != manifestName && remoteName != markerName;
         if (valid) ++counted;
     }
     manifest.close();
@@ -995,8 +1064,56 @@ bool RemoteBackupWeb::validateInspectionMarker() const
     return valid;
 }
 
+bool RemoteBackupWeb::startNextInspectionFile()
+{
+    if (!m_inspectionManifest)
+    {
+        m_inspectionManifest = m_storage.open(InspectionManifestPath, FILE_READ);
+        if (!m_inspectionManifest || m_inspectionManifest.isDirectory())
+        {
+            if (m_inspectionManifest) m_inspectionManifest.close();
+            return false;
+        }
+        String ignored;
+        for (uint8_t i = 0U; i < 3U; ++i)
+        {
+            if (!readInspectionLine(m_inspectionManifest, ignored))
+            {
+                m_inspectionManifest.close();
+                return false;
+            }
+        }
+    }
+
+    if (m_inspectionManifest.available())
+    {
+        const String entry = m_inspectionManifest.readStringUntil('\n');
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
+        if (!parseManagedManifestEntry(entry, m_inspectionBatchId,
+                                       remoteName, hasExpectedBytes,
+                                       expectedBytes) ||
+            hasExpectedBytes != m_inspectionHasSizes)
+            return false;
+        m_inspectionExpectedBytes = expectedBytes;
+        m_inspectionExpectedSizeValid = hasExpectedBytes;
+        return m_transfer.startSizeProbe(m_batchSettings,
+                                         F("inspection-file"),
+                                         remoteName);
+    }
+
+    m_inspectionManifest.close();
+    m_transfer.finishProbeSession();
+    if (m_inspectionFilesVerified != m_inspectionDataFiles) return false;
+    m_inspectionStage = InspectionStage::Complete;
+    return true;
+}
+
 void RemoteBackupWeb::failInspection(const char* reason)
 {
+    if (m_inspectionManifest) m_inspectionManifest.close();
+    m_transfer.finishProbeSession();
     m_inspectionError = reason != nullptr ? reason : "inspection_failed";
     m_storage.remove(String(InspectionManifestPath) + F(".part"));
     m_storage.remove(String(InspectionMarkerPath) + F(".part"));
@@ -1240,7 +1357,15 @@ bool RemoteBackupWeb::startTrackedBatchFile(const String& logicalName,
                                              const String& localPath,
                                              const String& remoteName)
 {
-    return appendBatchManifestName(remoteName) &&
+    File source = m_storage.open(localPath, FILE_READ);
+    if (!source || source.isDirectory())
+    {
+        if (source) source.close();
+        return false;
+    }
+    const uint32_t expectedBytes = static_cast<uint32_t>(source.size());
+    source.close();
+    return appendBatchManifestEntry(remoteName, expectedBytes) &&
            m_transfer.start(m_batchSettings, logicalName, localPath,
                             remoteName);
 }
@@ -1280,7 +1405,7 @@ bool RemoteBackupWeb::createRemoteBatchManifest()
         return false;
     }
 
-    String header = F("COILMASTER_BACKUP_MANIFEST_V1\nbatch_id=");
+    String header = F("COILMASTER_BACKUP_MANIFEST_V2\nbatch_id=");
     header += m_batchId;
     header += F("\ndata_files=");
     header += m_batchFilesCompleted;
@@ -1292,19 +1417,21 @@ bool RemoteBackupWeb::createRemoteBatchManifest()
     uint32_t copied = 0UL;
     while (valid && source.available())
     {
-        String remoteName = source.readStringUntil('\n');
-        if (remoteName.endsWith("\r"))
-            remoteName.remove(remoteName.length() - 1U);
-        if (remoteName.length() == 0U || !remoteName.startsWith(prefix) ||
-            remoteName.length() > 180U || remoteName == manifestName ||
-            remoteName == markerName || remoteName.indexOf('/') >= 0 ||
-            remoteName.indexOf("..") >= 0 || remoteName.indexOf('\r') >= 0 ||
-            remoteName.indexOf('\n') >= 0)
+        const String entry = source.readStringUntil('\n');
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
+        if (!parseManagedManifestEntry(entry, m_batchId, remoteName,
+                                       hasExpectedBytes, expectedBytes) ||
+            !hasExpectedBytes || remoteName == manifestName ||
+            remoteName == markerName)
         {
             valid = false;
             break;
         }
-        const String line = remoteName + '\n';
+        String line = remoteName + '\t';
+        line += expectedBytes;
+        line += '\n';
         valid = output.print(line) == line.length();
         ++copied;
     }
@@ -1352,12 +1479,14 @@ bool RemoteBackupWeb::beginBatchManifest()
     return true;
 }
 
-bool RemoteBackupWeb::appendBatchManifestName(const String& remoteName)
+bool RemoteBackupWeb::appendBatchManifestEntry(const String& remoteName,
+                                                uint32_t expectedBytes)
 {
     const String prefix = String(F("cm-b")) + m_batchId + '-';
     if (!remoteName.startsWith(prefix) || remoteName.length() > 180U ||
         remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
-        remoteName.indexOf('\r') >= 0 || remoteName.indexOf('\n') >= 0)
+        remoteName.indexOf('\t') >= 0 || remoteName.indexOf('\r') >= 0 ||
+        remoteName.indexOf('\n') >= 0)
         return false;
     File manifest = m_storage.open(batchManifestPath(m_batchId, true),
                                    FILE_APPEND);
@@ -1366,7 +1495,9 @@ bool RemoteBackupWeb::appendBatchManifestName(const String& remoteName)
         if (manifest) manifest.close();
         return false;
     }
-    const String line = remoteName + '\n';
+    String line = remoteName + '\t';
+    line += expectedBytes;
+    line += '\n';
     const bool written = manifest.print(line) == line.length();
     manifest.flush();
     manifest.close();
@@ -1529,14 +1660,16 @@ bool RemoteBackupWeb::startNextIncompleteDelete()
     const String markerName = prefix + F("COMPLETE.txt");
     while (m_retentionManifest.available())
     {
-        String remoteName = m_retentionManifest.readStringUntil('\n');
-        if (remoteName.endsWith("\r"))
-            remoteName.remove(remoteName.length() - 1U);
-        if (remoteName.length() == 0U || remoteName == markerName) continue;
-        if (!remoteName.startsWith(prefix) || remoteName.length() > 180U ||
-            remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
-            remoteName.indexOf('\r') >= 0 || remoteName.indexOf('\n') >= 0)
+        const String entry = m_retentionManifest.readStringUntil('\n');
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
+        if (!parseManagedManifestEntry(entry, m_retentionBatchId, remoteName,
+                                       hasExpectedBytes, expectedBytes))
             return false;
+        (void)hasExpectedBytes;
+        (void)expectedBytes;
+        if (remoteName == markerName) continue;
         m_retentionPendingName = remoteName;
         return m_transfer.startDelete(m_batchSettings,
                                       F("incomplete-file"), remoteName);
@@ -1580,14 +1713,16 @@ bool RemoteBackupWeb::startNextRetentionFile()
     const String markerName = prefix + F("COMPLETE.txt");
     while (m_retentionManifest.available())
     {
-        String remoteName = m_retentionManifest.readStringUntil('\n');
-        if (remoteName.endsWith("\r"))
-            remoteName.remove(remoteName.length() - 1U);
-        if (remoteName.length() == 0U || remoteName == markerName) continue;
-        if (!remoteName.startsWith(prefix) || remoteName.length() > 180U ||
-            remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
-            remoteName.indexOf('\r') >= 0 || remoteName.indexOf('\n') >= 0)
+        const String entry = m_retentionManifest.readStringUntil('\n');
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
+        if (!parseManagedManifestEntry(entry, m_retentionBatchId, remoteName,
+                                       hasExpectedBytes, expectedBytes))
             return false;
+        (void)hasExpectedBytes;
+        (void)expectedBytes;
+        if (remoteName == markerName) continue;
         return m_transfer.startDelete(m_batchSettings, F("retention-file"),
                                       remoteName);
     }

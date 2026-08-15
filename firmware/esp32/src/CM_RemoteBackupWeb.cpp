@@ -17,6 +17,8 @@ constexpr const char* BatchSequenceBackupPath =
     "/data/settings/remote-backup-sequence.bak";
 constexpr const char* BatchMarkerPath =
     "/data/settings/remote-backup-complete.txt";
+constexpr const char* RemoteBatchManifestPath =
+    "/data/settings/remote-backup-manifest.txt";
 constexpr const char* BatchManifestDirectory =
     "/data/settings/remote-backup-batches";
 
@@ -139,6 +141,7 @@ void RemoteBackupWeb::update(uint32_t nowMs)
     m_transfer.update(nowMs);
     if (m_batchStage != BatchStage::MainFiles &&
         m_batchStage != BatchStage::SessionFiles &&
+        m_batchStage != BatchStage::Manifest &&
         m_batchStage != BatchStage::Marker &&
         m_batchStage != BatchStage::Retention)
     {
@@ -174,9 +177,17 @@ void RemoteBackupWeb::update(uint32_t nowMs)
         return;
     }
     ++m_batchFilesCompleted;
+    if (m_batchStage == BatchStage::Manifest)
+    {
+        m_storage.remove(RemoteBatchManifestPath);
+        m_batchStage = BatchStage::Marker;
+        if (!startNextBatchFile()) failBatch("batch_marker_start_failed");
+        return;
+    }
     if (m_batchStage == BatchStage::Marker)
     {
         m_storage.remove(BatchMarkerPath);
+        m_storage.remove(RemoteBatchManifestPath);
         if (!finalizeBatchManifest())
         {
             failBatch("batch_manifest_finalize_failed");
@@ -245,6 +256,7 @@ void RemoteBackupWeb::handleSetConfiguration()
 {
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention)
     {
@@ -437,6 +449,7 @@ void RemoteBackupWeb::handleStartUpload()
 {
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention)
     {
@@ -551,6 +564,7 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
     error = "backup_batch_start_failed";
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention)
     {
@@ -615,6 +629,7 @@ void RemoteBackupWeb::handleStartRetention()
 {
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention)
     {
@@ -665,6 +680,7 @@ void RemoteBackupWeb::handleBatchStatus()
     const char* state = "IDLE";
     if (m_batchStage == BatchStage::MainFiles) state = "MAIN_FILES";
     else if (m_batchStage == BatchStage::SessionFiles) state = "SESSION_FILES";
+    else if (m_batchStage == BatchStage::Manifest) state = "MANIFEST";
     else if (m_batchStage == BatchStage::Marker) state = "FINALIZING";
     else if (m_batchStage == BatchStage::Retention) state = "RETENTION";
     else if (m_batchStage == BatchStage::Complete) state = "COMPLETED";
@@ -675,6 +691,7 @@ void RemoteBackupWeb::handleBatchStatus()
     response += F("\",\"active\":");
     response += (m_batchStage == BatchStage::MainFiles ||
                  m_batchStage == BatchStage::SessionFiles ||
+                 m_batchStage == BatchStage::Manifest ||
                  m_batchStage == BatchStage::Marker ||
                  m_batchStage == BatchStage::Retention) ? F("true") : F("false");
     response += F(",\"batch_id\":");
@@ -898,7 +915,7 @@ bool RemoteBackupWeb::startNextBatchFile()
                                                 found)) return false;
             if (!found)
             {
-                m_batchStage = BatchStage::Marker;
+                m_batchStage = BatchStage::Manifest;
                 break;
             }
             m_batchKindIndex = 0U;
@@ -917,6 +934,13 @@ bool RemoteBackupWeb::startNextBatchFile()
         }
         m_batchAfterSessionId = m_batchSessionId;
         m_batchSessionId = 0UL;
+    }
+    if (m_batchStage == BatchStage::Manifest)
+    {
+        if (!createRemoteBatchManifest()) return false;
+        return startTrackedBatchFile(F("batch-manifest"),
+                                     RemoteBatchManifestPath,
+                                     prefix + F("MANIFEST.txt"));
     }
     if (m_batchStage == BatchStage::Marker)
     {
@@ -952,6 +976,61 @@ bool RemoteBackupWeb::createCompletionMarker()
     const bool written = marker.print(content) == content.length();
     marker.flush(); marker.close();
     return written;
+}
+
+bool RemoteBackupWeb::createRemoteBatchManifest()
+{
+    if (m_storage.exists(RemoteBatchManifestPath) &&
+        !m_storage.remove(RemoteBatchManifestPath)) return false;
+
+    File source = m_storage.open(batchManifestPath(m_batchId, true), FILE_READ);
+    if (!source || source.isDirectory())
+    {
+        if (source) source.close();
+        return false;
+    }
+    File output = m_storage.open(RemoteBatchManifestPath, FILE_WRITE);
+    if (!output || output.isDirectory())
+    {
+        if (output) output.close();
+        source.close();
+        return false;
+    }
+
+    String header = F("COILMASTER_BACKUP_MANIFEST_V1\nbatch_id=");
+    header += m_batchId;
+    header += F("\ndata_files=");
+    header += m_batchFilesCompleted;
+    header += '\n';
+    bool valid = output.print(header) == header.length();
+    const String prefix = String(F("cm-b")) + m_batchId + '-';
+    const String manifestName = prefix + F("MANIFEST.txt");
+    const String markerName = prefix + F("COMPLETE.txt");
+    uint32_t copied = 0UL;
+    while (valid && source.available())
+    {
+        String remoteName = source.readStringUntil('\n');
+        if (remoteName.endsWith("\r"))
+            remoteName.remove(remoteName.length() - 1U);
+        if (remoteName.length() == 0U || !remoteName.startsWith(prefix) ||
+            remoteName.length() > 180U || remoteName == manifestName ||
+            remoteName == markerName || remoteName.indexOf('/') >= 0 ||
+            remoteName.indexOf("..") >= 0 || remoteName.indexOf('\r') >= 0 ||
+            remoteName.indexOf('\n') >= 0)
+        {
+            valid = false;
+            break;
+        }
+        const String line = remoteName + '\n';
+        valid = output.print(line) == line.length();
+        ++copied;
+    }
+    valid = valid && copied == m_batchFilesCompleted;
+    output.flush();
+    output.close();
+    source.close();
+    if (!valid) m_storage.remove(RemoteBatchManifestPath);
+    return valid;
 }
 
 String RemoteBackupWeb::batchManifestPath(uint32_t batchId,
@@ -1254,6 +1333,7 @@ void RemoteBackupWeb::failBatch(const char* reason)
 {
     m_batchError = reason != nullptr ? reason : "backup_batch_failed";
     m_storage.remove(BatchMarkerPath);
+    m_storage.remove(RemoteBatchManifestPath);
     m_batchStage = BatchStage::Failed;
     if (m_batchScheduled) m_scheduleState = F("FAILED");
     m_batchScheduled = false;

@@ -42,6 +42,7 @@ private:
     bool startTrackedBatchFile(const String& logicalName,
                                const String& localPath,
                                const String& remoteName);
+    bool createRemoteBatchManifest();
     bool createCompletionMarker();
     bool beginBatchManifest();
     bool appendBatchManifestName(const String& remoteName);
@@ -63,6 +64,7 @@ private:
         Idle,
         MainFiles,
         SessionFiles,
+        Manifest,
         Marker,
         Retention,
         Complete,

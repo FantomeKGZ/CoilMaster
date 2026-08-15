@@ -26,11 +26,21 @@
     inspect.type='button';
     inspect.id='remoteBackupInspect';
     inspect.textContent='Проверить копию без восстановления';
+    const stage=document.createElement('button');
+    stage.type='button';
+    stage.id='remoteBackupStage';
+    stage.textContent='Загрузить во временную область';
+    const discard=document.createElement('button');
+    discard.type='button';
+    discard.id='remoteBackupStageDiscard';
+    discard.textContent='Удалить временные файлы';
     manifestState.parentNode.insertBefore(status,manifestState.nextSibling);
     status.insertAdjacentElement('afterend',full);
     full.insertAdjacentElement('afterend',retention);
     retention.insertAdjacentElement('afterend',inspectId);
     inspectId.insertAdjacentElement('afterend',inspect);
+    inspect.insertAdjacentElement('afterend',stage);
+    stage.insertAdjacentElement('afterend',discard);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -55,6 +65,8 @@
         retention.disabled=disabled;
         inspectId.disabled=disabled;
         inspect.disabled=disabled;
+        stage.disabled=disabled;
+        discard.disabled=disabled;
     }
     async function pollBatch(){
         enhance();
@@ -149,6 +161,34 @@
             status.textContent='Статус проверки копии недоступен: '+e.message;
         }
     }
+    async function pollStaging(fallback){
+        try{
+            const r=await fetch('/api/backup/remote/staging-status',{cache:'no-store'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'staging_status_failed');
+            if(j.active){
+                buttons(true);
+                status.className='muted';
+                status.textContent='Временная загрузка копии №'+j.batch_id+': файлов '+j.files_completed+' из '+j.files_total+' · '+size(j.bytes_completed)+' из '+size(j.bytes_total)+'. Рабочие данные не изменяются.';
+                timer=setTimeout(()=>pollStaging(false),700);
+            }else if(j.state==='STAGED'){
+                buttons(false);
+                status.className='ok';
+                status.textContent='Копия №'+j.batch_id+' загружена во временную область: '+j.files_completed+' файлов, '+size(j.bytes_completed)+'. Восстановление отключено и не выполнялось.';
+            }else if(j.state==='FAILED'){
+                buttons(false);
+                status.className='bad';
+                status.textContent='Временная загрузка не завершена: '+(j.error||'unknown')+'. Неполный временный набор удалён; рабочие данные не изменены.';
+            }else if(j.state==='STALE'){
+                buttons(false);
+                status.className='warning';
+                status.textContent='Найдена временная область после перезапуска. Автовосстановление запрещено; удалите временные файлы перед новой проверкой.';
+            }else if(fallback)pollInspection(true);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Статус временной загрузки недоступен: '+e.message;
+        }
+    }
     async function upload(name){
         clearTimeout(timer);
         buttons(true);
@@ -219,6 +259,45 @@
             status.textContent='Проверка копии не запущена: '+e.message;
         }
     }
+    async function stageBatch(){
+        const batchId=String(inspectId.value||'').trim();
+        if(!/^[1-9]\d*$/.test(batchId)){
+            status.className='bad';
+            status.textContent='Сначала укажите и успешно проверьте ID новой копии V2.';
+            return;
+        }
+        if(!confirm('Загрузить все файлы проверенной копии во временную область microSD? Рабочие данные заменены не будут.'))return;
+        clearTimeout(timer);
+        buttons(true);
+        status.className='muted';
+        status.textContent='Запуск временной загрузки копии №'+batchId+'…';
+        try{
+            const body=new URLSearchParams({batch_id:batchId});
+            const r=await fetch('/api/backup/remote/staging',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'staging_start_failed');
+            pollStaging(false);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Временная загрузка не запущена: '+e.message;
+        }
+    }
+    async function discardStaging(){
+        if(!confirm('Удалить только временно загруженные файлы восстановления? Рабочие данные не изменятся.'))return;
+        clearTimeout(timer);
+        buttons(true);
+        try{
+            const r=await fetch('/api/backup/remote/staging',{method:'DELETE'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'staging_cleanup_failed');
+            buttons(false);
+            status.className='ok';
+            status.textContent='Временные файлы удалены. Рабочие данные не изменены.';
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Временные файлы не удалены: '+e.message;
+        }
+    }
     document.addEventListener('click',e=>{
         const b=e.target.closest('[data-remote-backup]');
         if(b)upload(b.dataset.remoteBackup);
@@ -226,6 +305,8 @@
     full.onclick=batch;
     retention.onclick=applyRetention;
     inspect.onclick=inspectBatch;
+    stage.onclick=stageBatch;
+    discard.onclick=discardStaging;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
-    pollInspection(true);
+    pollStaging(true);
 })();

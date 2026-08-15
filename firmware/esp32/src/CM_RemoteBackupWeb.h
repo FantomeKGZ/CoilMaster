@@ -33,6 +33,9 @@ private:
     void handleBatchStatus();
     void handleStartInspection();
     void handleInspectionStatus();
+    void handleStartStaging();
+    void handleStagingStatus();
+    void handleDiscardStaging();
     bool allocateBatchId(uint32_t& batchId);
     bool startFullBatch(bool scheduled,
                         uint16_t& statusCode,
@@ -54,6 +57,9 @@ private:
     bool validateInspectionMarker() const;
     bool startNextInspectionFile();
     void failInspection(const char* reason);
+    bool startNextStagingFile();
+    bool clearStagingDirectory();
+    void failStaging(const char* reason);
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
@@ -88,6 +94,14 @@ private:
         Failed
     };
 
+    enum class StagingStage : uint8_t
+    {
+        Idle,
+        Files,
+        Complete,
+        Failed
+    };
+
     WebServer& m_server;
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
@@ -105,12 +119,19 @@ private:
     InspectionStage m_inspectionStage = InspectionStage::Idle;
     uint32_t m_inspectionBatchId = 0UL;
     uint32_t m_inspectionDataFiles = 0UL;
+    uint32_t m_inspectionTotalBytes = 0UL;
     uint32_t m_inspectionFilesVerified = 0UL;
     uint32_t m_inspectionExpectedBytes = 0UL;
     bool m_inspectionHasSizes = false;
     bool m_inspectionExpectedSizeValid = false;
     File m_inspectionManifest;
     String m_inspectionError;
+    StagingStage m_stagingStage = StagingStage::Idle;
+    File m_stagingManifest;
+    uint32_t m_stagingFilesCompleted = 0UL;
+    uint32_t m_stagingExpectedBytes = 0UL;
+    uint32_t m_stagingBytesCompleted = 0UL;
+    String m_stagingError;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;

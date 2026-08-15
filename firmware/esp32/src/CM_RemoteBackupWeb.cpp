@@ -27,6 +27,10 @@ constexpr const char* InspectionManifestPath =
     "/data/settings/remote-backup-inspection/MANIFEST.txt";
 constexpr const char* InspectionMarkerPath =
     "/data/settings/remote-backup-inspection/COMPLETE.txt";
+constexpr const char* StagingDirectory =
+    "/data/settings/remote-restore-staging";
+constexpr const char* StagingMarkerPath =
+    "/data/settings/remote-restore-staging/STAGED.txt";
 
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
@@ -181,11 +185,34 @@ void RemoteBackupWeb::begin()
                 [this]() { handleStartInspection(); });
     m_server.on("/api/backup/remote/inspection-status", HTTP_GET,
                 [this]() { handleInspectionStatus(); });
+    m_server.on("/api/backup/remote/staging", HTTP_POST,
+                [this]() { handleStartStaging(); });
+    m_server.on("/api/backup/remote/staging-status", HTTP_GET,
+                [this]() { handleStagingStatus(); });
+    m_server.on("/api/backup/remote/staging", HTTP_DELETE,
+                [this]() { handleDiscardStaging(); });
 }
 
 void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
+    if (m_stagingStage == StagingStage::Files)
+    {
+        if (m_transfer.active()) return;
+        if (!m_transfer.succeeded() ||
+            m_transfer.bytesTotal() != m_stagingExpectedBytes)
+        {
+            failStaging(m_transfer.succeeded()
+                            ? "staging_file_size_mismatch"
+                            : m_transfer.error().c_str());
+            return;
+        }
+        ++m_stagingFilesCompleted;
+        m_stagingBytesCompleted += m_stagingExpectedBytes;
+        if (!startNextStagingFile())
+            failStaging("staging_next_file_failed");
+        return;
+    }
     if (m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files)
@@ -363,7 +390,8 @@ void RemoteBackupWeb::handleSetConfiguration()
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
-        m_inspectionStage == InspectionStage::Files)
+        m_inspectionStage == InspectionStage::Files ||
+        m_stagingStage == StagingStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -479,7 +507,8 @@ void RemoteBackupWeb::handleTestConnection()
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
-        m_inspectionStage == InspectionStage::Files)
+        m_inspectionStage == InspectionStage::Files ||
+        m_stagingStage == StagingStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -572,7 +601,8 @@ void RemoteBackupWeb::handleStartUpload()
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
-        m_inspectionStage == InspectionStage::Files)
+        m_inspectionStage == InspectionStage::Files ||
+        m_stagingStage == StagingStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -690,7 +720,8 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
-        m_inspectionStage == InspectionStage::Files)
+        m_inspectionStage == InspectionStage::Files ||
+        m_stagingStage == StagingStage::Files)
     {
         statusCode = 409U;
         error = "remote_backup_busy";
@@ -758,7 +789,8 @@ void RemoteBackupWeb::handleStartRetention()
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
-        m_inspectionStage == InspectionStage::Files)
+        m_inspectionStage == InspectionStage::Files ||
+        m_stagingStage == StagingStage::Files)
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -858,10 +890,17 @@ void RemoteBackupWeb::handleStartInspection()
         m_batchStage == BatchStage::Retention ||
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
-        m_inspectionStage == InspectionStage::Files)
+        m_inspectionStage == InspectionStage::Files ||
+        m_stagingStage == StagingStage::Files)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
+    if (m_storage.exists(StagingDirectory))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_cleanup_required\"}");
         return;
     }
     if (!m_server.hasArg("batch_id"))
@@ -919,6 +958,7 @@ void RemoteBackupWeb::handleStartInspection()
     m_storage.remove(InspectionMarkerPath);
     m_inspectionBatchId = batchId;
     m_inspectionDataFiles = 0UL;
+    m_inspectionTotalBytes = 0UL;
     m_inspectionFilesVerified = 0UL;
     m_inspectionExpectedBytes = 0UL;
     m_inspectionExpectedSizeValid = false;
@@ -967,6 +1007,7 @@ void RemoteBackupWeb::handleInspectionStatus()
     if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
     else response += F("null");
     response += F(",\"data_files\":"); response += m_inspectionDataFiles;
+    response += F(",\"data_bytes\":"); response += m_inspectionTotalBytes;
     response += F(",\"files_verified\":"); response += m_inspectionFilesVerified;
     response += F(",\"sizes_verified\":");
     response += m_inspectionHasSizes ? F("true") : F("false");
@@ -978,6 +1019,142 @@ void RemoteBackupWeb::handleInspectionStatus()
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleStartStaging()
+{
+    if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
+        m_inspectionStage != InspectionStage::Complete)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"validated_v2_inspection_required\"}");
+        return;
+    }
+    if (!m_inspectionHasSizes || !m_server.hasArg("batch_id"))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"validated_v2_inspection_required\"}");
+        return;
+    }
+    uint32_t batchId = 0UL;
+    if (!parseCanonicalUnsigned(m_server.arg("batch_id"), 1UL,
+                                0xFFFFFFFFUL, batchId) ||
+        batchId != m_inspectionBatchId)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"inspection_batch_id_mismatch\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    bool configured = false;
+    if (!m_settingsStore.load(m_batchSettings, configured) || !configured ||
+        !m_batchSettings.enabled || WiFi.status() != WL_CONNECTED)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_not_ready\"}");
+        return;
+    }
+    if (m_storage.exists(StagingDirectory))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_already_exists\"}");
+        return;
+    }
+    if (!m_storage.mkdir(StagingDirectory))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_directory_failed\"}");
+        return;
+    }
+
+    m_stagingFilesCompleted = 0UL;
+    m_stagingExpectedBytes = 0UL;
+    m_stagingBytesCompleted = 0UL;
+    m_stagingError = String();
+    m_stagingStage = StagingStage::Files;
+    if (!startNextStagingFile())
+    {
+        failStaging("staging_first_file_failed");
+        m_server.send(502, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_start_failed\"}");
+        return;
+    }
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += batchId;
+    response += F(",\"working_data_changed\":false}");
+    m_server.send(202, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleStagingStatus()
+{
+    const char* state = "IDLE";
+    if (m_stagingStage == StagingStage::Files) state = "FILES";
+    else if (m_stagingStage == StagingStage::Complete) state = "STAGED";
+    else if (m_stagingStage == StagingStage::Failed) state = "FAILED";
+    else if (m_storage.exists(StagingDirectory)) state = "STALE";
+    String response;
+    response.reserve(360U);
+    response = F("{\"state\":\""); response += state;
+    response += F("\",\"active\":");
+    response += m_stagingStage == StagingStage::Files ? F("true") : F("false");
+    response += F(",\"ready\":");
+    response += m_stagingStage == StagingStage::Complete ? F("true") : F("false");
+    response += F(",\"staging_present\":");
+    response += m_storage.exists(StagingDirectory) ? F("true") : F("false");
+    response += F(",\"batch_id\":");
+    if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
+    else response += F("null");
+    response += F(",\"files_completed\":"); response += m_stagingFilesCompleted;
+    response += F(",\"files_total\":"); response += m_inspectionDataFiles;
+    response += F(",\"bytes_completed\":"); response += m_stagingBytesCompleted;
+    response += F(",\"bytes_total\":"); response += m_inspectionTotalBytes;
+    response += F(",\"working_data_changed\":false,\"restore_enabled\":false,\"error\":");
+    if (m_stagingError.length() > 0U)
+    { response += '"'; response += m_stagingError; response += '"'; }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleDiscardStaging()
+{
+    if (m_transfer.active() || m_stagingStage == StagingStage::Files)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    if (!clearStagingDirectory())
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"staging_cleanup_failed\"}");
+        return;
+    }
+    m_stagingStage = StagingStage::Idle;
+    m_stagingFilesCompleted = 0UL;
+    m_stagingBytesCompleted = 0UL;
+    m_stagingError = String();
+    m_server.send(200, "application/json; charset=utf-8",
+                  "{\"discarded\":true,\"working_data_changed\":false}");
 }
 
 bool RemoteBackupWeb::validateInspectionManifest(uint32_t& dataFiles)
@@ -1029,6 +1206,12 @@ bool RemoteBackupWeb::validateInspectionManifest(uint32_t& dataFiles)
                                           expectedBytes) &&
                 hasExpectedBytes == m_inspectionHasSizes &&
                 remoteName != manifestName && remoteName != markerName;
+        if (valid && m_inspectionHasSizes)
+        {
+            valid = expectedBytes <= 536870912UL &&
+                    expectedBytes <= 1073741824UL - m_inspectionTotalBytes;
+            if (valid) m_inspectionTotalBytes += expectedBytes;
+        }
         if (valid) ++counted;
     }
     manifest.close();
@@ -1120,6 +1303,119 @@ void RemoteBackupWeb::failInspection(const char* reason)
     m_storage.remove(InspectionManifestPath);
     m_storage.remove(InspectionMarkerPath);
     m_inspectionStage = InspectionStage::Failed;
+}
+
+bool RemoteBackupWeb::startNextStagingFile()
+{
+    if (!m_stagingManifest)
+    {
+        m_stagingManifest = m_storage.open(InspectionManifestPath, FILE_READ);
+        if (!m_stagingManifest || m_stagingManifest.isDirectory())
+        {
+            if (m_stagingManifest) m_stagingManifest.close();
+            return false;
+        }
+        String ignored;
+        for (uint8_t i = 0U; i < 3U; ++i)
+        {
+            if (!readInspectionLine(m_stagingManifest, ignored))
+            {
+                m_stagingManifest.close();
+                return false;
+            }
+        }
+    }
+
+    if (m_stagingManifest.available())
+    {
+        const String entry = m_stagingManifest.readStringUntil('\n');
+        String remoteName;
+        bool hasExpectedBytes = false;
+        uint32_t expectedBytes = 0UL;
+        if (!parseManagedManifestEntry(entry, m_inspectionBatchId,
+                                       remoteName, hasExpectedBytes,
+                                       expectedBytes) ||
+            !hasExpectedBytes || expectedBytes > 536870912UL)
+            return false;
+        m_stagingExpectedBytes = expectedBytes;
+        const String localPath = String(StagingDirectory) + '/' + remoteName;
+        if (m_storage.exists(localPath) ||
+            m_storage.exists(localPath + F(".part"))) return false;
+        return m_transfer.startDownload(m_batchSettings,
+                                        F("staging-file"),
+                                        remoteName,
+                                        localPath,
+                                        expectedBytes);
+    }
+
+    m_stagingManifest.close();
+    if (m_stagingFilesCompleted != m_inspectionDataFiles ||
+        m_stagingBytesCompleted != m_inspectionTotalBytes)
+        return false;
+    File marker = m_storage.open(StagingMarkerPath, FILE_WRITE);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String content = F("COILMASTER_RESTORE_STAGING_V1\nbatch_id=");
+    content += m_inspectionBatchId;
+    content += F("\nfiles="); content += m_stagingFilesCompleted;
+    content += F("\nbytes="); content += m_stagingBytesCompleted;
+    content += F("\nrestore_enabled=0\n");
+    const bool written = marker.print(content) == content.length();
+    marker.flush();
+    marker.close();
+    if (!written) return false;
+    m_stagingStage = StagingStage::Complete;
+    return true;
+}
+
+bool RemoteBackupWeb::clearStagingDirectory()
+{
+    if (!m_storage.exists(StagingDirectory)) return true;
+    for (uint16_t removed = 0U; removed <= 4097U; ++removed)
+    {
+        File directory = m_storage.open(StagingDirectory, FILE_READ);
+        if (!directory || !directory.isDirectory())
+        {
+            if (directory) directory.close();
+            return false;
+        }
+        File entry = directory.openNextFile();
+        if (!entry)
+        {
+            directory.close();
+            return m_storage.rmdir(StagingDirectory);
+        }
+        if (entry.isDirectory())
+        {
+            entry.close();
+            directory.close();
+            return false;
+        }
+        String name = entry.name();
+        entry.close();
+        directory.close();
+        const int slash = name.lastIndexOf('/');
+        if (slash >= 0)
+            name = name.substring(static_cast<unsigned>(slash + 1));
+        if (name.length() == 0U || name.length() > 200U ||
+            name.indexOf('/') >= 0 || name.indexOf("..") >= 0 ||
+            name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0 ||
+            !m_storage.remove(String(StagingDirectory) + '/' + name))
+            return false;
+    }
+    return false;
+}
+
+void RemoteBackupWeb::failStaging(const char* reason)
+{
+    if (m_stagingManifest) m_stagingManifest.close();
+    m_transfer.finishProbeSession();
+    m_stagingError = reason != nullptr ? reason : "staging_failed";
+    clearStagingDirectory();
+    m_stagingStage = StagingStage::Failed;
 }
 
 uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)

@@ -141,8 +141,8 @@ bool RemoteBackupTransfer::startDownload(
         logicalName.length() == 0U || remoteName.length() == 0U ||
         remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
         !localPath.startsWith("/") || localPath.endsWith("/") ||
-        localPath.indexOf("..") >= 0 || maximumBytes == 0UL ||
-        maximumBytes > 1048576UL) return false;
+        localPath.indexOf("..") >= 0 || maximumBytes > 536870912UL)
+        return false;
 
     closeTransfer();
     const String temporaryPath = localPath + F(".part");
@@ -412,7 +412,7 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
         {
             uint32_t remoteSize = 0UL;
             if (code != 213U || !parseSizeReply(reply, remoteSize) ||
-                remoteSize == 0UL || remoteSize > m_downloadLimitBytes)
+                remoteSize > m_downloadLimitBytes)
             {
                 fail("ftp_download_size_invalid");
                 break;

@@ -819,3 +819,37 @@ next full backup or manual retention action.
 This hardware checkpoint is user-confirmed on the real device: the manifest,
 exact file list/count, final COMPLETE marker and interrupted-batch cleanup all
 behave as specified.
+
+## Completed in firmware: read-only remote backup metadata inspection — 2026-08-15
+
+Desktop and mobile backup pages now accept an exact numeric batch ID and expose
+`Проверить копию без восстановления`. The operation downloads only the selected
+`cm-b<id>-MANIFEST.txt` and `cm-b<id>-COMPLETE.txt` into a fixed temporary
+settings directory. It does not download data files, apply a restore, overwrite
+business data or change winding state.
+
+The bounded FTP RETR path requires binary mode and a canonical filename, reads
+the server's exact SIZE first, limits the manifest to 128 KiB and the marker to
+512 bytes, writes through a local `.part`, checks the received byte count and
+renames atomically. It remains guarded by the safe-idle runtime probe throughout
+the transfer.
+
+Validation requires manifest version 1, the requested exact batch ID, a bounded
+declared data-file count, canonical same-prefix filenames, and a matching final
+COMPLETE marker whose `files_before_marker` equals data files plus the manifest.
+This is metadata inspection only; remote presence/content verification of every
+listed data file is a later stage before restore can be enabled.
+
+```text
+0e054aab1586ef843a70e3830585d351c6c791b5
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.6% (51232 / 327680 bytes)
+Flash: 41.3% (1299113 / 3145728 bytes)
+```
+
+Hardware test: update microSD `/web`, flash the firmware, open Backup, enter the
+ID from an existing `cm-b<id>-MANIFEST.txt`, and press the inspection button.
+Confirm the UI reports a valid manifest/COMPLETE pair and explicitly says that
+restore was not performed. Then try a nonexistent ID and an interrupted batch;
+both must fail while all working data remains unchanged.

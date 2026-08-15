@@ -31,6 +31,8 @@ private:
     void handleStartBatch();
     void handleStartRetention();
     void handleBatchStatus();
+    void handleStartInspection();
+    void handleInspectionStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startFullBatch(bool scheduled,
                         uint16_t& statusCode,
@@ -47,6 +49,9 @@ private:
     bool beginBatchManifest();
     bool appendBatchManifestName(const String& remoteName);
     bool finalizeBatchManifest();
+    bool validateInspectionManifest(uint32_t& dataFiles);
+    bool validateInspectionMarker() const;
+    void failInspection(const char* reason);
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
@@ -71,6 +76,15 @@ private:
         Failed
     };
 
+    enum class InspectionStage : uint8_t
+    {
+        Idle,
+        Manifest,
+        Marker,
+        Complete,
+        Failed
+    };
+
     WebServer& m_server;
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
@@ -85,6 +99,10 @@ private:
     uint32_t m_batchFilesCompleted = 0UL;
     uint8_t m_batchKindIndex = 0U;
     String m_batchError;
+    InspectionStage m_inspectionStage = InspectionStage::Idle;
+    uint32_t m_inspectionBatchId = 0UL;
+    uint32_t m_inspectionDataFiles = 0UL;
+    String m_inspectionError;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;

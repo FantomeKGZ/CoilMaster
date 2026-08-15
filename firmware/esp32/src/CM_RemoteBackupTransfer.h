@@ -23,6 +23,11 @@ public:
     bool startDelete(const RemoteBackupSettings& settings,
                      const String& logicalName,
                      const String& remoteName);
+    bool startDownload(const RemoteBackupSettings& settings,
+                       const String& logicalName,
+                       const String& remoteName,
+                       const String& localPath,
+                       uint32_t maximumBytes);
     void finishDeleteSession();
     void update(uint32_t nowMs);
     bool active() const;
@@ -49,6 +54,10 @@ private:
         Sending,
         StoreComplete,
         Size,
+        DownloadSize,
+        RetrieveReady,
+        Receiving,
+        RetrieveComplete,
         DeleteFinal,
         RenameFrom,
         RenameTo,
@@ -60,7 +69,8 @@ private:
     enum class Operation : uint8_t
     {
         Upload,
-        Delete
+        Delete,
+        Download
     };
 
     bool readReply(uint16_t& code, String& line);
@@ -79,6 +89,8 @@ private:
     String m_logicalName;
     String m_remoteName;
     String m_tempName;
+    String m_localPath;
+    String m_localTempPath;
     String m_replyLine;
     String m_error;
     Operation m_operation;
@@ -86,6 +98,7 @@ private:
     uint32_t m_deadlineMs;
     uint32_t m_totalBytes;
     uint32_t m_sentBytes;
+    uint32_t m_downloadLimitBytes;
 };
 }
 

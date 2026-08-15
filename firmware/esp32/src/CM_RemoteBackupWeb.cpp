@@ -21,6 +21,12 @@ constexpr const char* RemoteBatchManifestPath =
     "/data/settings/remote-backup-manifest.txt";
 constexpr const char* BatchManifestDirectory =
     "/data/settings/remote-backup-batches";
+constexpr const char* InspectionDirectory =
+    "/data/settings/remote-backup-inspection";
+constexpr const char* InspectionManifestPath =
+    "/data/settings/remote-backup-inspection/MANIFEST.txt";
+constexpr const char* InspectionMarkerPath =
+    "/data/settings/remote-backup-inspection/COMPLETE.txt";
 
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
@@ -59,6 +65,14 @@ bool parseBoolean(const String& source, bool& value)
         return true;
     }
     return false;
+}
+
+bool readInspectionLine(File& file, String& line)
+{
+    if (!file.available()) return false;
+    line = file.readStringUntil('\n');
+    if (line.endsWith("\r")) line.remove(line.length() - 1U);
+    return line.length() <= 200U;
 }
 
 bool readFtpReply(WiFiClient& client, uint16_t& code)
@@ -134,11 +148,53 @@ void RemoteBackupWeb::begin()
                 [this]() { handleStartRetention(); });
     m_server.on("/api/backup/remote/batch-status", HTTP_GET,
                 [this]() { handleBatchStatus(); });
+    m_server.on("/api/backup/remote/inspection", HTTP_POST,
+                [this]() { handleStartInspection(); });
+    m_server.on("/api/backup/remote/inspection-status", HTTP_GET,
+                [this]() { handleInspectionStatus(); });
 }
 
 void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
+    if (m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
+    {
+        if (m_transfer.active()) return;
+        if (!m_transfer.succeeded())
+        {
+            failInspection(m_transfer.error().c_str());
+            return;
+        }
+        if (m_inspectionStage == InspectionStage::Manifest)
+        {
+            uint32_t dataFiles = 0UL;
+            if (!validateInspectionManifest(dataFiles))
+            {
+                failInspection("inspection_manifest_invalid");
+                return;
+            }
+            m_inspectionDataFiles = dataFiles;
+            m_inspectionStage = InspectionStage::Marker;
+            const String markerName = String(F("cm-b")) +
+                                      m_inspectionBatchId +
+                                      F("-COMPLETE.txt");
+            if (!m_transfer.startDownload(m_batchSettings,
+                                          F("inspection-complete"),
+                                          markerName,
+                                          InspectionMarkerPath,
+                                          512UL))
+                failInspection("inspection_marker_start_failed");
+            return;
+        }
+        if (!validateInspectionMarker())
+        {
+            failInspection("inspection_complete_invalid");
+            return;
+        }
+        m_inspectionStage = InspectionStage::Complete;
+        return;
+    }
     if (m_batchStage != BatchStage::MainFiles &&
         m_batchStage != BatchStage::SessionFiles &&
         m_batchStage != BatchStage::Manifest &&
@@ -258,7 +314,9 @@ void RemoteBackupWeb::handleSetConfiguration()
         m_batchStage == BatchStage::SessionFiles ||
         m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
-        m_batchStage == BatchStage::Retention)
+        m_batchStage == BatchStage::Retention ||
+        m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -367,6 +425,18 @@ void RemoteBackupWeb::handleSetConfiguration()
 
 void RemoteBackupWeb::handleTestConnection()
 {
+    if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
+        m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Manifest ||
+        m_batchStage == BatchStage::Marker ||
+        m_batchStage == BatchStage::Retention ||
+        m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
     const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
     if (activity != BackupActivityCheck::Safe)
     {
@@ -451,7 +521,9 @@ void RemoteBackupWeb::handleStartUpload()
         m_batchStage == BatchStage::SessionFiles ||
         m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
-        m_batchStage == BatchStage::Retention)
+        m_batchStage == BatchStage::Retention ||
+        m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -566,7 +638,9 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
         m_batchStage == BatchStage::SessionFiles ||
         m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
-        m_batchStage == BatchStage::Retention)
+        m_batchStage == BatchStage::Retention ||
+        m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
     {
         statusCode = 409U;
         error = "remote_backup_busy";
@@ -631,7 +705,9 @@ void RemoteBackupWeb::handleStartRetention()
         m_batchStage == BatchStage::SessionFiles ||
         m_batchStage == BatchStage::Manifest ||
         m_batchStage == BatchStage::Marker ||
-        m_batchStage == BatchStage::Retention)
+        m_batchStage == BatchStage::Retention ||
+        m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -720,6 +796,213 @@ void RemoteBackupWeb::handleBatchStatus()
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleStartInspection()
+{
+    if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
+        m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Manifest ||
+        m_batchStage == BatchStage::Marker ||
+        m_batchStage == BatchStage::Retention ||
+        m_inspectionStage == InspectionStage::Manifest ||
+        m_inspectionStage == InspectionStage::Marker)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
+    if (!m_server.hasArg("batch_id"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"batch_id_required\"}");
+        return;
+    }
+    uint32_t batchId = 0UL;
+    if (!parseCanonicalUnsigned(m_server.arg("batch_id"), 1UL,
+                                0xFFFFFFFFUL, batchId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_batch_id\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    bool configured = false;
+    if (!m_settingsStore.load(m_batchSettings, configured) || !configured ||
+        !m_batchSettings.enabled || WiFi.status() != WL_CONNECTED)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_not_ready\"}");
+        return;
+    }
+    if (!m_storage.exists(InspectionDirectory) &&
+        !m_storage.mkdir(InspectionDirectory))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"inspection_directory_failed\"}");
+        return;
+    }
+    File directory = m_storage.open(InspectionDirectory, FILE_READ);
+    if (!directory || !directory.isDirectory())
+    {
+        if (directory) directory.close();
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"inspection_directory_invalid\"}");
+        return;
+    }
+    directory.close();
+
+    m_storage.remove(InspectionManifestPath);
+    m_storage.remove(InspectionMarkerPath);
+    m_inspectionBatchId = batchId;
+    m_inspectionDataFiles = 0UL;
+    m_inspectionError = String();
+    m_inspectionStage = InspectionStage::Manifest;
+    const String manifestName = String(F("cm-b")) + batchId +
+                                F("-MANIFEST.txt");
+    if (!m_transfer.startDownload(m_batchSettings,
+                                  F("inspection-manifest"),
+                                  manifestName,
+                                  InspectionManifestPath,
+                                  131072UL))
+    {
+        failInspection("inspection_manifest_start_failed");
+        m_server.send(502, "application/json; charset=utf-8",
+                      "{\"error\":\"inspection_start_failed\"}");
+        return;
+    }
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += batchId;
+    response += F(",\"state\":\"MANIFEST\"}");
+    m_server.send(202, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleInspectionStatus()
+{
+    const char* state = "IDLE";
+    if (m_inspectionStage == InspectionStage::Manifest) state = "MANIFEST";
+    else if (m_inspectionStage == InspectionStage::Marker) state = "COMPLETE_MARKER";
+    else if (m_inspectionStage == InspectionStage::Complete) state = "VALID";
+    else if (m_inspectionStage == InspectionStage::Failed) state = "FAILED";
+    String response;
+    response.reserve(320U);
+    response = F("{\"state\":\""); response += state;
+    response += F("\",\"active\":");
+    response += (m_inspectionStage == InspectionStage::Manifest ||
+                 m_inspectionStage == InspectionStage::Marker)
+                    ? F("true") : F("false");
+    response += F(",\"valid\":");
+    response += m_inspectionStage == InspectionStage::Complete
+                    ? F("true") : F("false");
+    response += F(",\"batch_id\":");
+    if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
+    else response += F("null");
+    response += F(",\"data_files\":"); response += m_inspectionDataFiles;
+    response += F(",\"bytes_received\":"); response += m_transfer.bytesSent();
+    response += F(",\"bytes_total\":"); response += m_transfer.bytesTotal();
+    response += F(",\"working_data_changed\":false,\"error\":");
+    if (m_inspectionError.length() > 0U)
+    { response += '"'; response += m_inspectionError; response += '"'; }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+bool RemoteBackupWeb::validateInspectionManifest(uint32_t& dataFiles)
+{
+    dataFiles = 0UL;
+    File manifest = m_storage.open(InspectionManifestPath, FILE_READ);
+    if (!manifest || manifest.isDirectory())
+    {
+        if (manifest) manifest.close();
+        return false;
+    }
+    String line;
+    bool valid = readInspectionLine(manifest, line) &&
+                 line == F("COILMASTER_BACKUP_MANIFEST_V1");
+    if (valid)
+    {
+        valid = readInspectionLine(manifest, line) &&
+                line.startsWith("batch_id=");
+        uint32_t parsed = 0UL;
+        if (valid)
+            valid = parseCanonicalUnsigned(line.substring(9), 1UL,
+                                           0xFFFFFFFFUL, parsed) &&
+                    parsed == m_inspectionBatchId;
+    }
+    if (valid)
+    {
+        valid = readInspectionLine(manifest, line) &&
+                line.startsWith("data_files=");
+        if (valid)
+            valid = parseCanonicalUnsigned(line.substring(11), 1UL,
+                                           4096UL, dataFiles);
+    }
+
+    const String prefix = String(F("cm-b")) + m_inspectionBatchId + '-';
+    const String manifestName = prefix + F("MANIFEST.txt");
+    const String markerName = prefix + F("COMPLETE.txt");
+    uint32_t counted = 0UL;
+    while (valid && manifest.available())
+    {
+        valid = readInspectionLine(manifest, line) &&
+                line.length() > 0U && line.startsWith(prefix) &&
+                line.length() <= 180U && line != manifestName &&
+                line != markerName && line.indexOf('/') < 0 &&
+                line.indexOf("..") < 0 && line.indexOf('\r') < 0 &&
+                line.indexOf('\n') < 0;
+        if (valid) ++counted;
+    }
+    manifest.close();
+    return valid && counted == dataFiles;
+}
+
+bool RemoteBackupWeb::validateInspectionMarker() const
+{
+    File marker = m_storage.open(InspectionMarkerPath, FILE_READ);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String line;
+    bool valid = readInspectionLine(marker, line) &&
+                 line == F("COILMASTER_BACKUP_COMPLETE");
+    uint32_t parsed = 0UL;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("batch_id=") &&
+                parseCanonicalUnsigned(line.substring(9), 1UL,
+                                       0xFFFFFFFFUL, parsed) &&
+                parsed == m_inspectionBatchId;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("files_before_marker=") &&
+                parseCanonicalUnsigned(line.substring(20), 1UL,
+                                       4097UL, parsed) &&
+                parsed == m_inspectionDataFiles + 1UL;
+    if (valid && marker.available()) valid = false;
+    marker.close();
+    return valid;
+}
+
+void RemoteBackupWeb::failInspection(const char* reason)
+{
+    m_inspectionError = reason != nullptr ? reason : "inspection_failed";
+    m_storage.remove(String(InspectionManifestPath) + F(".part"));
+    m_storage.remove(String(InspectionMarkerPath) + F(".part"));
+    m_storage.remove(InspectionManifestPath);
+    m_storage.remove(InspectionMarkerPath);
+    m_inspectionStage = InspectionStage::Failed;
 }
 
 uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)

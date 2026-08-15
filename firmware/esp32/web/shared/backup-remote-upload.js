@@ -15,9 +15,22 @@
     retention.type='button';
     retention.id='remoteBackupRetention';
     retention.textContent='Применить лимит копий сейчас';
+    const inspectId=document.createElement('input');
+    inspectId.type='number';
+    inspectId.id='remoteBackupInspectId';
+    inspectId.min='1';
+    inspectId.step='1';
+    inspectId.placeholder='ID копии';
+    inspectId.setAttribute('aria-label','ID резервной копии');
+    const inspect=document.createElement('button');
+    inspect.type='button';
+    inspect.id='remoteBackupInspect';
+    inspect.textContent='Проверить копию без восстановления';
     manifestState.parentNode.insertBefore(status,manifestState.nextSibling);
     status.insertAdjacentElement('afterend',full);
     full.insertAdjacentElement('afterend',retention);
+    retention.insertAdjacentElement('afterend',inspectId);
+    inspectId.insertAdjacentElement('afterend',inspect);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -40,6 +53,8 @@
         document.querySelectorAll('[data-remote-backup]').forEach(b=>b.disabled=disabled);
         full.disabled=disabled;
         retention.disabled=disabled;
+        inspectId.disabled=disabled;
+        inspect.disabled=disabled;
     }
     async function pollBatch(){
         enhance();
@@ -108,6 +123,30 @@
             status.textContent='FTP status недоступен: '+e.message;
         }
     }
+    async function pollInspection(fallback){
+        try{
+            const r=await fetch('/api/backup/remote/inspection-status',{cache:'no-store'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'inspection_status_failed');
+            if(j.active){
+                buttons(true);
+                status.className='muted';
+                status.textContent='Проверка копии №'+j.batch_id+': '+j.state+' · '+size(j.bytes_received)+' из '+size(j.bytes_total)+'. Рабочие данные не изменяются.';
+                timer=setTimeout(()=>pollInspection(false),700);
+            }else if(j.state==='VALID'){
+                buttons(false);
+                status.className='ok';
+                status.textContent='Копия №'+j.batch_id+': манифест и COMPLETE действительны, файлов данных '+j.data_files+'. Восстановление не выполнялось.';
+            }else if(j.state==='FAILED'){
+                buttons(false);
+                status.className='bad';
+                status.textContent='Копия №'+j.batch_id+' не прошла проверку метаданных: '+(j.error||'unknown')+'. Рабочие данные не изменены.';
+            }else if(fallback)pollBatch();
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Статус проверки копии недоступен: '+e.message;
+        }
+    }
     async function upload(name){
         clearTimeout(timer);
         buttons(true);
@@ -156,12 +195,35 @@
             status.textContent='Лимит копий не применён: '+e.message;
         }
     }
+    async function inspectBatch(){
+        const batchId=String(inspectId.value||'').trim();
+        if(!/^[1-9]\d*$/.test(batchId)){
+            status.className='bad';
+            status.textContent='Укажите положительный ID копии из имени cm-b<ID>-MANIFEST.txt.';
+            return;
+        }
+        clearTimeout(timer);
+        buttons(true);
+        status.className='muted';
+        status.textContent='Загрузка и проверка метаданных копии №'+batchId+'…';
+        try{
+            const body=new URLSearchParams({batch_id:batchId});
+            const r=await fetch('/api/backup/remote/inspection',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'inspection_start_failed');
+            pollInspection(false);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Проверка копии не запущена: '+e.message;
+        }
+    }
     document.addEventListener('click',e=>{
         const b=e.target.closest('[data-remote-backup]');
         if(b)upload(b.dataset.remoteBackup);
     });
     full.onclick=batch;
     retention.onclick=applyRetention;
+    inspect.onclick=inspectBatch;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
-    pollBatch();
+    pollInspection(true);
 })();

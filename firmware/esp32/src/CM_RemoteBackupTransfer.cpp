@@ -29,7 +29,8 @@ bool parseSizeReply(const String& line, uint32_t& size)
 RemoteBackupTransfer::RemoteBackupTransfer(fs::FS& storage)
     : m_storage(storage), m_activityProbe(nullptr),
       m_operation(Operation::Upload), m_phase(Phase::Idle),
-      m_deadlineMs(0UL), m_totalBytes(0UL), m_sentBytes(0UL) {}
+      m_deadlineMs(0UL), m_totalBytes(0UL), m_sentBytes(0UL),
+      m_downloadLimitBytes(0UL) {}
 
 void RemoteBackupTransfer::setActivityProbe(
     BackupActivityGuard::RuntimeProbe activityProbe)
@@ -60,6 +61,8 @@ bool RemoteBackupTransfer::start(const RemoteBackupSettings& settings,
     m_logicalName = logicalName;
     m_remoteName = remoteName;
     m_tempName = remoteName + F(".part");
+    m_localPath = String();
+    m_localTempPath = String();
     m_totalBytes = static_cast<uint32_t>(m_file.size());
     m_sentBytes = 0UL;
     m_error = String();
@@ -97,6 +100,8 @@ bool RemoteBackupTransfer::startDelete(const RemoteBackupSettings& settings,
     m_logicalName = logicalName;
     m_remoteName = remoteName;
     m_tempName = String();
+    m_localPath = String();
+    m_localTempPath = String();
     m_totalBytes = 0UL;
     m_sentBytes = 0UL;
     m_error = String();
@@ -113,6 +118,51 @@ bool RemoteBackupTransfer::startDelete(const RemoteBackupSettings& settings,
     }
 
     closeTransfer();
+    m_control.setTimeout(300UL);
+    if (!m_control.connect(settings.host.c_str(), settings.port, 300))
+    {
+        fail("ftp_connect_failed");
+        return false;
+    }
+    m_phase = Phase::Greeting;
+    resetDeadline(millis());
+    return true;
+}
+
+bool RemoteBackupTransfer::startDownload(
+    const RemoteBackupSettings& settings,
+    const String& logicalName,
+    const String& remoteName,
+    const String& localPath,
+    uint32_t maximumBytes)
+{
+    if (active() || !RemoteBackupSettingsStore::valid(settings) ||
+        !settings.enabled || WiFi.status() != WL_CONNECTED ||
+        logicalName.length() == 0U || remoteName.length() == 0U ||
+        remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
+        !localPath.startsWith("/") || localPath.endsWith("/") ||
+        localPath.indexOf("..") >= 0 || maximumBytes == 0UL ||
+        maximumBytes > 1048576UL) return false;
+
+    closeTransfer();
+    const String temporaryPath = localPath + F(".part");
+    if ((m_storage.exists(temporaryPath) &&
+         !m_storage.remove(temporaryPath)) ||
+        (m_storage.exists(localPath) && !m_storage.remove(localPath)))
+        return false;
+
+    m_settings = settings;
+    m_operation = Operation::Download;
+    m_logicalName = logicalName;
+    m_remoteName = remoteName;
+    m_tempName = String();
+    m_localPath = localPath;
+    m_localTempPath = temporaryPath;
+    m_totalBytes = 0UL;
+    m_sentBytes = 0UL;
+    m_downloadLimitBytes = maximumBytes;
+    m_error = String();
+    m_replyLine = String();
     m_control.setTimeout(300UL);
     if (!m_control.connect(settings.host.c_str(), settings.port, 300))
     {
@@ -167,6 +217,39 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
         m_sentBytes += static_cast<uint32_t>(count);
         return;
     }
+    if (m_phase == Phase::Receiving)
+    {
+        if (m_data.available())
+        {
+            uint8_t buffer[TransferChunkSize];
+            const int received = m_data.read(buffer, sizeof(buffer));
+            if (received <= 0)
+            {
+                fail("ftp_data_read_failed");
+                return;
+            }
+            const size_t count = static_cast<size_t>(received);
+            if (static_cast<uint32_t>(count) >
+                    m_totalBytes - m_sentBytes ||
+                m_file.write(buffer, count) != count)
+            {
+                fail("ftp_data_read_failed");
+                return;
+            }
+            m_sentBytes += static_cast<uint32_t>(count);
+            resetDeadline(nowMs);
+            return;
+        }
+        if (!m_data.connected())
+        {
+            m_file.flush();
+            m_file.close();
+            m_data.stop();
+            m_phase = Phase::RetrieveComplete;
+            resetDeadline(nowMs);
+        }
+        return;
+    }
 
     uint16_t code = 0U;
     String reply;
@@ -213,9 +296,16 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
                 fail("ftp_command_failed");
             break;
         case Phase::BinaryMode:
-            if (code < 200U || code >= 300U ||
-                !sendCommand(String(F("DELE ")) + m_tempName,
-                             Phase::DeleteTemp, nowMs))
+            if (code < 200U || code >= 300U)
+                fail("ftp_binary_mode_failed");
+            else if (m_operation == Operation::Download)
+            {
+                if (!sendCommand(String(F("SIZE ")) + m_remoteName,
+                                 Phase::DownloadSize, nowMs))
+                    fail("ftp_command_failed");
+            }
+            else if (!sendCommand(String(F("DELE ")) + m_tempName,
+                                  Phase::DeleteTemp, nowMs))
                 fail("ftp_binary_mode_failed");
             break;
         case Phase::DeleteTemp:
@@ -248,6 +338,44 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
                 fail("ftp_size_verification_failed");
             break;
         }
+        case Phase::DownloadSize:
+        {
+            uint32_t remoteSize = 0UL;
+            if (code != 213U || !parseSizeReply(reply, remoteSize) ||
+                remoteSize == 0UL || remoteSize > m_downloadLimitBytes)
+            {
+                fail("ftp_download_size_invalid");
+                break;
+            }
+            m_totalBytes = remoteSize;
+            m_file = m_storage.open(m_localTempPath, FILE_WRITE);
+            if (!m_file || m_file.isDirectory() ||
+                !sendCommand(F("PASV"), Phase::Passive, nowMs))
+                fail("ftp_download_prepare_failed");
+            break;
+        }
+        case Phase::RetrieveReady:
+            if (code != 125U && code != 150U)
+                fail("ftp_retrieve_rejected");
+            else
+            {
+                m_phase = Phase::Receiving;
+                resetDeadline(nowMs);
+            }
+            break;
+        case Phase::RetrieveComplete:
+            if (code != 226U || m_sentBytes != m_totalBytes ||
+                m_storage.exists(m_localPath) ||
+                !m_storage.rename(m_localTempPath, m_localPath))
+                fail("ftp_download_incomplete");
+            else
+            {
+                m_localTempPath = String();
+                m_control.print(F("QUIT\r\n"));
+                closeTransfer();
+                m_phase = Phase::Complete;
+            }
+            break;
         case Phase::DeleteFinal:
             // A missing previous final file is a normal FTP 550 response.
             if (!sendCommand(String(F("RNFR ")) + m_tempName,
@@ -285,6 +413,7 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
             break;
         case Phase::Idle:
         case Phase::Sending:
+        case Phase::Receiving:
         case Phase::Complete:
         case Phase::Failed:
             break;
@@ -305,6 +434,7 @@ const char* RemoteBackupTransfer::stateName() const
     if (m_phase == Phase::Complete) return "COMPLETED";
     if (m_phase == Phase::Failed) return "FAILED";
     if (m_phase == Phase::Sending) return "UPLOADING";
+    if (m_phase == Phase::Receiving) return "DOWNLOADING";
     return "FTP_NEGOTIATION";
 }
 
@@ -379,6 +509,9 @@ bool RemoteBackupTransfer::openPassiveData(const String& reply, uint32_t nowMs)
     IPAddress address = m_control.remoteIP();
     const uint16_t port = static_cast<uint16_t>(parts[4] * 256U + parts[5]);
     if (port == 0U || !m_data.connect(address, port, 300)) return false;
+    if (m_operation == Operation::Download)
+        return sendCommand(String(F("RETR ")) + m_remoteName,
+                           Phase::RetrieveReady, nowMs);
     return sendCommand(String(F("STOR ")) + m_tempName,
                        Phase::StoreReady, nowMs);
 }
@@ -387,6 +520,9 @@ void RemoteBackupTransfer::fail(const char* reason)
 {
     m_error = reason != nullptr ? reason : "remote_backup_failed";
     closeTransfer();
+    if (m_operation == Operation::Download &&
+        m_localTempPath.length() > 0U)
+        m_storage.remove(m_localTempPath);
     m_phase = Phase::Failed;
 }
 

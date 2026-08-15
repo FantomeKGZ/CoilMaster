@@ -52,8 +52,29 @@ for (const file of files) {
   }
 }
 
+const staticSiteServerPath = path.resolve(
+  __dirname, '../../firmware/esp32/src/CM_StaticSiteServer.cpp');
+const staticSiteServer = fs.readFileSync(staticSiteServerPath, 'utf8');
+const injectedScripts = [...staticSiteServer.matchAll(
+  /R"HTML\(\s*<script>([\s\S]*?)<\/script>\s*\)HTML"/g)];
+if (!injectedScripts.length) {
+  failures.push('CM_StaticSiteServer.cpp: injected HTML script not found');
+}
+for (const match of injectedScripts) {
+  try {
+    new Function(match[1]);
+  } catch (error) {
+    failures.push('CM_StaticSiteServer.cpp: injected JavaScript syntax: ' +
+                  error.message);
+  }
+}
+if (!staticSiteServer.includes("querySelectorAll('aside a')") ||
+    !staticSiteServer.includes('cm-nav-icon')) {
+  failures.push('CM_StaticSiteServer.cpp: desktop navigation icon normalizer missing');
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Checked ' + files.length + ' HTML files: JavaScript, duplicate ids, and internal links OK.');
+console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, and desktop navigation icons OK.');

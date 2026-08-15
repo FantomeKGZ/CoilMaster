@@ -14,11 +14,45 @@ constexpr size_t HtmlStreamChunkSize = 512U;
 const char UiVersionSwitchScript[] PROGMEM = R"HTML(
 <script>
 (()=>{
-  if(document.getElementById('cm-version-switch'))return;
   const p=location.pathname;
   const m=p.match(/^\/(mobile|desktop)(\/.*)?$/);
   if(!m)return;
   const current=m[1],target=current==='mobile'?'desktop':'mobile',rest=m[2]||'/';
+  if(current==='desktop'){
+    const style=document.createElement('style');
+    style.id='cm-desktop-nav-icons';
+    style.textContent='.cm-nav-icon{display:inline-block;min-width:1.45em;text-align:center}@media(max-width:980px){aside a .cm-nav-icon{font-size:20px;min-width:0}}';
+    if(!document.getElementById(style.id))document.head.appendChild(style);
+    const known=['🏠','🧰','👤','📊','🔌','🧮','📦','💰','📈','💾','⚙️','🧭','📜','🧱','🧾','🔎','📱'];
+    const byLabel={Главная:'🏠',Намотка:'⚙️',Ремонты:'🧰',Клиенты:'👤',Двигатели:'📊',Склад:'📦',Калькуляция:'💰',История:'📜',Статистика:'📈',Настройки:'⚙️'};
+    document.querySelectorAll('aside a').forEach(a=>{
+      let label=(a.textContent||'').trim();
+      let existingIcon='';
+      known.some(icon=>{if(!label.startsWith(icon))return false;existingIcon=icon;label=label.slice(icon.length).trim();return true});
+      const href=a.getAttribute('href')||'';
+      let icon=existingIcon||(href==='/desktop/'?'🏠':
+        href.includes('arduino-windings')?'🔌':href.includes('winding-history')?'📜':
+        href.includes('service-job')?'🧭':href.includes('material-catalog')||href.includes('/materials')?'🧱':
+        href.includes('writeoff')?'🧾':href.includes('pricing-audit')?'🔎':
+        href.includes('repairs')?'🧰':href.includes('clients')?'👤':href.includes('motors')?'📊':
+        href.includes('calculator')?'🧮':href.includes('warehouse')?'📦':href.includes('costing')?'💰':
+        href.includes('reports')?'📈':href.includes('backup')?'💾':href.includes('settings')?'⚙️':
+        href.startsWith('/mobile/')?'📱':byLabel[label]||'');
+      if(!icon)return;
+      const iconNode=document.createElement('span');
+      iconNode.className='cm-nav-icon';
+      iconNode.setAttribute('aria-hidden','true');
+      iconNode.textContent=icon;
+      const labelNode=document.createElement('span');
+      labelNode.className='cm-nav-label';
+      labelNode.textContent=label;
+      a.textContent='';
+      a.appendChild(iconNode);
+      a.appendChild(document.createTextNode(' '));
+      a.appendChild(labelNode);
+    });
+  }
+  if(document.getElementById('cm-version-switch'))return;
   const box=document.createElement('div');
   box.id='cm-version-switch';
   box.style.cssText='box-sizing:border-box;max-width:760px;margin:18px auto '+(current==='mobile'?'94px':'26px')+';padding:0 12px;position:relative;z-index:10';

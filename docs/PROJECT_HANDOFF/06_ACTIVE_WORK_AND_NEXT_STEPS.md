@@ -919,3 +919,41 @@ repairs, warehouse and winding history are unchanged. Press `Удалить вр
 файлы` and confirm a new inspection can start. For the reboot test, stage the
 set, reboot, confirm the `STALE` warning and explicit cleanup requirement, and
 confirm that no working file was replaced automatically.
+
+
+The safe remote restore staging checkpoint is hardware-confirmed by the user on
+the real device. The complete temporary download, counters, unchanged working
+data and explicit cleanup behave as specified.
+
+## Completed in firmware: strict read-only restore plan — 2026-08-15
+
+A staged V2 backup can now be checked with `Проверить план восстановления`.
+The planner streams the already validated manifest and accepts only canonical
+filenames produced by CoilMaster itself. Main-file names are matched against the
+fixed export whitelist; session snapshot, spool-selection and state names must
+contain a canonical positive session ID and map only to their fixed directories.
+Unknown names are rejected.
+
+For every entry the planner reopens the staged file, rejects directories and
+requires the exact V2 byte size again. It writes an atomic
+`RESTORE_PLAN.tsv.part` and renames it to `RESTORE_PLAN.tsv` only after the
+file/byte totals match. The plan includes `apply_enabled=0`; no authoritative
+path is opened for writing and there is still no restore/apply endpoint,
+automatic restore or reboot continuation.
+
+```text
+0b78ca0c882acd07d21d247c1361dff7a3de1760
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.7% (51408 / 327680 bytes)
+Flash: 41.8% (1313357 / 3145728 bytes)
+```
+
+Hardware test: inspect and stage a fresh V2 batch, then press `Проверить план
+восстановления`. Confirm the planned file and byte counters reach the staged
+totals and the final message says every file maps to an allowed path while
+application remains disabled. Confirm clients, motors, repairs, warehouse and
+winding history remain unchanged. For a disposable negative test, alter one
+staged filename or size on the microSD before planning; the plan must be rejected
+and no working file may change. Finally press `Удалить временные файлы` and
+confirm the staged files and plan are removed together.

@@ -15,6 +15,10 @@ struct RemoteBackupSettings
     String password;
     String remoteDirectory = "/CoilMaster";
     uint8_t retentionCount = 7U;
+    bool scheduleEnabled = false;
+    uint8_t scheduleHour = 2U;
+    uint8_t scheduleMinute = 0U;
+    uint32_t lastScheduledDate = 0UL;
 };
 
 class RemoteBackupSettingsStore

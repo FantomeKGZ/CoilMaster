@@ -106,10 +106,12 @@ bool sendFtpCommand(WiFiClient& client,
 
 RemoteBackupWeb::RemoteBackupWeb(WebServer& server,
                                  fs::FS& storage,
-                                 RemoteBackupSettingsStore& settingsStore)
+                                 RemoteBackupSettingsStore& settingsStore,
+                                 RtcClock& rtcClock)
     : m_server(server),
       m_storage(storage),
       m_settingsStore(settingsStore),
+      m_rtcClock(rtcClock),
       m_transfer(storage) {}
 
 void RemoteBackupWeb::begin()
@@ -138,7 +140,11 @@ void RemoteBackupWeb::update(uint32_t nowMs)
     if (m_batchStage != BatchStage::MainFiles &&
         m_batchStage != BatchStage::SessionFiles &&
         m_batchStage != BatchStage::Marker &&
-        m_batchStage != BatchStage::Retention) return;
+        m_batchStage != BatchStage::Retention)
+    {
+        updateSchedule(nowMs);
+        return;
+    }
     if (m_transfer.active()) return;
     if (!m_transfer.succeeded())
     {
@@ -204,7 +210,7 @@ void RemoteBackupWeb::handleGetConfiguration()
     }
 
     String response;
-    response.reserve(340U);
+    response.reserve(560U);
     response = F("{\"supported\":true,\"configured\":");
     response += configured ? F("true") : F("false");
     response += F(",\"enabled\":");
@@ -220,12 +226,32 @@ void RemoteBackupWeb::handleGetConfiguration()
     response += configured ? settings.remoteDirectory : String(F("/CoilMaster"));
     response += F("\",\"retention_count\":");
     response += configured ? settings.retentionCount : 7U;
-    response += F(",\"transport\":\"FTP\",\"credentials_exposed\":false}");
+    response += F(",\"scheduled_backup_supported\":true,\"schedule_enabled\":");
+    response += configured && settings.scheduleEnabled ? F("true") : F("false");
+    response += F(",\"schedule_hour\":");
+    response += configured ? settings.scheduleHour : 2U;
+    response += F(",\"schedule_minute\":");
+    response += configured ? settings.scheduleMinute : 0U;
+    response += F(",\"last_scheduled_date\":");
+    if (configured && settings.lastScheduledDate > 0UL)
+        response += settings.lastScheduledDate;
+    else response += F("null");
+    response += F(",\"schedule_state\":\""); response += m_scheduleState;
+    response += F("\",\"transport\":\"FTP\",\"credentials_exposed\":false}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void RemoteBackupWeb::handleSetConfiguration()
 {
+    if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
+        m_batchStage == BatchStage::SessionFiles ||
+        m_batchStage == BatchStage::Marker ||
+        m_batchStage == BatchStage::Retention)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"remote_backup_busy\"}");
+        return;
+    }
     if (!m_settingsStore.ready())
     {
         m_server.send(503, "application/json; charset=utf-8",
@@ -272,6 +298,38 @@ void RemoteBackupWeb::handleSetConfiguration()
     }
     settings.port = static_cast<uint16_t>(port);
     settings.retentionCount = static_cast<uint8_t>(retention);
+    settings.scheduleEnabled = configured ? previous.scheduleEnabled : false;
+    settings.scheduleHour = configured ? previous.scheduleHour : 2U;
+    settings.scheduleMinute = configured ? previous.scheduleMinute : 0U;
+    settings.lastScheduledDate = configured ? previous.lastScheduledDate : 0UL;
+    const bool hasScheduleFields = m_server.hasArg("schedule_enabled") ||
+                                   m_server.hasArg("schedule_hour") ||
+                                   m_server.hasArg("schedule_minute");
+    if (hasScheduleFields)
+    {
+        if (!m_server.hasArg("schedule_enabled") ||
+            !m_server.hasArg("schedule_hour") ||
+            !m_server.hasArg("schedule_minute"))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"remote_backup_schedule_fields_required\"}");
+            return;
+        }
+        uint32_t scheduleHour = 0UL, scheduleMinute = 0UL;
+        if (!parseBoolean(m_server.arg("schedule_enabled"),
+                          settings.scheduleEnabled) ||
+            !parseCanonicalUnsigned(m_server.arg("schedule_hour"),
+                                    0UL, 23UL, scheduleHour) ||
+            !parseCanonicalUnsigned(m_server.arg("schedule_minute"),
+                                    0UL, 59UL, scheduleMinute))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_remote_backup_schedule\"}");
+            return;
+        }
+        settings.scheduleHour = static_cast<uint8_t>(scheduleHour);
+        settings.scheduleMinute = static_cast<uint8_t>(scheduleMinute);
+    }
     if (m_server.hasArg("password") && m_server.arg("password").length() > 0U)
         settings.password = m_server.arg("password");
     else if (configured)
@@ -289,6 +347,8 @@ void RemoteBackupWeb::handleSetConfiguration()
                       "{\"error\":\"remote_backup_settings_write_failed\"}");
         return;
     }
+    m_scheduleAttemptDate = 0UL;
+    m_scheduleState = settings.scheduleEnabled ? F("WAITING_TIME") : F("DISABLED");
     m_server.send(200, "application/json; charset=utf-8",
                   "{\"saved\":true,\"credentials_exposed\":false}");
 }
@@ -468,39 +528,60 @@ void RemoteBackupWeb::handleUploadStatus()
 
 void RemoteBackupWeb::handleStartBatch()
 {
+    uint16_t statusCode = 500U;
+    const char* error = "backup_batch_start_failed";
+    if (!startFullBatch(false, statusCode, error))
+    {
+        String response = F("{\"error\":\"");
+        response += error != nullptr ? error : "backup_batch_start_failed";
+        response += F("\"}");
+        m_server.send(statusCode, "application/json", response);
+        return;
+    }
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += m_batchId; response += '}';
+    m_server.send(202, "application/json", response);
+}
+
+bool RemoteBackupWeb::startFullBatch(bool scheduled,
+                                      uint16_t& statusCode,
+                                      const char*& error)
+{
+    statusCode = 500U;
+    error = "backup_batch_start_failed";
     if (m_transfer.active() || m_batchStage == BatchStage::MainFiles ||
         m_batchStage == BatchStage::SessionFiles ||
         m_batchStage == BatchStage::Marker ||
         m_batchStage == BatchStage::Retention)
     {
-        m_server.send(409, "application/json",
-                      "{\"error\":\"remote_backup_busy\"}");
-        return;
+        statusCode = 409U;
+        error = "remote_backup_busy";
+        return false;
     }
     const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
     String stabilityReason;
     if (activity != BackupActivityCheck::Safe ||
         !BackupExportWeb::snapshotStable(m_storage, stabilityReason))
     {
-        m_server.send(activity == BackupActivityCheck::Unavailable ? 503 : 409,
-                      "application/json",
-                      "{\"error\":\"stable_snapshot_required\"}");
-        return;
+        statusCode = activity == BackupActivityCheck::Unavailable ? 503U : 409U;
+        error = "stable_snapshot_required";
+        return false;
     }
     bool configured = false;
     if (!m_settingsStore.load(m_batchSettings, configured) || !configured ||
         !m_batchSettings.enabled || WiFi.status() != WL_CONNECTED)
     {
-        m_server.send(409, "application/json",
-                      "{\"error\":\"remote_backup_not_ready\"}");
-        return;
+        statusCode = 409U;
+        error = "remote_backup_not_ready";
+        return false;
     }
     if (!allocateBatchId(m_batchId))
     {
-        m_server.send(500, "application/json",
-                      "{\"error\":\"backup_batch_id_failed\"}");
-        return;
+        error = "backup_batch_id_failed";
+        return false;
     }
+    m_batchScheduled = scheduled;
+    if (!scheduled) m_scheduledBatchDate = 0UL;
     m_batchMainIndex = 0U;
     m_batchAfterSessionId = 0UL;
     m_batchSessionId = 0UL;
@@ -515,21 +596,19 @@ void RemoteBackupWeb::handleStartBatch()
     if (!beginBatchManifest())
     {
         failBatch("batch_manifest_create_failed");
-        m_server.send(500, "application/json",
-                      "{\"error\":\"backup_batch_manifest_failed\"}");
-        return;
+        error = "backup_batch_manifest_failed";
+        return false;
     }
     m_batchStage = BatchStage::MainFiles;
     if (!startNextBatchFile())
     {
         failBatch("batch_first_file_failed");
-        m_server.send(500, "application/json",
-                      "{\"error\":\"backup_batch_start_failed\"}");
-        return;
+        error = "backup_batch_start_failed";
+        return false;
     }
-    String response = F("{\"accepted\":true,\"batch_id\":");
-    response += m_batchId; response += '}';
-    m_server.send(202, "application/json", response);
+    statusCode = 202U;
+    error = nullptr;
+    return true;
 }
 
 void RemoteBackupWeb::handleStartRetention()
@@ -600,6 +679,8 @@ void RemoteBackupWeb::handleBatchStatus()
                  m_batchStage == BatchStage::Retention) ? F("true") : F("false");
     response += F(",\"batch_id\":");
     if (m_batchId > 0UL) response += m_batchId; else response += F("null");
+    response += F(",\"scheduled\":");
+    response += m_batchScheduled ? F("true") : F("false");
     response += F(",\"files_completed\":"); response += m_batchFilesCompleted;
     response += F(",\"current_name\":\""); response += m_transfer.logicalName();
     response += F("\",\"bytes_sent\":"); response += m_transfer.bytesSent();
@@ -622,6 +703,90 @@ void RemoteBackupWeb::handleBatchStatus()
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)
+{
+    return static_cast<uint32_t>(value.year) * 10000UL +
+           static_cast<uint32_t>(value.month) * 100UL + value.day;
+}
+
+void RemoteBackupWeb::updateSchedule(uint32_t nowMs)
+{
+    if (m_lastScheduleCheckMs != 0UL &&
+        static_cast<uint32_t>(nowMs - m_lastScheduleCheckMs) < 30000UL)
+        return;
+    m_lastScheduleCheckMs = nowMs;
+
+    RemoteBackupSettings settings;
+    bool configured = false;
+    if (!m_settingsStore.load(settings, configured) || !configured)
+    {
+        m_scheduleState = F("SETTINGS_UNAVAILABLE");
+        return;
+    }
+    if (!settings.enabled || !settings.scheduleEnabled)
+    {
+        m_scheduleState = F("DISABLED");
+        return;
+    }
+
+    RtcDateTime now;
+    if (!m_rtcClock.read(now))
+    {
+        m_scheduleState = F("RTC_INVALID");
+        return;
+    }
+    const uint32_t today = dateKey(now);
+    if (settings.lastScheduledDate == today)
+    {
+        m_scheduleState = F("COMPLETED_TODAY");
+        return;
+    }
+    if (m_scheduleAttemptDate == today) return;
+    if (now.hour < settings.scheduleHour ||
+        (now.hour == settings.scheduleHour &&
+         now.minute < settings.scheduleMinute))
+    {
+        m_scheduleState = F("WAITING_TIME");
+        return;
+    }
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        m_scheduleState = F("WAITING_STA");
+        return;
+    }
+    if (BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+    {
+        m_scheduleState = F("WAITING_IDLE");
+        return;
+    }
+
+    m_scheduleAttemptDate = today;
+    m_scheduledBatchDate = today;
+    uint16_t statusCode = 500U;
+    const char* error = "scheduled_backup_start_failed";
+    if (!startFullBatch(true, statusCode, error))
+    {
+        (void)statusCode;
+        m_scheduleState = error != nullptr ? error : "SCHEDULED_START_FAILED";
+        m_batchScheduled = false;
+        m_scheduledBatchDate = 0UL;
+        return;
+    }
+    m_scheduleState = F("RUNNING");
+}
+
+void RemoteBackupWeb::completeScheduledBatch()
+{
+    if (!m_batchScheduled) return;
+    m_batchSettings.lastScheduledDate = m_scheduledBatchDate;
+    if (m_scheduledBatchDate > 0UL && m_settingsStore.save(m_batchSettings))
+        m_scheduleState = F("COMPLETED_TODAY");
+    else
+        m_scheduleState = F("STATE_WRITE_FAILED");
+    m_batchScheduled = false;
+    m_scheduledBatchDate = 0UL;
 }
 
 bool RemoteBackupWeb::allocateBatchId(uint32_t& batchId)
@@ -913,6 +1078,7 @@ bool RemoteBackupWeb::startRetention()
     {
         m_transfer.finishDeleteSession();
         m_batchStage = BatchStage::Complete;
+        completeScheduledBatch();
         return true;
     }
     return startRetentionBatch(oldestBatchId);
@@ -1081,6 +1247,7 @@ void RemoteBackupWeb::failRetention(const char* reason)
     m_retentionPendingName = String();
     m_retentionError = reason != nullptr ? reason : "retention_failed";
     m_batchStage = BatchStage::Complete;
+    completeScheduledBatch();
 }
 
 void RemoteBackupWeb::failBatch(const char* reason)
@@ -1088,5 +1255,8 @@ void RemoteBackupWeb::failBatch(const char* reason)
     m_batchError = reason != nullptr ? reason : "backup_batch_failed";
     m_storage.remove(BatchMarkerPath);
     m_batchStage = BatchStage::Failed;
+    if (m_batchScheduled) m_scheduleState = F("FAILED");
+    m_batchScheduled = false;
+    m_scheduledBatchDate = 0UL;
 }
 }

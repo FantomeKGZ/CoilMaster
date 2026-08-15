@@ -6,6 +6,7 @@
 
 #include "CM_RemoteBackupSettings.h"
 #include "CM_RemoteBackupTransfer.h"
+#include "CM_RtcClock.h"
 
 namespace CM
 {
@@ -14,7 +15,8 @@ class RemoteBackupWeb
 public:
     RemoteBackupWeb(WebServer& server,
                     fs::FS& storage,
-                    RemoteBackupSettingsStore& settingsStore);
+                    RemoteBackupSettingsStore& settingsStore,
+                    RtcClock& rtcClock);
 
     void begin();
     void update(uint32_t nowMs);
@@ -30,6 +32,12 @@ private:
     void handleStartRetention();
     void handleBatchStatus();
     bool allocateBatchId(uint32_t& batchId);
+    bool startFullBatch(bool scheduled,
+                        uint16_t& statusCode,
+                        const char*& error);
+    void updateSchedule(uint32_t nowMs);
+    void completeScheduledBatch();
+    static uint32_t dateKey(const RtcDateTime& value);
     bool startNextBatchFile();
     bool startTrackedBatchFile(const String& logicalName,
                                const String& localPath,
@@ -64,6 +72,7 @@ private:
     WebServer& m_server;
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
+    RtcClock& m_rtcClock;
     RemoteBackupTransfer m_transfer;
     RemoteBackupSettings m_batchSettings;
     BatchStage m_batchStage = BatchStage::Idle;
@@ -85,6 +94,11 @@ private:
     bool m_retentionDeletingPart = false;
     String m_retentionPendingName;
     String m_retentionError;
+    uint32_t m_lastScheduleCheckMs = 0UL;
+    uint32_t m_scheduleAttemptDate = 0UL;
+    uint32_t m_scheduledBatchDate = 0UL;
+    bool m_batchScheduled = false;
+    String m_scheduleState = "DISABLED";
 };
 }
 

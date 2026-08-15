@@ -69,7 +69,8 @@ CM::NetworkProfileStore networkProfiles(SD);
 CM::NetworkManager networkManager(networkProfiles);
 WebServer webServer(80);
 CM::WebRecoveryFtpServer webRecoveryFtp(webServer, SD);
-CM::RemoteBackupWeb remoteBackupWeb(webServer, SD, remoteBackupSettings);
+CM::RemoteBackupWeb remoteBackupWeb(webServer, SD, remoteBackupSettings,
+                                    rtcClock);
 CM::NetworkWeb networkWeb(webServer, networkProfiles, networkManager);
 CM::JobSpoolSelectionWeb jobSpoolSelectionWeb(webServer, jobSpoolSelections);
 CM::StaticSiteServer staticSites(webServer, SD, networkManager, webRecoveryFtp);

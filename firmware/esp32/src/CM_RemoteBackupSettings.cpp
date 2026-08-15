@@ -6,7 +6,7 @@ namespace CM
 {
 namespace
 {
-constexpr uint32_t SchemaVersion = 1UL;
+constexpr uint32_t SchemaVersion = 2UL;
 
 bool safeHostCharacter(char ch)
 {
@@ -46,6 +46,21 @@ bool validPassword(const String& password)
         if (value < 0x21U || value > 0x7EU) return false;
     }
     return true;
+}
+
+bool validDateKey(uint32_t value)
+{
+    if (value == 0UL) return true;
+    const uint16_t year = static_cast<uint16_t>(value / 10000UL);
+    const uint8_t month = static_cast<uint8_t>((value / 100UL) % 100UL);
+    const uint8_t day = static_cast<uint8_t>(value % 100UL);
+    if (year < 2000U || year > 2099U || month < 1U || month > 12U ||
+        day < 1U) return false;
+    static const uint8_t daysPerMonth[] =
+        {31U, 28U, 31U, 30U, 31U, 30U, 31U, 31U, 30U, 31U, 30U, 31U};
+    uint8_t maximumDay = daysPerMonth[month - 1U];
+    if (month == 2U && year % 4U == 0U) maximumDay = 29U;
+    return day <= maximumDay;
 }
 
 bool findUnsigned(const String& line, const char* key, uint32_t& value)
@@ -228,8 +243,8 @@ bool RemoteBackupSettingsStore::save(const RemoteBackupSettings& settings)
     if (m_storage.exists(TempPath) && !m_storage.remove(TempPath)) return false;
 
     String line;
-    line.reserve(420U);
-    line = F("{\"schema\":1,\"enabled\":");
+    line.reserve(520U);
+    line = F("{\"schema\":2,\"enabled\":");
     line += settings.enabled ? F("true") : F("false");
     line += F(",\"host\":\""); line += settings.host;
     line += F("\",\"port\":"); line += settings.port;
@@ -237,6 +252,13 @@ bool RemoteBackupSettingsStore::save(const RemoteBackupSettings& settings)
     line += F("\",\"password_hex\":\""); line += encodeHex(settings.password);
     line += F("\",\"remote_directory\":\""); line += settings.remoteDirectory;
     line += F("\",\"retention_count\":"); line += settings.retentionCount;
+    line += F(",\"schedule_enabled\":");
+    line += settings.scheduleEnabled ? F("true") : F("false");
+    line += F(",\"schedule_hour\":");
+    line += static_cast<unsigned>(settings.scheduleHour);
+    line += F(",\"schedule_minute\":");
+    line += static_cast<unsigned>(settings.scheduleMinute);
+    line += F(",\"last_scheduled_date\":"); line += settings.lastScheduledDate;
     line += F("}\n");
 
     File file = m_storage.open(TempPath, FILE_WRITE);
@@ -256,7 +278,11 @@ bool RemoteBackupSettingsStore::save(const RemoteBackupSettings& settings)
         verified.port != settings.port || verified.username != settings.username ||
         verified.password != settings.password ||
         verified.remoteDirectory != settings.remoteDirectory ||
-        verified.retentionCount != settings.retentionCount)
+        verified.retentionCount != settings.retentionCount ||
+        verified.scheduleEnabled != settings.scheduleEnabled ||
+        verified.scheduleHour != settings.scheduleHour ||
+        verified.scheduleMinute != settings.scheduleMinute ||
+        verified.lastScheduledDate != settings.lastScheduledDate)
     {
         m_storage.remove(TempPath);
         return false;
@@ -297,7 +323,9 @@ bool RemoteBackupSettingsStore::valid(const RemoteBackupSettings& settings)
                             96U) ||
         !settings.remoteDirectory.startsWith("/") ||
         settings.remoteDirectory.indexOf("..") >= 0 || settings.port == 0U ||
-        settings.retentionCount < 1U || settings.retentionCount > 30U)
+        settings.retentionCount < 1U || settings.retentionCount > 30U ||
+        settings.scheduleHour > 23U || settings.scheduleMinute > 59U ||
+        !validDateKey(settings.lastScheduledDate))
     {
         return false;
     }
@@ -359,7 +387,8 @@ bool RemoteBackupSettingsStore::loadFromPath(
     uint32_t schema = 0UL, port = 0UL, retention = 0UL;
     bool enabled = false;
     String host, username, passwordHex, password, remoteDirectory;
-    if (!findUnsigned(line, "schema", schema) || schema != SchemaVersion ||
+    if (!findUnsigned(line, "schema", schema) ||
+        (schema != 1UL && schema != SchemaVersion) ||
         !findBoolean(line, "enabled", enabled) ||
         !findString(line, "host", host) ||
         !findUnsigned(line, "port", port) || port == 0UL || port > 65535UL ||
@@ -378,6 +407,23 @@ bool RemoteBackupSettingsStore::loadFromPath(
     settings.password = password;
     settings.remoteDirectory = remoteDirectory;
     settings.retentionCount = static_cast<uint8_t>(retention);
+    if (schema == SchemaVersion)
+    {
+        uint32_t scheduleHour = 0UL, scheduleMinute = 0UL,
+                 lastScheduledDate = 0UL;
+        bool scheduleEnabled = false;
+        if (!findBoolean(line, "schedule_enabled", scheduleEnabled) ||
+            !findUnsigned(line, "schedule_hour", scheduleHour) ||
+            scheduleHour > 255UL ||
+            !findUnsigned(line, "schedule_minute", scheduleMinute) ||
+            scheduleMinute > 255UL ||
+            !findUnsigned(line, "last_scheduled_date", lastScheduledDate))
+            return false;
+        settings.scheduleEnabled = scheduleEnabled;
+        settings.scheduleHour = static_cast<uint8_t>(scheduleHour);
+        settings.scheduleMinute = static_cast<uint8_t>(scheduleMinute);
+        settings.lastScheduledDate = lastScheduledDate;
+    }
     return valid(settings);
 }
 }

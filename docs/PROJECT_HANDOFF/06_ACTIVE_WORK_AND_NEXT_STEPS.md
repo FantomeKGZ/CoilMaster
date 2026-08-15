@@ -1051,3 +1051,49 @@ the temporary area as `STALE` without applying anything, and explicit cleanup
 removed the staging and rollback areas. The next implementation block may now
 prepare the operator-only target-replacement transaction, retaining mandatory
 fresh rollback validation and deterministic rollback.
+
+## Current checkpoint: read-only apply preflight — 2026-08-15
+
+The next recovery gate is implemented without enabling restore writes. After the
+verified local rollback snapshot, the operator can press
+`Проверить готовность к применению`. The firmware strictly pairs restore-plan
+and rollback-manifest rows, re-resolves each fixed destination, verifies that the
+working files still match the rollback snapshot, rereads rollback CRC32 and
+records staged-file CRC32. Work is bounded to 1 KiB per update cycle and aborts
+fail-closed if machine activity becomes busy or unavailable.
+
+```text
+9ad5a889e26e0da717577bdd06b23546b6951de7  firmware state machine/API
+f4f6b20bfc52a50e26af0673bf54be76f0eff8f7  declarations/state
+228a99e40ace0a25cd7b0a1d6d65e3db7940d999  operator UI
+CMP Protocol Tests: SUCCESS (run 31889384628)
+ESP32 Build: SUCCESS (run 31889384626)
+```
+
+No RAM/Flash figures are recorded for this checkpoint because the available
+GitHub result confirmed the build conclusion but did not expose the PlatformIO
+size lines. Do not infer them from an older build.
+
+### Required real-device check
+
+1. Flash the current `cmp-protocol-v1` firmware and replace the complete microSD
+   `/web` directory.
+2. Complete the already verified sequence: inspect V2 batch, stage it, validate
+   the restore plan and create the rollback snapshot.
+3. Press `Проверить готовность к применению` and confirm progress reaches
+   `READY` for the same batch ID.
+4. Confirm the page states that current files match the rollback snapshot,
+   staged CRC32 values were recorded, and restore remains disabled.
+5. Verify clients, motors, repairs, warehouse and winding history are unchanged.
+6. Reboot once before cleanup. Confirm the readiness/rollback area is reported
+   as `STALE`, with no auto-resume and no applied file.
+7. Press `Удалить временные файлы` while safely idle and confirm staging,
+   rollback and readiness metadata are removed together.
+
+Do not corrupt or hot-edit the production microSD for a negative test. A CRC or
+manifest mismatch must be tested only on a disposable controlled card/image.
+
+The completion estimate remains **91%** until this hardware matrix passes. After
+confirmation, the next implementation block is the operator-only transactional
+apply path with per-file atomic replacement and immediate rollback on any
+failure. Automatic restore and reboot continuation remain forbidden.

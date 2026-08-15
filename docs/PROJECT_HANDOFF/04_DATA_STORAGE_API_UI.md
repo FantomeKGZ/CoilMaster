@@ -424,3 +424,27 @@ The backup page exposes `Создать локальную страховочн�
 temporary cleanup action removes both staging and rollback directories while the
 machine is provably idle. A rollback directory that survives reboot is
 `STALE`; it is never resumed or applied.
+
+## Restore apply-preflight API — 2026-08-15
+
+```text
+POST /api/backup/remote/apply-preflight
+GET  /api/backup/remote/apply-preflight-status
+```
+
+Start requires the exact inspected V2 batch ID, completed staging, a valid
+strict restore plan, a completed verified rollback snapshot, safe-idle machine
+state and no competing backup/recovery operation. The bounded state machine
+revalidates plan/rollback entry pairing and fixed restore destinations, then
+checks current-file, rollback-file and staged-file size/CRC32 state.
+
+The backup page exposes `Проверить готовность к применению`. Status reports the
+current phase, checked file count and byte progress. `READY` means only that the
+read-only verification metadata was created; it does not enable or perform a
+restore. Every response keeps `restore_apply_enabled:false` and
+`working_data_changed:false`.
+
+The result files are stored only inside
+`/data/settings/remote-restore-rollback` and are removed by the existing
+operator cleanup action together with staging and rollback data. After reboot
+they are `STALE`, never automatically resumed or consumed.

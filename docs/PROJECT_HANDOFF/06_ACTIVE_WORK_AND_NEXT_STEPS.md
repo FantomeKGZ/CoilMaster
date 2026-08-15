@@ -1,6 +1,6 @@
 # Где остановились и что делать дальше
 
-Дата обновления: **2026-08-12**  
+Дата обновления: **2026-08-15**
 Ветка: **`cmp-protocol-v1`**
 
 Код ветки — единственный source of truth. `main` не использовать как источник реализации. Перед каждым изменением существующего файла заново fetch актуальный blob из `cmp-protocol-v1` и использовать текущий SHA.
@@ -583,3 +583,48 @@ c065ede2ebf439cc55a95bff4cd460e4709cfef2
 ESP32 Build: SUCCESS
 CMP Protocol Tests + web asset/navigation/injected-script audit: SUCCESS
 ```
+
+## Hardware confirmed: backup and FTP — 2026-08-15
+
+The user confirmed on the real device that both the outgoing remote backup and
+the restricted incoming `/web` FTP service execute successfully. These two
+features are no longer implementation-only checkpoints. The earlier detailed
+negative/security matrix remains useful for regression testing, but does not
+block calling the basic backup/FTP paths hardware-operational.
+
+## Completed in firmware: safe remote backup retention — 2026-08-15
+
+Retention is now applied only after a new full batch has uploaded its
+`cm-b<id>-COMPLETE.txt` marker successfully. Each new batch records an exact
+local manifest under `/data/settings/remote-backup-batches`; retention never
+lists or guesses arbitrary files on the FTP server.
+
+Deletion order is fail-safe:
+
+1. delete the selected old batch `COMPLETE.txt` marker first;
+2. delete only exact `cm-b<id>-...` names from its trusted local manifest;
+3. remove the local manifest only after all exact remote deletes finish;
+4. repeat until `retention_count` is satisfied.
+
+FTP `550` for an already absent exact managed file is treated as idempotent
+success, allowing an interrupted cleanup to resume after the next successful
+backup. A retention failure does not invalidate the newly completed backup and
+is shown separately in the web UI. Legacy remote batches created before this
+feature are intentionally not deleted automatically because no trusted local
+manifest exists for them. Incomplete `.tmp` manifests are ignored.
+
+Verified code checkpoint:
+
+```text
+b7860d6327dedba14cda826c1bf0fc91fb99f040
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.5% (50760 / 327680 bytes)
+Flash: 40.1% (1261073 / 3145728 bytes)
+```
+
+Remaining hardware check: create more complete backups than the configured
+retention count, verify that the oldest managed prefix is removed, then
+interrupt one cleanup and confirm the new backup remains valid while the old
+prefix has no `COMPLETE.txt`. Do not describe retention itself as
+hardware-confirmed until that check passes.

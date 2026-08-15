@@ -711,7 +711,30 @@ RAM: 15.6% (51128 / 327680 bytes)
 Flash: 40.8% (1284073 / 3145728 bytes)
 ```
 
-Next hardware check: flash the firmware, update microSD `/web`, open Settings
-and confirm DS3231 is detected and the displayed time is current. If
-`time_valid:false`, time-setting support must be implemented before backup
-scheduling; do not schedule from `millis()` or from an unvalidated RTC value.
+The DS3231 runtime read path is hardware-confirmed by the user: Settings detects
+the module and displays the current time correctly.
+
+## Completed in firmware: verified operator RTC synchronization — 2026-08-15
+
+Desktop and mobile Settings now provide `Установить время с этого устройства`.
+The action requires an explicit browser confirmation and sends local browser
+date/time to `POST /api/system/time`. The server rejects the write unless the
+machine is provably idle, validates every calendar field, writes DS3231 in
+24-hour mode, clears the oscillator-stop flag and reads the clock back. The
+write succeeds only when the verified RTC value is within two seconds of the
+requested value.
+
+No automatic time write, NTP sync or backup schedule is introduced here.
+
+```text
+88efc72342bd5a7e604fee21fa207d34e1dc4e7c
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.6% (51128 / 327680 bytes)
+Flash: 40.9% (1285869 / 3145728 bytes)
+```
+
+Hardware check: while the machine is idle, deliberately change the RTC time,
+press the synchronization button and confirm Settings immediately shows the
+phone/computer local time. Also confirm that the same POST is rejected while
+the activity state is busy or unavailable.

@@ -38,6 +38,8 @@ private:
     void handleDiscardStaging();
     void handleStartRestorePlan();
     void handleRestorePlanStatus();
+    void handleStartRollbackSnapshot();
+    void handleRollbackSnapshotStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startFullBatch(bool scheduled,
                         uint16_t& statusCode,
@@ -65,6 +67,15 @@ private:
     bool validateStagingMarker() const;
     bool processNextRestorePlanEntry();
     void failRestorePlan(const char* reason);
+    bool processNextRollbackEntry();
+    bool continueRollbackCopy();
+    bool continueRollbackVerification();
+    bool appendRollbackManifestEntry(bool present, uint32_t sizeBytes,
+                                     uint32_t crc32);
+    bool finalizeRollbackSnapshot();
+    bool clearRollbackDirectory();
+    void failRollbackSnapshot(const char* reason);
+    bool rollbackActive() const;
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
@@ -115,6 +126,16 @@ private:
         Failed
     };
 
+    enum class RollbackStage : uint8_t
+    {
+        Idle,
+        PlanFiles,
+        Copying,
+        Verifying,
+        Complete,
+        Failed
+    };
+
     WebServer& m_server;
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
@@ -151,6 +172,24 @@ private:
     uint32_t m_restorePlanFiles = 0UL;
     uint32_t m_restorePlanBytes = 0UL;
     String m_restorePlanError;
+    RollbackStage m_rollbackStage = RollbackStage::Idle;
+    File m_rollbackPlan;
+    File m_rollbackManifest;
+    File m_rollbackSource;
+    File m_rollbackCopy;
+    String m_rollbackRemoteName;
+    String m_rollbackTargetPath;
+    String m_rollbackPartPath;
+    uint32_t m_rollbackFilesProcessed = 0UL;
+    uint32_t m_rollbackFilesPresent = 0UL;
+    uint32_t m_rollbackFilesMissing = 0UL;
+    uint32_t m_rollbackBytesCopied = 0UL;
+    uint32_t m_rollbackCurrentBytes = 0UL;
+    uint32_t m_rollbackCurrentExpected = 0UL;
+    uint32_t m_rollbackSourceCrc = 0xFFFFFFFFUL;
+    uint32_t m_rollbackVerifyCrc = 0xFFFFFFFFUL;
+    uint32_t m_rollbackVerifyBytes = 0UL;
+    String m_rollbackError;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;

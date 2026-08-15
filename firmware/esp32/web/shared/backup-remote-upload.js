@@ -34,6 +34,10 @@
     plan.type='button';
     plan.id='remoteBackupRestorePlan';
     plan.textContent='Проверить план восстановления';
+    const rollback=document.createElement('button');
+    rollback.type='button';
+    rollback.id='remoteBackupRollbackSnapshot';
+    rollback.textContent='Создать локальную страховочную копию';
     const discard=document.createElement('button');
     discard.type='button';
     discard.id='remoteBackupStageDiscard';
@@ -45,7 +49,8 @@
     inspectId.insertAdjacentElement('afterend',inspect);
     inspect.insertAdjacentElement('afterend',stage);
     stage.insertAdjacentElement('afterend',plan);
-    plan.insertAdjacentElement('afterend',discard);
+    plan.insertAdjacentElement('afterend',rollback);
+    rollback.insertAdjacentElement('afterend',discard);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -72,6 +77,7 @@
         inspect.disabled=disabled;
         stage.disabled=disabled;
         plan.disabled=disabled;
+        rollback.disabled=disabled;
         discard.disabled=disabled;
     }
     async function pollBatch(){
@@ -219,6 +225,34 @@
             status.textContent='Статус плана восстановления недоступен: '+e.message;
         }
     }
+    async function pollRollback(fallback){
+        try{
+            const r=await fetch('/api/backup/remote/rollback-snapshot-status',{cache:'no-store'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'rollback_status_failed');
+            if(j.active){
+                buttons(true);
+                status.className='muted';
+                status.textContent='Локальная страховочная копия №'+j.batch_id+': '+j.state+' · файлов '+j.files_processed+' из '+j.files_total+' · сохранено '+size(j.bytes_copied)+(j.current_total?' · текущий файл '+size(j.current_bytes)+' из '+size(j.current_total):'')+'. Рабочие данные не изменяются.';
+                timer=setTimeout(()=>pollRollback(false),300);
+            }else if(j.state==='READY'){
+                buttons(false);
+                status.className='ok';
+                status.textContent='Страховочная копия готова и проверена CRC32: сохранено файлов '+j.files_present+', отсутствующих рабочих файлов '+j.files_missing+', '+size(j.bytes_copied)+'. Применение восстановления отключено.';
+            }else if(j.state==='FAILED'){
+                buttons(false);
+                status.className='bad';
+                status.textContent='Страховочная копия не создана: '+(j.error||'unknown')+'. Неполный набор удалён, рабочие данные не изменены.';
+            }else if(j.state==='STALE'){
+                buttons(false);
+                status.className='warning';
+                status.textContent='Найдена страховочная область после перезапуска. Автоприменение запрещено; удалите временные файлы перед новым циклом.';
+            }else if(fallback)pollRestorePlan(true);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Статус страховочной копии недоступен: '+e.message;
+        }
+    }
     async function upload(name){
         clearTimeout(timer);
         buttons(true);
@@ -334,6 +368,29 @@
             status.textContent='План восстановления не создан: '+e.message;
         }
     }
+    async function buildRollbackSnapshot(){
+        const batchId=String(inspectId.value||'').trim();
+        if(!/^[1-9]\d*$/.test(batchId)){
+            status.className='bad';
+            status.textContent='Сначала укажите ID копии и успешно проверьте план восстановления.';
+            return;
+        }
+        if(!confirm('Создать на microSD отдельную проверяемую копию текущих рабочих файлов? Данные заменены не будут, но потребуется дополнительное место.'))return;
+        clearTimeout(timer);
+        buttons(true);
+        status.className='muted';
+        status.textContent='Запуск локальной страховочной копии для набора №'+batchId+'…';
+        try{
+            const body=new URLSearchParams({batch_id:batchId});
+            const r=await fetch('/api/backup/remote/rollback-snapshot',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'rollback_start_failed');
+            pollRollback(false);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Страховочная копия не запущена: '+e.message;
+        }
+    }
     async function discardStaging(){
         if(!confirm('Удалить только временно загруженные файлы восстановления? Рабочие данные не изменятся.'))return;
         clearTimeout(timer);
@@ -343,7 +400,7 @@
             if(!r.ok)throw new Error(j.error||'staging_cleanup_failed');
             buttons(false);
             status.className='ok';
-            status.textContent='Временные файлы удалены. Рабочие данные не изменены.';
+            status.textContent='Временные файлы восстановления и страховочная копия удалены. Рабочие данные не изменены.';
         }catch(e){
             buttons(false);
             status.className='bad';
@@ -359,7 +416,8 @@
     inspect.onclick=inspectBatch;
     stage.onclick=stageBatch;
     plan.onclick=buildRestorePlan;
+    rollback.onclick=buildRollbackSnapshot;
     discard.onclick=discardStaging;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
-    pollRestorePlan(true);
+    pollRollback(true);
 })();

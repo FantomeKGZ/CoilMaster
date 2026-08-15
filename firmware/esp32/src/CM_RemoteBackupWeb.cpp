@@ -35,6 +35,14 @@ constexpr const char* RestorePlanPath =
     "/data/settings/remote-restore-staging/RESTORE_PLAN.tsv";
 constexpr const char* RestorePlanTempPath =
     "/data/settings/remote-restore-staging/RESTORE_PLAN.tsv.part";
+constexpr const char* RollbackDirectory =
+    "/data/settings/remote-restore-rollback";
+constexpr const char* RollbackManifestPath =
+    "/data/settings/remote-restore-rollback/FILES.tsv";
+constexpr const char* RollbackManifestTempPath =
+    "/data/settings/remote-restore-rollback/FILES.tsv.part";
+constexpr const char* RollbackMarkerPath =
+    "/data/settings/remote-restore-rollback/ROLLBACK.txt";
 
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
@@ -110,6 +118,48 @@ bool parseManagedManifestEntry(const String& source,
            remoteName.startsWith(prefix) && remoteName.indexOf('/') < 0 &&
            remoteName.indexOf("..") < 0 && remoteName.indexOf('\r') < 0 &&
            remoteName.indexOf('\n') < 0;
+}
+
+bool parseRestorePlanEntry(const String& source,
+                           String& remoteName,
+                           uint32_t& expectedBytes,
+                           String& logicalName,
+                           String& targetPath)
+{
+    String line = source;
+    if (line.endsWith("\r")) line.remove(line.length() - 1U);
+    if (line.length() == 0U || line.length() > 420U) return false;
+    const int first = line.indexOf('\t');
+    const int second = first >= 0 ? line.indexOf('\t', first + 1) : -1;
+    const int third = second >= 0 ? line.indexOf('\t', second + 1) : -1;
+    if (first <= 0 || second <= first + 1 || third <= second + 1 ||
+        line.indexOf('\t', third + 1) >= 0) return false;
+    remoteName = line.substring(0U, static_cast<unsigned>(first));
+    const String sizeText = line.substring(static_cast<unsigned>(first + 1),
+                                           static_cast<unsigned>(second));
+    logicalName = line.substring(static_cast<unsigned>(second + 1),
+                                 static_cast<unsigned>(third));
+    targetPath = line.substring(static_cast<unsigned>(third + 1));
+    return parseCanonicalUnsigned(sizeText, 0UL, 536870912UL,
+                                  expectedBytes) &&
+           remoteName.length() <= 180U && logicalName.length() <= 80U &&
+           targetPath.length() > 0U && targetPath.length() <= 160U &&
+           remoteName.indexOf('/') < 0 && remoteName.indexOf("..") < 0 &&
+           targetPath.startsWith("/data/") &&
+           targetPath.indexOf("..") < 0 && targetPath.indexOf('\t') < 0 &&
+           targetPath.indexOf('\r') < 0 && targetPath.indexOf('\n') < 0;
+}
+
+uint32_t updateCrc32(uint32_t crc, const uint8_t* data, size_t length)
+{
+    for (size_t i = 0U; i < length; ++i)
+    {
+        crc ^= data[i];
+        for (uint8_t bit = 0U; bit < 8U; ++bit)
+            crc = (crc >> 1U) ^ (0xEDB88320UL &
+                                 (0UL - (crc & 1UL)));
+    }
+    return crc;
 }
 
 bool readFtpReply(WiFiClient& client, uint16_t& code)
@@ -199,11 +249,33 @@ void RemoteBackupWeb::begin()
                 [this]() { handleStartRestorePlan(); });
     m_server.on("/api/backup/remote/restore-plan-status", HTTP_GET,
                 [this]() { handleRestorePlanStatus(); });
+    m_server.on("/api/backup/remote/rollback-snapshot", HTTP_POST,
+                [this]() { handleStartRollbackSnapshot(); });
+    m_server.on("/api/backup/remote/rollback-snapshot-status", HTTP_GET,
+                [this]() { handleRollbackSnapshotStatus(); });
 }
 
 void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
+    if (m_rollbackStage == RollbackStage::PlanFiles)
+    {
+        if (!processNextRollbackEntry())
+            failRollbackSnapshot("rollback_plan_entry_failed");
+        return;
+    }
+    if (m_rollbackStage == RollbackStage::Copying)
+    {
+        if (!continueRollbackCopy())
+            failRollbackSnapshot("rollback_copy_failed");
+        return;
+    }
+    if (m_rollbackStage == RollbackStage::Verifying)
+    {
+        if (!continueRollbackVerification())
+            failRollbackSnapshot("rollback_verification_failed");
+        return;
+    }
     if (m_restorePlanStage == RestorePlanStage::Files)
     {
         if (!processNextRestorePlanEntry())
@@ -406,7 +478,7 @@ void RemoteBackupWeb::handleSetConfiguration()
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -524,7 +596,7 @@ void RemoteBackupWeb::handleTestConnection()
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -619,7 +691,7 @@ void RemoteBackupWeb::handleStartUpload()
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -739,7 +811,7 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         statusCode = 409U;
         error = "remote_backup_busy";
@@ -809,7 +881,7 @@ void RemoteBackupWeb::handleStartRetention()
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -911,13 +983,14 @@ void RemoteBackupWeb::handleStartInspection()
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
         return;
     }
-    if (m_storage.exists(StagingDirectory))
+    if (m_storage.exists(StagingDirectory) ||
+        m_storage.exists(RollbackDirectory))
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"staging_cleanup_required\"}");
@@ -1044,7 +1117,7 @@ void RemoteBackupWeb::handleInspectionStatus()
 void RemoteBackupWeb::handleStartStaging()
 {
     if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files ||
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
         m_inspectionStage != InspectionStage::Complete)
     {
         m_server.send(409, "application/json; charset=utf-8",
@@ -1149,7 +1222,7 @@ void RemoteBackupWeb::handleStagingStatus()
 void RemoteBackupWeb::handleDiscardStaging()
 {
     if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -1165,7 +1238,7 @@ void RemoteBackupWeb::handleDiscardStaging()
                           : "{\"error\":\"activity_state_unavailable\"}");
         return;
     }
-    if (!clearStagingDirectory())
+    if (!clearRollbackDirectory() || !clearStagingDirectory())
     {
         m_server.send(500, "application/json; charset=utf-8",
                       "{\"error\":\"staging_cleanup_failed\"}");
@@ -1179,6 +1252,12 @@ void RemoteBackupWeb::handleDiscardStaging()
     m_restorePlanFiles = 0UL;
     m_restorePlanBytes = 0UL;
     m_restorePlanError = String();
+    m_rollbackStage = RollbackStage::Idle;
+    m_rollbackFilesProcessed = 0UL;
+    m_rollbackFilesPresent = 0UL;
+    m_rollbackFilesMissing = 0UL;
+    m_rollbackBytesCopied = 0UL;
+    m_rollbackError = String();
     m_server.send(200, "application/json; charset=utf-8",
                   "{\"discarded\":true,\"working_data_changed\":false}");
 }
@@ -1188,7 +1267,7 @@ void RemoteBackupWeb::handleStartRestorePlan()
     if (m_transfer.active() || m_stagingStage != StagingStage::Complete ||
         m_inspectionStage != InspectionStage::Complete ||
         !m_inspectionHasSizes ||
-        m_restorePlanStage == RestorePlanStage::Files)
+        m_restorePlanStage == RestorePlanStage::Files || rollbackActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"completed_staging_required\"}");
@@ -1297,6 +1376,166 @@ void RemoteBackupWeb::handleRestorePlanStatus()
     response += F(",\"apply_enabled\":false,\"working_data_changed\":false,\"error\":");
     if (m_restorePlanError.length() > 0U)
     { response += '"'; response += m_restorePlanError; response += '"'; }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleStartRollbackSnapshot()
+{
+    if (m_transfer.active() || rollbackActive() ||
+        m_stagingStage != StagingStage::Complete ||
+        m_restorePlanStage != RestorePlanStage::Complete ||
+        !m_inspectionHasSizes)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"validated_restore_plan_required\"}");
+        return;
+    }
+    if (!m_server.hasArg("batch_id"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"batch_id_required\"}");
+        return;
+    }
+    uint32_t batchId = 0UL;
+    if (!parseCanonicalUnsigned(m_server.arg("batch_id"), 1UL,
+                                0xFFFFFFFFUL, batchId) ||
+        batchId != m_inspectionBatchId)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"restore_plan_batch_id_mismatch\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    if (!validateStagingMarker() || !m_storage.exists(RestorePlanPath))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"restore_plan_metadata_missing\"}");
+        return;
+    }
+    if (m_storage.exists(RollbackDirectory))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"rollback_cleanup_required\"}");
+        return;
+    }
+
+    m_rollbackPlan = m_storage.open(RestorePlanPath, FILE_READ);
+    if (!m_rollbackPlan || m_rollbackPlan.isDirectory())
+    {
+        if (m_rollbackPlan) m_rollbackPlan.close();
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"restore_plan_open_failed\"}");
+        return;
+    }
+    String line;
+    uint32_t parsed = 0UL;
+    bool valid = readInspectionLine(m_rollbackPlan, line) &&
+                 line == F("COILMASTER_RESTORE_PLAN_V1");
+    if (valid)
+        valid = readInspectionLine(m_rollbackPlan, line) &&
+                line.startsWith("batch_id=") &&
+                parseCanonicalUnsigned(line.substring(9), 1UL,
+                                       0xFFFFFFFFUL, parsed) &&
+                parsed == batchId;
+    if (valid)
+        valid = readInspectionLine(m_rollbackPlan, line) &&
+                line.startsWith("files=") &&
+                parseCanonicalUnsigned(line.substring(6), 1UL, 4096UL,
+                                       parsed) &&
+                parsed == m_inspectionDataFiles;
+    if (valid)
+        valid = readInspectionLine(m_rollbackPlan, line) &&
+                line.startsWith("bytes=") &&
+                parseCanonicalUnsigned(line.substring(6), 0UL,
+                                       1073741824UL, parsed) &&
+                parsed == m_inspectionTotalBytes;
+    if (valid)
+        valid = readInspectionLine(m_rollbackPlan, line) &&
+                line == F("apply_enabled=0") &&
+                readInspectionLine(m_rollbackPlan, line) && line.length() == 0U;
+    if (!valid || !m_storage.mkdir(RollbackDirectory))
+    {
+        m_rollbackPlan.close();
+        m_server.send(500, "application/json; charset=utf-8",
+                      valid
+                          ? "{\"error\":\"rollback_directory_failed\"}"
+                          : "{\"error\":\"restore_plan_invalid\"}");
+        return;
+    }
+
+    m_rollbackManifest = m_storage.open(RollbackManifestTempPath, FILE_WRITE);
+    if (!m_rollbackManifest || m_rollbackManifest.isDirectory())
+    {
+        if (m_rollbackManifest) m_rollbackManifest.close();
+        failRollbackSnapshot("rollback_manifest_open_failed");
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"rollback_manifest_open_failed\"}");
+        return;
+    }
+    String header = F("COILMASTER_ROLLBACK_FILES_V1\nbatch_id=");
+    header += batchId;
+    header += F("\nplan_files="); header += m_inspectionDataFiles;
+    header += F("\nrestore_apply_enabled=0\n\n");
+    if (m_rollbackManifest.print(header) != header.length())
+    {
+        failRollbackSnapshot("rollback_manifest_write_failed");
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"rollback_manifest_write_failed\"}");
+        return;
+    }
+    m_rollbackFilesProcessed = 0UL;
+    m_rollbackFilesPresent = 0UL;
+    m_rollbackFilesMissing = 0UL;
+    m_rollbackBytesCopied = 0UL;
+    m_rollbackError = String();
+    m_rollbackStage = RollbackStage::PlanFiles;
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += batchId;
+    response += F(",\"restore_apply_enabled\":false,\"working_data_changed\":false}");
+    m_server.send(202, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleRollbackSnapshotStatus()
+{
+    const char* state = "IDLE";
+    if (m_rollbackStage == RollbackStage::PlanFiles) state = "FILES";
+    else if (m_rollbackStage == RollbackStage::Copying) state = "COPYING";
+    else if (m_rollbackStage == RollbackStage::Verifying) state = "VERIFYING";
+    else if (m_rollbackStage == RollbackStage::Complete) state = "READY";
+    else if (m_rollbackStage == RollbackStage::Failed) state = "FAILED";
+    else if (m_storage.exists(RollbackDirectory)) state = "STALE";
+    String response;
+    response.reserve(420U);
+    response = F("{\"state\":\""); response += state;
+    response += F("\",\"active\":");
+    response += rollbackActive() ? F("true") : F("false");
+    response += F(",\"ready\":");
+    response += m_rollbackStage == RollbackStage::Complete
+                    ? F("true") : F("false");
+    response += F(",\"batch_id\":");
+    if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
+    else response += F("null");
+    response += F(",\"files_processed\":"); response += m_rollbackFilesProcessed;
+    response += F(",\"files_total\":"); response += m_inspectionDataFiles;
+    response += F(",\"files_present\":"); response += m_rollbackFilesPresent;
+    response += F(",\"files_missing\":"); response += m_rollbackFilesMissing;
+    response += F(",\"bytes_copied\":"); response += m_rollbackBytesCopied;
+    response += F(",\"current_bytes\":"); response += m_rollbackCurrentBytes;
+    response += F(",\"current_total\":"); response += m_rollbackCurrentExpected;
+    response += F(",\"restore_apply_enabled\":false,\"working_data_changed\":false,\"error\":");
+    if (m_rollbackError.length() > 0U)
+    { response += '"'; response += m_rollbackError; response += '"'; }
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
@@ -1667,6 +1906,273 @@ void RemoteBackupWeb::failRestorePlan(const char* reason)
     m_storage.remove(RestorePlanPath);
     m_restorePlanError = reason != nullptr ? reason : "restore_plan_failed";
     m_restorePlanStage = RestorePlanStage::Failed;
+}
+
+bool RemoteBackupWeb::processNextRollbackEntry()
+{
+    if (!m_rollbackPlan || !m_rollbackManifest) return false;
+    if (!m_rollbackPlan.available()) return finalizeRollbackSnapshot();
+
+    const String entry = m_rollbackPlan.readStringUntil('\n');
+    String remoteName, logicalName, targetPath;
+    uint32_t expectedBytes = 0UL;
+    if (!parseRestorePlanEntry(entry, remoteName, expectedBytes,
+                               logicalName, targetPath)) return false;
+    String resolvedLogical, resolvedTarget;
+    if (!BackupExportWeb::resolveRestoreTarget(m_inspectionBatchId,
+                                               remoteName,
+                                               resolvedLogical,
+                                               resolvedTarget) ||
+        resolvedLogical != logicalName || resolvedTarget != targetPath)
+        return false;
+
+    const String stagedPath = String(StagingDirectory) + '/' + remoteName;
+    File staged = m_storage.open(stagedPath, FILE_READ);
+    if (!staged || staged.isDirectory())
+    {
+        if (staged) staged.close();
+        return false;
+    }
+    const uint32_t stagedBytes = static_cast<uint32_t>(staged.size());
+    staged.close();
+    if (stagedBytes != expectedBytes) return false;
+
+    m_rollbackRemoteName = remoteName;
+    m_rollbackTargetPath = targetPath;
+    m_rollbackCurrentBytes = 0UL;
+    m_rollbackCurrentExpected = 0UL;
+    if (!m_storage.exists(targetPath))
+    {
+        if (!appendRollbackManifestEntry(false, 0UL, 0UL)) return false;
+        ++m_rollbackFilesProcessed;
+        ++m_rollbackFilesMissing;
+        return true;
+    }
+
+    m_rollbackSource = m_storage.open(targetPath, FILE_READ);
+    if (!m_rollbackSource || m_rollbackSource.isDirectory())
+    {
+        if (m_rollbackSource) m_rollbackSource.close();
+        return false;
+    }
+    const size_t rawSize = m_rollbackSource.size();
+    if (rawSize > 0xFFFFFFFFUL ||
+        rawSize > 1073741824UL - m_rollbackBytesCopied)
+    {
+        m_rollbackSource.close();
+        return false;
+    }
+    m_rollbackCurrentExpected = static_cast<uint32_t>(rawSize);
+    const String finalPath = String(RollbackDirectory) + '/' + remoteName;
+    m_rollbackPartPath = finalPath + F(".part");
+    if (m_storage.exists(finalPath) || m_storage.exists(m_rollbackPartPath))
+    {
+        m_rollbackSource.close();
+        return false;
+    }
+    m_rollbackCopy = m_storage.open(m_rollbackPartPath, FILE_WRITE);
+    if (!m_rollbackCopy || m_rollbackCopy.isDirectory())
+    {
+        if (m_rollbackCopy) m_rollbackCopy.close();
+        m_rollbackSource.close();
+        return false;
+    }
+    m_rollbackSourceCrc = 0xFFFFFFFFUL;
+    m_rollbackStage = RollbackStage::Copying;
+    return true;
+}
+
+bool RemoteBackupWeb::continueRollbackCopy()
+{
+    if (!m_rollbackSource || !m_rollbackCopy ||
+        BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+        return false;
+    uint8_t buffer[1024];
+    if (m_rollbackSource.available())
+    {
+        const size_t remaining = static_cast<size_t>(m_rollbackCurrentExpected -
+                                                     m_rollbackCurrentBytes);
+        const size_t requested = remaining < sizeof(buffer) ? remaining
+                                                            : sizeof(buffer);
+        if (requested == 0U) return false;
+        const int read = m_rollbackSource.read(buffer, requested);
+        if (read <= 0 || m_rollbackCopy.write(buffer, static_cast<size_t>(read)) !=
+                         static_cast<size_t>(read)) return false;
+        m_rollbackSourceCrc = updateCrc32(m_rollbackSourceCrc, buffer,
+                                         static_cast<size_t>(read));
+        m_rollbackCurrentBytes += static_cast<uint32_t>(read);
+        return m_rollbackCurrentBytes <= m_rollbackCurrentExpected;
+    }
+
+    m_rollbackSource.close();
+    m_rollbackCopy.flush();
+    m_rollbackCopy.close();
+    if (m_rollbackCurrentBytes != m_rollbackCurrentExpected) return false;
+    File current = m_storage.open(m_rollbackTargetPath, FILE_READ);
+    if (!current || current.isDirectory() ||
+        static_cast<uint32_t>(current.size()) != m_rollbackCurrentExpected)
+    {
+        if (current) current.close();
+        return false;
+    }
+    current.close();
+    m_rollbackCopy = m_storage.open(m_rollbackPartPath, FILE_READ);
+    if (!m_rollbackCopy || m_rollbackCopy.isDirectory())
+    {
+        if (m_rollbackCopy) m_rollbackCopy.close();
+        return false;
+    }
+    m_rollbackVerifyCrc = 0xFFFFFFFFUL;
+    m_rollbackVerifyBytes = 0UL;
+    m_rollbackStage = RollbackStage::Verifying;
+    return true;
+}
+
+bool RemoteBackupWeb::continueRollbackVerification()
+{
+    if (!m_rollbackCopy ||
+        BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+        return false;
+    uint8_t buffer[1024];
+    if (m_rollbackCopy.available())
+    {
+        const int read = m_rollbackCopy.read(buffer, sizeof(buffer));
+        if (read <= 0) return false;
+        m_rollbackVerifyCrc = updateCrc32(m_rollbackVerifyCrc, buffer,
+                                         static_cast<size_t>(read));
+        m_rollbackVerifyBytes += static_cast<uint32_t>(read);
+        return m_rollbackVerifyBytes <= m_rollbackCurrentExpected;
+    }
+    m_rollbackCopy.close();
+    const uint32_t sourceCrc = m_rollbackSourceCrc ^ 0xFFFFFFFFUL;
+    const uint32_t verifyCrc = m_rollbackVerifyCrc ^ 0xFFFFFFFFUL;
+    if (m_rollbackVerifyBytes != m_rollbackCurrentExpected ||
+        verifyCrc != sourceCrc) return false;
+    const String finalPath = String(RollbackDirectory) + '/' +
+                             m_rollbackRemoteName;
+    if (!m_storage.rename(m_rollbackPartPath, finalPath) ||
+        !appendRollbackManifestEntry(true, m_rollbackCurrentExpected,
+                                     sourceCrc)) return false;
+    ++m_rollbackFilesProcessed;
+    ++m_rollbackFilesPresent;
+    m_rollbackBytesCopied += m_rollbackCurrentExpected;
+    m_rollbackCurrentBytes = 0UL;
+    m_rollbackCurrentExpected = 0UL;
+    m_rollbackPartPath = String();
+    m_rollbackStage = RollbackStage::PlanFiles;
+    return true;
+}
+
+bool RemoteBackupWeb::appendRollbackManifestEntry(bool present,
+                                                   uint32_t sizeBytes,
+                                                   uint32_t crc32)
+{
+    if (!m_rollbackManifest) return false;
+    String line = m_rollbackRemoteName;
+    line += '\t'; line += m_rollbackTargetPath;
+    line += present ? F("\tPRESENT\t") : F("\tMISSING\t");
+    line += sizeBytes;
+    line += '\t';
+    if (present)
+    {
+        String checksum(crc32, HEX);
+        while (checksum.length() < 8U) checksum = String('0') + checksum;
+        line += checksum;
+    }
+    else line += '-';
+    line += '\n';
+    const bool written = m_rollbackManifest.print(line) == line.length();
+    m_rollbackManifest.flush();
+    return written;
+}
+
+bool RemoteBackupWeb::finalizeRollbackSnapshot()
+{
+    if (m_rollbackPlan) m_rollbackPlan.close();
+    if (!m_rollbackManifest ||
+        m_rollbackFilesProcessed != m_inspectionDataFiles ||
+        m_rollbackFilesPresent + m_rollbackFilesMissing !=
+            m_rollbackFilesProcessed)
+        return false;
+    m_rollbackManifest.flush();
+    m_rollbackManifest.close();
+    if (!m_storage.rename(RollbackManifestTempPath, RollbackManifestPath))
+        return false;
+    File marker = m_storage.open(RollbackMarkerPath, FILE_WRITE);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String content = F("COILMASTER_ROLLBACK_SNAPSHOT_V1\nbatch_id=");
+    content += m_inspectionBatchId;
+    content += F("\nfiles_processed="); content += m_rollbackFilesProcessed;
+    content += F("\nfiles_present="); content += m_rollbackFilesPresent;
+    content += F("\nfiles_missing="); content += m_rollbackFilesMissing;
+    content += F("\nbytes="); content += m_rollbackBytesCopied;
+    content += F("\nrestore_apply_enabled=0\nrestore_applied=0\n");
+    const bool written = marker.print(content) == content.length();
+    marker.flush();
+    marker.close();
+    if (!written) return false;
+    m_rollbackStage = RollbackStage::Complete;
+    return true;
+}
+
+bool RemoteBackupWeb::clearRollbackDirectory()
+{
+    if (!m_storage.exists(RollbackDirectory)) return true;
+    for (uint16_t removed = 0U; removed <= 4098U; ++removed)
+    {
+        File directory = m_storage.open(RollbackDirectory, FILE_READ);
+        if (!directory || !directory.isDirectory())
+        {
+            if (directory) directory.close();
+            return false;
+        }
+        File entry = directory.openNextFile();
+        if (!entry)
+        {
+            directory.close();
+            return m_storage.rmdir(RollbackDirectory);
+        }
+        if (entry.isDirectory())
+        {
+            entry.close();
+            directory.close();
+            return false;
+        }
+        String name = entry.name();
+        entry.close();
+        directory.close();
+        const int slash = name.lastIndexOf('/');
+        if (slash >= 0)
+            name = name.substring(static_cast<unsigned>(slash + 1));
+        if (name.length() == 0U || name.length() > 200U ||
+            name.indexOf('/') >= 0 || name.indexOf("..") >= 0 ||
+            name.indexOf('\r') >= 0 || name.indexOf('\n') >= 0 ||
+            !m_storage.remove(String(RollbackDirectory) + '/' + name))
+            return false;
+    }
+    return false;
+}
+
+void RemoteBackupWeb::failRollbackSnapshot(const char* reason)
+{
+    if (m_rollbackPlan) m_rollbackPlan.close();
+    if (m_rollbackManifest) m_rollbackManifest.close();
+    if (m_rollbackSource) m_rollbackSource.close();
+    if (m_rollbackCopy) m_rollbackCopy.close();
+    m_rollbackError = reason != nullptr ? reason : "rollback_snapshot_failed";
+    clearRollbackDirectory();
+    m_rollbackStage = RollbackStage::Failed;
+}
+
+bool RemoteBackupWeb::rollbackActive() const
+{
+    return m_rollbackStage == RollbackStage::PlanFiles ||
+           m_rollbackStage == RollbackStage::Copying ||
+           m_rollbackStage == RollbackStage::Verifying;
 }
 
 uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)

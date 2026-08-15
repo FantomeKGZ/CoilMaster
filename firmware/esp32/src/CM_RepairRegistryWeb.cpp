@@ -378,16 +378,20 @@ void RepairRegistryWeb::handleCreateMotor()
     motor.statorCoreLengthMm = static_cast<uint16_t>(parsed);
 
     motor.connection = m_server.arg("connection");
+    motor.connection.trim();
     motor.connection.toUpperCase();
     motor.windingType = m_server.arg("winding_type");
     motor.wireMaterial = m_server.arg("wire_material");
+    motor.wireMaterial.trim();
     motor.wireMaterial.toUpperCase();
     motor.sourceType = m_server.arg("source_type");
+    motor.sourceType.trim();
     motor.sourceType.toUpperCase();
     motor.sourceUrl = m_server.arg("source_url");
     motor.sourceTitle = m_server.arg("source_title");
     motor.sourceRetrievedAt = m_server.arg("source_retrieved_at");
     motor.confidence = m_server.arg("confidence");
+    motor.confidence.trim();
     motor.confidence.toUpperCase();
 
     motor.name.trim();
@@ -471,9 +475,11 @@ void RepairRegistryWeb::handleCreateMotor()
                       "{\"error\":\"invalid_source_retrieved_at\"}");
         return;
     }
+    String sourceUrlScheme = motor.sourceUrl;
+    sourceUrlScheme.toLowerCase();
     if (motor.sourceUrl.length() > 0U &&
-        !motor.sourceUrl.startsWith("http://") &&
-        !motor.sourceUrl.startsWith("https://"))
+        !sourceUrlScheme.startsWith("http://") &&
+        !sourceUrlScheme.startsWith("https://"))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_source_url\"}");

@@ -23,6 +23,7 @@ public:
     // Registers explicit entry routes and static-file handling. webRoot
     // contains index.html, mobile/, desktop/ and sites/ on microSD.
     void begin(const char* webRoot = "/web");
+    void setLocalHostnameStatus(const char* hostname, bool active);
 
     bool serveCurrentRequest();
     bool storageReady() const;
@@ -46,7 +47,9 @@ private:
     NetworkManager& m_networkManager;
     WebRecoveryFtpServer& m_ftpServer;
     String m_webRoot;
+    String m_localHostname;
     bool m_ready;
+    bool m_mdnsActive;
 };
 }
 

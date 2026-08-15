@@ -111,8 +111,17 @@ StaticSiteServer::StaticSiteServer(WebServer& server,
       m_networkManager(networkManager),
       m_ftpServer(ftpServer),
       m_webRoot("/web"),
-      m_ready(false)
+      m_localHostname("coil.local"),
+      m_ready(false),
+      m_mdnsActive(false)
 {
+}
+
+void StaticSiteServer::setLocalHostnameStatus(const char* hostname, bool active)
+{
+    m_localHostname = hostname != nullptr && hostname[0] != '\0'
+        ? String(hostname) + F(".local") : F("coil.local");
+    m_mdnsActive = active;
 }
 
 void StaticSiteServer::begin(const char* webRoot)
@@ -172,6 +181,13 @@ void StaticSiteServer::begin(const char* webRoot)
         response += m_ftpServer.running() ? F("true") : F("false");
         response += F(",\"ftp_automatic_recovery\":");
         response += m_ftpServer.automaticRecovery() ? F("true") : F("false");
+        response += F(",\"mdns_supported\":true,\"mdns_active\":");
+        response += m_mdnsActive ? F("true") : F("false");
+        response += F(",\"local_hostname\":\"");
+        response += m_localHostname;
+        response += F("\",\"local_url\":\"http://");
+        response += m_localHostname;
+        response += F("/\"");
         response += F("}");
         m_server.send(200, "application/json; charset=utf-8", response);
     });

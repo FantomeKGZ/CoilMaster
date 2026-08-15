@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ESPmDNS.h>
 #include <SD.h>
 #include <SPI.h>
 #include <WebServer.h>
@@ -43,6 +44,7 @@ constexpr int8_t SdMisoPin = 19;
 constexpr int8_t SdMosiPin = 23;
 constexpr char AccessPointName[] = "CoilMaster";
 constexpr char AccessPointPassword[] = "CoilMaster123";
+constexpr char LocalHostname[] = "coil";
 constexpr uint8_t MaxWebCoils = 10U;
 constexpr uint16_t MaxTurnsPerCoil = 9999U;
 
@@ -104,6 +106,7 @@ bool remoteBackupSettingsReady = false;
 bool networkProfilesReady = false;
 bool networkManagerReady = false;
 bool webRecoveryRequired = false;
+bool mdnsReady = false;
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -1174,6 +1177,9 @@ void setup()
 
     networkManagerReady =
         networkManager.begin(AccessPointName, AccessPointPassword);
+    mdnsReady = MDNS.begin(LocalHostname);
+    if (mdnsReady) MDNS.addService("http", "tcp", 80U);
+    staticSites.setLocalHostnameStatus(LocalHostname, mdnsReady);
     configureWebServer();
     Serial.println(F("CoilMaster ESP32 web portal ready"));
     Serial.println(journalReady ? F("microSD winding journal ready") : F("WARNING: microSD winding journal unavailable"));
@@ -1190,6 +1196,7 @@ void setup()
     Serial.println(staticSites.storageReady() ? F("microSD web root /web ready") : F("WARNING: microSD web root /web unavailable"));
     Serial.println(staticSites.windingHistoryReady() ? F("read-only winding history API ready") : F("WARNING: winding history API unavailable"));
     Serial.println(networkManagerReady ? F("Wi-Fi AP+STA manager ready") : F("WARNING: Wi-Fi manager unavailable"));
+    Serial.println(mdnsReady ? F("mDNS ready at http://coil.local/") : F("WARNING: mDNS coil.local unavailable; use IP address"));
     Serial.println(webRecoveryFtp.running() ? F("restricted /web recovery FTP ready at 192.168.4.1:21") : F("recovery FTP stopped; operator start available"));
     Serial.print(F("Open http://")); Serial.println(WiFi.softAPIP());
 }

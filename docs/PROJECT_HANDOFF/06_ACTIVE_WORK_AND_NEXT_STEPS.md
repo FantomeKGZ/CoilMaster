@@ -957,3 +957,51 @@ winding history remain unchanged. Do not hot-remove or edit the microSD for a ne
 and size-mismatch rejection belongs in a controlled test image or harness.
 Finally press `Удалить временные файлы` and confirm the staged files and plan are
 removed together.
+
+
+## Current completion estimate — 2026-08-15
+
+CoilMaster v1 is estimated at **90% complete**. This percentage is scoped to the
+defined workshop product, not unlimited future features.
+
+```text
+Winding hardware/UART/safety                 95% (weight 20%)
+Business production flow                    94% (weight 20%)
+Data integrity/exact lookup/pagination       93% (weight 15%)
+Warehouse/calculator/reviewed motor import   90% (weight 15%)
+Wi-Fi/FTP/backup/recovery preparation        85% (weight 15%)
+Final acceptance/recovery drill/release      80% (weight 15%)
+Weighted total                               90%
+```
+
+The remaining approximately 10% is concentrated in:
+
+1. hardware verification of the strict read-only restore plan;
+2. hardware import of a small reviewed motor package and post-import exact/paged
+   lookup plus backup verification;
+3. operator-only transactional restore with mandatory pre-restore snapshot,
+   validation and rollback (no automatic restore or reboot continuation);
+4. final populated-device acceptance and recovery drill.
+
+## Reverified and hardened: motor/winding import — 2026-08-15
+
+The older importer was reviewed end-to-end from JSON preview through
+`POST /api/motors` and NDJSON append. The audit found and closed four practical
+failure modes: silent unknown fields, duplicates inside one package, invalid
+source dates/calculated classification, and accidental resubmission of rows that
+had already succeeded.
+
+```text
+c626d5b1ac34e96adf0607561c0a996930ed32ef
+CMP Protocol Tests + executable motor-import web audit: SUCCESS
+ESP32 Build: SUCCESS
+RAM: 15.7% (51408 / 327680 bytes)
+Flash: 41.8% (1314501 / 3145728 bytes)
+```
+
+Next hardware check: update firmware and the complete `/web` directory, open
+Motor Import, use the documented example after changing it to a disposable test
+identity, preview it, import once, and confirm the new motor appears through both
+the paged catalogue and exact lookup. Pressing Import again without a new preview
+must not create the successful row again. Then verify the motor is present in a
+new complete backup. Do not use unreviewed web data for this check.

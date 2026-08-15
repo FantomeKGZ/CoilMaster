@@ -374,3 +374,34 @@ Browser import pages:
 They accept a JSON array of 1–50 records. Preview validates every object and queries `GET /api/motors/similar`; it performs no writes. Exact identity matches are excluded by default. Import requires explicit selection and confirmation, then submits records sequentially so one failed record does not silently hide the remaining result.
 
 Every sourced import requires `source_type + source_title + confidence`. Calculated values are explicitly marked by `calculated_fields`. Existing motor NDJSON records remain readable because all new fields are optional.
+
+
+## Motor import hardening and verification — 2026-08-15
+
+The 1–50 row import remains review-first and sequential, but validation is now
+strict:
+
+- only documented field names are accepted;
+- text fields are trimmed and bounded;
+- `source_retrieved_at` is a real `YYYY-MM-DD` date in 2000–2199;
+- optional `source_url` is HTTP(S);
+- `CALCULATED` classification and `calculated_fields` must agree;
+- duplicate identities inside the same package are rejected before lookup/write;
+- successful rows cannot be resubmitted from the same preview;
+- failed rows remain available for an explicit retry.
+
+`POST /api/motors` independently repeats the provenance and length checks before
+the append. Existing unsourced manual motor creation remains supported because a
+request with no source metadata is still valid.
+
+The executable web audit covers the documented valid example plus unknown-field,
+invalid-date, calculated-provenance and package-duplicate cases for desktop and
+mobile. Verified checkpoint:
+
+```text
+c626d5b1ac34e96adf0607561c0a996930ed32ef
+CMP Protocol Tests + motor-import web audit: SUCCESS
+ESP32 Build: SUCCESS
+RAM: 15.7% (51408 / 327680 bytes)
+Flash: 41.8% (1314501 / 3145728 bytes)
+```

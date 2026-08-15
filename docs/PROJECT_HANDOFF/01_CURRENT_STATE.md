@@ -593,3 +593,42 @@ c065ede2ebf439cc55a95bff4cd460e4709cfef2
 ESP32 Build: SUCCESS
 CMP Protocol Tests + web asset/navigation/injected-script audit: SUCCESS
 ```
+
+
+## Current v1 completion estimate and motor-import verification — 2026-08-15
+
+The completion estimate is **90%** against the defined CoilMaster v1 target: a
+deployable workshop controller with the established physical-START safety
+boundary, linked repair/winding flow, warehouse accounting, bounded UI, network
+services and recoverable backups. It is not an estimate against every possible
+future catalogue, analytics or automation feature.
+
+| Area | Weight | Complete |
+|---|---:|---:|
+| Winding hardware, UART and safety invariants | 20% | 95% |
+| Client → repair → winding → manual writeoff → close flow | 20% | 94% |
+| Persistent data integrity, exact lookup and pagination | 15% | 93% |
+| Warehouse, calculator and reviewed motor import | 15% | 90% |
+| Wi-Fi, FTP, scheduled backup and recovery preparation | 15% | 85% |
+| Final hardware acceptance, recovery drill and release documentation | 15% | 80% |
+
+Weighted result: **90%**.
+
+The old motor/winding JSON importer was re-audited and hardened at
+`c626d5b1ac34e96adf0607561c0a996930ed32ef`. Desktop and mobile now reject
+unknown fields, impossible source dates, non-HTTP(S) source URLs, oversized text,
+calculated-provenance mismatches and duplicate identities inside one package.
+Successfully created rows are disabled in the current preview so they cannot be
+submitted twice accidentally. Firmware repeats the text, date, URL, required
+source metadata and calculated-provenance checks before appending a motor.
+
+The web audit now executes the documented example and negative validation cases
+for both UIs. CMP Protocol Tests and ESP32 Build are confirmed successful:
+
+```text
+RAM:   15.7% (51408 / 327680 bytes)
+Flash: 41.8% (1314501 / 3145728 bytes)
+```
+
+This is code/CI confirmation. A real-device import of a small disposable reviewed
+package is still required before calling the importer hardware-confirmed.

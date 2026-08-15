@@ -527,3 +527,30 @@ Exact next incoming-FTP verification on hardware:
 Do not call the incoming FTP hardware-confirmed until this matrix passes. The
 complete outgoing backup batch interruption test and retention gate remain
 separate pending work.
+
+## Completed in firmware: local mDNS address — 2026-08-15
+
+`main.cpp` starts `ESPmDNS` after the bounded AP+STA manager and advertises
+`_http._tcp` on port 80. `CM_StaticSiteServer` exposes the runtime result in
+`/api/system/network`. The intended URL is `http://coil.local/`; direct
+`http://192.168.4.1/` access remains available at all times when the service AP
+is active.
+
+Verified checkpoint:
+
+```text
+b2205640478c6b24509389ef17794e76036709d6
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.3% (50288 / 327680 bytes)
+Flash: 39.5% (1243269 / 3145728 bytes)
+```
+
+Hardware verification remains required:
+
+1. open `http://coil.local/` while connected directly to Wi-Fi `CoilMaster`;
+2. connect ESP32 STA and the test client to the same router LAN and repeat;
+3. confirm `/api/system/network` returns `mdns_active:true`;
+4. confirm `http://192.168.4.1/` still works if `.local` resolution is blocked;
+5. record router guest/client-isolation behavior separately, because those
+   modes may intentionally block multicast UDP 5353.

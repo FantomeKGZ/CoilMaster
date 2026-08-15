@@ -546,3 +546,28 @@ CMP Protocol Tests + web navigation audit: SUCCESS
 ```
 
 OTA is unavailable with this layout. CoilMaster is updated through USB; website and business data remain on microSD. This change does not alter START, reboot recovery, SSR ownership, or manual write-off rules.
+
+## Local `coil.local` hostname — 2026-08-15
+
+The ESP32 now starts an mDNS responder with host `coil` and advertises the HTTP
+service on TCP port 80. While the client is connected to the CoilMaster AP or
+to the same LAN as the ESP32 STA interface, the normal site can be opened at:
+
+```text
+http://coil.local/
+```
+
+`GET /api/system/network` reports `mdns_supported`, `mdns_active`,
+`local_hostname` and `local_url`. The fixed AP address `http://192.168.4.1/`
+remains the mandatory fallback; mDNS is not a replacement for IP access. Some
+routers, guest networks, client-isolation modes or clients that block multicast
+UDP 5353 may not resolve `.local` names.
+
+```text
+b2205640478c6b24509389ef17794e76036709d6
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.3% (50288 / 327680 bytes)
+Flash: 39.5% (1243269 / 3145728 bytes)
+REAL AP/STA mDNS TEST: PENDING
+```

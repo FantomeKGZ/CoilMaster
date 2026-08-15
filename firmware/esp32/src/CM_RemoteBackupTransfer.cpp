@@ -48,6 +48,7 @@ bool RemoteBackupTransfer::start(const RemoteBackupSettings& settings,
         remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0 ||
         !m_storage.exists(localPath)) return false;
 
+    closeTransfer();
     m_file = m_storage.open(localPath, FILE_READ);
     if (!m_file || m_file.isDirectory())
     {
@@ -83,6 +84,14 @@ bool RemoteBackupTransfer::startDelete(const RemoteBackupSettings& settings,
         logicalName.length() == 0U || remoteName.length() == 0U ||
         remoteName.indexOf('/') >= 0 || remoteName.indexOf("..") >= 0)
         return false;
+
+    const bool reusableSession =
+        m_operation == Operation::Delete && m_phase == Phase::Complete &&
+        m_control.connected() && m_settings.host == settings.host &&
+        m_settings.port == settings.port &&
+        m_settings.username == settings.username &&
+        m_settings.password == settings.password &&
+        m_settings.remoteDirectory == settings.remoteDirectory;
     m_settings = settings;
     m_operation = Operation::Delete;
     m_logicalName = logicalName;
@@ -92,6 +101,18 @@ bool RemoteBackupTransfer::startDelete(const RemoteBackupSettings& settings,
     m_sentBytes = 0UL;
     m_error = String();
     m_replyLine = String();
+    if (reusableSession)
+    {
+        if (!sendCommand(String(F("DELE ")) + m_remoteName,
+                         Phase::DeleteOnly, millis()))
+        {
+            fail("ftp_command_failed");
+            return false;
+        }
+        return true;
+    }
+
+    closeTransfer();
     m_control.setTimeout(300UL);
     if (!m_control.connect(settings.host.c_str(), settings.port, 300))
     {
@@ -101,6 +122,13 @@ bool RemoteBackupTransfer::startDelete(const RemoteBackupSettings& settings,
     m_phase = Phase::Greeting;
     resetDeadline(millis());
     return true;
+}
+
+void RemoteBackupTransfer::finishDeleteSession()
+{
+    if (m_operation == Operation::Delete && m_control.connected())
+        m_control.print(F("QUIT\r\n"));
+    closeTransfer();
 }
 
 void RemoteBackupTransfer::update(uint32_t nowMs)
@@ -249,8 +277,9 @@ void RemoteBackupTransfer::update(uint32_t nowMs)
                 fail("ftp_delete_failed");
             else
             {
-                m_control.print(F("QUIT\r\n"));
-                closeTransfer();
+                // Keep the authenticated control connection for the next
+                // exact retention delete. The owner closes it when the whole
+                // retention pass finishes or fails.
                 m_phase = Phase::Complete;
             }
             break;

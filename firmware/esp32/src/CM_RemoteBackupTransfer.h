@@ -23,6 +23,7 @@ public:
     bool startDelete(const RemoteBackupSettings& settings,
                      const String& logicalName,
                      const String& remoteName);
+    void finishDeleteSession();
     void update(uint32_t nowMs);
     bool active() const;
     bool succeeded() const;

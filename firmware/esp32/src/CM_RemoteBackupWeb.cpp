@@ -848,6 +848,7 @@ bool RemoteBackupWeb::startRetention()
     if (!selectOldestManagedBatch(oldestBatchId, manifestCount)) return false;
     if (manifestCount <= m_batchSettings.retentionCount)
     {
+        m_transfer.finishDeleteSession();
         m_batchStage = BatchStage::Complete;
         return true;
     }
@@ -905,6 +906,7 @@ bool RemoteBackupWeb::startNextRetentionFile()
 void RemoteBackupWeb::failRetention(const char* reason)
 {
     if (m_retentionManifest) m_retentionManifest.close();
+    m_transfer.finishDeleteSession();
     m_retentionSucceeded = false;
     m_retentionError = reason != nullptr ? reason : "retention_failed";
     m_batchStage = BatchStage::Complete;

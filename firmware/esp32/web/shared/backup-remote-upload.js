@@ -38,6 +38,10 @@
     rollback.type='button';
     rollback.id='remoteBackupRollbackSnapshot';
     rollback.textContent='Создать локальную страховочную копию';
+    const preflight=document.createElement('button');
+    preflight.type='button';
+    preflight.id='remoteBackupApplyPreflight';
+    preflight.textContent='Проверить готовность к применению';
     const discard=document.createElement('button');
     discard.type='button';
     discard.id='remoteBackupStageDiscard';
@@ -50,7 +54,8 @@
     inspect.insertAdjacentElement('afterend',stage);
     stage.insertAdjacentElement('afterend',plan);
     plan.insertAdjacentElement('afterend',rollback);
-    rollback.insertAdjacentElement('afterend',discard);
+    rollback.insertAdjacentElement('afterend',preflight);
+    preflight.insertAdjacentElement('afterend',discard);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -78,6 +83,7 @@
         stage.disabled=disabled;
         plan.disabled=disabled;
         rollback.disabled=disabled;
+        preflight.disabled=disabled;
         discard.disabled=disabled;
     }
     async function pollBatch(){
@@ -253,6 +259,34 @@
             status.textContent='Статус страховочной копии недоступен: '+e.message;
         }
     }
+    async function pollApplyPreflight(fallback){
+        try{
+            const r=await fetch('/api/backup/remote/apply-preflight-status',{cache:'no-store'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'apply_preflight_status_failed');
+            if(j.active){
+                buttons(true);
+                status.className='muted';
+                status.textContent='Контроль готовности копии №'+j.batch_id+': '+j.state+' · файлов '+j.files_checked+' из '+j.files_total+' · проверено данных '+size(j.staged_bytes_checked)+' из '+size(j.staged_bytes_total)+(j.current_total?' · текущая проверка '+size(j.current_bytes)+' из '+size(j.current_total):'')+'. Рабочие данные не изменяются.';
+                timer=setTimeout(()=>pollApplyPreflight(false),300);
+            }else if(j.state==='READY'){
+                buttons(false);
+                status.className='ok';
+                status.textContent='Готовность копии №'+j.batch_id+' подтверждена: текущие рабочие файлы совпадают со страховочной копией, CRC32 временных файлов записаны. Применение восстановления всё ещё отключено.';
+            }else if(j.state==='FAILED'){
+                buttons(false);
+                status.className='bad';
+                status.textContent='Контроль готовности отклонён: '+(j.error||'unknown')+'. Временная и страховочная копии сохранены, рабочие данные не изменены.';
+            }else if(j.state==='STALE'){
+                buttons(false);
+                status.className='warning';
+                status.textContent='Найдены результаты контроля после перезапуска. Автоприменение запрещено; удалите временные файлы перед новым циклом.';
+            }else if(fallback)pollRollback(true);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Статус контроля готовности недоступен: '+e.message;
+        }
+    }
     async function upload(name){
         clearTimeout(timer);
         buttons(true);
@@ -391,6 +425,29 @@
             status.textContent='Страховочная копия не запущена: '+e.message;
         }
     }
+    async function runApplyPreflight(){
+        const batchId=String(inspectId.value||'').trim();
+        if(!/^[1-9]\d*$/.test(batchId)){
+            status.className='bad';
+            status.textContent='Сначала укажите ID копии и создайте страховочную копию.';
+            return;
+        }
+        if(!confirm('Повторно проверить рабочие, страховочные и временные файлы перед будущим применением? Никакие рабочие данные заменены не будут.'))return;
+        clearTimeout(timer);
+        buttons(true);
+        status.className='muted';
+        status.textContent='Запуск контроля готовности копии №'+batchId+'…';
+        try{
+            const body=new URLSearchParams({batch_id:batchId});
+            const r=await fetch('/api/backup/remote/apply-preflight',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'apply_preflight_start_failed');
+            pollApplyPreflight(false);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Контроль готовности не запущен: '+e.message;
+        }
+    }
     async function discardStaging(){
         if(!confirm('Удалить только временно загруженные файлы восстановления? Рабочие данные не изменятся.'))return;
         clearTimeout(timer);
@@ -417,7 +474,8 @@
     stage.onclick=stageBatch;
     plan.onclick=buildRestorePlan;
     rollback.onclick=buildRollbackSnapshot;
+    preflight.onclick=runApplyPreflight;
     discard.onclick=discardStaging;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
-    pollRollback(true);
+    pollApplyPreflight(true);
 })();

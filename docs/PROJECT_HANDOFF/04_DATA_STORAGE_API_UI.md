@@ -405,3 +405,22 @@ ESP32 Build: SUCCESS
 RAM: 15.7% (51408 / 327680 bytes)
 Flash: 41.8% (1314657 / 3145728 bytes)
 ```
+
+
+## Local rollback-snapshot API — 2026-08-15
+
+```text
+POST /api/backup/remote/rollback-snapshot
+GET  /api/backup/remote/rollback-snapshot-status
+```
+
+Start requires the same batch ID as the completed V2 inspection, completed
+staging, a valid restore plan, safe-idle activity state and no prior rollback
+directory. Status reports plan/copy/CRC-verification phases, processed/present/
+missing file counts and copied bytes. All responses retain
+`restore_apply_enabled:false` and `working_data_changed:false`.
+
+The backup page exposes `Создать локальную страховочную копию`. The existing
+temporary cleanup action removes both staging and rollback directories while the
+machine is provably idle. A rollback directory that survives reboot is
+`STALE`; it is never resumed or applied.

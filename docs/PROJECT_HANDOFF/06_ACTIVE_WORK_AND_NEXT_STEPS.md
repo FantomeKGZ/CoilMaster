@@ -1005,3 +1005,40 @@ identity, preview it, import once, and confirm the new motor appears through bot
 the paged catalogue and exact lookup. Pressing Import again without a new preview
 must not create the successful row again. Then verify the motor is present in a
 new complete backup. Do not use unreviewed web data for this check.
+
+
+## Completed in firmware: verified local rollback preparation — 2026-08-15
+
+The next restore-safety layer is implemented without enabling restore. After a
+strict plan succeeds, `Создать локальную страховочную копию` copies only the
+current fixed target files into a separate rollback directory. Each present file
+uses `.part`, exact byte accounting and a full CRC32 readback; absent targets
+are recorded explicitly so a future rollback can distinguish “delete the newly
+created target” from “restore previous bytes”.
+
+```text
+1e7af6c3031f513b97cbfa974c922cd593d02c78
+CMP Protocol Tests + web asset audit: SUCCESS
+ESP32 Build: SUCCESS
+RAM: 15.7% (51608 / 327680 bytes)
+Flash: 42.1% (1324989 / 3145728 bytes)
+```
+
+Hardware test sequence:
+
+1. inspect and stage a fresh V2 backup;
+2. validate its restore plan;
+3. press `Создать локальную страховочную копию`;
+4. confirm all plan files finish as present or missing and CRC verification
+   completes;
+5. confirm clients, motors, repairs, warehouse and winding history are unchanged;
+6. reboot once and confirm the rollback area is reported as `STALE` and nothing
+   is applied;
+7. press the temporary cleanup button and confirm both staging and rollback
+   areas are removed.
+
+Do not implement the target-replacement transaction until this checkpoint is
+hardware-confirmed. The future apply path must recreate or revalidate a fresh
+rollback snapshot immediately before replacement, remain operator-only, and
+support deterministic rollback; automatic restore and reboot continuation stay
+prohibited.

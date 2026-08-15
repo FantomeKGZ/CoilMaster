@@ -632,3 +632,36 @@ Flash: 41.8% (1314657 / 3145728 bytes)
 
 This is code/CI confirmation. A real-device import of a small disposable reviewed
 package is still required before calling the importer hardware-confirmed.
+
+
+## Completed in firmware: verified local rollback snapshot — 2026-08-15
+
+After a V2 batch has been inspected, staged and mapped by the strict restore plan,
+the operator can explicitly create a local safety snapshot of the current working
+files. The snapshot is stored only under
+`/data/settings/remote-restore-rollback`.
+
+For every fixed target in the plan, the state machine records either the current
+file or an explicit `MISSING` state. Present files are copied through a local
+`.part`, read back and checked with CRC32 before they are added to the atomic
+rollback manifest. Work is bounded to 1 KiB per update step. Machine activity
+becoming busy or unavailable fails closed and removes the incomplete rollback
+directory.
+
+Completion creates `FILES.tsv` and `ROLLBACK.txt` with
+`restore_apply_enabled=0` and `restore_applied=0`. No working path is opened
+for writing, no staged file is applied, and reboot never resumes or applies the
+snapshot. A surviving directory is reported as `STALE` and requires explicit
+cleanup.
+
+```text
+1e7af6c3031f513b97cbfa974c922cd593d02c78
+CMP Protocol Tests + web asset audit: SUCCESS
+ESP32 Build: SUCCESS
+RAM: 15.7% (51608 / 327680 bytes)
+Flash: 42.1% (1324989 / 3145728 bytes)
+```
+
+This checkpoint is firmware/CI-confirmed and still requires real-device
+verification. The overall rounded v1 estimate remains 90% until that hardware
+gate is closed.

@@ -853,3 +853,36 @@ ID from an existing `cm-b<id>-MANIFEST.txt`, and press the inspection button.
 Confirm the UI reports a valid manifest/COMPLETE pair and explicitly says that
 restore was not performed. Then try a nonexistent ID and an interrupted batch;
 both must fail while all working data remains unchanged.
+
+This metadata-inspection hardware checkpoint is user-confirmed on the real
+device.
+
+## Completed in firmware: remote file presence and size verification — 2026-08-15
+
+New full backups use `COILMASTER_BACKUP_MANIFEST_V2`. Every data-file line now
+contains its canonical remote name and exact expected byte size separated by a
+tab. The local cleanup/retention manifests use the same entry format, while all
+readers remain backward-compatible with legacy name-only manifests.
+
+After validating MANIFEST and COMPLETE, the inspection state machine probes
+every listed remote file with FTP `SIZE` through one reusable authenticated
+control session. V2 requires every returned size to equal the recorded size.
+V1 remains accepted and verifies that every listed name exists, but the UI
+explicitly reports that historical expected sizes are unavailable. No data file
+is downloaded and no restore is performed.
+
+```text
+584030f4b60b89b80eec081fb0870dd2850d1ca0
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.6% (51272 / 327680 bytes)
+Flash: 41.4% (1301997 / 3145728 bytes)
+```
+
+Hardware test: create a new full backup after flashing and updating `/web`,
+then inspect its ID. The UI must reach `FILES`, count from zero to the exact
+manifest total, and finish with `наличие и размеры всех файлов подтверждены`.
+Inspect one older V1 batch and confirm it succeeds with the explicit
+presence-only warning. For a controlled negative test, rename one data file in
+a disposable copied batch or alter its expected V2 size; inspection must fail
+without changing any working data.

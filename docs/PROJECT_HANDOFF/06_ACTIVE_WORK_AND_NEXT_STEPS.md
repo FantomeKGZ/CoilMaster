@@ -815,3 +815,7 @@ its `data_files` count equals the following filename lines, and every listed
 file exists on the FTP server. An interrupted batch without `COMPLETE.txt`
 must remain invalid and its manifest/data/`.part` files must be removed by the
 next full backup or manual retention action.
+
+This hardware checkpoint is user-confirmed on the real device: the manifest,
+exact file list/count, final COMPLETE marker and interrupted-batch cleanup all
+behave as specified.

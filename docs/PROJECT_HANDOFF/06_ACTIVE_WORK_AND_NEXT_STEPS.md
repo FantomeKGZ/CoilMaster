@@ -678,7 +678,40 @@ RAM: 15.5% (50784 / 327680 bytes)
 Flash: 40.2% (1264201 / 3145728 bytes)
 ```
 
-Required hardware fault test: interrupt one full backup after at least one file
-has appeared on the router, reboot, then press `Применить лимит копий сейчас`.
-Confirm that the interrupted `cm-b<id>-` final/`.part` files disappear, no new
-batch prefix is created, and older completed batches remain readable.
+The hardware fault test is user-confirmed: after interruption and reboot the
+manual retention action removed the interrupted batch final/`.part` files,
+created no new batch prefix and preserved completed backups.
+
+## Completed in firmware: DS3231 runtime diagnostics — 2026-08-15
+
+ESP32 now initializes the documented DS3231 on GPIO21/GPIO22 without an
+external `RTClib` dependency. The bounded reader validates BCD fields, calendar
+ranges, 12/24-hour mode and the DS3231 oscillator-stop flag. It never reports a
+lost-power clock value as valid.
+
+```text
+GET /api/system/time
+source: DS3231
+detected
+time_valid
+local_time: YYYY-MM-DDTHH:MM:SS or null
+timezone_configured: false
+scheduling_ready: false
+```
+
+Desktop and mobile Settings load the same shared status component and show the
+detected module and current validated local time. No RTC write or automatic
+backup schedule is enabled in this checkpoint.
+
+```text
+1ef7d428b689bdda21a75fc390886bc093c337e4
+ESP32 Build: SUCCESS
+CMP Protocol Tests + web asset/navigation audit: SUCCESS
+RAM: 15.6% (51128 / 327680 bytes)
+Flash: 40.8% (1284073 / 3145728 bytes)
+```
+
+Next hardware check: flash the firmware, update microSD `/web`, open Settings
+and confirm DS3231 is detected and the displayed time is current. If
+`time_valid:false`, time-setting support must be implemented before backup
+scheduling; do not schedule from `millis()` or from an unvalidated RTC value.

@@ -74,6 +74,11 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
     helper.src='/shared/calculator-multisource.js';
     document.body.appendChild(helper);
   }
+  if(rest==='/costing.html'){
+    const helper=document.createElement('script');
+    helper.src='/shared/costing-pricing-history.js';
+    document.body.appendChild(helper);
+  }
 })();
 </script>
 )HTML";

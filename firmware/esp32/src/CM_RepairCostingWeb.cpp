@@ -24,6 +24,18 @@ void RepairCostingWeb::handlePricingHistory()
                       "{\"error\":\"invalid_repair_id\"}");
         return;
     }
+    uint32_t cursor = 0UL;
+    uint32_t parsedLimit = 20UL;
+    if ((m_server.hasArg("cursor") &&
+         !parseUnsigned(m_server, "cursor", 0UL, 0xFFFFFFFFUL, cursor)) ||
+        (m_server.hasArg("limit") &&
+         !parseUnsigned(m_server, "limit", 1UL,
+                        RepairCosting::MaxPricingHistoryPageSize, parsedLimit)))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_pricing_history_page\"}");
+        return;
+    }
     if (!m_costing.ready())
     {
         m_server.send(503, "application/json; charset=utf-8",
@@ -69,9 +81,14 @@ void RepairCostingWeb::handlePricingHistory()
     response = F("{\"repair_id\":");
     response += repairId;
     response += F(",\"items\":[");
-    uint16_t count = 0U;
+    uint16_t pageCount = 0U;
+    uint16_t totalCount = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
     PricingRevisionSnapshot latest;
-    if (!m_costing.appendPricingRevisionsJson(response, repairId, count, latest))
+    if (!m_costing.appendPricingRevisionsPageJson(
+            response, repairId, cursor, static_cast<uint8_t>(parsedLimit),
+            pageCount, totalCount, nextCursor, hasMore, latest))
     {
         if (!m_costing.ready())
         {
@@ -85,19 +102,28 @@ void RepairCostingWeb::handlePricingHistory()
         }
         return;
     }
-    const bool countMatches = count == current.pricingRevisionCount;
-    const bool latestValuesMatch = (count == 0U && current.pricingRevisionCount == 0U &&
+    const bool countMatches = totalCount == current.pricingRevisionCount;
+    const bool latestValuesMatch = (totalCount == 0U && current.pricingRevisionCount == 0U &&
                                     current.labourCostMinor == 0ULL && current.clientPriceMinor == 0ULL) ||
-                                   (count > 0U && latest.labourCostMinor == current.labourCostMinor &&
+                                   (totalCount > 0U && latest.labourCostMinor == current.labourCostMinor &&
                                     latest.clientPriceMinor == current.clientPriceMinor &&
                                     latest.currency == current.currency);
-    const bool latestTimestampMatches = (count == 0U && current.pricingUpdatedAt.length() == 0U) ||
-                                        (count > 0U && latest.timestamp == current.pricingUpdatedAt);
+    const bool latestTimestampMatches = (totalCount == 0U && current.pricingUpdatedAt.length() == 0U) ||
+                                        (totalCount > 0U && latest.timestamp == current.pricingUpdatedAt);
 
     response += F("],\"count\":");
-    response += count;
+    response += pageCount;
+    response += F(",\"total_count\":");
+    response += totalCount;
+    response += F(",\"cursor\":"); response += cursor;
+    response += F(",\"limit\":"); response += parsedLimit;
+    response += F(",\"has_more\":"); response += hasMore ? F("true") : F("false");
+    response += F(",\"next_cursor\":");
+    if (hasMore) response += nextCursor; else response += F("null");
+    response += F(",\"max_page_size\":");
+    response += RepairCosting::MaxPricingHistoryPageSize;
     response += F(",\"latest_revision\":");
-    response += count;
+    response += totalCount;
     response += F(",\"current_pricing\":{\"labour_cost_minor\":");
     appendUInt64(response, current.labourCostMinor);
     response += F(",\"client_price_minor\":");

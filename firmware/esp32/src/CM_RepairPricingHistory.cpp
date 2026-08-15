@@ -3,22 +3,62 @@
 
 namespace CM
 {
-bool RepairCosting::appendPricingRevisionsJson(String& json,
-                                               uint32_t repairId,
-                                               uint16_t& appendedCount,
-                                               PricingRevisionSnapshot& latest) const
+bool RepairCosting::appendPricingRevisionsPageJson(
+    String& json,
+    uint32_t repairId,
+    uint32_t cursor,
+    uint8_t limit,
+    uint16_t& pageCount,
+    uint16_t& totalCount,
+    uint32_t& nextCursor,
+    bool& hasMore,
+    PricingRevisionSnapshot& latest) const
 {
-    appendedCount = 0U;
+    pageCount = 0U;
+    totalCount = 0U;
+    nextCursor = 0UL;
+    hasMore = false;
     latest = PricingRevisionSnapshot();
-    if (!ready() || repairId == 0UL) return false;
-    if (!m_storage.exists(PricingPath)) return true;
+    if (!ready() || repairId == 0UL || limit == 0U ||
+        limit > MaxPricingHistoryPageSize) return false;
+    if (!m_storage.exists(PricingPath)) return cursor == 0UL;
 
     File file = m_storage.open(PricingPath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    const size_t rawSize = file.size();
+    if (rawSize > 0xFFFFFFFFUL || cursor > rawSize)
+    {
+        file.close();
+        return false;
+    }
+    const uint32_t fileSize = static_cast<uint32_t>(rawSize);
+    if (fileSize > 0UL &&
+        (!file.seek(fileSize - 1UL) || file.read() != '\n'))
+    {
+        file.close();
+        return false;
+    }
+    if (cursor > 0UL &&
+        (!file.seek(cursor - 1UL) || file.read() != '\n'))
+    {
+        file.close();
+        return false;
+    }
+    if (!file.seek(0UL))
+    {
+        file.close();
+        return false;
+    }
 
     bool first = true;
     while (file.available())
     {
+        const uint32_t lineStart = static_cast<uint32_t>(file.position());
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
 
@@ -36,24 +76,38 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
             !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
             file.close();
-            appendedCount = 0U;
+            pageCount = 0U;
+            totalCount = 0U;
             latest = PricingRevisionSnapshot();
             return false;
         }
 
         if (lineRepairId != repairId) continue;
-        if (appendedCount == 0xFFFFU)
+        if (totalCount == 0xFFFFU)
         {
             file.close();
-            appendedCount = 0U;
+            pageCount = 0U;
+            totalCount = 0U;
             latest = PricingRevisionSnapshot();
             return false;
         }
 
+        ++totalCount;
+        latest.labourCostMinor = labour;
+        latest.clientPriceMinor = clientPrice;
+        latest.currency = currency;
+        latest.timestamp = timestamp;
+
+        if (lineStart < cursor) continue;
+        if (pageCount >= limit)
+        {
+            hasMore = true;
+            continue;
+        }
+
         if (!first) json += ',';
         first = false;
-        json += F("{\"revision\":");
-        json += static_cast<uint32_t>(appendedCount) + 1UL;
+        json += F("{\"revision\":"); json += totalCount;
         json += F(",\"labour_cost_minor\":");
         char labourBuffer[24];
         snprintf(labourBuffer, sizeof(labourBuffer), "%llu",
@@ -64,19 +118,14 @@ bool RepairCosting::appendPricingRevisionsJson(String& json,
         snprintf(clientBuffer, sizeof(clientBuffer), "%llu",
                  static_cast<unsigned long long>(clientPrice));
         json += clientBuffer;
-        json += F(",\"currency\":\"");
-        json += jsonEscape(currency);
-        json += F("\",\"timestamp\":\"");
-        json += jsonEscape(timestamp);
+        json += F(",\"currency\":\""); json += jsonEscape(currency);
+        json += F("\",\"timestamp\":\""); json += jsonEscape(timestamp);
         json += F("\"}");
-
-        latest.labourCostMinor = labour;
-        latest.clientPriceMinor = clientPrice;
-        latest.currency = currency;
-        latest.timestamp = timestamp;
-        ++appendedCount;
+        ++pageCount;
+        nextCursor = static_cast<uint32_t>(file.position());
     }
     file.close();
+    if (!hasMore) nextCursor = 0UL;
     return true;
 }
 }

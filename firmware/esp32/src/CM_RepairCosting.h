@@ -55,6 +55,7 @@ struct PricingRevisionSnapshot
 class RepairCosting
 {
 public:
+    static constexpr uint8_t MaxPricingHistoryPageSize = 32U;
     explicit RepairCosting(fs::FS& storage);
 
     bool begin();
@@ -62,10 +63,15 @@ public:
     bool repairExists(uint32_t repairId) const;
     bool repairExists(uint32_t repairId, bool& found) const;
     bool load(uint32_t repairId, RepairCostSummary& summary) const;
-    bool appendPricingRevisionsJson(String& json,
-                                    uint32_t repairId,
-                                    uint16_t& appendedCount,
-                                    PricingRevisionSnapshot& latest) const;
+    bool appendPricingRevisionsPageJson(String& json,
+                                        uint32_t repairId,
+                                        uint32_t cursor,
+                                        uint8_t limit,
+                                        uint16_t& pageCount,
+                                        uint16_t& totalCount,
+                                        uint32_t& nextCursor,
+                                        bool& hasMore,
+                                        PricingRevisionSnapshot& latest) const;
     bool savePricing(uint32_t repairId,
                      uint64_t labourCostMinor,
                      uint64_t clientPriceMinor,

@@ -1097,3 +1097,36 @@ The completion estimate remains **91%** until this hardware matrix passes. After
 confirmation, the next implementation block is the operator-only transactional
 apply path with per-file atomic replacement and immediate rollback on any
 failure. Automatic restore and reboot continuation remain forbidden.
+
+## Completed: unused repository directories removed — 2026-08-16
+
+With explicit user confirmation, commit
+`11b4a79b583a79b83743024ff22110c93f817871` removed 37 tracked files from the
+following unused directory trees:
+
+```text
+Applications/                  CMP/
+Network/                       SD_Card/
+Services/                      Tools/
+Web/                           Firmware/
+Shared/Core/                   Core/CM_System/
+Arduino/CoilMaster_Arduino/    Tests/CMP/
+Tests/Core/                    Tests/HAL/
+Tests/Integration/
+```
+
+The production paths and required test/documentation paths were deliberately
+preserved. `Shared/Protocol/` and `Tests/Protocol/` remain because the binary
+CMP host workflow still uses them; they are not represented as active firmware
+integration. Root architecture/index files were rewritten to point to the real
+sources and the sole source branch `cmp-protocol-v1`.
+
+```text
+CMP Protocol Tests: SUCCESS (run 31924588724)
+Arduino Uno Build: SUCCESS (run 31924588743)
+ESP32 Build: not triggered by this path-only cleanup
+Local web asset audit: SUCCESS
+```
+
+The next product task remains the real-device verification of the read-only
+apply preflight described above. Completion remains **91%**.

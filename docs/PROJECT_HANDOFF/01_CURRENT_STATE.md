@@ -694,3 +694,26 @@ ESP32 Build: SUCCESS (run 31889384626)
 
 Hardware confirmation for this new preflight remains pending, so the rounded
 CoilMaster v1 estimate remains **91%**.
+
+## Repository structure cleanup — 2026-08-16
+
+The confirmed cleanup removed 37 tracked files from 15 unused placeholder or
+legacy directory trees, including the obsolete uppercase `Firmware/`, unused
+`Shared/Core/`, old `Core/CM_System/` sketches and empty placeholder test/
+service directories. Active `Core/`, `Arduino/`, lowercase `firmware/`,
+`Shared/Protocol/`, `Tests/Protocol/`, `Tests/Web/`, hardware references and
+all handoff history remain intact.
+
+Root `README.md`, `ARCHITECTURE.md`, `PROJECT.manifest` and `BUILD_INFO.md`
+now identify `cmp-protocol-v1` and the actual production source paths. The
+cleanup changes repository clarity only; it does not reduce firmware RAM/Flash.
+
+```text
+11b4a79b583a79b83743024ff22110c93f817871
+CMP Protocol Tests: SUCCESS (run 31924588724)
+Arduino Uno Build: SUCCESS (run 31924588743)
+ESP32 Build: not triggered; no ESP32 source changed
+```
+
+No product feature or hardware acceptance state changed, so the rounded
+completion estimate remains **91%**.

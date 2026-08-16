@@ -75,6 +75,17 @@ Binary Shared core по-прежнему нельзя подключать к Un
 CRC несовместимы, а его fixed buffers опасны при подтверждённом малом запасе
 SRAM. Сосуществование форматов теперь явно документировано.
 
+Run-event `ACK/NACK` также защищены тем же CRC16/MODBUS. ESP32 всегда добавляет
+checksum; Arduino проверяет её перед изменением event queue/retry state и
+временно принимает точный legacy reply без CRC для staged rollout.
+
+```text
+a695440cbcae2582c158d1f29ff68cac5a38ba95
+CMP Protocol Tests: SUCCESS (run 31929625664)
+Arduino Uno Build: SUCCESS (run 31929625657)
+ESP32 Build: SUCCESS (run 31929625636)
+```
+
 ## Power decision
 
 Обнаруженный симптом: ESP32 запускает Wi-Fi от USB, но не запускает его от

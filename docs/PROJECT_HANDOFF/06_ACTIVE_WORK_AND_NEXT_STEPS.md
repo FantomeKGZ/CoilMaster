@@ -1187,3 +1187,26 @@ and record the reset reason. `BROWNOUT` is evidence of a power-path problem;
 any other reason does not prove stable voltage. Measure 5 V and 3.3 V while
 Wi-Fi starts. Completion remains **91%** until the hardware power and apply
 preflight gates pass.
+
+## Completed: CRC-protected CMP1 run acknowledgements — 2026-08-16
+
+Commit `a695440cbcae2582c158d1f29ff68cac5a38ba95` changes ESP32 run-event
+`ACK/NACK` output to CRC-protected CMP1 frames. Arduino validates the checksum
+before acknowledging/removing the queued event or changing retry state. Exact
+legacy replies without CRC remain accepted only for staged firmware rollout;
+malformed extra fields fail closed.
+
+```text
+CMP Protocol Tests: SUCCESS (run 31929625664)
+Arduino Uno Build: SUCCESS (run 31929625657)
+ESP32 Build: SUCCESS (run 31929625636)
+Uno RAM: 70.5% (1444 / 2048 bytes; 604 bytes remain)
+Uno Flash: 75.4% (24332 / 32256 bytes)
+ESP32 RAM: 15.8% (51840 / 327680 bytes)
+ESP32 Flash: 42.5% (1337597 / 3145728 bytes)
+```
+
+Hardware smoke test: update both boards in either order, complete one physical
+RUN and confirm the event leaves the Arduino retry queue only after ESP32 saves
+it. Do not inject a corrupt frame on the production machine; negative CRC tests
+belong in a controlled serial harness. Completion remains **91%**.

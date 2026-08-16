@@ -48,9 +48,9 @@ blob SHA из `cmp-protocol-v1`. Для нового файла сначала �
 
 ## Текущая точка
 
-CoilMaster v1 оценивается в **91%**. Последний завершённый repo-блок — read-only
-ESP32 reset/power diagnostics: причина прошлого reset, brownout flag и heap
-показываются в настройках; ESP32 CI успешен. Следующие hardware-gates —
+CoilMaster v1 оценивается в **91%**. Последний завершённый repo-блок защищает
+CRC рабочие `ACK/NACK` ESP32 → Arduino с совместимостью для поэтапного
+обновления; protocol, Uno и ESP32 CI успешны. Следующие hardware-gates —
 стабильный Wi-Fi от выбранного питания и read-only apply preflight. После
 подтверждения preflight допускается operator-only transactional apply с
 обязательной rollback-копией и без автоматического восстановления.

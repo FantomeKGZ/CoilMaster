@@ -269,3 +269,20 @@ ESP32 Build: SUCCESS (run 31928080285)
 
 Этот блок не меняет safety contract: удалённый job не включает SSR, физический
 START остаётся локальным, автоматического resume после reboot нет.
+
+## CRC подтверждений RUN — 2026-08-16
+
+ESP32 формирует `ACK/NACK` с CRC-16/MODBUS, а Arduino проверяет checksum до
+удаления RUN-события из очереди или изменения retry interval. Это закрывает
+случай принятия повреждённого UART-подтверждения.
+
+Новая Arduino временно принимает legacy `ACK/NACK` без CRC для staged rollout;
+старый Arduino parser совместим с новым ESP32-кадром и игнорирует завершающее
+поле. Любое другое число полей или неверный CRC отклоняются.
+
+```text
+a695440cbcae2582c158d1f29ff68cac5a38ba95
+CMP Protocol Tests: SUCCESS (run 31929625664)
+Arduino Uno Build: SUCCESS (run 31929625657)
+ESP32 Build: SUCCESS (run 31929625636)
+```

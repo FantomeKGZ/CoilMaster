@@ -757,6 +757,28 @@ Flash: 42.5% (1337369 / 3145728 bytes)
 
 Safety и hardware acceptance state не менялись; оценка остаётся **91%**.
 
+## CMP1 run ACK/NACK CRC hardening — 2026-08-16
+
+ESP32 теперь передаёт подтверждения событий как
+`CMP1|ACK/NACK|RUN_ID|DETAIL|CRC16`. Arduino проверяет CRC до изменения очереди
+и retry state. Для безопасного staged rollout новая Arduino продолжает
+принимать старый exact четырёхполевой ответ без CRC; дополнительные или
+повреждённые поля отклоняются. Старые Arduino игнорируют новый завершающий CRC,
+поэтому порядок прошивки плат не критичен.
+
+```text
+a695440cbcae2582c158d1f29ff68cac5a38ba95
+CMP Protocol Tests: SUCCESS (run 31929625664)
+Arduino Uno Build: SUCCESS (run 31929625657)
+ESP32 Build: SUCCESS (run 31929625636)
+Uno RAM: 70.5% (1444 / 2048 bytes)
+Uno Flash: 75.4% (24332 / 32256 bytes)
+ESP32 RAM: 15.8% (51840 / 327680 bytes)
+ESP32 Flash: 42.5% (1337597 / 3145728 bytes)
+```
+
+Safety и completion estimate не менялись: **91%**.
+
 ## Saved continuation checkpoint — 2026-08-16
 
 The current continuation entry is

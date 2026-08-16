@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../Shared/CMP1Text/CM_Cmp1Crc.h"
+
 namespace CM
 {
 UartEventTransport::UartEventTransport(uint8_t rxPin,
@@ -189,7 +191,7 @@ bool UartEventTransport::writeStandardFrame(const WindingEvent& event)
         return false;
     }
 
-    const uint16_t crc = crc16Modbus(
+    const uint16_t crc = Cmp1Crc::calculate(
         reinterpret_cast<const uint8_t*>(frame),
         static_cast<size_t>(payloadLength));
     const int suffixLength = snprintf(
@@ -253,7 +255,7 @@ bool UartEventTransport::writeLocalFrame(
         used += written;
     }
 
-    const uint16_t crc = crc16Modbus(
+    const uint16_t crc = Cmp1Crc::calculate(
         reinterpret_cast<const uint8_t*>(frame),
         static_cast<size_t>(used));
     const int suffixLength = snprintf(
@@ -376,7 +378,7 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
     if (!parseHex16(lastSeparator + 1, receivedCrc)) return false;
 
     const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
-    if (crc16Modbus(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
+    if (Cmp1Crc::calculate(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
         receivedCrc)
     {
         return false;
@@ -438,7 +440,7 @@ bool UartEventTransport::parseRemoteCancel(char* line, uint32_t& jobId) const
     if (!parseHex16(lastSeparator + 1, receivedCrc)) return false;
 
     const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
-    if (crc16Modbus(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
+    if (Cmp1Crc::calculate(reinterpret_cast<const uint8_t*>(line), payloadLength) !=
         receivedCrc)
     {
         return false;
@@ -494,22 +496,6 @@ const char* UartEventTransport::eventName(WindingEventType type)
 const char* UartEventTransport::windingTypeName(WindingType type)
 {
     return type == WindingType::Starting ? "STARTING" : "WORKING";
-}
-
-uint16_t UartEventTransport::crc16Modbus(const uint8_t* data, size_t length)
-{
-    uint16_t crc = 0xFFFFU;
-    for (size_t index = 0U; index < length; ++index)
-    {
-        crc ^= data[index];
-        for (uint8_t bit = 0U; bit < 8U; ++bit)
-        {
-            crc = (crc & 1U) != 0U
-                      ? static_cast<uint16_t>((crc >> 1U) ^ 0xA001U)
-                      : static_cast<uint16_t>(crc >> 1U);
-        }
-    }
-    return crc;
 }
 
 bool UartEventTransport::parseHex16(const char* text, uint16_t& value)

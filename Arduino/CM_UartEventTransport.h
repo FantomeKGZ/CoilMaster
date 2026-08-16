@@ -92,7 +92,6 @@ private:
 
     static const char* eventName(WindingEventType type);
     static const char* windingTypeName(WindingType type);
-    static uint16_t crc16Modbus(const uint8_t* data, size_t length);
     static bool parseHex16(const char* text, uint16_t& value);
 
     SoftwareSerial m_serial;

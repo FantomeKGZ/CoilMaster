@@ -23,12 +23,17 @@ firmware/esp32/src/CM_WebRecoveryFtpServer.h/.cpp
 firmware/esp32/src/CM_StaticSiteServer.h/.cpp
 firmware/esp32/web/shared/settings-wifi.js
 firmware/esp32/web/shared/settings-remote-backup.js
+firmware/esp32/web/shared/settings-system-diagnostics.js
 ```
 
 `CM_WebRecoveryFtpServer` — отдельный одноклиентный входящий FTP только для
 `/web`. Не путать с `CM_RemoteBackupTransfer`, который является исходящим FTP-
 клиентом для резервных копий на USB-хранилище роутера. Оба пути используют
 общий fail-closed runtime activity probe, но имеют разные корни и назначение.
+
+`GET /api/system/diagnostics` зарегистрирован в `firmware/esp32/src/main.cpp` и
+read-only публикует reset reason/brownout и heap. Он не измеряет напряжение и не
+заменяет проверку 5 В/3,3 В мультиметром под Wi-Fi load.
 
 ## Persistent job identity и recovery
 

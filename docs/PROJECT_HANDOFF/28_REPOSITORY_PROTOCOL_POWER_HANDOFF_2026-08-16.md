@@ -108,6 +108,18 @@ Wi-Fi start with ESP32 alone
 Wi-Fi start with modules connected one-by-one
 ```
 
+Для controlled check добавлен read-only `GET /api/system/diagnostics`; mobile и
+desktop Settings показывают причину прошлого reset, `BROWNOUT` и heap. Это
+диагностирует зафиксированную просадку, но не измеряет напряжение.
+
+```text
+d2f9b7371481ccd762bfc24f46a71b1d3c8d6904
+CMP Protocol Tests: SUCCESS (run 31929236228)
+ESP32 Build: SUCCESS (run 31929236220)
+RAM: 15.8% (51840 / 327680 bytes)
+Flash: 42.5% (1337369 / 3145728 bytes)
+```
+
 ## Точное продолжение
 
 1. Прошить current ESP32 и полностью заменить microSD `/web`.

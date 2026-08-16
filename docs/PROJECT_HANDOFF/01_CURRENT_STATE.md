@@ -738,6 +738,25 @@ ESP32 Build: SUCCESS (run 31928080285)
 
 Hardware acceptance state не менялся; общая оценка остаётся **91%**.
 
+## ESP32 reset/power diagnostics — 2026-08-16
+
+Read-only `GET /api/system/diagnostics` публикует причину прошлого reset,
+отдельный `brownout_reset_detected`, uptime и три heap-показателя. Mobile и
+desktop Settings автоматически показывают эти данные. При `BROWNOUT` интерфейс
+требует проверить источник 5 В, кабель, общую землю и 3,3 В во время старта
+Wi-Fi. Endpoint явно возвращает `voltage_measured=false`: firmware не заменяет
+измерение мультиметром.
+
+```text
+d2f9b7371481ccd762bfc24f46a71b1d3c8d6904
+CMP Protocol Tests: SUCCESS (run 31929236228)
+ESP32 Build: SUCCESS (run 31929236220)
+RAM: 15.8% (51840 / 327680 bytes)
+Flash: 42.5% (1337369 / 3145728 bytes)
+```
+
+Safety и hardware acceptance state не менялись; оценка остаётся **91%**.
+
 ## Saved continuation checkpoint — 2026-08-16
 
 The current continuation entry is

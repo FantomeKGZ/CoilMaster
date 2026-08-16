@@ -1165,3 +1165,25 @@ No size figures are recorded because the available CI result did not expose the
 PlatformIO size lines. Completion remains **91%** pending the already documented
 real-device apply-preflight and stable external-power Wi-Fi gates. Safety
 invariants are unchanged.
+
+## Completed in firmware: ESP32 reset/power diagnostics — 2026-08-16
+
+Commit `d2f9b7371481ccd762bfc24f46a71b1d3c8d6904` adds a read-only
+`GET /api/system/diagnostics` endpoint. It reports the captured boot reset
+reason, an explicit brownout flag, uptime, free/minimum heap and largest free
+heap block. The desktop and mobile Settings pages load the same shared script
+and highlight `BROWNOUT` without claiming to measure supply voltage.
+
+```text
+Local 48-page web asset audit: SUCCESS
+CMP Protocol Tests: SUCCESS (run 31929236228)
+ESP32 Build: SUCCESS (run 31929236220)
+RAM: 15.8% (51840 / 327680 bytes)
+Flash: 42.5% (1337369 / 3145728 bytes)
+```
+
+Hardware check: boot once from the selected external USB supply, open Settings
+and record the reset reason. `BROWNOUT` is evidence of a power-path problem;
+any other reason does not prove stable voltage. Measure 5 V and 3.3 V while
+Wi-Fi starts. Completion remains **91%** until the hardware power and apply
+preflight gates pass.

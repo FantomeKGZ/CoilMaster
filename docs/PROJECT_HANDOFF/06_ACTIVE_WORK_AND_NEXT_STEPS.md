@@ -1130,3 +1130,14 @@ Local web asset audit: SUCCESS
 
 The next product task remains the real-device verification of the read-only
 apply preflight described above. Completion remains **91%**.
+
+## Saved continuation point — 2026-08-16
+
+Новый полный checkpoint:
+`28_REPOSITORY_PROTOCOL_POWER_HANDOFF_2026-08-16.md`.
+
+Он фиксирует три решения: cleanup завершён; binary `Shared/Protocol/` остаётся
+host-test-only и не смешивается с CMP1; для ESP32/Arduino выбран отдельный
+USB-feed от общего качественного `5 V, 3–4 A` supply с общей signal ground.
+Следующие hardware gates: apply preflight и стабильный Wi-Fi от выбранного
+питания. После их подтверждения продолжать transactional restore apply.

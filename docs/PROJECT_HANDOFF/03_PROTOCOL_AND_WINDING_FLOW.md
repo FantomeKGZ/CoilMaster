@@ -236,3 +236,13 @@ RUN_STARTED с run_id <= уже использованного
 - источник задания.
 
 Поэтому текущий журнал подтверждает последовательность запусков, но ещё не является полным производственным журналом ремонта.
+
+## Граница Shared/Protocol — 2026-08-16
+
+`Shared/Protocol/` является ранним binary CMP и участвует только в host tests;
+production PlatformIO builds его не подключают. Рабочие `CMP1|...` transport
+classes Arduino и ESP32 реализованы отдельно и обе используют CRC16/MODBUS
+(initial `0xFFFF`, polynomial `0xA001`). Это несовместимо с binary CMP
+CRC-CCITT `0x1021`. Поэтому существующий Shared core нельзя просто добавить в
+build. Старое описание CRC-CCITT в `docs/17_UART_EVENT_TRANSPORT.md` считается
+устаревшим и должно быть исправлено отдельным documentation/code-test block.

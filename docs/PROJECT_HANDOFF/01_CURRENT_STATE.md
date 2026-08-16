@@ -717,3 +717,12 @@ ESP32 Build: not triggered; no ESP32 source changed
 
 No product feature or hardware acceptance state changed, so the rounded
 completion estimate remains **91%**.
+
+## Saved continuation checkpoint — 2026-08-16
+
+The current continuation entry is
+`28_REPOSITORY_PROTOCOL_POWER_HANDOFF_2026-08-16.md`. It records the completed
+repository cleanup, the non-production status of binary `Shared/Protocol/`, the
+actual CMP1 text/CRC16-MODBUS boundary, and the selected dual-USB power topology
+for ESP32 and Arduino. Power behavior and read-only apply preflight still require
+real-device confirmation. Completion remains **91%**.

@@ -21,7 +21,17 @@
         SDIO:'сброс SDIO',
         UNKNOWN:'причина не определена'
     };
-    const size=value=>Math.round(Number(value||0)/1024)+' КБ';
+    const heapSize=value=>Math.round(Number(value||0)/1024)+' КБ';
+    const byteSize=value=>{
+        const number=Number(value);
+        if(!Number.isFinite(number)||number<0)return '—';
+        const units=['Б','КБ','МБ','ГБ','ТБ'];
+        let scaled=number,index=0;
+        while(scaled>=1024&&index<units.length-1){scaled/=1024;index++;}
+        return scaled.toLocaleString('ru-RU',{
+            maximumFractionDigits:index===0?0:2
+        })+' '+units[index];
+    };
     function addRow(label,value){
         const row=document.createElement('div');
         row.className='row';
@@ -32,25 +42,55 @@
         row.append(name,result);
         root.appendChild(row);
     }
+    async function loadStorage(){
+        try{
+            const response=await fetch('/api/system/storage',{cache:'no-store'});
+            const data=await response.json();
+            if(!response.ok)throw new Error(data.error||'storage_diagnostics_unavailable');
+            return data;
+        }catch(error){
+            return null;
+        }
+    }
     async function load(){
         root.className='note';
         root.textContent='Загрузка диагностики ESP32…';
         try{
+            const storagePromise=loadStorage();
             const response=await fetch('/api/system/diagnostics',{cache:'no-store'});
             const data=await response.json();
             if(!response.ok)throw new Error(data.error||'diagnostics_unavailable');
+            const storage=await storagePromise;
             root.textContent='';
             addRow('Причина прошлого сброса',labels[data.reset_reason]||String(data.reset_reason||'—'));
-            addRow('Свободная heap',size(data.free_heap_bytes));
-            addRow('Минимальная heap после запуска',size(data.minimum_free_heap_bytes));
-            addRow('Крупнейший свободный блок',size(data.largest_free_heap_block_bytes));
+            addRow('Свободная heap',heapSize(data.free_heap_bytes));
+            addRow('Минимальная heap после запуска',heapSize(data.minimum_free_heap_bytes));
+            addRow('Крупнейший свободный блок',heapSize(data.largest_free_heap_block_bytes));
+
+            if(storage){
+                addRow('microSD',storage.storage_ready?'готова':'не готова');
+                addRow('Физический размер карты',byteSize(storage.card_size_bytes));
+                const total=Number(storage.filesystem_total_bytes||0);
+                const used=Number(storage.filesystem_used_bytes||0);
+                const free=Number(storage.filesystem_free_bytes||0);
+                addRow('Файловая система',byteSize(used)+' / '+byteSize(total));
+                const freePercent=total>0?Math.max(0,Math.min(100,free*100/total)):null;
+                addRow('Свободно на microSD',byteSize(free)+(freePercent===null?'':' ('+freePercent.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%)'));
+            }else{
+                addRow('microSD','диагностика недоступна');
+            }
+
             const note=document.createElement('div');
+            const storageFailed=storage&&storage.storage_ready!==true;
             if(data.brownout_reset_detected===true){
                 root.className='note warn';
                 note.textContent='Зафиксирован brownout: проверьте источник 5 В, кабель, общую землю и напряжение 3,3 В во время старта Wi‑Fi.';
+            }else if(storageFailed){
+                root.className='note warn';
+                note.textContent='microSD не готова: проверьте карту и перезагрузите устройство. Автоматическое удаление production данных не выполняется.';
             }else{
                 note.className='muted';
-                note.textContent='Brownout прошлого запуска не зафиксирован. Это не заменяет измерение 5 В и 3,3 В мультиметром под нагрузкой.';
+                note.textContent='Brownout прошлого запуска не зафиксирован. Свободное место microSD контролируется вручную; автоматическое удаление production данных отключено.';
             }
             root.appendChild(note);
         }catch(error){

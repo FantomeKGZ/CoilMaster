@@ -5,6 +5,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 #include <Wire.h>
+#include <esp_heap_caps.h>
+#include <esp_system.h>
 
 #include "CM_AutonomousWindingArchive.h"
 #include "CM_AutonomousWindingWeb.h"
@@ -113,6 +115,26 @@ bool networkProfilesReady = false;
 bool networkManagerReady = false;
 bool webRecoveryRequired = false;
 bool mdnsReady = false;
+esp_reset_reason_t bootResetReason = ESP_RST_UNKNOWN;
+
+const char* resetReasonText(esp_reset_reason_t reason)
+{
+    switch (reason)
+    {
+        case ESP_RST_POWERON: return "POWER_ON";
+        case ESP_RST_EXT: return "EXTERNAL_PIN";
+        case ESP_RST_SW: return "SOFTWARE";
+        case ESP_RST_PANIC: return "PANIC";
+        case ESP_RST_INT_WDT: return "INTERRUPT_WATCHDOG";
+        case ESP_RST_TASK_WDT: return "TASK_WATCHDOG";
+        case ESP_RST_WDT: return "WATCHDOG";
+        case ESP_RST_DEEPSLEEP: return "DEEP_SLEEP";
+        case ESP_RST_BROWNOUT: return "BROWNOUT";
+        case ESP_RST_SDIO: return "SDIO";
+        case ESP_RST_UNKNOWN:
+        default: return "UNKNOWN";
+    }
+}
 
 const char FallbackPage[] PROGMEM = R"HTML(
 <!doctype html><html lang="ru"><head><meta charset="utf-8">
@@ -573,6 +595,29 @@ void sendJsonStatus()
     webServer.send(200, "application/json; charset=utf-8", response);
 }
 
+void sendSystemDiagnostics()
+{
+    const bool brownoutDetected = bootResetReason == ESP_RST_BROWNOUT;
+    String response;
+    response.reserve(240U);
+    response = F("{\"reset_reason\":\"");
+    response += resetReasonText(bootResetReason);
+    response += F("\",\"reset_reason_code\":");
+    response += static_cast<unsigned int>(bootResetReason);
+    response += F(",\"brownout_reset_detected\":");
+    response += brownoutDetected ? F("true") : F("false");
+    response += F(",\"voltage_measured\":false,\"uptime_ms\":");
+    response += millis();
+    response += F(",\"free_heap_bytes\":");
+    response += heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    response += F(",\"minimum_free_heap_bytes\":");
+    response += heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT);
+    response += F(",\"largest_free_heap_block_bytes\":");
+    response += heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    response += F("}");
+    webServer.send(200, "application/json; charset=utf-8", response);
+}
+
 void handleRecoveryAcknowledge()
 {
     if (!manualReviewRequired())
@@ -1002,6 +1047,7 @@ void handleCreateJob()
 void configureWebServer()
 {
     webServer.on("/api/status", HTTP_GET, sendJsonStatus);
+    webServer.on("/api/system/diagnostics", HTTP_GET, sendSystemDiagnostics);
     webServer.on("/api/system/time", HTTP_GET, []()
     {
         CM::RtcDateTime value;
@@ -1245,6 +1291,9 @@ void processJobCancel()
 void setup()
 {
     Serial.begin(115200);
+    bootResetReason = esp_reset_reason();
+    Serial.print(F("ESP32 reset reason: "));
+    Serial.println(resetReasonText(bootResetReason));
     const bool rtcDetected = rtcClock.begin(RtcSdaPin, RtcSclPin);
     receiver.begin(ArduinoBaud, ArduinoRxPin, ArduinoTxPin);
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);

@@ -151,6 +151,17 @@ if (!staticSiteServer.includes("querySelectorAll('aside a')") ||
   failures.push('CM_StaticSiteServer.cpp: desktop navigation icon normalizer missing');
 }
 
+const mainPath = path.resolve(__dirname, '../../firmware/esp32/src/main.cpp');
+const mainSource = fs.readFileSync(mainPath, 'utf8');
+if (!mainSource.includes('webServer.on("/api/system/diagnostics"') ||
+    !mainSource.includes('ESP_RST_BROWNOUT') ||
+    !mainSource.includes('brownout_reset_detected')) {
+  failures.push('main.cpp: read-only ESP32 reset/power diagnostics missing');
+}
+if (!staticSiteServer.includes('/shared/settings-system-diagnostics.js')) {
+  failures.push('CM_StaticSiteServer.cpp: settings system diagnostics injection missing');
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);

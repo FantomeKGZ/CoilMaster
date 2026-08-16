@@ -83,6 +83,9 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
     const helper=document.createElement('script');
     helper.src='/shared/settings-time-status.js';
     document.body.appendChild(helper);
+    const diagnostics=document.createElement('script');
+    diagnostics.src='/shared/settings-system-diagnostics.js';
+    document.body.appendChild(diagnostics);
   }
 })();
 </script>

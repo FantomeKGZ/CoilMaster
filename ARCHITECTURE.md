@@ -1,578 +1,72 @@
-\# CoilMaster OS
+# CoilMaster — актуальная архитектура
 
+Ветка реализации: `cmp-protocol-v1`.
 
+## Граница ответственности
 
-\# ARCHITECTURE
+### Arduino Uno
 
+- физический START и realtime state machine;
+- Hall, LCD1602, keypad, buzzer и SSR;
+- EEPROM recovery без автоматического возобновления движения;
+- приём задания и отправка событий по UART.
 
+### ESP32
 
-Документ: DOC-001
+- Wi-Fi/AP, mDNS, HTTP и ограниченный FTP;
+- microSD, RTC, web UI и API;
+- клиенты, двигатели, ремонты, склад, расчёты и отчёты;
+- доставка задания Arduino, журнал событий и резервные копии.
 
+ESP32/Web не имеют прямого пути управления SSR. Физический START остаётся
+локальным. Завершённое UART-событие само по себе не списывает провод.
 
+## Production flow
 
-Версия: 1.0
-
-
-
-Release: 0.1.0
-
-
-
-Build: 002A
-
-
-
-\---
-
-
-
-\# Назначение
-
-
-
-Настоящий документ определяет архитектуру программной платформы CoilMaster OS.
-
-
-
-Все программные модули проекта должны соответствовать данному документу.
-
-
-
-\---
-
-
-
-\# Общая архитектура
-
-
-
-Система состоит из двух независимых контроллеров.
-
-
-
+```text
+client → motor → OPEN repair → costing → linked winding → exact spool
+→ immutable snapshot/spool selection → UART → physical START
+→ RUN_STARTED/RUN_COMPLETED → manual exact-run writeoff
+→ finalization preflight → CLOSED → reports → backup
 ```
 
-&#x20;               CoilMaster OS
+Ручное списание связано с точными `spool_id`, `source_session_id` и
+`source_run_id`.
 
-&#x20;                     │
+## Исходники
 
-&#x20;     ┌───────────────┴───────────────┐
-
-&#x20;     │                               │
-
-&#x20;Arduino UNO                     ESP32 DevKit
-
-Realtime Controller           Service Controller
-
+```text
+Core/                       realtime domain model для Uno
+Arduino/                    аппаратные адаптеры и UART Uno
+firmware/arduino/src/       production main Uno
+firmware/esp32/src/         production modules ESP32
+firmware/esp32/web/         сайт microSD
+docs/PROJECT_HANDOFF/       authoritative handoff
+Engineering/Hardware/       hardware reference
+Tests/Web/                  web audit
 ```
 
+`platformio.ini` явно выбирает production sources. Каталоги с другой
+капитализацией не являются альтернативными исходниками.
 
+## UART/CMP
 
-\---
+Рабочий транспорт — ограниченные ASCII-кадры `CMP1|...` с CRC16 и строгой
+проверкой полей. Реализации сторон:
 
+- `Arduino/CM_UartEventTransport.*`;
+- `firmware/esp32/src/CM_UartEventReceiver.*`.
 
+`Shared/Protocol/` содержит ранний бинарный CMP (`0xAA55`, бинарный header,
+CRC-CCITT) и пока используется только `Tests/Protocol/`. Его нельзя подключать
+к production firmware без отдельной миграции и проверки SRAM Arduino Uno.
 
-\# Arduino UNO
+## Данные и восстановление
 
+Authoritative данные хранятся на microSD в `/data`; web assets — в `/web`.
+Постоянные журналы валидируются fail-closed. Восстановление не запускается после
+перезагрузки автоматически. Любое будущее применение backup должно оставаться
+операторским, транзакционным и иметь проверенную локальную rollback-копию.
 
-
-Назначение:
-
-
-
-Контроллер реального времени.
-
-
-
-Отвечает исключительно за управление оборудованием.
-
-
-
-Функции:
-
-
-
-\- Датчик Холла
-
-\- LCD1602
-
-\- Клавиатура
-
-\- SSR
-
-\- Звуковой сигнал
-
-\- Управление намоткой
-
-\- Выполнение команд
-
-\- Обмен данными по CMP
-
-
-
-Arduino не выполняет:
-
-
-
-\- Wi-Fi
-
-\- FTP
-
-\- Web Server
-
-\- Database
-
-\- Backup
-
-
-
-\---
-
-
-
-\# ESP32
-
-
-
-Назначение:
-
-
-
-Сервисный контроллер.
-
-
-
-Функции:
-
-
-
-\- Wi-Fi
-
-\- HTTP Server
-
-\- FTP Server
-
-\- OTA
-
-\- RTC
-
-\- microSD
-
-\- База данных
-
-\- Web Interface
-
-\- Handbook
-
-\- Backup
-
-\- Logging
-
-
-
-ESP32 не управляет оборудованием намотки.
-
-
-
-\---
-
-
-
-\# Протокол связи
-
-
-
-Взаимодействие осуществляется только через CMP (CoilMaster Protocol).
-
-
-
-Любой обмен между платами проходит через UART.
-
-
-
-Запрещается прямое обращение одной платы к аппаратным модулям другой.
-
-
-
-\---
-
-
-
-\# Структура проекта
-
-
-
-```
-
-CoilMaster/
-
-
-
-Firmware/
-
-&#x20;   UNO/
-
-&#x20;   ESP32/
-
-
-
-Shared/
-
-
-
-Documentation/
-
-
-
-Web/
-
-
-
-SD\_Image/
-
-
-
-Tests/
-
-
-
-Tools/
-
-
-
-Releases/
-
-```
-
-
-
-\---
-
-
-
-\# Shared
-
-
-
-Папка Shared содержит общий код.
-
-
-
-Используется одновременно Arduino и ESP32.
-
-
-
-Содержит:
-
-
-
-\- Общие типы данных
-
-\- Общие структуры
-
-\- Общие константы
-
-\- Протокол CMP
-
-\- Версии
-
-
-
-\---
-
-
-
-\# Firmware UNO
-
-
-
-Содержит:
-
-
-
-Core
-
-
-
-HAL
-
-
-
-App
-
-
-
-Tests
-
-
-
-\---
-
-
-
-\# Firmware ESP32
-
-
-
-Содержит:
-
-
-
-Core
-
-
-
-Network
-
-
-
-Storage
-
-
-
-Services
-
-
-
-App
-
-
-
-Tests
-
-
-
-\---
-
-
-
-\# HAL
-
-
-
-Все аппаратные устройства работают только через Hardware Abstraction Layer.
-
-
-
-Например:
-
-
-
-HAL\_LCD
-
-
-
-HAL\_Hall
-
-
-
-HAL\_Keypad
-
-
-
-HAL\_SSR
-
-
-
-HAL\_Buzzer
-
-
-
-Запрещается использование digitalWrite(), analogRead() и других функций Arduino напрямую из прикладного кода.
-
-
-
-\---
-
-
-
-\# Core
-
-
-
-Ядро системы.
-
-
-
-Модули:
-
-
-
-CM\_System
-
-
-
-CM\_Version
-
-
-
-CM\_Config
-
-
-
-CM\_Settings
-
-
-
-CM\_Logger
-
-
-
-CM\_Event
-
-
-
-\---
-
-
-
-\# Storage
-
-
-
-Работает только на ESP32.
-
-
-
-Модули:
-
-
-
-STG\_SD
-
-
-
-STG\_DB
-
-
-
-STG\_Backup
-
-
-
-\---
-
-
-
-\# Network
-
-
-
-Работает только на ESP32.
-
-
-
-Модули:
-
-
-
-NET\_WiFi
-
-
-
-NET\_HTTP
-
-
-
-NET\_FTP
-
-
-
-NET\_OTA
-
-
-
-\---
-
-
-
-\# Application
-
-
-
-Прикладная логика.
-
-
-
-APP\_Winding
-
-
-
-APP\_Handbook
-
-
-
-APP\_MotorDB
-
-
-
-\---
-
-
-
-\# Документация
-
-
-
-Каждый программный модуль обязан иметь:
-
-
-
-описание
-
-
-
-версию
-
-
-
-дату изменения
-
-
-
-автора
-
-
-
-историю изменений
-
-
-
-\---
-
-
-
-\# Правило разработки
-
-
-
-Любой новый модуль должен:
-
-
-
-✔ соответствовать архитектуре;
-
-
-
-✔ иметь документацию;
-
-
-
-✔ успешно компилироваться;
-
-
-
-✔ пройти тестирование;
-
-
-
-✔ быть внесён в CHANGELOG.
-
-
-
-\---
-
-
-
-Конец документа.
-
+Подробные API, storage invariants, hardware checkpoints и актуальные следующие
+шаги находятся в `docs/PROJECT_HANDOFF/`.

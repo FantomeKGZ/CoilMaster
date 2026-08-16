@@ -1,94 +1,53 @@
-# ==========================================================
-# CoilMaster OS
-# Project Manifest
-# ==========================================================
-
 Project:
-  Name: CoilMaster OS
-  Description: Motor Winding Control Platform
-
-Release:
-  Version: 0.1.0
-  Build: 002A
-  Package: 01.1
+  Name: CoilMaster
   Status: Development
 
 Repository:
-  Name: CoilMaster
-  Branch: main
-
-Protocol:
-  Name: CMP
-  Version: 1.0
+  Name: FantomeKGZ/CoilMaster
+  SourceBranch: cmp-protocol-v1
+  MainIsSource: false
 
 Hardware:
-
   Arduino:
     Board: Arduino UNO R3
     Role: Realtime Controller
-
   ESP32:
     Board: ESP32 DevKit V1
+    Flash: 4MB
+    PSRAM: false
     Role: Service Controller
 
+ProductionSources:
+  ArduinoMain: firmware/arduino/src/main.cpp
+  ArduinoModules: Arduino
+  RealtimeCore: Core
+  ESP32: firmware/esp32/src
+  Web: firmware/esp32/web
+  Handoff: docs/PROJECT_HANDOFF
+
+Protocol:
+  Active: CMP1 text UART
+  Arduino: Arduino/CM_UartEventTransport.cpp
+  ESP32: firmware/esp32/src/CM_UartEventReceiver.cpp
+  BinarySharedStatus: host-tests-only
+
+Safety:
+  AutomaticPhysicalStart: false
+  AutoResumeAfterReboot: false
+  Esp32DirectSsrControl: false
+  AutomaticWireWriteoff: false
+  ExactWriteoffProvenance: true
+
 Storage:
-
-  SDCard:
-    Enabled: true
-
-  Database:
-    Type: JSON
+  SDCard: true
+  DataRoot: /data
+  WebRoot: /web
 
 Network:
-
   WiFi: true
   HTTP: true
   FTP: true
   OTA: false
 
-Display:
-
-  LCD1602: true
-
-Input:
-
-  Keypad4x4: true
-  HallSensor: true
-
-Output:
-
-  SSR: true
-  Buzzer: true
-
-RTC:
-
-  DS3231: true
-
-Modules:
-
-  CM_System: true
-  CM_Version: true
-  CM_Config: true
-  CM_Settings: false
-  CM_Logger: false
-
-Features:
-
-  Backup: true
-  Handbook: true
-  MotorDatabase: true
-  EventLog: true
-  WebInterface: true
-
-Author:
-
-  ProjectOwner: Alexey Morozov
-  Architecture: OpenAI ChatGPT
-
 License:
-
   Type: Proprietary
-
-Created:
-
-  Date: 2026-08-03

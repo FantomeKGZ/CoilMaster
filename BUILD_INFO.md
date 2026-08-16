@@ -1,368 +1,43 @@
-\# CoilMaster OS
+# CoilMaster build information
 
+## Source of truth
 
+```text
+Repository: FantomeKGZ/CoilMaster
+Branch: cmp-protocol-v1
+```
 
-\# BUILD INFORMATION
+`main` не используется как источник прошивки.
 
+## Targets
 
+```text
+pio run -e uno
+pio run -e esp32
+```
 
-\---
+- Arduino Uno: production entry point `firmware/arduino/src/main.cpp`.
+- ESP32 DevKit V1: production entry point `firmware/esp32/src/main.cpp`.
+- ESP32 partition: `huge_app.csv`, physical flash 4 MB, PSRAM отсутствует.
 
+## Verification policy
 
+Build или CI считается подтверждённым только после фактического `SUCCESS` для
+соответствующего commit. Старые RAM/Flash значения нельзя переносить на новый
+commit.
 
-\## Release
+Текущий проверенный статус, hardware checkpoints и процент готовности всегда
+записываются в:
 
+```text
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+```
 
+## Safety invariants
 
-0.1.0
-
-
-
-\---
-
-
-
-\## Build
-
-
-
-002A
-
-
-
-\---
-
-
-
-\## Package
-
-
-
-01.1
-
-
-
-\---
-
-
-
-\## Package Name
-
-
-
-Foundation
-
-
-
-\---
-
-
-
-\## Status
-
-
-
-IN DEVELOPMENT
-
-
-
-\---
-
-
-
-\## Start Date
-
-
-
-2026-08-03
-
-
-
-\---
-
-
-
-\## Repository
-
-
-
-CoilMaster
-
-
-
-Branch:
-
-
-
-main
-
-
-
-\---
-
-
-
-\## Supported Boards
-
-
-
-Arduino UNO R3
-
-
-
-ESP32 DevKit V1
-
-
-
-\---
-
-
-
-\## Protocol
-
-
-
-CMP Version 1.0
-
-
-
-\---
-
-
-
-\## Objective
-
-
-
-Создание базовой архитектуры проекта CoilMaster OS.
-
-
-
-\---
-
-
-
-\## Completed
-
-
-
-\- Создана структура проекта
-
-\- Создан README.md
-
-\- Создан ARCHITECTURE.md
-
-\- Создан PROJECT.manifest
-
-\- Создан BUILD\_INFO.md
-
-
-
-\---
-
-
-
-\## Current Stage
-
-
-
-Создание общих библиотек Shared.
-
-
-
-\---
-
-
-
-\## Next Stage
-
-
-
-CM\_Common
-
-
-
-CM\_Types
-
-
-
-CM\_Constants
-
-
-
-CM\_Error
-
-
-
-CM\_Status
-
-
-
-\---
-
-
-
-\## Future Packages
-
-
-
-Package 01.2
-
-
-
-Core
-
-
-
-CMP
-
-
-
-Logger
-
-
-
-Settings
-
-
-
-\---
-
-
-
-Package 01.3
-
-
-
-HAL
-
-
-
-LCD
-
-
-
-Hall
-
-
-
-Keypad
-
-
-
-SSR
-
-
-
-\---
-
-
-
-Package 02
-
-
-
-Communication
-
-
-
-CMP
-
-
-
-Diagnostics
-
-
-
-\---
-
-
-
-Package 03
-
-
-
-Storage
-
-
-
-SD
-
-
-
-Database
-
-
-
-Backup
-
-
-
-\---
-
-
-
-Package 04
-
-
-
-Network
-
-
-
-WiFi
-
-
-
-Web Server
-
-
-
-FTP
-
-
-
-\---
-
-
-
-\## Package Result
-
-
-
-Pending
-
-
-
-\---
-
-
-
-\## Engineering Rule
-
-
-
-Каждый Build обязан:
-
-
-
-\- успешно компилироваться;
-
-\- иметь документацию;
-
-\- иметь журнал изменений;
-
-\- проходить тестирование;
-
-\- иметь статус PASS перед переходом к следующему Build.
-
-
-
-\---
-
-
-
-© CoilMaster Project
-
-2026
-
+- physical START только физический;
+- auto-resume после reboot отсутствует;
+- ESP32/Web не управляют SSR напрямую;
+- `RUN_COMPLETED` не списывает провод;
+- wire writeoff ручной и требует exact `spool_id + source_session_id + source_run_id`.

@@ -809,5 +809,17 @@ The current continuation entry is
 `28_REPOSITORY_PROTOCOL_POWER_HANDOFF_2026-08-16.md`. It records the completed
 repository cleanup, the non-production status of binary `Shared/Protocol/`, the
 actual CMP1 text/CRC16-MODBUS boundary, and the selected dual-USB power topology
-for ESP32 and Arduino. Power behavior and read-only apply preflight still require
-real-device confirmation. Completion remains **91%**.
+for ESP32 and Arduino. External-power Wi-Fi is now hardware-confirmed below;
+read-only apply preflight still requires real-device confirmation.
+
+## External-power Wi-Fi hardware gate — CONFIRMED 2026-08-16
+
+Пользователь подтвердил, что после замены прежнего источника на хороший блок
+питания ESP32 нормально запускает Wi-Fi от внешнего питания. Исходная проблема
+была в power source/path, а не в firmware. Точные измерения `VIN/5V` и `3V3` в
+этом подтверждении не записаны, поэтому документация не приписывает блоку
+неизмеренные значения.
+
+Power/Wi-Fi gate закрыт. Следующий обязательный hardware-gate — read-only
+restore apply preflight до `READY`, затем reboot → `STALE` без auto-resume и
+explicit cleanup. Готовность CoilMaster v1 повышена с **91%** до **92%**.

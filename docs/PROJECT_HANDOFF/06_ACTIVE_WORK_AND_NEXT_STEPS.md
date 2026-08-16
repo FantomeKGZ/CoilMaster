@@ -1235,3 +1235,19 @@ service job, затем создать ещё одно и убедиться, ч
 двигатель остаётся остановлен до физического START. Повреждённый UART-кадр не
 инжектировать на production machine. Completion остаётся **91%**; следующие
 gates — стабильное внешнее питание/Wi-Fi и read-only apply preflight.
+
+## Hardware-confirmed: stable external-power Wi-Fi — 2026-08-16
+
+Пользователь подтвердил, что замена источника на хороший блок питания устранила
+проблему: ESP32 нормально запускает Wi-Fi от внешнего питания. Этот gate закрыт
+без firmware workaround. Точные измерения напряжений не записаны.
+
+Готовность CoilMaster v1 теперь **92%**. Следующий обязательный gate — выполнить
+уже реализованный read-only apply preflight на реальном устройстве:
+
+1. получить `READY` для того же staged batch и rollback snapshot;
+2. убедиться, что clients/motors/repairs/warehouse/winding не изменились;
+3. reboot должен показать `STALE`, ничего не применяя и не продолжая;
+4. explicit cleanup должен удалить staging, rollback и readiness metadata.
+
+До подтверждения этой матрицы transactional target replacement не включать.

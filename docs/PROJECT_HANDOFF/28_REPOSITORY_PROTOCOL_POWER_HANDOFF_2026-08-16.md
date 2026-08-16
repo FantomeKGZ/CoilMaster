@@ -2,7 +2,7 @@
 
 Дата: **2026-08-16**  
 Ветка: **`cmp-protocol-v1`**  
-Оценка CoilMaster v1: **91%**
+Оценка CoilMaster v1: **92%**
 
 ## Последний recovery checkpoint
 
@@ -109,8 +109,8 @@ level shifter: LV=3.3 V, HV=5 V, common GND
 5 V. Возле ESP32 рекомендованы local bulk/decoupling capacitors; точные номиналы
 и полярность проверять перед монтажом.
 
-Power decision пока не hardware-confirmed. Перед окончательной укладкой проверить
-на выводах ESP32:
+На момент выбора схемы power decision ещё не был hardware-confirmed. Для
+диагностики был зафиксирован следующий checklist на выводах ESP32:
 
 ```text
 VIN/5V ≈ 5.0 V
@@ -131,13 +131,22 @@ RAM: 15.8% (51840 / 327680 bytes)
 Flash: 42.5% (1337369 / 3145728 bytes)
 ```
 
+### Power/Wi-Fi confirmation — 2026-08-16
+
+Пользователь заменил прежний источник на хороший блок питания и подтвердил
+нормальный запуск Wi-Fi ESP32 от внешнего питания. Power/Wi-Fi gate закрыт;
+firmware workaround не требуется. Точные значения `VIN/5V` и `3V3` не были
+переданы и не считаются измеренными. Правила одного USB VBUS на плату и общей
+signal ground остаются обязательными.
+
 ## Точное продолжение
 
 1. Прошить current ESP32 и полностью заменить microSD `/web`.
 2. Проверить read-only apply preflight до `READY`, неизменность business data,
    reboot → `STALE` без auto-resume и explicit cleanup.
-3. Проверить выбранное dual-USB питание и записать фактические напряжения.
-4. После hardware confirmation перейти к operator-only transactional restore
+3. Power/Wi-Fi gate уже подтверждён хорошим внешним блоком питания; повторять
+   его без нового симптома не требуется.
+4. После hardware confirmation apply preflight перейти к operator-only transactional restore
    apply с per-file atomic replacement и немедленным rollback при любой ошибке.
 
 Общий CRC рабочего CMP1 и документированная граница binary `Shared/Protocol/`
@@ -165,8 +174,8 @@ ESP32 Flash: 42.5% (1337777 / 3145728 bytes)
 
 Следующая аппаратная проверка протокола: создать и отменить service job, затем
 создать ещё один и подтвердить, что до физического START двигатель и SSR не
-активируются. После этого продолжать пункты power/preflight выше. Общая оценка
-готовности остаётся **91%**.
+активируются. Power gate уже закрыт; после этого продолжать apply preflight
+выше. Общая оценка готовности — **92%**.
 
 ## Safety — не менять
 

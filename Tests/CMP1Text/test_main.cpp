@@ -53,6 +53,26 @@ int main()
                 0x08DAU,
             "CMP1 NACK frame CRC");
 
+    const char* jobWithReplyCrcCapability =
+        "CMP1|JOB|1|1|WORKING|1|120|C";
+    require(CM::Cmp1Crc::calculate(jobWithReplyCrcCapability,
+                                   std::strlen(jobWithReplyCrcCapability)) ==
+                0x980AU,
+            "CMP1 job reply-CRC capability frame");
+
+    const char* jobAcknowledgement =
+        "CMP1|JOB_ACK|1|ACCEPTED|READY|C";
+    require(CM::Cmp1Crc::calculate(jobAcknowledgement,
+                                   std::strlen(jobAcknowledgement)) == 0xA112U,
+            "CMP1 JOB_ACK frame CRC");
+
+    const char* cancelAcknowledgement =
+        "CMP1|JOB_CANCEL_ACK|1|CANCELLED|CANCELLED|C";
+    require(CM::Cmp1Crc::calculate(cancelAcknowledgement,
+                                   std::strlen(cancelAcknowledgement)) ==
+                0xADB9U,
+            "CMP1 JOB_CANCEL_ACK frame CRC");
+
     std::cout << "CMP1 text CRC tests passed\n";
     return EXIT_SUCCESS;
 }

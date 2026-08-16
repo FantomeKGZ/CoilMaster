@@ -150,6 +150,7 @@ private:
     static bool parseDecimal32(const char* text, uint32_t& value);
     static bool parseDecimal16(const char* text, uint16_t& value);
     static bool parseHex16(const char* text, uint16_t& value);
+    static bool validateAndStripJobReplyCrc(char* line);
 
     HardwareSerial& m_serial;
     char m_line[MaxLineLength];

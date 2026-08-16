@@ -26,7 +26,8 @@ UartEventTransport::UartEventTransport(uint8_t rxPin,
       m_remoteJob(),
       m_hasRemoteJob(false),
       m_remoteCancelJobId(0UL),
-      m_hasRemoteCancel(false)
+      m_hasRemoteCancel(false),
+      m_peerJobReplyCrcSupported(false)
 {
     m_remoteJob.clear();
 }
@@ -117,12 +118,9 @@ void UartEventTransport::sendJobResult(uint32_t jobId,
                                        bool accepted,
                                        const char* reason)
 {
-    m_serial.print(F("CMP1|JOB_ACK|"));
-    m_serial.print(jobId);
-    m_serial.print('|');
-    m_serial.print(accepted ? F("ACCEPTED") : F("REJECTED"));
-    m_serial.print('|');
-    m_serial.println(reason != nullptr ? reason : "NONE");
+    writeJobReply("JOB_ACK", jobId,
+                  accepted ? "ACCEPTED" : "REJECTED",
+                  reason != nullptr ? reason : "NONE");
 }
 
 bool UartEventTransport::takeRemoteCancel(uint32_t& jobId)
@@ -139,12 +137,49 @@ void UartEventTransport::sendJobCancelResult(uint32_t jobId,
                                              bool cancelled,
                                              const char* reason)
 {
-    m_serial.print(F("CMP1|JOB_CANCEL_ACK|"));
-    m_serial.print(jobId);
-    m_serial.print('|');
-    m_serial.print(cancelled ? F("CANCELLED") : F("REJECTED"));
-    m_serial.print('|');
-    m_serial.println(reason != nullptr ? reason : "NONE");
+    writeJobReply("JOB_CANCEL_ACK", jobId,
+                  cancelled ? "CANCELLED" : "REJECTED",
+                  reason != nullptr ? reason : "NONE");
+}
+
+void UartEventTransport::writeJobReply(const char* category,
+                                       uint32_t jobId,
+                                       const char* status,
+                                       const char* detail)
+{
+    if (!m_peerJobReplyCrcSupported)
+    {
+        m_serial.print(F("CMP1|"));
+        m_serial.print(category);
+        m_serial.print('|');
+        m_serial.print(jobId);
+        m_serial.print('|');
+        m_serial.print(status);
+        m_serial.print('|');
+        m_serial.println(detail);
+        return;
+    }
+
+    char frame[88];
+    const int payloadLength = snprintf(
+        frame, sizeof(frame), "CMP1|%s|%lu|%s|%s|C", category,
+        static_cast<unsigned long>(jobId), status, detail);
+    if (payloadLength <= 0 ||
+        static_cast<size_t>(payloadLength) >= sizeof(frame)) return;
+
+    const uint16_t crc = Cmp1Crc::calculate(
+        reinterpret_cast<const uint8_t*>(frame),
+        static_cast<size_t>(payloadLength));
+    const int suffixLength = snprintf(
+        frame + payloadLength,
+        sizeof(frame) - static_cast<size_t>(payloadLength),
+        "|%04X\n", static_cast<unsigned int>(crc));
+    if (suffixLength <= 0 ||
+        static_cast<size_t>(suffixLength) >=
+            sizeof(frame) - static_cast<size_t>(payloadLength)) return;
+
+    const size_t frameLength = static_cast<size_t>(payloadLength + suffixLength);
+    m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength);
 }
 
 uint8_t UartEventTransport::queuedCount() const
@@ -391,7 +426,7 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
     }
 }
 
-bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
+bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job)
 {
     char* lastSeparator = strrchr(line, '|');
     if (lastSeparator == nullptr) return false;
@@ -415,11 +450,14 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
     char* type = strtok_r(nullptr, "|", &save);
     char* count = strtok_r(nullptr, "|", &save);
     char* turns = strtok_r(nullptr, "|", &save);
+    char* capability = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
 
     if (version == nullptr || category == nullptr || jobId == nullptr ||
         sessionId == nullptr || type == nullptr || count == nullptr ||
         turns == nullptr || strcmp(version, "CMP1") != 0 ||
-        strcmp(category, "JOB") != 0)
+        strcmp(category, "JOB") != 0 || extra != nullptr ||
+        (capability != nullptr && strcmp(capability, "C") != 0))
     {
         return false;
     }
@@ -449,7 +487,9 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job) const
         token = strtok_r(nullptr, ",", &turnsSave);
     }
 
-    return index == job.coilCount && token == nullptr && job.isValid();
+    const bool valid = index == job.coilCount && token == nullptr && job.isValid();
+    if (valid) m_peerJobReplyCrcSupported = capability != nullptr;
+    return valid;
 }
 
 bool UartEventTransport::parseRemoteCancel(char* line, uint32_t& jobId) const

@@ -85,8 +85,12 @@ private:
                          const LocalProgramSnapshot& program);
     void pollReplies(uint32_t nowMs);
     void processReply(char* line, uint32_t nowMs);
-    bool parseRemoteJob(char* line, WindingJob& job) const;
+    bool parseRemoteJob(char* line, WindingJob& job);
     bool parseRemoteCancel(char* line, uint32_t& jobId) const;
+    void writeJobReply(const char* category,
+                       uint32_t jobId,
+                       const char* status,
+                       const char* detail);
     void removeFront();
     void publishDelivery(UartDeliveryResult result, uint32_t runId);
 
@@ -110,6 +114,7 @@ private:
     bool m_hasRemoteJob;
     uint32_t m_remoteCancelJobId;
     bool m_hasRemoteCancel;
+    bool m_peerJobReplyCrcSupported;
 };
 }
 

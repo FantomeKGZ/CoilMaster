@@ -376,17 +376,21 @@ bool UartEventReceiver::parseEventLine(char* line,
 
 bool UartEventReceiver::processJobAck(char* line)
 {
+    if (!validateAndStripJobReplyCrc(line)) return false;
+
     char* save = nullptr;
     char* version = strtok_r(line, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
     char* jobText = strtok_r(nullptr, "|", &save);
     char* status = strtok_r(nullptr, "|", &save);
     char* detail = strtok_r(nullptr, "|", &save);
+    char* capability = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "JOB_ACK") != 0 || !m_hasPendingJob ||
-        !isValidJobAckDetail(detail))
+        !isValidJobAckDetail(detail) ||
+        (capability != nullptr && strcmp(capability, "C") != 0))
         return false;
 
     uint32_t jobId = 0UL;
@@ -417,17 +421,21 @@ bool UartEventReceiver::processJobAck(char* line)
 
 bool UartEventReceiver::processCancelAck(char* line)
 {
+    if (!validateAndStripJobReplyCrc(line)) return false;
+
     char* save = nullptr;
     char* version = strtok_r(line, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
     char* jobText = strtok_r(nullptr, "|", &save);
     char* status = strtok_r(nullptr, "|", &save);
     char* detail = strtok_r(nullptr, "|", &save);
+    char* capability = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "JOB_CANCEL_ACK") != 0 || !m_hasPendingCancel ||
-        !isValidJobAckDetail(detail))
+        !isValidJobAckDetail(detail) ||
+        (capability != nullptr && strcmp(capability, "C") != 0))
         return false;
 
     uint32_t jobId = 0UL;
@@ -484,7 +492,7 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
 
     char payload[112];
     const int payloadLength = snprintf(
-        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s",
+        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|C",
         static_cast<unsigned long>(job.jobId),
         static_cast<unsigned long>(job.sessionId),
         job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",
@@ -570,6 +578,28 @@ bool UartEventReceiver::parseHex16(const char* text, uint16_t& value)
     const unsigned long parsed = strtoul(text, &end, 16);
     if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL) return false;
     value = static_cast<uint16_t>(parsed);
+    return true;
+}
+
+bool UartEventReceiver::validateAndStripJobReplyCrc(char* line)
+{
+    if (line == nullptr) return false;
+    uint8_t separatorCount = 0U;
+    for (const char* value = line; *value != '\0'; ++value)
+        if (*value == '|') ++separatorCount;
+
+    // Legacy JOB_ACK/JOB_CANCEL_ACK has four separators. A negotiated reply
+    // adds |C|CRC, so a truncated CRC frame cannot be mistaken for legacy.
+    if (separatorCount == 4U) return true;
+    if (separatorCount != 6U) return false;
+
+    char* lastSeparator = strrchr(line, '|');
+    uint16_t receivedCrc = 0U;
+    if (lastSeparator == nullptr ||
+        !parseHex16(lastSeparator + 1, receivedCrc)) return false;
+    const size_t payloadLength = static_cast<size_t>(lastSeparator - line);
+    if (Cmp1Crc::calculate(line, payloadLength) != receivedCrc) return false;
+    *lastSeparator = '\0';
     return true;
 }
 

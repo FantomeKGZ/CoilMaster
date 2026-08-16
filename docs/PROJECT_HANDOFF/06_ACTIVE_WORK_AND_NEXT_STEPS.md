@@ -1251,3 +1251,38 @@ gates — стабильное внешнее питание/Wi-Fi и read-only 
 4. explicit cleanup должен удалить staging, rollback и readiness metadata.
 
 До подтверждения этой матрицы transactional target replacement не включать.
+
+## Hardware-confirmed preflight and implemented transactional apply — 2026-08-16
+
+Пользователь подтвердил read-only apply preflight на устройстве: `READY`,
+business data unchanged, reboot → `STALE` без auto-resume и successful explicit
+cleanup. Ограничение предыдущего checkpoint снято.
+
+Commits `bbade2392d72263288511c0fc7a41617269b269b` и
+`0062cb90c49d957a8cdc09dd1e92719e63739e0f` реализуют следующий gate:
+operator-only transactional apply. Backend требует fresh in-memory preflight,
+exact batch ID и `confirmed=APPLY`; UI дополнительно требует вручную повторить
+ID. Каждая intent-row flush-ится до замены, source и `.part` проверяются CRC32,
+а runtime failure запускает journal-based rollback. После reboot нет resume.
+
+```text
+CMP Protocol Tests + web asset/navigation audit: SUCCESS (run 31931042147)
+ESP32 Build: SUCCESS (run 31931042116)
+RAM: 15.9% (52080 / 327680 bytes)
+Flash: 43.0% (1351573 / 3145728 bytes)
+```
+
+Required positive hardware test:
+
+1. использовать свежую V2-копию и полностью пройти inspection → staging →
+   plan → rollback → preflight `READY`;
+2. на остановленном станке нажать `Применить проверенную копию`, подтвердить и
+   вручную повторить exact batch ID;
+3. дождаться `APPLIED`, не отключая питание;
+4. выполнить reboot и проверить clients/motors/repairs/warehouse/winding;
+5. убедиться, что никакая restore-операция после reboot не продолжилась;
+6. только после проверки удалить staging/rollback/evidence.
+
+Для первого production test предпочтительна свежая копия тех же данных либо
+отдельная тестовая запись. Corruption/power-loss/fault injection — только на
+disposable microSD/card image. Completion: **93%**.

@@ -2,7 +2,7 @@
 
 Дата: **2026-08-16**  
 Ветка: **`cmp-protocol-v1`**  
-Оценка CoilMaster v1: **92%**
+Оценка CoilMaster v1: **93%**
 
 ## Последний recovery checkpoint
 
@@ -26,7 +26,9 @@ CMP Protocol Tests: SUCCESS (run 31889384628)
 ESP32 Build: SUCCESS (run 31889384626)
 ```
 
-Hardware-подтверждение apply preflight ещё требуется.
+Hardware-подтверждение apply preflight получено: пользователь проверил `READY`,
+неизменность рабочих данных, reboot → `STALE` без auto-resume и explicit
+cleanup.
 
 ## Repository cleanup
 
@@ -142,12 +144,12 @@ signal ground остаются обязательными.
 ## Точное продолжение
 
 1. Прошить current ESP32 и полностью заменить microSD `/web`.
-2. Проверить read-only apply preflight до `READY`, неизменность business data,
-   reboot → `STALE` без auto-resume и explicit cleanup.
+2. Read-only apply preflight до `READY`, неизменность business data,
+   reboot → `STALE` без auto-resume и explicit cleanup уже подтверждены.
 3. Power/Wi-Fi gate уже подтверждён хорошим внешним блоком питания; повторять
    его без нового симптома не требуется.
-4. После hardware confirmation apply preflight перейти к operator-only transactional restore
-   apply с per-file atomic replacement и немедленным rollback при любой ошибке.
+4. Operator-only transactional restore apply реализован; следующий gate —
+   positive hardware test с безопасной свежей копией.
 
 Общий CRC рабочего CMP1 и документированная граница binary `Shared/Protocol/`
 уже завершены; повторять этот блок не нужно.
@@ -174,8 +176,31 @@ ESP32 Flash: 42.5% (1337777 / 3145728 bytes)
 
 Следующая аппаратная проверка протокола: создать и отменить service job, затем
 создать ещё один и подтвердить, что до физического START двигатель и SSR не
-активируются. Power gate уже закрыт; после этого продолжать apply preflight
-выше. Общая оценка готовности — **92%**.
+активируются. Power и apply-preflight gates уже закрыты. Общая оценка
+готовности — **93%**.
+
+## Transactional restore apply continuation
+
+После подтверждённого preflight реализован operator-only apply:
+
+```text
+bbade2392d72263288511c0fc7a41617269b269b  transactional apply implementation
+0062cb90c49d957a8cdc09dd1e92719e63739e0f  complete published source
+CMP Protocol Tests + web audit: SUCCESS (run 31931042147)
+ESP32 Build: SUCCESS (run 31931042116)
+RAM: 15.9% (52080 / 327680 bytes)
+Flash: 43.0% (1351573 / 3145728 bytes)
+```
+
+Запуск требует fresh in-memory `READY`, exact batch ID, `confirmed=APPLY` и
+ручной повтор ID в UI. Journal intent записывается до target replacement.
+Каждый source и `.part` проверяется CRC32; runtime failure запускает rollback
+по журналу. Reboot никогда не продолжает операцию. Если machine state становится
+busy/unavailable, storage writes прекращаются fail closed и evidence сохраняется.
+
+Следующий gate — positive apply test по инструкции в
+`06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Fault injection не выполнять на production
+microSD. Оценка готовности — **93%**.
 
 ## Safety — не менять
 

@@ -823,3 +823,39 @@ read-only apply preflight still requires real-device confirmation.
 Power/Wi-Fi gate закрыт. Следующий обязательный hardware-gate — read-only
 restore apply preflight до `READY`, затем reboot → `STALE` без auto-resume и
 explicit cleanup. Готовность CoilMaster v1 повышена с **91%** до **92%**.
+
+## Apply preflight hardware confirmation and transactional apply — 2026-08-16
+
+Пользователь подтвердил на реальном устройстве полный read-only preflight:
+`READY`, неизменность рабочих данных, reboot → `STALE` без auto-resume и
+explicit cleanup. Этот gate закрыт.
+
+Следующий разрешённый блок реализован в commits
+`bbade2392d72263288511c0fc7a41617269b269b` и
+`0062cb90c49d957a8cdc09dd1e92719e63739e0f`:
+
+- `POST /api/backup/remote/apply` требует in-memory fresh preflight, exact
+  `batch_id` и explicit `confirmed=APPLY`; после reboot запуск невозможен;
+- UI требует отдельное подтверждение и ручной повтор ID копии;
+- перед каждой заменой intent сохраняется и flush-ится в bounded journal;
+- staged или rollback source копируется блоками по 1 KiB в
+  `target.cm-restore.part`, CRC32 проверяется при записи и повторном чтении;
+- рабочий target заменяется только после проверки `.part`;
+- при обычной runtime-ошибке journal немедленно проигрывается в rollback-mode:
+  прежние PRESENT восстанавливаются из страховочной копии, прежние MISSING
+  удаляются;
+- если machine state становится busy/unavailable, дальнейшие storage writes
+  fail closed; evidence сохраняется для ручной проверки;
+- успешное применение требует reboot, но firmware ничего не продолжает и не
+  применяет автоматически после reboot.
+
+```text
+CMP Protocol Tests + 48-page web audit: SUCCESS (run 31931042147)
+ESP32 Build: SUCCESS (run 31931042116)
+RAM: 15.9% (52080 / 327680 bytes)
+Flash: 43.0% (1351573 / 3145728 bytes)
+```
+
+Transactional apply ещё требует positive hardware test. Negative/fault
+injection выполнять только на disposable card/image. Готовность проекта —
+**93%**.

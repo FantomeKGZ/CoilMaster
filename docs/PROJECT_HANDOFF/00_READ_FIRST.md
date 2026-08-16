@@ -48,11 +48,10 @@ blob SHA из `cmp-protocol-v1`. Для нового файла сначала �
 
 ## Текущая точка
 
-CoilMaster v1 оценивается в **92%**. Последний завершённый repo-блок добавляет
-согласованную CRC-защиту `JOB_ACK/JOB_CANCEL_ACK` Arduino → ESP32 с безопасным
-обновлением плат в любом порядке; protocol, Uno и ESP32 CI успешны. Ранее тем
-же CRC защищены run-event `ACK/NACK` ESP32 → Arduino. Проблема запуска Wi-Fi от
-внешнего питания закрыта заменой блока питания; этот hardware-gate подтверждён
-пользователем. Следующий hardware-gate — read-only apply preflight. После
-подтверждения preflight допускается operator-only transactional apply с
-обязательной rollback-копией и без автоматического восстановления.
+CoilMaster v1 оценивается в **93%**. Stable external-power Wi-Fi и read-only
+apply preflight до `READY → reboot → STALE → cleanup` подтверждены пользователем
+на реальном устройстве. Следующий repo-блок реализован: operator-only
+transactional restore apply с double confirmation, intent journal,
+CRC32-проверенными `.part` и автоматическим rollback при обычной runtime-ошибке.
+ESP32 build и protocol/web CI успешны. Следующий hardware-gate — безопасный
+positive apply test; fault-injection разрешён только на disposable card/image.

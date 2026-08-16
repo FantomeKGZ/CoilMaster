@@ -5,6 +5,24 @@
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: `cmp-protocol-v1`
 
+## Для AI / coding agent
+
+Перед поиском по всему репозиторию сначала использовать новый maintenance-layer:
+
+```text
+/AGENTS.md
+docs/AI_AGENT/00_START_HERE.md
+docs/AI_AGENT/01_PROJECT_MAP.md
+docs/AI_AGENT/02_CHANGE_ROUTER.md
+docs/AI_AGENT/03_ADD_MODULE_PLAYBOOK.md
+docs/AI_AGENT/04_VERIFICATION_MATRIX.md
+```
+
+Он содержит актуальную карту ownership/composition roots, быстрый маршрут
+`что изменить → какие файлы открыть`, правила добавления нового модуля и
+change-scoped verification matrix. Тематические и исторические handoff-файлы
+читать после того, как эта карта сузила нужный subsystem.
+
 ## Начать отсюда
 
 1. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` —

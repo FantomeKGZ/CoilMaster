@@ -162,6 +162,39 @@ if (!staticSiteServer.includes('/shared/settings-system-diagnostics.js')) {
   failures.push('CM_StaticSiteServer.cpp: settings system diagnostics injection missing');
 }
 
+const storageDiagnosticsPath = path.resolve(
+  __dirname, '../../firmware/esp32/src/CM_StorageDiagnosticsWeb.cpp');
+const storageDiagnosticsHeaderPath = path.resolve(
+  __dirname, '../../firmware/esp32/src/CM_StaticSiteServer.h');
+const storageDiagnosticsUiPath = path.resolve(
+  __dirname, '../../firmware/esp32/web/shared/settings-system-diagnostics.js');
+if (!fs.existsSync(storageDiagnosticsPath)) {
+  failures.push('CM_StorageDiagnosticsWeb.cpp: read-only microSD diagnostics module missing');
+} else {
+  const source = fs.readFileSync(storageDiagnosticsPath, 'utf8');
+  if (!source.includes('/api/system/storage') ||
+      !source.includes('cardSize()') ||
+      !source.includes('totalBytes()') ||
+      !source.includes('usedBytes()') ||
+      !source.includes('automatic_cleanup_allowed\\\":false')) {
+    failures.push('CM_StorageDiagnosticsWeb.cpp: required microSD capacity diagnostics missing');
+  }
+  if (source.includes('.remove(') || source.includes('.rename(') ||
+      source.includes('FILE_WRITE') || source.includes('FILE_APPEND')) {
+    failures.push('CM_StorageDiagnosticsWeb.cpp: storage diagnostics must remain read-only');
+  }
+}
+if (!fs.readFileSync(storageDiagnosticsHeaderPath, 'utf8').includes(
+      'StorageDiagnosticsWeb m_storageDiagnosticsWeb{m_server, m_storage};')) {
+  failures.push('CM_StaticSiteServer.h: microSD diagnostics registration missing');
+}
+const storageDiagnosticsUi = fs.readFileSync(storageDiagnosticsUiPath, 'utf8');
+if (!storageDiagnosticsUi.includes('/api/system/storage') ||
+    !storageDiagnosticsUi.includes('filesystem_free_bytes') ||
+    !storageDiagnosticsUi.includes('автоматическое удаление production данных')) {
+  failures.push('settings-system-diagnostics.js: microSD free-space diagnostics UI missing');
+}
+
 const remoteBackupWebPath = path.resolve(
   __dirname, '../../firmware/esp32/src/CM_RemoteBackupWeb.cpp');
 const remoteBackupWeb = fs.readFileSync(remoteBackupWebPath, 'utf8');
@@ -218,4 +251,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, desktop navigation icons, motor-import validation, and restore stale-lock contracts OK.');
+console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, desktop navigation icons, motor-import validation, microSD diagnostics, and restore stale-lock contracts OK.');

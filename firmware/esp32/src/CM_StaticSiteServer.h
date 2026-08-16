@@ -8,6 +8,7 @@
 #include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalWeb.h"
 #include "CM_NetworkManager.h"
+#include "CM_StorageDiagnosticsWeb.h"
 #include "CM_WebRecoveryFtpServer.h"
 
 namespace CM
@@ -50,6 +51,7 @@ private:
     String m_localHostname;
     bool m_ready;
     bool m_mdnsActive;
+    StorageDiagnosticsWeb m_storageDiagnosticsWeb{m_server, m_storage};
 };
 }
 

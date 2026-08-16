@@ -1427,9 +1427,16 @@ void RemoteBackupWeb::handleStagingStatus()
 
 void RemoteBackupWeb::handleDiscardStaging()
 {
+    const bool runtimeApplyActive =
+        m_applyStage == ApplyStage::Entries ||
+        m_applyStage == ApplyStage::Copying ||
+        m_applyStage == ApplyStage::Verifying ||
+        m_applyStage == ApplyStage::RollbackEntries ||
+        m_applyStage == ApplyStage::RollbackCopying ||
+        m_applyStage == ApplyStage::RollbackVerifying;
     if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive() || applyActive())
+        applyPreflightActive() || runtimeApplyActive)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -2099,11 +2106,18 @@ void RemoteBackupWeb::handleApplyStatus()
     else if (m_applyStage == ApplyStage::Failed) state = "FAILED";
     else if (m_storage.exists(ApplyJournalPath) ||
              m_storage.exists(ApplyResultMarkerPath)) state = "STALE";
+    const bool runtimeApplyActive =
+        m_applyStage == ApplyStage::Entries ||
+        m_applyStage == ApplyStage::Copying ||
+        m_applyStage == ApplyStage::Verifying ||
+        m_applyStage == ApplyStage::RollbackEntries ||
+        m_applyStage == ApplyStage::RollbackCopying ||
+        m_applyStage == ApplyStage::RollbackVerifying;
     String response;
     response.reserve(420U);
     response = F("{\"state\":\""); response += state;
     response += F("\",\"active\":");
-    response += applyActive() ? F("true") : F("false");
+    response += runtimeApplyActive ? F("true") : F("false");
     response += F(",\"batch_id\":");
     if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
     else response += F("null");
@@ -3456,7 +3470,9 @@ bool RemoteBackupWeb::applyActive() const
            m_applyStage == ApplyStage::Verifying ||
            m_applyStage == ApplyStage::RollbackEntries ||
            m_applyStage == ApplyStage::RollbackCopying ||
-           m_applyStage == ApplyStage::RollbackVerifying;
+           m_applyStage == ApplyStage::RollbackVerifying ||
+           m_storage.exists(ApplyJournalPath) ||
+           m_storage.exists(ApplyResultMarkerPath);
 }
 
 uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)
@@ -3513,6 +3529,12 @@ void RemoteBackupWeb::updateSchedule(uint32_t nowMs)
     if (BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
     {
         m_scheduleState = F("WAITING_IDLE");
+        return;
+    }
+    if (m_storage.exists(ApplyJournalPath) ||
+        m_storage.exists(ApplyResultMarkerPath))
+    {
+        m_scheduleState = F("WAITING_RESTORE_CLEANUP");
         return;
     }
 

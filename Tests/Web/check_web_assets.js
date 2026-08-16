@@ -162,8 +162,60 @@ if (!staticSiteServer.includes('/shared/settings-system-diagnostics.js')) {
   failures.push('CM_StaticSiteServer.cpp: settings system diagnostics injection missing');
 }
 
+const remoteBackupWebPath = path.resolve(
+  __dirname, '../../firmware/esp32/src/CM_RemoteBackupWeb.cpp');
+const remoteBackupWeb = fs.readFileSync(remoteBackupWebPath, 'utf8');
+const applyActiveStart = remoteBackupWeb.indexOf(
+  'bool RemoteBackupWeb::applyActive() const');
+const applyActiveEnd = remoteBackupWeb.indexOf(
+  'uint32_t RemoteBackupWeb::dateKey', applyActiveStart);
+const applyActiveSource = applyActiveStart >= 0 && applyActiveEnd > applyActiveStart
+  ? remoteBackupWeb.slice(applyActiveStart, applyActiveEnd) : '';
+if (!applyActiveSource.includes('m_storage.exists(ApplyJournalPath)') ||
+    !applyActiveSource.includes('m_storage.exists(ApplyResultMarkerPath)')) {
+  failures.push('CM_RemoteBackupWeb.cpp: persisted apply evidence is not part of backend busy lock');
+}
+
+const cleanupStart = remoteBackupWeb.indexOf(
+  'void RemoteBackupWeb::handleDiscardStaging()');
+const cleanupEnd = remoteBackupWeb.indexOf(
+  'void RemoteBackupWeb::handleStartRestorePlan()', cleanupStart);
+const cleanupSource = cleanupStart >= 0 && cleanupEnd > cleanupStart
+  ? remoteBackupWeb.slice(cleanupStart, cleanupEnd) : '';
+if (!cleanupSource.includes('runtimeApplyActive') ||
+    cleanupSource.includes('applyPreflightActive() || applyActive()')) {
+  failures.push('CM_RemoteBackupWeb.cpp: explicit stale cleanup no longer has runtime-only apply guard');
+}
+
+const applyStatusStart = remoteBackupWeb.indexOf(
+  'void RemoteBackupWeb::handleApplyStatus()');
+const applyStatusEnd = remoteBackupWeb.indexOf(
+  'bool RemoteBackupWeb::validateInspectionManifest', applyStatusStart);
+const applyStatusSource = applyStatusStart >= 0 && applyStatusEnd > applyStatusStart
+  ? remoteBackupWeb.slice(applyStatusStart, applyStatusEnd) : '';
+if (!applyStatusSource.includes('state = "STALE"') ||
+    !applyStatusSource.includes('response += runtimeApplyActive ? F("true") : F("false")')) {
+  failures.push('CM_RemoteBackupWeb.cpp: post-reboot STALE status must remain inactive runtime evidence');
+}
+
+const scheduleStart = remoteBackupWeb.indexOf(
+  'void RemoteBackupWeb::updateSchedule(uint32_t nowMs)');
+const scheduleEnd = remoteBackupWeb.indexOf(
+  'void RemoteBackupWeb::completeScheduledBatch()', scheduleStart);
+const scheduleSource = scheduleStart >= 0 && scheduleEnd > scheduleStart
+  ? remoteBackupWeb.slice(scheduleStart, scheduleEnd) : '';
+if (!scheduleSource.includes('m_storage.exists(ApplyJournalPath)') ||
+    !scheduleSource.includes('m_storage.exists(ApplyResultMarkerPath)') ||
+    !scheduleSource.includes('WAITING_RESTORE_CLEANUP')) {
+  failures.push('CM_RemoteBackupWeb.cpp: scheduler restore-cleanup wait gate missing');
+}
+if (scheduleSource.indexOf('WAITING_RESTORE_CLEANUP') >
+    scheduleSource.indexOf('m_scheduleAttemptDate = today')) {
+  failures.push('CM_RemoteBackupWeb.cpp: scheduler consumes daily attempt before restore cleanup gate');
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, desktop navigation icons, and motor-import validation OK.');
+console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, desktop navigation icons, motor-import validation, and restore stale-lock contracts OK.');

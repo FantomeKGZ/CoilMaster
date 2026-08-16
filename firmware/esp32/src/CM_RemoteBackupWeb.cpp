@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 40869)
-Total output lines: 4097
-
 #include "CM_RemoteBackupWeb.h"
 
 #include <WiFi.h>
@@ -1947,7 +1944,83 @@ void RemoteBackupWeb::handleApplyPreflightStatus()
                     ? F("true") : F("false");
     response += F(",\"batch_id\":");
     if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
-    else respon…869 tokens truncated…son; charset=utf-8",
+    else response += F("null");
+    response += F(",\"files_checked\":"); response += m_applyPreflightFiles;
+    response += F(",\"files_total\":"); response += m_inspectionDataFiles;
+    response += F(",\"staged_bytes_checked\":"); response += m_applyPreflightBytes;
+    response += F(",\"staged_bytes_total\":"); response += m_inspectionTotalBytes;
+    response += F(",\"current_bytes\":"); response += m_applyPreflightInputBytes;
+    response += F(",\"current_total\":"); response += m_applyPreflightInputExpected;
+    response += F(",\"restore_apply_enabled\":false,\"working_data_changed\":false,\"error\":");
+    if (m_applyPreflightError.length() > 0U)
+    { response += '"'; response += m_applyPreflightError; response += '"'; }
+    else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleStartApply()
+{
+    if (m_transfer.active() || rollbackActive() || applyPreflightActive() ||
+        applyActive() ||
+        m_applyStage != ApplyStage::Idle ||
+        m_applyPreflightStage != ApplyPreflightStage::Complete ||
+        m_stagingStage != StagingStage::Complete ||
+        m_restorePlanStage != RestorePlanStage::Complete ||
+        m_rollbackStage != RollbackStage::Complete ||
+        !m_inspectionHasSizes)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"fresh_apply_preflight_required\"}");
+        return;
+    }
+    if (!m_server.hasArg("batch_id") || !m_server.hasArg("confirmed") ||
+        m_server.arg("confirmed") != F("APPLY"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"explicit_apply_confirmation_required\"}");
+        return;
+    }
+    uint32_t batchId = 0UL;
+    if (!parseCanonicalUnsigned(m_server.arg("batch_id"), 1UL,
+                                0xFFFFFFFFUL, batchId) ||
+        batchId != m_inspectionBatchId)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"apply_batch_id_mismatch\"}");
+        return;
+    }
+    const BackupActivityCheck activity = BackupActivityGuard::check(m_storage);
+    if (activity != BackupActivityCheck::Safe)
+    {
+        m_server.send(activity == BackupActivityCheck::Busy ? 409 : 503,
+                      "application/json; charset=utf-8",
+                      activity == BackupActivityCheck::Busy
+                          ? "{\"error\":\"active_winding\"}"
+                          : "{\"error\":\"activity_state_unavailable\"}");
+        return;
+    }
+    if (!validateStagingMarker() || !validateRollbackMarker() ||
+        !validateApplyReadyMarker() ||
+        !m_storage.exists(ApplyPreflightPath) ||
+        m_storage.exists(ApplyJournalPath) ||
+        m_storage.exists(ApplyResultMarkerPath))
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"apply_metadata_invalid\"}");
+        return;
+    }
+
+    m_storage.remove(ApplyJournalPath);
+    m_storage.remove(ApplyResultMarkerPath);
+    m_applyManifest = m_storage.open(ApplyPreflightPath, FILE_READ);
+    m_applyJournal = m_storage.open(ApplyJournalPath, FILE_WRITE);
+    if (!m_applyManifest || m_applyManifest.isDirectory() ||
+        !m_applyJournal || m_applyJournal.isDirectory())
+    {
+        if (m_applyManifest) m_applyManifest.close();
+        if (m_applyJournal) m_applyJournal.close();
+        m_server.send(500, "application/json; charset=utf-8",
                       "{\"error\":\"apply_metadata_open_failed\"}");
         return;
     }

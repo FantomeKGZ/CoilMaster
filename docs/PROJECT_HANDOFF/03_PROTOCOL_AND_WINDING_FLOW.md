@@ -286,3 +286,36 @@ CMP Protocol Tests: SUCCESS (run 31929625664)
 Arduino Uno Build: SUCCESS (run 31929625657)
 ESP32 Build: SUCCESS (run 31929625636)
 ```
+
+## CRC ответов удалённого задания — 2026-08-16
+
+Актуальный ESP32 отправляет job с negotiated capability:
+
+```text
+CMP1|JOB|JOB_ID|SESSION_ID|TYPE|COUNT|TURNS|C|CRC16
+```
+
+Если Arduino приняла полностью валидный job с `C`, ответы имеют вид:
+
+```text
+CMP1|JOB_ACK|JOB_ID|STATUS|DETAIL|C|CRC16
+CMP1|JOB_CANCEL_ACK|JOB_ID|STATUS|DETAIL|C|CRC16
+```
+
+ESP32 проверяет число полей, capability и CRC до изменения job state. Если
+capability отсутствует, новая Arduino выдаёт точный legacy reply без CRC;
+новый ESP32 принимает такой reply для staged rollout. Старый Arduino игнорирует
+неизвестную capability в job, а старый ESP32 её не отправляет, поэтому порядок
+прошивки плат безопасен. Negotiated reply нельзя молча понизить до legacy:
+кадр с оставшейся `C`, неверным числом полей или CRC отклоняется.
+
+```text
+b288ec82ed18aae4a7610f745cfa170cfc58c897
+b3385fb1aab08fced8d27010ba62ca58b183d947
+CMP Protocol Tests: SUCCESS (runs 31930079088, 31930198758)
+Arduino Uno Build: SUCCESS (run 31930198773)
+ESP32 Build: SUCCESS (run 31930079023)
+```
+
+Удалённое принятие задания по-прежнему не запускает двигатель и SSR: после
+приёма job обязателен локальный физический START.

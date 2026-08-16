@@ -143,6 +143,31 @@ Flash: 42.5% (1337369 / 3145728 bytes)
 Общий CRC рабочего CMP1 и документированная граница binary `Shared/Protocol/`
 уже завершены; повторять этот блок не нужно.
 
+## Latest protocol continuation
+
+Ответы удалённого задания Arduino → ESP32 теперь также защищены
+CRC-16/MODBUS. ESP32 объявляет capability `C` в валидном `JOB`; только после
+такого согласования Arduino добавляет `C|CRC16` к `JOB_ACK/JOB_CANCEL_ACK`.
+Без capability используется точный legacy reply, поэтому платы можно обновлять
+в любом порядке. ESP32 проверяет protected reply до изменения job state.
+
+```text
+b288ec82ed18aae4a7610f745cfa170cfc58c897  protocol implementation
+b3385fb1aab08fced8d27010ba62ca58b183d947  Uno SRAM optimization
+CMP Protocol Tests: SUCCESS (runs 31930079088, 31930198758)
+Arduino Uno Build: SUCCESS (run 31930198773)
+ESP32 Build: SUCCESS (run 31930079023)
+Uno RAM: 70.7% (1447 / 2048 bytes; 601 bytes remain)
+Uno Flash: 77.3% (24924 / 32256 bytes)
+ESP32 RAM: 15.8% (51840 / 327680 bytes)
+ESP32 Flash: 42.5% (1337777 / 3145728 bytes)
+```
+
+Следующая аппаратная проверка протокола: создать и отменить service job, затем
+создать ещё один и подтвердить, что до физического START двигатель и SSR не
+активируются. После этого продолжать пункты power/preflight выше. Общая оценка
+готовности остаётся **91%**.
+
 ## Safety — не менять
 
 - никакого automatic physical START;

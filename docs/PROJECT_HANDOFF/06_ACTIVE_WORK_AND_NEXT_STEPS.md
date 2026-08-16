@@ -1210,3 +1210,28 @@ Hardware smoke test: update both boards in either order, complete one physical
 RUN and confirm the event leaves the Arduino retry queue only after ESP32 saves
 it. Do not inject a corrupt frame on the production machine; negative CRC tests
 belong in a controlled serial harness. Completion remains **91%**.
+
+## Completed: negotiated CRC for CMP1 job replies — 2026-08-16
+
+Commits `b288ec82ed18aae4a7610f745cfa170cfc58c897` and
+`b3385fb1aab08fced8d27010ba62ca58b183d947` add negotiated CRC-16/MODBUS to
+Arduino → ESP32 `JOB_ACK/JOB_CANCEL_ACK`. Capability `C` preserves staged
+upgrade compatibility in either firmware order. ESP32 validates the protected
+reply before mutating job state. The follow-up keeps the added constant strings
+in AVR flash and returns Uno SRAM usage close to the previous baseline.
+
+```text
+CMP Protocol Tests: SUCCESS (runs 31930079088, 31930198758)
+Arduino Uno Build: SUCCESS (run 31930198773)
+ESP32 Build: SUCCESS (run 31930079023)
+Uno RAM: 70.7% (1447 / 2048 bytes; 601 bytes remain)
+Uno Flash: 77.3% (24924 / 32256 bytes)
+ESP32 RAM: 15.8% (51840 / 327680 bytes)
+ESP32 Flash: 42.5% (1337777 / 3145728 bytes)
+```
+
+Hardware smoke test: прошить платы в любом порядке, создать и отменить одно
+service job, затем создать ещё одно и убедиться, что Arduino принимает его, но
+двигатель остаётся остановлен до физического START. Повреждённый UART-кадр не
+инжектировать на production machine. Completion остаётся **91%**; следующие
+gates — стабильное внешнее питание/Wi-Fi и read-only apply preflight.

@@ -779,6 +779,30 @@ ESP32 Flash: 42.5% (1337597 / 3145728 bytes)
 
 Safety и completion estimate не менялись: **91%**.
 
+## CMP1 job reply CRC negotiation — 2026-08-16
+
+ESP32 теперь объявляет короткую capability `C` в исходящем `JOB`. Новая
+Arduino запоминает её только после полностью валидного job и защищает
+`JOB_ACK/JOB_CANCEL_ACK` CRC-16/MODBUS. ESP32 проверяет checksum до изменения
+job state. Без capability обе стороны используют точный legacy reply, поэтому
+Arduino и ESP32 можно прошивать в любом порядке. Неизвестные дополнительные
+поля и повреждённые negotiated replies отклоняются.
+
+```text
+b288ec82ed18aae4a7610f745cfa170cfc58c897  protocol implementation
+b3385fb1aab08fced8d27010ba62ca58b183d947  keep new Uno literals in flash
+CMP Protocol Tests: SUCCESS (runs 31930079088, 31930198758)
+Arduino Uno Build: SUCCESS (run 31930198773)
+ESP32 Build: SUCCESS (run 31930079023)
+Uno RAM: 70.7% (1447 / 2048 bytes; 601 bytes remain)
+Uno Flash: 77.3% (24924 / 32256 bytes)
+ESP32 RAM: 15.8% (51840 / 327680 bytes)
+ESP32 Flash: 42.5% (1337777 / 3145728 bytes)
+```
+
+Safety и hardware acceptance state не менялись; общая оценка остаётся
+**91%**.
+
 ## Saved continuation checkpoint — 2026-08-16
 
 The current continuation entry is

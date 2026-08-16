@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 40869)
+Total output lines: 4097
+
 #include "CM_RemoteBackupWeb.h"
 
 #include <WiFi.h>
@@ -49,6 +52,10 @@ constexpr const char* ApplyPreflightTempPath =
     "/data/settings/remote-restore-rollback/APPLY_PREFLIGHT.tsv.part";
 constexpr const char* ApplyReadyMarkerPath =
     "/data/settings/remote-restore-rollback/APPLY_READY.txt";
+constexpr const char* ApplyJournalPath =
+    "/data/settings/remote-restore-rollback/APPLY_JOURNAL.tsv";
+constexpr const char* ApplyResultMarkerPath =
+    "/data/settings/remote-restore-rollback/APPLY_RESULT.txt";
 
 bool parseCanonicalUnsigned(const String& source,
                             uint32_t minimum,
@@ -223,6 +230,70 @@ bool parseRollbackManifestEntry(const String& source,
     return present && parseHex32(crcText, crc32);
 }
 
+bool parseApplyPreflightEntry(const String& source,
+                              String& remoteName,
+                              String& targetPath,
+                              uint32_t& stagedBytes,
+                              uint32_t& stagedCrc,
+                              bool& previousPresent,
+                              uint32_t& previousBytes,
+                              uint32_t& previousCrc)
+{
+    String line = source;
+    if (line.endsWith("\r")) line.remove(line.length() - 1U);
+    if (line.length() == 0U || line.length() > 500U) return false;
+    int separators[6] = {-1, -1, -1, -1, -1, -1};
+    int cursor = -1;
+    for (uint8_t i = 0U; i < 6U; ++i)
+    {
+        cursor = line.indexOf('\t', cursor + 1);
+        if (cursor < 0) return false;
+        separators[i] = cursor;
+    }
+    if (line.indexOf('\t', separators[5] + 1) >= 0) return false;
+    remoteName = line.substring(0U, static_cast<unsigned>(separators[0]));
+    targetPath = line.substring(static_cast<unsigned>(separators[0] + 1),
+                                static_cast<unsigned>(separators[1]));
+    const String stagedSizeText = line.substring(
+        static_cast<unsigned>(separators[1] + 1),
+        static_cast<unsigned>(separators[2]));
+    const String stagedCrcText = line.substring(
+        static_cast<unsigned>(separators[2] + 1),
+        static_cast<unsigned>(separators[3]));
+    const String state = line.substring(
+        static_cast<unsigned>(separators[3] + 1),
+        static_cast<unsigned>(separators[4]));
+    const String previousSizeText = line.substring(
+        static_cast<unsigned>(separators[4] + 1),
+        static_cast<unsigned>(separators[5]));
+    const String previousCrcText = line.substring(
+        static_cast<unsigned>(separators[5] + 1));
+    if (!parseCanonicalUnsigned(stagedSizeText, 0UL, 536870912UL,
+                                stagedBytes) ||
+        !parseHex32(stagedCrcText, stagedCrc) ||
+        !parseCanonicalUnsigned(previousSizeText, 0UL, 1073741824UL,
+                                previousBytes)) return false;
+    const bool safeNames = remoteName.length() > 0U &&
+                           remoteName.length() <= 180U &&
+                           remoteName.indexOf('/') < 0 &&
+                           remoteName.indexOf("..") < 0 &&
+                           targetPath.startsWith("/data/") &&
+                           targetPath.length() <= 160U &&
+                           targetPath.indexOf("..") < 0 &&
+                           targetPath.indexOf('\t') < 0 &&
+                           targetPath.indexOf('\r') < 0 &&
+                           targetPath.indexOf('\n') < 0;
+    if (!safeNames) return false;
+    if (state == F("MISSING"))
+    {
+        previousPresent = false;
+        previousCrc = 0UL;
+        return previousBytes == 0UL && previousCrcText == F("-");
+    }
+    previousPresent = state == F("PRESENT");
+    return previousPresent && parseHex32(previousCrcText, previousCrc);
+}
+
 uint32_t updateCrc32(uint32_t crc, const uint8_t* data, size_t length)
 {
     for (size_t i = 0U; i < length; ++i)
@@ -330,11 +401,51 @@ void RemoteBackupWeb::begin()
                 [this]() { handleStartApplyPreflight(); });
     m_server.on("/api/backup/remote/apply-preflight-status", HTTP_GET,
                 [this]() { handleApplyPreflightStatus(); });
+    m_server.on("/api/backup/remote/apply", HTTP_POST,
+                [this]() { handleStartApply(); });
+    m_server.on("/api/backup/remote/apply-status", HTTP_GET,
+                [this]() { handleApplyStatus(); });
 }
 
 void RemoteBackupWeb::update(uint32_t nowMs)
 {
     m_transfer.update(nowMs);
+    if (m_applyStage == ApplyStage::Entries)
+    {
+        if (!processNextApplyEntry() &&
+            !beginApplyRollback("restore_apply_entry_failed"))
+            failApply("restore_apply_rollback_start_failed");
+        return;
+    }
+    if (m_applyStage == ApplyStage::Copying ||
+        m_applyStage == ApplyStage::RollbackCopying)
+    {
+        if (!continueApplyCopy())
+        {
+            if (m_applyStage == ApplyStage::Copying &&
+                beginApplyRollback("restore_apply_copy_failed")) return;
+            failApply("restore_apply_rollback_copy_failed");
+        }
+        return;
+    }
+    if (m_applyStage == ApplyStage::Verifying ||
+        m_applyStage == ApplyStage::RollbackVerifying)
+    {
+        if (!continueApplyVerification())
+        {
+            if (m_applyStage == ApplyStage::Verifying &&
+                beginApplyRollback("restore_apply_verification_failed"))
+                return;
+            failApply("restore_apply_rollback_verification_failed");
+        }
+        return;
+    }
+    if (m_applyStage == ApplyStage::RollbackEntries)
+    {
+        if (!processNextApplyRollbackEntry())
+            failApply("restore_apply_rollback_entry_failed");
+        return;
+    }
     if (m_applyPreflightStage == ApplyPreflightStage::Entries)
     {
         if (!processNextApplyPreflightEntry())
@@ -570,7 +681,7 @@ void RemoteBackupWeb::handleSetConfiguration()
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -689,7 +800,7 @@ void RemoteBackupWeb::handleTestConnection()
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -785,7 +896,7 @@ void RemoteBackupWeb::handleStartUpload()
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -906,7 +1017,7 @@ bool RemoteBackupWeb::startFullBatch(bool scheduled,
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         statusCode = 409U;
         error = "remote_backup_busy";
@@ -977,7 +1088,7 @@ void RemoteBackupWeb::handleStartRetention()
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -1080,7 +1191,7 @@ void RemoteBackupWeb::handleStartInspection()
         m_inspectionStage == InspectionStage::Files ||
         m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -1215,7 +1326,7 @@ void RemoteBackupWeb::handleStartStaging()
 {
     if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive() ||
+        applyPreflightActive() || applyActive() ||
         m_inspectionStage != InspectionStage::Complete)
     {
         m_server.send(409, "application/json; charset=utf-8",
@@ -1321,7 +1432,7 @@ void RemoteBackupWeb::handleDiscardStaging()
 {
     if (m_transfer.active() || m_stagingStage == StagingStage::Files ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"remote_backup_busy\"}");
@@ -1363,6 +1474,14 @@ void RemoteBackupWeb::handleDiscardStaging()
     m_applyPreflightInputBytes = 0UL;
     m_applyPreflightInputExpected = 0UL;
     m_applyPreflightError = String();
+    m_applyStage = ApplyStage::Idle;
+    m_applyFiles = 0UL;
+    m_applyRestoredFiles = 0UL;
+    m_applyBytes = 0UL;
+    m_applyCopiedBytes = 0UL;
+    m_applyExpectedBytes = 0UL;
+    m_applyError = String();
+    m_applyRollbackReason = String();
     m_server.send(200, "application/json; charset=utf-8",
                   "{\"discarded\":true,\"working_data_changed\":false}");
 }
@@ -1373,7 +1492,7 @@ void RemoteBackupWeb::handleStartRestorePlan()
         m_inspectionStage != InspectionStage::Complete ||
         !m_inspectionHasSizes ||
         m_restorePlanStage == RestorePlanStage::Files || rollbackActive() ||
-        applyPreflightActive())
+        applyPreflightActive() || applyActive())
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"completed_staging_required\"}");
@@ -1490,6 +1609,7 @@ void RemoteBackupWeb::handleRestorePlanStatus()
 void RemoteBackupWeb::handleStartRollbackSnapshot()
 {
     if (m_transfer.active() || rollbackActive() || applyPreflightActive() ||
+        applyActive() ||
         m_stagingStage != StagingStage::Complete ||
         m_restorePlanStage != RestorePlanStage::Complete ||
         !m_inspectionHasSizes)
@@ -1658,7 +1778,7 @@ void RemoteBackupWeb::handleStartApplyPreflight()
         m_inspectionStage == InspectionStage::Manifest ||
         m_inspectionStage == InspectionStage::Marker ||
         m_inspectionStage == InspectionStage::Files ||
-        rollbackActive() || applyPreflightActive() ||
+        rollbackActive() || applyPreflightActive() || applyActive() ||
         m_stagingStage != StagingStage::Complete ||
         m_restorePlanStage != RestorePlanStage::Complete ||
         m_rollbackStage != RollbackStage::Complete ||
@@ -1827,16 +1947,116 @@ void RemoteBackupWeb::handleApplyPreflightStatus()
                     ? F("true") : F("false");
     response += F(",\"batch_id\":");
     if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
+    else respon…869 tokens truncated…son; charset=utf-8",
+                      "{\"error\":\"apply_metadata_open_failed\"}");
+        return;
+    }
+    String line;
+    uint32_t parsed = 0UL;
+    bool valid = readInspectionLine(m_applyManifest, line) &&
+                 line == F("COILMASTER_APPLY_PREFLIGHT_V1");
+    if (valid)
+        valid = readInspectionLine(m_applyManifest, line) &&
+                line.startsWith("batch_id=") &&
+                parseCanonicalUnsigned(line.substring(9), 1UL,
+                                       0xFFFFFFFFUL, parsed) &&
+                parsed == batchId;
+    if (valid)
+        valid = readInspectionLine(m_applyManifest, line) &&
+                line.startsWith("files=") &&
+                parseCanonicalUnsigned(line.substring(6), 1UL, 4096UL,
+                                       parsed) &&
+                parsed == m_inspectionDataFiles;
+    if (valid)
+        valid = readInspectionLine(m_applyManifest, line) &&
+                line == F("restore_apply_enabled=0");
+    if (valid)
+        valid = readInspectionLine(m_applyManifest, line) &&
+                line == F("working_data_changed=0") &&
+                readInspectionLine(m_applyManifest, line) &&
+                line.length() == 0U;
+    if (!valid)
+    {
+        m_applyManifest.close();
+        m_applyJournal.close();
+        m_storage.remove(ApplyJournalPath);
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"apply_preflight_invalid\"}");
+        return;
+    }
+    String header = F("COILMASTER_APPLY_JOURNAL_V1\nbatch_id=");
+    header += batchId;
+    header += F("\nfiles="); header += m_inspectionDataFiles;
+    header += F("\nstate=RUNNING\n\n");
+    if (m_applyJournal.print(header) != header.length())
+    {
+        m_applyManifest.close();
+        m_applyJournal.close();
+        m_storage.remove(ApplyJournalPath);
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"apply_journal_write_failed\"}");
+        return;
+    }
+    m_applyJournal.flush();
+    m_applyFiles = 0UL;
+    m_applyRestoredFiles = 0UL;
+    m_applyBytes = 0UL;
+    m_applyCopiedBytes = 0UL;
+    m_applyExpectedBytes = 0UL;
+    m_applyError = String();
+    m_applyRollbackReason = String();
+    m_applyStage = ApplyStage::Entries;
+    String response = F("{\"accepted\":true,\"batch_id\":");
+    response += batchId;
+    response += F(",\"operator_confirmed\":true,\"working_data_changed\":false}");
+    m_server.send(202, "application/json; charset=utf-8", response);
+}
+
+void RemoteBackupWeb::handleApplyStatus()
+{
+    const char* state = "IDLE";
+    if (m_applyStage == ApplyStage::Entries) state = "APPLYING";
+    else if (m_applyStage == ApplyStage::Copying) state = "COPYING";
+    else if (m_applyStage == ApplyStage::Verifying) state = "VERIFYING";
+    else if (m_applyStage == ApplyStage::RollbackEntries ||
+             m_applyStage == ApplyStage::RollbackCopying ||
+             m_applyStage == ApplyStage::RollbackVerifying) state = "ROLLING_BACK";
+    else if (m_applyStage == ApplyStage::Complete) state = "APPLIED";
+    else if (m_applyStage == ApplyStage::RolledBack) state = "ROLLED_BACK";
+    else if (m_applyStage == ApplyStage::Failed) state = "FAILED";
+    else if (m_storage.exists(ApplyJournalPath) ||
+             m_storage.exists(ApplyResultMarkerPath)) state = "STALE";
+    String response;
+    response.reserve(420U);
+    response = F("{\"state\":\""); response += state;
+    response += F("\",\"active\":");
+    response += applyActive() ? F("true") : F("false");
+    response += F(",\"batch_id\":");
+    if (m_inspectionBatchId > 0UL) response += m_inspectionBatchId;
     else response += F("null");
-    response += F(",\"files_checked\":"); response += m_applyPreflightFiles;
+    response += F(",\"files_applied\":"); response += m_applyFiles;
     response += F(",\"files_total\":"); response += m_inspectionDataFiles;
-    response += F(",\"staged_bytes_checked\":"); response += m_applyPreflightBytes;
-    response += F(",\"staged_bytes_total\":"); response += m_inspectionTotalBytes;
-    response += F(",\"current_bytes\":"); response += m_applyPreflightInputBytes;
-    response += F(",\"current_total\":"); response += m_applyPreflightInputExpected;
-    response += F(",\"restore_apply_enabled\":false,\"working_data_changed\":false,\"error\":");
-    if (m_applyPreflightError.length() > 0U)
-    { response += '"'; response += m_applyPreflightError; response += '"'; }
+    response += F(",\"files_restored\":"); response += m_applyRestoredFiles;
+    response += F(",\"bytes_applied\":"); response += m_applyBytes;
+    response += F(",\"current_bytes\":"); response += m_applyCopiedBytes;
+    response += F(",\"current_total\":"); response += m_applyExpectedBytes;
+    response += F(",\"working_data_changed\":");
+    response += (m_applyStage == ApplyStage::RolledBack)
+                    ? F("false")
+                    : ((m_applyFiles > 0UL ||
+                        m_applyStage == ApplyStage::Complete)
+                           ? F("true") : F("false"));
+    response += F(",\"restore_applied\":");
+    response += m_applyStage == ApplyStage::Complete ? F("true") : F("false");
+    response += F(",\"reboot_required\":");
+    response += m_applyStage == ApplyStage::Complete ? F("true") : F("false");
+    response += F(",\"rollback_reason\":");
+    if (m_applyRollbackReason.length() > 0U)
+    { response += '"'; response += m_applyRollbackReason; response += '"'; }
+    else response += F("null");
+    response += F(",\"error\":");
+    if (m_applyError.length() > 0U)
+    { response += '"'; response += m_applyError; response += '"'; }
     else response += F("null");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
@@ -2761,6 +2981,409 @@ bool RemoteBackupWeb::applyPreflightActive() const
            m_applyPreflightStage == ApplyPreflightStage::CurrentFile ||
            m_applyPreflightStage == ApplyPreflightStage::RollbackFile ||
            m_applyPreflightStage == ApplyPreflightStage::StagedFile;
+}
+
+bool RemoteBackupWeb::validateApplyReadyMarker() const
+{
+    File marker = m_storage.open(ApplyReadyMarkerPath, FILE_READ);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String line;
+    uint32_t parsed = 0UL;
+    bool valid = readInspectionLine(marker, line) &&
+                 line == F("COILMASTER_APPLY_READY_V1");
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("batch_id=") &&
+                parseCanonicalUnsigned(line.substring(9), 1UL,
+                                       0xFFFFFFFFUL, parsed) &&
+                parsed == m_inspectionBatchId;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("files=") &&
+                parseCanonicalUnsigned(line.substring(6), 1UL, 4096UL,
+                                       parsed) &&
+                parsed == m_inspectionDataFiles;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line.startsWith("staged_bytes=") &&
+                parseCanonicalUnsigned(line.substring(13), 0UL,
+                                       1073741824UL, parsed) &&
+                parsed == m_inspectionTotalBytes;
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line == F("restore_apply_enabled=0");
+    if (valid)
+        valid = readInspectionLine(marker, line) &&
+                line == F("working_data_changed=0") && !marker.available();
+    marker.close();
+    return valid;
+}
+
+bool RemoteBackupWeb::processNextApplyEntry()
+{
+    if (!m_applyManifest || !m_applyJournal ||
+        BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+        return false;
+    if (!m_applyManifest.available()) return finalizeApply();
+
+    const String entry = m_applyManifest.readStringUntil('\n');
+    String remoteName;
+    String targetPath;
+    uint32_t stagedBytes = 0UL;
+    uint32_t stagedCrc = 0UL;
+    bool previousPresent = false;
+    uint32_t previousBytes = 0UL;
+    uint32_t previousCrc = 0UL;
+    if (!parseApplyPreflightEntry(entry, remoteName, targetPath,
+                                  stagedBytes, stagedCrc, previousPresent,
+                                  previousBytes, previousCrc) ||
+        m_applyFiles >= m_inspectionDataFiles ||
+        stagedBytes > 1073741824UL - m_applyBytes)
+        return false;
+    String resolvedLogical;
+    String resolvedTarget;
+    if (!BackupExportWeb::resolveRestoreTarget(m_inspectionBatchId,
+                                               remoteName,
+                                               resolvedLogical,
+                                               resolvedTarget) ||
+        resolvedTarget != targetPath) return false;
+
+    const String stagedPath = String(StagingDirectory) + '/' + remoteName;
+    const String rollbackPath = String(RollbackDirectory) + '/' + remoteName;
+    File staged = m_storage.open(stagedPath, FILE_READ);
+    const bool stagedValid = staged && !staged.isDirectory() &&
+                             staged.size() == stagedBytes;
+    if (staged) staged.close();
+    if (!stagedValid) return false;
+    if (previousPresent)
+    {
+        File current = m_storage.open(targetPath, FILE_READ);
+        const bool currentValid = current && !current.isDirectory() &&
+                                  current.size() == previousBytes;
+        if (current) current.close();
+        File rollback = m_storage.open(rollbackPath, FILE_READ);
+        const bool rollbackValid = rollback && !rollback.isDirectory() &&
+                                   rollback.size() == previousBytes;
+        if (rollback) rollback.close();
+        if (!currentValid || !rollbackValid) return false;
+    }
+    else if (m_storage.exists(targetPath) || m_storage.exists(rollbackPath))
+        return false;
+
+    m_applyRemoteName = remoteName;
+    m_applyTargetPath = targetPath;
+    m_applyRollbackPath = rollbackPath;
+    m_applyPreviousPresent = previousPresent;
+    m_applyPreviousBytes = previousBytes;
+    m_applyPreviousCrc = previousCrc;
+    if (!appendApplyJournalEntry(entry)) return false;
+    const String temporaryPath = targetPath + F(".cm-restore.part");
+    return startApplyCopy(stagedPath, temporaryPath, stagedBytes, stagedCrc,
+                          false);
+}
+
+bool RemoteBackupWeb::startApplyCopy(const String& sourcePath,
+                                     const String& temporaryPath,
+                                     uint32_t expectedBytes,
+                                     uint32_t expectedCrc,
+                                     bool rollbackCopy)
+{
+    if (m_applySource) m_applySource.close();
+    if (m_applyDestination) m_applyDestination.close();
+    if (m_storage.exists(temporaryPath)) return false;
+    m_applySource = m_storage.open(sourcePath, FILE_READ);
+    m_applyDestination = m_storage.open(temporaryPath, FILE_WRITE);
+    if (!m_applySource || m_applySource.isDirectory() ||
+        m_applySource.size() != expectedBytes ||
+        !m_applyDestination || m_applyDestination.isDirectory())
+    {
+        if (m_applySource) m_applySource.close();
+        if (m_applyDestination) m_applyDestination.close();
+        m_storage.remove(temporaryPath);
+        return false;
+    }
+    m_applyTemporaryPath = temporaryPath;
+    m_applyExpectedBytes = expectedBytes;
+    m_applyExpectedCrc = expectedCrc;
+    m_applyCopiedBytes = 0UL;
+    m_applyCopyCrc = 0xFFFFFFFFUL;
+    m_applyVerifyBytes = 0UL;
+    m_applyVerifyCrc = 0xFFFFFFFFUL;
+    m_applyRollbackCopy = rollbackCopy;
+    m_applyStage = rollbackCopy ? ApplyStage::RollbackCopying
+                                : ApplyStage::Copying;
+    return true;
+}
+
+bool RemoteBackupWeb::continueApplyCopy()
+{
+    if (!m_applySource || !m_applyDestination ||
+        BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+        return false;
+    uint8_t buffer[1024];
+    if (m_applySource.available())
+    {
+        const size_t remaining = static_cast<size_t>(
+            m_applyExpectedBytes - m_applyCopiedBytes);
+        const size_t requested = remaining < sizeof(buffer) ? remaining
+                                                            : sizeof(buffer);
+        if (requested == 0U) return false;
+        const int read = m_applySource.read(buffer, requested);
+        if (read <= 0 ||
+            m_applyDestination.write(buffer, static_cast<size_t>(read)) !=
+                static_cast<size_t>(read)) return false;
+        m_applyCopyCrc = updateCrc32(m_applyCopyCrc, buffer,
+                                     static_cast<size_t>(read));
+        m_applyCopiedBytes += static_cast<uint32_t>(read);
+        return m_applyCopiedBytes <= m_applyExpectedBytes;
+    }
+    m_applySource.close();
+    m_applyDestination.flush();
+    m_applyDestination.close();
+    if (m_applyCopiedBytes != m_applyExpectedBytes ||
+        (m_applyCopyCrc ^ 0xFFFFFFFFUL) != m_applyExpectedCrc)
+        return false;
+    m_applySource = m_storage.open(m_applyTemporaryPath, FILE_READ);
+    if (!m_applySource || m_applySource.isDirectory() ||
+        m_applySource.size() != m_applyExpectedBytes)
+    {
+        if (m_applySource) m_applySource.close();
+        return false;
+    }
+    m_applyVerifyBytes = 0UL;
+    m_applyVerifyCrc = 0xFFFFFFFFUL;
+    m_applyStage = m_applyRollbackCopy ? ApplyStage::RollbackVerifying
+                                       : ApplyStage::Verifying;
+    return true;
+}
+
+bool RemoteBackupWeb::continueApplyVerification()
+{
+    if (!m_applySource ||
+        BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+        return false;
+    uint8_t buffer[1024];
+    if (m_applySource.available())
+    {
+        const int read = m_applySource.read(buffer, sizeof(buffer));
+        if (read <= 0) return false;
+        m_applyVerifyCrc = updateCrc32(m_applyVerifyCrc, buffer,
+                                       static_cast<size_t>(read));
+        m_applyVerifyBytes += static_cast<uint32_t>(read);
+        return m_applyVerifyBytes <= m_applyExpectedBytes;
+    }
+    m_applySource.close();
+    if (m_applyVerifyBytes != m_applyExpectedBytes ||
+        (m_applyVerifyCrc ^ 0xFFFFFFFFUL) != m_applyExpectedCrc)
+        return false;
+    if (m_storage.exists(m_applyTargetPath) &&
+        !m_storage.remove(m_applyTargetPath)) return false;
+    if (!m_storage.rename(m_applyTemporaryPath, m_applyTargetPath)) return false;
+    File installed = m_storage.open(m_applyTargetPath, FILE_READ);
+    const bool installedValid = installed && !installed.isDirectory() &&
+                                installed.size() == m_applyExpectedBytes;
+    if (installed) installed.close();
+    if (!installedValid) return false;
+    m_applyTemporaryPath = String();
+    m_applyCopiedBytes = 0UL;
+    m_applyExpectedBytes = 0UL;
+    if (m_applyRollbackCopy)
+    {
+        ++m_applyRestoredFiles;
+        m_applyStage = ApplyStage::RollbackEntries;
+    }
+    else
+    {
+        ++m_applyFiles;
+        m_applyBytes += m_applyVerifyBytes;
+        m_applyStage = ApplyStage::Entries;
+    }
+    return true;
+}
+
+bool RemoteBackupWeb::appendApplyJournalEntry(const String& source)
+{
+    if (!m_applyJournal || source.length() == 0U || source.length() > 500U)
+        return false;
+    String line = source;
+    if (line.endsWith("\r")) line.remove(line.length() - 1U);
+    line += '\n';
+    const bool written = m_applyJournal.print(line) == line.length();
+    m_applyJournal.flush();
+    return written;
+}
+
+bool RemoteBackupWeb::finalizeApply()
+{
+    if (m_applyManifest) m_applyManifest.close();
+    if (!m_applyJournal || m_applyFiles != m_inspectionDataFiles ||
+        m_applyBytes != m_inspectionTotalBytes) return false;
+    m_applyJournal.flush();
+    m_applyJournal.close();
+    if (m_storage.exists(ApplyResultMarkerPath) &&
+        !m_storage.remove(ApplyResultMarkerPath)) return false;
+    File marker = m_storage.open(ApplyResultMarkerPath, FILE_WRITE);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String content = F("COILMASTER_APPLY_RESULT_V1\nbatch_id=");
+    content += m_inspectionBatchId;
+    content += F("\nstate=APPLIED\nfiles="); content += m_applyFiles;
+    content += F("\nbytes="); content += m_applyBytes;
+    content += F("\nreboot_required=1\nauto_resume=0\n");
+    const bool written = marker.print(content) == content.length();
+    marker.flush();
+    marker.close();
+    if (!written) return false;
+    m_applyStage = ApplyStage::Complete;
+    return true;
+}
+
+bool RemoteBackupWeb::beginApplyRollback(const char* reason)
+{
+    if (m_applyManifest) m_applyManifest.close();
+    if (m_applyJournal) m_applyJournal.close();
+    if (m_applySource) m_applySource.close();
+    if (m_applyDestination) m_applyDestination.close();
+    if (m_applyTemporaryPath.length() > 0U)
+        m_storage.remove(m_applyTemporaryPath);
+    m_applyRollbackReason = reason != nullptr
+                                ? reason : "restore_apply_failed";
+    m_applyJournal = m_storage.open(ApplyJournalPath, FILE_READ);
+    if (!m_applyJournal || m_applyJournal.isDirectory())
+    {
+        if (m_applyJournal) m_applyJournal.close();
+        return false;
+    }
+    String line;
+    uint32_t parsed = 0UL;
+    bool valid = readInspectionLine(m_applyJournal, line) &&
+                 line == F("COILMASTER_APPLY_JOURNAL_V1");
+    if (valid)
+        valid = readInspectionLine(m_applyJournal, line) &&
+                line.startsWith("batch_id=") &&
+                parseCanonicalUnsigned(line.substring(9), 1UL,
+                                       0xFFFFFFFFUL, parsed) &&
+                parsed == m_inspectionBatchId;
+    if (valid)
+        valid = readInspectionLine(m_applyJournal, line) &&
+                line.startsWith("files=") &&
+                parseCanonicalUnsigned(line.substring(6), 1UL, 4096UL,
+                                       parsed) &&
+                parsed == m_inspectionDataFiles;
+    if (valid)
+        valid = readInspectionLine(m_applyJournal, line) &&
+                line == F("state=RUNNING") &&
+                readInspectionLine(m_applyJournal, line) &&
+                line.length() == 0U;
+    if (!valid)
+    {
+        m_applyJournal.close();
+        return false;
+    }
+    m_applyRestoredFiles = 0UL;
+    m_applyStage = ApplyStage::RollbackEntries;
+    return true;
+}
+
+bool RemoteBackupWeb::processNextApplyRollbackEntry()
+{
+    if (!m_applyJournal ||
+        BackupActivityGuard::check(m_storage) != BackupActivityCheck::Safe)
+        return false;
+    if (!m_applyJournal.available()) return finalizeApplyRollback();
+    const String entry = m_applyJournal.readStringUntil('\n');
+    String remoteName;
+    String targetPath;
+    uint32_t stagedBytes = 0UL;
+    uint32_t stagedCrc = 0UL;
+    bool previousPresent = false;
+    uint32_t previousBytes = 0UL;
+    uint32_t previousCrc = 0UL;
+    if (!parseApplyPreflightEntry(entry, remoteName, targetPath,
+                                  stagedBytes, stagedCrc, previousPresent,
+                                  previousBytes, previousCrc)) return false;
+    String resolvedLogical;
+    String resolvedTarget;
+    if (!BackupExportWeb::resolveRestoreTarget(m_inspectionBatchId,
+                                               remoteName,
+                                               resolvedLogical,
+                                               resolvedTarget) ||
+        resolvedTarget != targetPath) return false;
+    m_applyRemoteName = remoteName;
+    m_applyTargetPath = targetPath;
+    m_applyRollbackPath = String(RollbackDirectory) + '/' + remoteName;
+    m_applyPreviousPresent = previousPresent;
+    m_applyPreviousBytes = previousBytes;
+    m_applyPreviousCrc = previousCrc;
+    if (!previousPresent)
+    {
+        if (m_storage.exists(targetPath) && !m_storage.remove(targetPath))
+            return false;
+        ++m_applyRestoredFiles;
+        return true;
+    }
+    File rollback = m_storage.open(m_applyRollbackPath, FILE_READ);
+    const bool rollbackValid = rollback && !rollback.isDirectory() &&
+                               rollback.size() == previousBytes;
+    if (rollback) rollback.close();
+    if (!rollbackValid) return false;
+    const String temporaryPath = targetPath + F(".cm-restore.part");
+    return startApplyCopy(m_applyRollbackPath, temporaryPath,
+                          previousBytes, previousCrc, true);
+}
+
+bool RemoteBackupWeb::finalizeApplyRollback()
+{
+    if (m_applyJournal) m_applyJournal.close();
+    if (m_storage.exists(ApplyResultMarkerPath) &&
+        !m_storage.remove(ApplyResultMarkerPath)) return false;
+    File marker = m_storage.open(ApplyResultMarkerPath, FILE_WRITE);
+    if (!marker || marker.isDirectory())
+    {
+        if (marker) marker.close();
+        return false;
+    }
+    String content = F("COILMASTER_APPLY_RESULT_V1\nbatch_id=");
+    content += m_inspectionBatchId;
+    content += F("\nstate=ROLLED_BACK\nfiles_restored=");
+    content += m_applyRestoredFiles;
+    content += F("\nreason="); content += m_applyRollbackReason;
+    content += F("\nreboot_required=0\nauto_resume=0\n");
+    const bool written = marker.print(content) == content.length();
+    marker.flush();
+    marker.close();
+    if (!written) return false;
+    m_applyStage = ApplyStage::RolledBack;
+    return true;
+}
+
+void RemoteBackupWeb::failApply(const char* reason)
+{
+    if (m_applyManifest) m_applyManifest.close();
+    if (m_applyJournal) m_applyJournal.close();
+    if (m_applySource) m_applySource.close();
+    if (m_applyDestination) m_applyDestination.close();
+    if (m_applyTemporaryPath.length() > 0U)
+        m_storage.remove(m_applyTemporaryPath);
+    m_applyError = reason != nullptr ? reason : "restore_apply_failed";
+    m_applyStage = ApplyStage::Failed;
+}
+
+bool RemoteBackupWeb::applyActive() const
+{
+    return m_applyStage == ApplyStage::Entries ||
+           m_applyStage == ApplyStage::Copying ||
+           m_applyStage == ApplyStage::Verifying ||
+           m_applyStage == ApplyStage::RollbackEntries ||
+           m_applyStage == ApplyStage::RollbackCopying ||
+           m_applyStage == ApplyStage::RollbackVerifying;
 }
 
 uint32_t RemoteBackupWeb::dateKey(const RtcDateTime& value)

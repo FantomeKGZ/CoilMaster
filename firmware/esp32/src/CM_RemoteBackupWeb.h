@@ -42,6 +42,8 @@ private:
     void handleRollbackSnapshotStatus();
     void handleStartApplyPreflight();
     void handleApplyPreflightStatus();
+    void handleStartApply();
+    void handleApplyStatus();
     bool allocateBatchId(uint32_t& batchId);
     bool startFullBatch(bool scheduled,
                         uint16_t& statusCode,
@@ -87,6 +89,22 @@ private:
     bool finalizeApplyPreflight();
     void failApplyPreflight(const char* reason);
     bool applyPreflightActive() const;
+    bool validateApplyReadyMarker() const;
+    bool processNextApplyEntry();
+    bool continueApplyCopy();
+    bool continueApplyVerification();
+    bool startApplyCopy(const String& sourcePath,
+                        const String& temporaryPath,
+                        uint32_t expectedBytes,
+                        uint32_t expectedCrc,
+                        bool rollbackCopy);
+    bool appendApplyJournalEntry(const String& line);
+    bool finalizeApply();
+    bool beginApplyRollback(const char* reason);
+    bool processNextApplyRollbackEntry();
+    bool finalizeApplyRollback();
+    void failApply(const char* reason);
+    bool applyActive() const;
     bool startRetention();
     bool selectOldestManagedBatch(uint32_t& batchId,
                                   uint16_t& manifestCount) const;
@@ -155,6 +173,20 @@ private:
         RollbackFile,
         StagedFile,
         Complete,
+        Failed
+    };
+
+    enum class ApplyStage : uint8_t
+    {
+        Idle,
+        Entries,
+        Copying,
+        Verifying,
+        RollbackEntries,
+        RollbackCopying,
+        RollbackVerifying,
+        Complete,
+        RolledBack,
         Failed
     };
 
@@ -234,6 +266,30 @@ private:
     uint32_t m_applyPreflightInputExpected = 0UL;
     uint32_t m_applyPreflightInputCrc = 0xFFFFFFFFUL;
     String m_applyPreflightError;
+    ApplyStage m_applyStage = ApplyStage::Idle;
+    File m_applyManifest;
+    File m_applyJournal;
+    File m_applySource;
+    File m_applyDestination;
+    String m_applyRemoteName;
+    String m_applyTargetPath;
+    String m_applyTemporaryPath;
+    String m_applyRollbackPath;
+    bool m_applyPreviousPresent = false;
+    bool m_applyRollbackCopy = false;
+    uint32_t m_applyFiles = 0UL;
+    uint32_t m_applyRestoredFiles = 0UL;
+    uint32_t m_applyBytes = 0UL;
+    uint32_t m_applyExpectedBytes = 0UL;
+    uint32_t m_applyExpectedCrc = 0UL;
+    uint32_t m_applyCopiedBytes = 0UL;
+    uint32_t m_applyCopyCrc = 0xFFFFFFFFUL;
+    uint32_t m_applyVerifyBytes = 0UL;
+    uint32_t m_applyVerifyCrc = 0xFFFFFFFFUL;
+    uint32_t m_applyPreviousBytes = 0UL;
+    uint32_t m_applyPreviousCrc = 0UL;
+    String m_applyError;
+    String m_applyRollbackReason;
     File m_retentionManifest;
     uint32_t m_retentionBatchId = 0UL;
     uint32_t m_retentionFilesDeleted = 0UL;

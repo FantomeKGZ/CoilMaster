@@ -42,6 +42,10 @@
     preflight.type='button';
     preflight.id='remoteBackupApplyPreflight';
     preflight.textContent='Проверить готовность к применению';
+    const apply=document.createElement('button');
+    apply.type='button';
+    apply.id='remoteBackupApply';
+    apply.textContent='Применить проверенную копию';
     const discard=document.createElement('button');
     discard.type='button';
     discard.id='remoteBackupStageDiscard';
@@ -55,7 +59,8 @@
     stage.insertAdjacentElement('afterend',plan);
     plan.insertAdjacentElement('afterend',rollback);
     rollback.insertAdjacentElement('afterend',preflight);
-    preflight.insertAdjacentElement('afterend',discard);
+    preflight.insertAdjacentElement('afterend',apply);
+    apply.insertAdjacentElement('afterend',discard);
 
     const size=n=>{
         const v=Number(n)||0;
@@ -84,6 +89,7 @@
         plan.disabled=disabled;
         rollback.disabled=disabled;
         preflight.disabled=disabled;
+        apply.disabled=disabled;
         discard.disabled=disabled;
     }
     async function pollBatch(){
@@ -287,6 +293,41 @@
             status.textContent='Статус контроля готовности недоступен: '+e.message;
         }
     }
+    async function pollApply(fallback){
+        try{
+            const r=await fetch('/api/backup/remote/apply-status',{cache:'no-store'}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'apply_status_failed');
+            if(j.active){
+                buttons(true);
+                status.className=j.state==='ROLLING_BACK'?'warning':'muted';
+                status.textContent=j.state==='ROLLING_BACK'
+                    ?'Ошибка применения копии №'+j.batch_id+'. Выполняется немедленный откат: восстановлено файлов '+j.files_restored+'.'
+                    :'Применение копии №'+j.batch_id+': '+j.state+' · файлов '+j.files_applied+' из '+j.files_total+' · '+size(j.bytes_applied)+(j.current_total?' · текущий файл '+size(j.current_bytes)+' из '+size(j.current_total):'')+'. Не выключайте питание.';
+                timer=setTimeout(()=>pollApply(false),300);
+            }else if(j.state==='APPLIED'){
+                buttons(true);
+                status.className='ok';
+                status.textContent='Копия №'+j.batch_id+' применена: '+j.files_applied+' файлов. Перезагрузите ESP32 перед дальнейшей работой; автоматическое продолжение восстановления после reboot отсутствует.';
+            }else if(j.state==='ROLLED_BACK'){
+                buttons(false);
+                status.className='warning';
+                status.textContent='Применение остановлено, исходные рабочие файлы восстановлены: '+j.files_restored+'. Причина: '+(j.rollback_reason||'unknown')+'. Удалите временные файлы перед новой попыткой.';
+            }else if(j.state==='FAILED'){
+                buttons(true);
+                discard.disabled=false;
+                status.className='bad';
+                status.textContent='Критическая ошибка применения/отката: '+(j.error||'unknown')+'. Не продолжайте работу со станком; сохраните microSD и проверьте страховочную область.';
+            }else if(j.state==='STALE'){
+                buttons(false);
+                status.className='warning';
+                status.textContent='Найдены следы предыдущего применения после перезапуска. Автопродолжение запрещено. Проверьте данные и удалите временные файлы только после подтверждения состояния.';
+            }else if(fallback)pollApplyPreflight(true);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Статус применения недоступен: '+e.message;
+        }
+    }
     async function upload(name){
         clearTimeout(timer);
         buttons(true);
@@ -448,6 +489,35 @@
             status.textContent='Контроль готовности не запущен: '+e.message;
         }
     }
+    async function applyVerifiedBackup(){
+        const batchId=String(inspectId.value||'').trim();
+        if(!/^[1-9]\d*$/.test(batchId)){
+            status.className='bad';
+            status.textContent='Сначала укажите ID копии и завершите контроль готовности до READY.';
+            return;
+        }
+        if(!confirm('ВНИМАНИЕ: заменить рабочие файлы данными проверенной копии №'+batchId+'? Станок должен быть остановлен. При ошибке firmware немедленно запустит откат.'))return;
+        const typed=prompt('Для подтверждения применения введите ID копии: '+batchId,'');
+        if(typed!==batchId){
+            status.className='warning';
+            status.textContent='Применение отменено: введённый ID не совпал.';
+            return;
+        }
+        clearTimeout(timer);
+        buttons(true);
+        status.className='warning';
+        status.textContent='Запуск транзакционного применения копии №'+batchId+'. Не выключайте питание.';
+        try{
+            const body=new URLSearchParams({batch_id:batchId,confirmed:'APPLY'});
+            const r=await fetch('/api/backup/remote/apply',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),j=await r.json();
+            if(!r.ok)throw new Error(j.error||'apply_start_failed');
+            pollApply(false);
+        }catch(e){
+            buttons(false);
+            status.className='bad';
+            status.textContent='Применение не запущено: '+e.message;
+        }
+    }
     async function discardStaging(){
         if(!confirm('Удалить только временно загруженные файлы восстановления? Рабочие данные не изменятся.'))return;
         clearTimeout(timer);
@@ -457,7 +527,7 @@
             if(!r.ok)throw new Error(j.error||'staging_cleanup_failed');
             buttons(false);
             status.className='ok';
-            status.textContent='Временные файлы восстановления и страховочная копия удалены. Рабочие данные не изменены.';
+            status.textContent='Временные файлы восстановления и страховочная копия удалены. Само удаление не изменяло рабочие файлы.';
         }catch(e){
             buttons(false);
             status.className='bad';
@@ -475,7 +545,8 @@
     plan.onclick=buildRestorePlan;
     rollback.onclick=buildRollbackSnapshot;
     preflight.onclick=runApplyPreflight;
+    apply.onclick=applyVerifiedBackup;
     discard.onclick=discardStaging;
     new MutationObserver(enhance).observe(document.body,{childList:true,subtree:true});
-    pollApplyPreflight(true);
+    pollApply(true);
 })();

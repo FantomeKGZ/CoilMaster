@@ -39,3 +39,6 @@ jobs:
 
       - name: Audit release safety contracts
         run: node Tests/Web/check_release_contracts.js
+
+      - name: Audit final acceptance contracts
+        run: node Tests/Web/check_final_acceptance_contracts.js

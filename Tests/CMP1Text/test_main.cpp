@@ -42,6 +42,17 @@ int main()
         std::strlen(second));
     require(incremental == 0xE4D2U, "incremental CMP1 CRC");
 
+    const char* acknowledgement = "CMP1|ACK|1|SAVED";
+    require(CM::Cmp1Crc::calculate(acknowledgement,
+                                   std::strlen(acknowledgement)) == 0x528FU,
+            "CMP1 ACK frame CRC");
+
+    const char* negativeAcknowledgement = "CMP1|NACK|1|WRITE_FAILED";
+    require(CM::Cmp1Crc::calculate(negativeAcknowledgement,
+                                   std::strlen(negativeAcknowledgement)) ==
+                0x08DAU,
+            "CMP1 NACK frame CRC");
+
     std::cout << "CMP1 text CRC tests passed\n";
     return EXIT_SUCCESS;
 }

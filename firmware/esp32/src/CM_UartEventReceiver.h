@@ -135,6 +135,9 @@ private:
     bool writeJobFrame(const OutgoingWindingJob& job);
     bool sendPendingCancel(uint32_t nowMs);
     bool writeCancelFrame(uint32_t jobId);
+    void writeRunReply(const char* category,
+                       uint32_t runId,
+                       const char* detail);
     void publishJobDelivery(JobDeliveryResult result,
                             uint32_t jobId,
                             uint8_t sendAttempts,

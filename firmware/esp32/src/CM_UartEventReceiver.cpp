@@ -26,6 +26,21 @@ bool isValidJobAckDetail(const char* detail)
     return true;
 }
 
+bool isValidRunReplyDetail(const char* detail)
+{
+    if (detail == nullptr) return false;
+    const size_t length = strlen(detail);
+    if (length == 0U || length > 32U) return false;
+    for (size_t index = 0U; index < length; ++index)
+    {
+        const char value = detail[index];
+        const bool upper = value >= 'A' && value <= 'Z';
+        const bool digit = value >= '0' && value <= '9';
+        if (!upper && !digit && value != '_' && value != '-') return false;
+    }
+    return true;
+}
+
 bool parseEventType(const char* text, RemoteEventType& type)
 {
     type = RemoteEventType::None;
@@ -236,18 +251,41 @@ bool UartEventReceiver::jobCancelPending() const
 
 void UartEventReceiver::sendAck(uint32_t runId, const char* status)
 {
-    m_serial.print(F("CMP1|ACK|"));
-    m_serial.print(runId);
-    m_serial.print('|');
-    m_serial.println(status != nullptr ? status : "RECEIVED");
+    writeRunReply("ACK", runId, status != nullptr ? status : "RECEIVED");
 }
 
 void UartEventReceiver::sendNack(uint32_t runId, const char* reason)
 {
-    m_serial.print(F("CMP1|NACK|"));
-    m_serial.print(runId);
-    m_serial.print('|');
-    m_serial.println(reason != nullptr ? reason : "ERROR");
+    writeRunReply("NACK", runId, reason != nullptr ? reason : "ERROR");
+}
+
+void UartEventReceiver::writeRunReply(const char* category,
+                                      uint32_t runId,
+                                      const char* detail)
+{
+    if (category == nullptr ||
+        (strcmp(category, "ACK") != 0 && strcmp(category, "NACK") != 0) ||
+        !isValidRunReplyDetail(detail)) return;
+
+    char frame[80];
+    const int payloadLength = snprintf(
+        frame, sizeof(frame), "CMP1|%s|%lu|%s", category,
+        static_cast<unsigned long>(runId), detail);
+    if (payloadLength <= 0 ||
+        static_cast<size_t>(payloadLength) >= sizeof(frame)) return;
+
+    const uint16_t crc = Cmp1Crc::calculate(
+        frame, static_cast<size_t>(payloadLength));
+    const int suffixLength = snprintf(
+        frame + payloadLength,
+        sizeof(frame) - static_cast<size_t>(payloadLength),
+        "|%04X\n", static_cast<unsigned int>(crc));
+    if (suffixLength <= 0 ||
+        static_cast<size_t>(suffixLength) >=
+            sizeof(frame) - static_cast<size_t>(payloadLength)) return;
+
+    const size_t frameLength = static_cast<size_t>(payloadLength + suffixLength);
+    m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength);
 }
 
 bool UartEventReceiver::parseEventLine(char* line,

@@ -33,16 +33,21 @@ CMP1|EVT|EVENT_NAME|SESSION_ID|RUN_ID|COMPLETED_RUNS|CRC16
 CMP1|LOCAL_EVT|EVENT_NAME|SESSION_ID|RUN_ID|COMPLETED_RUNS|WINDING_TYPE|COIL_COUNT|TURNS|CRC16
 CMP1|JOB|JOB_ID|SESSION_ID|WINDING_TYPE|COIL_COUNT|TURNS|CRC16
 CMP1|JOB_CANCEL|JOB_ID|CRC16
+CMP1|ACK|RUN_ID|STATUS|CRC16
+CMP1|NACK|RUN_ID|REASON|CRC16
 ```
 
 Ответы без CRC:
 
 ```text
-CMP1|ACK|RUN_ID|STATUS
-CMP1|NACK|RUN_ID|REASON
 CMP1|JOB_ACK|JOB_ID|STATUS|DETAIL
 CMP1|JOB_CANCEL_ACK|JOB_ID|STATUS|DETAIL
 ```
+
+ESP32 всегда добавляет CRC в `ACK/NACK`. Arduino проверяет CRC до обработки
+подтверждения. На время поэтапного обновления новая Arduino также принимает
+старый четырёхполевой `ACK/NACK` без CRC; кадр с дополнительным полем, которое
+не является корректным CRC, отклоняется.
 
 `EVENT_NAME` принимает `RUN_STARTED` или `RUN_COMPLETED`. `WINDING_TYPE` —
 `WORKING` или `STARTING`. Значения витков нескольких катушек передаются через

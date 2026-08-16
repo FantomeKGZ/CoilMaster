@@ -325,14 +325,36 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
         return;
     }
 
+    uint8_t separatorCount = 0U;
+    for (const char* value = line; *value != '\0'; ++value)
+        if (*value == '|') ++separatorCount;
+
+    // Current ACK/NACK has a fourth separator followed by CRC. Keep accepting
+    // the three-separator legacy reply during staged ESP32/Arduino upgrades.
+    if (separatorCount == 4U)
+    {
+        char* lastSeparator = strrchr(line, '|');
+        uint16_t receivedCrc = 0U;
+        if (lastSeparator == nullptr ||
+            !parseHex16(lastSeparator + 1, receivedCrc)) return;
+        const size_t payloadLength =
+            static_cast<size_t>(lastSeparator - line);
+        if (Cmp1Crc::calculate(
+                reinterpret_cast<const uint8_t*>(line), payloadLength) !=
+            receivedCrc) return;
+        *lastSeparator = '\0';
+    }
+    else if (separatorCount != 3U) return;
+
     char* save = nullptr;
     char* version = strtok_r(line, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
     char* runText = strtok_r(nullptr, "|", &save);
     char* status = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
 
     if (version == nullptr || category == nullptr ||
-        runText == nullptr || status == nullptr ||
+        runText == nullptr || status == nullptr || extra != nullptr ||
         strcmp(version, "CMP1") != 0 || m_count == 0U)
     {
         return;

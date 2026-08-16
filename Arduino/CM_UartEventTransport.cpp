@@ -118,9 +118,7 @@ void UartEventTransport::sendJobResult(uint32_t jobId,
                                        bool accepted,
                                        const char* reason)
 {
-    writeJobReply("JOB_ACK", jobId,
-                  accepted ? "ACCEPTED" : "REJECTED",
-                  reason != nullptr ? reason : "NONE");
+    writeJobReply(false, jobId, accepted, reason);
 }
 
 bool UartEventTransport::takeRemoteCancel(uint32_t& jobId)
@@ -137,43 +135,68 @@ void UartEventTransport::sendJobCancelResult(uint32_t jobId,
                                              bool cancelled,
                                              const char* reason)
 {
-    writeJobReply("JOB_CANCEL_ACK", jobId,
-                  cancelled ? "CANCELLED" : "REJECTED",
-                  reason != nullptr ? reason : "NONE");
+    writeJobReply(true, jobId, cancelled, reason);
 }
 
-void UartEventTransport::writeJobReply(const char* category,
+void UartEventTransport::writeJobReply(bool cancelReply,
                                        uint32_t jobId,
-                                       const char* status,
+                                       bool successful,
                                        const char* detail)
 {
     if (!m_peerJobReplyCrcSupported)
     {
-        m_serial.print(F("CMP1|"));
-        m_serial.print(category);
-        m_serial.print('|');
+        m_serial.print(cancelReply ? F("CMP1|JOB_CANCEL_ACK|")
+                                   : F("CMP1|JOB_ACK|"));
         m_serial.print(jobId);
         m_serial.print('|');
-        m_serial.print(status);
+        if (successful)
+            m_serial.print(cancelReply ? F("CANCELLED") : F("ACCEPTED"));
+        else
+            m_serial.print(F("REJECTED"));
         m_serial.print('|');
-        m_serial.println(detail);
+        if (detail != nullptr)
+            m_serial.println(detail);
+        else
+            m_serial.println(F("NONE"));
         return;
     }
 
     char frame[88];
-    const int payloadLength = snprintf(
-        frame, sizeof(frame), "CMP1|%s|%lu|%s|%s|C", category,
-        static_cast<unsigned long>(jobId), status, detail);
+    PGM_P format;
+    if (cancelReply)
+        format = successful
+                     ? (detail != nullptr
+                            ? PSTR("CMP1|JOB_CANCEL_ACK|%lu|CANCELLED|%s|C")
+                            : PSTR("CMP1|JOB_CANCEL_ACK|%lu|CANCELLED|NONE|C"))
+                     : (detail != nullptr
+                            ? PSTR("CMP1|JOB_CANCEL_ACK|%lu|REJECTED|%s|C")
+                            : PSTR("CMP1|JOB_CANCEL_ACK|%lu|REJECTED|NONE|C"));
+    else
+        format = successful
+                     ? (detail != nullptr
+                            ? PSTR("CMP1|JOB_ACK|%lu|ACCEPTED|%s|C")
+                            : PSTR("CMP1|JOB_ACK|%lu|ACCEPTED|NONE|C"))
+                     : (detail != nullptr
+                            ? PSTR("CMP1|JOB_ACK|%lu|REJECTED|%s|C")
+                            : PSTR("CMP1|JOB_ACK|%lu|REJECTED|NONE|C"));
+
+    const int payloadLength = detail != nullptr
+                                  ? snprintf_P(
+                                        frame, sizeof(frame), format,
+                                        static_cast<unsigned long>(jobId), detail)
+                                  : snprintf_P(
+                                        frame, sizeof(frame), format,
+                                        static_cast<unsigned long>(jobId));
     if (payloadLength <= 0 ||
         static_cast<size_t>(payloadLength) >= sizeof(frame)) return;
 
     const uint16_t crc = Cmp1Crc::calculate(
         reinterpret_cast<const uint8_t*>(frame),
         static_cast<size_t>(payloadLength));
-    const int suffixLength = snprintf(
+    const int suffixLength = snprintf_P(
         frame + payloadLength,
         sizeof(frame) - static_cast<size_t>(payloadLength),
-        "|%04X\n", static_cast<unsigned int>(crc));
+        PSTR("|%04X\n"), static_cast<unsigned int>(crc));
     if (suffixLength <= 0 ||
         static_cast<size_t>(suffixLength) >=
             sizeof(frame) - static_cast<size_t>(payloadLength)) return;

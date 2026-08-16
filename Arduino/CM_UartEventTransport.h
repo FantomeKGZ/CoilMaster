@@ -87,9 +87,9 @@ private:
     void processReply(char* line, uint32_t nowMs);
     bool parseRemoteJob(char* line, WindingJob& job);
     bool parseRemoteCancel(char* line, uint32_t& jobId) const;
-    void writeJobReply(const char* category,
+    void writeJobReply(bool cancelReply,
                        uint32_t jobId,
-                       const char* status,
+                       bool successful,
                        const char* detail);
     void removeFront();
     void publishDelivery(UartDeliveryResult result, uint32_t runId);

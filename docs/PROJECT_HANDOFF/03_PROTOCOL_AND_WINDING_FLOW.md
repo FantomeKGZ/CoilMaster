@@ -244,5 +244,28 @@ production PlatformIO builds его не подключают. Рабочие `C
 classes Arduino и ESP32 реализованы отдельно и обе используют CRC16/MODBUS
 (initial `0xFFFF`, polynomial `0xA001`). Это несовместимо с binary CMP
 CRC-CCITT `0x1021`. Поэтому существующий Shared core нельзя просто добавить в
-build. Старое описание CRC-CCITT в `docs/17_UART_EVENT_TRANSPORT.md` считается
-устаревшим и должно быть исправлено отдельным documentation/code-test block.
+build. На момент этого checkpoint описание CRC-CCITT в
+`docs/17_UART_EVENT_TRANSPORT.md` было устаревшим; исправление зафиксировано
+ниже.
+
+## Общий CRC рабочего CMP1 — 2026-08-16
+
+Commit `de8ee6b5da6b68d0880884e75f04e39e79c6b66d` устранил дублирование
+CRC16/MODBUS в production transport classes. Arduino и ESP32 теперь используют
+один stateless header `Shared/CMP1Text/CM_Cmp1Crc.h` без очередей, буферов и
+динамической памяти. Binary `Shared/Protocol/` не изменён и остаётся отдельным
+host-test-only форматом.
+
+Добавлены прямые проверки контрольного вектора `123456789 -> 4B37`, реального
+CMP1 event payload и инкрементального расчёта. `docs/17_UART_EVENT_TRANSPORT.md`
+исправлен: рабочий протокол использует CRC-16/MODBUS (`0xFFFF`, reflected
+`0xA001`), а не CRC-CCITT.
+
+```text
+CMP Protocol Tests: SUCCESS (run 31928080265)
+Arduino Uno Build: SUCCESS (run 31928080266)
+ESP32 Build: SUCCESS (run 31928080285)
+```
+
+Этот блок не меняет safety contract: удалённый job не включает SSR, физический
+START остаётся локальным, автоматического resume после reboot нет.

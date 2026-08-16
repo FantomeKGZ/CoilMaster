@@ -1141,3 +1141,27 @@ host-test-only и не смешивается с CMP1; для ESP32/Arduino вы
 USB-feed от общего качественного `5 V, 3–4 A` supply с общей signal ground.
 Следующие hardware gates: apply preflight и стабильный Wi-Fi от выбранного
 питания. После их подтверждения продолжать transactional restore apply.
+
+## Completed: shared production CMP1 CRC — 2026-08-16
+
+Commit `de8ee6b5da6b68d0880884e75f04e39e79c6b66d` introduced the lightweight
+header-only `Shared/CMP1Text/CM_Cmp1Crc.h` and switched both active UART
+implementations to it. It has no persistent state, buffers or allocation, which
+keeps it suitable for the Uno SRAM budget. Direct host tests cover the MODBUS
+check vector, a production CMP1 event payload and incremental updates.
+
+The UART document now matches production: CRC-bearing CMP1 text frames use
+CRC-16/MODBUS with initial `0xFFFF` and reflected polynomial `0xA001`.
+`Shared/Protocol/` remains a separate experimental binary protocol using
+CRC-CCITT and is not linked into firmware.
+
+```text
+CMP Protocol Tests: SUCCESS (run 31928080265)
+Arduino Uno Build: SUCCESS (run 31928080266)
+ESP32 Build: SUCCESS (run 31928080285)
+```
+
+No size figures are recorded because the available CI result did not expose the
+PlatformIO size lines. Completion remains **91%** pending the already documented
+real-device apply-preflight and stable external-power Wi-Fi gates. Safety
+invariants are unchanged.

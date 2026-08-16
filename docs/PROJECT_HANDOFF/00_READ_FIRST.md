@@ -7,31 +7,33 @@
 
 ## Начать отсюда
 
-1. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` —
-   самый свежий checkpoint: read-only microSD capacity diagnostics подтверждена
-   на реальном ESP32; следующий и оставшийся обязательный gate — final
-   populated-device acceptance / recovery drill.
-2. `33_MICROSD_CAPACITY_DIAGNOSTICS_2026-08-16.md` — реализация read-only
+1. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md` —
+   самый свежий checkpoint: добавлен единый repo-level final acceptance contract
+   audit; CI подтверждён SUCCESS. Остался реальный final populated-device
+   acceptance / recovery drill.
+2. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` — read-only microSD
+   capacity diagnostics подтверждена на реальном ESP32.
+3. `33_MICROSD_CAPACITY_DIAGNOSTICS_2026-08-16.md` — реализация read-only
    capacity/used/free diagnostics без automatic cleanup; ESP32 Build и web audit
    SUCCESS.
-3. `32_MOTOR_IMPORT_HARDWARE_PERSISTENCE_PASS_2026-08-16.md` — motor import
+4. `32_MOTOR_IMPORT_HARDWARE_PERSISTENCE_PASS_2026-08-16.md` — motor import
    успешно выполнен на реальном ESP32, запись сохранилась после reboot.
-4. `31_POSITIVE_RESTORE_APPLY_HARDWARE_PASS_AND_RELEASE_CONTRACTS_2026-08-16.md` —
+5. `31_POSITIVE_RESTORE_APPLY_HARDWARE_PASS_AND_RELEASE_CONTRACTS_2026-08-16.md` —
    positive transactional restore apply подтверждён на реальном устройстве;
    добавлен release safety contract audit.
-5. `30_TRANSACTIONAL_APPLY_BACKEND_STALE_LOCK_2026-08-16.md` — backend
+6. `30_TRANSACTIONAL_APPLY_BACKEND_STALE_LOCK_2026-08-16.md` — backend
    fail-closed lock на persisted apply evidence, explicit cleanup exception и
    scheduler wait-state.
-6. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — активная работа и история продолжения;
-   при расхождении использовать checkpoint `34` и текущий код.
-7. `01_CURRENT_STATE.md` — общее состояние; предыдущие проценты готовности могут
-   быть старее checkpoint `34`.
-8. `02_ARCHITECTURE_AND_HARDWARE.md` — аппаратная архитектура и питание.
-9. `03_PROTOCOL_AND_WINDING_FLOW.md` — фактический UART/CMP1 flow.
+7. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — история активной работы; при расхождении
+   использовать checkpoint `35` и текущий код.
+8. `01_CURRENT_STATE.md` — общее состояние; предыдущие проценты готовности могут
+   быть старее checkpoint `35`.
+9. `02_ARCHITECTURE_AND_HARDWARE.md` и `03_PROTOCOL_AND_WINDING_FLOW.md` —
+   аппаратная архитектура и фактический UART/CMP1 flow.
 10. `09_KEY_FILES_INDEX.md` и `08_WORK_RULES_AND_VERIFICATION.md` — индекс и
     правила изменения/проверки.
 
-Файлы `12`–`33` сохраняют предыдущие checkpoints и не заменяют текущий код.
+Предыдущие checkpoints сохраняют историю и не заменяют текущий код.
 `11_FULL_BRANCH_AUDIT.md` — историческая карта, не source of truth.
 
 ## Источник истины
@@ -41,9 +43,9 @@
 1. текущий код `cmp-protocol-v1`;
 2. фактический результат актуального build/Actions и подтверждённые hardware
    tests;
-3. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md`;
-4. checkpoints `33`, `32`, `31`, затем `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и
-   `01_CURRENT_STATE.md`;
+3. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md`;
+4. checkpoints `34`, `33`, `32`, `31`, затем `06_ACTIVE_WORK_AND_NEXT_STEPS.md`
+   и `01_CURRENT_STATE.md`;
 5. остальные handoff и тематические документы.
 
 Перед каждым изменением существующего файла заново получать его содержимое и
@@ -74,39 +76,49 @@ CoilMaster v1 оценивается в **96%**.
 - read-only microSD capacity diagnostics в `Настройки` после актуальной прошивки
   и обновления `/web`.
 
-Для microSD diagnostics repo-level проверки подтверждены:
+Repo-level final acceptance hardening теперь включает:
 
 ```text
-ESP32 Build 31938372488 — SUCCESS
-CMP/web audit 31938393947 — SUCCESS
-final handoff-head CMP/web/release-contract 31938462767 — SUCCESS
+Tests/Web/check_web_assets.js
+Tests/Web/check_release_contracts.js
+Tests/Web/check_final_acceptance_contracts.js
 ```
 
-Конкретные числовые capacity/used/free значения в handoff не записаны, потому
-что пользователь подтвердил корректную работу целиком без передачи самих чисел.
+Новый final acceptance audit проверяет bounded/exact workshop reads, warehouse,
+exact ACTIVE spool linkage, status/diagnostics/storage/network/time, backup
+inspection, fail-closed restore, manual exact-run writeoff и наличие основных
+operator UI страниц desktop/mobile.
+
+Подтверждённый CI:
+
+```text
+CMP Protocol Tests run 31940030107 — SUCCESS
+```
+
+В этом run успешно прошли protocol tests, web audit, release safety contracts и
+final acceptance contracts. Production firmware этим audit-блоком не менялся,
+поэтому новая прошивка только ради checkpoint `35` не требуется.
 
 Закрытые hardware gates не повторять, пока соответствующий production-код не
 меняется.
 
-Recovery path остаётся fail-closed: persisted apply evidence блокирует новые
-backup/restore действия до explicit cleanup, scheduler ждёт
-`WAITING_RESTORE_CLEANUP`, auto-resume отсутствует. В CI действует
-`Tests/Web/check_release_contracts.js`, а web audit дополнительно защищает
-read-only microSD diagnostics и отсутствие automatic cleanup.
-
-## Следующий обязательный release gate
+## Последний обязательный release gate
 
 **Final populated-device acceptance / recovery drill.**
 
-Минимальный scope:
+На текущем устройстве с уже заполненными тестовыми данными:
 
-1. обычный reboot и доступность clients / motors / repairs / warehouse /
-   winding history;
-2. отсутствие automatic physical START и ESP32/Web SSR authority;
-3. корректная linked winding история и exact spool/session/run provenance;
-4. manual writeoff остаётся manual и не возникает только из `RUN_COMPLETED`;
-5. fresh backup создаётся и доступен для inspection/read;
-6. reboot не продолжает restore/apply автоматически;
-7. network/time/diagnostics/settings UI работают без release-blocking ошибок.
+1. выполнить обычный reboot;
+2. проверить доступность clients / motors / repairs / warehouse / winding history;
+3. убедиться, что нет automatic physical START и SSR не активируется от Web/ESP32;
+4. проверить существующую linked winding историю и корректность
+   repair/motor/spool/session/run связей;
+5. убедиться, что `RUN_COMPLETED` сам по себе не создал wire writeoff;
+6. создать fresh backup и убедиться, что batch завершён и доступен для
+   inspection/read;
+7. выполнить обычный reboot и убедиться, что restore/apply не продолжается
+   автоматически;
+8. проверить network/time/diagnostics/settings без release-blocking ошибок.
 
-Destructive fault-injection разрешён только на disposable card/image.
+Destructive fault-injection, intentional corruption и power-loss apply tests на
+рабочей microSD запрещены; только disposable card/image.

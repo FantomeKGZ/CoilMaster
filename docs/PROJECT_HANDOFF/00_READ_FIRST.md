@@ -7,29 +7,28 @@
 
 ## Начать отсюда
 
-1. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md` —
+1. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` —
+   **финальный статус CoilMaster v1: RELEASE READY, 100% согласованного production scope**.
+2. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md` —
    release-candidate deployment baseline: точный ESP32/Web production state,
    реально прошедший final hardware acceptance, и граница между production и
    последующими test/docs-only commits.
-2. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md` —
-   **final populated-device acceptance / recovery drill = HARDWARE PASS**;
-   последний обязательный hardware release gate закрыт.
-3. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md` — единый repo-level
+3. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md` —
+   final populated-device acceptance / recovery drill = HARDWARE PASS.
+4. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md` — единый repo-level
    final acceptance contract audit и CI protection.
-4. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` — read-only microSD
+5. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` — read-only microSD
    capacity diagnostics подтверждена на реальном ESP32.
-5. `33_MICROSD_CAPACITY_DIAGNOSTICS_2026-08-16.md` — реализация read-only
-   capacity/used/free diagnostics без automatic cleanup.
 6. `32_MOTOR_IMPORT_HARDWARE_PERSISTENCE_PASS_2026-08-16.md` — motor import
    успешно выполнен на реальном ESP32, запись сохранилась после reboot.
 7. `31_POSITIVE_RESTORE_APPLY_HARDWARE_PASS_AND_RELEASE_CONTRACTS_2026-08-16.md` —
    positive transactional restore apply подтверждён на реальном устройстве.
-8. `06_ACTIVE_WORK_AND_NEXT_STEPS.md` и `01_CURRENT_STATE.md` — исторические
-   сводки; при расхождении использовать checkpoints `37`/`36` и текущий код.
-9. `02_ARCHITECTURE_AND_HARDWARE.md` и `03_PROTOCOL_AND_WINDING_FLOW.md` —
+8. `02_ARCHITECTURE_AND_HARDWARE.md` и `03_PROTOCOL_AND_WINDING_FLOW.md` —
    аппаратная архитектура и фактический UART/CMP1 flow.
-10. `09_KEY_FILES_INDEX.md` и `08_WORK_RULES_AND_VERIFICATION.md` — индекс и
-    правила изменения/проверки.
+9. `09_KEY_FILES_INDEX.md` и `08_WORK_RULES_AND_VERIFICATION.md` — индекс и
+   правила изменения/проверки.
+10. `01_CURRENT_STATE.md` и `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — исторические
+    сводки; при расхождении использовать checkpoint `38` и текущий код.
 
 Предыдущие checkpoints сохраняют историю и не заменяют текущий код.
 `11_FULL_BRANCH_AUDIT.md` — историческая карта, не source of truth.
@@ -40,16 +39,16 @@
 
 1. текущий код `cmp-protocol-v1`;
 2. фактический результат build/Actions и подтверждённые hardware tests;
-3. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md`;
-4. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md`;
-5. checkpoints `35`, `34`, `33`, `32`, `31`;
-6. остальные handoff и тематические документы.
+3. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md`;
+4. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md`;
+5. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md`;
+6. остальные checkpoints и тематические документы.
 
 Перед каждым изменением существующего файла заново получать его содержимое и
 blob SHA из `cmp-protocol-v1`. Для нового файла сначала проверять отсутствие
 точного пути. `main` не использовать как источник реализации.
 
-## Safety-инварианты
+## Safety-инварианты релиза
 
 - physical START только физический;
 - ESP32/Web не управляют SSR напрямую;
@@ -64,13 +63,14 @@ blob SHA из `cmp-protocol-v1`. Для нового файла сначала �
 - заполнение microSD не запускает automatic deletion production data;
 - destructive fault injection на рабочей microSD запрещён.
 
-## Текущая точка
+## Финальная точка CoilMaster v1
 
-CoilMaster v1 оценивается в **98%**.
+**CoilMaster v1 = RELEASE READY. Готовность: 100% согласованного production scope.**
 
-**Все обязательные production hardware acceptance gates закрыты.**
+Пользователь после полного release-candidate цикла подтвердил: **«все работает отлично»**.
 
-На реальном устройстве подтверждены, среди прочего:
+Все обязательные production hardware acceptance gates закрыты. На реальном
+устройстве подтверждены, среди прочего:
 
 - полный linked production flow с exact spool и physical START;
 - RUN_STARTED / RUN_COMPLETED;
@@ -86,7 +86,7 @@ CoilMaster v1 оценивается в **98%**.
 Закрытые hardware gates не повторять, пока соответствующий production-код не
 меняется.
 
-## Release-candidate production baseline
+## Release production baseline
 
 Реально проверенный ESP32/Web production baseline:
 
@@ -100,8 +100,8 @@ cfcf2b7fb2f7f3376a97179f28303b0e9e0e295a
 ESP32 Build run 31938372488 — SUCCESS
 ```
 
-После этого production baseline до checkpoint `36` менялись только tests,
-workflow и handoff docs; production firmware/web paths не менялись.
+После этого production firmware/web paths не менялись; release closure меняла
+только tests/workflow/handoff docs.
 
 Final repo-level acceptance protection:
 
@@ -111,25 +111,24 @@ Tests/Web/check_release_contracts.js
 Tests/Web/check_final_acceptance_contracts.js
 ```
 
-Подтверждённый final CI перед hardware PASS:
+Подтверждённый release-candidate CI:
 
 ```text
-CMP Protocol Tests run 31940069683 — SUCCESS
+CMP Protocol Tests run 31941111206 — SUCCESS
+head: df188ca49d95ee4953bd228c05aec849dcd947b5
 ```
 
-## Что осталось до final v1 closure
+## После v1
 
-Это уже не повторный production E2E. Оставшиеся небольшие release-closure задачи:
+Следующие действия не блокируют текущий release-ready статус и относятся к
+последующему hardening/maintenance:
 
-1. точный Arduino flashed revision зафиксировать при следующей плановой прошивке,
-   если требуется формальный deployment baseline; не перепрошивать только ради
-   номера SHA;
-2. отдельно проверить `http://coil.local/`, если mDNS должен считаться
-   обязательным convenience release requirement; IP fallback остаётся рабочим;
-3. destructive corruption/power-loss/fault-injection проводить только на
-   disposable microSD/image как отдельный hardening;
-4. после выбранных closure-пунктов оформить final CoilMaster v1 release status.
+- destructive corruption / power-loss fault injection — только на disposable
+  microSD/image;
+- exact Arduino flashed commit можно формально записать при следующей плановой
+  прошивке, без перепрошивки только ради SHA;
+- `http://coil.local/` можно отдельно проверить как convenience-функцию; IP
+  fallback остаётся обязательным operational access path.
 
-До **100%** не повышать только на основании документации: 100% означает также
-закрытую release packaging/closure и отсутствие известных release-blocking
-пунктов.
+Любое будущее изменение production-кода должно проходить релевантные ему build,
+CI и hardware regression gates перед включением в новый release baseline.

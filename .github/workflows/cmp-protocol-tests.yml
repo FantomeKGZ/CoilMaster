@@ -9,6 +9,12 @@ on:
     paths:
       - "Shared/Protocol/**"
       - "Tests/Protocol/**"
+      - "Tests/Web/**"
+      - "Arduino/**"
+      - "Core/**"
+      - "firmware/arduino/**"
+      - "firmware/esp32/src/**"
+      - "firmware/esp32/web/**"
       - ".github/workflows/cmp-protocol-tests.yml"
 
 jobs:
@@ -30,3 +36,6 @@ jobs:
 
       - name: Audit web JavaScript and navigation
         run: node Tests/Web/check_web_assets.js
+
+      - name: Audit release safety contracts
+        run: node Tests/Web/check_release_contracts.js

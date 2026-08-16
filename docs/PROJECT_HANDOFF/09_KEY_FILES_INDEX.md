@@ -55,10 +55,16 @@ firmware/esp32/src/CM_JobSpoolSelectionStore.h/.cpp
 ## UART и журнал намотки
 
 ```text
+Arduino/CM_UartEventTransport.h/.cpp
 firmware/esp32/src/CM_UartEventReceiver.h/.cpp
+Shared/CMP1Text/CM_Cmp1Crc.h
 firmware/esp32/src/CM_WindingJournal.h/.cpp
 firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp
 ```
+
+`Shared/CMP1Text/CM_Cmp1Crc.h` — единственная production-реализация
+CRC-16/MODBUS для текстовых кадров CMP1. Не заменять её binary
+`Shared/Protocol/`: там другой wire format и CRC-CCITT.
 
 Журнал:
 
@@ -201,6 +207,7 @@ docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
 .github/workflows/cmp-protocol-tests.yml
 Tests/Protocol/CMakeLists.txt
 Tests/Protocol/test_main.cpp
+Tests/CMP1Text/test_main.cpp
 ```
 
 Отсутствие workflow/status результата в GitHub connector не доказывает GREEN push-run.
@@ -223,4 +230,5 @@ docs/PROJECT_HANDOFF/11_FULL_BRANCH_AUDIT.md
 docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
 ```
 
-При переносе в новый чат: `00` → `12` → `01` → `06` → актуальные исходники; затем остальные handoff-файлы.
+При переносе в новый чат: `00` → `28` → `06` → `01` → актуальные исходники;
+затем тематические и исторические handoff-файлы.

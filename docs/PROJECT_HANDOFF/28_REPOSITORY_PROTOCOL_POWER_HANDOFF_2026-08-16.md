@@ -58,13 +58,22 @@ Arduino/CM_UartEventTransport.*
 firmware/esp32/src/CM_UartEventReceiver.*
 ```
 
-Обе production-стороны сейчас используют CRC16/MODBUS: initial `0xFFFF`,
-reflected polynomial `0xA001`. Старое утверждение CRC-CCITT в
-`docs/17_UART_EVENT_TRANSPORT.md` требует исправления. Нельзя просто подключить
-binary Shared core к Uno: форматы несовместимы, а fixed buffers опасны при
-подтверждённом малом запасе SRAM. Правильное будущее направление — лёгкий общий
-CMP1 text codec/CRC/parser с host tests либо явно документированное
-сосуществование.
+Обе production-стороны используют общий stateless header-only
+`Shared/CMP1Text/CM_Cmp1Crc.h`: CRC16/MODBUS, initial `0xFFFF`, reflected
+polynomial `0xA001`. Старое утверждение CRC-CCITT в
+`docs/17_UART_EVENT_TRANSPORT.md` исправлено. Прямые host tests проверяют
+контрольный вектор, production event payload и incremental update.
+
+```text
+de8ee6b5da6b68d0880884e75f04e39e79c6b66d
+CMP Protocol Tests: SUCCESS (run 31928080265)
+Arduino Uno Build: SUCCESS (run 31928080266)
+ESP32 Build: SUCCESS (run 31928080285)
+```
+
+Binary Shared core по-прежнему нельзя подключать к Uno вместо CMP1: форматы и
+CRC несовместимы, а его fixed buffers опасны при подтверждённом малом запасе
+SRAM. Сосуществование форматов теперь явно документировано.
 
 ## Power decision
 
@@ -107,8 +116,9 @@ Wi-Fi start with modules connected one-by-one
 3. Проверить выбранное dual-USB питание и записать фактические напряжения.
 4. После hardware confirmation перейти к operator-only transactional restore
    apply с per-file atomic replacement и немедленным rollback при любой ошибке.
-5. Отдельно исправить устаревшую CRC-документацию и решить судьбу binary
-   `Shared/Protocol/`; не смешивать форматы напрямую.
+
+Общий CRC рабочего CMP1 и документированная граница binary `Shared/Protocol/`
+уже завершены; повторять этот блок не нужно.
 
 ## Safety — не менять
 

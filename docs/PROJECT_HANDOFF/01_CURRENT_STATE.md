@@ -1,6 +1,6 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-12**  
+Дата обновления: **2026-08-16**  
 Ветка: **`cmp-protocol-v1`**  
 Статус: **основной production workflow собран; Arduino local path реально проверен; ESP32 clean build подтверждён; продолжается backup/E2E доводка**
 
@@ -717,6 +717,26 @@ ESP32 Build: not triggered; no ESP32 source changed
 
 No product feature or hardware acceptance state changed, so the rounded
 completion estimate remains **91%**.
+
+## Shared production CMP1 CRC — 2026-08-16
+
+Arduino `CM_UartEventTransport` и ESP32 `CM_UartEventReceiver` больше не
+содержат отдельные копии CRC. Обе production-стороны используют stateless
+header-only `Shared/CMP1Text/CM_Cmp1Crc.h` с CRC-16/MODBUS (`0xFFFF`, reflected
+`0xA001`). Модуль не содержит persistent buffers или allocation и подходит для
+малого запаса Uno SRAM.
+
+Binary `Shared/Protocol/` остаётся отдельным host-test-only форматом с
+CRC-CCITT и не включается в firmware builds.
+
+```text
+de8ee6b5da6b68d0880884e75f04e39e79c6b66d
+CMP Protocol Tests: SUCCESS (run 31928080265)
+Arduino Uno Build: SUCCESS (run 31928080266)
+ESP32 Build: SUCCESS (run 31928080285)
+```
+
+Hardware acceptance state не менялся; общая оценка остаётся **91%**.
 
 ## Saved continuation checkpoint — 2026-08-16
 

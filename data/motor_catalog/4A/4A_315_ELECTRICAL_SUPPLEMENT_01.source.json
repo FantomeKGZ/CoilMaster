@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "series": "4A",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_4a_table_8_21_315_clean",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only rows whose model, power, speed, voltage and current are contiguous and unambiguous in the HTML extraction are transcribed.",
+    "Other 4A315 rows are omitted where the vertical extraction interleaves 4AN/4AK/4ANK variants.",
+    "Detailed winding columns remain pending row-safe mapping; no coil_program is generated."
+  ],
+  "records": [
+    {"model":"4А315М10","power_kw":75,"rated_speed_rpm":590,"voltage_source":"220/380","current_a_source":"260/150","source_id":"likhachev_2004_4a_table_8_21_315_clean","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А315S12","power_kw":45,"rated_speed_rpm":490,"voltage_source":"220/380","current_a_source":"171/99","source_id":"likhachev_2004_4a_table_8_21_315_clean","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А315М12","power_kw":55,"rated_speed_rpm":490,"voltage_source":"220/380","current_a_source":"204/118","source_id":"likhachev_2004_4a_table_8_21_315_clean","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"}
+  ]
+}

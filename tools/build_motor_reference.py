@@ -58,18 +58,36 @@ def source_label(doc: dict, source_id: str) -> str:
     return source_id
 
 
+def source_winding_sets(record: dict) -> list[dict]:
+    for key in ("winding_sets", "winding_sets_source"):
+        sets = record.get(key)
+        if isinstance(sets, list) and sets:
+            return [item for item in sets if isinstance(item, dict)]
+    return []
+
+
+def winding_set_value(item: dict, field: str):
+    candidates = {
+        "wire": ("wire_diameter_source", "wire_diameter_mm", "d_over_dprime_source", "conductor_source"),
+        "source_n": ("source_n_value", "sp_source", "source_sp_value"),
+        "pitch": ("winding_pitch_source", "pitch_source"),
+        "power": ("power_kw_source", "power_kw"),
+        "branches": ("parallel_branches_source",),
+    }
+    for key in candidates.get(field, (field,)):
+        value = item.get(key)
+        if value is not None:
+            return value
+    return None
+
+
 def winding_set_text(record: dict, field: str) -> str | None:
-    sets = record.get("winding_sets")
-    if not isinstance(sets, list) or not sets:
-        return None
     parts = []
-    for item in sets:
-        if not isinstance(item, dict):
-            continue
-        value = item.get(field)
+    for item in source_winding_sets(record):
+        value = winding_set_value(item, field)
         if value is None:
             continue
-        label = item.get("label") or item.get("poles") or "winding"
+        label = item.get("label") or item.get("name") or item.get("part") or item.get("poles") or "winding"
         parts.append(f"{label}:{value}")
     return " | ".join(parts) if parts else None
 
@@ -105,22 +123,38 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
     if wire is None:
         wire = record.get("wire_diameter_mm")
     if wire is None:
-        wire = winding_set_text(record, "wire_diameter_mm")
+        wire = record.get("d_over_dprime_source")
+    if wire is None:
+        wire = record.get("conductor_source")
+    if wire is None:
+        wire = winding_set_text(record, "wire")
+
     power = record.get("power_kw")
     if power is None:
         power = record.get("power_kw_source")
     if power is None:
-        power = winding_set_text(record, "power_kw_source")
+        power = winding_set_text(record, "power")
+
     source_n = record.get("source_n_value")
     if source_n is None:
-        source_n = winding_set_text(record, "source_n_value")
+        source_n = record.get("sp_source")
+    if source_n is None:
+        source_n = record.get("source_sp_value")
+    if source_n is None:
+        source_n = winding_set_text(record, "source_n")
+
     pitch = record.get("winding_pitch_source")
     if pitch is None:
-        pitch = winding_set_text(record, "winding_pitch_source")
+        pitch = record.get("pitch_source")
+    if pitch is None:
+        pitch = winding_set_text(record, "pitch")
+
     branches = record.get("parallel_branches_source")
     if branches is None:
-        branches = winding_set_text(record, "parallel_branches_source")
+        branches = winding_set_text(record, "branches")
+
     model, aliases = source_identity(record)
+    sets = source_winding_sets(record)
     return {
         "reference_only": True,
         "series": doc.get("series") or path.parent.name,
@@ -141,7 +175,7 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "bore_mm": record.get("stator_bore_mm"),
         "core_length_mm": core_length(record),
         "parallel_branches": branches,
-        "winding_sets": record.get("winding_sets"),
+        "winding_sets": sets or None,
         "status": status(record),
         "source_id": record.get("source_id"),
         "source_title": source_label(doc, record.get("source_id", "")),

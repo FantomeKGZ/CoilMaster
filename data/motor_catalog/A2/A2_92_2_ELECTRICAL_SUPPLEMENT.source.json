@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "series": "A2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_section_8_1_a2_92_2",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные А2/АО2 9-го габарита, таблица 8.10",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only the clean model/rating row is transcribed here.",
+    "Neighboring winding columns remain pending because the HTML extraction interleaves A2/AO2/AOP2/AOS2/AOT2/AOK2 variants.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "А2-92-2",
+      "power_kw": 125,
+      "rated_speed_rpm": 2920,
+      "current_a_source": "387/224",
+      "source_id": "likhachev_2004_section_8_1_a2_92_2",
+      "normalization_status": "REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"
+    }
+  ]
+}

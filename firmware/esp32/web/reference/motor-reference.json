@@ -1053,14 +1053,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1470,
       "slot_count": null,
       "model": "4А280S4",
       "aliases": [],
       "variant_key": null,
       "power_kw": 110,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "337/195",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -1074,7 +1074,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_280_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -1082,14 +1083,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1475,
       "slot_count": null,
       "model": "4А280М4",
       "aliases": [],
       "variant_key": null,
       "power_kw": 132,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "234/135",
+      "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -1103,7 +1104,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_280_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -3083,14 +3085,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 735,
       "slot_count": null,
       "model": "4А280S8",
       "aliases": [],
       "variant_key": null,
       "power_kw": 55,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "188/108",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -3104,7 +3106,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_280_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -3112,14 +3115,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 735,
       "slot_count": null,
       "model": "4А280М8",
       "aliases": [],
       "variant_key": null,
       "power_kw": 75,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "248/143",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -3133,7 +3136,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_280_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -3924,14 +3928,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 600,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 590,
       "slot_count": null,
       "model": "4А280S10",
       "aliases": [],
       "variant_key": null,
       "power_kw": 37,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "136/78.5",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -3945,7 +3949,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_280_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -3953,14 +3958,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 600,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 590,
       "slot_count": null,
       "model": "4А280М10",
       "aliases": [],
       "variant_key": null,
       "power_kw": 45,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "164/94.5",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -3974,7 +3979,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_280_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {

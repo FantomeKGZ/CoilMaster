@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_vao_multispeed_8_7_4",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches the VAO multispeed index without increasing record_count.",
+    "Only row-to-column mappings that are unambiguous in the HTML transcription are retained here: geometry, slot count, selected pitch values and clearly aligned speed/power/current/connection modes.",
+    "Source-native multispeed groups remain separate; no coil_program is derived."
+  ],
+  "records": [
+    {
+      "model":"ВАО91-4/8",
+      "stator_outer_diameter_mm":458,
+      "stator_bore_mm":334,
+      "stator_core_length_mm":240,
+      "air_gap_mm_source":0.7,
+      "slot_count":72,
+      "winding_sets_source":[
+        {"part":"stator","poles":4,"power_kw_source":48,"speed_rpm_source":1455,"current_a_source":97.5,"connection_source":"YY","pitch_source":"1-11"},
+        {"part":"stator","poles":8,"power_kw_source":30,"speed_rpm_source":730,"current_a_source":78,"connection_source":"DELTA"}
+      ],
+      "source_id":"likhachev_2004_vao_multispeed_8_7_4",
+      "normalization_status":"REVIEW_REQUIRED_MULTISPEED_SOURCE_NATIVE"
+    },
+    {
+      "model":"ВАО92-4/8",
+      "stator_outer_diameter_mm":458,
+      "stator_bore_mm":334,
+      "stator_core_length_mm":330,
+      "air_gap_mm_source":0.7,
+      "slot_count":72,
+      "winding_sets_source":[
+        {"part":"stator","poles":4,"power_kw_source":60,"speed_rpm_source":1455,"current_a_source":115,"connection_source":"YY","pitch_source":"1-11"},
+        {"part":"stator","poles":8,"power_kw_source":40,"speed_rpm_source":730,"current_a_source":96,"connection_source":"DELTA"}
+      ],
+      "source_id":"likhachev_2004_vao_multispeed_8_7_4",
+      "normalization_status":"REVIEW_REQUIRED_MULTISPEED_SOURCE_NATIVE"
+    },
+    {
+      "model":"ВАО91-4/6/8",
+      "stator_outer_diameter_mm":458,
+      "stator_bore_mm":334,
+      "stator_core_length_mm":240,
+      "air_gap_mm_source":0.7,
+      "slot_count":72,
+      "winding_sets_source":[
+        {"part":"stator","poles":4,"power_kw_source":26,"speed_rpm_source":1475,"current_a_source":55,"connection_source":"YY","pitch_source":"1-10"},
+        {"part":"stator","poles":8,"power_kw_source":18,"speed_rpm_source":735,"current_a_source":46.5,"connection_source":"DELTA"},
+        {"part":"stator","poles":6,"power_kw_source":18,"speed_rpm_source":980,"current_a_source":40,"connection_source":"Y","pitch_source":"1-11"}
+      ],
+      "source_id":"likhachev_2004_vao_multispeed_8_7_4",
+      "normalization_status":"REVIEW_REQUIRED_MULTISPEED_SOURCE_NATIVE"
+    },
+    {
+      "model":"ВАО92-4/6/8",
+      "stator_outer_diameter_mm":458,
+      "stator_bore_mm":334,
+      "stator_core_length_mm":330,
+      "air_gap_mm_source":0.7,
+      "slot_count":72,
+      "winding_sets_source":[
+        {"part":"stator","poles":4,"power_kw_source":35,"speed_rpm_source":1470,"current_a_source":70.5,"connection_source":"YY","pitch_source":"1-10"},
+        {"part":"stator","poles":8,"power_kw_source":25,"speed_rpm_source":730,"current_a_source":58,"connection_source":"DELTA"},
+        {"part":"stator","poles":6,"power_kw_source":25,"speed_rpm_source":980,"current_a_source":54,"connection_source":"Y","pitch_source":"1-11"}
+      ],
+      "source_id":"likhachev_2004_vao_multispeed_8_7_4",
+      "normalization_status":"REVIEW_REQUIRED_MULTISPEED_SOURCE_NATIVE"
+    },
+    {
+      "model":"ВАО91-4/6/8/12",
+      "stator_outer_diameter_mm":458,
+      "stator_bore_mm":334,
+      "stator_core_length_mm":240,
+      "air_gap_mm_source":0.7,
+      "slot_count":72,
+      "winding_sets_source":[
+        {"part":"stator","poles":4,"power_kw_source":25,"speed_rpm_source":1470,"current_a_source":54,"connection_source":"YY","pitch_source":"1-10"},
+        {"part":"stator","poles":8,"power_kw_source":13,"speed_rpm_source":735,"current_a_source":38,"connection_source":"DELTA"},
+        {"part":"stator","poles":12,"power_kw_source":9,"speed_rpm_source":490,"current_a_source":33,"connection_source":"DELTA"}
+      ],
+      "source_id":"likhachev_2004_vao_multispeed_8_7_4",
+      "normalization_status":"REVIEW_REQUIRED_MULTISPEED_PARTIAL_MODES_SOURCE_NATIVE"
+    },
+    {
+      "model":"ВАО92-4/6/8/12",
+      "stator_outer_diameter_mm":458,
+      "stator_bore_mm":334,
+      "stator_core_length_mm":330,
+      "air_gap_mm_source":0.7,
+      "slot_count":72,
+      "winding_sets_source":[
+        {"part":"stator","poles":4,"power_kw_source":33,"speed_rpm_source":1470,"current_a_source":68,"connection_source":"YY","pitch_source":"1-10"},
+        {"part":"stator","poles":8,"power_kw_source":18,"speed_rpm_source":735,"current_a_source":50,"connection_source":"DELTA"}
+      ],
+      "source_id":"likhachev_2004_vao_multispeed_8_7_4",
+      "normalization_status":"REVIEW_REQUIRED_MULTISPEED_PARTIAL_MODES_SOURCE_NATIVE"
+    }
+  ]
+}

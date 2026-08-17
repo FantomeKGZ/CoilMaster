@@ -6,42 +6,31 @@
   "reference_only": true,
   "sources": [
     {
-      "id": "bookap_4an315s12_winding_study",
+      "id": "kravchik_table_6_2_4an315_12p_text_mirror",
       "source_type": "TECHNICAL_REFERENCE",
-      "title": "Конструктивные и эксплуатационные параметры двигателя 4АН315S12У3 — анализ обмотки статора",
-      "url": "https://referat.bookap.info/work/453465/Konstruktivnye-i-ekspluatacionnye-parametry",
+      "title": "Обмоточные данные 4АН315S12/М12, таблица 6.2 — текстовое зеркало справочника Кравчика",
+      "url": "https://lektsii.org/17-49345.html",
       "retrieved_at": "2026-08-18"
     },
     {
-      "id": "kravchik_4an315s12_rating",
+      "id": "kravchik_4an315_12p_rating",
       "source_type": "TECHNICAL_REFERENCE",
-      "title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — 4АН315S12У3",
+      "title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — 4АН315 12-полюсные",
       "url": "https://ru.scribd.com/document/802001843/Kravchik-Ae-Shlaf-Mm-Afonin-Vi-Sobolevskaia-Ea-Asinkhronnye",
       "retrieved_at": "2026-08-18"
     }
   ],
   "notes": [
-    "The model-specific prose identifies a rigid two-layer concentric stator winding with 90 stator slots and rectangular copper conductor 1.6×3.55 mm.",
-    "Average turn length 1450 mm and stator slot height 42.5 mm are preserved as source-native geometry/reference values.",
-    "The HTML rendering of table 3 exposes the raw sequence '1-8 / 10+10 / 4/2 / 1.50/1.58', but column alignment conflicts with the clearer prose conductor statement; these values are preserved only in source_raw_table_notation and are not normalized into pitch/turn/branch fields.",
-    "The study also calculates a theoretical pitch near 6.4 slots; that calculated result is not promoted to winding_pitch_source.",
+    "The earlier study-only generic 4AN315S12 card was replaced by voltage-specific table 6.2 variants after a cleaner row-aligned source was recovered.",
+    "Both S12 and M12 have separate 220/380 and 380/660 winding rows; Sn, n/a, conductor, resistance and copper mass are preserved per source row.",
+    "The table's complex pitch/type column layout is preserved in source_winding_table_notation rather than being promoted to coil_program or a simplified pitch.",
+    "n/a remains source-native and is not mapped to CoilMaster parallel_strands.",
     "No coil_program is generated."
   ],
   "records": [
-    {
-      "variant_key": "4AN315S12U3-study-reference",
-      "model": "4АН315S12У3",
-      "power_kw": 55,
-      "pole_count": 12,
-      "synchronous_speed_rpm": 500,
-      "slot_count": 90,
-      "winding_type_source": "жесткая двухслойная концентрическая",
-      "conductor_source": "прямоугольный медный 1.6×3.55 мм",
-      "average_turn_length_mm_source": 1450,
-      "stator_slot_height_mm_source": 42.5,
-      "source_raw_table_notation": "1-8 / 10+10 / 4/2 / 1.50/1.58",
-      "source_id": "bookap_4an315s12_winding_study",
-      "normalization_status": "REVIEW_REQUIRED_SOURCE_TABLE_COLUMN_CONFLICT_SOURCE_NATIVE"
-    }
+    {"variant_key":"4AN315S12U3-220-380","model":"4АН315S12У3","power_kw":55,"rated_speed_rpm":490,"pole_count":12,"voltage_source":"220/380","stator_outer_diameter_mm":590,"stator_bore_mm":450,"stator_core_length_mm":230,"air_gap_mm_source":0.8,"slot_count":90,"rotor_slot_count":106,"stator_slot_height_mm_source":42.5,"source_winding_table_notation":"type 13; y: 1-9 / 2-8 / 3-7 / 1-8 / 2-7","source_sn_value":"18+18","source_n_a_value":"3/6","conductor_source":"1.32/1.4","winding_factor_source":0.91,"average_turn_length_mm_source":860,"stator_resistance_20c_ohm_source":0.0562,"wire_mass_kg_source":51.8,"source_id":"kravchik_table_6_2_4an315_12p_text_mirror","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE_VOLTAGE_VARIANT_COMPLEX_PITCH"},
+    {"variant_key":"4AN315S12U3-380-660","model":"4АН315S12У3","power_kw":55,"rated_speed_rpm":490,"pole_count":12,"voltage_source":"380/660","stator_outer_diameter_mm":590,"stator_bore_mm":450,"stator_core_length_mm":230,"air_gap_mm_source":0.8,"slot_count":90,"rotor_slot_count":106,"stator_slot_height_mm_source":42.5,"source_winding_table_notation":"shared table-6.2 geometry/pitch block with 220/380 row","source_sn_value":"10+10","source_n_a_value":"4/2","conductor_source":"1.5/1.58","stator_resistance_20c_ohm_source":0.182,"wire_mass_kg_source":45.7,"source_id":"kravchik_table_6_2_4an315_12p_text_mirror","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE_VOLTAGE_VARIANT_COMPLEX_PITCH"},
+    {"variant_key":"4AN315M12U3-220-380","model":"4АН315М12У3","power_kw":75,"rated_speed_rpm":490,"pole_count":12,"voltage_source":"220/380","stator_outer_diameter_mm":590,"stator_bore_mm":450,"stator_core_length_mm":270,"air_gap_mm_source":0.8,"slot_count":90,"rotor_slot_count":106,"stator_slot_height_mm_source":42.5,"source_winding_table_notation":"y: 1-9 / 2-8 / 3-7","source_sn_value":"13+13","source_n_a_value":"3/6","conductor_source":"1.5/1.58","winding_factor_source":0.91,"average_turn_length_mm_source":940,"stator_resistance_20c_ohm_source":0.0342,"wire_mass_kg_source":53,"source_id":"kravchik_table_6_2_4an315_12p_text_mirror","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE_VOLTAGE_VARIANT_COMPLEX_PITCH"},
+    {"variant_key":"4AN315M12U3-380-660","model":"4АН315М12У3","power_kw":75,"rated_speed_rpm":490,"pole_count":12,"voltage_source":"380/660","stator_outer_diameter_mm":590,"stator_bore_mm":450,"stator_core_length_mm":270,"air_gap_mm_source":0.8,"slot_count":90,"rotor_slot_count":106,"stator_slot_height_mm_source":42.5,"source_winding_table_notation":"y: 1-8 / 2-7","source_sn_value":"11+11","source_n_a_value":"4/3","conductor_source":"1.4/1.48","stator_resistance_20c_ohm_source":0.104,"wire_mass_kg_source":50.2,"source_id":"kravchik_table_6_2_4an315_12p_text_mirror","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE_VOLTAGE_VARIANT_COMPLEX_PITCH"}
   ]
 }

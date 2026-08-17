@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_ao2_frame9_winding",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 9-го габарита, таблица 8.10",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only fields with row-safe alignment to the standard AO2-91-6 row are transcribed.",
+    "The HTML extraction interleaves later Pe1/m1/a1/w1/conductor columns with neighboring A2/AOP2/AOS2/AOT2/AOK2 variants, so those values are intentionally omitted.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "АО2-91-6",
+      "variant_key": "AO2-91-6-gapfill",
+      "current_a_source": "169/98",
+      "slot_count": 72,
+      "winding_pitch_source": "1-11",
+      "winding_type_source": "Двухслойная",
+      "source_id": "likhachev_2004_ao2_frame9_winding",
+      "normalization_status": "REVIEW_REQUIRED_PARTIAL_ROW_SAFE_WINDING_ENRICHMENT"
+    }
+  ]
+}

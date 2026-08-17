@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "series": "4AM",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "kran_master_4am_senior_cards",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Индивидуальные технические карточки электродвигателей 4АМ280/315",
+      "url": "https://kran-master74.ru/spares/elektrooborudovanie/elektrodvigateli-katalog/elektrodvigateli-air-km2/4am-km3/",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "exprom_4am_senior_cards",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические карточки электродвигателей 4АМ280/315",
+      "url": "https://npo-eksprom.ru/catalog/elektrodvigateli/elektrodvigateli_obshchepromyshlennye/elektrodvigateli_4am/",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Electrical identification enrichment only; it does not establish winding equivalence with 4A or AIR.",
+    "No winding turns, pitch or conductor values are inferred from these product/technical cards.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"4АМ280S4","voltage_source":"380/660","current_a_source":"234","source_id":"kran_master_4am_senior_cards","normalization_status":"REVIEW_REQUIRED_WINDING_PENDING"},
+    {"model":"4АМ280М4","rated_speed_rpm":1485,"voltage_source":"380/660","current_a_source":"235","source_id":"kran_master_4am_senior_cards","normalization_status":"REVIEW_REQUIRED_WINDING_PENDING"},
+    {"model":"4АМ315S4","rated_speed_rpm":1485,"voltage_source":"380/660","current_a_source":"287","source_id":"exprom_4am_senior_cards","normalization_status":"REVIEW_REQUIRED_WINDING_PENDING"},
+    {"model":"4АМ315М4","voltage_source":"380/660","current_a_source":"353","source_id":"kran_master_4am_senior_cards","normalization_status":"REVIEW_REQUIRED_WINDING_PENDING"}
+  ]
+}

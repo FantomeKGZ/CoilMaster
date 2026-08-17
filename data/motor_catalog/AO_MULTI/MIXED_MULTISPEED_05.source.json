@@ -1,0 +1,193 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "AO_MULTI",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_multispeed_mixed_05",
+      "type": "FIELD_OBSERVATION",
+      "title": "Обмоточные данные многоскоростных электродвигателей",
+      "url": "https://vitkovoe.ru/mnogo_skor_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Source-native multispeed notation is preserved literally.",
+    "Independent speed windings are stored as winding_sets when source rows are separate.",
+    "No coil_program is generated; all rows remain reference-only."
+  ],
+  "records": [
+    {
+      "model": "ZFB100/4DF132MC4X-8/2",
+      "voltage_v": 400,
+      "slot_count": 36,
+      "stator_outer_diameter_mm": 214,
+      "stator_bore_mm": 138,
+      "stator_core_length_mm": 190,
+      "insulation_class_source": "F",
+      "winding_sets": [
+        {"name":"710 rpm winding","rated_speed_rpm":710,"power_kw":2.2,"current_a":11.0,"connection_source":"Y","source_n_value":"28","wire_diameter_source":"0.51×2","winding_pitch_source":"5;3+5","parallel_branches_source":1,"wire_mass_kg":2.0},
+        {"name":"2870 rpm winding","rated_speed_rpm":2870,"power_kw":9.4,"current_a":21.0,"connection_source":"Y","source_n_value":"12","wire_diameter_source":"1.16×2","winding_pitch_source":"17;15;13","parallel_branches_source":1,"wire_mass_kg":3.6}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    },
+    {
+      "model": "90С6/4S",
+      "voltage_v": 380,
+      "slot_count": 36,
+      "stator_outer_diameter_mm": 145,
+      "stator_bore_mm": 110,
+      "stator_core_length_mm": 130,
+      "insulation_class_source": "F",
+      "winding_sets": [
+        {"name":"900 rpm winding","rated_speed_rpm":900,"power_kw":1.1,"current_a":4.8,"connection_source":"Y","source_n_value":"79","wire_diameter_source":"0.40","winding_pitch_source":"5","parallel_branches_source":1},
+        {"name":"1450 rpm winding","rated_speed_rpm":1450,"power_kw":1.5,"current_a":2.8,"connection_source":"Y","source_n_value":"45","wire_diameter_source":"0.45×2","winding_pitch_source":"11;9;7","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    },
+    {
+      "model": "4А100S4/2У2",
+      "rated_speed_rpm_source": "1440/2820",
+      "power_kw_source": "2.65/3.4",
+      "current_a_source": "5.1/7.4",
+      "voltage_v": 380,
+      "connection_source": "DELTA/YY",
+      "source_n_value": "34+34",
+      "wire_diameter_source": "0.80",
+      "winding_pitch_source": "10",
+      "parallel_branches_source": 1,
+      "wire_mass_kg": 3.2,
+      "stator_outer_diameter_mm": 168,
+      "stator_bore_mm": 105,
+      "stator_core_length_mm": 110,
+      "slot_count": 36,
+      "insulation_class_source": "B",
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTISPEED_FIELD_OBSERVATION"
+    },
+    {
+      "model": "L250MK80",
+      "voltage_source": "220/380",
+      "slot_count": 54,
+      "stator_outer_diameter_mm": 250,
+      "stator_bore_mm": 175,
+      "stator_core_length_mm": 80,
+      "insulation_class_source": "H",
+      "winding_sets": [
+        {"name":"310 rpm winding","rated_speed_rpm":310,"power_kw":0.5,"current_a_source":"5.0/3.0","connection_source":"DELTA/Y","source_n_value":"85","wire_diameter_source":"0.45×2","winding_pitch_source":"3","parallel_branches_source":1,"wire_mass_kg":5.5},
+        {"name":"2800 rpm winding","rated_speed_rpm":2800,"power_kw":1.8,"current_a_source":"10.0/8.0","connection_source":"DELTA/Y","source_n_value":"17","wire_diameter_source":"0.86","winding_pitch_source":"27;25;23;21;19+25;23;21;19","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    },
+    {
+      "model": "АВ32 4/2",
+      "rated_speed_rpm_source": "1420/2850",
+      "power_kw_source": "0.75/1.1",
+      "current_a_source": "2.0/2.4",
+      "voltage_v": 380,
+      "connection_source": "DELTA/YY",
+      "source_n_value": "80",
+      "wire_diameter_source": "0.45",
+      "winding_pitch_source": "6",
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 145,
+      "stator_bore_mm": 90,
+      "stator_core_length_mm": 103,
+      "slot_count": 24,
+      "insulation_class_source": "B",
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTISPEED_FIELD_OBSERVATION"
+    },
+    {
+      "model": "М112-11",
+      "rated_speed_rpm_source": "1450/2920",
+      "power_kw_source": "2.6/3.0",
+      "current_a_source": "5.9/6.9",
+      "voltage_source": "380/415",
+      "connection_source": "DELTA/YY",
+      "source_n_value": "32+32",
+      "wire_diameter_source": "0.85",
+      "winding_pitch_source": "9",
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 189,
+      "stator_bore_mm": 119,
+      "stator_core_length_mm": 123,
+      "slot_count": 36,
+      "insulation_class_source": "F",
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTISPEED_FIELD_OBSERVATION"
+    },
+    {
+      "model": "АС62 variant A",
+      "slot_count": 54,
+      "stator_core_length_mm": 105,
+      "winding_sets": [
+        {"name":"954 rpm winding","rated_speed_rpm":954,"power_kw":3.5,"current_a":10.1,"voltage_v":380,"connection_source":"Y","source_n_value":"22","wire_diameter_source":"1.32","winding_pitch_source":"11;9;7","parallel_branches_source":1},
+        {"name":"290 rpm winding","rated_speed_rpm":290,"power_kw":1.1,"current_a":5.4,"voltage_v":380,"connection_source":"Y","source_n_value":"40","wire_diameter_source":"0.93","winding_pitch_source":"3","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    },
+    {
+      "model": "4АН160",
+      "slot_count": 54,
+      "winding_sets": [
+        {"name":"954 rpm winding","rated_speed_rpm":954,"voltage_v":380,"connection_source":"Y","source_n_value":"20","wire_diameter_source":"1.25","winding_pitch_source":"11;9;7","parallel_branches_source":1},
+        {"name":"290 rpm winding","rated_speed_rpm":290,"voltage_v":380,"connection_source":"Y","source_n_value":"40","wire_diameter_source":"1.25","winding_pitch_source":"3","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    },
+    {
+      "model": "4АН180",
+      "slot_count": 54,
+      "winding_sets": [
+        {"name":"940 rpm winding","rated_speed_rpm":940,"power_kw":4.5,"current_a":11.3,"voltage_v":380,"connection_source":"Y","source_n_value":"16","wire_diameter_source":"1.20×2","winding_pitch_source":"11;9;7","parallel_branches_source":1},
+        {"name":"280 rpm winding","rated_speed_rpm":280,"power_kw":1.5,"current_a":13.3,"voltage_v":380,"connection_source":"Y","source_n_value":"34","wire_diameter_source":"1.20","winding_pitch_source":"3","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    },
+    {
+      "model": "VTM 250",
+      "slot_count": 72,
+      "winding_sets": [
+        {"name":"954 rpm winding","rated_speed_rpm":954,"power_kw":12.0,"current_a":10.5,"voltage_v":380,"connection_source":"Y","source_n_value":"5+6","wire_diameter_source":"1.16×2","winding_pitch_source":"10","parallel_branches_source":1},
+        {"name":"283 rpm winding","rated_speed_rpm":283,"power_kw":5.0,"current_a":13.7,"voltage_v":380,"connection_source":"Y","source_n_value":"37","wire_diameter_source":"1.30","winding_pitch_source":"3","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION_COMPOUND_N"
+    },
+    {
+      "model": "АС62 variant B",
+      "slot_count": 54,
+      "stator_outer_diameter_mm": 326,
+      "stator_bore_mm": 230,
+      "stator_core_length_mm": 105,
+      "insulation_class_source": "B",
+      "winding_sets": [
+        {"name":"920 rpm winding","rated_speed_rpm":920,"power_kw":3.5,"current_a":10.1,"voltage_v":380,"connection_source":"Y","source_n_value":"11+11","wire_diameter_source":"1.40","winding_pitch_source":"9;7;5","parallel_branches_source":1,"wire_mass_kg":4.7},
+        {"name":"300 rpm winding","rated_speed_rpm":300,"power_kw":1.1,"current_a":5.4,"voltage_v":380,"connection_source":"Y","source_n_value":"28+28","wire_diameter_source":"0.95","winding_pitch_source":"2","parallel_branches_source":1,"wire_mass_kg":3.6}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION_COMPOUND_N"
+    },
+    {
+      "model": "4АН180SB6/18",
+      "slot_count": 54,
+      "stator_outer_diameter_mm": 313,
+      "stator_bore_mm": 205,
+      "stator_core_length_mm": 155,
+      "winding_sets": [
+        {"name":"950 rpm winding","rated_speed_rpm":950,"power_kw":3.5,"current_a":9.4,"voltage_v":380,"connection_source":"Y","source_n_value":"17","wire_diameter_source":"1.06×2","winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":6.4},
+        {"name":"300 rpm winding","rated_speed_rpm":300,"power_kw":1.1,"current_a":11.0,"voltage_v":380,"connection_source":"Y","source_n_value":"35","wire_diameter_source":"1.00×2","winding_pitch_source":"3","parallel_branches_source":1,"wire_mass_kg":6.9}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed_05",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING_FIELD_OBSERVATION"
+    }
+  ]
+}

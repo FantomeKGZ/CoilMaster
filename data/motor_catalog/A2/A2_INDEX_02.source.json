@@ -17,10 +17,12 @@
     "Unclear current or geometry values are omitted instead of guessed."
   ],
   "records": [
+    {"model":"А2-81-2","power_kw":55,"rated_speed_rpm":2900,"current_a_source":"177/102","stator_outer_diameter_mm":393,"stator_bore_mm":211,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-82-2","power_kw":75,"rated_speed_rpm":2900,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-81-4","power_kw":40,"rated_speed_rpm":1460,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-82-4","power_kw":50,"rated_speed_rpm":1460,"current_a_source":"176/102","stator_outer_diameter_mm":393,"stator_bore_mm":247,"stator_core_length_mm":190,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-81-6","power_kw":30,"rated_speed_rpm":970,"current_a_source":"99.3/57.5","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-82-6","power_kw":40,"rated_speed_rpm":970,"stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":190,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-92-4","power_kw":100,"rated_speed_rpm":1470,"current_a_source":"313/181","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-91-6","power_kw":55,"rated_speed_rpm":980,"current_a_source":"176/102","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-92-6","power_kw":75,"rated_speed_rpm":980,"current_a_source":"238/138","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"}

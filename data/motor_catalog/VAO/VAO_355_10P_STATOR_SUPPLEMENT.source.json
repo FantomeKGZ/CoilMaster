@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_table_8_33_10p",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные ВАО 355, 10-полюсные строки таблицы 8.33",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only the two unambiguous 110/132 kW 10-pole rows are enriched here; the preceding 90 kW OCR-ambiguous designation is intentionally excluded.",
+    "Rectangular conductor and source winding quantities remain source-native; no coil_program is derived."
+  ],
+  "records": [
+    {"model":"ВАО355M-10","current_a_source":"230/133","stator_outer_diameter_mm":590,"stator_bore_mm":430,"stator_core_length_mm":350,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-7","source_pe1_value":"12","source_m1_value":1,"source_a1_value":2,"source_wf_value":72,"conductor_source":"3.05×6.9","wire_mass_kg_source":98.8,"stator_resistance_20c_ohm_source":0.037,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_33_10p","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355L-10","current_a_source":"272/157","stator_outer_diameter_mm":590,"stator_bore_mm":430,"stator_core_length_mm":430,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-7","source_pe1_value":"10","source_m1_value":1,"source_a1_value":2,"source_wf_value":60,"conductor_source":"3.55×6.9","wire_mass_kg_source":110.0,"stator_resistance_20c_ohm_source":0.0302,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_33_10p","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"}
+  ]
+}

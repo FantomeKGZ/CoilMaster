@@ -4018,14 +4018,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 600,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 590,
       "slot_count": null,
       "model": "4А315М10",
       "aliases": [],
       "variant_key": null,
       "power_kw": 75,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "260/150",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -4039,7 +4039,8 @@
       "source_title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — старшие габариты 280–355",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_315_ELECTRICAL_SUPPLEMENT_01.source.json"
       ]
     },
     {
@@ -4105,14 +4106,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 490,
       "slot_count": null,
       "model": "4А315S12",
       "aliases": [],
       "variant_key": null,
       "power_kw": 45,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "171/99",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -4126,7 +4127,8 @@
       "source_title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — старшие габариты 280–355",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_315_ELECTRICAL_SUPPLEMENT_01.source.json"
       ]
     },
     {
@@ -4134,14 +4136,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 490,
       "slot_count": null,
       "model": "4А315М12",
       "aliases": [],
       "variant_key": null,
       "power_kw": 55,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "204/118",
+      "voltage_v": "220/380",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -4155,7 +4157,8 @@
       "source_title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — старшие габариты 280–355",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_315_ELECTRICAL_SUPPLEMENT_01.source.json"
       ]
     },
     {

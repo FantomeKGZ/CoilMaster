@@ -38187,8 +38187,8 @@
       "variant_key": null,
       "power_kw": 22,
       "current_a": "41.5/24",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-12",
@@ -38202,6 +38202,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38217,8 +38218,8 @@
       "variant_key": null,
       "power_kw": 30,
       "current_a": "56/32.6",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-12",
@@ -38232,6 +38233,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38247,8 +38249,8 @@
       "variant_key": null,
       "power_kw": 40,
       "current_a": "77.5/45",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-12",
@@ -38262,6 +38264,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38277,8 +38280,8 @@
       "variant_key": null,
       "power_kw": 55,
       "current_a": "107.5/62",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-12",
@@ -38292,6 +38295,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38629,8 +38633,8 @@
       "variant_key": null,
       "power_kw": 22,
       "current_a": "42/25",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-8",
@@ -38644,6 +38648,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38659,8 +38664,8 @@
       "variant_key": null,
       "power_kw": 30,
       "current_a": "58/33.5",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-8",
@@ -38674,6 +38679,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38689,8 +38695,8 @@
       "variant_key": null,
       "power_kw": 40,
       "current_a": "77/44.5",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-11",
@@ -38704,6 +38710,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -38719,8 +38726,8 @@
       "variant_key": null,
       "power_kw": 55,
       "current_a": "105/61",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-11",
@@ -38734,6 +38741,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39042,8 +39050,8 @@
       "variant_key": null,
       "power_kw": 17,
       "current_a": "35.5/20.5",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-8",
@@ -39057,6 +39065,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39072,8 +39081,8 @@
       "variant_key": null,
       "power_kw": 22,
       "current_a": "43.5/25",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-8",
@@ -39087,6 +39096,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39162,8 +39172,8 @@
       "variant_key": null,
       "power_kw": 30,
       "current_a": "59.5/35",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-11",
@@ -39177,6 +39187,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39192,8 +39203,8 @@
       "variant_key": null,
       "power_kw": 40,
       "current_a": "78.5/45.5",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-11",
@@ -39207,6 +39218,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39601,8 +39613,8 @@
       "variant_key": null,
       "power_kw": 13,
       "current_a": "30/17.7",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-7",
@@ -39616,6 +39628,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39631,8 +39644,8 @@
       "variant_key": null,
       "power_kw": 17,
       "current_a": "38/22",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-7",
@@ -39646,6 +39659,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39721,8 +39735,8 @@
       "variant_key": null,
       "power_kw": 22,
       "current_a": "45/28",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-8",
@@ -39736,6 +39750,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
@@ -39751,8 +39766,8 @@
       "variant_key": null,
       "power_kw": 30,
       "current_a": "65/38",
-      "voltage_v": null,
-      "connection": null,
+      "voltage_v": "380/660",
+      "connection": "DELTA/Y",
       "source_n": "",
       "wire": "",
       "pitch": "1-8",
@@ -39766,6 +39781,7 @@
       "source_file": "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_7_8_CONNECTION_SUPPLEMENT.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
       ]
     },

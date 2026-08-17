@@ -15,7 +15,7 @@
     {"id":"AL","name":"АЛ family","group":"SOVIET_LEGACY","directory":"AL","status":"PLANNED"},
     {"id":"AOL","name":"АОЛ / АОЛС","group":"SOVIET_LEGACY","directory":"AOL","status":"PLANNED"},
     {"id":"A2","name":"А2 family","group":"SOVIET_GENERAL_PURPOSE","directory":"A2","status":"PLANNED"},
-    {"id":"AO2","name":"АО2 / АОС2 / АОТ2 / АОЛ2 / АОЛС2","group":"SOVIET_GENERAL_PURPOSE","directory":"AO2","status":"IN_PROGRESS"},
+    {"id":"AO2","name":"АО2 / АОП2 / АОС2 / АОТ2 / АОК2 / АОЛ2 / АОЛС2","group":"SOVIET_GENERAL_PURPOSE","directory":"AO2","status":"IN_PROGRESS"},
     {"id":"AO_MULTI","name":"АО / АО2 многоскоростные","group":"MULTISPEED","directory":"AO_MULTI","status":"PLANNED"},
     {"id":"CRANE","name":"Крановые МТ/МТК/МТФ/МТН и варианты","group":"CRANE","directory":"CRANE","status":"PLANNED"},
     {"id":"REPAIR_RECORDS","name":"Ремонтные наблюдения разных серий","group":"FIELD_OBSERVATIONS","directory":"REPAIR_RECORDS","status":"PLANNED"},

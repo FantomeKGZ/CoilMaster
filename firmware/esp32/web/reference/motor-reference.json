@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 1240,
+  "record_count": 1241,
   "records": [
     {
       "reference_only": true,
@@ -10067,6 +10067,35 @@
       "source_file": "data/motor_catalog/5A/5A_6P_12P_SUPPLEMENT_04.source.json",
       "source_files": [
         "data/motor_catalog/5A/5A_6P_12P_SUPPLEMENT_04.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "6A",
+      "manufacturer": "6A",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": null,
+      "slot_count": null,
+      "model": "6А90В4",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": 2.0,
+      "voltage_v": 380,
+      "connection": "Y",
+      "source_n": "",
+      "wire": "",
+      "pitch": "",
+      "bore_mm": null,
+      "core_length_mm": null,
+      "parallel_branches": 1,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "studfile_qualification_6a90v4",
+      "source_title": "Квалификационный экзамен: задача по обмотке статора 6А90В4",
+      "source_file": "data/motor_catalog/6A/6A_90V4_CORROBORATION_01.source.json",
+      "source_files": [
+        "data/motor_catalog/6A/6A_90V4_CORROBORATION_01.source.json"
       ]
     },
     {

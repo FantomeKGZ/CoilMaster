@@ -5,7 +5,7 @@
   "series": [
     {"id":"AIR","name":"АИР","group":"CIS_GENERAL_PURPOSE","directory":"AIR","status":"FIRST_PASS_COMPLETE"},
     {"id":"AIS","name":"АИС","group":"CIS_GENERAL_PURPOSE","directory":"AIS","status":"PLANNED"},
-    {"id":"4A","name":"4А","group":"SOVIET_GENERAL_PURPOSE","directory":"4A","status":"PLANNED"},
+    {"id":"4A","name":"4А","group":"SOVIET_GENERAL_PURPOSE","directory":"4A","status":"IN_PROGRESS"},
     {"id":"4AM","name":"4АМ","group":"SOVIET_GENERAL_PURPOSE","directory":"4AM","status":"PLANNED"},
     {"id":"A2","name":"А2","group":"SOVIET_GENERAL_PURPOSE","directory":"A2","status":"PLANNED"},
     {"id":"AO2","name":"АО2","group":"SOVIET_GENERAL_PURPOSE","directory":"AO2","status":"PLANNED"},

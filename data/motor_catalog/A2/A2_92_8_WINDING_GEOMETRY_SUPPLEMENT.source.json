@@ -15,13 +15,16 @@
     }
   ],
   "notes": [
-    "Only the contiguous row-safe stator geometry, slot count, pitch and winding type associated with A2-92-8 are transcribed.",
+    "Only the clean model/rating row and contiguous row-safe stator geometry, slot count, pitch and winding type associated with A2-92-8 are transcribed.",
     "Pe1/m1/a1/w1/conductor values are intentionally omitted because later columns interleave neighboring variants.",
     "No coil_program is generated."
   ],
   "records": [
     {
       "model": "А2-92-8",
+      "power_kw": 55,
+      "rated_speed_rpm": 730,
+      "current_a_source": "180/104",
       "stator_outer_diameter_mm": 458,
       "stator_bore_mm": 334,
       "stator_core_length_mm": 240,

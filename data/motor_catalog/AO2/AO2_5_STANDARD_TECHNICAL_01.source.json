@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_frame5_standard",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 5-го габарита",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only model/rating/geometry and stator fields with unambiguous row association are transcribed.",
+    "Later vertically interleaved conductor/turn columns are intentionally omitted rather than reconstructed by analogy.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "variant_key":"AO2-51-4-likhachev",
+      "model":"АО2-51-4",
+      "power_kw":7.5,
+      "rated_speed_rpm":1450,
+      "current_a_source":"25.6/14.8",
+      "stator_outer_diameter_mm":243,
+      "stator_bore_mm":158,
+      "stator_core_length_mm":135,
+      "air_gap_mm_source":0.45,
+      "slot_count":36,
+      "winding_pitch_source":"1-8",
+      "winding_type_source":"Двухслойная",
+      "source_id":"likhachev_2004_ao2_frame5_standard",
+      "normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"
+    },
+    {
+      "variant_key":"AO2-51-6-likhachev",
+      "model":"АО2-51-6",
+      "power_kw":5.5,
+      "rated_speed_rpm":970,
+      "current_a_source":"20.8/12",
+      "stator_outer_diameter_mm":243,
+      "stator_bore_mm":173,
+      "stator_core_length_mm":135,
+      "slot_count":36,
+      "source_id":"likhachev_2004_ao2_frame5_standard",
+      "normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "likhachev_aok2_ak2_phase_rotor_section",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные фазных роторов АОК2 и АК2 4–9-го габаритов, раздел 8.2",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "phase_rotor_aok2_technical_table",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические данные электродвигателей с фазным ротором АОК2",
+      "url": "https://eti.su/articles/spravochnik/spravochnik_1803.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "electrical_machines_aok2_table_9_63",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Справочник по электрическим машинам, таблица 9.63 — АОК2 (АК2)",
+      "url": "https://servomotors.ru/documentation/electromotor/book1/book1p58.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Adds AOK2 5th-7th frame phase-rotor model identities that were absent from the existing AO2 raw packages.",
+    "The existing AOK2 4th-frame cards remain in AO2_41_42.source.json and are not duplicated here.",
+    "Independent technical tables disagree for some rotor-current/rotor-voltage values, especially early 5th-frame rows; those electrical rotor values are therefore not normalized into this base layer.",
+    "Section 8.2 contains detailed rotor winding columns, but its HTML/OCR column alignment is not reliable enough for automatic Pe2/m2/a2/w2 mapping. Those fields require later merge-only enrichment after row-level resolution.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AOK2-51-4-phase-rotor-reference","model":"АОК2-51-4","power_kw":5.5,"rated_speed_rpm":1420,"pole_count":4,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-52-4-phase-rotor-reference","model":"АОК2-52-4","power_kw":7.5,"rated_speed_rpm":1420,"pole_count":4,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-61-4-phase-rotor-reference","model":"АОК2-61-4","power_kw":10.0,"rated_speed_rpm":1420,"pole_count":4,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-62-4-phase-rotor-reference","model":"АОК2-62-4","power_kw":13.0,"rated_speed_rpm":1420,"pole_count":4,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-71-4-phase-rotor-reference","model":"АОК2-71-4","power_kw":17.0,"rated_speed_rpm":1430,"pole_count":4,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-72-4-phase-rotor-reference","model":"АОК2-72-4","power_kw":22.0,"rated_speed_rpm":1430,"pole_count":4,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+
+    {"variant_key":"AOK2-51-6-phase-rotor-reference","model":"АОК2-51-6","power_kw":4.0,"rated_speed_rpm":955,"pole_count":6,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-52-6-phase-rotor-reference","model":"АОК2-52-6","power_kw":5.5,"rated_speed_rpm":955,"pole_count":6,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-61-6-phase-rotor-reference","model":"АОК2-61-6","power_kw":7.5,"rated_speed_rpm":960,"pole_count":6,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-62-6-phase-rotor-reference","model":"АОК2-62-6","power_kw":10.0,"rated_speed_rpm":960,"pole_count":6,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-71-6-phase-rotor-reference","model":"АОК2-71-6","power_kw":13.0,"rated_speed_rpm":960,"pole_count":6,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-72-6-phase-rotor-reference","model":"АОК2-72-6","power_kw":17.0,"rated_speed_rpm":960,"pole_count":6,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+
+    {"variant_key":"AOK2-51-8-phase-rotor-reference","model":"АОК2-51-8","power_kw":3.0,"rated_speed_rpm_source":"705/710","pole_count":8,"source_id":"electrical_machines_aok2_table_9_63","normalization_status":"REVIEW_REQUIRED_SOURCE_SPEED_VARIANT"},
+    {"variant_key":"AOK2-52-8-phase-rotor-reference","model":"АОК2-52-8","power_kw":4.0,"rated_speed_rpm_source":"705/710","pole_count":8,"source_id":"electrical_machines_aok2_table_9_63","normalization_status":"REVIEW_REQUIRED_SOURCE_SPEED_VARIANT"},
+    {"variant_key":"AOK2-61-8-phase-rotor-reference","model":"АОК2-61-8","power_kw":5.5,"rated_speed_rpm":710,"pole_count":8,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-62-8-phase-rotor-reference","model":"АОК2-62-8","power_kw":7.5,"rated_speed_rpm":710,"pole_count":8,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-71-8-phase-rotor-reference","model":"АОК2-71-8","power_kw":10.0,"rated_speed_rpm":715,"pole_count":8,"source_id":"electrical_machines_aok2_table_9_63","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"},
+    {"variant_key":"AOK2-72-8-phase-rotor-reference","model":"АОК2-72-8","power_kw":13.0,"rated_speed_rpm":715,"pole_count":8,"source_id":"phase_rotor_aok2_technical_table","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_INDEX"}
+  ]
+}

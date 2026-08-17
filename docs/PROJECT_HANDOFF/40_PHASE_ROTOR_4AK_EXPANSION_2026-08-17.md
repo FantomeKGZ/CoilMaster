@@ -1,12 +1,12 @@
-# Phase-rotor 4AK reference expansion — 2026-08-17
+# Phase-rotor 4AK / 4ANK reference expansion — 2026-08-17
 
 Branch: `cmp-protocol-v1`
 
 ## Scope
 
-This checkpoint records the new read-only 4AK / phase-rotor reference layer. It does not change CoilMaster production motor data, physical START behavior, SSR control, reboot behavior, or wire write-off semantics.
+This checkpoint records the read-only 4AK / 4ANK phase-rotor reference layer. It does not change CoilMaster production motor data, physical START behavior, SSR control, reboot behavior, or wire write-off semantics.
 
-## New source packages
+## 4AK source packages
 
 ```text
 data/motor_catalog/4AK/4AK_160.source.json
@@ -22,73 +22,99 @@ df2a63f45e18d4c97982e9a086017640f4b87681  4AK160
 b5ccde2add0fec81f87eb0bcdf4731a71b0d3303  4AK180-200
 a752cd5d9275c20d88b488c7122655622fd18d53  4AK225
 968b8a59a18c9867634ea397a78601186c992eb9  4AK250
-95d5753af7fe4e3f3f4b27dbbe9b4e62bf39401e  catalog 4AK coverage
 ```
+
+Primary 4AK winding-data source is table 6.15, phase-rotor motors with IP44.
+
+## 4ANK source packages
+
+```text
+data/motor_catalog/4ANK/4ANK_160_180.source.json
+data/motor_catalog/4ANK/4ANK_200_225.source.json
+data/motor_catalog/4ANK/4ANK_250_4P_6P.source.json
+```
+
+Commits:
+
+```text
+18456415ceb2179f288c14754814e89f89346469  4ANK160-180
+d27544caeccef9cedddce0f8324c1f767f4b1bfc  4ANK200-225
+4258575ef9ab850769c17b4cc9a804ddebd55101  4ANK250 4P/6P
+61d6853f6c2124e5a24c5c077b4f963b37f7ba8a  split catalog coverage
+```
+
+Primary 4ANK winding-data source is table 6.16, phase-rotor motors with IP23.
+
+The 4ANK source HTML alternates OCR forms such as `4AHK` and `4НK`; the catalogue stores the canonical Cyrillic `4АНК` model form. Only model labels are normalized. Winding values remain source-native.
 
 ## Source semantics
 
-Primary winding-data source: table 6.15, asynchronous motors with phase rotor, IP44.
+For both 4AK and 4ANK:
 
-Important fields are preserved source-native:
+- stator and phase-rotor data remain separate;
+- `Sп` is preserved as source-native conductor-side data and is not mapped directly to `coil_program`;
+- printed `n/a` fractions remain literal and are not mapped automatically to CoilMaster `parallel_strands`;
+- `d/d′` is retained as source conductor text;
+- source pitch remains literal;
+- rectangular rotor bars/conductors are never interpreted as round-wire diameters;
+- OCR-suspect values are retained literally and flagged for review instead of silently corrected.
 
-- `Sп` is stored as `source_sp_value` and is not mapped directly to `coil_program`;
-- the printed `n/a` fraction is stored as `source_n_over_a_text` and is not mapped automatically to CoilMaster parallel strands;
-- `d/d′` is stored as source conductor text;
-- stator pitch remains `winding_pitch_source`;
-- phase-rotor winding data remain separate from stator winding data;
-- rectangular rotor conductor notation such as `2.26×16.8` is not treated as a round-wire diameter.
-
-The web transcription of the printed table wraps some fractional and voltage-dependent values across lines. Those values are retained as literal source text and marked review-required instead of being guessed into normalized winding fields.
-
-## Model-label cross-check
-
-The 250-frame table transcription contains OCR artifacts. Independent technical-reference rows were used only to resolve model labels, including:
+The 4ANK225 and 4ANK250 phase rotors explicitly contain rectangular source conductor notation such as:
 
 ```text
-4АК250SА4У3
-4АК250SВ4У3
-4АК250М4У3
-4АК250S6У3
-4АК250М6У3
-4АК250S8У3
-4АК250М8У3
+(2.26×16.8)/(3.26×17.8)
+(2.44×16.8)/(3.44×17.8)
 ```
 
-This prevents erroneous labels such as `4AK250SB4V3` or `4АК260S6У3` from becoming canonical CoilMaster reference model names.
+These are phase-rotor conductor dimensions, not CoilMaster round-wire diameters.
+
+## 4ANK coverage captured
+
+Current source packages contain:
+
+- 4ANK160S/M, 4 poles;
+- 4ANK180S/M, 4/6/8 poles;
+- 4ANK200M/L, 4/6/8 poles;
+- 4ANK225M, 4/6/8 poles;
+- 4ANK250SA/SB/M, 4/6 poles.
+
+The 250-frame 8-pole rows are deliberately deferred because the HTML transcription alternates `SA8`, `SB8` and `S8` labels. No canonical model is guessed from that ambiguous transcription.
 
 ## Generated reference checkpoint
 
-After the 4AK source additions, the generated static reference reached:
+After 4AK, the static reference reached 982 records.
+
+After completed 4ANK160-180 and 4ANK200-225 rebuilds, the confirmed generated checkpoint is:
 
 ```text
-record_count = 982
+record_count = 999
 reference_only = true
 ```
 
-The increase from the previous 958 checkpoint is exactly 24 new phase-rotor reference cards:
+This is a generated-reference count, not a VERIFIED production-motor count.
 
-- 6 × 4AK160;
-- 8 × 4AK180/200;
-- 3 × 4AK225;
-- 7 × 4AK250.
+The 4ANK250 4P/6P source package adds six more source records, but the confirmed static JSON checkpoint above was read before that source commit's regeneration had been observed. Do not claim the higher count until a fresh generated-index fetch confirms it.
 
 ## Coverage register
 
-`catalog.json` now contains a dedicated entry:
+`catalog.json` now tracks the two phase-rotor families separately:
 
 ```text
-4AK / 4АНК с фазным ротором — IN_PROGRESS
+4AK  — PHASE_ROTOR — IN_PROGRESS
+4ANK — PHASE_ROTOR — IN_PROGRESS
 ```
 
-4AK remains separate from ordinary `4A / 4АН` because phase-rotor winding construction and source semantics are materially different.
+They remain separate from ordinary `4A / 4АН` because the phase-rotor construction and source semantics are materially different.
 
 ## Next work
 
-1. Extend 4AK/4ANK only when stator/rotor table layout is sufficiently unambiguous.
-2. Continue searching for complete 4AM/4AI/4AIM winding-data tables.
-3. Add 6A only from real winding rows containing `N`, conductor and pitch data.
-4. Capture the dedicated low-voltage rectangular-wire table when the source rows become safely extractable.
-5. Keep 4AK source data reference-only; no `coil_program` promotion without an explicit reviewed conversion rule.
+1. Recheck the generated index after the 4ANK250 rebuild and confirm the new exact count.
+2. Resolve 4ANK250 8-pole SA/SB/S source labels before adding those rows.
+3. Continue 4ANK280 only where every stator/rotor line can be bound unambiguously to a model.
+4. Continue searching for complete 4AM/4AI/4AIM winding-data tables.
+5. Add 6A only from real winding rows containing `N`, conductor and pitch data.
+6. Keep dedicated rectangular-wire work distinct from rectangular phase-rotor conductors already captured here.
+7. Keep phase-rotor data reference-only; no `coil_program` promotion without an explicit reviewed conversion rule.
 
 ## Safety boundary unchanged
 

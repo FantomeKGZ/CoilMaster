@@ -1,6 +1,6 @@
 # Motor Reference Live Checkpoint
 
-Updated: 2026-08-17 13:56+06
+Updated: 2026-08-17 14:00+06
 Branch: `cmp-protocol-v1` only. Do not use `main` as source.
 
 Rolling continuation point for the motor winding reference expansion. Update this file after every significant source/architecture block so a new chat can resume immediately.
@@ -26,7 +26,8 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - 1368 -> 1372: `16bc71c`, +4 AO2 standard gap-fill cards.
 - 1372 -> 1380: `3d74222`, +8 additional AO2 standard rating cards.
 - 1380 -> 1382: `1f51cc7`, +2 final obvious AO2 standard rating gaps.
-- `5bb442b` is merge-only winding enrichment for AO2 frames 5–6 and does not increase count.
+- `5bb442b` and `00e4ecf` are merge-only enrichments and do not increase count.
+- A transient branch race created four duplicate AO2 cards via `66563b8` and `dbc4ec8`; those duplicate source files were removed by `621f79a` and `428ba8e`. The regenerated canonical count returned to 1382.
 
 ## Architecture already in place
 - `tools/build_motor_reference.py`: aliases, spaced `model / alias`, `winding_sets_source`, strict `merge_only`.
@@ -40,7 +41,7 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - 4AK: phase-rotor 160–250. Ordinary 4AK line ends at 250; do NOT invent 4AK280+.
 - 4ANK: phase-rotor 160–355 with rich separate stator/rotor rectangular-conductor data.
 - 5A: low/mid/senior incl. 6P/8P/12P supplements. Vitkovoe `5a_3_series.html` remains a strong text source for senior winding rows; source `.n` means conductor count per turn, not parallel branches.
-- 6A: IN_PROGRESS; first source-native `6А90В4` has `uп=70`, `w1=420`, `a1=1`, `I=2.0 A`, explicit model-text conflict. Search on 2026-08-17 still returned 5A pages rather than a textual 6A winding table; do not infer remaining rows.
+- 6A: IN_PROGRESS; first source-native `6А90В4` has `uп=70`, `w1=420`, `a1=1`, `I=2.0 A`, explicit model-text conflict. `https://ruslankhashhenko.narod.ru/5a6a.htm` exists as a 5A/6A link target but its content was not retrievable in the latest pass; do not infer remaining rows.
 - A2: IN_PROGRESS index/reference + selective merge-only enrichment.
 - AO2 standard single-speed coverage now extends through frames 5–9 and the major model/rating matrix is substantially closed. Recent base/gap-fill sources:
   - `AO2_5_STANDARD_TECHNICAL_01.source.json` (`cf9526c`): AO2-51-4, AO2-51-6.
@@ -50,10 +51,11 @@ Rolling continuation point for the motor winding reference expansion. Update thi
   - `AO2_8_9_STANDARD_TECHNICAL_01.source.json` (`5f6b8fd`): AO2-81/82-6, AO2-81-8, AO2-91/92-4, AO2-92-6, AO2-91-8.
   - `AO2_8_9_STANDARD_TECHNICAL_02.source.json` (`f2b44b6`): AO2-81/82-2, AO2-81-4, AO2-91/92-2, AO2-92-8, AO2-91/92-10; AO2-92-2 current `312/108` preserved literally and flagged suspect.
   - `AO2_7_STANDARD_TECHNICAL_02.source.json` (`a987b13`): AO2-71-4 and AO2-72-4.
-  - `AO2_STANDARD_GAPS_01.source.json` (`16bc71c`): AO2-71-2, AO2-72-2, AO2-82-8, AO2-91-6.
+  - `AO2_STANDARD_GAP_FILL_01.source.json` (`16bc71c`): AO2-71-2, AO2-72-2, AO2-82-8, AO2-91-6.
   - `AO2_STANDARD_GAPS_02.source.json` (`3d74222`): AO2-51-2, AO2-52-2, AO2-51-8, AO2-61-4, AO2-61-8, AO2-62-8, AO2-81-10, AO2-82-10.
   - `AO2_STANDARD_GAPS_03.source.json` (`1f51cc7`): AO2-62-2 and AO2-82-4.
-- `AO2_5_6_WINDING_SUPPLEMENT.source.json` (`5bb442b`) merge-enriches 10 AO2 frame-5/6 cards with actual winding fields: Z, coil/group data, pitch, parallel branches, source-native turns, wire, copper mass, bore/core length and Y. Compound forms such as `(17+17)×2`, `(10+10)×3`, `13+13`, `1.40+1.32`, `1.50+1.40` remain literal/review-required and are not converted to `coil_program`.
+- `AO2_5_6_WINDING_ENRICHMENT_01.source.json` (`5bb442b`) merge-enriches 10 AO2 frame-5/6 cards with actual winding fields from the Electroceh text table: Z, coil/group data, pitch, parallel branches, source-native turns, wire, copper mass, bore/core length and Y. That text table has been fully harvested for the standard frame-5/6 rows currently exposed.
+- `AO2_STANDARD_GAP_WINDING_ENRICHMENT_01.source.json` (`00e4ecf`) merge-enriches the existing four gap-fill base cards without duplication: AO2-71-2 gets 72.8/42.1 A, 343/183, L115, Z36, pitch 1-12, two-layer; AO2-72-2 gets safe 343/183 geometry only; AO2-82-8 gets current 104/60.2 while retaining the base 735 rpm because Likhachev text shows a 725/735 source conflict; AO2-91-6 gets 169/98 A, 458/334, L240, Z72, pitch 1-11, two-layer. Detailed Pe1/m1/a1/w1/conductor is still pending where row ordering is interleaved.
 - AO2/AOL2 multispeed frames 1–9 already tracked separately in AO_MULTI; P=const/M=const remain distinct.
 - AOK2: 18 base cards frames 5–7; frame-4 electrical enrichment; frame5 rotor conductor ПЭТВП, frames6–7 ПСД, rotor Y.
 - AK2: 12 base cards 81/82/91/92 ×4/6/8P; rotor Y and bare-copper-bar/glass-tape construction merged.
@@ -68,19 +70,21 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - `2df1c43`, `b6e4f63`, `7a687bd` VAO high-frame enrichments.
 - `cf9526c`, `3891489`, `ada97bf`, `d5a0197`, `5f6b8fd`, `f2b44b6`, `a987b13`, `16bc71c`, `3d74222`, `1f51cc7` standard AO2 frames 5–9 expansion.
 - `5bb442b` AO2 frame-5/6 merge-only winding enrichment.
+- `00e4ecf` AO2 standard gap merge-only winding enrichment.
+- `621f79a`, `428ba8e` removed the two duplicate AO2 source files created during a concurrent branch race.
 - `52002a3` created this live checkpoint.
 
 ## Confirmed workflow checkpoints
-- `7a687bd`, `5f6b8fd`, `f2b44b6`, `a987b13`, `16bc71c`, `3d74222`, `1f51cc7`, `5bb442b`: Motor reference index success and CMP Protocol Tests success.
+- `7a687bd`, `5f6b8fd`, `f2b44b6`, `a987b13`, `16bc71c`, `3d74222`, `1f51cc7`, `5bb442b`, `00e4ecf`: Motor reference index success and CMP Protocol Tests success.
 - Earlier recorded source/generator commits remain as previously confirmed in history.
 - Do not generalize these results to all project CI.
 
 ## Exact next continuation point
-1. Continue AO2 frame-5/6 winding enrichment only where the textual A2/AO2 table maps N/d/pitch/a/mass/geometry cleanly; then extend row-safe winding enrichment into frames 7–9.
-2. Keep probing Vitkovoe/navigation/mirrors for an actual textual 6A80/90 winding table. Search currently surfaces 5A pages; no OCR guessing or analog transfer.
-3. Senior 4A table 8.21: seek independent copies for Pe1/m1/a1/w1/conductor before writing winding columns.
-4. 4AM direct winding sources only; no automatic transfer from 4A.
-5. AOK2/AK2 detailed rotor winding: recover row-safe Z2/y2/Pe2/m2/a2/w2/conductor dimensions/mass/resistance from section 8.2.
+1. AO2 frames 7–9 detailed winding enrichment: recover Pe1/m1/a1/w1/conductor only where row-to-column mapping is independently clear. Do not overwrite the AO2-82-8 735 rpm base until the 725/735 source conflict is resolved.
+2. AOK2/AK2 detailed rotor winding: recover row-safe Z2/y2/Pe2/m2/a2/w2/conductor dimensions/mass/resistance from section 8.2; construction/Y are already merged.
+3. Keep probing textual/mirrored 6A80/90 winding data, including the known but currently unretrievable `5a6a.htm`; no OCR guessing or analog transfer.
+4. Senior 4A table 8.21: seek independent copies for Pe1/m1/a1/w1/conductor before writing winding columns.
+5. 4AM direct winding sources only; no automatic transfer from 4A.
 6. Continue VAO enrichment and retry rectangular-LV section 18 if a textual mirror appears.
 
 ## Handoff maintenance rule

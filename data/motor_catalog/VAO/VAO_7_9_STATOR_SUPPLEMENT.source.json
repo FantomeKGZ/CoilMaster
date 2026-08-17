@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_tables_8_29_8_31",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные ВАО 7–9-го габаритов, таблицы 8.29–8.31",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "This supplement preserves only stator fields whose row alignment is unambiguous in the HTML extraction: current, active-part geometry, air-gap source value, slot count and pitch.",
+    "Пэ1, m1, a1, wф and conductor-size columns are intentionally not reconstructed here where the HTML column order is interleaved.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"ВАО71-2","current_a_source":"41.5/24","stator_outer_diameter_mm":343,"stator_bore_mm":183,"stator_core_length_mm":145,"air_gap_mm_source":1.0,"slot_count":36,"winding_pitch_source":"1-12","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО72-2","current_a_source":"56/32.6","stator_outer_diameter_mm":343,"stator_bore_mm":183,"stator_core_length_mm":190,"air_gap_mm_source":1.0,"slot_count":36,"winding_pitch_source":"1-12","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО71-4","current_a_source":"42/25","stator_outer_diameter_mm":343,"stator_bore_mm":214,"stator_core_length_mm":190,"air_gap_mm_source":0.7,"slot_count":36,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО72-4","current_a_source":"58/33.5","stator_outer_diameter_mm":343,"stator_bore_mm":214,"stator_core_length_mm":250,"air_gap_mm_source":0.7,"slot_count":36,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО71-6","current_a_source":"35.5/20.5","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":190,"air_gap_mm_source":0.55,"slot_count":54,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО72-6","current_a_source":"43.5/25","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":250,"air_gap_mm_source":0.55,"slot_count":54,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО71-8","current_a_source":"30/17.7","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":190,"air_gap_mm_source":0.55,"slot_count":54,"winding_pitch_source":"1-7","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО72-8","current_a_source":"38/22","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":250,"air_gap_mm_source":0.55,"slot_count":54,"winding_pitch_source":"1-7","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+
+    {"model":"ВАО81-2","current_a_source":"77.5/45","stator_outer_diameter_mm":393,"stator_bore_mm":211,"stator_core_length_mm":200,"air_gap_mm_source":1.1,"slot_count":36,"winding_pitch_source":"1-12","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО82-2","current_a_source":"107.5/62","stator_outer_diameter_mm":393,"stator_bore_mm":211,"stator_core_length_mm":250,"air_gap_mm_source":1.1,"slot_count":36,"winding_pitch_source":"1-12","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО81-4","current_a_source":"77/44.5","stator_outer_diameter_mm":393,"stator_bore_mm":247,"stator_core_length_mm":210,"air_gap_mm_source":0.9,"slot_count":48,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО82-4","current_a_source":"105/61","stator_outer_diameter_mm":393,"stator_bore_mm":247,"stator_core_length_mm":280,"air_gap_mm_source":0.9,"slot_count":48,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО81-6","current_a_source":"59.5/35","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":210,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО82-6","current_a_source":"78.5/45.5","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":280,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО81-8","current_a_source":"45/28","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":210,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО82-8","current_a_source":"65/38","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":280,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+
+    {"model":"ВАО91-2","current_a_source":"145/83.5","stator_outer_diameter_mm":458,"stator_bore_mm":247,"stator_core_length_mm":220,"air_gap_mm_source":1.5,"slot_count":36,"winding_pitch_source":"1-12","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО92-2","current_a_source":"190/110","stator_outer_diameter_mm":458,"stator_bore_mm":247,"stator_core_length_mm":275,"air_gap_mm_source":1.5,"slot_count":36,"winding_pitch_source":"1-12","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО91-4","current_a_source":"164/84","stator_outer_diameter_mm":458,"stator_bore_mm":290,"stator_core_length_mm":240,"air_gap_mm_source":0.9,"slot_count":48,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО92-4","current_a_source":"195/113","stator_outer_diameter_mm":458,"stator_bore_mm":290,"stator_core_length_mm":330,"air_gap_mm_source":0.9,"slot_count":48,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО91-6","current_a_source":"109/63","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":240,"air_gap_mm_source":0.7,"slot_count":72,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО92-6","current_a_source":"148/85.5","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":330,"air_gap_mm_source":0.7,"slot_count":72,"winding_pitch_source":"1-11","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО91-8","current_a_source":"88/51","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":240,"air_gap_mm_source":0.7,"slot_count":72,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"},
+    {"model":"ВАО92-8","current_a_source":"116/67","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":330,"air_gap_mm_source":0.7,"slot_count":72,"winding_pitch_source":"1-8","source_id":"likhachev_2004_vao_tables_8_29_8_31","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_WINDING_COLUMNS"}
+  ]
+}

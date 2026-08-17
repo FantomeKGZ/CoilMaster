@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "eti_ao2_standard_parameters",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "Параметры асинхронных электродвигателей единой серии А2 и АО2",
+    "url": "https://eti.su/articles/spravochnik/spravochnik_1802.html",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Gap-fill identity/rating rows for ordinary single-speed AO2 motors only.",
+    "No winding turns, conductor or pitch values are inferred from rating tables.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-51-2-eti","model":"АО2-51-2","power_kw":10,"rated_speed_rpm":2900,"current_a_source":"17.2","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-52-2-eti","model":"АО2-52-2","power_kw":13,"rated_speed_rpm":2900,"current_a_source":"25.2","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-51-8-eti","model":"АО2-51-8","power_kw":4,"rated_speed_rpm":725,"current_a_source":"10","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-61-4-eti","model":"АО2-61-4","power_kw":13,"rated_speed_rpm":1450,"current_a_source":"25","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-61-8-eti","model":"АО2-61-8","power_kw":7.5,"rated_speed_rpm":725,"current_a_source":"16","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-62-8-eti","model":"АО2-62-8","power_kw":10,"rated_speed_rpm":725,"current_a_source":"21","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-81-10-eti","model":"АО2-81-10","power_kw":17,"rated_speed_rpm":580,"current_a_source":"38","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-82-10-eti","model":"АО2-82-10","power_kw":22,"rated_speed_rpm":580,"current_a_source":"48","source_id":"eti_ao2_standard_parameters","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

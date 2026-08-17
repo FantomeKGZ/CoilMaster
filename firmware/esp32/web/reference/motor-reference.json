@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 697,
+  "record_count": 727,
   "records": [
     {
       "reference_only": true,
@@ -19078,6 +19078,475 @@
       "manufacturer": "SINGLE_PHASE",
       "speed_group_rpm": 3000,
       "rated_speed_rpm": 3000,
+      "slot_count": 16,
+      "model": "Вентилятор 16 пазов",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:210;180;140 | winding:1",
+      "wire": "",
+      "pitch": "winding:7;5;3 | winding:5;3",
+      "bore_mm": null,
+      "core_length_mm": null,
+      "parallel_branches": "winding:1 | winding:2",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "210;180;140",
+          "wire_diameter_source": "0.35",
+          "winding_pitch_source": "7;5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "1",
+          "wire_diameter_source": "1.00×2",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 2
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "4АМА80А2У3",
+      "variant_key": null,
+      "power_kw": 1.1,
+      "current_a": 7.5,
+      "voltage_v": 220,
+      "connection": "Y",
+      "source_n": "34",
+      "wire": "0.80+0.75",
+      "pitch": "11;9",
+      "bore_mm": 75,
+      "core_length_mm": 83,
+      "parallel_branches": 1,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "4АМАТ80А",
+      "variant_key": null,
+      "power_kw": 1.1,
+      "current_a": 7.5,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:31 | winding:68",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 75,
+      "core_length_mm": 83,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "31",
+          "wire_diameter_source": "0.75×2",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "68",
+          "wire_diameter_source": "0.75",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "ASPRI25-4M",
+      "variant_key": null,
+      "power_kw": 1.5,
+      "current_a": 7.0,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:34 | winding:75",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 55,
+      "core_length_mm": 89,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "34",
+          "wire_diameter_source": "0.60×2",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "75",
+          "wire_diameter_source": "0.50",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2810,
+      "slot_count": 24,
+      "model": "BSRBF 0.75/2-C58",
+      "variant_key": null,
+      "power_kw": 1.6,
+      "current_a": 7.5,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:37;37;37;25;17 | winding:114;36;60",
+      "wire": "",
+      "pitch": "winding:11;9;7;5;3 | winding:11;9;7",
+      "bore_mm": 67,
+      "core_length_mm": 60,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "37;37;37;25;17",
+          "wire_diameter_source": "0.64×2",
+          "winding_pitch_source": "11;9;7;5;3",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 0.9
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "114;36;60",
+          "wire_diameter_source": "0.5",
+          "winding_pitch_source": "11;9;7",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "DWP1800",
+      "variant_key": null,
+      "power_kw": 1.8,
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:30 | winding:35",
+      "wire": "",
+      "pitch": "winding:11;9;7 | winding:11;9;7",
+      "bore_mm": 72,
+      "core_length_mm": 110,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "30",
+          "wire_diameter_source": "0.85×2",
+          "winding_pitch_source": "11;9;7",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "35",
+          "wire_diameter_source": "0.75×2",
+          "winding_pitch_source": "11;9;7",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "KARCHER single-phase 3kW",
+      "variant_key": null,
+      "power_kw": 3.0,
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:24 | winding:70",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 61,
+      "core_length_mm": 127,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "24",
+          "wire_diameter_source": "0.85×2",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "70",
+          "wire_diameter_source": "0.74",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2800,
+      "slot_count": 24,
+      "model": "MEC 90L",
+      "variant_key": null,
+      "power_kw": 2.2,
+      "current_a": 13.0,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:28;28;23;23 | winding:54;54;11;11",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9;7;5",
+      "bore_mm": 78,
+      "core_length_mm": 80,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "28;28;23;23",
+          "wire_diameter_source": "0.85+0.80",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 1.5
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "54;54;11;11",
+          "wire_diameter_source": "0.8",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2800,
+      "slot_count": 24,
+      "model": "Single Phase aluminum 2.2kW",
+      "variant_key": null,
+      "power_kw": 2.2,
+      "current_a": 13.5,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:26;26;17;14 | winding:36;36;15;11",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9;7;5",
+      "bore_mm": 77,
+      "core_length_mm": 100,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "26;26;17;14",
+          "wire_diameter_source": "0.95×2 Al",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 1.8
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "36;36;15;11",
+          "wire_diameter_source": "0.8×2 Al",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "Transicold",
+      "variant_key": null,
+      "power_kw": 1.1,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "winding:85;85;70;65 | winding:48;48;18;12",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9;7;5",
+      "bore_mm": 82,
+      "core_length_mm": 70,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "85;85;70;65",
+          "wire_diameter_source": "0.75",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 2.0
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "48;48;18;12",
+          "wire_diameter_source": "0.75",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "YL90L2",
+      "variant_key": null,
+      "power_kw": 2.2,
+      "current_a": 13.67,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:22;22;22;11 | winding:38;38;18",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9;7",
+      "bore_mm": 80,
+      "core_length_mm": 106,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "22;22;22;11",
+          "wire_diameter_source": "0.95×2",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "38;38;18",
+          "wire_diameter_source": "0.95",
+          "winding_pitch_source": "11;9;7",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2790,
+      "slot_count": 24,
+      "model": "АИРЕ71С2У3",
+      "variant_key": null,
+      "power_kw": 1.1,
+      "current_a": 8.0,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:32 | winding:72",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 68,
+      "core_length_mm": 92,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "32",
+          "wire_diameter_source": "0.71×2",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "72",
+          "wire_diameter_source": "071",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
       "slot_count": 24,
       "model": "АИРЕ80С2У3",
       "variant_key": "AIRE80S2U3-220V-reference",
@@ -19150,6 +19619,247 @@
       "reference_only": true,
       "series": "SINGLE_PHASE",
       "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2800,
+      "slot_count": 24,
+      "model": "Вибратор площ. 1.3kW",
+      "variant_key": null,
+      "power_kw": 1.3,
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:37 | winding:90",
+      "wire": "",
+      "pitch": "winding:11;9+11;9 | winding:11;9",
+      "bore_mm": 75,
+      "core_length_mm": 74,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "37",
+          "wire_diameter_source": "0.80×2",
+          "winding_pitch_source": "11;9+11;9",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "90",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "Вибратор площ. ЭВ 1.1kW",
+      "variant_key": null,
+      "power_kw": 1.1,
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:45 | winding:80",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 68,
+      "core_length_mm": 75,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "45",
+          "wire_diameter_source": "0.85",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "80",
+          "wire_diameter_source": "0.63",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2800,
+      "slot_count": 24,
+      "model": "Вибратор площ. ЭВ-99Е",
+      "variant_key": null,
+      "power_kw": 0.5,
+      "current_a": 1.75,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:70 | winding:115",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 53,
+      "core_length_mm": 60,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "70",
+          "wire_diameter_source": "0.63",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 0.7
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "115",
+          "wire_diameter_source": "0.40",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2800,
+      "slot_count": 24,
+      "model": "Насос HWW900/25",
+      "variant_key": null,
+      "power_kw": 0.6,
+      "current_a": 2.4,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:60 | winding:115",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 58,
+      "core_length_mm": 70,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "60",
+          "wire_diameter_source": "0.56",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "115",
+          "wire_diameter_source": "0.38",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1370,
+      "slot_count": 24,
+      "model": "7WARC81K4TH",
+      "variant_key": null,
+      "power_kw": 0.55,
+      "current_a": 4.17,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:44;79;34 | winding:44;63;16",
+      "wire": "",
+      "pitch": "winding:6;4;2 | winding:6;4;2",
+      "bore_mm": 75,
+      "core_length_mm": 72,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "44;79;34",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "6;4;2",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "44;63;16",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "6;4;2",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1450,
+      "slot_count": 24,
+      "model": "ERMI136/4",
+      "variant_key": null,
+      "power_kw": 0.25,
+      "current_a": 2.58,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:83 | winding:135",
+      "wire": "",
+      "pitch": "winding:5;3 | winding:5",
+      "bore_mm": 75,
+      "core_length_mm": 80,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "83",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "135",
+          "wire_diameter_source": "0.55",
+          "winding_pitch_source": "5",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
       "speed_group_rpm": 1500,
       "rated_speed_rpm": 1500,
       "slot_count": 24,
@@ -19185,6 +19895,486 @@
       "source_id": "vitkovoe_single_phase",
       "source_title": "Обмоточные данные однофазных электродвигателей",
       "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1400,
+      "slot_count": 24,
+      "model": "АИРЕ80В4",
+      "variant_key": null,
+      "power_kw": 1.1,
+      "current_a": 7.2,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:24+24;52 | winding:24+24;52",
+      "wire": "",
+      "pitch": "winding:6;4 | winding:6;4",
+      "bore_mm": 70,
+      "core_length_mm": 100,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "24+24;52",
+          "wire_diameter_source": "0.53×3",
+          "winding_pitch_source": "6;4",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "24+24;52",
+          "wire_diameter_source": "0.53×3",
+          "winding_pitch_source": "6;4",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1500,
+      "slot_count": 24,
+      "model": "Вентилятор наружного блока сплит-системы",
+      "variant_key": null,
+      "power_kw": 0.05,
+      "current_a": 0.43,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:366;183 | winding:400;200",
+      "wire": "",
+      "pitch": "winding:5;3 | winding:5;3",
+      "bore_mm": 55,
+      "core_length_mm": 26,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "366;183",
+          "wire_diameter_source": "0.25",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "400;200",
+          "wire_diameter_source": "0.23",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1500,
+      "slot_count": 32,
+      "model": "АЕР16УХЛ4",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:100;100;45 | winding:60;60;30",
+      "wire": "",
+      "pitch": "winding:7;5;3 | winding:7;5;3",
+      "bore_mm": null,
+      "core_length_mm": 92,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "100;100;45",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "7;5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "60;60;30",
+          "wire_diameter_source": "0.35",
+          "winding_pitch_source": "7;5;3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1380,
+      "slot_count": 36,
+      "model": "33-014-С трехскоростной",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": 2.7,
+      "voltage_v": 230,
+      "connection": null,
+      "source_n": "winding:130;130;74 | winding:134;134;44",
+      "wire": "",
+      "pitch": "winding:8;6;4 | winding:9;7;5+7;5",
+      "bore_mm": 80,
+      "core_length_mm": 50,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "130;130;74",
+          "wire_diameter_source": "0.40×2",
+          "winding_pitch_source": "8;6;4",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "134;134;44",
+          "wire_diameter_source": "0.45",
+          "winding_pitch_source": "9;7;5+7;5",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1400,
+      "slot_count": 36,
+      "model": "YC90S2-4",
+      "variant_key": null,
+      "power_kw": 0.8,
+      "current_a": 7.5,
+      "voltage_v": 230,
+      "connection": null,
+      "source_n": "winding:43;80;64;48 | winding:23;19;11",
+      "wire": "",
+      "pitch": "winding:9;7;5;3 | winding:8;6;4",
+      "bore_mm": null,
+      "core_length_mm": null,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая U1; U2",
+          "source_n_value": "43;80;64;48",
+          "wire_diameter_source": "0.71×2",
+          "winding_pitch_source": "9;7;5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая Z1; Z2",
+          "source_n_value": "23;19;11",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "8;6;4",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1320,
+      "slot_count": 36,
+      "model": "АДМЕ71В4У2",
+      "variant_key": null,
+      "power_kw": 0.75,
+      "current_a": 5.7,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:40 | winding:55",
+      "wire": "",
+      "pitch": "winding:9;7;5+7;5 | winding:8;6",
+      "bore_mm": 76,
+      "core_length_mm": 90,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "40",
+          "wire_diameter_source": "0.80",
+          "winding_pitch_source": "9;7;5+7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "55",
+          "wire_diameter_source": "0.45×2",
+          "winding_pitch_source": "8;6",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1500,
+      "slot_count": 36,
+      "model": "АИРУТ71В4",
+      "variant_key": null,
+      "power_kw": 0.75,
+      "current_a": 4.8,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:41 | winding:48",
+      "wire": "",
+      "pitch": "winding:9;7;5+7;5 | winding:8;6",
+      "bore_mm": 70,
+      "core_length_mm": 80,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "41",
+          "wire_diameter_source": "0.71",
+          "winding_pitch_source": "9;7;5+7;5",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "48",
+          "wire_diameter_source": "0.60",
+          "winding_pitch_source": "8;6",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1000,
+      "rated_speed_rpm": 890,
+      "slot_count": 18,
+      "model": "ZIEHL-ABEGG 230V",
+      "variant_key": null,
+      "power_kw": 0.26,
+      "current_a": 0.83,
+      "voltage_v": 230,
+      "connection": null,
+      "source_n": "winding:270 | winding:256+256",
+      "wire": "",
+      "pitch": "winding:2 | winding:3",
+      "bore_mm": 40,
+      "core_length_mm": 35,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "270",
+          "wire_diameter_source": "0.38",
+          "winding_pitch_source": "2",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "256+256",
+          "wire_diameter_source": "0.25",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1000,
+      "rated_speed_rpm": 890,
+      "slot_count": 18,
+      "model": "ZIEHLABEGG fan 400V",
+      "variant_key": null,
+      "power_kw": 0.18,
+      "current_a": 0.83,
+      "voltage_v": 400,
+      "connection": null,
+      "source_n": "winding:268 | winding:270+270",
+      "wire": "",
+      "pitch": "winding:2 | winding:3",
+      "bore_mm": 40,
+      "core_length_mm": 35,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "268",
+          "wire_diameter_source": "0.4",
+          "winding_pitch_source": "2",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "270+270",
+          "wire_diameter_source": "0.25",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1000,
+      "rated_speed_rpm": 1000,
+      "slot_count": 24,
+      "model": "YDK-45V-6",
+      "variant_key": null,
+      "power_kw": 0.045,
+      "current_a": 0.65,
+      "voltage_v": 230,
+      "connection": null,
+      "source_n": "winding:500 | winding:500",
+      "wire": "",
+      "pitch": "winding:3 | winding:3",
+      "bore_mm": 74,
+      "core_length_mm": 20,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "500",
+          "wire_diameter_source": "0.25",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "500",
+          "wire_diameter_source": "0.25",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1000,
+      "rated_speed_rpm": 940,
+      "slot_count": 36,
+      "model": "F48T72A50",
+      "variant_key": null,
+      "power_kw": 0.37,
+      "current_a": 1.6,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "winding:150;75 | winding:150;75",
+      "wire": "",
+      "pitch": "winding:5;3 | winding:5;3",
+      "bore_mm": 80,
+      "core_length_mm": 60,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "150;75",
+          "wire_diameter_source": "0.50",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "150;75",
+          "wire_diameter_source": "0.50",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": 710,
+      "slot_count": 40,
+      "model": "YDKI60-8",
+      "variant_key": null,
+      "power_kw": 0.16,
+      "current_a": 1.56,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:65+65;126 | winding:200",
+      "wire": "",
+      "pitch": "winding:5;3 | winding:4",
+      "bore_mm": 90,
+      "core_length_mm": 43,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "65+65;126",
+          "wire_diameter_source": "0.4",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "200",
+          "wire_diameter_source": "0.33",
+          "winding_pitch_source": "4",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_02.source.json"
     }
   ]
 }

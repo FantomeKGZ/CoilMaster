@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-17",
+  "reference_only": true,
+  "records": [
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":3000,"slot_count":24,"model":"АИР71А2","power_kw":0.74,"source_n":"78","wire":"0.63","pitch":"11;9","bore_mm":"62.8","core_length_mm":68,"status":"REFERENCE","source":"vitkovoe_air_ais_reference"},
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":3000,"slot_count":24,"model":"АИР71В2","power_kw":1.1,"source_n":"66","wire":"0.63","pitch":"11;9","bore_mm":"62.8","core_length_mm":77,"status":"REFERENCE","source":"vitkovoe_air_ais_reference"},
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":1500,"slot_count":36,"model":"АИР71А4","power_kw":0.55,"source_n":"91","wire":"0.50","pitch":"11;9;7","bore_mm":"67.8","core_length_mm":65,"status":"REFERENCE","source":"vitkovoe_air_ais_reference"},
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":1500,"slot_count":36,"model":"АИР71В4","power_kw":0.75,"source_n":"72","wire":"0.56","pitch":"11;9;7","bore_mm":"67.8","core_length_mm":76,"status":"REFERENCE","source":"vitkovoe_air_ais_reference"},
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":1000,"slot_count":36,"model":"АИР71А6","power_kw":0.37,"source_n":"110","wire":"0.45","pitch":"7;5","bore_mm":"77.8","core_length_mm":65,"status":"REFERENCE","source":"vitkovoe_air_ais_reference"},
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":1000,"slot_count":36,"model":"АИР71В6","power_kw":0.55,"source_n":"86","wire":"0.50","pitch":"7;5","bore_mm":"77.8","core_length_mm":90,"status":"REFERENCE","source":"vitkovoe_air_ais_reference"},
+    {"series":"AIR","manufacturer":"АИР","speed_group_rpm":750,"slot_count":36,"model":"АИР71В8","power_kw":0.25,"source_n":"133","wire":"0.40","pitch":"5;3+5","bore_mm":"76.8","core_length_mm":73,"status":"REVIEW_REQUIRED","source":"vitkovoe_air_ais_reference"},
+    {"series":"4A","manufacturer":"4А","speed_group_rpm":3000,"slot_count":12,"model":"4А50А2","power_kw":0.09,"source_n":"450","wire":"0.27","pitch":"7;5","bore_mm":"41","core_length_mm":42,"status":"REFERENCE","source":"vitkovoe_4a_reference"},
+    {"series":"4A","manufacturer":"4А","speed_group_rpm":3000,"slot_count":12,"model":"4А50В2","power_kw":0.12,"source_n":"394","wire":"0.31","pitch":"7;5","bore_mm":"41","core_length_mm":50,"status":"REFERENCE","source":"vitkovoe_4a_reference"},
+    {"series":"4A","manufacturer":"4А","speed_group_rpm":1500,"slot_count":12,"model":"4А50А4","power_kw":0.06,"source_n":"635","wire":"0.27","pitch":"3","bore_mm":"46","core_length_mm":42,"status":"REFERENCE","source":"vitkovoe_4a_reference"},
+    {"series":"4A","manufacturer":"4А","speed_group_rpm":1500,"slot_count":12,"model":"4А50В4","power_kw":0.09,"source_n":"500","wire":"0.31","pitch":"3","bore_mm":"46","core_length_mm":50,"status":"REFERENCE","source":"vitkovoe_4a_reference"}
+  ]
+}

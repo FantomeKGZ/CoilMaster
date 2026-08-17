@@ -46,7 +46,7 @@ def core_length(record: dict):
 
 def status(record: dict) -> str:
     marker = str(record.get("normalization_status", ""))
-    if any(word in marker for word in ("SUSPECT", "REVIEW", "CONFLICT", "COMPOUND")):
+    if any(word in marker for word in ("SUSPECT", "REVIEW", "CONFLICT", "COMPOUND", "MULTI_WINDING")):
         return "REVIEW_REQUIRED"
     return "REFERENCE"
 
@@ -58,13 +58,42 @@ def source_label(doc: dict, source_id: str) -> str:
     return source_id
 
 
+def winding_set_text(record: dict, field: str) -> str | None:
+    sets = record.get("winding_sets")
+    if not isinstance(sets, list) or not sets:
+        return None
+    parts = []
+    for item in sets:
+        if not isinstance(item, dict):
+            continue
+        value = item.get(field)
+        if value is None:
+            continue
+        label = item.get("label") or item.get("poles") or "winding"
+        parts.append(f"{label}:{value}")
+    return " | ".join(parts) if parts else None
+
+
 def flatten(path: Path, doc: dict, record: dict) -> dict:
     wire = record.get("wire_diameter_source")
     if wire is None:
         wire = record.get("wire_diameter_mm")
+    if wire is None:
+        wire = winding_set_text(record, "wire_diameter_mm")
     power = record.get("power_kw")
     if power is None:
         power = record.get("power_kw_source")
+    if power is None:
+        power = winding_set_text(record, "power_kw_source")
+    source_n = record.get("source_n_value")
+    if source_n is None:
+        source_n = winding_set_text(record, "source_n_value")
+    pitch = record.get("winding_pitch_source")
+    if pitch is None:
+        pitch = winding_set_text(record, "winding_pitch_source")
+    branches = record.get("parallel_branches_source")
+    if branches is None:
+        branches = winding_set_text(record, "parallel_branches_source")
     return {
         "reference_only": True,
         "series": doc.get("series") or path.parent.name,
@@ -78,12 +107,13 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "current_a": record.get("current_a"),
         "voltage_v": record.get("voltage_v"),
         "connection": record.get("connection_source"),
-        "source_n": str(record.get("source_n_value", "")),
+        "source_n": str(source_n if source_n is not None else ""),
         "wire": str(wire if wire is not None else ""),
-        "pitch": str(record.get("winding_pitch_source", "")),
+        "pitch": str(pitch if pitch is not None else ""),
         "bore_mm": record.get("stator_bore_mm"),
         "core_length_mm": core_length(record),
-        "parallel_branches": record.get("parallel_branches_source"),
+        "parallel_branches": branches,
+        "winding_sets": record.get("winding_sets"),
         "status": status(record),
         "source_id": record.get("source_id"),
         "source_title": source_label(doc, record.get("source_id", "")),

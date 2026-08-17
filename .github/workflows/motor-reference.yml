@@ -1,0 +1,49 @@
+name: Motor reference index
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - "data/motor_catalog/**/*.source.json"
+      - "tools/build_motor_reference.py"
+      - "tools/check_motor_reference.py"
+      - ".github/workflows/motor-reference.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout cmp-protocol-v1
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build static winding reference
+        run: python tools/build_motor_reference.py
+
+      - name: Verify generated reference
+        run: python tools/check_motor_reference.py
+
+      - name: Commit generated index when changed
+        shell: bash
+        run: |
+          if git diff --quiet -- firmware/esp32/web/reference/motor-reference.json; then
+            echo "motor-reference.json already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/esp32/web/reference/motor-reference.json
+          git commit -m "data: rebuild winding reference index"
+          git push origin HEAD:cmp-protocol-v1

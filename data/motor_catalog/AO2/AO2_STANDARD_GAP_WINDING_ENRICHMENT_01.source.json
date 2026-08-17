@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_gap_winding_rows",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 7-9-го габаритов",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "merge_only enrichment for the existing AO2_STANDARD_GAP_FILL_01 base cards.",
+    "AO2-82-8 keeps the base rated speed from the independent operating table because the Likhachev HTML block exposes a 725/735 discrepancy; only the clearly printed current is merged here.",
+    "Detailed Pe1/m1/a1/w1/conductor columns remain deferred wherever row ordering is interleaved.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-71-2-gapfill","model":"АО2-71-2","current_a_source":"72.8/42.1","stator_outer_diameter_mm":343,"stator_bore_mm":183,"stator_core_length_mm":115,"slot_count":36,"winding_pitch_source":"1-12","winding_type_source":"Двухслойная","source_id":"likhachev_2004_ao2_gap_winding_rows","normalization_status":"REVIEW_REQUIRED_WINDING_PARTIAL_SOURCE_NATIVE"},
+    {"variant_key":"AO2-72-2-gapfill","model":"АО2-72-2","stator_outer_diameter_mm":343,"stator_bore_mm":183,"source_id":"likhachev_2004_ao2_gap_winding_rows","normalization_status":"REVIEW_REQUIRED_WINDING_PARTIAL_SOURCE_NATIVE"},
+    {"variant_key":"AO2-82-8-gapfill","model":"АО2-82-8","current_a_source":"104/60.2","source_speed_conflict_note":"Likhachev HTML block shows 725 rpm while independent operating table used by base card shows 735 rpm; base speed retained pending resolution.","source_id":"likhachev_2004_ao2_gap_winding_rows","normalization_status":"REVIEW_REQUIRED_SOURCE_SPEED_CONFLICT_WINDING_PENDING"},
+    {"variant_key":"AO2-91-6-gapfill","model":"АО2-91-6","current_a_source":"169/98","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":240,"slot_count":72,"winding_pitch_source":"1-11","winding_type_source":"Двухслойная","source_id":"likhachev_2004_ao2_gap_winding_rows","normalization_status":"REVIEW_REQUIRED_WINDING_PARTIAL_SOURCE_NATIVE"}
+  ]
+}

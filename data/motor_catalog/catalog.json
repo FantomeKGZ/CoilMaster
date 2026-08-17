@@ -3,7 +3,7 @@
   "catalogue_type": "CoilMaster source motor catalogue",
   "import_format": "docs/MOTOR_IMPORT_FORMAT.md",
   "series": [
-    {"id":"AIR","name":"АИР","group":"CIS_GENERAL_PURPOSE","directory":"AIR","status":"PLANNED"},
+    {"id":"AIR","name":"АИР","group":"CIS_GENERAL_PURPOSE","directory":"AIR","status":"IN_PROGRESS"},
     {"id":"AIS","name":"АИС","group":"CIS_GENERAL_PURPOSE","directory":"AIS","status":"PLANNED"},
     {"id":"4A","name":"4А","group":"SOVIET_GENERAL_PURPOSE","directory":"4A","status":"PLANNED"},
     {"id":"4AM","name":"4АМ","group":"SOVIET_GENERAL_PURPOSE","directory":"4AM","status":"PLANNED"},

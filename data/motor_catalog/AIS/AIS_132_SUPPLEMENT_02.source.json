@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "series": "AIS",
+  "frame_size": 132,
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "retrieved_at": "2026-08-17",
+  "normalization_notes": [
+    "Continuation of standalone AIS132 rows from the AIR/AIS technical reference table.",
+    "These are independent AIS physical variants, not aliases of AIR records.",
+    "Source N is turns in slot and is preserved source-native; no CoilMaster coil_program is generated."
+  ],
+  "sources": [
+    {
+      "id": "vitkovoe_air_ais_reference",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии АИР и АИС",
+      "url": "https://vitkovoe.ru/air_ais_series.html",
+      "independence_group": "air_ais_reference_table_family",
+      "source_voltage_v": "220/380",
+      "source_n_definition": "Количество витков в пазу"
+    }
+  ],
+  "records": [
+    {
+      "variant_key": "AIS132MB6U2-reference-54slot-L175",
+      "model": "АИС132МВ6У2",
+      "source_id": "vitkovoe_air_ais_reference",
+      "power_kw": 5.5,
+      "current_a": "22.0/12.0",
+      "stator_bore_mm": 132,
+      "stator_core_length_mm": 175,
+      "slot_count": 54,
+      "winding_pitch_source": "11;9;7",
+      "parallel_branches_source": 1,
+      "source_n_value": "17×2",
+      "source_n_definition": "Количество витков в пазу",
+      "wire_diameter_mm": 1.06,
+      "wire_mass_kg": 4.06,
+      "normalization_status": "REFERENCE_ONLY_SOURCE_NATIVE"
+    },
+    {
+      "variant_key": "AIS132S8U2-reference-48slot-L100",
+      "model": "АИС132S8У2",
+      "source_id": "vitkovoe_air_ais_reference",
+      "power_kw": 2.2,
+      "current_a": "11.0/6.1",
+      "stator_bore_mm": 132,
+      "stator_core_length_mm": 100,
+      "slot_count": 48,
+      "winding_pitch_source": "7;5",
+      "parallel_branches_source": 1,
+      "source_n_value": 40,
+      "source_n_definition": "Количество витков в пазу",
+      "wire_diameter_mm": 1.06,
+      "wire_mass_kg": 3.18,
+      "normalization_status": "REFERENCE_ONLY_SOURCE_NATIVE"
+    },
+    {
+      "variant_key": "AIS132M8U2-reference-48slot-L130",
+      "model": "АИС132М8У2",
+      "source_id": "vitkovoe_air_ais_reference",
+      "power_kw": 3.0,
+      "current_a": "13.0/7.8",
+      "stator_bore_mm": 132,
+      "stator_core_length_mm": 130,
+      "slot_count": 48,
+      "winding_pitch_source": "7;5",
+      "parallel_branches_source": 1,
+      "source_n_value": 31,
+      "source_n_definition": "Количество витков в пазу",
+      "wire_diameter_mm": 1.18,
+      "wire_mass_kg": 3.49,
+      "normalization_status": "REFERENCE_ONLY_SOURCE_NATIVE"
+    }
+  ]
+}

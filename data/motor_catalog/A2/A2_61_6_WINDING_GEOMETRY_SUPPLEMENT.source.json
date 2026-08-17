@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "series": "A2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_section_8_1_a2_61_6",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные А2/АО2 6-го габарита, раздел 8.1",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only the contiguous row-safe geometry, slot count, pitch and winding type associated with A2-61-6 are transcribed.",
+    "Pe1/m1/a1/w1/conductor values are intentionally omitted because the extracted table interleaves neighboring A2/AO2/AOP2/AOS2/AOT2/AOK2 rows.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "А2-61-6",
+      "stator_outer_diameter_mm": 291,
+      "stator_bore_mm": 180,
+      "stator_core_length_mm": 135,
+      "air_gap_mm_source": 0.55,
+      "slot_count": 36,
+      "winding_pitch_source": "1-8",
+      "winding_type_source": "Двухслойная",
+      "source_id": "likhachev_2004_section_8_1_a2_61_6",
+      "normalization_status": "REVIEW_REQUIRED_PARTIAL_ROW_SAFE_WINDING_ENRICHMENT"
+    }
+  ]
+}

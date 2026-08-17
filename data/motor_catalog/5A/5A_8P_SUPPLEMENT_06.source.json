@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "5A",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_5a_3_reference",
+      "type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "url": "https://vitkovoe.ru/5a_3_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Literal transcription of two ordinary 8-pole rows missing from the existing 5A frame and supplement packages.",
+    "Source .n means conductor count per turn and is preserved separately from winding parallel branches a.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "5A160M8",
+      "synchronous_speed_rpm": 750,
+      "power_kw": 11.0,
+      "current_a": 22.8,
+      "voltage_v": 380,
+      "conductor_count_per_turn_source": 4,
+      "source_n_value": "15",
+      "wire_diameter_source": "1.18",
+      "winding_pitch_source": "1-7",
+      "winding_layers_source": 1,
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 260,
+      "stator_bore_mm": 180,
+      "stator_core_length_mm": 195,
+      "slot_count": 48,
+      "source_id": "vitkovoe_5a_3_reference",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    },
+    {
+      "model": "5A180M8",
+      "synchronous_speed_rpm": 750,
+      "power_kw": 15.0,
+      "current_a": 30.4,
+      "voltage_v": 380,
+      "conductor_count_per_turn_source": 2,
+      "source_n_value": "22",
+      "wire_diameter_source": "1.25",
+      "winding_pitch_source": "1-8",
+      "winding_layers_source": 2,
+      "parallel_branches_source": 2,
+      "stator_outer_diameter_mm": 295,
+      "stator_bore_mm": 209,
+      "stator_core_length_mm": 195,
+      "slot_count": 72,
+      "source_id": "vitkovoe_5a_3_reference",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    }
+  ]
+}

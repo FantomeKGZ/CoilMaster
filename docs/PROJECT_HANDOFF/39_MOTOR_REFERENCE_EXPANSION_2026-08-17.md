@@ -4,7 +4,7 @@ Branch: `cmp-protocol-v1`
 
 ## Purpose
 
-CoilMaster now maintains a large **read-only winding reference** that is intentionally separated from the verified working motor database.
+CoilMaster maintains a large **read-only winding reference** that is intentionally separated from the verified working motor database.
 
 The reference is built from `data/motor_catalog/**/*.source.json` into:
 
@@ -28,7 +28,7 @@ The coverage goal is:
 MAXIMUM_REFERENCE_COVERAGE_WITH_VERIFIED_WORKING_DATABASE_SEPARATION
 ```
 
-Active coverage currently includes:
+Active coverage includes:
 
 - AIR / AIS-related reference data;
 - 4A / 4AN;
@@ -68,29 +68,31 @@ data/motor_catalog/5A/5A_6P_SUPPLEMENT_01.source.json
 data/motor_catalog/AIR/AIR_180_355.source.json
 data/motor_catalog/5A/5A_6P_8P_SUPPLEMENT_02.source.json
 data/motor_catalog/5A/5A_8P_SUPPLEMENT_03.source.json
+data/motor_catalog/5A/5A_6P_12P_SUPPLEMENT_04.source.json
 data/motor_catalog/4AM/4AM_MULTISPEED_01.source.json
 data/motor_catalog/AIR/AIR_AIS_REPAIR_02.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_03.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_04.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_05.source.json
+data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_06.source.json
 ```
 
 The AIR/AIS repair layer includes the full currently text-extractable repair-observation tail from `air_ais_2_series.html`, preserving physically distinct variants separately. This includes multiple `АИР160S2` and `АИР100S4` implementations, `АИР180/200/250` repair observations, `АИМ90L4`, and `2АИ90L4ПАУ3`.
 
-The 5A supplementary packages preserve the separate 6/8-pole table semantics including the source conductor-count-per-turn column `.n`. The newest senior 8-pole supplement adds `5AMH250M8`, 280-frame variants and 315-frame 8-pole variants with source-native `.n`, `N`, wire, pitch, layer count, branch count and geometry.
+The 5A supplementary packages preserve the separate 6/8/12-pole table semantics including the source conductor-count-per-turn column `.n`. The latest 6P/12P supplement adds the missing 250/280-frame 6-pole rows plus `5AM315S12` and `5AM315M12`. The senior 8-pole supplement covers the text-extractable 250/280/315-frame 8-pole tail.
 
 The AIR senior-frame package extends technical-reference coverage beyond the earlier 71–160 first pass through 180/200/225/250 and up to 335/355-frame entries.
 
 The 4AM layer includes multispeed `4АМА100L4/2У3`, `4АМ180М8/4У2`, `4АМ132S6/4У4`, and a source-observed winding-machine motor based on `4АМ100L8` with two independent speed windings.
 
-The mixed multispeed layer now additionally includes source-native records such as `GM160M6`, `PSSKh90L4/2`, `АИР90L4/2У3`, `HAR160М4/8`, `СМ29/Т`, `ZTE V.TIRNOVO`, `ZFB100/4DF132MC4X-8/2`, `90С6/4S`, `4А100S4/2У2`, `L250MK80`, `АВ32 4/2`, `М112-11`, `АС62`, `4АН160`, `4АН180`, `VTM 250`, and `4АН180SB6/18`. Separate independent windings are represented as `winding_sets` when the source exposes them separately.
+The mixed multispeed layer now covers the currently text-extractable `mnogo_skor_series.html` rows, including two-, three- and four-speed machines. The latest completion package adds `АИР80А4/2У3` and preserves `ДСХН I-42/8-642` as four source speed points without inventing separate winding sets from incomplete row layout.
 
 ## Current generated index checkpoint
 
 After the latest completed source additions, the generated static reference reached:
 
 ```text
-record_count = 923
+record_count = 932
 reference_only = true
 ```
 
@@ -102,9 +104,9 @@ This count is a generated-reference count, **not** a count of VERIFIED productio
 
 `4AM` is `IN_PROGRESS` because real 4AM-family repair/reference and multispeed observations are present, although a complete authoritative 4AM winding table has not yet been captured.
 
-`5A` remains `IN_PROGRESS`; both ordinary repair/reference rows and separate 6/8-pole technical-reference semantics are being preserved without collapsing `.n` into parallel branches.
+`5A` remains `IN_PROGRESS`; ordinary repair/reference rows plus separate 6/8/12-pole technical-reference semantics are preserved without collapsing `.n` into parallel branches.
 
-`6A` remains `PLANNED`: the source index confirms the family exists, but even direct section searches still do not expose a sufficiently complete text-extractable winding table. Do not synthesize 6A rows from type listings or general technical-characteristic tables.
+`6A` remains `PLANNED`: the source index confirms the family exists, but direct section searches still do not expose a sufficiently complete text-extractable winding table. Do not synthesize 6A rows from type listings or general technical-characteristic tables.
 
 `RECTANGULAR_LV` remains `PLANNED` as a dedicated series package. A real rectangular-wire repair observation already exists in the mixed repair layer, but the dedicated source table has not yet been captured in a safe complete form.
 
@@ -116,13 +118,12 @@ The current `import_3_series.html` text-extractable table is covered by `IMPORT_
 
 Continue without weakening provenance rules:
 
-1. search for additional non-duplicate mixed multispeed and repair-observation rows beyond the currently captured text output;
-2. expand remaining 5A 6/8-pole rows only when full source lines become extractable;
-3. capture complete 4AM/4AI/4AIM winding tables when a reliable source becomes text-accessible;
-4. capture 6A only from an actual winding-data table containing `N`, wire and pitch;
-5. capture the dedicated low-voltage rectangular-wire table if/when its rows become extractable;
-6. expand detailed DC records only when image cards can be read reliably — keep index-only entries otherwise;
-7. keep static-reference regeneration and freshness checking mandatory after source changes.
+1. search for additional non-duplicate repair-observation rows outside the now-covered mixed multispeed text output;
+2. capture complete 4AM/4AI/4AIM winding tables when a reliable source becomes text-accessible;
+3. capture 6A only from an actual winding-data table containing `N`, wire and pitch;
+4. capture the dedicated low-voltage rectangular-wire table if/when its rows become extractable;
+5. expand detailed DC records only when image cards can be read reliably — keep index-only entries otherwise;
+6. keep static-reference regeneration and freshness checking mandatory after source changes.
 
 ## Safety boundary unchanged
 

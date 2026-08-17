@@ -13049,35 +13049,6 @@
       "series": "A2",
       "manufacturer": "A2",
       "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
-      "slot_count": null,
-      "model": "А2-62-8",
-      "aliases": [],
-      "variant_key": null,
-      "power_kw": 10,
-      "current_a": null,
-      "voltage_v": null,
-      "connection": null,
-      "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
-      "parallel_branches": null,
-      "winding_sets": null,
-      "status": "REVIEW_REQUIRED",
-      "source_id": "electrical_machines_a2_table_9_51",
-      "source_title": "Справочник по электрическим машинам, том 1, таблица 9.51 — технические данные двигателей серии А2",
-      "source_file": "data/motor_catalog/A2/A2_INDEX_03.source.json",
-      "source_files": [
-        "data/motor_catalog/A2/A2_INDEX_03.source.json"
-      ]
-    },
-    {
-      "reference_only": true,
-      "series": "A2",
-      "manufacturer": "A2",
-      "speed_group_rpm": 750,
       "rated_speed_rpm": 725,
       "slot_count": null,
       "model": "А2-71-8",
@@ -13245,6 +13216,36 @@
       "source_file": "data/motor_catalog/A2/A2_INDEX_03.source.json",
       "source_files": [
         "data/motor_catalog/A2/A2_INDEX_03.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "A2",
+      "manufacturer": "A2",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 54,
+      "model": "А2-62-8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": 10,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "1-7",
+      "bore_mm": 206,
+      "core_length_mm": 165,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "electrical_machines_a2_table_9_51",
+      "source_title": "Справочник по электрическим машинам, том 1, таблица 9.51 — технические данные двигателей серии А2",
+      "source_file": "data/motor_catalog/A2/A2_INDEX_03.source.json",
+      "source_files": [
+        "data/motor_catalog/A2/A2_INDEX_03.source.json",
+        "data/motor_catalog/A2/A2_62_8_WINDING_GEOMETRY_SUPPLEMENT.source.json"
       ]
     },
     {

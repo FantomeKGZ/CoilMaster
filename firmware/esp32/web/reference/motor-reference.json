@@ -1171,14 +1171,14 @@
       "series": "4A",
       "manufacturer": "4A",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1485,
       "slot_count": null,
       "model": "4А355S4",
       "aliases": [],
       "variant_key": null,
       "power_kw": 250,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "432/250",
+      "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -1192,7 +1192,8 @@
       "source_title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — старшие габариты 280–355",
       "source_file": "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4A/4A_280_355_INDEX.source.json"
+        "data/motor_catalog/4A/4A_280_355_INDEX.source.json",
+        "data/motor_catalog/4A/4A_355_ELECTRICAL_SUPPLEMENT_01.source.json"
       ]
     },
     {

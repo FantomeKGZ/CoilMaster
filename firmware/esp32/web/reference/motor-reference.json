@@ -36466,19 +36466,19 @@
       "manufacturer": "VAO",
       "speed_group_rpm": 600,
       "rated_speed_rpm": 593,
-      "slot_count": null,
+      "slot_count": 72,
       "model": "ВАО355L-10",
       "aliases": [],
       "variant_key": null,
       "power_kw": 132,
-      "current_a": null,
+      "current_a": "272/157",
       "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
+      "wire": "3.55×6.9",
+      "pitch": "1-7",
+      "bore_mm": 430,
+      "core_length_mm": 430,
       "parallel_branches": null,
       "winding_sets": null,
       "status": "REVIEW_REQUIRED",
@@ -36486,7 +36486,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные ВАО с высотой оси 315, 355 и 450 мм, таблицы 8.32–8.34",
       "source_file": "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json"
+        "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_355_10P_STATOR_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -36495,19 +36496,19 @@
       "manufacturer": "VAO",
       "speed_group_rpm": 600,
       "rated_speed_rpm": 593,
-      "slot_count": null,
+      "slot_count": 72,
       "model": "ВАО355M-10",
       "aliases": [],
       "variant_key": null,
       "power_kw": 110,
-      "current_a": null,
+      "current_a": "230/133",
       "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
+      "wire": "3.05×6.9",
+      "pitch": "1-7",
+      "bore_mm": 430,
+      "core_length_mm": 350,
       "parallel_branches": null,
       "winding_sets": null,
       "status": "REVIEW_REQUIRED",
@@ -36515,7 +36516,8 @@
       "source_title": "В. Л. Лихачев. Обмоточные данные ВАО с высотой оси 315, 355 и 450 мм, таблицы 8.32–8.34",
       "source_file": "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json"
+        "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_355_10P_STATOR_SUPPLEMENT.source.json"
       ]
     },
     {

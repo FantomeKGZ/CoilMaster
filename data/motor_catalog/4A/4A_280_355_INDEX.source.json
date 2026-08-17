@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "series": "4A",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_4a_table_8_21",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "kravchik_4a_280_355_technical",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — старшие габариты 280–355",
+      "url": "https://ru.scribd.com/document/802001843/Kravchik-Ae-Shlaf-Mm-Afonin-Vi-Sobolevskaia-Ea-Asinkhronnye",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Base identity/rating layer for the senior 4A winding table. The same source contains detailed stator winding columns, but vertical HTML extraction mixes several neighboring rows.",
+    "Detailed Z1/pitch/Pe1/m1/a1/w1/conductor/mass/resistance values must be added later only via strict merge_only supplements when row mapping is unambiguous.",
+    "4AN, 4AK and 4ANK rows printed in the same source table are not duplicated here because those families are tracked separately in existing reference layers.",
+    "No coil_program is generated from this index layer."
+  ],
+  "records": [
+    {"model":"4А280S2","poles":2,"power_kw":110,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А280М2","poles":2,"power_kw":132,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315S2","poles":2,"power_kw":160,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315М2","poles":2,"power_kw":200,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355S2","poles":2,"power_kw":250,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355М2","poles":2,"power_kw":315,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4А280S4","poles":4,"power_kw":110,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А280М4","poles":4,"power_kw":132,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315S4","poles":4,"power_kw":160,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315М4","poles":4,"power_kw":200,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355S4","poles":4,"power_kw":250,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355М4","poles":4,"power_kw":315,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4А280S6","poles":6,"power_kw":75,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А280М6","poles":6,"power_kw":90,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315S6","poles":6,"power_kw":110,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315М6","poles":6,"power_kw":132,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355S6","poles":6,"power_kw":160,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355М6","poles":6,"power_kw":200,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4А280S8","poles":8,"power_kw":55,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А280М8","poles":8,"power_kw":75,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315S8","poles":8,"power_kw":90,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315М8","poles":8,"power_kw":110,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355S8","poles":8,"power_kw":132,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355М8","poles":8,"power_kw":160,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4А280S10","poles":10,"power_kw":37,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А280М10","poles":10,"power_kw":45,"source_id":"likhachev_2004_4a_table_8_21","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315S10","poles":10,"power_kw":55,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315М10","poles":10,"power_kw":75,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355S10","poles":10,"power_kw":90,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355М10","poles":10,"power_kw":110,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4А315S12","poles":12,"power_kw":45,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А315М12","poles":12,"power_kw":55,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355S12","poles":12,"power_kw":75,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4А355М12","poles":12,"power_kw":90,"source_id":"kravchik_4a_280_355_technical","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

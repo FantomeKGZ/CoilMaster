@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "series": "4A",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_4a_table_8_21_355_clean",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only the 4A355S4 electrical row whose model, power, speed, voltage and current remain contiguous in the HTML extraction is transcribed.",
+    "Neighboring 4A355M4/4A355S6/4A355M6/4A355S8/4A355M8 rows are intentionally omitted because the vertical extraction interleaves 4AN/4AK/4ANK variants.",
+    "Detailed winding columns remain pending row-safe mapping; no coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "4А355S4",
+      "power_kw": 250,
+      "rated_speed_rpm": 1485,
+      "voltage_source": "380/660",
+      "current_a_source": "432/250",
+      "source_id": "likhachev_2004_4a_table_8_21_355_clean",
+      "normalization_status": "REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"
+    }
+  ]
+}

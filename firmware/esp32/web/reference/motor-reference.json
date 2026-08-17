@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 619,
+  "record_count": 631,
   "records": [
     {
       "reference_only": true,
@@ -14559,6 +14559,461 @@
       "reference_only": true,
       "series": "GENERATORS",
       "manufacturer": "GENERATORS",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 36,
+      "model": "7VX-GO YAMAHA EF5200",
+      "variant_key": null,
+      "power_kw": "3.8 kVA",
+      "current_a": 17.5,
+      "voltage_v": "220",
+      "connection": "m1",
+      "source_n": "working:17 | starting capacitor 32uF:30 | rotor self-excited diodes:250",
+      "wire": "",
+      "pitch": "working:17;15;13;11;9;7 | starting capacitor 32uF:17;15 | rotor self-excited diodes:pole",
+      "bore_mm": 145,
+      "core_length_mm": 80,
+      "parallel_branches": "working:1 | starting capacitor 32uF:1 | rotor self-excited diodes:2",
+      "winding_sets": [
+        {
+          "label": "working",
+          "source_n_value": "17",
+          "wire_diameter_source": "1.00×3",
+          "winding_pitch_source": "17;15;13;11;9;7",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "starting capacitor 32uF",
+          "source_n_value": "30",
+          "wire_diameter_source": "0.95",
+          "winding_pitch_source": "17;15",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "rotor self-excited diodes",
+          "source_n_value": "250",
+          "wire_diameter_source": "0.87×2",
+          "winding_pitch_source": "pole",
+          "parallel_branches_source": 2
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 36,
+      "model": "TS300SC/SXC MOSA",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": "400",
+      "connection": "Y",
+      "source_n": "1A;3A;5A:1 | 1B;3B;5B:63;91;90 | 2B;4B;6B:70;91;91 | 1V;2V;3V;4V;5V;6V:2 | 1D;3D;5D:10 | 3G:1",
+      "wire": "",
+      "pitch": "1A;3A;5A:13 | 1B;3B;5B:17;15;13 | 2B;4B;6B:17;15;13 | 1V;2V;3V;4V;5V;6V:17;15;13 | 1D;3D;5D:17 | 3G:17",
+      "bore_mm": null,
+      "core_length_mm": null,
+      "parallel_branches": "1A;3A;5A:1 | 1V;2V;3V;4V;5V;6V:2 | 1D;3D;5D:1 | 3G:1",
+      "winding_sets": [
+        {
+          "label": "1A;3A;5A",
+          "source_n_value": "1",
+          "wire_diameter_source": "0.85×7",
+          "winding_pitch_source": "13",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "1B;3B;5B",
+          "source_n_value": "63;91;90",
+          "winding_pitch_source": "17;15;13"
+        },
+        {
+          "label": "2B;4B;6B",
+          "source_n_value": "70;91;91",
+          "winding_pitch_source": "17;15;13"
+        },
+        {
+          "label": "1V;2V;3V;4V;5V;6V",
+          "source_n_value": "2",
+          "wire_diameter_source": "0.90×13",
+          "winding_pitch_source": "17;15;13",
+          "parallel_branches_source": 2
+        },
+        {
+          "label": "1D;3D;5D",
+          "source_n_value": "10",
+          "wire_diameter_source": "0.85×2",
+          "winding_pitch_source": "17",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "3G",
+          "source_n_value": "1",
+          "wire_diameter_source": "0.90×12",
+          "winding_pitch_source": "17",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 36,
+      "model": "Статор генератора 220V и сварка",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": "115/230",
+      "connection": "m1/m3",
+      "source_n": "working:11 | starting A:8 | starting B:20 | welding:14",
+      "wire": "",
+      "pitch": "working:17;15;13;11;9;7 | starting A:15 | starting B:17;15 | welding:11",
+      "bore_mm": null,
+      "core_length_mm": 150,
+      "parallel_branches": "working:1 | starting A:1 | starting B:1",
+      "winding_sets": [
+        {
+          "label": "working",
+          "source_n_value": "11",
+          "wire_diameter_source": "0.85×4",
+          "winding_pitch_source": "17;15;13;11;9;7",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "starting A",
+          "source_n_value": "8",
+          "wire_diameter_source": "0.95×2",
+          "winding_pitch_source": "15",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "starting B",
+          "source_n_value": "20",
+          "wire_diameter_source": "0.75",
+          "winding_pitch_source": "17;15",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "welding",
+          "source_n_value": "14",
+          "wire_diameter_source": "0.85×2",
+          "winding_pitch_source": "11"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1500,
+      "slot_count": 60,
+      "model": "Carrier transicold",
+      "variant_key": null,
+      "power_kw": 23.0,
+      "current_a": 29.5,
+      "voltage_v": "380",
+      "connection": "Y",
+      "source_n": "stator:7+7 | rotor:4 permanent magnets",
+      "wire": "",
+      "pitch": "stator:14;12;10;8;6",
+      "bore_mm": 280,
+      "core_length_mm": 120,
+      "parallel_branches": "stator:1",
+      "winding_sets": [
+        {
+          "label": "stator",
+          "source_n_value": "7+7",
+          "wire_diameter_source": "1.50×2",
+          "winding_pitch_source": "14;12;10;8;6",
+          "parallel_branches_source": 1,
+          "wire_mass_kg_source": 8.0
+        },
+        {
+          "label": "rotor",
+          "source_n_value": "4 permanent magnets"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": 750,
+      "slot_count": 33,
+      "model": "Статор генератора 750 rpm",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": "Y",
+      "source_n": "6+6",
+      "wire": "0.80×8",
+      "pitch": "4",
+      "bore_mm": 98,
+      "core_length_mm": 185,
+      "parallel_branches": 1,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": 750,
+      "slot_count": 48,
+      "model": "Генератор сварочный АДБ двухпостовой",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "stator coils 1-12:32 | stator coils 13-24:16 | field coil:500",
+      "wire": "",
+      "pitch": "stator coils 1-12:3 | stator coils 13-24:3",
+      "bore_mm": 250,
+      "core_length_mm": 60,
+      "parallel_branches": "stator coils 1-12:1 | stator coils 13-24:1",
+      "winding_sets": [
+        {
+          "label": "stator coils 1-12",
+          "source_n_value": "32",
+          "wire_diameter_source": "1.06×3",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1,
+          "wire_mass_kg_source": 12.5
+        },
+        {
+          "label": "stator coils 13-24",
+          "source_n_value": "16",
+          "wire_diameter_source": "1.06×6",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1
+        },
+        {
+          "label": "field coil",
+          "source_n_value": "500",
+          "wire_diameter_source": "1.80",
+          "wire_mass_kg_source": 6.67
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": 750,
+      "slot_count": 60,
+      "model": "SSED 409-8a",
+      "variant_key": null,
+      "power_kw": "125 kVA",
+      "current_a": 320.0,
+      "voltage_v": "225",
+      "connection": "Y",
+      "source_n": "stator:4+4 | rotor:99",
+      "wire": "",
+      "pitch": "stator:8;6;4+7;5 | rotor:pole",
+      "bore_mm": 500,
+      "core_length_mm": 350,
+      "parallel_branches": "stator:4 | rotor:1",
+      "winding_sets": [
+        {
+          "label": "stator",
+          "source_n_value": "4+4",
+          "wire_diameter_source": "1.80×6",
+          "winding_pitch_source": "8;6;4+7;5",
+          "parallel_branches_source": 4,
+          "wire_mass_kg_source": 45
+        },
+        {
+          "label": "rotor",
+          "source_n_value": "99",
+          "wire_diameter_source": "busbar 4×3",
+          "winding_pitch_source": "pole",
+          "parallel_branches_source": 1,
+          "wire_mass_kg_source": 87
+        }
+      ],
+      "status": "REFERENCE",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 600,
+      "rated_speed_rpm": 600,
+      "slot_count": 33,
+      "model": "FD-5.0 wind generator",
+      "variant_key": null,
+      "power_kw": 0.5,
+      "current_a": null,
+      "voltage_v": "28",
+      "connection": "Y",
+      "source_n": "stator:21+21 | rotor:10 permanent magnets",
+      "wire": "",
+      "pitch": "stator:3",
+      "bore_mm": 95,
+      "core_length_mm": 55,
+      "parallel_branches": "stator:1",
+      "winding_sets": [
+        {
+          "label": "stator",
+          "source_n_value": "21+21",
+          "wire_diameter_source": "0.85×2",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1,
+          "wire_mass_kg_source": 2.7
+        },
+        {
+          "label": "rotor",
+          "source_n_value": "10 permanent magnets"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 600,
+      "rated_speed_rpm": 600,
+      "slot_count": 48,
+      "model": "FD 2.7-500 wind generator",
+      "variant_key": null,
+      "power_kw": 0.5,
+      "current_a": 21.0,
+      "voltage_v": "24",
+      "connection": "Y",
+      "source_n": "stator:12+12 | rotor:10 permanent magnets",
+      "wire": "",
+      "pitch": "stator:4",
+      "bore_mm": 149,
+      "core_length_mm": 37,
+      "parallel_branches": "stator:1",
+      "winding_sets": [
+        {
+          "label": "stator",
+          "source_n_value": "12+12",
+          "wire_diameter_source": "0.90×3",
+          "winding_pitch_source": "4",
+          "parallel_branches_source": 1,
+          "wire_mass_kg_source": 2.2
+        },
+        {
+          "label": "rotor",
+          "source_n_value": "10 permanent magnets"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 500,
+      "rated_speed_rpm": 500,
+      "slot_count": 18,
+      "model": "Г-250 automotive generator stator",
+      "variant_key": null,
+      "power_kw": 0.25,
+      "current_a": 28,
+      "voltage_v": "12",
+      "connection": "Y",
+      "source_n": "20+20",
+      "wire": "1.35",
+      "pitch": "1",
+      "bore_mm": 112,
+      "core_length_mm": 35,
+      "parallel_branches": 2,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 500,
+      "rated_speed_rpm": 500,
+      "slot_count": 36,
+      "model": "Генератор автобуса КИА",
+      "variant_key": null,
+      "power_kw": 4.0,
+      "current_a": null,
+      "voltage_v": "24",
+      "connection": "Y",
+      "source_n": "stator:3+4 | field coil:-",
+      "wire": "",
+      "pitch": "stator:3",
+      "bore_mm": 145,
+      "core_length_mm": 85,
+      "parallel_branches": "stator:2",
+      "winding_sets": [
+        {
+          "label": "stator",
+          "source_n_value": "3+4",
+          "wire_diameter_source": "1.56×3",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 2,
+          "wire_mass_kg_source": 4.3
+        },
+        {
+          "label": "field coil",
+          "source_n_value": "-"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
       "speed_group_rpm": 375,
       "rated_speed_rpm": 428,
       "slot_count": 45,
@@ -14588,6 +15043,46 @@
       "source_id": "vitkovoe_generators",
       "source_title": "Обмоточные данные генераторов",
       "source_file": "data/motor_catalog/GENERATORS/GENERATORS_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 375,
+      "rated_speed_rpm": 375,
+      "slot_count": 48,
+      "model": "Генератор сварочный АДБ-3122 У1",
+      "variant_key": null,
+      "power_kw": null,
+      "current_a": "15-350",
+      "voltage_v": null,
+      "connection": "DELTA",
+      "source_n": "stator:8 | field coil:500",
+      "wire": "",
+      "pitch": "stator:3",
+      "bore_mm": 250,
+      "core_length_mm": "60×2",
+      "parallel_branches": "stator:1",
+      "winding_sets": [
+        {
+          "label": "stator",
+          "source_n_value": "8",
+          "wire_diameter_source": "1.06×11",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1,
+          "wire_mass_kg_source": 11.64
+        },
+        {
+          "label": "field coil",
+          "source_n_value": "500",
+          "wire_diameter_source": "1.80",
+          "wire_mass_kg_source": 6.67
+        }
+      ],
+      "status": "REFERENCE",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_02.source.json"
     },
     {
       "reference_only": true,

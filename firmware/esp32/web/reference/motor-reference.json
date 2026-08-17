@@ -20950,6 +20950,7 @@
       "source_file": "data/motor_catalog/AO2/AO2_STANDARD_GAP_FILL_01.source.json",
       "source_files": [
         "data/motor_catalog/AO2/AO2_STANDARD_GAP_FILL_01.source.json",
+        "data/motor_catalog/AO2/AO2_9_WINDING_GEOMETRY_ENRICHMENT_01.source.json",
         "data/motor_catalog/AO2/AO2_STANDARD_GAP_WINDING_ENRICHMENT_01.source.json"
       ]
     },

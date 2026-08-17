@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 1219,
+  "record_count": 1224,
   "records": [
     {
       "reference_only": true,
@@ -17464,6 +17464,35 @@
       "speed_group_rpm": 3000,
       "rated_speed_rpm": null,
       "slot_count": null,
+      "model": "4А112М6/4/2У3",
+      "aliases": [],
+      "variant_key": "4A112M6-4-2U3-technical",
+      "power_kw": "1.6/2.2/2.8",
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "",
+      "bore_mm": null,
+      "core_length_mm": null,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "reference_4a_multispeed_performance_6_4_2",
+      "source_title": "Трёхскоростные электродвигатели 6/4/2 серии 4А",
+      "source_file": "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json",
+      "source_files": [
+        "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO_MULTI",
+      "manufacturer": "AO_MULTI",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": null,
+      "slot_count": null,
       "model": "4А132S4/2У3",
       "aliases": [],
       "variant_key": "4A132S4-2U3-technical-reference",
@@ -18558,6 +18587,35 @@
       "speed_group_rpm": 3000,
       "rated_speed_rpm": null,
       "slot_count": 36,
+      "model": "4А100L6/4/2У3",
+      "aliases": [],
+      "variant_key": "4A100L6-4-2U3-technical",
+      "power_kw": null,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "",
+      "bore_mm": 105,
+      "core_length_mm": 140,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "reference_4a_multispeed_table_6_10",
+      "source_title": "Таблица 6.10. Обмоточные данные многоскоростных электродвигателей серии 4А, 6/4/2",
+      "source_file": "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json",
+      "source_files": [
+        "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO_MULTI",
+      "manufacturer": "AO_MULTI",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": null,
+      "slot_count": 36,
       "model": "4А100S4/2У2",
       "aliases": [],
       "variant_key": null,
@@ -18607,6 +18665,35 @@
       "source_file": "data/motor_catalog/AO_MULTI/mixed_multispeed.source.json",
       "source_files": [
         "data/motor_catalog/AO_MULTI/mixed_multispeed.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO_MULTI",
+      "manufacturer": "AO_MULTI",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": null,
+      "slot_count": 36,
+      "model": "4А100S6/4/2У3",
+      "aliases": [],
+      "variant_key": "4A100S6-4-2U3-technical",
+      "power_kw": "1.4/1.5/2.1",
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "",
+      "bore_mm": 105,
+      "core_length_mm": 110,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "reference_4a_multispeed_table_6_10",
+      "source_title": "Таблица 6.10. Обмоточные данные многоскоростных электродвигателей серии 4А, 6/4/2",
+      "source_file": "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json",
+      "source_files": [
+        "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json"
       ]
     },
     {
@@ -19096,6 +19183,122 @@
       "source_file": "data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_06.source.json",
       "source_files": [
         "data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_06.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO_MULTI",
+      "manufacturer": "AO_MULTI",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": null,
+      "slot_count": 48,
+      "model": "4А160S6/4/2У3",
+      "aliases": [],
+      "variant_key": "4A160S6-4-2U3-technical",
+      "power_kw": "4.8/5.3/7.5",
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "6P:12+12 | 4/2P:15+15 | 6P:21+21 | 4/2P:26+26",
+      "wire": "",
+      "pitch": "6P:1-7 | 4/2P:1-14 | 6P:1-7 | 4/2P:1-14",
+      "bore_mm": 185,
+      "core_length_mm": 140,
+      "parallel_branches": null,
+      "winding_sets": [
+        {
+          "part": "6P",
+          "voltage_source": 380,
+          "connection_source": "Y",
+          "pitch_source": "1-7",
+          "sp_source": "12+12"
+        },
+        {
+          "part": "4/2P",
+          "voltage_source": 380,
+          "connection_source": "DELTA/YY",
+          "pitch_source": "1-14",
+          "sp_source": "15+15"
+        },
+        {
+          "part": "6P",
+          "voltage_source": 660,
+          "connection_source": "Y",
+          "pitch_source": "1-7",
+          "sp_source": "21+21"
+        },
+        {
+          "part": "4/2P",
+          "voltage_source": 660,
+          "connection_source": "DELTA/YY",
+          "pitch_source": "1-14",
+          "sp_source": "26+26"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "reference_4a_multispeed_table_6_10",
+      "source_title": "Таблица 6.10. Обмоточные данные многоскоростных электродвигателей серии 4А, 6/4/2",
+      "source_file": "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json",
+      "source_files": [
+        "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO_MULTI",
+      "manufacturer": "AO_MULTI",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": null,
+      "slot_count": 48,
+      "model": "4А160М6/4/2У3",
+      "aliases": [],
+      "variant_key": "4A160M6-4-2U3-technical",
+      "power_kw": "6.7/7.5/10.5",
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "6P:9+9 | 4/2P:12+12 | 6P:16+16 | 4/2P:21+21",
+      "wire": "",
+      "pitch": "6P:1-7 | 4/2P:1-14 | 6P:1-7 | 4/2P:1-14",
+      "bore_mm": 185,
+      "core_length_mm": 180,
+      "parallel_branches": null,
+      "winding_sets": [
+        {
+          "part": "6P",
+          "voltage_source": 380,
+          "connection_source": "Y",
+          "pitch_source": "1-7",
+          "sp_source": "9+9"
+        },
+        {
+          "part": "4/2P",
+          "voltage_source": 380,
+          "connection_source": "DELTA/YY",
+          "pitch_source": "1-14",
+          "sp_source": "12+12"
+        },
+        {
+          "part": "6P",
+          "voltage_source": 660,
+          "connection_source": "Y",
+          "pitch_source": "1-7",
+          "sp_source": "16+16"
+        },
+        {
+          "part": "4/2P",
+          "voltage_source": 660,
+          "connection_source": "DELTA/YY",
+          "pitch_source": "1-14",
+          "sp_source": "21+21"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "reference_4a_multispeed_table_6_10",
+      "source_title": "Таблица 6.10. Обмоточные данные многоскоростных электродвигателей серии 4А, 6/4/2",
+      "source_file": "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json",
+      "source_files": [
+        "data/motor_catalog/AO_MULTI/4A_TECHNICAL_MULTISPEED_03.source.json"
       ]
     },
     {

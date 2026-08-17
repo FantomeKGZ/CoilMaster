@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "4AM",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_multispeed_reference",
+      "type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные многоскоростных электродвигателей",
+      "url": "https://vitkovoe.ru/mnogo_skor_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Multispeed source-native values are preserved literally.",
+    "Combined source N values such as 28+28 and 14+14 are not converted into coil_program.",
+    "Missing geometry in the source remains absent."
+  ],
+  "records": [
+    {"model":"4АМА100L4/2У3","rated_speed_source":"1440/2850","power_kw_source":"3.2/4.2","current_a_source":"7.2/8.6","voltage_v":380,"connection_source":"DELTA/YY","source_n_value":"28+28","wire_diameter_source":"0.63×2","winding_pitch_source":"10","parallel_branches_source":1,"slot_count":36,"source_id":"vitkovoe_multispeed_reference","normalization_status":"REVIEW_REQUIRED_MULTISPEED_COMPOUND_N"},
+    {"model":"4АМ180М8/4У2","rated_speed_source":"730/1480","power_kw_source":"9.0/13.0","current_a_source":"-","voltage_v":380,"connection_source":"DELTA/YY","source_n_value":"14+14","wire_diameter_source":"1.0×2","winding_pitch_source":"6","parallel_branches_source":1,"slot_count":48,"source_id":"vitkovoe_multispeed_reference","normalization_status":"REVIEW_REQUIRED_MULTISPEED_COMPOUND_N"}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "eti_ao2_standard_parameters_gap3",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Параметры асинхронных электродвигателей единой серии А2 и АО2",
+      "url": "https://eti.su/articles/spravochnik/spravochnik_1802.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "ao2_82_4_independent_machine_reference",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Независимые технические упоминания АО2-82-4",
+      "url": "https://stanki-katalog.ru/sprav_1l532_sx.htm",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Final ordinary single-speed AO2 5-9 frame model/rating gap-fill for the currently identified basic matrix.",
+    "No winding turns, pitch or conductor values are inferred from operating/rating references.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-62-2-gapfill3","model":"АО2-62-2","power_kw":17,"rated_speed_rpm":2900,"current_a_source":"32.5","source_id":"eti_ao2_standard_parameters_gap3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-82-4-gapfill3","model":"АО2-82-4","power_kw":55,"rated_speed_rpm":1460,"source_id":"ao2_82_4_independent_machine_reference","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

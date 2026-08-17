@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "series": "REPAIR_RECORDS",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "retrieved_at": "2026-08-17",
+  "normalization_notes": [
+    "These are winding observations from motors received for repair, not manufacturer-certified winding data.",
+    "All records are reference-only until independently verified.",
+    "Source-native compound N and mixed wire notation is preserved literally.",
+    "No coil_program is derived from this package."
+  ],
+  "sources": [
+    {
+      "id": "vitkovoe_repair_motor_series",
+      "source_type": "REPAIR_RECORD",
+      "title": "Справочник электрообмотчика. Обмоточные данные электродвигателей",
+      "url": "https://vitkovoe.ru/motor_series.html",
+      "independence_group": "vitkovoe_repair_observations"
+    }
+  ],
+  "records": [
+    {
+      "model": "ВА160М4",
+      "rated_speed_rpm": 1500,
+      "power_kw": 30.0,
+      "current_a_source": "59.0/34.0",
+      "voltage_source": "380/660",
+      "connection_source": "DELTA/Y",
+      "source_n_value": "29;15;14",
+      "wire_diameter_source": "1.25×2+1.00",
+      "winding_pitch_source": "11;9;7",
+      "parallel_branches_source": 2,
+      "wire_mass_kg": null,
+      "stator_outer_diameter_mm": 298,
+      "stator_bore_mm": 190,
+      "stator_core_length_mm": 205,
+      "slot_count": 48,
+      "insulation_class_source": "-",
+      "source_id": "vitkovoe_repair_motor_series",
+      "normalization_status": "REPAIR_RECORD_REFERENCE_ONLY"
+    },
+    {
+      "model": "4АИММ250М4У25",
+      "rated_speed_rpm": 1500,
+      "power_kw": 90.0,
+      "current_a_source": "165.5/95.3",
+      "voltage_source": "380/660",
+      "connection_source": "DELTA/Y",
+      "source_n_value": "12+12",
+      "wire_diameter_source": "1.30×4",
+      "winding_pitch_source": "12",
+      "parallel_branches_source": 4,
+      "wire_mass_kg": 54.5,
+      "stator_outer_diameter_mm": 430,
+      "stator_bore_mm": 290,
+      "stator_core_length_mm": 300,
+      "slot_count": 60,
+      "insulation_class_source": "-",
+      "source_id": "vitkovoe_repair_motor_series",
+      "normalization_status": "REPAIR_RECORD_REFERENCE_ONLY_COMPOUND_N"
+    },
+    {
+      "model": "4АВР180А45Ф",
+      "rated_speed_rpm": 1500,
+      "power_kw": 11.0,
+      "current_a_source": "41.1/25.7",
+      "voltage_source": "220/380",
+      "connection_source": "DELTA/Y",
+      "source_n_value": "15+15",
+      "wire_diameter_source": "1.32×2",
+      "winding_pitch_source": "10",
+      "parallel_branches_source": 2,
+      "wire_mass_kg": 15.4,
+      "stator_outer_diameter_mm": 310,
+      "stator_bore_mm": 210,
+      "stator_core_length_mm": 115,
+      "slot_count": 48,
+      "insulation_class_source": "-",
+      "source_id": "vitkovoe_repair_motor_series",
+      "normalization_status": "REPAIR_RECORD_REFERENCE_ONLY_COMPOUND_N"
+    }
+  ]
+}

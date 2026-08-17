@@ -16,7 +16,7 @@
     {"id":"AD","name":"АД family","group":"SOVIET_LEGACY","directory":"AD","status":"IN_PROGRESS"},
     {"id":"AL","name":"АЛ family","group":"SOVIET_LEGACY","directory":"AL","status":"IN_PROGRESS"},
     {"id":"AOL","name":"АОЛ / АОЛС","group":"SOVIET_LEGACY","directory":"AOL","status":"IN_PROGRESS"},
-    {"id":"A2","name":"А2 family","group":"SOVIET_GENERAL_PURPOSE","directory":"A2","status":"PLANNED"},
+    {"id":"A2","name":"А2 family","group":"SOVIET_GENERAL_PURPOSE","directory":"A2","status":"IN_PROGRESS"},
     {"id":"AO2","name":"АО2 / АОП2 / АОС2 / АОТ2 / АОК2 / АОЛ2 / АОЛС2","group":"SOVIET_GENERAL_PURPOSE","directory":"AO2","status":"IN_PROGRESS"},
     {"id":"AO_MULTI","name":"АО / АО2 многоскоростные","group":"MULTISPEED","directory":"AO_MULTI","status":"IN_PROGRESS"},
     {"id":"CRANE","name":"Крановые МТ/МТК/МТФ/МТН и варианты","group":"CRANE","directory":"CRANE","status":"IN_PROGRESS"},

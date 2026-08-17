@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_frame8_9_standard",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 8-9-го габаритов",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only standard single-speed AO2 rows with clean model/rating association are included.",
+    "Detailed winding columns are intentionally deferred where neighboring modifications interleave in the HTML transcription.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-81-6-likhachev","model":"АО2-81-6","power_kw":30,"rated_speed_rpm":980,"current_a_source":"95/55","source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-82-6-likhachev","model":"АО2-82-6","power_kw":40,"rated_speed_rpm":980,"current_a_source":"126/73","source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-81-8-likhachev","model":"АО2-81-8","power_kw":22,"rated_speed_rpm":730,"current_a_source":"76/44","source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-91-4-likhachev","model":"АО2-91-4","power_kw":75,"rated_speed_rpm":1470,"current_a_source":"232/134","source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-92-4-likhachev","model":"АО2-92-4","power_kw":100,"rated_speed_rpm":1470,"current_a_source":"306/177","source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-92-6-likhachev","model":"АО2-92-6","power_kw":75,"rated_speed_rpm":985,"current_a_source":"230/133","source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-91-8-likhachev","model":"АО2-91-8","power_kw":40,"rated_speed_rpm":740,"source_id":"likhachev_2004_ao2_frame8_9_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

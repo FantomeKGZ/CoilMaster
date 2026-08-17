@@ -51,6 +51,18 @@ Examples:
 
 The program represents one concentric coil group. The number and placement of repeated groups around the stator are not encoded by repeating `coil_program` values beyond the coils that belong to that group.
 
+## Importer representation limits
+
+The current motor importer accepts numeric motor fields only as integers. This includes `stator_bore_mm` and `stator_core_length_mm`.
+
+Do not round a fractional source dimension merely to satisfy the importer. If a source gives a dimension such as `Di=62.8 mm`:
+
+- preserve `62.8` unchanged in the raw `*.source.json` record;
+- omit `stator_bore_mm` from the import-ready row;
+- preserve the exact fractional dimension in `comment` until the runtime schema supports a lossless representation.
+
+The same rule applies to any other source value that cannot be represented losslessly by the current scalar import field.
+
 ## Not automatically normalized yet
 
 Keep the record in `*.source.json` only when any of these are present until a separate rule is proven:

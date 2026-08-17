@@ -22783,12 +22783,12 @@
       "current_a": null,
       "voltage_v": 380,
       "connection": "Y",
-      "source_n": "winding:18",
+      "source_n": "winding:18 | winding:19",
       "wire": "",
-      "pitch": "winding:1-11",
+      "pitch": "winding:1-11 | winding:1-4",
       "bore_mm": 325,
       "core_length_mm": 235,
-      "parallel_branches": "winding:3",
+      "parallel_branches": "winding:3 | winding:1",
       "winding_sets": [
         {
           "name": "6-pole",
@@ -22801,6 +22801,18 @@
           "winding_pitch_source": "1-11",
           "layers_source": 2,
           "parallel_branches_source": 3
+        },
+        {
+          "name": "24-pole",
+          "rated_speed_rpm": 205,
+          "power_kw": 3.55,
+          "current_a_source": "21.8",
+          "wire_diameter_source": "1.5",
+          "conductors_per_turn_source": 2,
+          "source_n_value": "19",
+          "winding_pitch_source": "1-4",
+          "layers_source": 2,
+          "parallel_branches_source": 1
         }
       ],
       "status": "REVIEW_REQUIRED",

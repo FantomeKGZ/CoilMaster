@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_frame7_standard_part2",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 7-го габарита",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only ordinary single-speed AO2 rows with clean model/rating association are included.",
+    "AO2-72-4 current is omitted because the vertical HTML transcription interleaves it with adjacent AOP2/AOS2 rows.",
+    "No uncertain winding columns are normalized to coil_program."
+  ],
+  "records": [
+    {"variant_key":"AO2-71-4-likhachev","model":"АО2-71-4","power_kw":22,"rated_speed_rpm":1455,"current_a_source":"71.5/41.2","source_id":"likhachev_2004_ao2_frame7_standard_part2","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-72-4-likhachev","model":"АО2-72-4","power_kw":30,"rated_speed_rpm":1455,"source_id":"likhachev_2004_ao2_frame7_standard_part2","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

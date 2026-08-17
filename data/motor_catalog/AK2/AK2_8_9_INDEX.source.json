@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "series": "AK2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "likhachev_ak2_table_1_2_4_13",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
+      "url": "https://djvu.online/file/v1MPjw3XjPn49",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "eti_ak2_table_13",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Модификации электродвигателей серии А2 и АО2 — таблица АК2",
+      "url": "https://eti.su/articles/spravochnik/spravochnik_1803.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "AK2 is kept as a separate phase-rotor family rather than merged with AO2 stator cards.",
+    "This first layer captures clean technical identity/rating and rotor electrical data for 8th-9th frames.",
+    "Detailed rotor conductor/turn data from the winding section is intentionally deferred until row mapping is unambiguous."
+  ],
+  "records": [
+    {"model":"АК2-81-4","poles":4,"power_kw":40,"rated_speed_rpm":1440,"voltage_v":380,"current_a":80.4,"rotor_current_a_source":225,"rotor_voltage_v_source":110,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-82-4","poles":4,"power_kw":55,"rated_speed_rpm":1440,"voltage_v":380,"current_a":109.5,"rotor_current_a_source":200,"rotor_voltage_v_source":160,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-91-4","poles":4,"power_kw":75,"rated_speed_rpm":1450,"voltage_v":380,"current_a":148,"rotor_current_a_source":260,"rotor_voltage_v_source":185,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-92-4","poles":4,"power_kw":100,"rated_speed_rpm":1450,"voltage_v":380,"current_a":198,"rotor_current_a_source":275,"rotor_voltage_v_source":235,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-81-6","poles":6,"power_kw":30,"rated_speed_rpm":960,"voltage_v":380,"current_a":61,"rotor_current_a_source":150,"rotor_voltage_v_source":125,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-82-6","poles":6,"power_kw":40,"rated_speed_rpm":960,"voltage_v":380,"current_a":80.4,"rotor_current_a_source":155,"rotor_voltage_v_source":165,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-91-6","poles":6,"power_kw":55,"rated_speed_rpm":960,"voltage_v":380,"current_a":109,"rotor_current_a_source":240,"rotor_voltage_v_source":150,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-92-6","poles":6,"power_kw":75,"rated_speed_rpm":960,"voltage_v":380,"current_a":146,"rotor_current_a_source":220,"rotor_voltage_v_source":215,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-81-8","poles":8,"power_kw":22,"rated_speed_rpm":720,"voltage_v":380,"current_a":48.4,"rotor_current_a_source":150,"rotor_voltage_v_source":95,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-82-8","poles":8,"power_kw":30,"rated_speed_rpm":720,"voltage_v":380,"current_a":65.8,"rotor_current_a_source":150,"rotor_voltage_v_source":130,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-91-8","poles":8,"power_kw":40,"rated_speed_rpm":720,"voltage_v":380,"current_a":85.7,"rotor_current_a_source":225,"rotor_voltage_v_source":120,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"},
+    {"model":"АК2-92-8","poles":8,"power_kw":55,"rated_speed_rpm":725,"voltage_v":380,"current_a":114.8,"rotor_current_a_source":200,"rotor_voltage_v_source":160,"source_id":"likhachev_ak2_table_1_2_4_13","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_PHASE_ROTOR_WINDING_PENDING"}
+  ]
+}

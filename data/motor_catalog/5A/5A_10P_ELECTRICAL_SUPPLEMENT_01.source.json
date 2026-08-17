@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "series": "5A",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "ntg_5am_10p_vemz",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "ВЭМЗ 5АМ 10-полюсные — паспортные электрические характеристики",
+      "url": "https://nt-g.ru/",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "sdtehno_5am315m10",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "5АМ315М10 / АИР315М10 — технические характеристики",
+      "url": "https://sd-tehno.ru/elektrodvigatel-air-315M10-75600",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only enrichment for the existing 5A_10P_INDEX_01 cards.",
+    "Electrical identification data is added without inferring winding N, conductor diameter or pitch.",
+    "All four records remain winding_pending."
+  ],
+  "records": [
+    {"model":"5AM280S10","current_a_source":76.5,"efficiency_percent_source":93.0,"power_factor_source":0.79,"source_id":"ntg_5am_10p_vemz","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"5AM280M10","current_a_source":91.4,"efficiency_percent_source":93.5,"power_factor_source":0.80,"source_id":"ntg_5am_10p_vemz","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"5AM315S10","current_a_source":109,"efficiency_percent_source":93.5,"power_factor_source":0.82,"source_id":"ntg_5am_10p_vemz","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"5AM315M10","current_a_source":143,"efficiency_percent_source":93.5,"power_factor_source":0.85,"source_id":"sdtehno_5am315m10","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

@@ -66,20 +66,28 @@ Recent source packages include:
 data/motor_catalog/REPAIR_RECORDS/AIR_AIS_REPAIR_01.source.json
 data/motor_catalog/5A/5A_6P_SUPPLEMENT_01.source.json
 data/motor_catalog/AIR/AIR_180_355.source.json
+data/motor_catalog/5A/5A_6P_8P_SUPPLEMENT_02.source.json
+data/motor_catalog/4AM/4AM_MULTISPEED_01.source.json
+data/motor_catalog/AIR/AIR_AIS_REPAIR_02.source.json
+data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_03.source.json
 ```
 
-The AIR/AIS repair package includes a real `4АМА100L2` observation and keeps a physically suspicious `АИР160S2` geometry row source-native with review status.
+The AIR/AIS repair layer now includes the full currently text-extractable repair-observation tail from `air_ais_2_series.html`, preserving physically distinct variants separately. This includes multiple `АИР160S2` and `АИР100S4` implementations, `АИР180/200/250` repair observations, `АИМ90L4`, and `2АИ90L4ПАУ3`.
 
-The 5A supplementary package preserves the separate 6/8-pole table semantics including the source conductor-count-per-turn column.
+The 5A supplementary packages preserve the separate 6/8-pole table semantics including the source conductor-count-per-turn column `.n`. The second package adds the currently extractable 315-frame 6-pole and 80/112/160-frame 8-pole rows.
 
 The AIR senior-frame package extends technical-reference coverage beyond the earlier 71–160 first pass through 180/200/225/250 and up to 335/355-frame entries.
+
+The 4AM layer now also includes multispeed `4АМА100L4/2У3` and `4АМ180М8/4У2` as source-native reference-only records.
+
+The mixed multispeed layer additionally includes `МАП421 4/8 OM1`, `MCS315`, `USD80 2/4 P`, `АИРМ112М4/2У3`, `BP90L12/6`, and `100LIMB5`. Separate independent windings are represented as `winding_sets` when the source exposes them separately.
 
 ## Current generated index checkpoint
 
 After the latest completed source additions, the generated static reference reached:
 
 ```text
-record_count = 855
+record_count = 894
 reference_only = true
 ```
 
@@ -87,22 +95,24 @@ This count is a generated-reference count, **not** a count of VERIFIED productio
 
 ## Coverage status notes
 
-`AIR` was changed from `FIRST_PASS_COMPLETE` back to `IN_PROGRESS` because coverage now extends beyond the original 71–160 first-pass boundary.
+`AIR` is `IN_PROGRESS` because coverage now extends well beyond the original 71–160 first-pass boundary and includes both serial reference rows and separate repair observations.
 
-`4AM` is now `IN_PROGRESS` because real 4AM-family reference/repair observations are present, although a complete authoritative 4AM winding table has not yet been captured.
+`4AM` is `IN_PROGRESS` because real 4AM-family repair/reference and multispeed observations are present, although a complete authoritative 4AM winding table has not yet been captured.
 
-`6A` remains `PLANNED`: the source index confirms the family exists, but a sufficiently complete text-extractable winding table has not yet been captured. Do not synthesize 6A rows from type listings or general technical-characteristic tables.
+`6A` remains `PLANNED`: the source index confirms the family exists, but even direct section searches still do not expose a sufficiently complete text-extractable winding table. Do not synthesize 6A rows from type listings or general technical-characteristic tables.
 
 `RECTANGULAR_LV` remains `PLANNED` as a dedicated series package. A real rectangular-wire repair observation already exists in the mixed repair layer, but the dedicated source table has not yet been captured in a safe complete form.
+
+The current crane package already covers the text-extractable repair and handbook rows surfaced from `kran_series.html`; do not duplicate them when search results repeat the same table.
 
 ## Next reference priorities
 
 Continue without weakening provenance rules:
 
-1. complete additional AIR/AIS repair-observation rows from `air_ais_2_series.html`;
-2. expand remaining 5A 6/8-pole rows from `5a_3_series.html`;
+1. search for additional non-duplicate mixed multispeed and repair-observation rows beyond the currently captured text output;
+2. expand remaining 5A 6/8-pole rows only when full source lines become extractable;
 3. capture complete 4AM/4AI/4AIM winding tables when a reliable source becomes text-accessible;
-4. capture 6A only from an actual winding-data table;
+4. capture 6A only from an actual winding-data table containing `N`, wire and pitch;
 5. capture the dedicated low-voltage rectangular-wire table if/when its rows become extractable;
 6. expand detailed DC records only when image cards can be read reliably — keep index-only entries otherwise;
 7. keep static-reference regeneration and freshness checking mandatory after source changes.

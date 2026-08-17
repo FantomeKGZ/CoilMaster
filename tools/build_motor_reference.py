@@ -62,6 +62,9 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
     wire = record.get("wire_diameter_source")
     if wire is None:
         wire = record.get("wire_diameter_mm")
+    power = record.get("power_kw")
+    if power is None:
+        power = record.get("power_kw_source")
     return {
         "reference_only": True,
         "series": doc.get("series") or path.parent.name,
@@ -71,7 +74,7 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "slot_count": record.get("slot_count"),
         "model": record.get("model"),
         "variant_key": record.get("variant_key"),
-        "power_kw": record.get("power_kw"),
+        "power_kw": power,
         "current_a": record.get("current_a"),
         "voltage_v": record.get("voltage_v"),
         "connection": record.get("connection_source"),

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "series": "4A",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "likhachev_2004_4a_table_8_21_electrical",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей серий 4А280, 4А315 и 4А355, таблица 8.21",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "merge_only electrical enrichment for rows whose model, power/rpm, voltage and current are contiguous and unambiguous in the text transcription.",
+    "Detailed stator winding columns remain pending where the vertical table extraction interleaves neighboring 4A/4AN/4AK/4ANK rows.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"4А280S4","rated_speed_rpm":1470,"voltage_source":"220/380","current_a_source":"337/195","source_id":"likhachev_2004_4a_table_8_21_electrical","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А280М4","rated_speed_rpm":1475,"voltage_source":"380/660","current_a_source":"234/135","source_id":"likhachev_2004_4a_table_8_21_electrical","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А280S8","rated_speed_rpm":735,"voltage_source":"220/380","current_a_source":"188/108","source_id":"likhachev_2004_4a_table_8_21_electrical","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А280М8","rated_speed_rpm":735,"voltage_source":"220/380","current_a_source":"248/143","source_id":"likhachev_2004_4a_table_8_21_electrical","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А280S10","rated_speed_rpm":590,"voltage_source":"220/380","current_a_source":"136/78.5","source_id":"likhachev_2004_4a_table_8_21_electrical","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А280М10","rated_speed_rpm":590,"voltage_source":"220/380","current_a_source":"164/94.5","source_id":"likhachev_2004_4a_table_8_21_electrical","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"}
+  ]
+}

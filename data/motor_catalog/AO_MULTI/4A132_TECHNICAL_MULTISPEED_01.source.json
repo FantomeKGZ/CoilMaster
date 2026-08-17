@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "reference_4a132_multispeed_tables_6_10_6_11",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические таблицы многоскоростных электродвигателей серии 4А132",
+      "url": "https://lektsii.org/17-49347.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "reference_4a132_two_speed_performance",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Двухскоростные электродвигатели серии 4А",
+      "url": "https://lektsii.org/17-49263.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "These records are distinct from repair-observed two-speed 4A132M6/4 entries already present in the mixed reference layer.",
+    "HTML transcription merges some Sп values with footnote markers. Ambiguous Sп/n/a values are intentionally not reconstructed.",
+    "No coil_program is generated from these records."
+  ],
+  "records": [
+    {
+      "variant_key": "4A132S4-2U3-technical-reference",
+      "model": "4А132S4/2У3",
+      "poles_source": "4/2",
+      "power_kw_source": "6.0/6.7",
+      "source_id": "reference_4a132_two_speed_performance",
+      "normalization_status": "REVIEW_REQUIRED_TECHNICAL_REFERENCE_WINDING_COLUMNS_PENDING"
+    },
+    {
+      "variant_key": "4A132M4-2U3-technical-reference",
+      "model": "4А132М4/2У3",
+      "poles_source": "4/2",
+      "power_kw_source": "8.5/9.5",
+      "source_id": "reference_4a132_two_speed_performance",
+      "normalization_status": "REVIEW_REQUIRED_TECHNICAL_REFERENCE_WINDING_COLUMNS_PENDING"
+    },
+    {
+      "variant_key": "4A132S6-4-2U3-technical-reference",
+      "model": "4А132S6/4/2У3",
+      "poles_source": "6/4/2",
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 145,
+      "stator_core_length_mm": 115,
+      "slot_count": 36,
+      "rotor_slot_count": 34,
+      "source_id": "reference_4a132_multispeed_tables_6_10_6_11",
+      "normalization_status": "REVIEW_REQUIRED_TECHNICAL_REFERENCE_COMPOUND_MULTISPEED"
+    },
+    {
+      "variant_key": "4A132M6-4-2U3-technical-reference",
+      "model": "4А132М6/4/2У3",
+      "poles_source": "6/4/2",
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 145,
+      "stator_core_length_mm": 160,
+      "slot_count": 36,
+      "rotor_slot_count": 34,
+      "source_id": "reference_4a132_multispeed_tables_6_10_6_11",
+      "normalization_status": "REVIEW_REQUIRED_TECHNICAL_REFERENCE_COMPOUND_MULTISPEED"
+    },
+    {
+      "variant_key": "4A132S8-4-2U3-technical-reference",
+      "model": "4А132S8/4/2У3",
+      "poles_source": "8/4/2",
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 145,
+      "stator_core_length_mm": 115,
+      "slot_count": 36,
+      "rotor_slot_count": 34,
+      "source_id": "reference_4a132_multispeed_tables_6_10_6_11",
+      "normalization_status": "REVIEW_REQUIRED_TECHNICAL_REFERENCE_COMPOUND_MULTISPEED"
+    },
+    {
+      "variant_key": "4A132M8-4-2U3-technical-reference",
+      "model": "4А132М8/4/2У3",
+      "poles_source": "8/4/2",
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 145,
+      "stator_core_length_mm": 160,
+      "slot_count": 36,
+      "rotor_slot_count": 34,
+      "source_id": "reference_4a132_multispeed_tables_6_10_6_11",
+      "normalization_status": "REVIEW_REQUIRED_TECHNICAL_REFERENCE_COMPOUND_MULTISPEED"
+    }
+  ]
+}

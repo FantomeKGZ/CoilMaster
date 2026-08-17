@@ -26,6 +26,7 @@
     {"id":"LIFT_MOTORS","name":"Лифтовые электродвигатели","group":"LIFT","directory":"LIFT_MOTORS","status":"IN_PROGRESS"},
     {"id":"GENERATORS","name":"Генераторы","group":"GENERATORS","directory":"GENERATORS","status":"IN_PROGRESS"},
     {"id":"HV_MOTORS","name":"Высоковольтные электродвигатели","group":"HIGH_VOLTAGE","directory":"HV_MOTORS","status":"IN_PROGRESS"},
+    {"id":"VAO","name":"ВАО взрывозащищённые","group":"EXPLOSION_PROTECTED","directory":"VAO","status":"IN_PROGRESS"},
     {"id":"RECTANGULAR_LV","name":"Низковольтные двигатели с прямоугольным проводом","group":"RECTANGULAR_WIRE","directory":"RECTANGULAR_LV","status":"PLANNED"},
     {"id":"ABB","name":"ABB","group":"IMPORTED_MANUFACTURER","directory":"ABB","status":"PLANNED"},
     {"id":"SIEMENS","name":"Siemens","group":"IMPORTED_MANUFACTURER","directory":"SIEMENS","status":"PLANNED"},

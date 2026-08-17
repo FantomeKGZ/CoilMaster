@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "retrieved_at": "2026-08-17",
+  "normalization_notes": [
+    "Reference-only transcription of 12/6-pole A/AO-family multi-speed motors at 380 V.",
+    "Power and N values are preserved exactly as source-native paired-speed data.",
+    "Compound N notation remains source-native and is not converted to CoilMaster coil_program.",
+    "Geometry is preserved literally even when it differs from neighboring family rows."
+  ],
+  "sources": [{
+    "id": "vitkovoe_speed_ao_12_6",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "Обмоточные данные многоскоростных электродвигателей серии АО — 12/6 полюсов",
+    "url": "https://vitkovoe.ru/speed_ao_5_series.html",
+    "independence_group": "vitkovoe_speed_ao_table_family",
+    "source_voltage_v": 380
+  }],
+  "records": [
+    {"model":"А61","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"2.0/3.5","source_n_value":"45+45","wire_diameter_mm":1.30,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":7.12,"stator_outer_diameter_mm":327,"stator_bore_mm":230,"stator_core_length_mm":75,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"А62","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"3.0/5.0","source_n_value":"34+34","wire_diameter_mm":1.16,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":8.75,"stator_outer_diameter_mm":327,"stator_bore_mm":230,"stator_core_length_mm":100,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО62","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"2.0/3.5","source_n_value":"39+39","wire_diameter_mm":1.04,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":8.5,"stator_outer_diameter_mm":327,"stator_bore_mm":230,"stator_core_length_mm":100,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО63","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"3.0/5.0","source_n_value":"29+29","wire_diameter_mm":1.20,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":9.51,"stator_outer_diameter_mm":327,"stator_bore_mm":230,"stator_core_length_mm":135,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"А71","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"4.5/7.0","source_n_value":"31+31","wire_diameter_mm":1.40,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":12.9,"stator_outer_diameter_mm":368,"stator_bore_mm":260,"stator_core_length_mm":100,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"А72","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"6.5/10.0","source_n_value":"23+23","wire_diameter_mm":1.62,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":14.2,"stator_outer_diameter_mm":368,"stator_bore_mm":260,"stator_core_length_mm":135,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО72","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"4.5/7.0","source_n_value":"25+25","wire_diameter_mm":1.50,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":14.0,"stator_outer_diameter_mm":368,"stator_bore_mm":260,"stator_core_length_mm":135,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО73","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"6.5/10.0","source_n_value":"(18+18)2","wire_diameter_mm":1.20,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":15.3,"stator_outer_diameter_mm":368,"stator_bore_mm":260,"stator_core_length_mm":185,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"А81","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"9.0/14.0","source_n_value":"(15+15)2","wire_diameter_mm":1.35,"winding_pitch_source":"6","parallel_branches_source":1,"wire_mass_kg":19.5,"stator_outer_diameter_mm":423,"stator_bore_mm":300,"stator_core_length_mm":130,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"А82","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"12.5/20.0","source_n_value":"(11+11)2","wire_diameter_mm":1.56,"winding_pitch_source":"6","parallel_branches_source":1,"wire_mass_kg":22.0,"stator_outer_diameter_mm":423,"stator_bore_mm":300,"stator_core_length_mm":180,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО82","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"9.0/14.0","source_n_value":"(12+12)2","wire_diameter_mm":1.40,"winding_pitch_source":"6","parallel_branches_source":1,"wire_mass_kg":19.8,"stator_outer_diameter_mm":423,"stator_bore_mm":300,"stator_core_length_mm":180,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО83","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"12.5/20.0","source_n_value":"(9+9)3","wire_diameter_mm":1.30,"winding_pitch_source":"6","parallel_branches_source":1,"wire_mass_kg":23.0,"stator_outer_diameter_mm":423,"stator_bore_mm":300,"stator_core_length_mm":250,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"А91","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"18.0/28.0","source_n_value":"30+30","wire_diameter_mm":1.56,"winding_pitch_source":"6","parallel_branches_source":3,"wire_mass_kg":29.2,"stator_outer_diameter_mm":493,"stator_bore_mm":250,"stator_core_length_mm":160,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_SOURCE_GEOMETRY_VARIANT_REVIEW"},
+    {"model":"А92","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"25.0/40.0","source_n_value":"(22+22)2","wire_diameter_mm":1.25,"winding_pitch_source":"6","parallel_branches_source":3,"wire_mass_kg":32.4,"stator_outer_diameter_mm":493,"stator_bore_mm":350,"stator_core_length_mm":220,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО93","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"18.0/28.0","source_n_value":"(22+22)2","wire_diameter_mm":1.20,"winding_pitch_source":"6","parallel_branches_source":3,"wire_mass_kg":33.0,"stator_outer_diameter_mm":493,"stator_bore_mm":350,"stator_core_length_mm":250,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"},
+    {"model":"АО94","source_id":"vitkovoe_speed_ao_12_6","voltage_v":380,"power_kw_source":"25.0/40.0","source_n_value":"(17+17)2","wire_diameter_mm":1.20,"winding_pitch_source":"6","parallel_branches_source":3,"wire_mass_kg":42.5,"stator_outer_diameter_mm":493,"stator_bore_mm":350,"stator_core_length_mm":320,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_REFERENCE_ONLY"}
+  ]
+}

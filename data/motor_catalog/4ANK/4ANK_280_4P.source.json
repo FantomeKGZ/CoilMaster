@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "series": "4ANK",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "table_6_16_4ank_ip23",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Таблица 6.16. Обмоточные данные электродвигателей 4АНК, IP23",
+      "url": "https://lektsii.org/17-49351.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "independent_4ank_type_crosscheck",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические данные 4АНК — cross-check model labels",
+      "url": "https://studfile.net/preview/11214282/page%3A6/",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "The HTML transcription labels the first 520/335 row as 4AHK250S4У3, but an independent technical table confirms the corresponding model is 4АНК280S4У3. Only the model label is corrected; winding values remain from table 6.16.",
+    "Both stator and phase rotor use rectangular conductor notation in these 280-frame 4-pole records.",
+    "Rectangular conductor dimensions are preserved literally and are not mapped to round-wire fields or coil_program."
+  ],
+  "records": [
+    {
+      "model": "4АНК280S4У3",
+      "poles": 4,
+      "voltage_source": "380/660",
+      "stator_outer_diameter_mm": 520,
+      "stator_bore_mm": 335,
+      "stator_core_length_mm": 205,
+      "slot_count": 60,
+      "rotor_slot_count": 72,
+      "source_id": "table_6_16_4ank_ip23",
+      "model_label_crosscheck_source_id": "independent_4ank_type_crosscheck",
+      "winding_sets_source": [
+        {"part":"stator","pitch_source":"1-12","sp_source":"13+13","n_over_a_source":"2/4","d_over_dprime_source":"(1.06×3.55)/(1.21×3.7)","winding_factor_source":0.874,"mean_turn_length_mm_source":1270,"resistance_20c_ohm_source":0.0519,"winding_mass_kg_source":62.5},
+        {"part":"rotor","pitch_source":"1-10","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(3.05×18)/(4.3×19.2)","mean_turn_length_mm_source":1160,"winding_factor_source":0.956,"resistance_20c_ohm_source":0.00914,"winding_mass_kg_source":40.3}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_RECTANGULAR_STATOR_AND_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК280М4У3",
+      "poles": 4,
+      "voltage_source": "380/660",
+      "stator_outer_diameter_mm": 520,
+      "stator_bore_mm": 335,
+      "stator_core_length_mm": 235,
+      "slot_count": 60,
+      "rotor_slot_count": 72,
+      "source_id": "table_6_16_4ank_ip23",
+      "model_label_crosscheck_source_id": "independent_4ank_type_crosscheck",
+      "winding_sets_source": [
+        {"part":"stator","sp_source":"11+11","n_over_a_source":"2/4","d_over_dprime_source":"(1.32×3.55)/(1.47×3.7)","mean_turn_length_mm_source":1330,"resistance_20c_ohm_source":0.0365,"winding_mass_kg_source":69.8},
+        {"part":"rotor","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(3.05×18)/(4.3×19.2)","mean_turn_length_mm_source":1220,"resistance_20c_ohm_source":0.00961,"winding_mass_kg_source":42.5}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_RECTANGULAR_STATOR_AND_PHASE_ROTOR"
+    }
+  ]
+}

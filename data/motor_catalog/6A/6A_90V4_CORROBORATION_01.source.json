@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "series": "6A",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "studfile_qualification_6a90v4",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Квалификационный экзамен: задача по обмотке статора 6А90В4",
+      "url": "https://studfile.net/preview/13889416/page%3A2/",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "energo_ucoz_6a_80_90",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные электродвигателей 6А 80-90 габаритов",
+      "url": "https://energo.ucoz.ua/publ/9-1-0-436",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "The qualification source explicitly names 6А90В4 and gives effective slot conductors uп=70, phase turns w1=420, parallel branches a1=1 and nominal stator current 2.0 A.",
+    "The following task sentence in that source says to select wire for 6А80В4; this is preserved as a source-text conflict and is not silently normalized.",
+    "The separate 6A 80-90 winding-data article confirms this family table is for 380 V with star-connected phases, but its detailed rows are image-only in the current web extraction.",
+    "No wire diameter, coil_program, coil turns, pitch or slot count is inferred from uп or w1."
+  ],
+  "records": [
+    {
+      "model":"6А90В4",
+      "poles":4,
+      "voltage_v":380,
+      "connection_source":"Y",
+      "current_a":2.0,
+      "source_effective_conductors_per_slot":70,
+      "source_phase_turns":420,
+      "parallel_branches_source":1,
+      "current_density_a_per_mm2_source":6.4,
+      "slot_insulation_thickness_mm_source":0.25,
+      "slot_dimensions_source":{
+        "b_p1_mm":5.5,
+        "b_p1_prime_mm":3.7,
+        "b_sh1_mm":3.5,
+        "h_sh1_mm":0.5,
+        "h_p1_mm":11.75,
+        "h_z1_mm":13.1
+      },
+      "source_text_conflict":"Problem statement names 6А90В4 in the given data but later asks to select wire for 6А80В4.",
+      "source_id":"studfile_qualification_6a90v4",
+      "corroborating_source_ids":["energo_ucoz_6a_80_90"],
+      "normalization_status":"REVIEW_REQUIRED_SOURCE_TEXT_MODEL_CONFLICT"
+    }
+  ]
+}

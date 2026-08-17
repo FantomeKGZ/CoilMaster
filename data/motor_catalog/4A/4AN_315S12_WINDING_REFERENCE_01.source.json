@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "series": "4A",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "bookap_4an315s12_winding_study",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Конструктивные и эксплуатационные параметры двигателя 4АН315S12У3 — анализ обмотки статора",
+      "url": "https://referat.bookap.info/work/453465/Konstruktivnye-i-ekspluatacionnye-parametry",
+      "retrieved_at": "2026-08-18"
+    },
+    {
+      "id": "kravchik_4an315s12_rating",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "А. Э. Кравчик и др. Асинхронные двигатели серии 4А — 4АН315S12У3",
+      "url": "https://ru.scribd.com/document/802001843/Kravchik-Ae-Shlaf-Mm-Afonin-Vi-Sobolevskaia-Ea-Asinkhronnye",
+      "retrieved_at": "2026-08-18"
+    }
+  ],
+  "notes": [
+    "The model-specific prose identifies a rigid two-layer concentric stator winding with 90 stator slots and rectangular copper conductor 1.6×3.55 mm.",
+    "Average turn length 1450 mm and stator slot height 42.5 mm are preserved as source-native geometry/reference values.",
+    "The HTML rendering of table 3 exposes the raw sequence '1-8 / 10+10 / 4/2 / 1.50/1.58', but column alignment conflicts with the clearer prose conductor statement; these values are preserved only in source_raw_table_notation and are not normalized into pitch/turn/branch fields.",
+    "The study also calculates a theoretical pitch near 6.4 slots; that calculated result is not promoted to winding_pitch_source.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "variant_key": "4AN315S12U3-study-reference",
+      "model": "4АН315S12У3",
+      "power_kw": 55,
+      "pole_count": 12,
+      "synchronous_speed_rpm": 500,
+      "slot_count": 90,
+      "winding_type_source": "жесткая двухслойная концентрическая",
+      "conductor_source": "прямоугольный медный 1.6×3.55 мм",
+      "average_turn_length_mm_source": 1450,
+      "stator_slot_height_mm_source": 42.5,
+      "source_raw_table_notation": "1-8 / 10+10 / 4/2 / 1.50/1.58",
+      "source_id": "bookap_4an315s12_winding_study",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_TABLE_COLUMN_CONFLICT_SOURCE_NATIVE"
+    }
+  ]
+}

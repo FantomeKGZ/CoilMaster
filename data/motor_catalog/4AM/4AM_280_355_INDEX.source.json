@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "series": "4AM",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "4a_4am_senior_technical_catalog",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические характеристики электродвигателей серий 4А и 4АМ, старшие габариты 280–355",
+      "url": "https://xn--80addceesnhi0axzh6mb.xn--j1amh/katalog-elektrodvigatelej-4a-4am-5am-4amn/",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "4am280s4_individual_catalog",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Электродвигатель 4АМ280S4 — технические характеристики",
+      "url": "https://kran-master74.ru/spares/elektrooborudovanie/elektrodvigateli-katalog/elektrodvigateli-air-km2/4am-km3/elektrodvigateli-4am-280s4-i-5am-280s4-km/",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Senior 4AM model/rating identity layer only. The source catalogs pair 4A and 4AM type designations, but winding equivalence is NOT assumed.",
+    "No 4A winding values are copied into 4AM records. Detailed 4AM winding data remains pending a direct winding source or physical/manufacturer corroboration.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"4АМ280S2","poles":2,"power_kw":110,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ280М2","poles":2,"power_kw":132,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315S2","poles":2,"power_kw":160,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315М2","poles":2,"power_kw":200,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355S2","poles":2,"power_kw":250,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355М2","poles":2,"power_kw":315,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4АМ280S4","poles":4,"power_kw":110,"voltage_source":"380/660","source_id":"4am280s4_individual_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ280М4","poles":4,"power_kw":132,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315S4","poles":4,"power_kw":160,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315М4","poles":4,"power_kw":200,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355S4","poles":4,"power_kw":250,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355М4","poles":4,"power_kw":315,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4АМ280S6","poles":6,"power_kw":75,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ280М6","poles":6,"power_kw":90,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315S6","poles":6,"power_kw":110,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315М6","poles":6,"power_kw":132,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355S6","poles":6,"power_kw":160,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355М6","poles":6,"power_kw":200,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4АМ280S8","poles":8,"power_kw":55,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ280М8","poles":8,"power_kw":75,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315S8","poles":8,"power_kw":90,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315М8","poles":8,"power_kw":110,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355S8","poles":8,"power_kw":132,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355М8","poles":8,"power_kw":160,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4АМ280S10","poles":10,"power_kw":37,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ280М10","poles":10,"power_kw":45,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315S10","poles":10,"power_kw":55,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315М10","poles":10,"power_kw":75,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355S10","poles":10,"power_kw":90,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355М10","poles":10,"power_kw":110,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+
+    {"model":"4АМ315S12","poles":12,"power_kw":45,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ315М12","poles":12,"power_kw":55,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355S12","poles":12,"power_kw":75,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"4АМ355М12","poles":12,"power_kw":90,"source_id":"4a_4am_senior_technical_catalog","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

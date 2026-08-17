@@ -15,19 +15,13 @@
     }
   ],
   "notes": [
-    "Only the 4A355S4 electrical row whose model, power, speed, voltage and current remain contiguous in the HTML extraction is transcribed.",
-    "Neighboring 4A355M4/4A355S6/4A355M6/4A355S8/4A355M8 rows are intentionally omitted because the vertical extraction interleaves 4AN/4AK/4ANK variants.",
+    "Only 4A355 rows whose model, power, speed, voltage and current remain contiguous in the HTML extraction are transcribed.",
+    "4A355M4/4A355S6/4A355M6/4A355S8/4A355M8 and the 12-pole rows remain omitted where the vertical extraction interleaves 4AN/4AK/4ANK variants.",
     "Detailed winding columns remain pending row-safe mapping; no coil_program is generated."
   ],
   "records": [
-    {
-      "model": "4А355S4",
-      "power_kw": 250,
-      "rated_speed_rpm": 1485,
-      "voltage_source": "380/660",
-      "current_a_source": "432/250",
-      "source_id": "likhachev_2004_4a_table_8_21_355_clean",
-      "normalization_status": "REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"
-    }
+    {"model":"4А355S4","power_kw":250,"rated_speed_rpm":1485,"voltage_source":"380/660","current_a_source":"432/250","source_id":"likhachev_2004_4a_table_8_21_355_clean","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А355S10","power_kw":90,"rated_speed_rpm":590,"voltage_source":"220/380","current_a_source":"294/169.5","source_id":"likhachev_2004_4a_table_8_21_355_clean","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"},
+    {"model":"4А355М10","power_kw":110,"rated_speed_rpm":590,"voltage_source":"220/380","current_a_source":"357/206","source_id":"likhachev_2004_4a_table_8_21_355_clean","normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"}
   ]
 }

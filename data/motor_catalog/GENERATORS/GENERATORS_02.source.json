@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "series": "GENERATORS",
+  "reference_only": true,
+  "source_type": "TECHNICAL_REFERENCE",
+  "sources": [
+    {
+      "id": "vitkovoe_generators",
+      "title": "Обмоточные данные генераторов",
+      "url": "https://vitkovoe.ru/gener_series.html"
+    }
+  ],
+  "records": [
+    {
+      "model": "Carrier transicold",
+      "rated_speed_rpm": 1500,
+      "power_kw": 23.0,
+      "current_a": 29.5,
+      "voltage_v": "380",
+      "connection_source": "Y",
+      "slot_count": 60,
+      "stator_bore_mm": 280,
+      "stator_core_length_mm": 120,
+      "winding_sets": [
+        {"label":"stator","source_n_value":"7+7","wire_diameter_source":"1.50×2","winding_pitch_source":"14;12;10;8;6","parallel_branches_source":1,"wire_mass_kg_source":8.0},
+        {"label":"rotor","source_n_value":"4 permanent magnets"}
+      ],
+      "normalization_status": "COMPOUND_GENERATOR_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "TS300SC/SXC MOSA",
+      "rated_speed_rpm": 3000,
+      "voltage_v": "400",
+      "connection_source": "Y",
+      "slot_count": 36,
+      "winding_sets": [
+        {"label":"1A;3A;5A","source_n_value":"1","wire_diameter_source":"0.85×7","winding_pitch_source":"13","parallel_branches_source":1},
+        {"label":"1B;3B;5B","source_n_value":"63;91;90","winding_pitch_source":"17;15;13"},
+        {"label":"2B;4B;6B","source_n_value":"70;91;91","winding_pitch_source":"17;15;13"},
+        {"label":"1V;2V;3V;4V;5V;6V","source_n_value":"2","wire_diameter_source":"0.90×13","winding_pitch_source":"17;15;13","parallel_branches_source":2},
+        {"label":"1D;3D;5D","source_n_value":"10","wire_diameter_source":"0.85×2","winding_pitch_source":"17","parallel_branches_source":1},
+        {"label":"3G","source_n_value":"1","wire_diameter_source":"0.90×12","winding_pitch_source":"17","parallel_branches_source":1}
+      ],
+      "normalization_status": "COMPLEX_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "Генератор сварочный АДБ-3122 У1",
+      "rated_speed_rpm": 375,
+      "current_a": "15-350",
+      "connection_source": "DELTA",
+      "stator_bore_mm": 250,
+      "stator_core_length_mm": "60×2",
+      "slot_count": 48,
+      "winding_sets": [
+        {"label":"stator","source_n_value":"8","wire_diameter_source":"1.06×11","winding_pitch_source":"3","parallel_branches_source":1,"wire_mass_kg_source":11.64},
+        {"label":"field coil","source_n_value":"500","wire_diameter_source":"1.80","wire_mass_kg_source":6.67}
+      ],
+      "normalization_status": "GENERATOR_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "Статор генератора 750 rpm",
+      "rated_speed_rpm": 750,
+      "connection_source": "Y",
+      "stator_bore_mm": 98,
+      "stator_core_length_mm": 185,
+      "slot_count": 33,
+      "source_n_value": "6+6",
+      "wire_diameter_source": "0.80×8",
+      "winding_pitch_source": "4",
+      "parallel_branches_source": 1,
+      "wire_mass_kg_source": 2.65,
+      "normalization_status": "COMPOUND_N_PENDING_REVIEW",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "Генератор автобуса КИА",
+      "rated_speed_rpm": 500,
+      "power_kw": 4.0,
+      "voltage_v": "24",
+      "connection_source": "Y",
+      "stator_bore_mm": 145,
+      "stator_core_length_mm": 85,
+      "slot_count": 36,
+      "winding_sets": [
+        {"label":"stator","source_n_value":"3+4","wire_diameter_source":"1.56×3","winding_pitch_source":"3","parallel_branches_source":2,"wire_mass_kg_source":4.3},
+        {"label":"field coil","source_n_value":"-"}
+      ],
+      "normalization_status": "COMPOUND_GENERATOR_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "FD-5.0 wind generator",
+      "rated_speed_rpm": 600,
+      "power_kw": 0.5,
+      "voltage_v": "28",
+      "connection_source": "Y",
+      "stator_bore_mm": 95,
+      "stator_core_length_mm": 55,
+      "slot_count": 33,
+      "winding_sets": [
+        {"label":"stator","source_n_value":"21+21","wire_diameter_source":"0.85×2","winding_pitch_source":"3","parallel_branches_source":1,"wire_mass_kg_source":2.7},
+        {"label":"rotor","source_n_value":"10 permanent magnets"}
+      ],
+      "normalization_status": "COMPOUND_GENERATOR_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "Генератор сварочный АДБ двухпостовой",
+      "rated_speed_rpm": 750,
+      "stator_bore_mm": 250,
+      "stator_core_length_mm": 60,
+      "slot_count": 48,
+      "winding_sets": [
+        {"label":"stator coils 1-12","source_n_value":"32","wire_diameter_source":"1.06×3","winding_pitch_source":"3","parallel_branches_source":1,"wire_mass_kg_source":12.5},
+        {"label":"stator coils 13-24","source_n_value":"16","wire_diameter_source":"1.06×6","winding_pitch_source":"3","parallel_branches_source":1},
+        {"label":"field coil","source_n_value":"500","wire_diameter_source":"1.80","wire_mass_kg_source":6.67}
+      ],
+      "normalization_status": "COMPLEX_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "FD 2.7-500 wind generator",
+      "rated_speed_rpm": 600,
+      "power_kw": 0.5,
+      "current_a": 21.0,
+      "voltage_v": "24",
+      "connection_source": "Y",
+      "stator_bore_mm": 149,
+      "stator_core_length_mm": 37,
+      "slot_count": 48,
+      "winding_sets": [
+        {"label":"stator","source_n_value":"12+12","wire_diameter_source":"0.90×3","winding_pitch_source":"4","parallel_branches_source":1,"wire_mass_kg_source":2.2},
+        {"label":"rotor","source_n_value":"10 permanent magnets"}
+      ],
+      "normalization_status": "COMPOUND_GENERATOR_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "SSED 409-8a",
+      "rated_speed_rpm": 750,
+      "power_kw": "125 kVA",
+      "current_a": 320.0,
+      "voltage_v": "225",
+      "connection_source": "Y",
+      "stator_bore_mm": 500,
+      "stator_core_length_mm": 350,
+      "slot_count": 60,
+      "winding_sets": [
+        {"label":"stator","source_n_value":"4+4","wire_diameter_source":"1.80×6","winding_pitch_source":"8;6;4+7;5","parallel_branches_source":4,"wire_mass_kg_source":45},
+        {"label":"rotor","source_n_value":"99","wire_diameter_source":"busbar 4×3","winding_pitch_source":"pole","parallel_branches_source":1,"wire_mass_kg_source":87}
+      ],
+      "normalization_status": "COMPLEX_GENERATOR_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "7VX-GO YAMAHA EF5200",
+      "rated_speed_rpm": 3000,
+      "power_kw": "3.8 kVA",
+      "current_a": 17.5,
+      "voltage_v": "220",
+      "connection_source": "m1",
+      "stator_bore_mm": 145,
+      "stator_core_length_mm": 80,
+      "slot_count": 36,
+      "winding_sets": [
+        {"label":"working","source_n_value":"17","wire_diameter_source":"1.00×3","winding_pitch_source":"17;15;13;11;9;7","parallel_branches_source":1},
+        {"label":"starting capacitor 32uF","source_n_value":"30","wire_diameter_source":"0.95","winding_pitch_source":"17;15","parallel_branches_source":1},
+        {"label":"rotor self-excited diodes","source_n_value":"250","wire_diameter_source":"0.87×2","winding_pitch_source":"pole","parallel_branches_source":2}
+      ],
+      "normalization_status": "COMPLEX_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "Статор генератора 220V и сварка",
+      "rated_speed_rpm": 3000,
+      "voltage_v": "115/230",
+      "connection_source": "m1/m3",
+      "stator_core_length_mm": 150,
+      "slot_count": 36,
+      "winding_sets": [
+        {"label":"working","source_n_value":"11","wire_diameter_source":"0.85×4","winding_pitch_source":"17;15;13;11;9;7","parallel_branches_source":1},
+        {"label":"starting A","source_n_value":"8","wire_diameter_source":"0.95×2","winding_pitch_source":"15","parallel_branches_source":1},
+        {"label":"starting B","source_n_value":"20","wire_diameter_source":"0.75","winding_pitch_source":"17;15","parallel_branches_source":1},
+        {"label":"welding","source_n_value":"14","wire_diameter_source":"0.85×2","winding_pitch_source":"11"}
+      ],
+      "normalization_status": "COMPLEX_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_generators"
+    },
+    {
+      "model": "Г-250 automotive generator stator",
+      "rated_speed_rpm": 500,
+      "power_kw": 0.25,
+      "current_a": 28,
+      "voltage_v": "12",
+      "connection_source": "Y",
+      "stator_bore_mm": 112,
+      "stator_core_length_mm": 35,
+      "slot_count": 18,
+      "source_n_value": "20+20",
+      "wire_diameter_source": "1.35",
+      "winding_pitch_source": "1",
+      "parallel_branches_source": 2,
+      "normalization_status": "COMPOUND_N_PENDING_REVIEW",
+      "source_id": "vitkovoe_generators"
+    }
+  ]
+}

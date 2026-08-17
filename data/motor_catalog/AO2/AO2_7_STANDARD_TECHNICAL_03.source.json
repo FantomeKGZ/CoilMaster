@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_frame7_standard_part3",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 7-го габарита",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only ordinary single-speed AO2 2-pole rows with clean model/rating association are included.",
+    "The table clearly identifies AO2-71-2 as 22 kW / 2900 rpm and AO2-72-2 as 30 kW / 2900 rpm within the 7th-frame 220/380 V table.",
+    "Stator diameter pair 343/183 mm is common to the cleanly readable 2-pole frame-7 block.",
+    "Current and detailed winding columns are intentionally omitted where vertical HTML transcription interleaves adjacent A2/modification rows.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-71-2-likhachev","model":"АО2-71-2","power_kw":22,"rated_speed_rpm":2900,"stator_outer_diameter_mm":343,"stator_bore_mm":183,"source_id":"likhachev_2004_ao2_frame7_standard_part3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-72-2-likhachev","model":"АО2-72-2","power_kw":30,"rated_speed_rpm":2900,"stator_outer_diameter_mm":343,"stator_bore_mm":183,"source_id":"likhachev_2004_ao2_frame7_standard_part3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

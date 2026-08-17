@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "group": "8_4_POLES_380V",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "retrieved_at": "2026-08-17",
+  "normalization_notes": [
+    "Reference-only transcription of multi-speed AO/AO2 motors with 8/4 pole windings at source voltage 380 V.",
+    "Dual power values are preserved in power_kw_source and are not collapsed to one rated_power value.",
+    "Compound N notation remains source-native and is not converted to CoilMaster coil_program.",
+    "Source row AO2-62 exposes power text 7.0/105; it is preserved literally and flagged for review rather than silently corrected."
+  ],
+  "sources": [{
+    "id": "vitkovoe_ao_multispeed_8_4",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "Обмоточные данные многоскоростных электродвигателей серии АО — 8/4 полюса",
+    "url": "https://vitkovoe.ru/speed_ao_5_series.html",
+    "independence_group": "ao_multispeed_reference_table_family",
+    "source_voltage_v": 380,
+    "source_n_definition": "Количество витков в пазу электродвигателя"
+  }],
+  "records": [
+    {"variant_key":"AO2-41-8-4","model":"АО2-41","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"1.6/2.5","source_n_value":"54+54","wire_diameter_mm":0.80,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":4.23,"stator_outer_diameter_mm":182,"stator_bore_mm":112,"stator_core_length_mm":75,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO2-42-8-4","model":"АО2-42","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"2.3/3.9","source_n_value":"40+40","wire_diameter_mm":0.93,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":4.90,"stator_outer_diameter_mm":182,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO2-51-8-4","model":"АО2-51","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"3.0/4.8","source_n_value":"36+36","wire_diameter_mm":1.12,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":6.50,"stator_outer_diameter_mm":245,"stator_bore_mm":152,"stator_core_length_mm":90,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO2-52-8-4","model":"АО2-52","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"4.1/6.6","source_n_value":"27+27","wire_diameter_mm":1.30,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":7.85,"stator_outer_diameter_mm":245,"stator_bore_mm":152,"stator_core_length_mm":140,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO2-61-8-4","model":"АО2-61","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"5.5/8.5","source_n_value":"20+20","wire_diameter_mm":1.45,"winding_pitch_source":"7","parallel_branches_source":1,"wire_mass_kg":9.80,"stator_outer_diameter_mm":327,"stator_bore_mm":230,"stator_core_length_mm":75,"slot_count":54,"rotor_slot_count":44,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO2-62-8-4","model":"АО2-62","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"7.0/105","source_n_value":"15+15","wire_diameter_mm":1.62,"winding_pitch_source":"7","parallel_branches_source":1,"wire_mass_kg":10.40,"stator_outer_diameter_mm":327,"stator_bore_mm":230,"stator_core_length_mm":100,"slot_count":54,"rotor_slot_count":44,"normalization_status":"SOURCE_POWER_TEXT_SUSPECT_PENDING_REVIEW"},
+    {"variant_key":"AO2-71-8-4","model":"АО2-71","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"10.0/14.5","source_n_value":"(14+14)2","wire_diameter_mm":1.30,"winding_pitch_source":"7","parallel_branches_source":1,"wire_mass_kg":12.6,"stator_outer_diameter_mm":368,"stator_bore_mm":260,"stator_core_length_mm":100,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_N_REFERENCE_ONLY"},
+    {"variant_key":"AO2-72-8-4","model":"АО2-72","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"13.5/19.5","source_n_value":"(12+12)2","wire_diameter_mm":1.50,"winding_pitch_source":"7","parallel_branches_source":1,"wire_mass_kg":16.0,"stator_outer_diameter_mm":368,"stator_bore_mm":260,"stator_core_length_mm":135,"slot_count":54,"rotor_slot_count":63,"normalization_status":"MULTISPEED_COMPOUND_N_REFERENCE_ONLY"},
+    {"variant_key":"AO2-81-8-4","model":"АО2-81","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"19.0/28.0","source_n_value":"(8+8)3","wire_diameter_mm":1.50,"winding_pitch_source":"10","parallel_branches_source":1,"wire_mass_kg":22.50,"stator_outer_diameter_mm":423,"stator_bore_mm":300,"stator_core_length_mm":130,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_N_REFERENCE_ONLY"},
+    {"variant_key":"AO2-82-8-4","model":"АО2-82","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"24.0/34.0","source_n_value":"(6+6)4","wire_diameter_mm":1.50,"winding_pitch_source":"10","parallel_branches_source":1,"wire_mass_kg":26.40,"stator_outer_diameter_mm":423,"stator_bore_mm":300,"stator_core_length_mm":180,"slot_count":72,"rotor_slot_count":56,"normalization_status":"MULTISPEED_COMPOUND_N_REFERENCE_ONLY"},
+    {"variant_key":"AO41-8-4","model":"АО41","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"0.3/0.5","source_n_value":"125+125","wire_diameter_mm":0.38,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":1.9,"stator_outer_diameter_mm":182,"stator_bore_mm":112,"stator_core_length_mm":75,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO42-8-4","model":"АО42","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"0.6/1.0","source_n_value":"78+78","wire_diameter_mm":0.51,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":2.50,"stator_outer_diameter_mm":182,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO51-8-4","model":"АО51","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"1.1/1.7","source_n_value":"69+69","wire_diameter_mm":0.74,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":4.66,"stator_outer_diameter_mm":245,"stator_bore_mm":152,"stator_core_length_mm":90,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"},
+    {"variant_key":"AO52-8-4","model":"АО52","source_id":"vitkovoe_ao_multispeed_8_4","pole_configuration_source":"8/4","power_kw_source":"2.0/3.0","source_n_value":"45+45","wire_diameter_mm":0.96,"winding_pitch_source":"5","parallel_branches_source":1,"wire_mass_kg":6.2,"stator_outer_diameter_mm":245,"stator_bore_mm":152,"stator_core_length_mm":140,"slot_count":36,"rotor_slot_count":26,"normalization_status":"MULTISPEED_REFERENCE_ONLY"}
+  ]
+}

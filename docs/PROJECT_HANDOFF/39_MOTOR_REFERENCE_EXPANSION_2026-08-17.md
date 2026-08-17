@@ -36,7 +36,7 @@ Active coverage currently includes:
 - 5A / 5AI / 5AM / 5AMX;
 - A / AD / AL / AOL legacy families;
 - A2 / AO2 / AOP2 / AOS2 / AOT2 / AOK2 / AOL2 / AOLS2;
-- AO/AO2 multispeed machines;
+- AO/AO2 and mixed multispeed machines;
 - crane motors including stator + phase-rotor winding sets;
 - repair-observed motors from mixed families;
 - DC motors/generators (currently largely index-only where detailed source cards are images);
@@ -67,27 +67,30 @@ data/motor_catalog/REPAIR_RECORDS/AIR_AIS_REPAIR_01.source.json
 data/motor_catalog/5A/5A_6P_SUPPLEMENT_01.source.json
 data/motor_catalog/AIR/AIR_180_355.source.json
 data/motor_catalog/5A/5A_6P_8P_SUPPLEMENT_02.source.json
+data/motor_catalog/5A/5A_8P_SUPPLEMENT_03.source.json
 data/motor_catalog/4AM/4AM_MULTISPEED_01.source.json
 data/motor_catalog/AIR/AIR_AIS_REPAIR_02.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_03.source.json
+data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_04.source.json
+data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_05.source.json
 ```
 
-The AIR/AIS repair layer now includes the full currently text-extractable repair-observation tail from `air_ais_2_series.html`, preserving physically distinct variants separately. This includes multiple `АИР160S2` and `АИР100S4` implementations, `АИР180/200/250` repair observations, `АИМ90L4`, and `2АИ90L4ПАУ3`.
+The AIR/AIS repair layer includes the full currently text-extractable repair-observation tail from `air_ais_2_series.html`, preserving physically distinct variants separately. This includes multiple `АИР160S2` and `АИР100S4` implementations, `АИР180/200/250` repair observations, `АИМ90L4`, and `2АИ90L4ПАУ3`.
 
-The 5A supplementary packages preserve the separate 6/8-pole table semantics including the source conductor-count-per-turn column `.n`. The second package adds the currently extractable 315-frame 6-pole and 80/112/160-frame 8-pole rows.
+The 5A supplementary packages preserve the separate 6/8-pole table semantics including the source conductor-count-per-turn column `.n`. The newest senior 8-pole supplement adds `5AMH250M8`, 280-frame variants and 315-frame 8-pole variants with source-native `.n`, `N`, wire, pitch, layer count, branch count and geometry.
 
 The AIR senior-frame package extends technical-reference coverage beyond the earlier 71–160 first pass through 180/200/225/250 and up to 335/355-frame entries.
 
-The 4AM layer now also includes multispeed `4АМА100L4/2У3` and `4АМ180М8/4У2` as source-native reference-only records.
+The 4AM layer includes multispeed `4АМА100L4/2У3`, `4АМ180М8/4У2`, `4АМ132S6/4У4`, and a source-observed winding-machine motor based on `4АМ100L8` with two independent speed windings.
 
-The mixed multispeed layer additionally includes `МАП421 4/8 OM1`, `MCS315`, `USD80 2/4 P`, `АИРМ112М4/2У3`, `BP90L12/6`, and `100LIMB5`. Separate independent windings are represented as `winding_sets` when the source exposes them separately.
+The mixed multispeed layer now additionally includes source-native records such as `GM160M6`, `PSSKh90L4/2`, `АИР90L4/2У3`, `HAR160М4/8`, `СМ29/Т`, `ZTE V.TIRNOVO`, `ZFB100/4DF132MC4X-8/2`, `90С6/4S`, `4А100S4/2У2`, `L250MK80`, `АВ32 4/2`, `М112-11`, `АС62`, `4АН160`, `4АН180`, `VTM 250`, and `4АН180SB6/18`. Separate independent windings are represented as `winding_sets` when the source exposes them separately.
 
 ## Current generated index checkpoint
 
 After the latest completed source additions, the generated static reference reached:
 
 ```text
-record_count = 894
+record_count = 923
 reference_only = true
 ```
 
@@ -99,11 +102,15 @@ This count is a generated-reference count, **not** a count of VERIFIED productio
 
 `4AM` is `IN_PROGRESS` because real 4AM-family repair/reference and multispeed observations are present, although a complete authoritative 4AM winding table has not yet been captured.
 
+`5A` remains `IN_PROGRESS`; both ordinary repair/reference rows and separate 6/8-pole technical-reference semantics are being preserved without collapsing `.n` into parallel branches.
+
 `6A` remains `PLANNED`: the source index confirms the family exists, but even direct section searches still do not expose a sufficiently complete text-extractable winding table. Do not synthesize 6A rows from type listings or general technical-characteristic tables.
 
 `RECTANGULAR_LV` remains `PLANNED` as a dedicated series package. A real rectangular-wire repair observation already exists in the mixed repair layer, but the dedicated source table has not yet been captured in a safe complete form.
 
 The current crane package already covers the text-extractable repair and handbook rows surfaced from `kran_series.html`; do not duplicate them when search results repeat the same table.
+
+The current `import_3_series.html` text-extractable table is covered by `IMPORT_03` + `IMPORT_04`, including anonymous stator and KARCHER rows; do not duplicate them when search results repeat the same table.
 
 ## Next reference priorities
 

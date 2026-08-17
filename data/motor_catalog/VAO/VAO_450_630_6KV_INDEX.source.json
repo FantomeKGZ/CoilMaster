@@ -4,48 +4,33 @@
   "stage": "INDEX_ONLY",
   "import_ready": false,
   "reference_only": true,
-  "sources": [
-    {
-      "id": "vsn_332_74_vao_6kv_table_p8_3",
-      "source_type": "TECHNICAL_REFERENCE",
-      "title": "ВСН 332-74, таблица П8-3 — электродвигатели серии ВАО 450–630 габаритов на 6000 В",
-      "url": "https://files.stroyinf.ru/Data1/2/2871/",
-      "retrieved_at": "2026-08-18"
-    }
-  ],
-  "notes": [
-    "Index-only expansion for the distinct 6000 V high-frame VAO family not present in the existing 315–450 low-voltage index.",
-    "The source table supplies model identity, power, stator current and synchronous speed group; no winding turns, conductor dimensions, pitch or coil_program are inferred.",
-    "Synchronous speed is stored separately from rated rotor speed because the normative table groups rows by synchronous speed."
-  ],
+  "sources": [{"id":"vsn_332_74_vao_6kv_table_p8_3","source_type":"TECHNICAL_REFERENCE","title":"ВСН 332-74, таблица П8-3 — электродвигатели серии ВАО 450–630 габаритов на 6000 В","url":"https://files.stroyinf.ru/Data1/2/2871/","retrieved_at":"2026-08-18"}],
+  "notes": ["Index-only expansion for the distinct 6000 V high-frame VAO family.","Every row has an explicit 6000V variant_key so same model names at 380/660 V remain separate physical variants.","The source table supplies model identity, power, stator current and synchronous speed group; no winding turns, conductor dimensions, pitch or coil_program are inferred."],
   "records": [
-    {"model":"ВАО450М-2","power_kw":200,"voltage_v":6000,"current_a":23.1,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО450L-2","power_kw":250,"voltage_v":6000,"current_a":28.7,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500М-2","power_kw":315,"voltage_v":6000,"current_a":37.5,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500L-2","power_kw":400,"voltage_v":6000,"current_a":45.0,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-
-    {"model":"ВАО450М-4","power_kw":200,"voltage_v":6000,"current_a":23.4,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО450L-4","power_kw":250,"voltage_v":6000,"current_a":29.3,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500М-4","power_kw":315,"voltage_v":6000,"current_a":36.6,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500L-4","power_kw":400,"voltage_v":6000,"current_a":45.4,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО560М-4","power_kw":500,"voltage_v":6000,"current_a":56.3,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО560L-4","power_kw":630,"voltage_v":6000,"current_a":70.0,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО630М-4","power_kw":800,"voltage_v":6000,"current_a":89.0,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО630L-4","power_kw":1000,"voltage_v":6000,"current_a":111.0,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-
-    {"model":"ВАО450L-6","power_kw":200,"voltage_v":6000,"current_a":24.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500М-6","power_kw":250,"voltage_v":6000,"current_a":29.5,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500L-6","power_kw":315,"voltage_v":6000,"current_a":37.4,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО560М-6","power_kw":400,"voltage_v":6000,"current_a":45.8,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО560L-6","power_kw":500,"voltage_v":6000,"current_a":57.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО630М-6","power_kw":630,"voltage_v":6000,"current_a":71.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО630L-6","power_kw":800,"voltage_v":6000,"current_a":91.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-
-    {"model":"ВАО500М-8","power_kw":200,"voltage_v":6000,"current_a":25.2,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО500L-8","power_kw":250,"voltage_v":6000,"current_a":31.5,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО560М-8","power_kw":315,"voltage_v":6000,"current_a":39.6,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО560L-8","power_kw":400,"voltage_v":6000,"current_a":50.0,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО630М-8","power_kw":500,"voltage_v":6000,"current_a":61.0,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
-    {"model":"ВАО630L-8","power_kw":630,"voltage_v":6000,"current_a":74.7,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+    {"variant_key":"VAO450M-2-6000V","model":"ВАО450М-2","power_kw":200,"voltage_v":6000,"current_a":23.1,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO450L-2-6000V","model":"ВАО450L-2","power_kw":250,"voltage_v":6000,"current_a":28.7,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500M-2-6000V","model":"ВАО500М-2","power_kw":315,"voltage_v":6000,"current_a":37.5,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500L-2-6000V","model":"ВАО500L-2","power_kw":400,"voltage_v":6000,"current_a":45.0,"synchronous_speed_rpm":3000,"pole_count":2,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO450M-4-6000V","model":"ВАО450М-4","power_kw":200,"voltage_v":6000,"current_a":23.4,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO450L-4-6000V","model":"ВАО450L-4","power_kw":250,"voltage_v":6000,"current_a":29.3,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500M-4-6000V","model":"ВАО500М-4","power_kw":315,"voltage_v":6000,"current_a":36.6,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500L-4-6000V","model":"ВАО500L-4","power_kw":400,"voltage_v":6000,"current_a":45.4,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO560M-4-6000V","model":"ВАО560М-4","power_kw":500,"voltage_v":6000,"current_a":56.3,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO560L-4-6000V","model":"ВАО560L-4","power_kw":630,"voltage_v":6000,"current_a":70.0,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO630M-4-6000V","model":"ВАО630М-4","power_kw":800,"voltage_v":6000,"current_a":89.0,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO630L-4-6000V","model":"ВАО630L-4","power_kw":1000,"voltage_v":6000,"current_a":111.0,"synchronous_speed_rpm":1500,"pole_count":4,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO450L-6-6000V","model":"ВАО450L-6","power_kw":200,"voltage_v":6000,"current_a":24.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500M-6-6000V","model":"ВАО500М-6","power_kw":250,"voltage_v":6000,"current_a":29.5,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500L-6-6000V","model":"ВАО500L-6","power_kw":315,"voltage_v":6000,"current_a":37.4,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO560M-6-6000V","model":"ВАО560М-6","power_kw":400,"voltage_v":6000,"current_a":45.8,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO560L-6-6000V","model":"ВАО560L-6","power_kw":500,"voltage_v":6000,"current_a":57.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO630M-6-6000V","model":"ВАО630М-6","power_kw":630,"voltage_v":6000,"current_a":71.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO630L-6-6000V","model":"ВАО630L-6","power_kw":800,"voltage_v":6000,"current_a":91.0,"synchronous_speed_rpm":1000,"pole_count":6,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500M-8-6000V","model":"ВАО500М-8","power_kw":200,"voltage_v":6000,"current_a":25.2,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO500L-8-6000V","model":"ВАО500L-8","power_kw":250,"voltage_v":6000,"current_a":31.5,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO560M-8-6000V","model":"ВАО560М-8","power_kw":315,"voltage_v":6000,"current_a":39.6,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO560L-8-6000V","model":"ВАО560L-8","power_kw":400,"voltage_v":6000,"current_a":50.0,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO630M-8-6000V","model":"ВАО630М-8","power_kw":500,"voltage_v":6000,"current_a":61.0,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"VAO630L-8-6000V","model":"ВАО630L-8","power_kw":630,"voltage_v":6000,"current_a":74.7,"synchronous_speed_rpm":750,"pole_count":8,"source_id":"vsn_332_74_vao_6kv_table_p8_3","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
   ]
 }

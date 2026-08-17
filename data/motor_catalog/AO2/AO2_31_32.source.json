@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "frame_group": "31_32",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "retrieved_at": "2026-08-17",
+  "normalization_notes": [
+    "Reference-only transcription from the A2/AO2 winding table.",
+    "Different rows for the same model with different core length, N, wire or geometry remain separate variants.",
+    "Compound N notation such as 26+26 remains source-native and is not converted to CoilMaster coil_program.",
+    "Source parallel branches a are not mapped to CoilMaster parallel_strands.",
+    "A dash in rotor slot count is preserved as unknown rather than inferred."
+  ],
+  "sources": [
+    {
+      "id": "vitkovoe_a2_ao2_reference_part2",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии А2 и АО2",
+      "url": "https://vitkovoe.ru/ao2_2_series.html",
+      "independence_group": "a2_ao2_reference_table_family",
+      "source_n_definition": "Количество витков в пазу"
+    },
+    {
+      "id": "vitkovoe_a2_ao2_reference_part3",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии А2 и АО2",
+      "url": "https://vitkovoe.ru/ao2_3_series.html",
+      "independence_group": "a2_ao2_reference_table_family",
+      "source_n_definition": "Количество витков в пазу"
+    }
+  ],
+  "records": [
+    {"variant_key":"AO2-31-2-L88-compound","model":"АО2-31-2","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":"26+26","wire_diameter_mm":1.16,"winding_pitch_source":"8","parallel_branches_source":1,"wire_mass_kg":3.15,"stator_outer_diameter_mm":180,"stator_bore_mm":106,"stator_core_length_mm":88,"slot_count":24,"rotor_slot_count":20,"normalization_status":"COMPOUND_N_REFERENCE_ONLY"},
+    {"variant_key":"AOS2-31-2-L88-compound","model":"АОС2-31-2","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.5,"source_n_value":"25+25","wire_diameter_mm":1.25,"winding_pitch_source":"8","parallel_branches_source":1,"wire_mass_kg":3.51,"stator_outer_diameter_mm":180,"stator_bore_mm":106,"stator_core_length_mm":88,"slot_count":24,"rotor_slot_count":20,"normalization_status":"COMPOUND_N_REFERENCE_ONLY"},
+    {"variant_key":"AO2-31-2-L80","model":"АО2-31-2","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":45,"wire_diameter_mm":1.16,"winding_pitch_source":"11;9","parallel_branches_source":1,"wire_mass_kg":3.05,"stator_outer_diameter_mm":180,"stator_bore_mm":106,"stator_core_length_mm":80,"slot_count":24,"rotor_slot_count":20,"normalization_status":"REFERENCE_ONLY"},
+
+    {"variant_key":"AOL2-31-4-L90","model":"АОЛ2-31-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":2.2,"source_n_value":42,"wire_diameter_mm":1.08,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":2.99,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":90,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOLS2-31-4-L90","model":"АОЛС2-31-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":39,"wire_diameter_mm":1.12,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.0,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":90,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-31-4-L88","model":"АО2-31-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":2.2,"source_n_value":43,"wire_diameter_mm":1.08,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.09,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-31-4-L80","model":"АО2-31-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":2.2,"source_n_value":45,"wire_diameter_mm":1.04,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":2.91,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":80,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOS2-31-4-L88","model":"АОС2-31-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":38,"wire_diameter_mm":1.16,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.15,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOT2-31-4-L88","model":"АОТ2-31-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":1.5,"source_n_value":50,"wire_diameter_mm":1.0,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.08,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+
+    {"variant_key":"AOL2-32-4-L117","model":"АОЛ2-32-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":33,"wire_diameter_mm":1.25,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.49,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":117,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOLS2-32-4-L117","model":"АОЛС2-32-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":4.0,"source_n_value":"30×2","wire_diameter_mm":0.93,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.53,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":117,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-32-4-L115","model":"АО2-32-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":34,"wire_diameter_mm":1.25,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.63,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-32-4-L100","model":"АО2-32-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":3.0,"source_n_value":35,"wire_diameter_mm":1.16,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.04,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":100,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOS2-32-4-L115","model":"АОС2-32-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":4.0,"source_n_value":30,"wire_diameter_mm":1.30,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.47,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOT2-32-4-L115","model":"АОТ2-32-4","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":2.2,"source_n_value":38,"wire_diameter_mm":1.16,"winding_pitch_source":"11;9;7","parallel_branches_source":1,"wire_mass_kg":3.51,"stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"rotor_slot_count":26,"normalization_status":"REFERENCE_ONLY"},
+
+    {"variant_key":"AOL2-31-6-L90","model":"АОЛ2-31-6","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":1.5,"source_n_value":60,"wire_diameter_mm":1.04,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.42,"stator_outer_diameter_mm":180,"stator_bore_mm":118,"stator_core_length_mm":90,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOLS2-31-6-L90","model":"АОЛС2-31-6","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":2.0,"source_n_value":56,"wire_diameter_mm":1.08,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.44,"stator_outer_diameter_mm":180,"stator_bore_mm":118,"stator_core_length_mm":90,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-31-6-L88","model":"АО2-31-6","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":1.5,"source_n_value":60,"wire_diameter_mm":1.00,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.28,"stator_outer_diameter_mm":180,"stator_bore_mm":122,"stator_core_length_mm":88,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-31-6-L80","model":"АО2-31-6","source_id":"vitkovoe_a2_ao2_reference_part2","power_kw":1.5,"source_n_value":59,"wire_diameter_mm":0.86,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":2.18,"stator_outer_diameter_mm":180,"stator_bore_mm":122,"stator_core_length_mm":80,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOS2-31-6-L88","model":"АОС2-31-6","source_id":"vitkovoe_a2_ao2_reference_part3","power_kw":2.0,"source_n_value":54,"wire_diameter_mm":1.04,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.19,"stator_outer_diameter_mm":180,"stator_bore_mm":122,"stator_core_length_mm":88,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOT2-31-6-L88","model":"АОТ2-31-6","source_id":"vitkovoe_a2_ao2_reference_part3","power_kw":1.1,"source_n_value":71,"wire_diameter_mm":1.96,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.57,"stator_outer_diameter_mm":180,"stator_bore_mm":122,"stator_core_length_mm":88,"slot_count":36,"rotor_slot_count":null,"normalization_status":"SOURCE_WIRE_DIAMETER_SUSPECT_PENDING_REVIEW"},
+    {"variant_key":"AOL2-32-6-L117","model":"АОЛ2-32-6","source_id":"vitkovoe_a2_ao2_reference_part3","power_kw":2.2,"source_n_value":"46×2","wire_diameter_mm":0.83,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.80,"stator_outer_diameter_mm":180,"stator_bore_mm":118,"stator_core_length_mm":117,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AOLS2-32-6-L117","model":"АОЛС2-32-6","source_id":"vitkovoe_a2_ao2_reference_part3","power_kw":2.7,"source_n_value":43,"wire_diameter_mm":1.25,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":4.0,"stator_outer_diameter_mm":180,"stator_bore_mm":118,"stator_core_length_mm":117,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-32-6-L115","model":"АО2-32-6","source_id":"vitkovoe_a2_ao2_reference_part3","power_kw":2.2,"source_n_value":46,"wire_diameter_mm":1.12,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":3.55,"stator_outer_diameter_mm":180,"stator_bore_mm":122,"stator_core_length_mm":115,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"},
+    {"variant_key":"AO2-32-6-L100","model":"АО2-32-6","source_id":"vitkovoe_a2_ao2_reference_part3","power_kw":2.2,"source_n_value":45,"wire_diameter_mm":1.04,"winding_pitch_source":"7;5","parallel_branches_source":1,"wire_mass_kg":2.88,"stator_outer_diameter_mm":180,"stator_bore_mm":122,"stator_core_length_mm":100,"slot_count":36,"rotor_slot_count":null,"normalization_status":"REFERENCE_ONLY"}
+  ]
+}

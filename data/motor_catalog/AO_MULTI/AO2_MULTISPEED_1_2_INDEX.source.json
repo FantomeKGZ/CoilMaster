@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_multispeed_table_8_35",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Многоскоростные АО2/АОЛ2 1–2-го габаритов, таблица 8.35",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "The source table contains full two-speed winding data, but its HTML extraction interleaves the latter rating and winding columns.",
+    "Model identity and pole combination 4/2 are captured first; ratings/winding fields are added only through strict merge-only supplements when mapping is unambiguous.",
+    "No automatic winding-program derivation is allowed."
+  ],
+  "records": [
+    {"model":"АОЛ2-11-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АОЛ2-12-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АОЛ2-21-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АОЛ2-22-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АО2-11-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АО2-12-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АО2-21-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"АО2-22-4/2","pole_combination_source":"4/2","source_id":"likhachev_2004_ao2_multispeed_table_8_35","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"}
+  ]
+}

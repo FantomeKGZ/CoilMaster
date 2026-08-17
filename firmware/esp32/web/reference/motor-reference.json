@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 1386,
+  "record_count": 1388,
   "records": [
     {
       "reference_only": true,
@@ -11730,6 +11730,64 @@
       "source_file": "data/motor_catalog/5A/5A_8P_SUPPLEMENT_03.source.json",
       "source_files": [
         "data/motor_catalog/5A/5A_8P_SUPPLEMENT_03.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "5A",
+      "manufacturer": "5A",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "5AH315M8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": 160.0,
+      "current_a": 188.0,
+      "voltage_v": 660,
+      "connection": null,
+      "source_n": "42",
+      "wire": "1.32",
+      "pitch": "1-8",
+      "bore_mm": 385,
+      "core_length_mm": 360,
+      "parallel_branches": 8,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_5a_3_reference",
+      "source_title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "source_file": "data/motor_catalog/5A/5A_8P_SUPPLEMENT_05.source.json",
+      "source_files": [
+        "data/motor_catalog/5A/5A_8P_SUPPLEMENT_05.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "5A",
+      "manufacturer": "5A",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "5AH315S8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": 132.0,
+      "current_a": 155.0,
+      "voltage_v": 660,
+      "connection": null,
+      "source_n": "24",
+      "wire": "1.5",
+      "pitch": "1-8",
+      "bore_mm": 385,
+      "core_length_mm": 310,
+      "parallel_branches": 4,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_5a_3_reference",
+      "source_title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "source_file": "data/motor_catalog/5A/5A_8P_SUPPLEMENT_05.source.json",
+      "source_files": [
+        "data/motor_catalog/5A/5A_8P_SUPPLEMENT_05.source.json"
       ]
     },
     {

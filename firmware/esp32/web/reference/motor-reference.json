@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 1339,
+  "record_count": 1341,
   "records": [
     {
       "reference_only": true,
@@ -18313,6 +18313,35 @@
       "series": "AO2",
       "manufacturer": "AO2",
       "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1450,
+      "slot_count": 36,
+      "model": "АО2-51-4",
+      "aliases": [],
+      "variant_key": "AO2-51-4-likhachev",
+      "power_kw": 7.5,
+      "current_a": "25.6/14.8",
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "1-8",
+      "bore_mm": 158,
+      "core_length_mm": 135,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_ao2_frame5_standard",
+      "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 5-го габарита",
+      "source_file": "data/motor_catalog/AO2/AO2_5_STANDARD_TECHNICAL_01.source.json",
+      "source_files": [
+        "data/motor_catalog/AO2/AO2_5_STANDARD_TECHNICAL_01.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO2",
+      "manufacturer": "AO2",
+      "speed_group_rpm": 1500,
       "rated_speed_rpm": 1410,
       "slot_count": 36,
       "model": "АОК2-41-4",
@@ -19300,6 +19329,35 @@
       "source_file": "data/motor_catalog/AO2/AO2_41_42.source.json",
       "source_files": [
         "data/motor_catalog/AO2/AO2_41_42.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "AO2",
+      "manufacturer": "AO2",
+      "speed_group_rpm": 1000,
+      "rated_speed_rpm": 970,
+      "slot_count": 36,
+      "model": "АО2-51-6",
+      "aliases": [],
+      "variant_key": "AO2-51-6-likhachev",
+      "power_kw": 5.5,
+      "current_a": "20.8/12",
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "",
+      "bore_mm": 173,
+      "core_length_mm": 135,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_ao2_frame5_standard",
+      "source_title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 5-го габарита",
+      "source_file": "data/motor_catalog/AO2/AO2_5_STANDARD_TECHNICAL_01.source.json",
+      "source_files": [
+        "data/motor_catalog/AO2/AO2_5_STANDARD_TECHNICAL_01.source.json"
       ]
     },
     {

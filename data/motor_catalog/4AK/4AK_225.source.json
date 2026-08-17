@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "series": "4AK",
+  "frame_size": 225,
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "sources": [{
+    "id": "reference_book_table_6_15_4ak",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "Таблица 6.15. Обмоточные данные электродвигателей с фазным ротором; степень защиты IP44",
+    "url": "https://lektsii.org/17-49350.html",
+    "retrieved_at": "2026-08-17"
+  }],
+  "normalization_notes": [
+    "Stator and phase-rotor winding data are kept separate and source-native.",
+    "Rotor conductor notation such as 2.26×16.8 is rectangular/conductor-section notation and must not be treated as round-wire diameter.",
+    "Sп and n/a are not mapped to CoilMaster coil_program or parallel_strands automatically."
+  ],
+  "records": [
+    {"model":"4АК225М4У3","pole_count":4,"voltage_source":"220/380","stator_outer_diameter_mm":392,"stator_bore_mm":264,"stator_core_length_mm":200,"slot_count":48,"rotor_slot_count":66,"winding_pitch_source":"1-11","source_sp_value":"13+14","source_n_over_a_text":"4 / 4","wire_diameter_source":"1.18 / 1.26","winding_factor_source":"0.925","mean_turn_length_mm_source":970,"rotor_winding_source":{"pitch":"1-18; 1-17","source_sp":"1+1","n_over_a":"1 / 1","conductor_source":"2.26×16.8 / 3.26×17.8","mean_turn_length_mm":980,"winding_factor":"0.954"},"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_ROTOR_CONDUCTOR"},
+    {"model":"4АК225М6У3","pole_count":6,"voltage_source":"220/380","stator_outer_diameter_mm":392,"stator_bore_mm":284,"stator_core_length_mm":195,"slot_count":72,"rotor_slot_count":81,"winding_pitch_source":"1-11","source_sp_value":"9+10","source_n_over_a_text":"3 / 3","wire_diameter_source":"1.32 / 1.40","winding_factor_source":"0.925","mean_turn_length_mm_source":855,"rotor_winding_source":{"pitch":"1-15; 1-14","source_sp":"1+1","n_over_a":"1 / 1","conductor_source":"2.26×16.8 / 3.26×17.8","mean_turn_length_mm":950,"winding_factor":"0.954"},"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_ROTOR_CONDUCTOR"},
+    {"model":"4АК225М8У3","pole_count":8,"voltage_source":"220/380","stator_outer_diameter_mm":392,"stator_bore_mm":284,"stator_core_length_mm":195,"slot_count":72,"rotor_slot_count":84,"winding_pitch_source":"1-8","source_sp_value":"17+17","source_n_over_a_text":"2 / 4","wire_diameter_source":"1.25 / 1.33","winding_factor_source":"0.902","mean_turn_length_mm_source":755,"rotor_winding_source":{"pitch":"1-12; 1-11","source_sp":"1+1","n_over_a":"1 / 1","conductor_source":"2.26×16.80 / 3.26×17.80","mean_turn_length_mm":886,"winding_factor":"0.955"},"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_ROTOR_CONDUCTOR"}
+  ]
+}

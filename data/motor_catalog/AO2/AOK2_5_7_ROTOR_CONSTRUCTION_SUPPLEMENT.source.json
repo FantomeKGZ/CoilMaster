@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_aok2_ak2_phase_rotor_section",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные фазных роторов АОК2 и АК2 4–9-го габаритов, раздел 8.2",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches the 18 existing AOK2 5th-7th frame base cards and must not change record_count.",
+    "Section 8.2 states AOK2 5th-frame phase rotors use PETVP conductor; AOK2 6th-7th frame phase rotors use PSD conductor.",
+    "Section 8.2 states phase-rotor windings are connected in Y.",
+    "Exact Pe2/m2/a2/w2, pitch and conductor dimensions remain deferred until row mapping is unambiguous.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AOK2-51-4-phase-rotor-reference","model":"АОК2-51-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПЭТВП","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-52-4-phase-rotor-reference","model":"АОК2-52-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПЭТВП","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-51-6-phase-rotor-reference","model":"АОК2-51-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПЭТВП","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-52-6-phase-rotor-reference","model":"АОК2-52-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПЭТВП","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-51-8-phase-rotor-reference","model":"АОК2-51-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПЭТВП","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-52-8-phase-rotor-reference","model":"АОК2-52-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПЭТВП","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+
+    {"variant_key":"AOK2-61-4-phase-rotor-reference","model":"АОК2-61-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-62-4-phase-rotor-reference","model":"АОК2-62-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-61-6-phase-rotor-reference","model":"АОК2-61-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-62-6-phase-rotor-reference","model":"АОК2-62-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-61-8-phase-rotor-reference","model":"АОК2-61-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-62-8-phase-rotor-reference","model":"АОК2-62-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+
+    {"variant_key":"AOK2-71-4-phase-rotor-reference","model":"АОК2-71-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-72-4-phase-rotor-reference","model":"АОК2-72-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-71-6-phase-rotor-reference","model":"АОК2-71-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-72-6-phase-rotor-reference","model":"АОК2-72-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-71-8-phase-rotor-reference","model":"АОК2-71-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"variant_key":"AOK2-72-8-phase-rotor-reference","model":"АОК2-72-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_grade_source":"ПСД","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"}
+  ]
+}

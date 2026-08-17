@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "series": "LIFT_MOTORS",
+  "reference_only": true,
+  "source_type": "TECHNICAL_REFERENCE",
+  "sources": [
+    {
+      "id": "vitkovoe_lift_2",
+      "title": "Обмоточные данные лифтовых электродвигателей",
+      "url": "https://vitkovoe.ru/lift_2_series.html"
+    }
+  ],
+  "records": [
+    {
+      "model": "АС-72 6/18",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 245,
+      "stator_core_length_mm": 135,
+      "slot_count": 54,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":950,"power_kw":3.5,"current_a":9.4,"source_n_value":"18","wire_diameter_source":"1.25","wire_count_source":1,"winding_pitch_source":"1-9","layers_source":2,"parallel_branches_source":1},
+        {"label":"18 poles","rated_speed_rpm":280,"power_kw":0.88,"current_a":8.0,"source_n_value":"50","wire_diameter_source":"1.12","wire_count_source":1,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС-81 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 300,
+      "stator_core_length_mm": 135,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":940,"power_kw":5.0,"current_a":12.6,"source_n_value":"12","wire_diameter_source":"1.12","wire_count_source":2,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":1},
+        {"label":"24 poles","rated_speed_rpm":202,"power_kw":1.25,"current_a":10.2,"source_n_value":"44","wire_diameter_source":"1.25","wire_count_source":1,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС-82 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 300,
+      "stator_core_length_mm": 185,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":950,"power_kw":7.0,"current_a":16.9,"source_n_value":"8","wire_diameter_source":"1.32","wire_count_source":2,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":1},
+        {"label":"24 poles","rated_speed_rpm":212,"power_kw":1.75,"current_a":12.9,"source_n_value":"32","wire_diameter_source":"1.32","wire_count_source":1,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС-91 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 350,
+      "stator_core_length_mm": 165,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":950,"power_kw":14.0,"current_a":31.8,"source_n_value":"8","wire_diameter_source":"1.5","wire_count_source":3,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":1},
+        {"label":"24 poles","rated_speed_rpm":202,"power_kw":3.5,"current_a":21.6,"source_n_value":"48","wire_diameter_source":"1.32","wire_count_source":2,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС-92 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 350,
+      "stator_core_length_mm": 230,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":960,"power_kw":14.0,"current_a":31.8,"source_n_value":"22","wire_diameter_source":"1.4","wire_count_source":2,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":3},
+        {"label":"24 poles","rated_speed_rpm":215,"power_kw":3.5,"current_a":21.6,"source_n_value":"22","wire_diameter_source":"1.4","wire_count_source":2,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-72 6/18",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 245,
+      "stator_core_length_mm": 135,
+      "slot_count": 54,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":950,"power_kw":3.55,"current_a":9.5,"source_n_value":"18","wire_diameter_source":"1.25","wire_count_source":1,"winding_pitch_source":"1-8","layers_source":2,"parallel_branches_source":1},
+        {"label":"18 poles","rated_speed_rpm":270,"power_kw":1.18,"current_a":9.8,"source_n_value":"50","wire_diameter_source":"1.18","wire_count_source":1,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-91 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 325,
+      "stator_core_length_mm": 135,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":930,"power_kw":7.0,"current_a":16.9,"source_n_value":"10","wire_diameter_source":"1.5","wire_count_source":3,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":1},
+        {"label":"24 poles","rated_speed_rpm":201,"power_kw":1.75,"current_a":12.9,"source_n_value":"36","wire_diameter_source":"1.12","wire_count_source":2,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-92 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 325,
+      "stator_core_length_mm": 185,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":945,"power_kw":10.0,"current_a":23.2,"source_n_value":"14","wire_diameter_source":"1.32","wire_count_source":2,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":2},
+        {"label":"24 poles","rated_speed_rpm":205,"power_kw":2.5,"current_a":16.8,"source_n_value":"28","wire_diameter_source":"1.32","wire_count_source":2,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-93 6/24",
+      "variant_key": "20kW_260mm",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 325,
+      "stator_core_length_mm": 260,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":960,"power_kw":20.0,"current_a":44.5,"source_n_value":"16","wire_diameter_source":"1.4","wire_count_source":2,"winding_pitch_source":"1-10","layers_source":2,"parallel_branches_source":3},
+        {"label":"24 poles","rated_speed_rpm":205,"power_kw":5.0,"current_a":28.4,"source_n_value":"18","wire_diameter_source":"1.4","wire_count_source":3,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-93 6/24",
+      "variant_key": "14kW_235mm",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 325,
+      "stator_core_length_mm": 235,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":940,"power_kw":14.0,"current_a":31.8,"source_n_value":"20","wire_diameter_source":"1.4","wire_count_source":2,"winding_pitch_source":"1-10","layers_source":2,"parallel_branches_source":3},
+        {"label":"24 poles","rated_speed_rpm":210,"power_kw":3.5,"current_a":21.6,"source_n_value":"20","wire_diameter_source":"1.32","wire_count_source":3,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-101 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 375,
+      "stator_core_length_mm": 285,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":960,"power_kw":20.0,"current_a":44.5,"source_n_value":"14","wire_diameter_source":"1.18","wire_count_source":3,"winding_pitch_source":"1-10","layers_source":2,"parallel_branches_source":3},
+        {"label":"24 poles","rated_speed_rpm":205,"power_kw":5.0,"current_a":28.4,"source_n_value":"18","wire_diameter_source":"1.5","wire_count_source":3,"winding_pitch_source":"1-4","layers_source":2,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "АС2-102 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 370,
+      "stator_core_length_mm": 285,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":960,"power_kw":30.0,"current_a":65.8,"source_n_value":"12","wire_diameter_source":"1.18","wire_count_source":4,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":3},
+        {"label":"24 poles","rated_speed_rpm":203,"power_kw":7.5,"current_a":38.9,"source_n_value":"16","wire_diameter_source":"1.4","wire_count_source":4,"winding_pitch_source":"1-4","layers_source":2,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "МТК 4/16",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 205,
+      "stator_core_length_mm": 295,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"4 poles","rated_speed_rpm":1400,"power_kw":10.0,"current_a":23.2,"source_n_value":"9","wire_diameter_source":"1.25","wire_count_source":2,"winding_pitch_source":"1-16","layers_source":2,"parallel_branches_source":2},
+        {"label":"16 poles","rated_speed_rpm":290,"power_kw":3.0,"current_a":19.2,"source_n_value":"16","wire_diameter_source":"1.12","wire_count_source":2,"winding_pitch_source":"1-5","layers_source":2,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    },
+    {
+      "model": "УТМ250 6/24",
+      "voltage_v": "380",
+      "connection_source": "Y/Y",
+      "stator_bore_mm": 300,
+      "stator_core_length_mm": 145,
+      "slot_count": 72,
+      "winding_sets": [
+        {"label":"6 poles","rated_speed_rpm":930,"power_kw":5.5,"current_a":13.7,"source_n_value":"12","wire_diameter_source":"1.18","wire_count_source":2,"winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":1},
+        {"label":"24 poles","rated_speed_rpm":210,"power_kw":1.5,"current_a":11.6,"source_n_value":"36","wire_diameter_source":"1.25","wire_count_source":2,"winding_pitch_source":"1-4","layers_source":1,"parallel_branches_source":1}
+      ],
+      "normalization_status": "MULTISPEED_MULTI_WINDING_REFERENCE_ONLY",
+      "source_id": "vitkovoe_lift_2"
+    }
+  ]
+}

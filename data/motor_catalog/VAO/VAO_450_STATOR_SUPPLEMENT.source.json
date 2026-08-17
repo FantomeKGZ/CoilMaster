@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_table_8_34",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные взрывозащищенных электродвигателей ВАО 450, таблица 8.34",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "merge_only=true enriches the unique VAO high-frame index cards and must not increase record_count.",
+    "The source note states the stator winding is two-layer and uses rectangular PSD conductor.",
+    "Пэ1, m1, a1 and wф are preserved as source-native quantities; no CoilMaster coil_program is derived."
+  ],
+  "records": [
+    {"model":"ВАО450S-2","current_a_source":"327","stator_outer_diameter_mm":660,"stator_bore_mm":360,"stator_core_length_mm":450,"air_gap_mm_source":2.9,"slot_count":48,"winding_pitch_source":"1-15","source_pe1_value":"20","source_m1_value":2,"source_a1_value":2,"source_wf_value":40,"conductor_source":"2.25×6.9","wire_mass_kg_source":133.8,"stator_resistance_20c_ohm_source":0.0233,"rotor_slot_count":40,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО450S-4","current_a_source":"335","stator_outer_diameter_mm":660,"stator_bore_mm":430,"stator_core_length_mm":470,"air_gap_mm_source":1.8,"slot_count":60,"winding_pitch_source":"1-13","source_pe1_value":"18","source_m1_value":1,"source_a1_value":4,"source_wf_value":45,"conductor_source":"2.25×6.9","wire_mass_kg_source":139.3,"stator_resistance_20c_ohm_source":0.0243,"rotor_slot_count":50,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО450S-6","current_a_source":"260","stator_outer_diameter_mm":660,"stator_bore_mm":460,"stator_core_length_mm":470,"air_gap_mm_source":1.3,"slot_count":72,"winding_pitch_source":"1-11","source_pe1_value":"10","source_m1_value":1,"source_a1_value":2,"source_wf_value":55,"conductor_source":"3.8×6.9","wire_mass_kg_source":158,"stator_resistance_20c_ohm_source":0.038,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО450M-6","current_a_source":"330","stator_outer_diameter_mm":660,"stator_bore_mm":460,"stator_core_length_mm":590,"air_gap_mm_source":1.3,"slot_count":72,"winding_pitch_source":"1-11","source_pe1_value":"6+7","source_m1_value":1,"source_a1_value":3,"source_wf_value":52,"conductor_source":"3.05×6.9","wire_mass_kg_source":171,"stator_resistance_20c_ohm_source":0.0285,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE_COMPOUND_PE1"},
+    {"model":"ВАО450S-8","current_a_source":"374/216","stator_outer_diameter_mm":660,"stator_bore_mm":480,"stator_core_length_mm":470,"air_gap_mm_source":1.0,"slot_count":72,"winding_pitch_source":"1-8","source_pe1_value":"7+8","source_m1_value":1,"source_a1_value":4,"source_wf_value":45,"conductor_source":"2.44×6.9","wire_mass_kg_source":123.1,"stator_resistance_20c_ohm_source":0.0184,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE_COMPOUND_PE1"},
+    {"model":"ВАО450M-8","stator_outer_diameter_mm":660,"stator_bore_mm":480,"stator_core_length_mm":590,"air_gap_mm_source":1.0,"slot_count":72,"winding_pitch_source":"1-8","source_pe1_value":"12","source_m1_value":1,"source_a1_value":4,"source_wf_value":36,"conductor_source":"3.05×6.9","wire_mass_kg_source":144.0,"stator_resistance_20c_ohm_source":0.0135,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО450S-10","current_a_source":"340/196","stator_outer_diameter_mm":660,"stator_bore_mm":480,"stator_core_length_mm":470,"air_gap_mm_source":1.0,"slot_count":72,"winding_pitch_source":"1-7","source_pe1_value":"16","source_m1_value":2,"source_a1_value":2,"source_wf_value":48,"conductor_source":"2.26×6.9","wire_mass_kg_source":117.1,"stator_resistance_20c_ohm_source":0.0204,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО450M-10","current_a_source":"402/232","stator_outer_diameter_mm":660,"stator_bore_mm":480,"stator_core_length_mm":590,"air_gap_mm_source":1.0,"slot_count":72,"winding_pitch_source":"1-7","source_pe1_value":"6+8","source_m1_value":2,"source_a1_value":2,"source_wf_value":42,"conductor_source":"2.63×6.9","wire_mass_kg_source":139.8,"stator_resistance_20c_ohm_source":0.0177,"rotor_slot_count":58,"source_id":"likhachev_2004_vao_table_8_34","normalization_status":"REVIEW_REQUIRED_RECTANGULAR_STATOR_SOURCE_NATIVE_COMPOUND_PE1"}
+  ]
+}

@@ -14375,13 +14375,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14404,13 +14412,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14433,13 +14449,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14462,13 +14486,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14491,13 +14523,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14520,13 +14560,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14549,13 +14597,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14578,13 +14634,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14607,13 +14671,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14636,13 +14708,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14665,13 +14745,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -14694,13 +14782,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_type_source": "BARE_COPPER_BAR_GLASS_TAPE_INSULATED",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_ak2_table_1_2_4_13",
       "source_title": "Технические данные электродвигателей с фазным ротором АК2, 8-9 габариты",
       "source_file": "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json"
+        "data/motor_catalog/AK2/AK2_8_9_INDEX.source.json",
+        "data/motor_catalog/AK2/AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_ao2_gap_rows",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 7-9-го габаритов",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "ao2_independent_operating_tables",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Независимые эксплуатационные таблицы двигателей АО2",
+      "url": "https://eti.su/articles/spravochnik/spravochnik_1802.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Gap-fill identity/rating layer only; each row is cross-supported by a second technical/operating table where the Likhachev HTML transcription interleaves neighboring modifications.",
+    "Ambiguous current and winding columns are intentionally omitted.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-71-2-gapfill","model":"АО2-71-2","power_kw":22,"rated_speed_rpm":2900,"source_id":"likhachev_2004_ao2_gap_rows","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-72-2-gapfill","model":"АО2-72-2","power_kw":30,"rated_speed_rpm":2900,"source_id":"likhachev_2004_ao2_gap_rows","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-82-8-gapfill","model":"АО2-82-8","power_kw":30,"rated_speed_rpm":735,"source_id":"ao2_independent_operating_tables","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-91-6-gapfill","model":"АО2-91-6","power_kw":55,"rated_speed_rpm":985,"source_id":"ao2_independent_operating_tables","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

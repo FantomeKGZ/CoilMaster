@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "series": "4A",
+  "frame_size": 80,
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "retrieved_at": "2026-08-17",
+  "normalization_notes": [
+    "This file preserves source-native winding data and is not accepted by the CoilMaster motor importer.",
+    "Do not reuse AIR/AIS coil_program derivation rules for 4A until the winding-layout notation for this series is independently documented.",
+    "Source parallel winding branches a must not be mapped to CoilMaster parallel_strands.",
+    "The source provides three conditional L1 columns for different housing length designations; they are preserved separately instead of forcing one scalar stator_core_length_mm.",
+    "Compound pitch notation such as 5;3+5 remains staging-only until a 4A-specific mapping is proven."
+  ],
+  "sources": [{"id":"vitkovoe_4a_reference","source_type":"TECHNICAL_REFERENCE","title":"Справочник электрообмотчика. Обмоточные данные электродвигателей серии 4А","url":"https://vitkovoe.ru/4a_series.html","independence_group":"4a_reference_table_family","source_voltage_v":"220/380","source_n_definition":"Количество витков в пазу"}],
+  "records": [
+    {"variant_key":"4A80A2-reference","model":"4А80А2","source_id":"vitkovoe_4a_reference","power_kw":1.5,"current_a":3.3,"source_n_value":61,"wire_diameter_mm":0.8,"parallel_branches_source":1,"wire_mass_kg":1.59,"winding_pitch_source":"11;9","stator_outer_diameter_mm":131,"stator_bore_mm":74,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":78,"L_B_LB_MB":null},"slot_count":24,"rotor_slot_count":20,"normalization_status":"PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80B2-reference","model":"4А80В2","source_id":"vitkovoe_4a_reference","power_kw":2.2,"current_a":null,"source_n_value":48,"wire_diameter_mm":0.93,"parallel_branches_source":1,"wire_mass_kg":1.82,"winding_pitch_source":"11;9","stator_outer_diameter_mm":131,"stator_bore_mm":74,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":null,"L_B_LB_MB":98},"slot_count":24,"rotor_slot_count":20,"normalization_status":"PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80A4-reference","model":"4А80А4","source_id":"vitkovoe_4a_reference","power_kw":1.1,"current_a":2.7,"source_n_value":60,"wire_diameter_mm":0.67,"parallel_branches_source":1,"wire_mass_kg":1.36,"winding_pitch_source":"11;9;7","stator_outer_diameter_mm":131,"stator_bore_mm":84,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":78,"L_B_LB_MB":null},"slot_count":36,"rotor_slot_count":28,"normalization_status":"PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80B4-reference","model":"4А80В4","source_id":"vitkovoe_4a_reference","power_kw":1.5,"current_a":3.5,"source_n_value":49,"wire_diameter_mm":0.74,"parallel_branches_source":1,"wire_mass_kg":1.49,"winding_pitch_source":"11;9;7","stator_outer_diameter_mm":131,"stator_bore_mm":84,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":null,"L_B_LB_MB":98},"slot_count":36,"rotor_slot_count":28,"normalization_status":"PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80A6-reference","model":"4А80А6","source_id":"vitkovoe_4a_reference","power_kw":0.75,"current_a":1.35,"source_n_value":82,"wire_diameter_mm":0.59,"parallel_branches_source":1,"wire_mass_kg":1.24,"winding_pitch_source":"7;5","stator_outer_diameter_mm":131,"stator_bore_mm":88,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":78,"L_B_LB_MB":null},"slot_count":36,"rotor_slot_count":28,"normalization_status":"PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80B6-reference","model":"4А80В6","source_id":"vitkovoe_4a_reference","power_kw":1.1,"current_a":1.75,"source_n_value":58,"wire_diameter_mm":0.72,"parallel_branches_source":1,"wire_mass_kg":1.58,"winding_pitch_source":"7;5","stator_outer_diameter_mm":131,"stator_bore_mm":88,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":null,"L_B_LB_MB":115},"slot_count":36,"rotor_slot_count":28,"normalization_status":"PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80A8-reference","model":"4А80А8","source_id":"vitkovoe_4a_reference","power_kw":0.37,"current_a":0.85,"source_n_value":121,"wire_diameter_mm":0.49,"parallel_branches_source":1,"wire_mass_kg":1.16,"winding_pitch_source":"5;3+5","stator_outer_diameter_mm":131,"stator_bore_mm":88,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":78,"L_B_LB_MB":null},"slot_count":36,"rotor_slot_count":28,"normalization_status":"COMPOUND_PITCH_PENDING_4A_COIL_PROGRAM_MAPPING"},
+    {"variant_key":"4A80B8-reference","model":"4А80В8","source_id":"vitkovoe_4a_reference","power_kw":0.55,"current_a":1.15,"source_n_value":91,"wire_diameter_mm":0.57,"parallel_branches_source":1,"wire_mass_kg":1.33,"winding_pitch_source":"5;3+5","stator_outer_diameter_mm":131,"stator_bore_mm":88,"stator_core_length_by_housing_mm":{"S":null,"M_A_MA_LA":null,"L_B_LB_MB":98},"slot_count":36,"rotor_slot_count":28,"normalization_status":"COMPOUND_PITCH_PENDING_4A_COIL_PROGRAM_MAPPING"}
+  ]
+}

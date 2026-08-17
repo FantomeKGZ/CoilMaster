@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_tables_8_32_8_34",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные ВАО с высотой оси 315, 355 и 450 мм, таблицы 8.32–8.34",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "High-frame VAO index from tables that also contain rectangular-conductor stator winding data.",
+    "Only unambiguous model/rating rows are captured here; OCR-ambiguous designations are omitted rather than corrected by analogy.",
+    "Detailed winding rows are to be transcribed separately with source-native rectangular conductor notation."
+  ],
+  "records": [
+    {"model":"ВАО315S-2","power_kw":132,"rated_speed_rpm":2963,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО315M-2","power_kw":160,"rated_speed_rpm":2963,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО315S-4","power_kw":132,"rated_speed_rpm":1482,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО315M-4","power_kw":160,"rated_speed_rpm":1483,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"ВАО355M-2","power_kw":200,"rated_speed_rpm":2970,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355L-2","power_kw":250,"rated_speed_rpm":2970,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355M-4","power_kw":200,"rated_speed_rpm":1485,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355L-4","power_kw":250,"rated_speed_rpm":1484,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355M-6","power_kw":160,"rated_speed_rpm":988,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355L-6","power_kw":200,"rated_speed_rpm":988,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355M-8","power_kw":132,"rated_speed_rpm":741,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355L-8","power_kw":160,"rated_speed_rpm":741,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355M-10","power_kw":110,"rated_speed_rpm":593,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО355L-10","power_kw":132,"rated_speed_rpm":593,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"ВАО450S-2","power_kw":320,"rated_speed_rpm":2975,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450S-4","power_kw":320,"rated_speed_rpm":1486,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450S-6","power_kw":250,"rated_speed_rpm":990,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450M-6","power_kw":320,"rated_speed_rpm":990,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450S-8","power_kw":200,"rated_speed_rpm":743,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450M-8","power_kw":250,"rated_speed_rpm":743,"voltage_source":"660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450S-10","power_kw":160,"rated_speed_rpm":593,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО450M-10","power_kw":200,"rated_speed_rpm":593,"voltage_source":"380/660","source_id":"likhachev_2004_vao_tables_8_32_8_34","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"}
+  ]
+}

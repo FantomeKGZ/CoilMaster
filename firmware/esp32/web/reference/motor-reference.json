@@ -16187,13 +16187,13 @@
       "series": "AO2",
       "manufacturer": "AO2",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1410,
       "slot_count": 36,
       "model": "АОК2-41-4",
       "aliases": [],
       "variant_key": "AOK2-41-4",
       "power_kw": 3.0,
-      "current_a": null,
+      "current_a": 6.7,
       "voltage_v": null,
       "connection": null,
       "source_n": "36",
@@ -16202,13 +16202,22 @@
       "bore_mm": 133,
       "core_length_mm": 110,
       "parallel_branches": 1,
-      "winding_sets": null,
-      "status": "REFERENCE",
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "current_a_source": "13",
+          "voltage_v_source": "185",
+          "normalization_status": "PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
       "source_id": "vitkovoe_a2_ao2_reference_part3",
       "source_title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии А2 и АО2",
       "source_file": "data/motor_catalog/AO2/AO2_41_42.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AO2_41_42.source.json"
+        "data/motor_catalog/AO2/AO2_41_42.source.json",
+        "data/motor_catalog/AO2/AOK2_4_PHASE_ROTOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16216,13 +16225,13 @@
       "series": "AO2",
       "manufacturer": "AO2",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1420,
       "slot_count": 36,
       "model": "АОК2-42-4",
       "aliases": [],
       "variant_key": "AOK2-42-4",
       "power_kw": 4.0,
-      "current_a": null,
+      "current_a": 8.8,
       "voltage_v": null,
       "connection": null,
       "source_n": "26×2",
@@ -16231,13 +16240,22 @@
       "bore_mm": 133,
       "core_length_mm": 148,
       "parallel_branches": 1,
-      "winding_sets": null,
-      "status": "REFERENCE",
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "current_a_source": "14",
+          "voltage_v_source": "255",
+          "normalization_status": "PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
       "source_id": "vitkovoe_a2_ao2_reference_part3",
       "source_title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии А2 и АО2",
       "source_file": "data/motor_catalog/AO2/AO2_41_42.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AO2_41_42.source.json"
+        "data/motor_catalog/AO2/AO2_41_42.source.json",
+        "data/motor_catalog/AO2/AOK2_4_PHASE_ROTOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -17115,13 +17133,13 @@
       "series": "AO2",
       "manufacturer": "AO2",
       "speed_group_rpm": 1000,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 930,
       "slot_count": 36,
       "model": "АОК2-41-6",
       "aliases": [],
       "variant_key": "AOK2-41-6",
       "power_kw": 2.2,
-      "current_a": null,
+      "current_a": 5.7,
       "voltage_v": null,
       "connection": null,
       "source_n": "46",
@@ -17130,13 +17148,22 @@
       "bore_mm": 144,
       "core_length_mm": 110,
       "parallel_branches": 1,
-      "winding_sets": null,
-      "status": "REFERENCE",
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "current_a_source": "16",
+          "voltage_v_source": "133",
+          "normalization_status": "PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
       "source_id": "vitkovoe_a2_ao2_reference_part3",
       "source_title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии А2 и АО2",
       "source_file": "data/motor_catalog/AO2/AO2_41_42.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AO2_41_42.source.json"
+        "data/motor_catalog/AO2/AO2_41_42.source.json",
+        "data/motor_catalog/AO2/AOK2_4_PHASE_ROTOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -17144,13 +17171,13 @@
       "series": "AO2",
       "manufacturer": "AO2",
       "speed_group_rpm": 1000,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 940,
       "slot_count": 36,
       "model": "АОК2-42-6",
       "aliases": [],
       "variant_key": "AOK2-42-6",
       "power_kw": 3.0,
-      "current_a": null,
+      "current_a": 7.6,
       "voltage_v": null,
       "connection": null,
       "source_n": "33×2",
@@ -17159,13 +17186,22 @@
       "bore_mm": 144,
       "core_length_mm": 148,
       "parallel_branches": 1,
-      "winding_sets": null,
-      "status": "REFERENCE",
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "current_a_source": "17",
+          "voltage_v_source": "185",
+          "normalization_status": "PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
       "source_id": "vitkovoe_a2_ao2_reference_part3",
       "source_title": "Справочник электрообмотчика. Обмоточные данные электродвигателей серии А2 и АО2",
       "source_file": "data/motor_catalog/AO2/AO2_41_42.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AO2_41_42.source.json"
+        "data/motor_catalog/AO2/AO2_41_42.source.json",
+        "data/motor_catalog/AO2/AOK2_4_PHASE_ROTOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {

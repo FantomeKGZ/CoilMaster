@@ -2,7 +2,12 @@
 
 This directory contains curated source packages for the CoilMaster motor and winding database.
 
-It is a repository-side source catalogue. Files here are reviewed and normalized before they are imported into a device through the existing motor import UI.
+It now serves two deliberately separated purposes:
+
+1. a **read-only winding reference** containing source-native and not-yet-verified motor data;
+2. a source for **working motor database imports** only after a record is normalized and sufficiently verified.
+
+The read-only reference is allowed to contain uncertain, conflicting, compound or incomplete winding notation as long as provenance and warnings are preserved. The working motor database must not receive those records until the required CoilMaster semantics are proven.
 
 ## Layout
 
@@ -15,16 +20,39 @@ It is a repository-side source catalogue. Files here are reviewed and normalized
 
 File naming contract:
 
-- `*.source.json` — raw/source-native transcription; **not import-ready** and must never be submitted to the device motor importer;
+- `*.source.json` — raw/source-native transcription; **reference-only / not import-ready** and must never be submitted to the device motor importer;
 - `*.json` without `.source` — import-ready package and must strictly follow `docs/MOTOR_IMPORT_FORMAT.md`.
 
 Recommended naming examples:
 
-- `AIR/AIR_71.source.json` — source transcription while `coil_program` mapping is unresolved;
-- `AIR/AIR_71.json` — future import-ready package after normalization;
+- `AIR/AIR_71.source.json` — source/reference transcription;
+- `AIR/AIR_71.json` — import-ready normalized package;
 - `AIR/AIR_80.json`
 - `4A/4A_100.json`
 - `ABB/M3AA_160.json`
+
+## Static winding reference
+
+The device UI has a separate read-only reference page:
+
+- desktop: `/desktop/winding-reference.html`;
+- mobile: `/mobile/winding-reference.html`.
+
+The page reads `/reference/motor-reference.json`. That index is generated from all `*.source.json` files by:
+
+`python tools/build_motor_reference.py`
+
+The reference navigation/filter model is:
+
+`manufacturer or series -> speed group -> slot count -> model/variant`
+
+Reference records may display source-native `N`, wire construction, pitch, stator geometry, connection, current/voltage text, provenance and review warnings. They are informational only and provide no physical START path, no SSR control and no automatic creation of a working motor card.
+
+Promotion into the working database is a separate operation:
+
+`reference/source record -> technical review -> deterministic normalization -> import-ready *.json -> import Preview -> similarity check -> selected import`
+
+The original `*.source.json` record remains unchanged after promotion so provenance is never lost.
 
 ## Data rules
 
@@ -40,6 +68,7 @@ Recommended naming examples:
 10. Source winding parallel branches are not the same thing as CoilMaster `parallel_strands`; never map them automatically.
 11. A source column described as turns in slot or conductors in slot is not automatically equivalent to CoilMaster `turns_per_coil` or `coil_program`.
 12. `coil_program` represents the ordered turns of individual coils/program steps used by CoilMaster; source data must support that ordered sequence before an import-ready package is created.
+13. A record may appear in the static reference even when rule 12 is not yet satisfied; it must remain visibly reference-only and must not be used as a machine program.
 
 ## Initial series plan
 
@@ -64,6 +93,12 @@ Initial groups tracked by `catalog.json`:
 
 ## Workflow
 
-`source -> *.source.json raw transcription -> normalization -> source comparison -> confidence assignment -> import-ready *.json -> import Preview -> similarity check -> selected import`
+Reference path:
+
+`source -> *.source.json -> static reference index -> read-only winding reference`
+
+Working database path:
+
+`source -> *.source.json -> normalization -> source comparison -> confidence assignment -> import-ready *.json -> import Preview -> similarity check -> selected import`
 
 Do not bypass Preview or similarity checking when importing catalogue records into a device.

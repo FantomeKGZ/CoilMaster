@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "series": "5A",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "leg_5a_operating_table",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Асинхронные двигатели 5А — технические данные",
+      "url": "https://leg.co.ua/info/elektricheskie-mashiny/asinhronnye-dvigateli-5a.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "politerm_5a_10p_operating_table",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические данные электродвигателей основного исполнения — 600 об/мин",
+      "url": "https://www.politerm.com/zuluhydro/webhelp/ref_gidroudar_electric_motor2.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Index-only layer for the senior 5AM 10-pole models omitted from the currently text-extractable Vitkovoe winding rows.",
+    "Two independent operating/technical tables corroborate the four model identities and ratings.",
+    "No N, conductor, pitch or coil_program is inferred. These cards remain winding_pending until a winding-data source is recovered."
+  ],
+  "records": [
+    {"model":"5AM280S10","power_kw":37,"rated_speed_rpm":590,"voltage_source":"380/660","source_id":"leg_5a_operating_table","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"5AM280M10","power_kw":45,"rated_speed_rpm":590,"voltage_source":"380/660","source_id":"leg_5a_operating_table","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"5AM315S10","power_kw":55,"rated_speed_rpm":590,"voltage_source":"380/660","source_id":"leg_5a_operating_table","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"5AM315M10","power_kw":75,"rated_speed_rpm":590,"voltage_source":"380/660","source_id":"leg_5a_operating_table","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

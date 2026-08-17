@@ -24,6 +24,8 @@
     {"model":"А2-61-6","power_kw":10,"rated_speed_rpm":965,"current_a_source":"35/20.3","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-72-2","power_kw":40,"rated_speed_rpm":2900,"current_a_source":"129/74.5","stator_outer_diameter_mm":343,"stator_bore_mm":183,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
     {"model":"А2-71-4","power_kw":22,"rated_speed_rpm":1455,"current_a_source":"72.7/42","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
-    {"model":"А2-72-4","power_kw":30,"rated_speed_rpm":1455,"stator_outer_diameter_mm":343,"stator_bore_mm":214,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"}
+    {"model":"А2-72-4","power_kw":30,"rated_speed_rpm":1455,"stator_outer_diameter_mm":343,"stator_bore_mm":214,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-71-8","power_kw":13,"rated_speed_rpm":725,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-72-8","power_kw":17,"rated_speed_rpm":725,"stator_outer_diameter_mm":343,"stator_bore_mm":245,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"}
   ]
 }

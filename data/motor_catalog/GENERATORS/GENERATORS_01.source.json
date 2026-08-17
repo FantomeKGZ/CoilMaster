@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "GENERATORS",
+  "import_ready": false,
+  "sources": [{"id":"vitkovoe_generators","type":"TECHNICAL_REFERENCE","title":"Обмоточные данные генераторов","url":"https://vitkovoe.ru/gener_series.html","retrieved_at":"2026-08-17"}],
+  "notes": ["Multiple machine windings are preserved as winding_sets.","Source connection and unusual branch notation are preserved literally.","No generator record is converted into a CoilMaster winding program."],
+  "records": [
+    {
+      "model":"EK2LAT generator","variant_key":"EK2LAT-generator-reference","rated_speed_rpm":3000,"power_kw":7.0,"current_a_source":"60.1/30.5","voltage_source":"115/230","slot_count":24,
+      "winding_sets":[
+        {"name":"рабочая","source_n_value":"16","wire_diameter_source":"0.85×4","winding_pitch_source":"11;9;7;5","parallel_branches_source":"2/1"},
+        {"name":"пусковая","source_n_value":"37","wire_diameter_source":"0.80×2","winding_pitch_source":"11;9","parallel_branches_source":1},
+        {"name":"ротор","source_n_value":"276","wire_diameter_source":"0.95","winding_pitch_source":"-","parallel_branches_source":1}
+      ],
+      "source_id":"vitkovoe_generators","normalization_status":"REVIEW_REQUIRED_MULTI_WINDING"
+    },
+    {
+      "model":"Generator stator 5.5kW","variant_key":"generator-stator-5.5kW-reference","rated_speed_rpm":3000,"power_kw":5.5,"voltage_source":"110/220","slot_count":24,"stator_outer_diameter_mm":173,"stator_bore_mm":106,"stator_core_length_mm":96,
+      "winding_sets":[
+        {"name":"рабочая","source_n_value":"26","wire_diameter_source":"0.80×3","winding_pitch_source":"11;9;7;5","parallel_branches_source":"2/1"},
+        {"name":"пусковая","source_n_value":"46","wire_diameter_source":"0.95","winding_pitch_source":"11;9","parallel_branches_source":1}
+      ],
+      "source_id":"vitkovoe_generators","normalization_status":"REVIEW_REQUIRED_MULTI_WINDING"
+    },
+    {
+      "model":"FD-2000 wind generator","variant_key":"FD-2000-wind-generator-reference","rated_speed_rpm":428,"power_kw":2.0,"voltage_v":56,"connection_source":"Y","slot_count":45,"stator_outer_diameter_mm":203,"stator_bore_mm":145,"stator_core_length_mm":105,
+      "winding_sets":[
+        {"name":"статор","source_n_value":"12+12","wire_diameter_source":"0.85×4","winding_pitch_source":"3","parallel_branches_source":1,"wire_mass_kg":4.1}
+      ],
+      "source_id":"vitkovoe_generators","normalization_status":"REVIEW_REQUIRED_COMPOUND_N"
+    }
+  ]
+}

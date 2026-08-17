@@ -39576,122 +39576,6 @@
       "series": "VAO",
       "manufacturer": "VAO",
       "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
-      "slot_count": null,
-      "model": "ВАО91-4/6/8",
-      "aliases": [],
-      "variant_key": null,
-      "power_kw": null,
-      "current_a": null,
-      "voltage_v": 380,
-      "connection": null,
-      "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
-      "parallel_branches": null,
-      "winding_sets": null,
-      "status": "REVIEW_REQUIRED",
-      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
-      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
-      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
-      "source_files": [
-        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json"
-      ]
-    },
-    {
-      "reference_only": true,
-      "series": "VAO",
-      "manufacturer": "VAO",
-      "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
-      "slot_count": null,
-      "model": "ВАО91-4/8",
-      "aliases": [],
-      "variant_key": null,
-      "power_kw": null,
-      "current_a": null,
-      "voltage_v": 380,
-      "connection": null,
-      "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
-      "parallel_branches": null,
-      "winding_sets": null,
-      "status": "REVIEW_REQUIRED",
-      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
-      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
-      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
-      "source_files": [
-        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json"
-      ]
-    },
-    {
-      "reference_only": true,
-      "series": "VAO",
-      "manufacturer": "VAO",
-      "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
-      "slot_count": null,
-      "model": "ВАО92-4/6/8",
-      "aliases": [],
-      "variant_key": null,
-      "power_kw": null,
-      "current_a": null,
-      "voltage_v": 380,
-      "connection": null,
-      "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
-      "parallel_branches": null,
-      "winding_sets": null,
-      "status": "REVIEW_REQUIRED",
-      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
-      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
-      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
-      "source_files": [
-        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json"
-      ]
-    },
-    {
-      "reference_only": true,
-      "series": "VAO",
-      "manufacturer": "VAO",
-      "speed_group_rpm": 750,
-      "rated_speed_rpm": null,
-      "slot_count": null,
-      "model": "ВАО92-4/8",
-      "aliases": [],
-      "variant_key": null,
-      "power_kw": null,
-      "current_a": null,
-      "voltage_v": 380,
-      "connection": null,
-      "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
-      "parallel_branches": null,
-      "winding_sets": null,
-      "status": "REVIEW_REQUIRED",
-      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
-      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
-      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
-      "source_files": [
-        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json"
-      ]
-    },
-    {
-      "reference_only": true,
-      "series": "VAO",
-      "manufacturer": "VAO",
-      "speed_group_rpm": 750,
       "rated_speed_rpm": 735,
       "slot_count": 54,
       "model": "ВАО71-8",
@@ -39872,6 +39756,111 @@
       "series": "VAO",
       "manufacturer": "VAO",
       "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "ВАО91-4/6/8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": "stator:26 | stator:18 | stator:18",
+      "current_a": null,
+      "voltage_v": 380,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "stator:1-10 | stator:1-11",
+      "bore_mm": 334,
+      "core_length_mm": 240,
+      "parallel_branches": null,
+      "winding_sets": [
+        {
+          "part": "stator",
+          "poles": 4,
+          "power_kw_source": 26,
+          "speed_rpm_source": 1475,
+          "current_a_source": 55,
+          "connection_source": "YY",
+          "pitch_source": "1-10"
+        },
+        {
+          "part": "stator",
+          "poles": 8,
+          "power_kw_source": 18,
+          "speed_rpm_source": 735,
+          "current_a_source": 46.5,
+          "connection_source": "DELTA"
+        },
+        {
+          "part": "stator",
+          "poles": 6,
+          "power_kw_source": 18,
+          "speed_rpm_source": 980,
+          "current_a_source": 40,
+          "connection_source": "Y",
+          "pitch_source": "1-11"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
+      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
+      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+      "source_files": [
+        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_MULTISPEED_9_STATOR_SUPPLEMENT.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "VAO",
+      "manufacturer": "VAO",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "ВАО91-4/8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": "stator:48 | stator:30",
+      "current_a": null,
+      "voltage_v": 380,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "stator:1-11",
+      "bore_mm": 334,
+      "core_length_mm": 240,
+      "parallel_branches": null,
+      "winding_sets": [
+        {
+          "part": "stator",
+          "poles": 4,
+          "power_kw_source": 48,
+          "speed_rpm_source": 1455,
+          "current_a_source": 97.5,
+          "connection_source": "YY",
+          "pitch_source": "1-11"
+        },
+        {
+          "part": "stator",
+          "poles": 8,
+          "power_kw_source": 30,
+          "speed_rpm_source": 730,
+          "current_a_source": 78,
+          "connection_source": "DELTA"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
+      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
+      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+      "source_files": [
+        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_MULTISPEED_9_STATOR_SUPPLEMENT.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "VAO",
+      "manufacturer": "VAO",
+      "speed_group_rpm": 750,
       "rated_speed_rpm": 735,
       "slot_count": 72,
       "model": "ВАО91-8",
@@ -39895,6 +39884,111 @@
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "VAO",
+      "manufacturer": "VAO",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "ВАО92-4/6/8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": "stator:35 | stator:25 | stator:25",
+      "current_a": null,
+      "voltage_v": 380,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "stator:1-10 | stator:1-11",
+      "bore_mm": 334,
+      "core_length_mm": 330,
+      "parallel_branches": null,
+      "winding_sets": [
+        {
+          "part": "stator",
+          "poles": 4,
+          "power_kw_source": 35,
+          "speed_rpm_source": 1470,
+          "current_a_source": 70.5,
+          "connection_source": "YY",
+          "pitch_source": "1-10"
+        },
+        {
+          "part": "stator",
+          "poles": 8,
+          "power_kw_source": 25,
+          "speed_rpm_source": 730,
+          "current_a_source": 58,
+          "connection_source": "DELTA"
+        },
+        {
+          "part": "stator",
+          "poles": 6,
+          "power_kw_source": 25,
+          "speed_rpm_source": 980,
+          "current_a_source": 54,
+          "connection_source": "Y",
+          "pitch_source": "1-11"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
+      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
+      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+      "source_files": [
+        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_MULTISPEED_9_STATOR_SUPPLEMENT.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "VAO",
+      "manufacturer": "VAO",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "ВАО92-4/8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": "stator:60 | stator:40",
+      "current_a": null,
+      "voltage_v": 380,
+      "connection": null,
+      "source_n": "",
+      "wire": "",
+      "pitch": "stator:1-11",
+      "bore_mm": 334,
+      "core_length_mm": 330,
+      "parallel_branches": null,
+      "winding_sets": [
+        {
+          "part": "stator",
+          "poles": 4,
+          "power_kw_source": 60,
+          "speed_rpm_source": 1455,
+          "current_a_source": 115,
+          "connection_source": "YY",
+          "pitch_source": "1-11"
+        },
+        {
+          "part": "stator",
+          "poles": 8,
+          "power_kw_source": 40,
+          "speed_rpm_source": 730,
+          "current_a_source": 96,
+          "connection_source": "DELTA"
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_vao_multispeed_8_7_4",
+      "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
+      "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+      "source_files": [
+        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_MULTISPEED_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -40169,27 +40263,54 @@
       "manufacturer": "VAO",
       "speed_group_rpm": 500,
       "rated_speed_rpm": null,
-      "slot_count": null,
+      "slot_count": 72,
       "model": "ВАО91-4/6/8/12",
       "aliases": [],
       "variant_key": null,
-      "power_kw": null,
+      "power_kw": "stator:25 | stator:13 | stator:9",
       "current_a": null,
       "voltage_v": 380,
       "connection": null,
       "source_n": "",
       "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
+      "pitch": "stator:1-10",
+      "bore_mm": 334,
+      "core_length_mm": 240,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "part": "stator",
+          "poles": 4,
+          "power_kw_source": 25,
+          "speed_rpm_source": 1470,
+          "current_a_source": 54,
+          "connection_source": "YY",
+          "pitch_source": "1-10"
+        },
+        {
+          "part": "stator",
+          "poles": 8,
+          "power_kw_source": 13,
+          "speed_rpm_source": 735,
+          "current_a_source": 38,
+          "connection_source": "DELTA"
+        },
+        {
+          "part": "stator",
+          "poles": 12,
+          "power_kw_source": 9,
+          "speed_rpm_source": 490,
+          "current_a_source": 33,
+          "connection_source": "DELTA"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_2004_vao_multispeed_8_7_4",
       "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
       "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json"
+        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_MULTISPEED_9_STATOR_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -40198,27 +40319,46 @@
       "manufacturer": "VAO",
       "speed_group_rpm": 500,
       "rated_speed_rpm": null,
-      "slot_count": null,
+      "slot_count": 72,
       "model": "ВАО92-4/6/8/12",
       "aliases": [],
       "variant_key": null,
-      "power_kw": null,
+      "power_kw": "stator:33 | stator:18",
       "current_a": null,
       "voltage_v": 380,
       "connection": null,
       "source_n": "",
       "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
+      "pitch": "stator:1-10",
+      "bore_mm": 334,
+      "core_length_mm": 330,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "part": "stator",
+          "poles": 4,
+          "power_kw_source": 33,
+          "speed_rpm_source": 1470,
+          "current_a_source": 68,
+          "connection_source": "YY",
+          "pitch_source": "1-10"
+        },
+        {
+          "part": "stator",
+          "poles": 8,
+          "power_kw_source": 18,
+          "speed_rpm_source": 735,
+          "current_a_source": 50,
+          "connection_source": "DELTA"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "likhachev_2004_vao_multispeed_8_7_4",
       "source_title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
       "source_file": "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json"
+        "data/motor_catalog/VAO/VAO_MULTISPEED_6_9_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_MULTISPEED_9_STATOR_SUPPLEMENT.source.json"
       ]
     }
   ]

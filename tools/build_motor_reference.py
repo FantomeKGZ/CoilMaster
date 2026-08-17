@@ -153,8 +153,16 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
     if branches is None:
         branches = winding_set_text(record, "branches")
 
+    current = record.get("current_a")
+    if current is None:
+        current = record.get("current_a_source")
+    voltage = record.get("voltage_v")
+    if voltage is None:
+        voltage = record.get("voltage_source")
+
     model, aliases = source_identity(record)
     sets = source_winding_sets(record)
+    source_file = str(path.relative_to(ROOT)).replace("\\", "/")
     return {
         "reference_only": True,
         "series": doc.get("series") or path.parent.name,
@@ -166,8 +174,8 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "aliases": aliases,
         "variant_key": record.get("variant_key"),
         "power_kw": power,
-        "current_a": record.get("current_a"),
-        "voltage_v": record.get("voltage_v"),
+        "current_a": current,
+        "voltage_v": voltage,
         "connection": record.get("connection_source"),
         "source_n": str(source_n if source_n is not None else ""),
         "wire": str(wire if wire is not None else ""),
@@ -179,16 +187,72 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "status": status(record),
         "source_id": record.get("source_id"),
         "source_title": source_label(doc, record.get("source_id", "")),
-        "source_file": str(path.relative_to(ROOT)).replace("\\", "/"),
+        "source_file": source_file,
+        "source_files": [source_file],
     }
 
 
+def nonempty(value) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, dict, tuple, set)):
+        return bool(value)
+    return True
+
+
+def merge_record(target: dict, supplement: dict) -> None:
+    for alias in supplement.get("aliases") or []:
+        if alias not in target["aliases"] and alias != target.get("model"):
+            target["aliases"].append(alias)
+
+    overwrite_fields = (
+        "rated_speed_rpm", "slot_count", "power_kw", "current_a", "voltage_v", "connection",
+        "source_n", "wire", "pitch", "bore_mm", "core_length_mm", "parallel_branches", "winding_sets",
+    )
+    for field in overwrite_fields:
+        value = supplement.get(field)
+        if nonempty(value):
+            target[field] = value
+
+    if target.get("status") == "REVIEW_REQUIRED" or supplement.get("status") == "REVIEW_REQUIRED":
+        target["status"] = "REVIEW_REQUIRED"
+
+    for source_file in supplement.get("source_files") or []:
+        if source_file not in target["source_files"]:
+            target["source_files"].append(source_file)
+
+
+def merge_key(record: dict) -> tuple[str, str | None, str | None]:
+    return (str(record.get("series") or ""), record.get("model"), record.get("variant_key"))
+
+
 def main() -> None:
-    records: list[dict] = []
+    documents: list[tuple[Path, dict]] = []
     for path in sorted(SOURCE_ROOT.rglob("*.source.json")):
-        doc = json.loads(path.read_text(encoding="utf-8"))
+        documents.append((path, json.loads(path.read_text(encoding="utf-8"))))
+
+    records: list[dict] = []
+    for path, doc in documents:
+        if doc.get("merge_only") is True:
+            continue
         for record in doc.get("records", []):
             records.append(flatten(path, doc, record))
+
+    for path, doc in documents:
+        if doc.get("merge_only") is not True:
+            continue
+        for raw in doc.get("records", []):
+            supplement = flatten(path, doc, raw)
+            key = merge_key(supplement)
+            candidates = [record for record in records if merge_key(record) == key]
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"merge_only record {path.relative_to(ROOT)} {key!r} matched {len(candidates)} base records; expected exactly 1"
+                )
+            merge_record(candidates[0], supplement)
+
     records.sort(key=lambda x: (str(x.get("series")), -(x.get("speed_group_rpm") or 0), x.get("slot_count") or 0, str(x.get("model"))))
     payload = {
         "schema_version": 1,

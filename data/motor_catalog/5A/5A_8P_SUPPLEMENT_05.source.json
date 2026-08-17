@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "5A",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_5a_3_reference",
+      "type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "url": "https://vitkovoe.ru/5a_3_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Literal transcription of two senior 8-pole rows missing from the existing 5A_200_315 and 5A_8P_SUPPLEMENT_03 packages.",
+    "Source .n means conductor count per turn and is preserved as conductor_count_per_turn_source; it is not parallel_strands.",
+    "Source a means winding parallel branches and is preserved separately.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "5AH315S8",
+      "synchronous_speed_rpm": 750,
+      "power_kw": 132.0,
+      "current_a": 155.0,
+      "voltage_v": 660,
+      "conductor_count_per_turn_source": 4,
+      "source_n_value": "24",
+      "wire_diameter_source": "1.5",
+      "winding_pitch_source": "1-8",
+      "winding_layers_source": 2,
+      "parallel_branches_source": 4,
+      "stator_outer_diameter_mm": 530,
+      "stator_bore_mm": 385,
+      "stator_core_length_mm": 310,
+      "slot_count": 72,
+      "source_id": "vitkovoe_5a_3_reference",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    },
+    {
+      "model": "5AH315M8",
+      "synchronous_speed_rpm": 750,
+      "power_kw": 160.0,
+      "current_a": 188.0,
+      "voltage_v": 660,
+      "conductor_count_per_turn_source": 3,
+      "source_n_value": "42",
+      "wire_diameter_source": "1.32",
+      "winding_pitch_source": "1-8",
+      "winding_layers_source": 2,
+      "parallel_branches_source": 8,
+      "stator_outer_diameter_mm": 530,
+      "stator_bore_mm": 385,
+      "stator_core_length_mm": 360,
+      "slot_count": 72,
+      "source_id": "vitkovoe_5a_3_reference",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    }
+  ]
+}

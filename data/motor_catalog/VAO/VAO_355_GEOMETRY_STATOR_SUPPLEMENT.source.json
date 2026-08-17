@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_table_8_33_geometry",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные взрывозащищенных электродвигателей ВАО 355, таблица 8.33",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "The model order and the Dc/dc, core length, air-gap, Z1, pitch, Pe1 and m1 columns are recoverable as ordered row groups from table 8.33.",
+    "a1, wf and conductor columns are intentionally omitted here where the vertical HTML transcription becomes interleaved.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"ВАО355L-2","current_a_source":"260","stator_outer_diameter_mm":590,"stator_bore_mm":320,"stator_core_length_mm":415,"air_gap_mm_source":2.0,"slot_count":48,"winding_pitch_source":"1-15","source_pe1_value":"24","source_m1_value":2,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355M-4","current_a_source":"365/211","stator_outer_diameter_mm":590,"stator_bore_mm":380,"stator_core_length_mm":350,"air_gap_mm_source":1.6,"slot_count":60,"winding_pitch_source":"1-13","source_pe1_value":"8+8","source_m1_value":1,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355L-4","current_a_source":"260","stator_outer_diameter_mm":590,"stator_bore_mm":380,"stator_core_length_mm":430,"air_gap_mm_source":1.6,"slot_count":60,"winding_pitch_source":"1-13","source_pe1_value":"7+7","source_m1_value":1,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355M-6","current_a_source":"297/172","stator_outer_diameter_mm":590,"stator_bore_mm":405,"stator_core_length_mm":350,"air_gap_mm_source":1.0,"slot_count":72,"winding_pitch_source":"1-11","source_pe1_value":"6+7","source_m1_value":1,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355L-6","current_a_source":"365/211","stator_outer_diameter_mm":590,"stator_bore_mm":405,"stator_core_length_mm":430,"air_gap_mm_source":1.0,"slot_count":72,"winding_pitch_source":"1-11","source_pe1_value":"5+6","source_m1_value":1,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355M-8","current_a_source":"250/145","stator_outer_diameter_mm":590,"stator_bore_mm":430,"stator_core_length_mm":350,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-8","source_pe1_value":"5+6","source_m1_value":1,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО355L-8","current_a_source":"303/175","stator_outer_diameter_mm":590,"stator_bore_mm":430,"stator_core_length_mm":430,"air_gap_mm_source":0.8,"slot_count":72,"winding_pitch_source":"1-8","source_pe1_value":"4+5","source_m1_value":2,"source_id":"likhachev_2004_vao_table_8_33_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"}
+  ]
+}

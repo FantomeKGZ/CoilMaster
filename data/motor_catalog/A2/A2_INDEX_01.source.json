@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "series": "A2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_section_8_1",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Справочник обмотчика асинхронных электродвигателей. Раздел 8.1 — А2/АО2",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "These A2 rows are intentionally index-only because the current HTML extraction interleaves winding columns of neighboring A2/AO2 modifications.",
+    "Do not infer Sn, nэ, m, a, w or wire diameter until the row-to-column mapping is unambiguous.",
+    "The source itself defines the winding quantities and contains full winding tables; this file captures only model identity and safely readable rating data."
+  ],
+  "records": [
+    {"model":"А2-61-2","power_kw":17,"rated_speed_rpm":2900,"current_a_source":"57.5/33.2","stator_outer_diameter_mm":291,"stator_bore_mm":153,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-62-2","power_kw":22,"rated_speed_rpm":2900,"current_a_source":"73.5/42.5","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-61-4","power_kw":13,"rated_speed_rpm":1450,"current_a_source":"43/25","stator_outer_diameter_mm":291,"stator_bore_mm":153,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-62-4","power_kw":17,"rated_speed_rpm":1450,"current_a_source":"56.5/32.7","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-61-6","power_kw":10,"rated_speed_rpm":965,"current_a_source":"35/20.3","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-72-2","power_kw":40,"rated_speed_rpm":2900,"current_a_source":"129/74.5","stator_outer_diameter_mm":343,"stator_bore_mm":183,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-71-4","power_kw":22,"rated_speed_rpm":1455,"current_a_source":"72.7/42","source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"},
+    {"model":"А2-72-4","power_kw":30,"rated_speed_rpm":1455,"stator_outer_diameter_mm":343,"stator_bore_mm":214,"source_id":"likhachev_2004_section_8_1","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_COLUMNS_PENDING"}
+  ]
+}

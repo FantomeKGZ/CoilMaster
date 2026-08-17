@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_vao_multispeed_8_7_4",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные многоскоростных электродвигателей серии ВАО 6-9-го габаритов, раздел 8.7.4",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Model/pole-combination index for the safely readable VAO multispeed rows in section 8.7.4.",
+    "The source contains detailed stator winding data; these fields are intentionally deferred to merge_only supplements where row-to-column mapping is unambiguous.",
+    "No coil_program is generated and no multispeed pole combination is collapsed into a single winding."
+  ],
+  "records": [
+    {"model":"ВАО61-4/12","pole_combination_source":"4/12","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО62-4/12","pole_combination_source":"4/12","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО71-4/12","pole_combination_source":"4/12","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО72-4/12","pole_combination_source":"4/12","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО71-4/8","pole_combination_source":"4/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО72-4/8","pole_combination_source":"4/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО72-4/6/8","pole_combination_source":"4/6/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО72-4/6","pole_combination_source":"4/6","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО81-4/8","pole_combination_source":"4/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО82-4/8","pole_combination_source":"4/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО91-4/8","pole_combination_source":"4/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО92-4/8","pole_combination_source":"4/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО91-4/6/8","pole_combination_source":"4/6/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО92-4/6/8","pole_combination_source":"4/6/8","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО91-4/6/8/12","pole_combination_source":"4/6/8/12","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"},
+    {"model":"ВАО92-4/6/8/12","pole_combination_source":"4/6/8/12","voltage_v":380,"source_id":"likhachev_2004_vao_multispeed_8_7_4","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_MULTISPEED"}
+  ]
+}

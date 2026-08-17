@@ -8215,8 +8215,10 @@
       "speed_group_rpm": null,
       "rated_speed_rpm": null,
       "slot_count": 36,
-      "model": "АИР225М2 / АИС250М2К",
-      "aliases": [],
+      "model": "АИР225М2",
+      "aliases": [
+        "АИС250М2К"
+      ],
       "variant_key": null,
       "power_kw": 55.0,
       "current_a": null,
@@ -8241,8 +8243,10 @@
       "speed_group_rpm": null,
       "rated_speed_rpm": null,
       "slot_count": 48,
-      "model": "АИР225М4 / АИС250М4К",
-      "aliases": [],
+      "model": "АИР225М4",
+      "aliases": [
+        "АИС250М4К"
+      ],
       "variant_key": null,
       "power_kw": 55.0,
       "current_a": null,
@@ -8267,8 +8271,10 @@
       "speed_group_rpm": null,
       "rated_speed_rpm": null,
       "slot_count": 72,
-      "model": "АИР225М6 / АИС250М6К",
-      "aliases": [],
+      "model": "АИР225М6",
+      "aliases": [
+        "АИС250М6К"
+      ],
       "variant_key": null,
       "power_kw": 37.0,
       "current_a": null,
@@ -8293,8 +8299,10 @@
       "speed_group_rpm": null,
       "rated_speed_rpm": null,
       "slot_count": 72,
-      "model": "АИР225М8 / АИС250М8К",
-      "aliases": [],
+      "model": "АИР225М8",
+      "aliases": [
+        "АИС250М8К"
+      ],
       "variant_key": null,
       "power_kw": 30.0,
       "current_a": null,

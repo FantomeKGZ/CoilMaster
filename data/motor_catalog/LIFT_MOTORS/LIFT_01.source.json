@@ -30,8 +30,9 @@
     {
       "model":"3АН280МВ 6/24","variant_key":"3AN280MV-6-24-reference","voltage_v":380,"connection_source":"Y","slot_count":72,"stator_bore_mm":325,"stator_core_length_mm":235,
       "winding_sets":[
-        {"name":"6-pole","rated_speed_rpm":945,"power_kw":14.0,"current_a_source":"31.8","wire_diameter_source":"1.32","conductors_per_turn_source":2,"source_n_value":"18","winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":3}
-      ],"source_id":"vitkovoe_lift_1","normalization_status":"REVIEW_REQUIRED_MULTI_WINDING_INCOMPLETE_SECOND_SET"
+        {"name":"6-pole","rated_speed_rpm":945,"power_kw":14.0,"current_a_source":"31.8","wire_diameter_source":"1.32","conductors_per_turn_source":2,"source_n_value":"18","winding_pitch_source":"1-11","layers_source":2,"parallel_branches_source":3},
+        {"name":"24-pole","rated_speed_rpm":205,"power_kw":3.55,"current_a_source":"21.8","wire_diameter_source":"1.5","conductors_per_turn_source":2,"source_n_value":"19","winding_pitch_source":"1-4","layers_source":2,"parallel_branches_source":1}
+      ],"source_id":"vitkovoe_lift_1","normalization_status":"REVIEW_REQUIRED_MULTI_WINDING"
     },
     {
       "model":"АС-72 6/18","variant_key":"AS72-6-18-reference","voltage_v":380,"connection_source":"Y","slot_count":54,"stator_bore_mm":245,"stator_core_length_mm":135,

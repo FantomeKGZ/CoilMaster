@@ -46,7 +46,7 @@ def core_length(record: dict):
 
 def status(record: dict) -> str:
     marker = str(record.get("normalization_status", ""))
-    if any(word in marker for word in ("SUSPECT", "REVIEW", "CONFLICT")):
+    if any(word in marker for word in ("SUSPECT", "REVIEW", "CONFLICT", "COMPOUND")):
         return "REVIEW_REQUIRED"
     return "REFERENCE"
 
@@ -63,6 +63,7 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
     if wire is None:
         wire = record.get("wire_diameter_mm")
     return {
+        "reference_only": True,
         "series": doc.get("series") or path.parent.name,
         "manufacturer": doc.get("series") or path.parent.name,
         "speed_group_rpm": speed_group(record),

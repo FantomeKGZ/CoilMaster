@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "SINGLE_PHASE",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_single_phase",
+      "type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные однофазных электродвигателей",
+      "url": "https://vitkovoe.ru/odno_faz_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Working and starting windings are preserved as separate winding_sets.",
+    "Capacitor text is preserved source-native and is not interpreted as a machine control setting.",
+    "No coil_program is generated from these records."
+  ],
+  "records": [
+    {
+      "model": "АИРЕ80С2У3",
+      "variant_key": "AIRE80S2U3-220V-reference",
+      "rated_speed_rpm": 3000,
+      "power_kw": 2.2,
+      "current_a": 14.6,
+      "voltage_v": 220,
+      "slot_count": 24,
+      "stator_outer_diameter_mm": 122,
+      "stator_bore_mm": 62,
+      "stator_core_length_mm": 125,
+      "insulation_class_source": "F",
+      "capacitor_source": "рабочий = 50 мкФ",
+      "winding_sets": [
+        {"name":"рабочая","source_n_value":"20","wire_diameter_source":"0.95×2","winding_pitch_source":"11;9;7;5","parallel_branches_source":1,"wire_mass_kg":1.8},
+        {"name":"пусковая","source_n_value":"45","wire_diameter_source":"0.95","winding_pitch_source":"11;9","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_single_phase",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING"
+    },
+    {
+      "model": "WA10050TE",
+      "variant_key": "WA10050TE-220V-reference",
+      "rated_speed_rpm": 1500,
+      "power_kw_source": "-",
+      "current_a_source": "-",
+      "voltage_v": 220,
+      "slot_count": 24,
+      "stator_core_length_mm": 50,
+      "capacitor_source": "рабочий = 10 мкФ",
+      "winding_sets": [
+        {"name":"рабочая","source_n_value":"120;60","wire_diameter_source":"0.51","winding_pitch_source":"5;3","parallel_branches_source":1},
+        {"name":"пусковая","source_n_value":"120;60","wire_diameter_source":"0.51","winding_pitch_source":"5;3","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_single_phase",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING"
+    },
+    {
+      "model": "Агидель",
+      "variant_key": "Agidel-220V-reference",
+      "rated_speed_rpm": 3000,
+      "power_kw_source": "-",
+      "current_a_source": "-",
+      "voltage_v": 220,
+      "slot_count": 24,
+      "stator_bore_mm": 70,
+      "stator_core_length_mm": 55,
+      "capacitor_source": "рабочий = 6 мкФ",
+      "winding_sets": [
+        {"name":"рабочая","source_n_value":"70","wire_diameter_source":"0.60","winding_pitch_source":"11;9;7;5","parallel_branches_source":1}
+      ],
+      "source_id": "vitkovoe_single_phase",
+      "normalization_status": "REVIEW_REQUIRED_MULTI_WINDING"
+    }
+  ]
+}

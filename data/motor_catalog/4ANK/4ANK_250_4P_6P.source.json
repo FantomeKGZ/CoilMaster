@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "series": "4ANK",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "table_6_16_4ank_ip23",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "Таблица 6.16. Обмоточные данные электродвигателей 4АНК, IP23",
+    "url": "https://lektsii.org/17-49351.html",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only the unambiguous 4-pole and 6-pole 250-frame rows are captured here; 8-pole labels are deferred because the HTML transcription alternates SA/SB/S labels.",
+    "Stator and phase-rotor winding data are preserved separately and source-native.",
+    "Rectangular phase-rotor conductor dimensions are preserved literally.",
+    "Sп and n/a are not mapped to CoilMaster coil_program or parallel_strands."
+  ],
+  "records": [
+    {"model":"4АНК250SA4У3","poles":4,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":290,"stator_core_length_mm":180,"slot_count":60,"rotor_slot_count":72,"source_id":"table_6_16_4ank_ip23","winding_sets_source":[{"part":"stator","pitch_source":"10-13","sp_source":"10+10","n_over_a_source":"4/4","d_over_dprime_source":"1.45/1.53","winding_factor_source":0.910,"mean_turn_length_mm_source":980,"resistance_20c_ohm_source":0.0331,"winding_mass_kg_source":35.1},{"part":"rotor","pitch_source":"1-19","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(2.44×16.8)/(3.44×17.8)","mean_turn_length_mm_source":1050,"winding_factor_source":0.956,"resistance_20c_ohm_source":0.0111,"winding_mass_kg_source":28.1}],"normalization_status":"REVIEW_REQUIRED_RECTANGULAR_PHASE_ROTOR"},
+    {"model":"4АНК250SB4У3","poles":4,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":290,"stator_core_length_mm":220,"slot_count":60,"rotor_slot_count":72,"source_id":"table_6_16_4ank_ip23","winding_sets_source":[{"part":"stator","sp_source":"8+8","n_over_a_source":"5/4","d_over_dprime_source":"1.5/1.58","mean_turn_length_mm_source":1060,"resistance_20c_ohm_source":0.0214,"winding_mass_kg_source":40.8},{"part":"rotor","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(2.44×16.8)/(3.44×17.8)","mean_turn_length_mm_source":1130,"resistance_20c_ohm_source":0.012,"winding_mass_kg_source":"30..2"}],"normalization_status":"REVIEW_REQUIRED_RECTANGULAR_PHASE_ROTOR_OCR_MASS"},
+    {"model":"4АНК250M4У3","poles":4,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":290,"stator_core_length_mm":260,"slot_count":60,"rotor_slot_count":72,"source_id":"table_6_16_4ank_ip23","winding_sets_source":[{"part":"stator","sp_source":"7+7","n_over_a_source":"5/4","d_over_dprime_source":"1.56/1.64","mean_turn_length_mm_source":1140,"resistance_20c_ohm_source":0.0186,"winding_mass_kg_source":41.5},{"part":"rotor","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(2.44×16.8)/(3.44×17.8)","mean_turn_length_mm_source":1210,"resistance_20c_ohm_source":0.0128,"winding_mass_kg_source":32.4}],"normalization_status":"REVIEW_REQUIRED_RECTANGULAR_PHASE_ROTOR"},
+    {"model":"4АНК250SA6У3","poles":6,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":180,"slot_count":72,"rotor_slot_count":81,"source_id":"table_6_16_4ank_ip23","winding_sets_source":[{"part":"stator","pitch_source":"1-11","sp_source":"8+9*2","n_over_a_source":"5/3","d_over_dprime_source":"1.18/1.26","winding_factor_source":0.925,"mean_turn_length_mm_source":855,"resistance_20c_ohm_source":0.0633,"winding_mass_kg_source":25.8},{"part":"rotor","pitch_source":"1-15 1-14","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(2.44×16.8)/(3.44×17.8)","mean_turn_length_mm_source":920,"winding_factor_source":0.954,"resistance_20c_ohm_source":0.0109,"winding_mass_kg_source":27.4}],"normalization_status":"REVIEW_REQUIRED_RECTANGULAR_PHASE_ROTOR"},
+    {"model":"4АНК250SB6У3","poles":6,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":220,"slot_count":72,"rotor_slot_count":81,"source_id":"table_6_16_4ank_ip23","winding_sets_source":[{"part":"stator","sp_source":"7+7","n_over_a_source":"4/3","d_over_dprime_source":"1.5/1.58","mean_turn_length_mm_source":935,"resistance_20c_ohm_source":0.0441,"winding_mass_kg_source":30.1},{"part":"rotor","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(2.44×16.8)/(3.44×17.8)","mean_turn_length_mm_source":1000,"resistance_20c_ohm_source":0.0119,"winding_mass_kg_source":29.8}],"normalization_status":"REVIEW_REQUIRED_RECTANGULAR_PHASE_ROTOR"},
+    {"model":"4АНК250M6У3","poles":6,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":280,"slot_count":72,"rotor_slot_count":81,"source_id":"table_6_16_4ank_ip23","winding_sets_source":[{"part":"stator","sp_source":"5+6*3","n_over_a_source":"5/3","d_over_dprime_source":"1.5/1.58","mean_turn_length_mm_source":1055,"resistance_20c_ohm_source":0.0313,"winding_mass_kg_source":33.3},{"part":"rotor","sp_source":"1+1","n_over_a_source":"1/1","d_over_dprime_source":"(2.44×16.8)/(3.44×17.8)","mean_turn_length_mm_source":1120,"resistance_20c_ohm_source":0.0133,"winding_mass_kg_source":33.5}],"normalization_status":"REVIEW_REQUIRED_RECTANGULAR_PHASE_ROTOR"}
+  ]
+}

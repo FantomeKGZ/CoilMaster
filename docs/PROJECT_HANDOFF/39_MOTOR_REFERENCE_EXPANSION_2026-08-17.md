@@ -81,6 +81,7 @@ data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_03.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_04.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_05.source.json
 data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_06.source.json
+data/motor_catalog/LIFT_MOTORS/LIFT_SERIES_SUPPLEMENT_03.source.json
 ```
 
 The AIR/AIS repair layer includes the full currently text-extractable repair-observation tail from `air_ais_2_series.html`, preserving physically distinct variants separately. This includes multiple `АИР160S2` and `АИР100S4` implementations, `АИР180/200/250` repair observations, `АИМ90L4`, and `2АИ90L4ПАУ3`.
@@ -89,7 +90,9 @@ The AIR/AIS technical-reference rows preserve source aliases such as `АИР71А
 
 Standalone AIS coverage now includes the complete currently text-extractable independent AIS rows from `air_ais_series.html`: `АИС80А8`, `АИС132SA2У2`, `АИС132SB2У2`, `АИС132S4У2`, `АИС132М4У2`, `АИС132S6У2`, `АИС132МА6У2`, `АИС132МВ6У2`, `АИС132S8У2`, and `АИС132М8У2`. These are independent physical AIS variants with their own winding/geometry data and are not modeled as AIR aliases.
 
-The senior AIR table contains paired entries such as `АИР225М2 / АИС250М2К`. The generator now converts only that exact spaced source form to a primary model plus aliases, so AIS250 designations become searchable without duplicating the source record or affecting multispeed model names.
+The senior AIR table contains paired entries such as `АИР225М2 / АИС250М2К`. The generator converts only that exact spaced source form to a primary model plus aliases, so AIS250 designations become searchable without duplicating the source record or affecting multispeed model names.
+
+The lift technical-reference layer now includes the currently text-extractable `lift_series.html` reference rows for `3АН`, `4АН`, `АИН`, `АН` and `АС` families. `LIFT_SERIES_SUPPLEMENT_03.source.json` adds 14 missing technical-reference cards including `4АН160S 6/18`, `4АН180S/SB`, `4АН180М 6/24`, `4АН200L`, `4АН225/225М`, `4АН250S/M/МА/MB`, `АИН180М`, `АН180` and `АС-62`. The previously incomplete `3АН280МВ 6/24` card in `LIFT_01.source.json` now contains both 6-pole and 24-pole winding sets. Source `.n` values remain `conductors_per_turn_source`, separate from winding branches.
 
 The 5A supplementary packages preserve the separate 6/8/12-pole table semantics including the source conductor-count-per-turn column `.n`. The latest 6P/12P supplement adds the missing 250/280-frame 6-pole rows plus `5AM315S12` and `5AM315M12`. The senior 8-pole supplement covers the text-extractable 250/280/315-frame 8-pole tail.
 
@@ -106,7 +109,7 @@ The text-extractable `motor_series.html` repair table is currently covered by `r
 After the latest completed source additions, the generated static reference reached:
 
 ```text
-record_count = 944
+record_count = 958
 reference_only = true
 ```
 
@@ -122,7 +125,9 @@ This count is a generated-reference count, **not** a count of VERIFIED productio
 
 `5A` remains `IN_PROGRESS`; ordinary repair/reference rows plus separate 6/8/12-pole technical-reference semantics are preserved without collapsing `.n` into parallel branches.
 
-`6A` remains `PLANNED`: the source index confirms the family exists, but direct searches including likely `6a_series.html`, `6a_2_series.html` and `6a_3_series.html` patterns still do not expose a sufficiently complete text-extractable winding table. Do not synthesize 6A rows from type listings or general technical-characteristic tables.
+`6A` remains `PLANNED`: Vitkovoe confirms a separate 6A section and other sources confirm 6A/6AM type ranges, but current searches still do not expose a reliable winding-data table with `N`, wire and pitch. Do not synthesize 6A winding rows from dimension/performance catalogues.
+
+`A2` remains `PLANNED` as a winding-data family. External catalogues confirm A2 type ranges and performance parameters, but current text extraction still does not provide a reliable A2 winding table with `N`, conductor construction and pitch. AO2 data must not be relabeled as A2.
 
 `RECTANGULAR_LV` remains `PLANNED` as a dedicated series package. A real rectangular-wire repair observation already exists in the mixed repair layer, but the dedicated source table has not yet been captured in a safe complete form.
 
@@ -136,7 +141,7 @@ The A/AD/AL/AOL package already contains the currently surfaced senior legacy ta
 
 Continue without weakening provenance rules:
 
-1. search for additional non-duplicate repair-observation rows outside the now-covered `motor_series.html`, AIR/AIS and mixed multispeed tables;
+1. capture additional technical-reference winding tables that expose complete `N / wire / pitch` rows, including 4AK and multispeed 4A families where source layout is unambiguous;
 2. capture complete 4AM/4AI/4AIM winding tables when a reliable source becomes text-accessible;
 3. capture 6A only from an actual winding-data table containing `N`, wire and pitch;
 4. capture the dedicated low-voltage rectangular-wire table if/when its rows become extractable;

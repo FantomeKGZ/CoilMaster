@@ -15428,13 +15428,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПЭТВП",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -15457,13 +15465,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПЭТВП",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -15486,13 +15502,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -15515,13 +15539,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -15544,13 +15576,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -15573,13 +15613,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16780,13 +16828,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПЭТВП",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16809,13 +16865,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПЭТВП",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16838,13 +16902,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16867,13 +16939,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16896,13 +16976,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -16925,13 +17013,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -18045,13 +18141,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПЭТВП",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "electrical_machines_aok2_table_9_63",
       "source_title": "Справочник по электрическим машинам, таблица 9.63 — АОК2 (АК2)",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -18074,13 +18178,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПЭТВП",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "electrical_machines_aok2_table_9_63",
       "source_title": "Справочник по электрическим машинам, таблица 9.63 — АОК2 (АК2)",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -18103,13 +18215,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -18132,13 +18252,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -18161,13 +18289,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "electrical_machines_aok2_table_9_63",
       "source_title": "Справочник по электрическим машинам, таблица 9.63 — АОК2 (АК2)",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -18190,13 +18326,21 @@
       "bore_mm": null,
       "core_length_mm": null,
       "parallel_branches": null,
-      "winding_sets": null,
+      "winding_sets": [
+        {
+          "component_source": "rotor",
+          "connection_source": "Y",
+          "conductor_grade_source": "ПСД",
+          "normalization_status": "PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"
+        }
+      ],
       "status": "REVIEW_REQUIRED",
       "source_id": "phase_rotor_aok2_technical_table",
       "source_title": "Технические данные электродвигателей с фазным ротором АОК2",
       "source_file": "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json"
+        "data/motor_catalog/AO2/AOK2_5_7_PHASE_ROTOR_INDEX.source.json",
+        "data/motor_catalog/AO2/AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json"
       ]
     },
     {

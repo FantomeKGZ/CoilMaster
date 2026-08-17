@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_multispeed_table_8_36",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Многоскоростные АО2/АОЛ2 3-го габарита, таблица 8.36",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "P=const and M=const 6/4 executions are preserved as separate variants despite sharing the printed model designation.",
+    "The source contains detailed winding geometry and conductor columns; this first layer captures identity safely before selective merge-only enrichment.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"АОЛ2-31-4/2","pole_combination_source":"4/2","variant_key":"AOL2-31-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-32-4/2","pole_combination_source":"4/2","variant_key":"AOL2-32-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-31-6/4","pole_combination_source":"6/4","regime_source":"P=const","variant_key":"AOL2-31-6-4-Pconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-32-6/4","pole_combination_source":"6/4","regime_source":"P=const","variant_key":"AOL2-32-6-4-Pconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-31-6/4","pole_combination_source":"6/4","regime_source":"M=const","variant_key":"AOL2-31-6-4-Mconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-32-6/4","pole_combination_source":"6/4","regime_source":"M=const","variant_key":"AOL2-32-6-4-Mconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-31-6/4/2","pole_combination_source":"6/4/2","variant_key":"AOL2-31-6-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АОЛ2-32-6/4/2","pole_combination_source":"6/4/2","variant_key":"AOL2-32-6-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"АО2-31-4/2","pole_combination_source":"4/2","variant_key":"AO2-31-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-32-4/2","pole_combination_source":"4/2","variant_key":"AO2-32-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-31-6/4","pole_combination_source":"6/4","regime_source":"P=const","variant_key":"AO2-31-6-4-Pconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-32-6/4","pole_combination_source":"6/4","regime_source":"P=const","variant_key":"AO2-32-6-4-Pconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-31-6/4","pole_combination_source":"6/4","regime_source":"M=const","variant_key":"AO2-31-6-4-Mconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-32-6/4","pole_combination_source":"6/4","regime_source":"M=const","variant_key":"AO2-32-6-4-Mconst","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-31-6/4/2","pole_combination_source":"6/4/2","variant_key":"AO2-31-6-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-32-6/4/2","pole_combination_source":"6/4/2","variant_key":"AO2-32-6-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"}
+  ]
+}

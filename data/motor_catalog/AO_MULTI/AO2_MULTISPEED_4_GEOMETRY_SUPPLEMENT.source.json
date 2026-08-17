@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_ao2_multispeed_table_8_37",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Многоскоростные АО2 4-го габарита, таблица 8.37",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches only the two unambiguous 4/2 rows from table 8.37.",
+    "Other 4th-frame multispeed variants are intentionally deferred because the HTML transcription interleaves bore/length rows across 6/4, 8/4 and 6/4/2 executions.",
+    "No coil_program is derived."
+  ],
+  "records": [
+    {"model":"АО2-41-4/2","variant_key":"AO2-41-4-2","stator_outer_diameter_mm":208,"stator_bore_mm":133,"stator_core_length_mm":110,"air_gap_mm_source":0.35,"slot_count":36,"winding_pitch_source":"1-11","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-42-4/2","variant_key":"AO2-42-4-2","stator_outer_diameter_mm":208,"stator_bore_mm":133,"stator_core_length_mm":148,"air_gap_mm_source":0.35,"slot_count":36,"winding_pitch_source":"1-11","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"}
+  ]
+}

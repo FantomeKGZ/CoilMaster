@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "5A",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_5a_3",
+      "type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные электродвигателей серии 5А — 6/8 pole table",
+      "url": "https://vitkovoe.ru/5a_3_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "This supplementary package preserves rows from the separate 5A 6/8-pole source table that were not present in the existing 5A packages.",
+    "The source column .n is preserved as conductor_count_per_turn_source and must not be confused with CoilMaster parallel_strands.",
+    "No coil_program is generated automatically."
+  ],
+  "records": [
+    {
+      "model": "5AM112MA6",
+      "synchronous_speed_rpm": 1000,
+      "power_kw": 3.0,
+      "current_a": 8.08,
+      "voltage_v": 380,
+      "conductor_count_per_turn_source": 1,
+      "source_n_value": "28",
+      "wire_diameter_source": "1.18",
+      "winding_pitch_source": "1-8",
+      "winding_layers_source": 2,
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 191,
+      "stator_bore_mm": 132,
+      "stator_core_length_mm": 105,
+      "slot_count": 54,
+      "source_id": "vitkovoe_5a_3",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    },
+    {
+      "model": "5AM112SA6",
+      "synchronous_speed_rpm": 1000,
+      "power_kw": 3.0,
+      "current_a": 8.08,
+      "voltage_v": 380,
+      "conductor_count_per_turn_source": 2,
+      "source_n_value": "32",
+      "wire_diameter_source": "0.85",
+      "winding_pitch_source": "1-10",
+      "winding_layers_source": 1,
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 154,
+      "stator_core_length_mm": 80,
+      "slot_count": 54,
+      "source_id": "vitkovoe_5a_3",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    },
+    {
+      "model": "5AM112SB6",
+      "synchronous_speed_rpm": 1000,
+      "power_kw": 4.0,
+      "current_a": 9.83,
+      "voltage_v": 380,
+      "conductor_count_per_turn_source": 2,
+      "source_n_value": "26",
+      "wire_diameter_source": "0.95",
+      "winding_pitch_source": "1-10",
+      "winding_layers_source": 1,
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 154,
+      "stator_core_length_mm": 100,
+      "slot_count": 54,
+      "source_id": "vitkovoe_5a_3",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    },
+    {
+      "model": "5A112MB6",
+      "synchronous_speed_rpm": 1000,
+      "power_kw": 4.0,
+      "current_a": 9.83,
+      "voltage_v": 380,
+      "conductor_count_per_turn_source": 1,
+      "source_n_value": "23",
+      "wire_diameter_source": "1.25",
+      "winding_pitch_source": "1-10",
+      "winding_layers_source": 1,
+      "parallel_branches_source": 1,
+      "stator_outer_diameter_mm": 225,
+      "stator_bore_mm": 132,
+      "stator_core_length_mm": 130,
+      "slot_count": 54,
+      "source_id": "vitkovoe_5a_3",
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE"
+    }
+  ]
+}

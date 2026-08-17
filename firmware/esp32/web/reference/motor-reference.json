@@ -41222,35 +41222,6 @@
       "series": "VAO",
       "manufacturer": "VAO",
       "speed_group_rpm": 3000,
-      "rated_speed_rpm": 2970,
-      "slot_count": null,
-      "model": "ВАО355M-2",
-      "aliases": [],
-      "variant_key": null,
-      "power_kw": 200,
-      "current_a": null,
-      "voltage_v": "380/660",
-      "connection": null,
-      "source_n": "",
-      "wire": "",
-      "pitch": "",
-      "bore_mm": null,
-      "core_length_mm": null,
-      "parallel_branches": null,
-      "winding_sets": null,
-      "status": "REVIEW_REQUIRED",
-      "source_id": "likhachev_2004_vao_tables_8_32_8_34",
-      "source_title": "В. Л. Лихачев. Обмоточные данные ВАО с высотой оси 315, 355 и 450 мм, таблицы 8.32–8.34",
-      "source_file": "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
-      "source_files": [
-        "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json"
-      ]
-    },
-    {
-      "reference_only": true,
-      "series": "VAO",
-      "manufacturer": "VAO",
-      "speed_group_rpm": 3000,
       "rated_speed_rpm": 2940,
       "slot_count": null,
       "model": "ВАО51-2",
@@ -41515,6 +41486,36 @@
       "source_files": [
         "data/motor_catalog/VAO/VAO_5_9_INDEX.source.json",
         "data/motor_catalog/VAO/VAO_7_9_STATOR_SUPPLEMENT.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "VAO",
+      "manufacturer": "VAO",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 2970,
+      "slot_count": 48,
+      "model": "ВАО355M-2",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": 200,
+      "current_a": "364/210",
+      "voltage_v": "380/660",
+      "connection": null,
+      "source_n": "",
+      "wire": "2.63×6.9",
+      "pitch": "1-15",
+      "bore_mm": 320,
+      "core_length_mm": 335,
+      "parallel_branches": null,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "likhachev_2004_vao_tables_8_32_8_34",
+      "source_title": "В. Л. Лихачев. Обмоточные данные ВАО с высотой оси 315, 355 и 450 мм, таблицы 8.32–8.34",
+      "source_file": "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
+      "source_files": [
+        "data/motor_catalog/VAO/VAO_315_450_INDEX.source.json",
+        "data/motor_catalog/VAO/VAO_355_2P_STATOR_SUPPLEMENT.source.json"
       ]
     },
     {

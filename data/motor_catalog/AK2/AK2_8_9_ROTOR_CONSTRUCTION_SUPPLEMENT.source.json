@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "series": "AK2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_aok2_ak2_phase_rotor_section",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные фазных роторов АОК2 и АК2 4–9-го габаритов, раздел 8.2",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches the 12 existing AK2 8th-9th frame base cards and must not change record_count.",
+    "Section 8.2 explicitly states AK2/AOK2 8th-9th frame phase rotors use bare copper bars insulated with glass tape.",
+    "Section 8.2 explicitly states phase-rotor windings are connected in Y.",
+    "Exact bar dimensions, Z2, pitch and Pe2/m2/a2/w2 remain deferred until row-by-row mapping is unambiguous.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"АК2-81-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-82-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-91-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-92-4","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-81-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-82-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-91-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-92-6","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-81-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-82-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-91-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"},
+    {"model":"АК2-92-8","winding_sets_source":[{"component_source":"rotor","connection_source":"Y","conductor_type_source":"BARE_COPPER_BAR_GLASS_TAPE_INSULATED","normalization_status":"PHASE_ROTOR_CONSTRUCTION_REFERENCE_ONLY"}],"source_id":"likhachev_aok2_ak2_phase_rotor_section","normalization_status":"REVIEW_REQUIRED_PHASE_ROTOR_CONSTRUCTION"}
+  ]
+}

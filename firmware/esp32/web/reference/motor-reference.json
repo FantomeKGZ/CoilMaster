@@ -5154,7 +5154,7 @@
       "aliases": [],
       "variant_key": null,
       "power_kw": 110,
-      "current_a": null,
+      "current_a": "234",
       "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
@@ -5169,7 +5169,8 @@
       "source_title": "Электродвигатель 4АМ280S4 — технические характеристики",
       "source_file": "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json"
+        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
+        "data/motor_catalog/4AM/4AM_SENIOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -5177,14 +5178,14 @@
       "series": "4AM",
       "manufacturer": "4AM",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1485,
       "slot_count": null,
       "model": "4АМ280М4",
       "aliases": [],
       "variant_key": null,
       "power_kw": 132,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "235",
+      "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -5198,7 +5199,8 @@
       "source_title": "Технические характеристики электродвигателей серий 4А и 4АМ, старшие габариты 280–355",
       "source_file": "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json"
+        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
+        "data/motor_catalog/4AM/4AM_SENIOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -5206,14 +5208,14 @@
       "series": "4AM",
       "manufacturer": "4AM",
       "speed_group_rpm": 1500,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 1485,
       "slot_count": null,
       "model": "4АМ315S4",
       "aliases": [],
       "variant_key": null,
       "power_kw": 160,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "287",
+      "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -5227,7 +5229,8 @@
       "source_title": "Технические характеристики электродвигателей серий 4А и 4АМ, старшие габариты 280–355",
       "source_file": "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json"
+        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
+        "data/motor_catalog/4AM/4AM_SENIOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {
@@ -5241,8 +5244,8 @@
       "aliases": [],
       "variant_key": null,
       "power_kw": 200,
-      "current_a": null,
-      "voltage_v": null,
+      "current_a": "353",
+      "voltage_v": "380/660",
       "connection": null,
       "source_n": "",
       "wire": "",
@@ -5256,7 +5259,8 @@
       "source_title": "Технические характеристики электродвигателей серий 4А и 4АМ, старшие габариты 280–355",
       "source_file": "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
       "source_files": [
-        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json"
+        "data/motor_catalog/4AM/4AM_280_355_INDEX.source.json",
+        "data/motor_catalog/4AM/4AM_SENIOR_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {

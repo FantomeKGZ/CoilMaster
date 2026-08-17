@@ -4,6 +4,7 @@
   "stage": "RAW_TRANSCRIPTION",
   "import_ready": false,
   "reference_only": true,
+  "merge_only": true,
   "sources": [{
     "id": "likhachev_2004_vao_tables_8_29_8_31",
     "source_type": "TECHNICAL_REFERENCE",
@@ -14,6 +15,7 @@
   "notes": [
     "This supplement preserves only stator fields whose row alignment is unambiguous in the HTML extraction: current, active-part geometry, air-gap source value, slot count and pitch.",
     "Пэ1, m1, a1, wф and conductor-size columns are intentionally not reconstructed here where the HTML column order is interleaved.",
+    "merge_only=true means these records enrich the unique VAO index records and must not increase generated record_count.",
     "No coil_program is generated."
   ],
   "records": [

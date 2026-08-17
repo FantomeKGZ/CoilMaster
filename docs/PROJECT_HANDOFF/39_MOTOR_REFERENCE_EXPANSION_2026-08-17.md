@@ -57,6 +57,7 @@ Active coverage includes:
 6. INDEX_ONLY records prove only that a source entry/model exists; they do not contain a usable winding program.
 7. Suspect source values are preserved literally and flagged for review instead of being silently corrected.
 8. Copied mirrors of the same technical table are not independent corroboration.
+9. Source aliases such as AIR/AIS paired designations are preserved in the generated static index as `aliases`; they remain aliases of one source observation and are not duplicated as independent records.
 
 ## Notable latest additions
 
@@ -79,6 +80,8 @@ data/motor_catalog/AO_MULTI/MIXED_MULTISPEED_06.source.json
 
 The AIR/AIS repair layer includes the full currently text-extractable repair-observation tail from `air_ais_2_series.html`, preserving physically distinct variants separately. This includes multiple `АИР160S2` and `АИР100S4` implementations, `АИР180/200/250` repair observations, `АИМ90L4`, and `2АИ90L4ПАУ3`.
 
+The AIR/AIS technical-reference rows preserve source aliases such as `АИР71А2` / `АИС80А2`. The static generator now carries `aliases_in_source` into `aliases`, and both desktop and mobile winding-reference search include those aliases. This makes AIS designations searchable without duplicating the underlying source observation.
+
 The 5A supplementary packages preserve the separate 6/8/12-pole table semantics including the source conductor-count-per-turn column `.n`. The latest 6P/12P supplement adds the missing 250/280-frame 6-pole rows plus `5AM315S12` and `5AM315M12`. The senior 8-pole supplement covers the text-extractable 250/280/315-frame 8-pole tail.
 
 The AIR senior-frame package extends technical-reference coverage beyond the earlier 71–160 first pass through 180/200/225/250 and up to 335/355-frame entries.
@@ -89,18 +92,20 @@ The mixed multispeed layer now covers the currently text-extractable `mnogo_skor
 
 ## Current generated index checkpoint
 
-After the latest completed source additions, the generated static reference reached:
+After the latest completed source additions and alias-preservation rebuild, the generated static reference reached:
 
 ```text
-record_count = 932
+record_count = 934
 reference_only = true
 ```
 
-This count is a generated-reference count, **not** a count of VERIFIED production motors.
+This count is a generated-reference count, **not** a count of VERIFIED production motors. Alias support itself does not create duplicate records.
 
 ## Coverage status notes
 
 `AIR` is `IN_PROGRESS` because coverage now extends well beyond the original 71–160 first-pass boundary and includes both serial reference rows and separate repair observations.
+
+`AIS` is now `IN_PROGRESS`: AIS designations are explicitly present as aliases in the AIR/AIS source table and are searchable in the generated static reference without duplicating source records.
 
 `4AM` is `IN_PROGRESS` because real 4AM-family repair/reference and multispeed observations are present, although a complete authoritative 4AM winding table has not yet been captured.
 
@@ -123,7 +128,8 @@ Continue without weakening provenance rules:
 3. capture 6A only from an actual winding-data table containing `N`, wire and pitch;
 4. capture the dedicated low-voltage rectangular-wire table if/when its rows become extractable;
 5. expand detailed DC records only when image cards can be read reliably — keep index-only entries otherwise;
-6. keep static-reference regeneration and freshness checking mandatory after source changes.
+6. keep alias-preservation in the generated reference and desktop/mobile search;
+7. keep static-reference regeneration and freshness checking mandatory after source changes.
 
 ## Safety boundary unchanged
 

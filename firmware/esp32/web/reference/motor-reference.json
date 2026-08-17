@@ -12524,13 +12524,13 @@
       "series": "A2",
       "manufacturer": "A2",
       "speed_group_rpm": 3000,
-      "rated_speed_rpm": null,
+      "rated_speed_rpm": 2920,
       "slot_count": null,
       "model": "А2-92-2",
       "aliases": [],
       "variant_key": null,
       "power_kw": 125,
-      "current_a": null,
+      "current_a": "387/224",
       "voltage_v": null,
       "connection": null,
       "source_n": "",
@@ -12545,7 +12545,8 @@
       "source_title": "Справочник по электрическим машинам, том 1, таблица 9.51 — технические данные двигателей серии А2",
       "source_file": "data/motor_catalog/A2/A2_INDEX_03.source.json",
       "source_files": [
-        "data/motor_catalog/A2/A2_INDEX_03.source.json"
+        "data/motor_catalog/A2/A2_INDEX_03.source.json",
+        "data/motor_catalog/A2/A2_92_2_ELECTRICAL_SUPPLEMENT.source.json"
       ]
     },
     {

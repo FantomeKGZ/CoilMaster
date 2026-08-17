@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 1388,
+  "record_count": 1390,
   "records": [
     {
       "reference_only": true,
@@ -11449,6 +11449,35 @@
       "speed_group_rpm": 750,
       "rated_speed_rpm": null,
       "slot_count": 48,
+      "model": "5A160M8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": 11.0,
+      "current_a": 22.8,
+      "voltage_v": 380,
+      "connection": null,
+      "source_n": "15",
+      "wire": "1.18",
+      "pitch": "1-7",
+      "bore_mm": 180,
+      "core_length_mm": 195,
+      "parallel_branches": 1,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_5a_3_reference",
+      "source_title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "source_file": "data/motor_catalog/5A/5A_8P_SUPPLEMENT_06.source.json",
+      "source_files": [
+        "data/motor_catalog/5A/5A_8P_SUPPLEMENT_06.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "5A",
+      "manufacturer": "5A",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 48,
       "model": "5A160S8",
       "aliases": [],
       "variant_key": null,
@@ -11556,6 +11585,35 @@
       "source_file": "data/motor_catalog/5A/5A_6P_8P_SUPPLEMENT_02.source.json",
       "source_files": [
         "data/motor_catalog/5A/5A_6P_8P_SUPPLEMENT_02.source.json"
+      ]
+    },
+    {
+      "reference_only": true,
+      "series": "5A",
+      "manufacturer": "5A",
+      "speed_group_rpm": 750,
+      "rated_speed_rpm": null,
+      "slot_count": 72,
+      "model": "5A180M8",
+      "aliases": [],
+      "variant_key": null,
+      "power_kw": 15.0,
+      "current_a": 30.4,
+      "voltage_v": 380,
+      "connection": null,
+      "source_n": "22",
+      "wire": "1.25",
+      "pitch": "1-8",
+      "bore_mm": 209,
+      "core_length_mm": 195,
+      "parallel_branches": 2,
+      "winding_sets": null,
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_5a_3_reference",
+      "source_title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "source_file": "data/motor_catalog/5A/5A_8P_SUPPLEMENT_06.source.json",
+      "source_files": [
+        "data/motor_catalog/5A/5A_8P_SUPPLEMENT_06.source.json"
       ]
     },
     {

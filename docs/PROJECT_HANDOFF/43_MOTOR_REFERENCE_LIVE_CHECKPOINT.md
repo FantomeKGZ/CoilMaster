@@ -1,6 +1,6 @@
 # Motor Reference Live Checkpoint
 
-Updated: 2026-08-18 00:00+06
+Updated: 2026-08-18 00:15+06
 Branch: `cmp-protocol-v1` only. Do not use `main` as source.
 
 Rolling continuation point for the motor winding reference expansion. Update this file after every significant source/architecture block so a new chat can resume immediately.
@@ -14,7 +14,7 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - `merge_only=true` must enrich exactly one base record by `series + model + variant_key`; it must not add duplicate cards.
 
 ## Current generated checkpoint
-- `firmware/esp32/web/reference/motor-reference.json`: **1401 records**
+- `firmware/esp32/web/reference/motor-reference.json`: **1426 records**
 - `reference_only=true`
 - Count is merge-aware.
 - 1380 -> 1382: `1f51cc7`, +2 AO2 standard rating gaps.
@@ -22,6 +22,7 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - 1386 -> 1388: `99ea02b`, +2 missing senior 5AH315 8-pole winding cards.
 - 1388 -> 1390: `9428ca5`, +2 missing 5A160M8 / 5A180M8 winding cards.
 - 1390 -> 1401: `8448461`, +11 missing standard A2 base cards.
+- 1401 -> 1426: `b638de1`, +25 distinct 6000 V VAO450/500/560/630 index cards; `416dd21` then added explicit `...-6000V` variant keys without changing count.
 - Recent A2/4A commits are merge-only/electrical enrichment and do not increase count.
 
 ## Architecture already in place
@@ -49,7 +50,9 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - REPAIR_RECORDS `motor_series.html` is text-complete against `repair_motor_series_01/02`; no new repair cards were found in the latest audit.
 - AOK2: frames 5–7 base cards plus construction/electrical enrichments. Detailed rotor Z2/y2/Pe2/m2/a2/w2/conductor remains pending because current section 8.2 extraction is vertically interleaved.
 - AK2: 12 base cards 81/82/91/92 ×4/6/8P; rotor Y and bare-copper-bar/glass-tape construction merged. Exact rotor dimensions/winding remain pending row-safe mapping.
-- VAO high-frame: VAO450 rectangular stator, VAO355 full/partial stator enrichments, VAO315 S/M 2P/4P partial enrichment. OCR-ambiguous VAO315 6/8/10 identities remain excluded.
+- VAO low/mid/high frame: low-voltage VAO315/355/450 remains covered with index + partial/rich stator supplements; VAO450 includes actual rectangular PSD conductor data for 2/4/6/8/10P.
+- `VAO_450_630_6KV_INDEX.source.json` (`b638de1`, corrected by `416dd21`) adds a separate 6000 V high-frame family: 25 cards across 450/500/560/630 frames and 2/4/6/8 poles. Every row has an explicit `...-6000V` variant key. These are `INDEX_ONLY` and winding_pending.
+- Never transfer the existing 380/660 V VAO450 stator winding data into the 6000 V variants merely because model names overlap; equivalence has not been proven.
 - Dedicated `RECTANGULAR_LV` remains PLANNED because the current Vitkovoe section is image-based, though 4ANK/VAO already provide substantial actual rectangular-conductor examples.
 
 ## Senior 4A table 8.21 — safe electrical pass
@@ -75,20 +78,23 @@ Rolling continuation point for the motor winding reference expansion. Update thi
 - `085c9d0` clean 4A355S4 electrical row.
 - `2ca998f` clean 4A315 M10/S12/M12 electrical rows.
 - `a13fab6` extends 4A355 supplement with S10/M10.
+- `b638de1` adds 25 VAO450–630 6000 V base cards.
+- `416dd21` adds explicit 6000 V variant keys to keep same-name low/high-voltage VAO cards separate.
 
 ## Confirmed workflow checkpoints
-- `64f8cd2`, `085c9d0`, `2ca998f`, `a13fab6`: `Motor reference index` success and `CMP Protocol Tests` success.
+- `64f8cd2`, `085c9d0`, `2ca998f`, `a13fab6`, `416dd21`: `Motor reference index` success and `CMP Protocol Tests` success.
 - Earlier recent A2/5A commits recorded above also passed both specialized workflows.
-- Generated JSON remains confirmed at **1401 records** because these later supplements are merge-only.
+- Generated JSON is now confirmed at **1426 records** after the 25-card 6000 V VAO expansion.
 - Do not generalize these results to all project CI.
 
 ## Exact next continuation point
-1. Continue VAO/rectangular-conductor enrichment where primary text or a clean image card exposes actual conductor dimensions, turns and slot/pitch data; do not OCR-guess ambiguous model identities.
-2. Seek row-safe Pe1/m1/a1/w1/conductor copies for senior 4A/A2/AO2; the electrical-identification pass is now close to its safe limit.
-3. AOK2/AK2 detailed rotor winding remains a high-value target, but only with an independent row-safe copy of section 8.2.
-4. Keep probing textual/mirrored 6A80/90 winding data; no analog transfer.
-5. Direct 4AM winding sources only; never inherit winding from 4A.
-6. Retry dedicated `RECTANGULAR_LV` section if a text mirror or readable source image appears.
+1. Seek direct winding sources for VAO500/560/630 6000 V; keep these new cards winding_pending until an exact voltage/model winding table is recovered.
+2. Continue VAO/rectangular-conductor enrichment where primary text or a clean image card exposes actual conductor dimensions, turns and slot/pitch data; do not OCR-guess ambiguous model identities.
+3. Seek row-safe Pe1/m1/a1/w1/conductor copies for senior 4A/A2/AO2; the electrical-identification pass is near its safe limit.
+4. AOK2/AK2 detailed rotor winding remains a high-value target, but only with an independent row-safe copy of section 8.2.
+5. Keep probing textual/mirrored 6A80/90 winding data; no analog transfer.
+6. Direct 4AM winding sources only; never inherit winding from 4A.
+7. Retry dedicated `RECTANGULAR_LV` section if a text mirror or readable source image appears.
 
 ## Handoff maintenance rule
 After every significant source package, generator/checker change, or new confirmed generated count: fetch this file from `cmp-protocol-v1`, use its current blob SHA, update count/commits/workflow status, and record the exact next continuation target.

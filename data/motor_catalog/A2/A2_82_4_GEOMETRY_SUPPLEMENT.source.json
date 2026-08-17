@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "series": "A2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_section_8_1_table_8_9",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные А2/АО2 8-го габарита, таблица 8.9",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches the existing A2 index record without increasing record_count.",
+    "Only row-aligned rating and active-part geometry are retained; winding turn/conductor columns remain pending where HTML ordering is ambiguous."
+  ],
+  "records": [
+    {
+      "model":"А2-82-4",
+      "power_kw":50,
+      "rated_speed_rpm":1460,
+      "current_a_source":"176/102",
+      "stator_outer_diameter_mm":393,
+      "stator_bore_mm":247,
+      "stator_core_length_mm":190,
+      "air_gap_mm_source":0.9,
+      "source_id":"likhachev_2004_section_8_1_table_8_9",
+      "normalization_status":"REVIEW_REQUIRED_WINDING_COLUMNS_PENDING"
+    }
+  ]
+}

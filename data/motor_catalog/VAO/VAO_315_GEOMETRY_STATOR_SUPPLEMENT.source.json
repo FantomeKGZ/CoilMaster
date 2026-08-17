@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_table_8_32_geometry",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные взрывозащищенных электродвигателей ВАО 315, таблица 8.32",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only fields whose row association is unambiguous in the text transcription are captured.",
+    "Later Pe1/m1/a1/wf/conductor columns are intentionally omitted where the vertical HTML order becomes interleaved.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"ВАО315S-2","current_a_source":"241/139","stator_outer_diameter_mm":520,"stator_bore_mm":290,"stator_core_length_mm":270,"air_gap_mm_source":1.8,"slot_count":48,"winding_pitch_source":"1-14","source_pe1_value":"12","source_id":"likhachev_2004_vao_table_8_32_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО315M-2","current_a_source":"288/166","stator_outer_diameter_mm":520,"stator_bore_mm":290,"stator_core_length_mm":335,"air_gap_mm_source":1.8,"slot_count":48,"winding_pitch_source":"1-14","source_pe1_value":"10","source_id":"likhachev_2004_vao_table_8_32_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО315S-4","current_a_source":"212/140","stator_outer_diameter_mm":520,"stator_bore_mm":340,"stator_core_length_mm":300,"air_gap_mm_source":1.2,"slot_count":60,"winding_pitch_source":"1-13","source_pe1_value":"10","source_id":"likhachev_2004_vao_table_8_32_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"model":"ВАО315M-4","current_a_source":"291/161","stator_outer_diameter_mm":520,"stator_bore_mm":340,"stator_core_length_mm":375,"air_gap_mm_source":1.2,"slot_count":60,"winding_pitch_source":"1-13","source_id":"likhachev_2004_vao_table_8_32_geometry","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"}
+  ]
+}

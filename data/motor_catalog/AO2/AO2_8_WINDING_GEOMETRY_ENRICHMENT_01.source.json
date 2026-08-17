@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_ao2_frame8_winding",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 8-го габарита, таблица 8.9",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only the row-safe stator core length and slot count immediately associated with standard AO2-82-8 are transcribed.",
+    "Pitch, winding type, Pe1/m1/a1/w1 and conductor columns remain omitted because the HTML extraction interleaves neighboring A2/AOP2/AOS2/AOT2/AOK2 and T/X/60 Hz variants.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "АО2-82-8",
+      "variant_key": "AO2-82-8-gapfill",
+      "stator_core_length_mm": 260,
+      "slot_count": 72,
+      "source_id": "likhachev_2004_ao2_frame8_winding",
+      "normalization_status": "REVIEW_REQUIRED_PARTIAL_ROW_SAFE_GEOMETRY_ENRICHMENT"
+    }
+  ]
+}

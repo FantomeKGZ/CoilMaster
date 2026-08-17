@@ -74,6 +74,13 @@ def winding_set_text(record: dict, field: str) -> str | None:
     return " | ".join(parts) if parts else None
 
 
+def source_aliases(record: dict) -> list[str]:
+    aliases = record.get("aliases_in_source")
+    if not isinstance(aliases, list):
+        return []
+    return [str(alias) for alias in aliases if alias is not None and str(alias).strip()]
+
+
 def flatten(path: Path, doc: dict, record: dict) -> dict:
     wire = record.get("wire_diameter_source")
     if wire is None:
@@ -102,6 +109,7 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "rated_speed_rpm": record.get("rated_speed_rpm"),
         "slot_count": record.get("slot_count"),
         "model": record.get("model"),
+        "aliases": source_aliases(record),
         "variant_key": record.get("variant_key"),
         "power_kw": power,
         "current_a": record.get("current_a"),

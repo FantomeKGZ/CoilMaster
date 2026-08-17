@@ -10414,7 +10414,8 @@
       "source_title": "В. Л. Лихачев. Справочник обмотчика асинхронных электродвигателей. Раздел 8.1 — А2/АО2",
       "source_file": "data/motor_catalog/A2/A2_INDEX_02.source.json",
       "source_files": [
-        "data/motor_catalog/A2/A2_INDEX_02.source.json"
+        "data/motor_catalog/A2/A2_INDEX_02.source.json",
+        "data/motor_catalog/A2/A2_82_4_GEOMETRY_SUPPLEMENT.source.json"
       ]
     },
     {

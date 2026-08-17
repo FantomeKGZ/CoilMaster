@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [{
+    "id": "electroceh_ao2_text_table",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "Электроцех — обмоточные данные электродвигателей серии АО2",
+    "url": "https://ruslankhashhenko.narod.ru/ao2.htm",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Text table directly provides slots, coil count, pitch, parallel branches, turns, conductor, wire mass, stator bore/core length and connection.",
+    "Compound turns such as (N+N)×2 and mixed conductor such as 1.50+1.40 are preserved literally and remain review-required.",
+    "Source parallel branches are never treated as conductors-in-hand or CoilMaster parallel_strands.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"АО2-51-8","variant_key":"AO2-51-8-eti","slot_count":36,"coil_count_source":"1 и 2","winding_pitch_source":"4","parallel_branches_source":1,"source_n_value":"(17+17)×2","conductor_source":"1.12","wire_mass_kg":5.85,"stator_bore_mm":173,"stator_core_length_mm":135,"connection_source":"Y","coil_group_count_source":24,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-51-6","variant_key":"AO2-51-6-likhachev","slot_count":36,"coil_count_source":"2","winding_pitch_source":"5","parallel_branches_source":1,"source_n_value":"(15+15)×2","conductor_source":"1.18","wire_mass_kg":6.10,"stator_bore_mm":173,"stator_core_length_mm":135,"connection_source":"Y","coil_group_count_source":18,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-52-8","variant_key":"AO2-52-8-likhachev","slot_count":36,"coil_count_source":"1 и 2","winding_pitch_source":"4","parallel_branches_source":1,"source_n_value":"(13+13)×2","conductor_source":"1.25","wire_mass_kg":7.1,"stator_bore_mm":173,"stator_core_length_mm":190,"connection_source":"Y","coil_group_count_source":24,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-51-4","variant_key":"AO2-51-4-likhachev","slot_count":36,"coil_count_source":"3","winding_pitch_source":"7","parallel_branches_source":1,"source_n_value":"13+13","conductor_source":"1.40+1.32","wire_mass_kg":8.1,"stator_bore_mm":158,"stator_core_length_mm":135,"connection_source":"Y","coil_group_count_source":12,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_MIXED_CONDUCTOR_REFERENCE_ONLY"},
+    {"model":"АО2-52-6","variant_key":"AO2-52-6-likhachev","slot_count":36,"coil_count_source":"2","winding_pitch_source":"5","parallel_branches_source":1,"source_n_value":"(11+11)×2","conductor_source":"1.40","wire_mass_kg":7.8,"stator_bore_mm":173,"stator_core_length_mm":190,"connection_source":"Y","coil_group_count_source":18,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-61-8","variant_key":"AO2-61-8-eti","slot_count":54,"coil_count_source":"2 и 3","winding_pitch_source":"6","parallel_branches_source":1,"source_n_value":"10+10","conductor_source":"1.50+1.40","wire_mass_kg":9.6,"stator_bore_mm":206,"stator_core_length_mm":150,"connection_source":"Y","coil_group_count_source":24,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_MIXED_CONDUCTOR_REFERENCE_ONLY"},
+    {"model":"АО2-51-2","variant_key":"AO2-51-2-eti","slot_count":24,"coil_count_source":"4","winding_pitch_source":"9","parallel_branches_source":1,"source_n_value":"(25+25)×2","conductor_source":"1.25","wire_mass_kg":11.6,"stator_bore_mm":140,"stator_core_length_mm":135,"connection_source":"Y","coil_group_count_source":6,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-52-4","variant_key":"AO2-52-4-likhachev","slot_count":36,"coil_count_source":"3","winding_pitch_source":"7","parallel_branches_source":1,"source_n_value":"(10+10)×3","conductor_source":"1.25","wire_mass_kg":8.9,"stator_bore_mm":158,"stator_core_length_mm":170,"connection_source":"Y","coil_group_count_source":12,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-61-6","variant_key":"AO2-61-6-likhachev","slot_count":54,"coil_count_source":"3","winding_pitch_source":"7","parallel_branches_source":2,"source_n_value":"17+17","conductor_source":"1.60","wire_mass_kg":9.7,"stator_bore_mm":206,"stator_core_length_mm":150,"connection_source":"Y","coil_group_count_source":18,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"},
+    {"model":"АО2-62-8","variant_key":"AO2-62-8-eti","slot_count":54,"coil_count_source":"2 и 3","winding_pitch_source":"6","parallel_branches_source":2,"source_n_value":"(15+15)×2","conductor_source":"1.18","wire_mass_kg":11.2,"stator_bore_mm":206,"stator_core_length_mm":190,"connection_source":"Y","coil_group_count_source":24,"source_id":"electroceh_ao2_text_table","normalization_status":"REVIEW_REQUIRED_COMPOUND_N_REFERENCE_ONLY"}
+  ]
+}

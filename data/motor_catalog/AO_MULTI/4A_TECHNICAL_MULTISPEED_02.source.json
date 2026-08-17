@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "reference_4a_multispeed_tables_6_11_6_14",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Таблицы 6.11–6.14. Обмоточные данные многоскоростных электродвигателей серии 4А",
+      "url": "https://lektsii.org/17-49348.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "reference_4a_multispeed_performance",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Трёх- и четырёхскоростные электродвигатели серии 4А",
+      "url": "https://lektsii.org/17-49264.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Compound multispeed source notation is preserved literally and is not converted to CoilMaster coil_program.",
+    "Where HTML transcription merges footnotes with Sп, only unambiguous values are retained.",
+    "Four-speed 12/8/6/4 machines use two pole-changing winding groups; source values are retained without collapsing them into one winding formula."
+  ],
+  "records": [
+    {"variant_key":"4A100S8-6-4U3-technical","model":"4А100S8/6/4У3","poles_source":"8/6/4","stator_outer_diameter_mm":168,"stator_bore_mm":113,"stator_core_length_mm":110,"slot_count":36,"rotor_slot_count":28,"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"},
+    {"variant_key":"4A100L8-6-4U3-technical","model":"4А100L8/6/4У3","poles_source":"8/6/4","stator_outer_diameter_mm":168,"stator_bore_mm":113,"stator_core_length_mm":140,"slot_count":36,"rotor_slot_count":28,"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"},
+    {"variant_key":"4A100S8-6-4-2U3-technical","model":"4А100S8/6/4/2У3","poles_source":"8/6/4/2","power_kw_source":"0.50/0.63/0.90/1.10","source_id":"reference_4a_multispeed_performance","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"},
+    {"variant_key":"4A100L8-6-4-2U3-technical","model":"4А100L8/6/4/2У3","poles_source":"8/6/4/2","power_kw_source":"0.71/0.85/1.0/1.4","source_id":"reference_4a_multispeed_performance","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"},
+    {"variant_key":"4A160S8-4-2U3-technical","model":"4А160S8/4/2У3","poles_source":"8/4/2","source_id":"reference_4a_multispeed_performance","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"},
+    {"variant_key":"4A160M8-4-2U3-technical","model":"4А160М8/4/2У3","poles_source":"8/4/2","source_id":"reference_4a_multispeed_performance","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"},
+    {"variant_key":"4A180M12-8-6-4U3-technical","model":"4А180М12/8/6/4У3","poles_source":"12/8/6/4","stator_outer_diameter_mm":313,"stator_bore_mm":220,"stator_core_length_mm":170,"slot_count":72,"winding_sets_source":[{"part":"12/6","voltage_source":660,"pitch_source":"1-8","sp_source":"30+30"},{"part":"8/4","pitch_source":"1-11","sp_source":"21+21"}],"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTIPLE_POLE_CHANGING_SETS"},
+    {"variant_key":"4A200M12-8-6-4U3-technical","model":"4А200М12/8/6/4У3","poles_source":"12/8/6/4","stator_outer_diameter_mm":349,"stator_bore_mm":250,"stator_core_length_mm":160,"slot_count":72,"rotor_slot_count":56,"winding_sets_source":[{"part":"12/6","voltage_source":380,"pitch_source":"1-7","sp_source":"15+15"},{"part":"8/4","pitch_source":"1-10","sp_source":"10+10"},{"part":"12/6","voltage_source":660,"pitch_source":"1-7","sp_source":"26+26"},{"part":"8/4","voltage_source":660,"pitch_source":"1-10","sp_source":"17+17"}],"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTIPLE_VOLTAGE_MULTISPEED"},
+    {"variant_key":"4A225M12-8-6-4U3-technical","model":"4А225М12/8/6/4У3","poles_source":"12/8/6/4","stator_outer_diameter_mm":392,"stator_bore_mm":284,"stator_core_length_mm":177,"slot_count":72,"rotor_slot_count":56,"winding_sets_source":[{"part":"12/6","voltage_source":660,"pitch_source":"1-7","sp_source":"21+21"},{"part":"8/4","voltage_source":660,"pitch_source":"1-10","sp_source":"13+13"}],"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTIPLE_POLE_CHANGING_SETS"},
+    {"variant_key":"4A250S12-8-6-4U3-technical","model":"4А250S12/8/6/4У3","poles_source":"12/8/6/4","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":202,"slot_count":72,"rotor_slot_count":56,"winding_sets_source":[{"part":"12/6","voltage_source":380,"pitch_source":"1-7","sp_source":"10+10","branches_source":2},{"part":"8/4","voltage_source":380,"pitch_source":"1-10","sp_source":"7+7","branches_source":2},{"part":"12/6","voltage_source":660,"pitch_source":"1-7","sp_source":"17+18"},{"part":"8/4","voltage_source":660,"pitch_source":"1-10","sp_source":"12+12"}],"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_COMPOUND_TURNS_MULTIVOLTAGE"},
+    {"variant_key":"4A250M12-8-6-4U3-technical","model":"4А250М12/8/6/4У3","poles_source":"12/8/6/4","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":222,"slot_count":72,"rotor_slot_count":56,"winding_sets_source":[{"part":"12/6","voltage_source":380,"pitch_source":"1-7","sp_source":"8+8","branches_source":2},{"part":"8/4","voltage_source":380,"pitch_source":"1-10","sp_source":"6+6","branches_source":2},{"part":"12/6","voltage_source":660,"pitch_source":"1-7","sp_source":"14+14"},{"part":"8/4","voltage_source":660,"pitch_source":"1-10","sp_source":"21+21"}],"source_id":"reference_4a_multispeed_tables_6_11_6_14","normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTIPLE_VOLTAGE_MULTISPEED"}
+  ]
+}

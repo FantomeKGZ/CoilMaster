@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_vao_tables_8_29_8_30",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные ВАО 7-го и 8-го габаритов, таблицы 8.29-8.30",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches existing VAO base cards without increasing record_count.",
+    "Tables 8.29 and 8.30 explicitly give 380/660 V and delta/star connection for these rows.",
+    "No conductor or turn columns are reconstructed where HTML ordering is ambiguous."
+  ],
+  "records": [
+    {"model":"ВАО71-2","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО72-2","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО71-4","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО72-4","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО71-6","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО72-6","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО71-8","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО72-8","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО81-2","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО82-2","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО81-4","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО82-4","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО81-6","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО82-6","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО81-8","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"},
+    {"model":"ВАО82-8","voltage_source":"380/660","connection_source":"DELTA/Y","source_id":"likhachev_2004_vao_tables_8_29_8_30","normalization_status":"REVIEW_REQUIRED_SOURCE_NATIVE"}
+  ]
+}

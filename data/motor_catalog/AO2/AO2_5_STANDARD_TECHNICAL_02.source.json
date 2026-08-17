@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_frame5_standard_part2",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 5-го габарита",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Only row-safe model/rating/geometry/stator fields are transcribed from the text representation.",
+    "Vertically interleaved later winding columns are intentionally omitted rather than guessed.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-52-4-likhachev","model":"АО2-52-4","power_kw":10,"rated_speed_rpm":1450,"current_a_source":"34/19.7","stator_outer_diameter_mm":243,"stator_bore_mm":158,"stator_core_length_mm":170,"air_gap_mm_source":0.45,"slot_count":36,"winding_pitch_source":"1-8","winding_type_source":"Двухслойная","source_id":"likhachev_2004_ao2_frame5_standard_part2","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"variant_key":"AO2-52-6-likhachev","model":"АО2-52-6","power_kw":7.5,"rated_speed_rpm":970,"current_a_source":"27.5/15.9","stator_outer_diameter_mm":243,"stator_bore_mm":173,"stator_core_length_mm":190,"slot_count":36,"winding_pitch_source":"1-5","winding_type_source":"Двухслойная","source_id":"likhachev_2004_ao2_frame5_standard_part2","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"},
+    {"variant_key":"AO2-52-8-likhachev","model":"АО2-52-8","power_kw":5.5,"rated_speed_rpm":725,"current_a_source":"18.5/10.6","stator_outer_diameter_mm":243,"stator_bore_mm":173,"stator_core_length_mm":190,"air_gap_mm_source":0.4,"slot_count":36,"winding_pitch_source":"1-5","winding_type_source":"Двухслойная","source_id":"likhachev_2004_ao2_frame5_standard_part2","normalization_status":"REVIEW_REQUIRED_PARTIAL_STATOR_SOURCE_NATIVE"}
+  ]
+}

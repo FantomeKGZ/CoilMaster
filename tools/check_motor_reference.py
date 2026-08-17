@@ -26,11 +26,30 @@ def load_generator():
 
 
 def expected_records(builder) -> list[dict]:
-    records: list[dict] = []
+    documents: list[tuple[Path, dict]] = []
     for path in sorted(builder.SOURCE_ROOT.rglob("*.source.json")):
-        doc = json.loads(path.read_text(encoding="utf-8"))
+        documents.append((path, json.loads(path.read_text(encoding="utf-8"))))
+
+    records: list[dict] = []
+    for path, doc in documents:
+        if doc.get("merge_only") is True:
+            continue
         for record in doc.get("records", []):
             records.append(builder.flatten(path, doc, record))
+
+    for path, doc in documents:
+        if doc.get("merge_only") is not True:
+            continue
+        for raw in doc.get("records", []):
+            supplement = builder.flatten(path, doc, raw)
+            key = builder.merge_key(supplement)
+            candidates = [record for record in records if builder.merge_key(record) == key]
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"merge_only record {path.relative_to(ROOT)} {key!r} matched {len(candidates)} base records; expected exactly 1"
+                )
+            builder.merge_record(candidates[0], supplement)
+
     records.sort(key=lambda x: (str(x.get("series")), -(x.get("speed_group_rpm") or 0), x.get("slot_count") or 0, str(x.get("model"))))
     return records
 
@@ -44,6 +63,7 @@ def stable_identity(record: dict) -> tuple:
         record.get("source_n"),
         record.get("wire"),
         record.get("pitch"),
+        tuple(record.get("source_files") or []),
     )
 
 

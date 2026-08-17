@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_frame7_standard",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные электродвигателей А2/АО2 7-го габарита",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "This layer captures only ordinary single-speed AO2 model/rating rows whose identity is unambiguous.",
+    "Geometry and detailed winding columns are deferred where the HTML transcription interleaves neighboring A2/AOP2/AOS2/AOT2/AOK2 rows.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"variant_key":"AO2-71-6-likhachev","model":"АО2-71-6","power_kw":17,"rated_speed_rpm":970,"current_a_source":"55.3/32","source_id":"likhachev_2004_ao2_frame7_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-72-6-likhachev","model":"АО2-72-6","power_kw":22,"rated_speed_rpm":970,"current_a_source":"71/41","source_id":"likhachev_2004_ao2_frame7_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-71-8-likhachev","model":"АО2-71-8","power_kw":13,"rated_speed_rpm":725,"source_id":"likhachev_2004_ao2_frame7_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"variant_key":"AO2-72-8-likhachev","model":"АО2-72-8","power_kw":17,"rated_speed_rpm":725,"current_a_source":"60/35","source_id":"likhachev_2004_ao2_frame7_standard","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

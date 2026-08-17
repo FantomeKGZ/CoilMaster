@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_ao2_multispeed_table_8_36",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Многоскоростные АО2/АОЛ2 3-го габарита, таблица 8.36",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches existing 3rd-frame multispeed identities without increasing record_count.",
+    "Only the active-part geometry and slot count are retained here because conductor/turn columns are interleaved in the HTML transcription.",
+    "P=const and M=const 6/4 variants remain distinct through variant_key."
+  ],
+  "records": [
+    {"model":"АОЛ2-31-4/2","variant_key":"AOL2-31-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":90,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-32-4/2","variant_key":"AOL2-32-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":117,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-31-6/4","variant_key":"AOL2-31-6-4-Pconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":90,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-32-6/4","variant_key":"AOL2-32-6-4-Pconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":117,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-31-6/4","variant_key":"AOL2-31-6-4-Mconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":90,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-32-6/4","variant_key":"AOL2-32-6-4-Mconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":117,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-31-6/4/2","variant_key":"AOL2-31-6-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":90,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АОЛ2-32-6/4/2","variant_key":"AOL2-32-6-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":117,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+
+    {"model":"АО2-31-4/2","variant_key":"AO2-31-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-32-4/2","variant_key":"AO2-32-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-31-6/4","variant_key":"AO2-31-6-4-Pconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-32-6/4","variant_key":"AO2-32-6-4-Pconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-31-6/4","variant_key":"AO2-31-6-4-Mconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-32-6/4","variant_key":"AO2-32-6-4-Mconst","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-31-6/4/2","variant_key":"AO2-31-6-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":88,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"},
+    {"model":"АО2-32-6/4/2","variant_key":"AO2-32-6-4-2","stator_outer_diameter_mm":180,"stator_bore_mm":112,"stator_core_length_mm":115,"slot_count":36,"source_id":"likhachev_2004_ao2_multispeed_table_8_36","normalization_status":"REVIEW_REQUIRED_MULTISPEED_GEOMETRY_ONLY"}
+  ]
+}

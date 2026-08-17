@@ -1,6 +1,6 @@
 # Motor Reference Live Checkpoint
 
-Updated: 2026-08-17 13:00+06
+Updated: 2026-08-17 13:05+06
 Branch: `cmp-protocol-v1` only. Do not use `main` as source.
 
 This file is the rolling continuation point for the motor winding reference expansion. Update it after every significant source/architecture block so a new chat can resume immediately without reconstructing prior work.
@@ -18,6 +18,7 @@ This file is the rolling continuation point for the motor winding reference expa
 - `reference_only=true`
 - Count is merge-aware; enrichment supplements do not inflate `record_count`.
 - `92c051d` added 18 AOK2 5–7 frame base cards, moving the confirmed count from 1253 to 1271.
+- Subsequent AOK2/AK2 rotor enrichment commits are `merge_only`; count remains 1271.
 
 ## Current architecture additions
 - `tools/build_motor_reference.py` supports `aliases_in_source`, spaced `model / alias` source identities, `winding_sets_source`, and strict `merge_only` enrichment.
@@ -34,9 +35,14 @@ This file is the rolling continuation point for the motor winding reference expa
 - 6A: **IN_PROGRESS**. First source-native `6А90В4` record added from corroborating technical material; contains `uп=70`, `w1=420`, `a1=1`, `I=2.0 A`, with explicit source model-text conflict flag. Do not infer remaining 6A table rows.
 - A2: **IN_PROGRESS** index/reference layer for safely readable senior models; selective merge-only geometry enrichment.
 - AO2/AOL2/AOP2/AOS2/AOT2/AOK2: static reference through currently captured frames; multispeed AO2/AOL2 model layer for frames 1–9 added with separate P=const / M=const variants where source distinguishes them.
-- AOK2 phase-rotor: existing 4th-frame AOK2 stator cards remain in `AO2_41_42.source.json`; `AOK2_5_7_PHASE_ROTOR_INDEX.source.json` adds **18 AOK2 5–7 frame identities** (51/52/61/62/71/72 × 4P/6P/8P). Independent technical tables disagree on some rotor current/voltage values, so the new base layer deliberately stores safe identity/rating data only. Detailed section 8.2 rotor columns remain pending row-safe `merge_only` enrichment.
+- AOK2 phase-rotor:
+  - existing 4th-frame AOK2 stator cards remain in `AO2_41_42.source.json`;
+  - `AOK2_5_7_PHASE_ROTOR_INDEX.source.json` adds **18 AOK2 5–7 frame identities** (51/52/61/62/71/72 × 4P/6P/8P);
+  - `AOK2_4_PHASE_ROTOR_ELECTRICAL_SUPPLEMENT.source.json` merge-enriches AOK2-41/42 4P/6P with rated speed, stator current, rotor current/voltage and rotor Y connection;
+  - `AOK2_5_7_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json` merge-enriches 5th-frame rotors with conductor grade `ПЭТВП`, 6th–7th-frame rotors with `ПСД`, all with Y connection;
+  - detailed Pe2/m2/a2/w2, pitch and conductor dimensions remain pending row-safe mapping from section 8.2.
 - AO_MULTI: Vitkovoe mixed multispeed plus technical 4A multispeed and AO2/AOL2 technical index layers.
-- AK2: **IN_PROGRESS PHASE_ROTOR**. 12 base cards for AK2-81/82/91/92 × 4P/6P/8P added with stator current and rotor current/voltage source fields.
+- AK2: **IN_PROGRESS PHASE_ROTOR**. 12 base cards for AK2-81/82/91/92 × 4P/6P/8P. `AK2_8_9_ROTOR_CONSTRUCTION_SUPPLEMENT.source.json` merge-enriches all 12 with Y rotor connection and source construction `BARE_COPPER_BAR_GLASS_TAPE_INSULATED`; exact bar dimensions remain pending row-safe mapping.
 - CRANE, LIFT, SINGLE_PHASE, GENERATORS, IMPORT, REPAIR_RECORDS, HV, DC index, legacy A/AD/AL/AOL: existing source layers retained; avoid duplicate re-transcription.
 - VAO: **IN_PROGRESS**. Base index for 5–9 frames plus 315/355/450; multispeed VAO 6–9 added; rectangular stator enrichment for VAO450 and VAO355 10P; selective geometry/winding enrichment via merge-only.
 
@@ -58,6 +64,9 @@ This file is the rolling continuation point for the motor winding reference expa
 - `e9c264c` AK2 8–9 phase-rotor base index
 - `b2ce93c` catalog: register AK2 PHASE_ROTOR
 - `92c051d` AOK2 5–7 phase-rotor reference index (+18 base cards)
+- `32f66c8` AOK2 frame-4 phase-rotor electrical merge enrichment
+- `639c9dc` AK2 8–9 rotor construction merge enrichment
+- `de2de05` AOK2 5–7 rotor construction merge enrichment
 - `52002a3` created this live checkpoint
 - `5816c1b` previous 6A/AK2/VAO handoff checkpoint
 
@@ -66,14 +75,16 @@ This file is the rolling continuation point for the motor winding reference expa
 - `e9c264c`: `Motor reference index` success; `CMP Protocol Tests` success.
 - `6185aca`: `Motor reference index` success; `CMP Protocol Tests` success.
 - `92c051d`: `Motor reference index` success; `CMP Protocol Tests` success.
+- `32f66c8`: `Motor reference index` success; `CMP Protocol Tests` success.
+- `639c9dc`: `Motor reference index` success; `CMP Protocol Tests` success.
+- `de2de05`: `Motor reference index` success; `CMP Protocol Tests` success.
 - Do not generalize these to all project CI unless separately confirmed.
 
 ## Exact next continuation point
-1. **AOK2 rotor enrichment**: existing AOK2-41/42 stator cards are already in `AO2_41_42.source.json`; add rotor data only via `merge_only`, never duplicate them as new motors. For 5–7 frames, enrich `AOK2_5_7_PHASE_ROTOR_INDEX` only when section 8.2 row mapping is unambiguous.
-2. **AK2 rotor/winding enrichment**: section 8.2 confirms 8–9 frame rotors use bare copper bars insulated with glass tape; add exact dimensions/slots/turn data only where row mapping is clean.
-3. **6A 80/90**: keep searching for a textual/mirrored form of the image-based winding table. Add only confirmed rows; no OCR guessing.
-4. **4A280/315/355**: separate winding-data section is known to exist, but current HTML extraction does not expose reliable columns yet. Add only when `N / conductor / pitch` map cleanly.
-5. Continue AO2/A2 merge-only enrichment, VAO winding enrichment, then dedicated rectangular-LV source discovery.
+1. **AOK2/AK2 detailed rotor winding**: recover exact row mapping for `Z2`, `y2`, winding type, `Пэ2`, `m2`, `a2`, `w2`, conductor dimensions, rotor wire mass and resistance from section 8.2. Add only row-safe values via `merge_only`; generic construction/connection is already captured.
+2. **6A 80/90**: keep searching for a textual/mirrored form of the image-based winding table. Add only confirmed rows; no OCR guessing. Existing 6A90V4 remains review-required due source model-text conflict.
+3. **4A280/315/355**: separate winding-data section is known to exist, but current HTML extraction does not expose reliable columns yet. Add only when `N / conductor / pitch` map cleanly.
+4. Continue AO2/A2 merge-only enrichment, VAO winding enrichment, then dedicated rectangular-LV source discovery.
 
 ## Handoff maintenance rule
 After every significant source package, generator/checker change, or new confirmed generated count:

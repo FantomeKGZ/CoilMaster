@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "series": "AO2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "eti_aok2_technical_table_14",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические данные электродвигателей с фазным ротором АОК2, таблица 14",
+      "url": "https://eti.su/articles/spravochnik/spravochnik_1803.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "likhachev_aok2_ak2_phase_rotor_section",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные фазных роторов АОК2 и АК2 4–9-го габаритов, раздел 8.2",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "merge_only=true enriches the existing AOK2 4th-frame stator reference cards from AO2_41_42.source.json; it must not add new model cards.",
+    "The technical table gives nominal speed, stator current at 380 V, rotor current and rotor voltage per exact AOK2 model.",
+    "Likhachev section 8.2 states phase-rotor windings are connected in Y.",
+    "Detailed Pe2/m2/a2/w2 and conductor dimensions are not mapped here because the HTML/OCR row alignment remains ambiguous.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "variant_key": "AOK2-41-4",
+      "model": "АОК2-41-4",
+      "rated_speed_rpm": 1410,
+      "current_a": 6.7,
+      "winding_sets_source": [
+        {"component_source":"rotor","connection_source":"Y","current_a_source":"13","voltage_v_source":"185","normalization_status":"PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"}
+      ],
+      "source_id": "eti_aok2_technical_table_14",
+      "normalization_status": "REVIEW_REQUIRED_PHASE_ROTOR_ELECTRICAL_REFERENCE"
+    },
+    {
+      "variant_key": "AOK2-42-4",
+      "model": "АОК2-42-4",
+      "rated_speed_rpm": 1420,
+      "current_a": 8.8,
+      "winding_sets_source": [
+        {"component_source":"rotor","connection_source":"Y","current_a_source":"14","voltage_v_source":"255","normalization_status":"PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"}
+      ],
+      "source_id": "eti_aok2_technical_table_14",
+      "normalization_status": "REVIEW_REQUIRED_PHASE_ROTOR_ELECTRICAL_REFERENCE"
+    },
+    {
+      "variant_key": "AOK2-41-6",
+      "model": "АОК2-41-6",
+      "rated_speed_rpm": 930,
+      "current_a": 5.7,
+      "winding_sets_source": [
+        {"component_source":"rotor","connection_source":"Y","current_a_source":"16","voltage_v_source":"133","normalization_status":"PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"}
+      ],
+      "source_id": "eti_aok2_technical_table_14",
+      "normalization_status": "REVIEW_REQUIRED_PHASE_ROTOR_ELECTRICAL_REFERENCE"
+    },
+    {
+      "variant_key": "AOK2-42-6",
+      "model": "АОК2-42-6",
+      "rated_speed_rpm": 940,
+      "current_a": 7.6,
+      "winding_sets_source": [
+        {"component_source":"rotor","connection_source":"Y","current_a_source":"17","voltage_v_source":"185","normalization_status":"PHASE_ROTOR_ELECTRICAL_REFERENCE_ONLY"}
+      ],
+      "source_id": "eti_aok2_technical_table_14",
+      "normalization_status": "REVIEW_REQUIRED_PHASE_ROTOR_ELECTRICAL_REFERENCE"
+    }
+  ]
+}

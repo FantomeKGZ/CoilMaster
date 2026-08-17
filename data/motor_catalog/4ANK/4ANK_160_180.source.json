@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "series": "4ANK",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "table_6_16_4ank_ip23",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Таблица 6.16. Обмоточные данные электродвигателей 4АНК, IP23",
+      "url": "https://lektsii.org/17-49351.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "The HTML transcription alternates Cyrillic/Latin OCR forms such as 4AHK and 4НK; canonical catalogue model spelling is stored as 4АНК.",
+    "Stator and phase-rotor winding data are preserved separately and source-native.",
+    "Sп and n/a are not mapped to CoilMaster coil_program or parallel_strands.",
+    "d/d' values are preserved literally; no conversion from bare to insulated conductor diameter is inferred."
+  ],
+  "records": [
+    {
+      "model": "4АНК160S4У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","winding_kind_source":"01","pitch_source":"1-12 2-11","sp_source":"26","n_over_a_source":"2/2","d_over_dprime_source":"1.25/1.33","winding_factor_source":0.958,"mean_turn_length_mm_source":690,"resistance_20c_ohm_source":0.261,"winding_mass_kg_source":9.64},
+        {"part":"rotor","slot_figure_source":"6.2, з","slot_b1_b2_mm_source":"9/4.5","slot_h_mm_source":28.3,"slot_e_m_mm_source":"1/3.7","winding_kind_source":"03","pitch_source":"1-8","sp_source":"8+8","n_over_a_source":"3/1","d_over_dprime_source":"1.4/1.48","mean_turn_length_mm_source":625,"winding_factor_source":0.902,"resistance_20c_ohm_source":0.232,"winding_mass_kg_source":7.53}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК160М4У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","sp_source":"20","n_over_a_source":"3/2","d_over_dprime_source":"1.18/1.26","mean_turn_length_mm_source":770,"resistance_20c_ohm_source":0.168,"winding_mass_kg_source":10.9},
+        {"part":"rotor","sp_source":"6+6","n_over_a_source":"4/1","d_over_dprime_source":"1.4/1.48","mean_turn_length_mm_source":705,"resistance_20c_ohm_source":0.147,"winding_mass_kg_source":8.54}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК180S4У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","winding_kind_source":"05","pitch_source":"1-12 2-11 3-10","sp_source":"21","n_over_a_source":"4/2","d_over_dprime_source":"1.12/1.2","winding_factor_source":0.925,"mean_turn_length_mm_source":720,"resistance_20c_ohm_source":0.137,"winding_mass_kg_source":12.9},
+        {"part":"rotor","slot_b1_b2_mm_source":"9.5/5.5","slot_h_mm_source":27,"slot_e_m_mm_source":"1/3.7","pitch_source":"1-8","sp_source":"6+6","n_over_a_source":"5/1","d_over_dprime_source":"1.25/1.33","mean_turn_length_mm_source":685,"winding_factor_source":0.902,"resistance_20c_ohm_source":0.144,"winding_mass_kg_source":8.23}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК180М4У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","sp_source":"15","n_over_a_source":"4/2","d_over_dprime_source":"1.32/1.4","mean_turn_length_mm_source":820,"resistance_20c_ohm_source":0.0802,"winding_mass_kg_source":14.5},
+        {"part":"rotor","sp_source":"4+4","n_over_a_source":"5/1","d_over_dprime_source":"1.56/1.64","mean_turn_length_mm_source":785,"resistance_20c_ohm_source":0.0704,"winding_mass_kg_source":9.84}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК180S6У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","winding_kind_source":"03","pitch_source":"1-11","sp_source":"16+16","n_over_a_source":"1/3","d_over_dprime_source":"1.5/1.58","winding_factor_source":0.925,"mean_turn_length_mm_source":620,"resistance_20c_ohm_source":0.267,"winding_mass_kg_source":11.4},
+        {"part":"rotor","slot_b1_b2_mm_source":"6.8/3.9","slot_h_mm_source":27,"slot_e_m_mm_source":"1/3.7","pitch_source":"1-8","sp_source":"4+4","n_over_a_source":"4/1","d_over_dprime_source":"1.4/1.48","mean_turn_length_mm_source":565,"winding_factor_source":0.902,"resistance_20c_ohm_source":0.118,"winding_mass_kg_source":7.94}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК180М6У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","sp_source":"12+12","n_over_a_source":"2/3","d_over_dprime_source":"1.25/1.33","mean_turn_length_mm_source":700,"resistance_20c_ohm_source":0.163,"winding_mass_kg_source":13.4},
+        {"part":"rotor","sp_source":"5+5","n_over_a_source":"3/1","d_over_dprime_source":"1.45/1.53","mean_turn_length_mm_source":645,"resistance_20c_ohm_source":0.209,"winding_mass_kg_source":7.83}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК180S8У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","pitch_source":"1-8","sp_source":"23+23","n_over_a_source":"1/4","d_over_dprime_source":"1.25/1.33","winding_factor_source":0.902,"mean_turn_length_mm_source":635,"resistance_20c_ohm_source":0.319,"winding_mass_kg_source":11.7},
+        {"part":"rotor","slot_b1_b2_mm_source":"7.9/4.8","slot_h_mm_source":27,"slot_e_m_mm_source":"1/3.7","pitch_source":"1-6","sp_source":"7+7","n_over_a_source":"3/1","d_over_dprime_source":"1.4/1.48","mean_turn_length_mm_source":620,"winding_factor_source":0.933,"resistance_20c_ohm_source":0.268,"winding_mass_kg_source":8.74}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    },
+    {
+      "model": "4АНК180М8У3",
+      "source_id": "table_6_16_4ank_ip23",
+      "winding_sets_source": [
+        {"part":"stator","sp_source":"18+18","n_over_a_source":"2/4","d_over_dprime_source":"1/1.08","mean_turn_length_mm_source":735,"resistance_20c_ohm_source":0.226,"winding_mass_kg_source":13.5},
+        {"part":"rotor","sp_source":"5+5","n_over_a_source":"4/1","d_over_dprime_source":"1.45/1.53","mean_turn_length_mm_source":720,"resistance_20c_ohm_source":0.156,"winding_mass_kg_source":10.3}
+      ],
+      "normalization_status": "REVIEW_REQUIRED_SOURCE_NATIVE_PHASE_ROTOR"
+    }
+  ]
+}

@@ -7,6 +7,8 @@ It now serves two deliberately separated purposes:
 1. a **read-only winding reference** containing source-native and not-yet-verified motor data;
 2. a source for **working motor database imports** only after a record is normalized and sufficiently verified.
 
+The project goal is maximum practical reference coverage without weakening the trust boundary of the working database. See `COVERAGE.md` for the complete population roadmap.
+
 The read-only reference is allowed to contain uncertain, conflicting, compound or incomplete winding notation as long as provenance and warnings are preserved. The working motor database must not receive those records until the required CoilMaster semantics are proven.
 
 ## Layout
@@ -15,6 +17,7 @@ The read-only reference is allowed to contain uncertain, conflicting, compound o
 - one source/staging JSON package per frame-size/model group while technical semantics are still being verified;
 - one import-ready JSON package per frame-size/model group only after all required CoilMaster fields are supported by the source or a documented calculation;
 - `catalog.json` is the catalogue index and population-status registry;
+- `COVERAGE.md` defines the maximum-coverage target and population order;
 - import packages must follow `docs/MOTOR_IMPORT_FORMAT.md`;
 - package size must remain within the importer limit of 1–50 records.
 
@@ -70,26 +73,22 @@ The original `*.source.json` record remains unchanged after promotion so provena
 12. `coil_program` represents the ordered turns of individual coils/program steps used by CoilMaster; source data must support that ordered sequence before an import-ready package is created.
 13. A record may appear in the static reference even when rule 12 is not yet satisfied; it must remain visibly reference-only and must not be used as a machine program.
 
-## Initial series plan
+## Coverage scope
 
-The catalogue is populated in controlled passes. The first priority is AIR/AIS, then Soviet/common CIS series, crane motors, and finally imported manufacturer families.
+The catalogue is intended to grow beyond a few popular series. Tracked coverage includes:
 
-Initial groups tracked by `catalog.json`:
+- AIR / AIS;
+- 4A / 4AH, 4AM / 4AI / 4AIM;
+- 5A and 6A families;
+- A / AD / AL / AOL legacy families;
+- A2 / AO2 and related AOS2 / AOT2 / AOL2 / AOLS2 variants;
+- multispeed AO / AO2 motors;
+- crane-motor families;
+- repair-observation records from mixed motor series;
+- ABB, Siemens, WEG, SEW-Eurodrive, NORD and other imported manufacturers;
+- unidentified/rare records retained separately until identification is reliable.
 
-- AIR
-- AIS
-- 4A
-- 4AM
-- A2
-- AO2
-- AO
-- AOL
-- MT
-- MTK
-- ABB
-- SIEMENS
-- WEG
-- OTHER
+`catalog.json` is the machine-readable population registry; `COVERAGE.md` is the human-readable completeness roadmap.
 
 ## Workflow
 

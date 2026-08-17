@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "series": "4AK",
+  "frame_size": 250,
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "reference_book_table_6_15_4ak",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Таблица 6.15. Обмоточные данные электродвигателей с фазным ротором; степень защиты IP44",
+      "url": "https://lektsii.org/17-49350.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "phase_rotor_type_crosscheck",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Технические данные асинхронных двигателей с фазным ротором единой серии 4А",
+      "url": "https://studfile.net/preview/2893283/page:11/",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "normalization_notes": [
+    "The secondary source is used only to resolve OCR-corrupted model labels in the web transcription of table 6.15.",
+    "Sп, n/a and d/d' remain source-native and are not mapped to CoilMaster coil_program or parallel_strands.",
+    "Where a second d' value is not reliably visible, the wire field is deliberately left as the visible source value only."
+  ],
+  "records": [
+    {"model":"4АК250SА4У3","pole_count":4,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":290,"stator_core_length_mm":180,"slot_count":60,"rotor_slot_count":72,"winding_pitch_source":"1-13","source_sp_value":"11+11","source_n_over_a_text":"4 / 4","wire_diameter_source":"1.40","winding_factor_source":"0.910","mean_turn_length_mm_source":980,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"},
+    {"model":"4АК250SВ4У3","pole_count":4,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":290,"stator_core_length_mm":220,"slot_count":60,"rotor_slot_count":72,"winding_pitch_source":"1-13","source_sp_value":"9+9","source_n_over_a_text":"5 / 4","wire_diameter_source":"1.40","winding_factor_source":"0.910","mean_turn_length_mm_source":1060,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"},
+    {"model":"4АК250М4У3","pole_count":4,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":290,"stator_core_length_mm":260,"slot_count":60,"rotor_slot_count":72,"winding_pitch_source":"1-13","source_sp_value":"7+7","source_n_over_a_text":"6 / 4","wire_diameter_source":"1.48","mean_turn_length_mm_source":1140,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"},
+    {"model":"4АК250S6У3","pole_count":6,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":180,"slot_count":72,"rotor_slot_count":81,"winding_pitch_source":"1-11","source_sp_value":"8+9","source_n_over_a_text":"4 / 3","wire_diameter_source":"1.32","winding_factor_source":"0.925","mean_turn_length_mm_source":855,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"},
+    {"model":"4АК250М6У3","pole_count":6,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":240,"slot_count":72,"rotor_slot_count":81,"winding_pitch_source":"1-11","source_sp_value":"7+7","source_n_over_a_text":"5 / 3","wire_diameter_source":"1.40","mean_turn_length_mm_source":975,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"},
+    {"model":"4АК250S8У3","pole_count":8,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":180,"slot_count":72,"rotor_slot_count":84,"winding_pitch_source":"1-8","source_sp_value":"15+15","source_n_over_a_text":"2 / 4","wire_diameter_source":"1.40 / 1.48","winding_factor_source":"0.902","mean_turn_length_mm_source":755,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"},
+    {"model":"4АК250М8У3","pole_count":8,"voltage_source":"220/380","stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":240,"slot_count":72,"rotor_slot_count":84,"winding_pitch_source":"1-8","source_sp_value":"12+12","source_n_over_a_text":"4 / 4","wire_diameter_source":"1.12 / 1.20","mean_turn_length_mm_source":875,"source_id":"reference_book_table_6_15_4ak","normalization_status":"REVIEW_REQUIRED_TABLE_FRACTION_SEMANTICS"}
+  ]
+}

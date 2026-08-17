@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 545,
+  "record_count": 548,
   "records": [
     {
       "reference_only": true,
@@ -14542,6 +14542,120 @@
       "source_id": "vitkovoe_repair_motor_series",
       "source_title": "Справочник электрообмотчика. Обмоточные данные электродвигателей",
       "source_file": "data/motor_catalog/REPAIR_RECORDS/repair_motor_series_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "АИРЕ80С2У3",
+      "variant_key": "AIRE80S2U3-220V-reference",
+      "power_kw": 2.2,
+      "current_a": 14.6,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:20 | winding:45",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 62,
+      "core_length_mm": 125,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "20",
+          "wire_diameter_source": "0.95×2",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 1.8
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "45",
+          "wire_diameter_source": "0.95",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "Агидель",
+      "variant_key": "Agidel-220V-reference",
+      "power_kw": "-",
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:70",
+      "wire": "",
+      "pitch": "winding:11;9;7;5",
+      "bore_mm": 70,
+      "core_length_mm": 55,
+      "parallel_branches": "winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "70",
+          "wire_diameter_source": "0.60",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "SINGLE_PHASE",
+      "manufacturer": "SINGLE_PHASE",
+      "speed_group_rpm": 1500,
+      "rated_speed_rpm": 1500,
+      "slot_count": 24,
+      "model": "WA10050TE",
+      "variant_key": "WA10050TE-220V-reference",
+      "power_kw": "-",
+      "current_a": null,
+      "voltage_v": 220,
+      "connection": null,
+      "source_n": "winding:120;60 | winding:120;60",
+      "wire": "",
+      "pitch": "winding:5;3 | winding:5;3",
+      "bore_mm": null,
+      "core_length_mm": 50,
+      "parallel_branches": "winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "120;60",
+          "wire_diameter_source": "0.51",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "120;60",
+          "wire_diameter_source": "0.51",
+          "winding_pitch_source": "5;3",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_single_phase",
+      "source_title": "Обмоточные данные однофазных электродвигателей",
+      "source_file": "data/motor_catalog/SINGLE_PHASE/SINGLE_PHASE_01.source.json"
     }
   ]
 }

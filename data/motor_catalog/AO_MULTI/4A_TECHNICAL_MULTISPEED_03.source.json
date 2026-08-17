@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "reference_4a_multispeed_table_6_10",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Таблица 6.10. Обмоточные данные многоскоростных электродвигателей серии 4А, 6/4/2",
+      "url": "https://lektsii.org/17-49347.html",
+      "retrieved_at": "2026-08-17"
+    },
+    {
+      "id": "reference_4a_multispeed_performance_6_4_2",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Трёхскоростные электродвигатели 6/4/2 серии 4А",
+      "url": "https://lektsii.org/17-49263.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Source-native pole-changing winding groups remain reference-only and are not converted to coil_program.",
+    "Where the source prints 380 V and 660 V variants in the same table cell, they are retained as separate source winding sets inside one physical model record.",
+    "Sп values with explicit compound notation are preserved literally."
+  ],
+  "records": [
+    {
+      "variant_key":"4A100S6-4-2U3-technical",
+      "model":"4А100S6/4/2У3",
+      "poles_source":"6/4/2",
+      "power_kw_source":"1.4/1.5/2.1",
+      "stator_outer_diameter_mm":168,
+      "stator_bore_mm":105,
+      "stator_core_length_mm":110,
+      "slot_count":36,
+      "rotor_slot_count":28,
+      "source_id":"reference_4a_multispeed_table_6_10",
+      "normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"
+    },
+    {
+      "variant_key":"4A100L6-4-2U3-technical",
+      "model":"4А100L6/4/2У3",
+      "poles_source":"6/4/2",
+      "stator_outer_diameter_mm":168,
+      "stator_bore_mm":105,
+      "stator_core_length_mm":140,
+      "slot_count":36,
+      "rotor_slot_count":28,
+      "source_id":"reference_4a_multispeed_table_6_10",
+      "normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED"
+    },
+    {
+      "variant_key":"4A112M6-4-2U3-technical",
+      "model":"4А112М6/4/2У3",
+      "poles_source":"6/4/2",
+      "power_kw_source":"1.6/2.2/2.8",
+      "source_id":"reference_4a_multispeed_performance_6_4_2",
+      "normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTISPEED_WINDING_COLUMNS_PENDING"
+    },
+    {
+      "variant_key":"4A160S6-4-2U3-technical",
+      "model":"4А160S6/4/2У3",
+      "poles_source":"6/4/2",
+      "power_kw_source":"4.8/5.3/7.5",
+      "stator_outer_diameter_mm":272,
+      "stator_bore_mm":185,
+      "stator_core_length_mm":140,
+      "slot_count":48,
+      "rotor_slot_count":38,
+      "winding_sets_source":[
+        {"part":"6P","voltage_source":380,"connection_source":"Y","pitch_source":"1-7","sp_source":"12+12"},
+        {"part":"4/2P","voltage_source":380,"connection_source":"DELTA/YY","pitch_source":"1-14","sp_source":"15+15"},
+        {"part":"6P","voltage_source":660,"connection_source":"Y","pitch_source":"1-7","sp_source":"21+21"},
+        {"part":"4/2P","voltage_source":660,"connection_source":"DELTA/YY","pitch_source":"1-14","sp_source":"26+26"}
+      ],
+      "source_id":"reference_4a_multispeed_table_6_10",
+      "normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTIVOLTAGE_MULTISPEED"
+    },
+    {
+      "variant_key":"4A160M6-4-2U3-technical",
+      "model":"4А160М6/4/2У3",
+      "poles_source":"6/4/2",
+      "power_kw_source":"6.7/7.5/10.5",
+      "stator_outer_diameter_mm":272,
+      "stator_bore_mm":185,
+      "stator_core_length_mm":180,
+      "slot_count":48,
+      "rotor_slot_count":38,
+      "winding_sets_source":[
+        {"part":"6P","voltage_source":380,"connection_source":"Y","pitch_source":"1-7","sp_source":"9+9"},
+        {"part":"4/2P","voltage_source":380,"connection_source":"DELTA/YY","pitch_source":"1-14","sp_source":"12+12"},
+        {"part":"6P","voltage_source":660,"connection_source":"Y","pitch_source":"1-7","sp_source":"16+16"},
+        {"part":"4/2P","voltage_source":660,"connection_source":"DELTA/YY","pitch_source":"1-14","sp_source":"21+21"}
+      ],
+      "source_id":"reference_4a_multispeed_table_6_10",
+      "normalization_status":"REVIEW_REQUIRED_TECHNICAL_MULTIVOLTAGE_MULTISPEED"
+    }
+  ]
+}

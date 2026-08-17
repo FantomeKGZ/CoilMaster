@@ -74,11 +74,30 @@ def winding_set_text(record: dict, field: str) -> str | None:
     return " | ".join(parts) if parts else None
 
 
-def source_aliases(record: dict) -> list[str]:
+def source_identity(record: dict) -> tuple[str | None, list[str]]:
+    model_value = record.get("model")
+    model = str(model_value).strip() if model_value is not None else ""
     aliases = record.get("aliases_in_source")
-    if not isinstance(aliases, list):
-        return []
-    return [str(alias) for alias in aliases if alias is not None and str(alias).strip()]
+    normalized_aliases = []
+    if isinstance(aliases, list):
+        normalized_aliases.extend(str(alias).strip() for alias in aliases if alias is not None and str(alias).strip())
+
+    # Some source tables print equivalent designations in one cell as
+    # "PRIMARY / ALIAS". Only split a spaced slash so multispeed model
+    # names such as AIR90L8/4 remain untouched.
+    if " / " in model:
+        parts = [part.strip() for part in model.split(" / ") if part.strip()]
+        if parts:
+            model = parts[0]
+            normalized_aliases.extend(parts[1:])
+
+    deduped_aliases = []
+    seen = {model}
+    for alias in normalized_aliases:
+        if alias not in seen:
+            deduped_aliases.append(alias)
+            seen.add(alias)
+    return model or None, deduped_aliases
 
 
 def flatten(path: Path, doc: dict, record: dict) -> dict:
@@ -101,6 +120,7 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
     branches = record.get("parallel_branches_source")
     if branches is None:
         branches = winding_set_text(record, "parallel_branches_source")
+    model, aliases = source_identity(record)
     return {
         "reference_only": True,
         "series": doc.get("series") or path.parent.name,
@@ -108,8 +128,8 @@ def flatten(path: Path, doc: dict, record: dict) -> dict:
         "speed_group_rpm": speed_group(record),
         "rated_speed_rpm": record.get("rated_speed_rpm"),
         "slot_count": record.get("slot_count"),
-        "model": record.get("model"),
-        "aliases": source_aliases(record),
+        "model": model,
+        "aliases": aliases,
         "variant_key": record.get("variant_key"),
         "power_kw": power,
         "current_a": record.get("current_a"),

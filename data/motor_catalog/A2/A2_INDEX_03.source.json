@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "series": "A2",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [
+    {
+      "id": "electrical_machines_a2_table_9_51",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "Справочник по электрическим машинам, том 1, таблица 9.51 — технические данные двигателей серии А2",
+      "url": "https://servomotors.ru/documentation/electromotor/book1/book1p58.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Completes standard A2 model identities missing from A2_INDEX_01 and A2_INDEX_02.",
+    "Only model identity, rated power and pole count are recorded here. Rated rpm is intentionally omitted instead of deriving it from source slip percentage.",
+    "Detailed winding fields remain pending direct row-safe transcription from Likhachev section 8.1.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"А2-71-2","power_kw":30,"pole_count":2,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-92-2","power_kw":125,"pole_count":2,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-91-4","power_kw":75,"pole_count":4,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-62-6","power_kw":13,"pole_count":6,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-71-6","power_kw":17,"pole_count":6,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-72-6","power_kw":22,"pole_count":6,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-61-8","power_kw":7.5,"pole_count":8,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-62-8","power_kw":10,"pole_count":8,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-81-8","power_kw":22,"pole_count":8,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-82-8","power_kw":30,"pole_count":8,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"},
+    {"model":"А2-92-8","power_kw":55,"pole_count":8,"source_id":"electrical_machines_a2_table_9_51","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY_WINDING_PENDING"}
+  ]
+}

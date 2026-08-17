@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "AO_MULTI",
+  "import_ready": false,
+  "sources": [{
+    "id": "vitkovoe_multispeed_mixed",
+    "type": "FIELD_OBSERVATION",
+    "title": "Обмоточные данные многоскоростных электродвигателей",
+    "url": "https://vitkovoe.ru/mnogo_skor_series.html",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Literal completion of remaining text-extractable rows from the mixed multispeed table.",
+    "Four-speed DSHN speed points are preserved without inventing separate winding sets where the source prints only one N/wire/pitch row.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "АИР80А4/2У3",
+      "rated_speed_rpm_source": "1410/2730",
+      "power_kw_source": "1.12/1.5",
+      "current_a_source": "2.9/3.6",
+      "voltage_v": 380,
+      "connection_source": "DELTA/YY",
+      "source_n_value": "50+50",
+      "wire_diameter_source": "0.50",
+      "winding_pitch_source": "10",
+      "parallel_branches_source": 1,
+      "slot_count": 36,
+      "source_id": "vitkovoe_multispeed_mixed",
+      "normalization_status": "REVIEW_REQUIRED_MULTISPEED"
+    },
+    {
+      "model": "ДСХН I-42/8-642",
+      "voltage_v": 380,
+      "slot_count": 36,
+      "source_n_value": "75+75",
+      "wire_diameter_source": "0.57",
+      "winding_pitch_source": "5",
+      "parallel_branches_source": 1,
+      "speed_points_source": [
+        {"speed_rpm":700,"power_kw":0.8,"current_a":3.3,"connection":"DELTA"},
+        {"speed_rpm":900,"power_kw":1.0,"current_a":2.7,"connection":"DELTA"},
+        {"speed_rpm":1350,"power_kw":1.4,"current_a":3.4,"connection":"YY"},
+        {"speed_rpm":2800,"power_kw":1.5,"current_a":3.8,"connection":"YY"}
+      ],
+      "source_id": "vitkovoe_multispeed_mixed",
+      "normalization_status": "REVIEW_REQUIRED_FOUR_SPEED_SOURCE_LAYOUT"
+    }
+  ]
+}

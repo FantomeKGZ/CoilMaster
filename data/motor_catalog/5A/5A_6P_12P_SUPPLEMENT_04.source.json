@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "stage": "RAW_TRANSCRIPTION",
+  "series": "5A",
+  "import_ready": false,
+  "sources": [
+    {
+      "id": "vitkovoe_5a_reference_3",
+      "type": "TECHNICAL_REFERENCE",
+      "title": "Обмоточные данные электродвигателей серии 5А — 6/8/12 полюсов",
+      "url": "https://vitkovoe.ru/5a_3_series.html",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Literal transcription from the source 6/8/12-pole table.",
+    "Source .n means number of conductors in a turn and is preserved as conductor_count_per_turn_source; it is not mapped to parallel_strands.",
+    "Source a means winding parallel branches and is preserved separately.",
+    "Pitch notation is source-native and no coil_program is generated."
+  ],
+  "records": [
+    {"model":"5AMH250S6","synchronous_speed_rpm":1000,"power_kw":55,"current_a":63.8,"voltage_v":660,"conductor_count_per_turn_source":2,"source_n_value":"28","wire_diameter_source":"1.5","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":3,"stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":180,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AM250M6","synchronous_speed_rpm":1000,"power_kw":55,"current_a":110,"voltage_v":380,"conductor_count_per_turn_source":4,"source_n_value":"15","wire_diameter_source":"1.4","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":3,"stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":200,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AMH250M6","synchronous_speed_rpm":1000,"power_kw":75,"current_a":87,"voltage_v":660,"conductor_count_per_turn_source":2,"source_n_value":"25","wire_diameter_source":"1.6","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":3,"stator_outer_diameter_mm":437,"stator_bore_mm":317,"stator_core_length_mm":200,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AM280S6","synchronous_speed_rpm":1000,"power_kw":75,"current_a":150,"voltage_v":380,"conductor_count_per_turn_source":4,"source_n_value":"20","wire_diameter_source":"1.5","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":6,"stator_outer_diameter_mm":490,"stator_bore_mm":345,"stator_core_length_mm":260,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AM280M6","synchronous_speed_rpm":1000,"power_kw":90,"current_a":104,"voltage_v":660,"conductor_count_per_turn_source":5,"source_n_value":"16","wire_diameter_source":"1.5","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":3,"stator_outer_diameter_mm":490,"stator_bore_mm":345,"stator_core_length_mm":310,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AH280S6","synchronous_speed_rpm":1000,"power_kw":90,"current_a":104,"voltage_v":660,"conductor_count_per_turn_source":4,"source_n_value":"19","wire_diameter_source":"1.6","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":3,"stator_outer_diameter_mm":490,"stator_bore_mm":345,"stator_core_length_mm":260,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AH280M6","synchronous_speed_rpm":1000,"power_kw":110,"current_a":128,"voltage_v":660,"conductor_count_per_turn_source":5,"source_n_value":"16","wire_diameter_source":"1.5","winding_pitch_source":"1-11","winding_layers_source":2,"parallel_branches_source":3,"stator_outer_diameter_mm":490,"stator_bore_mm":345,"stator_core_length_mm":310,"slot_count":72,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AM315S12","synchronous_speed_rpm":500,"power_kw":45,"current_a":92.3,"voltage_v":380,"conductor_count_per_turn_source":3,"source_n_value":"30","wire_diameter_source":"1.32","winding_pitch_source":"1-7","winding_layers_source":2,"parallel_branches_source":6,"stator_outer_diameter_mm":530,"stator_bore_mm":405,"stator_core_length_mm":260,"slot_count":90,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"},
+    {"model":"5AM315M12","synchronous_speed_rpm":500,"power_kw":55,"current_a":113,"voltage_v":380,"conductor_count_per_turn_source":3,"source_n_value":"24","wire_diameter_source":"1.5","winding_pitch_source":"1-7","winding_layers_source":2,"parallel_branches_source":6,"stator_outer_diameter_mm":530,"stator_bore_mm":405,"stator_core_length_mm":330,"slot_count":90,"source_id":"vitkovoe_5a_reference_3","normalization_status":"REFERENCE_ONLY_SOURCE_NATIVE"}
+  ]
+}

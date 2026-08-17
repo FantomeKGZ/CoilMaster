@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_multispeed_table_8_40",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Многоскоростные АО2 7-го габарита, таблица 8.40",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "The 7th-frame table contains 4/2, 8/4, 12/6, 8/6/4 and 12/8/6/4 executions for both 71 and 72 frames.",
+    "Detailed winding fields are deferred to strict merge-only enrichment where row mapping is unambiguous.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"АО2-71-4/2","pole_combination_source":"4/2","variant_key":"AO2-71-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-72-4/2","pole_combination_source":"4/2","variant_key":"AO2-72-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-71-8/4","pole_combination_source":"8/4","variant_key":"AO2-71-8-4","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-72-8/4","pole_combination_source":"8/4","variant_key":"AO2-72-8-4","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-71-12/6","pole_combination_source":"12/6","variant_key":"AO2-71-12-6","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-72-12/6","pole_combination_source":"12/6","variant_key":"AO2-72-12-6","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-71-8/6/4","pole_combination_source":"8/6/4","variant_key":"AO2-71-8-6-4","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-72-8/6/4","pole_combination_source":"8/6/4","variant_key":"AO2-72-8-6-4","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-71-12/8/6/4","pole_combination_source":"12/8/6/4","variant_key":"AO2-71-12-8-6-4","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-72-12/8/6/4","pole_combination_source":"12/8/6/4","variant_key":"AO2-72-12-8-6-4","source_id":"likhachev_2004_ao2_multispeed_table_8_40","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"}
+  ]
+}

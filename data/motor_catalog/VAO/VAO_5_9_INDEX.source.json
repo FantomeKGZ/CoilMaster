@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "series": "VAO",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_vao_tables_8_27_8_31",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Обмоточные данные взрывозащищенных электродвигателей серии ВАО, таблицы 8.27–8.31",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "Index layer for the clearly readable VAO 5th-9th frame model/rating rows.",
+    "The underlying source contains full stator winding tables; winding fields are added only where row-to-column mapping is unambiguous.",
+    "VAO61-2 is not inserted because its model label is absent from the currently readable HTML fragment even though adjacent 6th-frame rows are present."
+  ],
+  "records": [
+    {"model":"ВАО51-2","power_kw":10,"rated_speed_rpm":2940,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО52-2","power_kw":13,"rated_speed_rpm":2940,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО51-4","power_kw":7.5,"rated_speed_rpm":1460,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО52-4","power_kw":10,"rated_speed_rpm":1460,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО51-6","power_kw":5.5,"rated_speed_rpm":970,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО52-6","power_kw":7.5,"rated_speed_rpm":970,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО51-8","power_kw":4,"rated_speed_rpm":730,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО52-8","power_kw":5.5,"rated_speed_rpm":730,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"ВАО62-2","power_kw":17,"rated_speed_rpm":2940,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО61-4","power_kw":13,"rated_speed_rpm":1460,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО62-4","power_kw":17,"rated_speed_rpm":1460,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО61-6","power_kw":10,"rated_speed_rpm":970,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО62-6","power_kw":13,"rated_speed_rpm":970,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО61-8","power_kw":7.5,"rated_speed_rpm":730,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО62-8","power_kw":10,"rated_speed_rpm":730,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"ВАО71-2","power_kw":22,"rated_speed_rpm":2940,"current_a_source":"41.5/24","stator_outer_diameter_mm":343,"stator_bore_mm":183,"stator_core_length_mm":145,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО72-2","power_kw":30,"rated_speed_rpm":2940,"current_a_source":"56/32.6","stator_outer_diameter_mm":343,"stator_bore_mm":183,"stator_core_length_mm":190,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО71-4","power_kw":22,"rated_speed_rpm":1460,"current_a_source":"42/25","stator_outer_diameter_mm":343,"stator_bore_mm":214,"stator_core_length_mm":190,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО72-4","power_kw":30,"rated_speed_rpm":1460,"current_a_source":"58/33.5","stator_outer_diameter_mm":343,"stator_bore_mm":214,"stator_core_length_mm":250,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО71-6","power_kw":17,"rated_speed_rpm":980,"current_a_source":"35.5/20.5","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":190,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО72-6","power_kw":22,"rated_speed_rpm":980,"current_a_source":"43.5/25","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":250,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО71-8","power_kw":13,"rated_speed_rpm":735,"current_a_source":"30/17.7","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":190,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО72-8","power_kw":17,"rated_speed_rpm":735,"current_a_source":"38/22","stator_outer_diameter_mm":343,"stator_bore_mm":245,"stator_core_length_mm":250,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"ВАО81-2","power_kw":40,"rated_speed_rpm":2950,"current_a_source":"77.5/45","stator_outer_diameter_mm":393,"stator_bore_mm":211,"stator_core_length_mm":200,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО82-2","power_kw":55,"rated_speed_rpm":2950,"current_a_source":"107.5/62","stator_outer_diameter_mm":393,"stator_bore_mm":211,"stator_core_length_mm":250,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО81-4","power_kw":40,"rated_speed_rpm":1470,"current_a_source":"77/44.5","stator_outer_diameter_mm":393,"stator_bore_mm":247,"stator_core_length_mm":210,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО82-4","power_kw":55,"rated_speed_rpm":1470,"current_a_source":"105/61","stator_outer_diameter_mm":393,"stator_bore_mm":247,"stator_core_length_mm":280,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО81-6","power_kw":30,"rated_speed_rpm":980,"current_a_source":"59.5/35","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":210,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО82-6","power_kw":40,"rated_speed_rpm":980,"current_a_source":"78.5/45.5","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":280,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО81-8","power_kw":22,"rated_speed_rpm":735,"current_a_source":"45/28","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":210,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО82-8","power_kw":30,"rated_speed_rpm":735,"current_a_source":"65/38","stator_outer_diameter_mm":393,"stator_bore_mm":285,"stator_core_length_mm":280,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+
+    {"model":"ВАО91-2","power_kw":75,"rated_speed_rpm":2960,"current_a_source":"145/83.5","stator_outer_diameter_mm":458,"stator_bore_mm":247,"stator_core_length_mm":220,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО92-2","power_kw":100,"rated_speed_rpm":2960,"current_a_source":"190/110","stator_outer_diameter_mm":458,"stator_bore_mm":247,"stator_core_length_mm":275,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО91-4","power_kw":75,"rated_speed_rpm":1470,"current_a_source":"164/84","stator_outer_diameter_mm":458,"stator_bore_mm":290,"stator_core_length_mm":240,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО92-4","power_kw":100,"rated_speed_rpm":1470,"current_a_source":"195/113","stator_outer_diameter_mm":458,"stator_bore_mm":290,"stator_core_length_mm":330,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО91-6","power_kw":55,"rated_speed_rpm":980,"current_a_source":"109/63","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":240,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО92-6","power_kw":75,"rated_speed_rpm":980,"current_a_source":"148/85.5","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":330,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО91-8","power_kw":40,"rated_speed_rpm":735,"current_a_source":"88/51","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":240,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"ВАО92-8","power_kw":55,"rated_speed_rpm":735,"current_a_source":"116/67","stator_outer_diameter_mm":458,"stator_bore_mm":334,"stator_core_length_mm":330,"source_id":"likhachev_2004_vao_tables_8_27_8_31","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"}
+  ]
+}

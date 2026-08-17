@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "series": "AO_MULTI",
+  "stage": "INDEX_ONLY",
+  "import_ready": false,
+  "reference_only": true,
+  "sources": [{
+    "id": "likhachev_2004_ao2_multispeed_table_8_37",
+    "source_type": "TECHNICAL_REFERENCE",
+    "title": "В. Л. Лихачев. Многоскоростные АО2 4-го габарита, таблица 8.37",
+    "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+    "retrieved_at": "2026-08-17"
+  }],
+  "notes": [
+    "P=const and M=const 6/4 executions remain separate physical/reference variants.",
+    "The table also includes 8/4 and 6/4/2 executions; detailed winding fields are deferred to strict merge-only supplements where row mapping is unambiguous.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {"model":"АО2-41-4/2","pole_combination_source":"4/2","variant_key":"AO2-41-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-42-4/2","pole_combination_source":"4/2","variant_key":"AO2-42-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-41-6/4","pole_combination_source":"6/4","regime_source":"P=const","variant_key":"AO2-41-6-4-Pconst","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-42-6/4","pole_combination_source":"6/4","regime_source":"P=const","variant_key":"AO2-42-6-4-Pconst","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-41-6/4","pole_combination_source":"6/4","regime_source":"M=const","variant_key":"AO2-41-6-4-Mconst","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-42-6/4","pole_combination_source":"6/4","regime_source":"M=const","variant_key":"AO2-42-6-4-Mconst","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-41-8/4","pole_combination_source":"8/4","variant_key":"AO2-41-8-4","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-42-8/4","pole_combination_source":"8/4","variant_key":"AO2-42-8-4","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-41-6/4/2","pole_combination_source":"6/4/2","variant_key":"AO2-41-6-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"},
+    {"model":"АО2-42-6/4/2","pole_combination_source":"6/4/2","variant_key":"AO2-42-6-4-2","source_id":"likhachev_2004_ao2_multispeed_table_8_37","normalization_status":"REVIEW_REQUIRED_INDEX_ONLY"}
+  ]
+}

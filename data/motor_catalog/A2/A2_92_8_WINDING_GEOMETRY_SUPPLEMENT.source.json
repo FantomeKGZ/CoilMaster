@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "series": "A2",
+  "stage": "RAW_TRANSCRIPTION",
+  "import_ready": false,
+  "reference_only": true,
+  "merge_only": true,
+  "sources": [
+    {
+      "id": "likhachev_2004_section_8_1_a2_92_8",
+      "source_type": "TECHNICAL_REFERENCE",
+      "title": "В. Л. Лихачев. Обмоточные данные А2/АО2 9-го габарита, таблица 8.10",
+      "url": "https://studylibfr.com/doc/10176539/peremotka-dvigatelej-2004",
+      "retrieved_at": "2026-08-17"
+    }
+  ],
+  "notes": [
+    "Only the contiguous row-safe stator geometry, slot count, pitch and winding type associated with A2-92-8 are transcribed.",
+    "Pe1/m1/a1/w1/conductor values are intentionally omitted because later columns interleave neighboring variants.",
+    "No coil_program is generated."
+  ],
+  "records": [
+    {
+      "model": "А2-92-8",
+      "stator_outer_diameter_mm": 458,
+      "stator_bore_mm": 334,
+      "stator_core_length_mm": 240,
+      "air_gap_mm_source": 0.7,
+      "slot_count": 72,
+      "winding_pitch_source": "1-8",
+      "winding_type_source": "Двухслойная",
+      "source_id": "likhachev_2004_section_8_1_a2_92_8",
+      "normalization_status": "REVIEW_REQUIRED_PARTIAL_ROW_SAFE_WINDING_ENRICHMENT"
+    }
+  ]
+}

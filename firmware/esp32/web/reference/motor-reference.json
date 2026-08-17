@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reference_only": true,
   "generated_from": "data/motor_catalog/**/*.source.json",
-  "record_count": 577,
+  "record_count": 580,
   "records": [
     {
       "reference_only": true,
@@ -14467,6 +14467,127 @@
       "source_id": "vitkovoe_dc_index",
       "source_title": "Справочник электрообмотчика. Обмоточные данные электродвигателей и генераторов постоянного тока",
       "source_file": "data/motor_catalog/DC_MOTORS/DC_INDEX_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "EK2LAT generator",
+      "variant_key": "EK2LAT-generator-reference",
+      "power_kw": 7.0,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "winding:16 | winding:37 | winding:276",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9 | winding:-",
+      "bore_mm": null,
+      "core_length_mm": null,
+      "parallel_branches": "winding:2/1 | winding:1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "16",
+          "wire_diameter_source": "0.85×4",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": "2/1"
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "37",
+          "wire_diameter_source": "0.80×2",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        },
+        {
+          "name": "ротор",
+          "source_n_value": "276",
+          "wire_diameter_source": "0.95",
+          "winding_pitch_source": "-",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 3000,
+      "rated_speed_rpm": 3000,
+      "slot_count": 24,
+      "model": "Generator stator 5.5kW",
+      "variant_key": "generator-stator-5.5kW-reference",
+      "power_kw": 5.5,
+      "current_a": null,
+      "voltage_v": null,
+      "connection": null,
+      "source_n": "winding:26 | winding:46",
+      "wire": "",
+      "pitch": "winding:11;9;7;5 | winding:11;9",
+      "bore_mm": 106,
+      "core_length_mm": 96,
+      "parallel_branches": "winding:2/1 | winding:1",
+      "winding_sets": [
+        {
+          "name": "рабочая",
+          "source_n_value": "26",
+          "wire_diameter_source": "0.80×3",
+          "winding_pitch_source": "11;9;7;5",
+          "parallel_branches_source": "2/1"
+        },
+        {
+          "name": "пусковая",
+          "source_n_value": "46",
+          "wire_diameter_source": "0.95",
+          "winding_pitch_source": "11;9",
+          "parallel_branches_source": 1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_01.source.json"
+    },
+    {
+      "reference_only": true,
+      "series": "GENERATORS",
+      "manufacturer": "GENERATORS",
+      "speed_group_rpm": 375,
+      "rated_speed_rpm": 428,
+      "slot_count": 45,
+      "model": "FD-2000 wind generator",
+      "variant_key": "FD-2000-wind-generator-reference",
+      "power_kw": 2.0,
+      "current_a": null,
+      "voltage_v": 56,
+      "connection": "Y",
+      "source_n": "winding:12+12",
+      "wire": "",
+      "pitch": "winding:3",
+      "bore_mm": 145,
+      "core_length_mm": 105,
+      "parallel_branches": "winding:1",
+      "winding_sets": [
+        {
+          "name": "статор",
+          "source_n_value": "12+12",
+          "wire_diameter_source": "0.85×4",
+          "winding_pitch_source": "3",
+          "parallel_branches_source": 1,
+          "wire_mass_kg": 4.1
+        }
+      ],
+      "status": "REVIEW_REQUIRED",
+      "source_id": "vitkovoe_generators",
+      "source_title": "Обмоточные данные генераторов",
+      "source_file": "data/motor_catalog/GENERATORS/GENERATORS_01.source.json"
     },
     {
       "reference_only": true,

@@ -31,12 +31,20 @@ public:
                            bool networkConnected,
                            bool rtcWriteAllowed);
 
+    // CoilMaster owns one production RTC instance. begin() registers that
+    // instance so NetworkManager can drive synchronization without coupling
+    // main.cpp to NTP details.
+    static void updateActiveNetworkSync(uint32_t nowMs,
+                                        bool networkConnected,
+                                        bool rtcWriteAllowed);
+
     bool detected() const;
     bool timeValid() const;
     bool networkSyncConfigured() const;
     bool networkTimeSynced() const;
     uint32_t lastNetworkSyncMs() const;
     const char* lastNetworkSyncResult() const;
+    const char* lastSetResult() const;
     const char* timezoneName() const;
 
 private:
@@ -48,6 +56,8 @@ private:
     bool writeRegisters(uint8_t start, const uint8_t* source, uint8_t count);
     bool networkDateTime(RtcDateTime& value) const;
 
+    static RtcClock* s_activeClock;
+
     TwoWire* m_wire = nullptr;
     bool m_detected = false;
     bool m_timeValid = false;
@@ -56,6 +66,7 @@ private:
     uint32_t m_lastNetworkSyncMs = 0UL;
     uint32_t m_nextNetworkAttemptMs = 0UL;
     const char* m_lastNetworkSyncResult = "NOT_CONFIGURED";
+    const char* m_lastSetResult = "NOT_ATTEMPTED";
 };
 }
 

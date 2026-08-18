@@ -192,20 +192,36 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 
 bool UartEventReceiver::cancelPendingJob(const char* detail)
 {
-    if (!m_hasPendingJob || m_hasJobDelivery || m_waitingJobAck ||
-        m_jobSendAttempts != 0U || m_hasPendingCancel || m_hasJobCancel ||
-        !isValidJobAckDetail(detail))
+    if (!m_hasPendingJob || m_hasJobDelivery || m_hasPendingCancel ||
+        m_hasJobCancel || !isValidJobAckDetail(detail))
         return false;
 
-    publishJobDelivery(JobDeliveryResult::Cancelled,
-                       m_pendingJob.jobId,
-                       0U,
-                       detail != nullptr ? detail : "CANCELLED");
+    const uint32_t jobId = m_pendingJob.jobId;
+    const uint8_t sendAttempts = m_jobSendAttempts;
+    const bool mayHaveReachedArduino = m_waitingJobAck || sendAttempts != 0U;
+
+    // Stop JOB retransmission first. If even one frame may have reached Arduino,
+    // do not declare a local-only cancellation: switch to an idempotent remote
+    // JOB_CANCEL handshake so a lost JOB_ACK can never leave a ghost job behind.
     m_pendingJob = OutgoingWindingJob();
     m_hasPendingJob = false;
     m_waitingJobAck = false;
     m_lastJobSendMs = 0UL;
     m_jobSendAttempts = 0U;
+
+    if (!mayHaveReachedArduino)
+    {
+        publishJobDelivery(JobDeliveryResult::Cancelled,
+                           jobId,
+                           0U,
+                           detail != nullptr ? detail : "CANCELLED");
+        return true;
+    }
+
+    m_cancelJobId = jobId;
+    m_hasPendingCancel = true;
+    m_lastCancelSendMs = 0UL;
+    m_cancelSendAttempts = 0U;
     return true;
 }
 
@@ -247,6 +263,16 @@ bool UartEventReceiver::takeJobCancel(JobCancelEvent& event)
 bool UartEventReceiver::jobCancelPending() const
 {
     return m_hasPendingCancel;
+}
+
+void UartEventReceiver::rememberJobId(uint32_t jobId)
+{
+    if (jobId == 0UL) return;
+    if (!m_hasLastQueuedJobId || jobId > m_lastQueuedJobId)
+    {
+        m_lastQueuedJobId = jobId;
+        m_hasLastQueuedJobId = true;
+    }
 }
 
 void UartEventReceiver::sendAck(uint32_t runId, const char* status)
@@ -433,14 +459,46 @@ bool UartEventReceiver::processCancelAck(char* line)
     char* extra = strtok_r(nullptr, "|", &save);
     if (version == nullptr || category == nullptr || jobText == nullptr ||
         status == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
-        strcmp(category, "JOB_CANCEL_ACK") != 0 || !m_hasPendingCancel ||
+        strcmp(category, "JOB_CANCEL_ACK") != 0 ||
         !isValidJobAckDetail(detail) ||
         (capability != nullptr && strcmp(capability, "C") != 0))
         return false;
 
     uint32_t jobId = 0UL;
-    if (!parseDecimal32(jobText, jobId) || jobId != m_cancelJobId)
-        return false;
+    if (!parseDecimal32(jobText, jobId)) return false;
+
+    // Physical Arduino fallback: D * # D sends a CRC-protected ALL_CLEAR with
+    // job_id=0 after Arduino has proved that no ESP32 job is physically active.
+    // Correlate it to the currently pending/recovered ESP32 job and publish the
+    // normal cancellation event so persistence follows the same audited path.
+    if (jobId == 0UL)
+    {
+        if (strcmp(status, "CANCELLED") != 0 || detail == nullptr ||
+            strcmp(detail, "ALL_CLEAR") != 0 || !m_hasLastQueuedJobId)
+            return false;
+
+        const uint32_t clearedJobId = m_hasPendingCancel
+            ? m_cancelJobId
+            : (m_hasPendingJob ? m_pendingJob.jobId : m_lastQueuedJobId);
+        if (clearedJobId == 0UL) return false;
+
+        m_pendingJob = OutgoingWindingJob();
+        m_hasPendingJob = false;
+        m_waitingJobAck = false;
+        m_lastJobSendMs = 0UL;
+        m_jobSendAttempts = 0U;
+        m_hasPendingCancel = false;
+        m_cancelJobId = 0UL;
+        m_lastCancelSendMs = 0UL;
+        m_cancelSendAttempts = 0U;
+        publishJobCancel(JobCancelResult::Cancelled,
+                         clearedJobId,
+                         0U,
+                         "ALL_CLEAR");
+        return true;
+    }
+
+    if (!m_hasPendingCancel || jobId != m_cancelJobId) return false;
 
     JobCancelResult result = JobCancelResult::None;
     if (strcmp(status, "CANCELLED") == 0)

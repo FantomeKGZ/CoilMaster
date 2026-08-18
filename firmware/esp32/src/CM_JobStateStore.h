@@ -68,7 +68,7 @@ public:
     bool closeAfterManualReview(uint32_t sessionId, uint32_t nowMs);
 
     // Persists a cancellation only after Arduino has positively confirmed that
-    // the accepted job was still waiting for physical START and was discarded.
+    // no remote job remains. This is valid only before any physical-run evidence.
     bool closeAfterRemoteCancel(uint32_t sessionId, uint32_t nowMs);
 
     // Hides an already inactive job from the active runtime view while keeping

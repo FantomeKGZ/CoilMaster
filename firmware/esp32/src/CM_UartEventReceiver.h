@@ -118,6 +118,7 @@ public:
     bool requestJobCancel(uint32_t jobId);
     bool takeJobCancel(JobCancelEvent& event);
     bool jobCancelPending() const;
+    void rememberJobId(uint32_t jobId);
 
     void sendAck(uint32_t runId, const char* status);
     void sendNack(uint32_t runId, const char* reason);

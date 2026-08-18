@@ -302,6 +302,7 @@ void restoreLatestJobState()
     stateRecovered = true;
     activeJobId = recoveryInfo.state.jobId;
     activeSessionId = recoveryInfo.state.sessionId;
+    receiver.rememberJobId(activeJobId);
     activeJobType = display.type;
     activeJobLinkage = display.linkage;
     activeCoilCount = display.coilCount;
@@ -760,10 +761,9 @@ void handleCancelJob()
         webServer.send(409, "application/json", "{\"error\":\"linked_job_cannot_be_cancelled_here\"}");
         return;
     }
-    if (runActive || completedRuns != 0U || lastRunId != 0UL || jobAwaitingAck ||
-        lastJobResult != CM::JobDeliveryResult::Accepted)
+    if (runActive || completedRuns != 0U || lastRunId != 0UL)
     {
-        webServer.send(409, "application/json", "{\"error\":\"job_not_waiting_physical_start\"}");
+        webServer.send(409, "application/json", "{\"error\":\"job_has_physical_run_evidence\"}");
         return;
     }
 
@@ -773,22 +773,31 @@ void handleCancelJob()
         webServer.send(500, "application/json", "{\"error\":\"job_state_read_failed\"}");
         return;
     }
-    if (persisted.jobId != jobId ||
-        persisted.deliveryState != CM::JobDeliveryState::Accepted ||
-        persisted.executionState != CM::JobExecutionState::WaitingPhysicalStart ||
+    const bool pendingDelivery =
+        (persisted.deliveryState == CM::JobDeliveryState::Created ||
+         persisted.deliveryState == CM::JobDeliveryState::Delivering) &&
+        persisted.executionState == CM::JobExecutionState::WaitingDelivery;
+    const bool acceptedReady =
+        persisted.deliveryState == CM::JobDeliveryState::Accepted &&
+        persisted.executionState == CM::JobExecutionState::WaitingPhysicalStart;
+    if (persisted.jobId != jobId || (!pendingDelivery && !acceptedReady) ||
         persisted.lastRunId != 0UL || persisted.completedRuns != 0U)
     {
         webServer.send(409, "application/json", "{\"error\":\"persisted_job_not_cancellable\"}");
         return;
     }
 
-    if (!receiver.requestJobCancel(jobId))
+    const bool queued = pendingDelivery
+        ? receiver.cancelPendingJob("OPERATOR_CANCEL")
+        : receiver.requestJobCancel(jobId);
+    if (!queued)
     {
         webServer.send(409, "application/json", "{\"error\":\"uart_cancel_sender_busy\"}");
         return;
     }
 
-    jobCancelAwaitingAck = true;
+    jobAwaitingAck = false;
+    jobCancelAwaitingAck = receiver.jobCancelPending();
     recoveryInfo.mayCreateNewJob = false;
     String response = F("{\"cancel_requested\":true,\"job_id\":");
     response += jobId;

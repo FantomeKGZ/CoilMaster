@@ -85,6 +85,8 @@ CM::EepromPersistence persistence;
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
 uint32_t lastAliveReportMs = 0UL;
+uint8_t emergencyClearSequenceIndex = 0U;
+uint32_t emergencyClearLastKeyMs = 0UL;
 
 int freeSramBytes()
 {
@@ -179,11 +181,71 @@ bool simulationMode()
 #endif
 }
 
+bool processEmergencyJobClearKey(char key)
+{
+    static const char Sequence[] = {'D', '*', '#', 'D'};
+    const uint32_t nowMs = millis();
+
+    const CM::MachineState state = machine.state();
+    if (state == CM::MachineState::Winding ||
+        state == CM::MachineState::Paused ||
+        state == CM::MachineState::ManualRun ||
+        state == CM::MachineState::CoilComplete ||
+        state == CM::MachineState::JobComplete)
+    {
+        emergencyClearSequenceIndex = 0U;
+        return false;
+    }
+
+    if (emergencyClearSequenceIndex != 0U &&
+        static_cast<uint32_t>(nowMs - emergencyClearLastKeyMs) > 4000UL)
+    {
+        emergencyClearSequenceIndex = 0U;
+    }
+
+    if (key != Sequence[emergencyClearSequenceIndex])
+    {
+        emergencyClearSequenceIndex = key == Sequence[0] ? 1U : 0U;
+        emergencyClearLastKeyMs = nowMs;
+        return key == Sequence[0];
+    }
+
+    ++emergencyClearSequenceIndex;
+    emergencyClearLastKeyMs = nowMs;
+    if (emergencyClearSequenceIndex < sizeof(Sequence)) return true;
+    emergencyClearSequenceIndex = 0U;
+
+    const CM::WindingJob& active = machine.job();
+    const bool remotePresent =
+        active.source == CM::JobSource::Esp32Web && active.jobId != 0UL;
+    if (remotePresent)
+    {
+        const bool safeRemoteReady =
+            machine.state() == CM::MachineState::Ready &&
+            active.currentRunId == 0UL && active.completedRuns == 0U;
+        if (!safeRemoteReady || !machine.cancel())
+        {
+            Serial.println(F("CM_JOB EMERGENCY_CLEAR result=REJECTED_ACTIVE_RUN"));
+            return true;
+        }
+    }
+
+    // This frame never means RUN_COMPLETED. It only proves that Arduino holds
+    // no ESP32 remote job, allowing ESP32 to clear pending/accepted no-run state.
+    espTransport.sendJobClear();
+#if CM_FEATURE_BUZZER
+    buzzer.startJobAcceptedSignal(nowMs);
+#endif
+    Serial.println(F("CM_JOB EMERGENCY_CLEAR result=ALL_CLEAR"));
+    return true;
+}
+
 void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
     const char key = keypad.getKey();
     if (key == NO_KEY) return;
+    if (processEmergencyJobClearKey(key)) return;
 
     bool handled = false;
     if (key == '#')
@@ -322,17 +384,30 @@ void processRemoteCancels()
     while (espTransport.takeRemoteCancel(jobId))
     {
         const CM::WindingJob& active = machine.job();
-        const bool canCancel =
+        const bool remotePresent =
+            active.source == CM::JobSource::Esp32Web && active.jobId != 0UL;
+        const bool exactReady =
             machine.state() == CM::MachineState::Ready &&
-            active.source == CM::JobSource::Esp32Web &&
-            active.jobId == jobId &&
-            active.currentRunId == 0UL &&
-            active.completedRuns == 0U;
+            remotePresent && active.jobId == jobId &&
+            active.currentRunId == 0UL && active.completedRuns == 0U;
+        const bool alreadyClear = !remotePresent;
 
-        const bool cancelled = canCancel && machine.cancel();
-        espTransport.sendJobCancelResult(jobId,
-                                         cancelled,
-                                         cancelled ? "CANCELLED" : "BUSY_OR_MISMATCH");
+        bool cancelled = false;
+        const char* detail = "BUSY_OR_MISMATCH";
+        if (exactReady)
+        {
+            cancelled = machine.cancel();
+            detail = cancelled ? "CANCELLED" : "BUSY_OR_MISMATCH";
+        }
+        else if (alreadyClear)
+        {
+            // Idempotent cancellation: ESP32 may be retrying after Arduino
+            // already cleared the job or after a reboot. Do not reject absence.
+            cancelled = true;
+            detail = "ALREADY_CLEAR";
+        }
+
+        espTransport.sendJobCancelResult(jobId, cancelled, detail);
 
         Serial.print(F("CM_JOB CANCEL id="));
         Serial.print(jobId);

@@ -13,14 +13,14 @@ bool JobStateStore::closeAfterRemoteCancel(uint32_t sessionId, uint32_t nowMs)
         return true;
     }
 
-    // Arduino cancellation is only meaningful before the first physical START.
-    // Never rewrite evidence for a job that has already produced a run.
-    if (state.deliveryState != JobDeliveryState::Accepted ||
-        state.executionState != JobExecutionState::WaitingPhysicalStart ||
-        state.lastRunId != 0UL || state.completedRuns != 0U)
-    {
+    // A positive Arduino CANCELLED/ALL_CLEAR acknowledgement proves only that
+    // no remote job remains on the physical controller. It never proves a run
+    // completed. Permit closure only while there is zero physical-run evidence.
+    const bool waitingOnly =
+        state.executionState == JobExecutionState::WaitingDelivery ||
+        state.executionState == JobExecutionState::WaitingPhysicalStart;
+    if (!waitingOnly || state.lastRunId != 0UL || state.completedRuns != 0U)
         return false;
-    }
 
     state.deliveryState = JobDeliveryState::Cancelled;
     state.executionState = JobExecutionState::ClosedAfterReview;

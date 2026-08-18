@@ -42,6 +42,7 @@ public:
     void sendJobResult(uint32_t jobId, bool accepted, const char* reason);
     bool takeRemoteCancel(uint32_t& jobId);
     void sendJobCancelResult(uint32_t jobId, bool cancelled, const char* reason);
+    void sendJobClear();
 
     uint8_t queuedCount() const;
     bool waitingForAck() const;

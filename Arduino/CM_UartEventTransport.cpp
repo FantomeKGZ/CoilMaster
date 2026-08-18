@@ -138,6 +138,30 @@ void UartEventTransport::sendJobCancelResult(uint32_t jobId,
     writeJobReply(true, jobId, cancelled, reason);
 }
 
+void UartEventTransport::sendJobClear()
+{
+    char frame[64];
+    const int payloadLength = snprintf_P(
+        frame, sizeof(frame),
+        PSTR("CMP1|JOB_CANCEL_ACK|0|CANCELLED|ALL_CLEAR|C"));
+    if (payloadLength <= 0 ||
+        static_cast<size_t>(payloadLength) >= sizeof(frame)) return;
+
+    const uint16_t crc = Cmp1Crc::calculate(
+        reinterpret_cast<const uint8_t*>(frame),
+        static_cast<size_t>(payloadLength));
+    const int suffixLength = snprintf_P(
+        frame + payloadLength,
+        sizeof(frame) - static_cast<size_t>(payloadLength),
+        PSTR("|%04X\n"), static_cast<unsigned int>(crc));
+    if (suffixLength <= 0 ||
+        static_cast<size_t>(suffixLength) >=
+            sizeof(frame) - static_cast<size_t>(payloadLength)) return;
+
+    const size_t frameLength = static_cast<size_t>(payloadLength + suffixLength);
+    m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength);
+}
+
 void UartEventTransport::writeJobReply(bool cancelReply,
                                        uint32_t jobId,
                                        bool successful,

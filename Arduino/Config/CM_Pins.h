@@ -16,7 +16,7 @@ constexpr uint8_t KeypadCol1 = 7U;
 constexpr uint8_t KeypadCol2 = 8U;
 constexpr uint8_t KeypadCol3 = 9U;
 constexpr uint8_t StartButton = 10U;
-constexpr uint8_t Buzzer = 11U;
+constexpr uint8_t Buzzer = A3;
 constexpr uint8_t Ssr = 12U;
 constexpr uint8_t Hall = A0;
 

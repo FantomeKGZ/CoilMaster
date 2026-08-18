@@ -1,0 +1,5 @@
+/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/CMakeFiles/cmp_protocol_tests.dir
+/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/CMakeFiles/cmp1_text_tests.dir
+/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/CMakeFiles/test.dir
+/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/CMakeFiles/edit_cache.dir
+/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/CMakeFiles/rebuild_cache.dir

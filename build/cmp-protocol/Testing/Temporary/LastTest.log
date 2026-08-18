@@ -1,0 +1,35 @@
+Start testing: Aug 18 16:17 UTC
+----------------------------------------------------------
+1/2 Testing: cmp_protocol_tests
+1/2 Test: cmp_protocol_tests
+Command: "/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/cmp_protocol_tests"
+Directory: /home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol
+"cmp_protocol_tests" start time: Aug 18 16:17 UTC
+Output:
+----------------------------------------------------------
+All CMP protocol tests passed.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"cmp_protocol_tests" end time: Aug 18 16:17 UTC
+"cmp_protocol_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/2 Testing: cmp1_text_tests
+2/2 Test: cmp1_text_tests
+Command: "/home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol/cmp1_text_tests"
+Directory: /home/runner/work/CoilMaster/CoilMaster/build/cmp-protocol
+"cmp1_text_tests" start time: Aug 18 16:17 UTC
+Output:
+----------------------------------------------------------
+CMP1 text CRC tests passed
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"cmp1_text_tests" end time: Aug 18 16:17 UTC
+"cmp1_text_tests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Aug 18 16:17 UTC

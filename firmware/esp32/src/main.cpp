@@ -756,11 +756,9 @@ void handleCancelJob()
         webServer.send(409, "application/json", "{\"error\":\"job_or_session_mismatch\"}");
         return;
     }
-    if (activeJobLinkage.linked)
-    {
-        webServer.send(409, "application/json", "{\"error\":\"linked_job_cannot_be_cancelled_here\"}");
-        return;
-    }
+    // Linked repair/motor/spool metadata is immutable history, not a reason to
+    // trap a delivery that never reached physical START. Cancelling here only
+    // closes the no-run job state; it does not delete snapshots or write off wire.
     if (runActive || completedRuns != 0U || lastRunId != 0UL)
     {
         webServer.send(409, "application/json", "{\"error\":\"job_has_physical_run_evidence\"}");

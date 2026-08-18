@@ -25,18 +25,21 @@ void BackupActivityGuard::setRuntimeProbe(RuntimeProbe probe)
     RuntimeActivityProbe = probe;
 }
 
+BackupActivityCheck BackupActivityGuard::runtimeCheck()
+{
+    return RuntimeActivityProbe != nullptr
+        ? RuntimeActivityProbe()
+        : BackupActivityCheck::Unavailable;
+}
+
 BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
 {
-    BackupActivityCheck runtime = BackupActivityCheck::Unavailable;
-    if (RuntimeActivityProbe != nullptr)
-    {
-        runtime = RuntimeActivityProbe();
-        if (runtime == BackupActivityCheck::Busy)
-            return BackupActivityCheck::Busy;
-        // Even a runtime Safe result is not enough for export. Revalidate the
-        // persisted latest state/snapshot identity below so a damaged linked
-        // recovery cannot be exported merely because the machine is idle.
-    }
+    const BackupActivityCheck runtime = runtimeCheck();
+    if (runtime == BackupActivityCheck::Busy)
+        return BackupActivityCheck::Busy;
+    // Even a runtime Safe result is not enough for export. Revalidate the
+    // persisted latest state/snapshot identity below so a damaged linked
+    // recovery cannot be exported merely because the machine is idle.
 
     if (!directoryReady(storage, "/data") ||
         !directoryReady(storage, "/data/winding-jobs") ||

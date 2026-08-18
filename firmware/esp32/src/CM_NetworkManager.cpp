@@ -1,5 +1,8 @@
 #include "CM_NetworkManager.h"
 
+#include "CM_BackupActivityGuard.h"
+#include "CM_RtcClock.h"
+
 namespace CM
 {
 NetworkManager::NetworkManager(NetworkProfileStore& store)
@@ -31,7 +34,15 @@ bool NetworkManager::begin(const char* apName, const char* apPassword)
 void NetworkManager::update(uint32_t nowMs)
 {
     if (!m_ready) return;
-    if (WiFi.status() == WL_CONNECTED)
+
+    const bool stationConnected = WiFi.status() == WL_CONNECTED;
+    const BackupActivityCheck runtime = BackupActivityGuard::runtimeCheck();
+    RtcClock::updateActiveNetworkSync(
+        nowMs,
+        stationConnected,
+        runtime == BackupActivityCheck::Safe);
+
+    if (stationConnected)
     {
         if (m_connecting) m_lastResult = "CONNECTED";
         m_connecting = false;

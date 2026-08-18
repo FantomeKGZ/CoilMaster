@@ -4,6 +4,8 @@
 
 namespace CM
 {
+RtcClock* RtcClock::s_activeClock = nullptr;
+
 namespace
 {
 constexpr long BishkekUtcOffsetSeconds = 6L * 60L * 60L;
@@ -74,6 +76,7 @@ uint32_t secondsSince2000(const RtcDateTime& value)
 
 bool RtcClock::begin(int8_t sdaPin, int8_t sclPin)
 {
+    s_activeClock = this;
     m_wire = &Wire;
     m_wire->begin(sdaPin, sclPin);
     RtcDateTime ignored;
@@ -162,7 +165,17 @@ bool RtcClock::read(RtcDateTime& value)
 
 bool RtcClock::set(const RtcDateTime& value)
 {
-    if (m_wire == nullptr || !validDateTime(value)) return false;
+    if (m_wire == nullptr)
+    {
+        m_lastSetResult = "NOT_INITIALIZED";
+        return false;
+    }
+    if (!validDateTime(value))
+    {
+        m_lastSetResult = "INVALID_DATETIME";
+        return false;
+    }
+
     const uint8_t registers[] = {
         encodeBcd(value.second),
         encodeBcd(value.minute),
@@ -172,21 +185,68 @@ bool RtcClock::set(const RtcDateTime& value)
         encodeBcd(value.month),
         encodeBcd(static_cast<uint8_t>(value.year - 2000U))
     };
-    if (!writeRegisters(0x00U, registers,
-                        static_cast<uint8_t>(sizeof(registers))))
-        return false;
 
-    uint8_t status = 0U;
-    if (!readRegisters(0x0FU, &status, 1U)) return false;
-    status = static_cast<uint8_t>(status & ~0x80U);
-    if (!writeRegisters(0x0FU, &status, 1U)) return false;
+    // A short retry covers transient I2C/NACK conditions without turning the
+    // HTTP request into a long blocking operation.
+    for (uint8_t attempt = 0U; attempt < 2U; ++attempt)
+    {
+        if (!writeRegisters(0x00U, registers,
+                            static_cast<uint8_t>(sizeof(registers))))
+        {
+            m_lastSetResult = "TIME_REGISTER_WRITE_FAILED";
+            delay(2U);
+            continue;
+        }
+        m_detected = true;
 
-    RtcDateTime verified;
-    if (!read(verified)) return false;
-    const uint32_t expectedSeconds = secondsSince2000(value);
-    const uint32_t verifiedSeconds = secondsSince2000(verified);
-    return verifiedSeconds >= expectedSeconds &&
-           verifiedSeconds - expectedSeconds <= 2UL;
+        // OSF only needs a write when it is actually set. The previous code
+        // rewrote the status register on every manual set, creating an extra
+        // failure point even for a healthy clock.
+        uint8_t status = 0U;
+        if (!readRegisters(0x0FU, &status, 1U))
+        {
+            m_lastSetResult = "STATUS_READ_FAILED";
+            delay(2U);
+            continue;
+        }
+        if ((status & 0x80U) != 0U)
+        {
+            const uint8_t clearedStatus = static_cast<uint8_t>(status & ~0x80U);
+            if (!writeRegisters(0x0FU, &clearedStatus, 1U))
+            {
+                m_lastSetResult = "OSF_CLEAR_FAILED";
+                delay(2U);
+                continue;
+            }
+        }
+
+        RtcDateTime verified;
+        if (!read(verified))
+        {
+            m_lastSetResult = "VERIFY_READ_FAILED";
+            delay(2U);
+            continue;
+        }
+
+        const uint32_t expectedSeconds = secondsSince2000(value);
+        const uint32_t verifiedSeconds = secondsSince2000(verified);
+        const uint32_t difference = expectedSeconds > verifiedSeconds
+            ? expectedSeconds - verifiedSeconds
+            : verifiedSeconds - expectedSeconds;
+        if (difference <= 2UL)
+        {
+            m_timeValid = true;
+            m_lastSetResult = "OK";
+            return true;
+        }
+
+        m_lastSetResult = "VERIFY_TIME_MISMATCH";
+        delay(2U);
+    }
+
+    Serial.print(F("RTC set failed: "));
+    Serial.println(m_lastSetResult);
+    return false;
 }
 
 void RtcClock::beginNetworkSync()
@@ -240,7 +300,7 @@ void RtcClock::updateNetworkSync(uint32_t nowMs,
 
     if (!set(networkValue))
     {
-        m_lastNetworkSyncResult = "RTC_WRITE_OR_VERIFY_FAILED";
+        m_lastNetworkSyncResult = m_lastSetResult;
         m_nextNetworkAttemptMs = nowMs + NetworkRetryMs;
         return;
     }
@@ -249,6 +309,27 @@ void RtcClock::updateNetworkSync(uint32_t nowMs,
     m_lastNetworkSyncMs = nowMs;
     m_nextNetworkAttemptMs = nowMs + NetworkResyncMs;
     m_lastNetworkSyncResult = "SYNCED";
+
+    Serial.print(F("RTC NTP sync OK: Asia/Bishkek "));
+    Serial.print(networkValue.year); Serial.print('-');
+    if (networkValue.month < 10U) Serial.print('0');
+    Serial.print(networkValue.month); Serial.print('-');
+    if (networkValue.day < 10U) Serial.print('0');
+    Serial.print(networkValue.day); Serial.print(' ');
+    if (networkValue.hour < 10U) Serial.print('0');
+    Serial.print(networkValue.hour); Serial.print(':');
+    if (networkValue.minute < 10U) Serial.print('0');
+    Serial.print(networkValue.minute); Serial.print(':');
+    if (networkValue.second < 10U) Serial.print('0');
+    Serial.println(networkValue.second);
+}
+
+void RtcClock::updateActiveNetworkSync(uint32_t nowMs,
+                                       bool networkConnected,
+                                       bool rtcWriteAllowed)
+{
+    if (s_activeClock == nullptr) return;
+    s_activeClock->updateNetworkSync(nowMs, networkConnected, rtcWriteAllowed);
 }
 
 bool RtcClock::networkDateTime(RtcDateTime& value) const
@@ -285,6 +366,7 @@ const char* RtcClock::lastNetworkSyncResult() const
 {
     return m_lastNetworkSyncResult;
 }
+const char* RtcClock::lastSetResult() const { return m_lastSetResult; }
 const char* RtcClock::timezoneName() const { return BishkekTimezoneName; }
 
 bool RtcClock::readRegisters(uint8_t start,

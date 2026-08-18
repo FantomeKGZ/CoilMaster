@@ -1,0 +1,93 @@
+name: Finalize Bishkek RTC sync
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - .github/workflows/rtc-bishkek-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Patch runtime and settings navigation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main = Path('firmware/esp32/src/main.cpp')
+          text = main.read_text(encoding='utf-8')
+
+          needle = '''CM::BackupActivityCheck backupRuntimeActivity()\n{\n'''
+          replacement = '''bool rtcAdjustmentSafe()\n{\n    // Clock changes are independent from backup/microSD readiness. They are\n    // blocked only while physical/runtime state makes a timestamp jump unsafe.\n    return recoveryEvaluated &&\n           !manualReviewRequired() &&\n           !runActive &&\n           !autonomousRunActive &&\n           !jobAwaitingAck &&\n           !jobCancelAwaitingAck;\n}\n\nCM::BackupActivityCheck backupRuntimeActivity()\n{\n'''
+          assert needle in text, 'backupRuntimeActivity anchor not found'
+          text = text.replace(needle, replacement, 1)
+
+          old_get_tail = '''        else response += F("null");\n        response += F(",\\\"timezone_configured\\\":false,\\\"scheduling_ready\\\":false}");\n        webServer.send(200, "application/json; charset=utf-8", response);\n'''
+          new_get_tail = '''        else response += F("null");\n        response += F(",\\\"timezone_configured\\\":true,\\\"timezone\\\":\\\"");\n        response += rtcClock.timezoneName();\n        response += F("\\\",\\\"utc_offset_minutes\\\":360,\\\"ntp_configured\\\":");\n        response += rtcClock.networkSyncConfigured() ? F("true") : F("false");\n        response += F(",\\\"ntp_synced\\\":");\n        response += rtcClock.networkTimeSynced() ? F("true") : F("false");\n        response += F(",\\\"ntp_status\\\":\\\"");\n        response += rtcClock.lastNetworkSyncResult();\n        response += F("\\\",\\\"last_ntp_sync_ms\\\":");\n        response += rtcClock.lastNetworkSyncMs();\n        response += F(",\\\"scheduling_ready\\\":");\n        response += valid ? F("true") : F("false");\n        response += F("}");\n        webServer.send(200, "application/json; charset=utf-8", response);\n'''
+          assert old_get_tail in text, 'RTC GET tail anchor not found'
+          text = text.replace(old_get_tail, new_get_tail, 1)
+          text = text.replace('response.reserve(180U);\n        response = F("{\\\"source\\\":\\\"DS3231\\\",\\\"detected\\\":");',
+                              'response.reserve(360U);\n        response = F("{\\\"source\\\":\\\"DS3231\\\",\\\"detected\\\":");', 1)
+
+          old_gate = '''        const CM::BackupActivityCheck activity = backupRuntimeActivity();\n        if (activity != CM::BackupActivityCheck::Safe)\n        {\n            webServer.send(activity == CM::BackupActivityCheck::Busy ? 409 : 503,\n                           "application/json",\n                           activity == CM::BackupActivityCheck::Busy\n                               ? "{\\\"error\\\":\\\"machine_must_be_safely_idle\\\"}"\n                               : "{\\\"error\\\":\\\"activity_state_unavailable\\\"}");\n            return;\n        }\n'''
+          new_gate = '''        if (!rtcAdjustmentSafe())\n        {\n            webServer.send(409, "application/json",\n                           "{\\\"error\\\":\\\"machine_must_be_safely_idle\\\"}");\n            return;\n        }\n'''
+          assert old_gate in text, 'RTC POST gate anchor not found'
+          text = text.replace(old_gate, new_gate, 1)
+          text = text.replace('{\\\"saved\\\":true,\\\"verified\\\":true,\\\"source\\\":\\\"BROWSER_LOCAL_TIME\\\"}',
+                              '{\\\"saved\\\":true,\\\"verified\\\":true,\\\"source\\\":\\\"MANUAL_BISHKEK_TIME\\\"}', 1)
+
+          loop_anchor = '''    networkManager.update(nowMs);\n    webServer.handleClient();\n'''
+          loop_replacement = '''    networkManager.update(nowMs);\n    rtcClock.updateNetworkSync(nowMs,\n                               WiFi.status() == WL_CONNECTED,\n                               rtcAdjustmentSafe());\n    webServer.handleClient();\n'''
+          assert loop_anchor in text, 'main loop network anchor not found'
+          text = text.replace(loop_anchor, loop_replacement, 1)
+          main.write_text(text, encoding='utf-8')
+
+          for path, current, added in [
+              ('firmware/esp32/web/desktop/settings.html',
+               '<a class="settings-link" href="/desktop/settings-ftp.html">',
+               '<a class="settings-link" href="/desktop/settings-time.html"><b>🕒 Время и RTC</b><span>DS3231, ручная установка и автоматическая NTP-синхронизация Asia/Bishkek.</span></a><a class="settings-link" href="/desktop/settings-ftp.html">'),
+              ('firmware/esp32/web/mobile/settings.html',
+               '<a class="settings-link" href="/mobile/settings-ftp.html">',
+               '<a class="settings-link" href="/mobile/settings-time.html"><b>🕒 Время и RTC</b><span>DS3231, ручная установка и автоматическая NTP-синхронизация Бишкек.</span></a><a class="settings-link" href="/mobile/settings-ftp.html">')]:
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              assert current in s, f'settings navigation anchor not found: {path}'
+              p.write_text(s.replace(current, added, 1), encoding='utf-8')
+
+          doc = Path('docs/04_ESP32_CORE.md')
+          s = doc.read_text(encoding='utf-8')
+          marker = '- RTC DS3231 на GPIO21/GPIO22;\n'
+          if marker in s and 'Asia/Bishkek' not in s:
+              s = s.replace(marker, marker + '- автоматическая NTP-синхронизация DS3231 при доступном интернете: `Asia/Bishkek` / UTC+6;\n', 1)
+              doc.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Install PlatformIO
+        run: python3 -m pip install --disable-pip-version-check platformio
+
+      - name: Build ESP32 firmware
+        run: pio run -e esp32
+
+      - name: Run web contract checks
+        run: |
+          node Tests/Web/check_web_assets.js
+          node Tests/Web/check_release_contracts.js
+          node Tests/Web/check_final_acceptance_contracts.js
+
+      - name: Commit verified patch and remove helper workflow
+        run: |
+          rm .github/workflows/rtc-bishkek-finalize.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: repair RTC setting and add Bishkek NTP sync"
+          git push origin HEAD:cmp-protocol-v1

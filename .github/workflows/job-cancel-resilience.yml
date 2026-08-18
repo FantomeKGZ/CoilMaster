@@ -1,0 +1,39 @@
+name: Job cancel resilience hotfix
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - .github/workflows/job-cancel-resilience.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Rebase on latest branch head
+        run: git pull --rebase origin cmp-protocol-v1
+
+      - name: Apply job cancel resilience patch
+        run: python3 tools/apply_job_cancel_resilience.py
+
+      - name: Remove one-shot patch helpers
+        run: rm -f tools/apply_job_cancel_resilience.py .github/workflows/job-cancel-resilience.yml
+
+      - name: Commit patched firmware
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: make ESP32 Arduino job cancellation resilient"
+          git push origin HEAD:cmp-protocol-v1

@@ -1,0 +1,62 @@
+name: Finalize job cancel resilience
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - .github/workflows/finalize-job-cancel-resilience.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Rebase on latest branch head
+        run: git pull --rebase origin cmp-protocol-v1
+
+      - name: Apply final linked-job cancellation patch
+        run: python3 tools/finalize_job_cancel_resilience.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Run CMP protocol and web safety tests
+        run: |
+          cmake -S Tests/Protocol -B build/cmp-protocol
+          cmake --build build/cmp-protocol --parallel
+          ctest --test-dir build/cmp-protocol --output-on-failure
+          node Tests/Web/check_web_assets.js
+          node Tests/Web/check_release_contracts.js
+          node Tests/Web/check_final_acceptance_contracts.js
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build Arduino Uno firmware
+        run: pio run -e uno
+
+      - name: Build ESP32 firmware
+        run: pio run -e esp32
+
+      - name: Remove one-shot verification helpers
+        run: rm -f tools/finalize_job_cancel_resilience.py .github/workflows/finalize-job-cancel-resilience.yml
+
+      - name: Commit verified firmware
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: allow safe cancellation of linked no-run jobs"
+          git push origin HEAD:cmp-protocol-v1

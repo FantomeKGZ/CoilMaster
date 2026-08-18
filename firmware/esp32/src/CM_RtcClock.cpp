@@ -186,8 +186,6 @@ bool RtcClock::set(const RtcDateTime& value)
         encodeBcd(static_cast<uint8_t>(value.year - 2000U))
     };
 
-    // A short retry covers transient I2C/NACK conditions without turning the
-    // HTTP request into a long blocking operation.
     for (uint8_t attempt = 0U; attempt < 2U; ++attempt)
     {
         if (!writeRegisters(0x00U, registers,
@@ -199,9 +197,6 @@ bool RtcClock::set(const RtcDateTime& value)
         }
         m_detected = true;
 
-        // OSF only needs a write when it is actually set. The previous code
-        // rewrote the status register on every manual set, creating an extra
-        // failure point even for a healthy clock.
         uint8_t status = 0U;
         if (!readRegisters(0x0FU, &status, 1U))
         {
@@ -270,8 +265,11 @@ void RtcClock::updateNetworkSync(uint32_t nowMs,
 
     if (!networkConnected)
     {
-        if (!m_networkTimeSynced)
-            m_lastNetworkSyncResult = "WAITING_NETWORK";
+        // Force one fresh comparison after every reconnect rather than waiting
+        // for the periodic six-hour refresh from a previous connection.
+        m_networkTimeSynced = false;
+        m_nextNetworkAttemptMs = 0UL;
+        m_lastNetworkSyncResult = "WAITING_NETWORK";
         return;
     }
 

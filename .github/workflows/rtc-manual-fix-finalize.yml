@@ -1,0 +1,105 @@
+name: Verify RTC manual set and Bishkek sync
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - .github/workflows/rtc-manual-fix-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Patch RTC API and navigation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('firmware/esp32/src/main.cpp')
+          s = p.read_text(encoding='utf-8')
+
+          canonical = '''bool parseCanonicalUint32(const String& source, uint32_t& value)\n{\n    value = 0UL;\n    if (source.length() == 0U) return false;\n    if (source.length() > 1U && source[0] == '0') return false;\n\n    uint32_t parsed = 0UL;\n    for (size_t index = 0U; index < source.length(); ++index)\n    {\n        const char ch = source[index];\n        if (!isDigit(ch)) return false;\n        const uint8_t digit = static_cast<uint8_t>(ch - '0');\n        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;\n        parsed = parsed * 10UL + digit;\n    }\n\n    value = parsed;\n    return true;\n}\n'''
+          rtc_parser = canonical + '''\nbool parseRtcDecimal(const String& source, uint32_t& value)\n{\n    // RTC fields from browser forms are commonly zero-padded (08/05/00).\n    // Keep parseCanonicalUint32 strict for IDs; only date/time fields differ.\n    value = 0UL;\n    if (source.length() == 0U) return false;\n    uint32_t parsed = 0UL;\n    for (size_t index = 0U; index < source.length(); ++index)\n    {\n        const char ch = source[index];\n        if (!isDigit(ch)) return false;\n        const uint8_t digit = static_cast<uint8_t>(ch - '0');\n        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;\n        parsed = parsed * 10UL + digit;\n    }\n    value = parsed;\n    return true;\n}\n'''
+          if 'bool parseRtcDecimal(' not in s:
+              assert s.count(canonical) == 1, 'canonical parser anchor mismatch'
+              s = s.replace(canonical, rtc_parser, 1)
+
+          old = '!parseCanonicalUint32(webServer.arg(fields[i]), parsed[i]))'
+          if old in s:
+              s = s.replace(old, '!parseRtcDecimal(webServer.arg(fields[i]), parsed[i]))', 1)
+          assert '!parseRtcDecimal(webServer.arg(fields[i]), parsed[i]))' in s
+
+          old_status = 'response.reserve(180U);'
+          if old_status in s:
+              s = s.replace(old_status, 'response.reserve(360U);', 1)
+
+          old_tail = '        else response += F("null");\n        response += F(",\\\"timezone_configured\\\":false,\\\"scheduling_ready\\\":false}");'
+          new_tail = '''        else response += F("null");\n        response += F(",\\\"timezone_configured\\\":true,\\\"timezone\\\":\\\"");\n        response += rtcClock.timezoneName();\n        response += F("\\\",\\\"utc_offset_minutes\\\":360,\\\"ntp_configured\\\":");\n        response += rtcClock.networkSyncConfigured() ? F("true") : F("false");\n        response += F(",\\\"ntp_synced\\\":");\n        response += rtcClock.networkTimeSynced() ? F("true") : F("false");\n        response += F(",\\\"ntp_status\\\":\\\"");\n        response += rtcClock.lastNetworkSyncResult();\n        response += F("\\\",\\\"last_ntp_sync_ms\\\":");\n        response += rtcClock.lastNetworkSyncMs();\n        response += F(",\\\"rtc_last_set_result\\\":\\\"");\n        response += rtcClock.lastSetResult();\n        response += F("\\\",\\\"scheduling_ready\\\":");\n        response += valid ? F("true") : F("false");\n        response += F("}");'''
+          if old_tail in s:
+              s = s.replace(old_tail, new_tail, 1)
+          assert '\\"timezone_configured\\\":true' in s
+          assert 'rtcClock.lastNetworkSyncResult()' in s
+
+          old_error = '''        if (!rtcClock.set(value))\n        {\n            webServer.send(500, "application/json",\n                           "{\\\"error\\\":\\\"rtc_write_or_verify_failed\\\"}");\n            return;\n        }'''
+          new_error = '''        if (!rtcClock.set(value))\n        {\n            String error = F("{\\\"error\\\":\\\"rtc_write_or_verify_failed\\\",\\\"detail\\\":\\\"");\n            error += rtcClock.lastSetResult();\n            error += F("\\\"}");\n            webServer.send(500, "application/json; charset=utf-8", error);\n            return;\n        }'''
+          if old_error in s:
+              s = s.replace(old_error, new_error, 1)
+          assert 'rtcClock.lastSetResult()' in s
+
+          p.write_text(s, encoding='utf-8')
+
+          for path, anchor, addition in [
+              ('firmware/esp32/web/desktop/settings.html',
+               '<a class="settings-link" href="/desktop/settings-ftp.html">',
+               '<a class="settings-link" href="/desktop/settings-time.html"><b>🕒 Время и RTC</b><span>DS3231, ручная установка и автоматическая NTP-синхронизация Asia/Bishkek.</span></a>'),
+              ('firmware/esp32/web/mobile/settings.html',
+               '<a class="settings-link" href="/mobile/settings-ftp.html">',
+               '<a class="settings-link" href="/mobile/settings-time.html"><b>🕒 Время и RTC</b><span>DS3231, ручная установка и автоматическая NTP-синхронизация Бишкек.</span></a>')]:
+              fp = Path(path)
+              t = fp.read_text(encoding='utf-8')
+              if 'settings-time.html' not in t:
+                  assert anchor in t, f'navigation anchor missing {path}'
+                  t = t.replace(anchor, addition + anchor, 1)
+                  fp.write_text(t, encoding='utf-8')
+
+          docs = Path('docs/HARDWARE_REFERENCE/04_RTC_TIME_SYNC.md')
+          if not docs.exists():
+              docs.write_text('''# DS3231 — время и автоматическая синхронизация Бишкек\n\nДата: **2026-08-18**\n\n## Подключение\n\n`SDA -> ESP32 GPIO21`, `SCL -> ESP32 GPIO22`, I2C address `0x68`.\n\n## Часовой пояс\n\nCoilMaster использует `Asia/Bishkek`, UTC+6. DS3231 хранит локальное время Бишкек.\n\n## Автоматическая синхронизация\n\nПосле подключения ESP32 к интернету по сохранённой STA Wi-Fi сети RTC-сервис получает время по NTP (`pool.ntp.org`, `time.google.com`, `time.cloudflare.com`) и синхронизирует DS3231. При отсутствии сети часы продолжают работать автономно; после возвращения сети синхронизация повторяется автоматически. Запись разрешается только при безопасном runtime state.\n\n## Ручная установка\n\n`POST /api/system/time` принимает `year/month/day/hour/minute/second/confirmed=true`. RTC-поля допускают ведущие нули (`08`, `05`, `00`); строгий parser ID не изменён. Это исправляет `invalid_rtc_datetime_fields` при обычном browser datetime input.\n\n`GET /api/system/time` показывает RTC, `timezone`, NTP status и diagnostic result последней записи.\n''', encoding='utf-8')
+
+          idx = Path('docs/HARDWARE_REFERENCE/00_READ_FIRST.md')
+          it = idx.read_text(encoding='utf-8')
+          if '04_RTC_TIME_SYNC.md' not in it:
+              anchor = '- `03_KEYS_AND_HIDDEN_COMMANDS.md` — клавиши 4×4, START и скрытые/аварийные команды.\n'
+              assert anchor in it
+              it = it.replace(anchor, anchor + '- `04_RTC_TIME_SYNC.md` — DS3231, ручная установка и автоматическая синхронизация времени Бишкек.\n', 1)
+              idx.write_text(it, encoding='utf-8')
+          PY
+
+      - name: Install PlatformIO
+        run: python3 -m pip install --disable-pip-version-check platformio
+
+      - name: Build ESP32
+        run: pio run -e esp32
+
+      - name: Web checks
+        run: |
+          node Tests/Web/check_web_assets.js
+          node Tests/Web/check_release_contracts.js
+          node Tests/Web/check_final_acceptance_contracts.js
+
+      - name: Commit verified result
+        run: |
+          rm .github/workflows/rtc-manual-fix-finalize.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: repair RTC manual setting and expose Bishkek sync"
+          git push origin HEAD:cmp-protocol-v1

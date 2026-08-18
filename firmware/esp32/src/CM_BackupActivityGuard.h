@@ -19,6 +19,7 @@ public:
     using RuntimeProbe = BackupActivityCheck (*)();
 
     static void setRuntimeProbe(RuntimeProbe probe);
+    static BackupActivityCheck runtimeCheck();
     static BackupActivityCheck check(fs::FS& storage);
 };
 }

@@ -20,6 +20,19 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 Он содержит карту ownership/composition roots, маршрут `что изменить → какие файлы открыть`, правила добавления нового модуля и change-scoped verification matrix. Тематические и исторические handoff-файлы читать после того, как эта карта сузила нужный subsystem.
 
+## Аппаратный справочник
+
+Для физической сборки, проверки проводов и управления с клавиатуры использовать:
+
+```text
+docs/HARDWARE_REFERENCE/00_READ_FIRST.md
+docs/HARDWARE_REFERENCE/01_ARDUINO_CONNECTIONS.md
+docs/HARDWARE_REFERENCE/02_ESP32_CONNECTIONS.md
+docs/HARDWARE_REFERENCE/03_KEYS_AND_HIDDEN_COMMANDS.md
+```
+
+Там зафиксированы текущие пины Arduino/ESP32, microSD, RTC, UART, Hall, SSR, зуммер, LCD1602, внешняя START-кнопка, раскладка клавиатуры и скрытая аварийная команда `D → * → # → D`.
+
 ## Начать отсюда
 
 1. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — **актуальный checkpoint после production firmware hardening**: устранение зависшего JOB, resilient `JOB_CANCEL`, Arduino `ALL_CLEAR`, recovery после reboot и обязательный hardware regression после перепрошивки обеих плат.

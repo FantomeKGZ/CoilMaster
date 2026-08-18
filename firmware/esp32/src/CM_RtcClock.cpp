@@ -1,9 +1,15 @@
 #include "CM_RtcClock.h"
 
+#include <time.h>
+
 namespace CM
 {
 namespace
 {
+constexpr long BishkekUtcOffsetSeconds = 6L * 60L * 60L;
+constexpr int BishkekDaylightOffsetSeconds = 0;
+constexpr char BishkekTimezoneName[] = "Asia/Bishkek";
+
 bool decodeBcd(uint8_t source, uint8_t& value)
 {
     const uint8_t low = source & 0x0FU;
@@ -72,6 +78,7 @@ bool RtcClock::begin(int8_t sdaPin, int8_t sclPin)
     m_wire->begin(sdaPin, sclPin);
     RtcDateTime ignored;
     read(ignored);
+    beginNetworkSync();
     return m_detected;
 }
 
@@ -182,8 +189,103 @@ bool RtcClock::set(const RtcDateTime& value)
            verifiedSeconds - expectedSeconds <= 2UL;
 }
 
+void RtcClock::beginNetworkSync()
+{
+    if (m_networkSyncConfigured) return;
+    configTime(BishkekUtcOffsetSeconds,
+               BishkekDaylightOffsetSeconds,
+               "pool.ntp.org",
+               "time.google.com",
+               "time.cloudflare.com");
+    m_networkSyncConfigured = true;
+    m_lastNetworkSyncResult = "WAITING_NETWORK_TIME";
+    m_nextNetworkAttemptMs = 0UL;
+}
+
+void RtcClock::updateNetworkSync(uint32_t nowMs,
+                                 bool networkConnected,
+                                 bool rtcWriteAllowed)
+{
+    if (!m_networkSyncConfigured) beginNetworkSync();
+
+    if (!networkConnected)
+    {
+        if (!m_networkTimeSynced)
+            m_lastNetworkSyncResult = "WAITING_NETWORK";
+        return;
+    }
+
+    if (!rtcWriteAllowed)
+    {
+        if (!m_networkTimeSynced)
+            m_lastNetworkSyncResult = "WAITING_SAFE_IDLE";
+        return;
+    }
+
+    if (m_networkTimeSynced &&
+        static_cast<uint32_t>(nowMs - m_lastNetworkSyncMs) < NetworkResyncMs)
+        return;
+
+    if (m_nextNetworkAttemptMs != 0UL &&
+        static_cast<int32_t>(nowMs - m_nextNetworkAttemptMs) < 0)
+        return;
+
+    RtcDateTime networkValue;
+    if (!networkDateTime(networkValue))
+    {
+        m_lastNetworkSyncResult = "WAITING_NTP";
+        m_nextNetworkAttemptMs = nowMs + NetworkRetryMs;
+        return;
+    }
+
+    if (!set(networkValue))
+    {
+        m_lastNetworkSyncResult = "RTC_WRITE_OR_VERIFY_FAILED";
+        m_nextNetworkAttemptMs = nowMs + NetworkRetryMs;
+        return;
+    }
+
+    m_networkTimeSynced = true;
+    m_lastNetworkSyncMs = nowMs;
+    m_nextNetworkAttemptMs = nowMs + NetworkResyncMs;
+    m_lastNetworkSyncResult = "SYNCED";
+}
+
+bool RtcClock::networkDateTime(RtcDateTime& value) const
+{
+    value = RtcDateTime();
+    struct tm localTime = {};
+    if (!getLocalTime(&localTime, 20UL)) return false;
+
+    const int year = localTime.tm_year + 1900;
+    const int month = localTime.tm_mon + 1;
+    if (year < 2000 || year > 2099 ||
+        month < 1 || month > 12 ||
+        localTime.tm_mday < 1 || localTime.tm_mday > 31 ||
+        localTime.tm_hour < 0 || localTime.tm_hour > 23 ||
+        localTime.tm_min < 0 || localTime.tm_min > 59 ||
+        localTime.tm_sec < 0 || localTime.tm_sec > 60)
+        return false;
+
+    value.year = static_cast<uint16_t>(year);
+    value.month = static_cast<uint8_t>(month);
+    value.day = static_cast<uint8_t>(localTime.tm_mday);
+    value.hour = static_cast<uint8_t>(localTime.tm_hour);
+    value.minute = static_cast<uint8_t>(localTime.tm_min);
+    value.second = static_cast<uint8_t>(localTime.tm_sec == 60 ? 59 : localTime.tm_sec);
+    return validDateTime(value);
+}
+
 bool RtcClock::detected() const { return m_detected; }
 bool RtcClock::timeValid() const { return m_timeValid; }
+bool RtcClock::networkSyncConfigured() const { return m_networkSyncConfigured; }
+bool RtcClock::networkTimeSynced() const { return m_networkTimeSynced; }
+uint32_t RtcClock::lastNetworkSyncMs() const { return m_lastNetworkSyncMs; }
+const char* RtcClock::lastNetworkSyncResult() const
+{
+    return m_lastNetworkSyncResult;
+}
+const char* RtcClock::timezoneName() const { return BishkekTimezoneName; }
 
 bool RtcClock::readRegisters(uint8_t start,
                              uint8_t* destination,
@@ -202,7 +304,6 @@ bool RtcClock::readRegisters(uint8_t start,
     }
     return true;
 }
-
 
 bool RtcClock::writeRegisters(uint8_t start,
                               const uint8_t* source,

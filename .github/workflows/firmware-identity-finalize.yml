@@ -1,0 +1,85 @@
+name: Verify ESP32 firmware identity
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - .github/workflows/firmware-identity-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Patch firmware identity surfaces
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('firmware/esp32/src/main.cpp')
+          s=p.read_text(encoding='utf-8')
+
+          anchor='''    webServer.on("/api/status", HTTP_GET, sendJsonStatus);\n'''
+          route='''    webServer.on("/api/system/firmware", HTTP_GET, []()\n    {\n        String response = F("{\\\"target\\\":\\\"ESP32\\\",\\\"git_sha\\\":\\\"");\n        response += CM_FIRMWARE_GIT_SHA;\n        response += F("\\\",\\\"git_branch\\\":\\\"");\n        response += CM_FIRMWARE_GIT_BRANCH;\n        response += F("\\\",\\\"build_utc\\\":\\\"");\n        response += CM_FIRMWARE_BUILD_UTC;\n        response += F("\\\"}");\n        webServer.send(200, "application/json; charset=utf-8", response);\n    });\n'''
+          if '/api/system/firmware' not in s:
+              assert anchor in s, 'web route anchor missing'
+              s=s.replace(anchor, route+anchor, 1)
+
+          reset='''    Serial.print(F("ESP32 reset reason: "));\n    Serial.println(resetReasonText(bootResetReason));\n'''
+          identity='''    Serial.print(F("ESP32 firmware build: "));\n    Serial.print(CM_FIRMWARE_GIT_SHA);\n    Serial.print(F(" branch="));\n    Serial.print(CM_FIRMWARE_GIT_BRANCH);\n    Serial.print(F(" built="));\n    Serial.println(CM_FIRMWARE_BUILD_UTC);\n'''
+          if 'ESP32 firmware build:' not in s:
+              assert reset in s, 'serial reset anchor missing'
+              s=s.replace(reset, reset+identity, 1)
+          p.write_text(s,encoding='utf-8')
+
+          j=Path('firmware/esp32/web/shared/settings-system-diagnostics.js')
+          t=j.read_text(encoding='utf-8')
+          old='''            const storagePromise=loadStorage();\n            const response=await fetch('/api/system/diagnostics',{cache:'no-store'});\n            const data=await response.json();\n'''
+          new='''            const storagePromise=loadStorage();\n            const firmwarePromise=fetch('/api/system/firmware',{cache:'no-store'}).then(async response=>{\n                const value=await response.json();\n                return response.ok?value:null;\n            }).catch(()=>null);\n            const response=await fetch('/api/system/diagnostics',{cache:'no-store'});\n            const data=await response.json();\n'''
+          if 'firmwarePromise' not in t:
+              assert old in t, 'diagnostics fetch anchor missing'
+              t=t.replace(old,new,1)
+          old2='''            const storage=await storagePromise;\n            root.textContent='';\n            addRow('Причина прошлого сброса',labels[data.reset_reason]||String(data.reset_reason||'—'));\n'''
+          new2='''            const storage=await storagePromise;\n            const firmware=await firmwarePromise;\n            root.textContent='';\n            if(firmware){\n                addRow('Firmware build',String(firmware.git_sha||'—'));\n                addRow('Firmware branch',String(firmware.git_branch||'—'));\n                addRow('Build UTC',String(firmware.build_utc||'—'));\n            }else{\n                addRow('Firmware build','идентификатор недоступен');\n            }\n            addRow('Причина прошлого сброса',labels[data.reset_reason]||String(data.reset_reason||'—'));\n'''
+          if "addRow('Firmware build'" not in t:
+              assert old2 in t, 'diagnostics render anchor missing'
+              t=t.replace(old2,new2,1)
+          j.write_text(t,encoding='utf-8')
+
+          doc=Path('docs/HARDWARE_REFERENCE/06_FIRMWARE_IDENTIFICATION.md')
+          doc.write_text('''# Идентификация прошивки ESP32\n\nSource of truth: `cmp-protocol-v1`.\n\nКаждая сборка ESP32 автоматически получает Git build ID из текущего checkout. Это позволяет отличить обновление файлов `/web` на microSD от реальной перепрошивки ESP32.\n\n## Где смотреть\n\nПри старте Serial Monitor `115200` выводит строку:\n\n```text\nESP32 firmware build: <git_sha> branch=<branch> built=<UTC>\n```\n\nТакже доступен read-only API:\n\n```text\nGET /api/system/firmware\n```\n\nОтвет содержит `target`, `git_sha`, `git_branch`, `build_utc`. Те же значения отображаются в системной диагностике на странице настроек.\n\n## Практическая проверка\n\nПосле `pio run -e esp32 -t upload` перезагрузить ESP32 и сравнить `Firmware build` с Git SHA, из которого выполнялась сборка. Суффикс `-dirty` означает, что бинарник был собран при наличии незакоммиченных изменений.\n\nWeb-файлы на microSD не могут изменить этот идентификатор. Поэтому при спорном поведении FTP сначала проверяется firmware build, а уже затем содержимое `/web`.\n''',encoding='utf-8')
+          PY
+
+      - name: Commit source identity changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/esp32/src/main.cpp firmware/esp32/web/shared/settings-system-diagnostics.js docs/HARDWARE_REFERENCE/06_FIRMWARE_IDENTIFICATION.md
+          git commit -m "feat: expose ESP32 firmware build identity"
+
+      - name: Install PlatformIO
+        run: python3 -m pip install --disable-pip-version-check platformio
+
+      - name: Build ESP32
+        run: pio run -e esp32
+
+      - name: Web checks
+        run: |
+          node Tests/Web/check_web_assets.js
+          node Tests/Web/check_release_contracts.js
+          node Tests/Web/check_final_acceptance_contracts.js
+
+      - name: Finalize verified result
+        run: |
+          rm .github/workflows/firmware-identity-finalize.yml
+          git add -A
+          git commit -m "chore: finalize firmware identity verification"
+          git pull --rebase origin cmp-protocol-v1
+          git push origin HEAD:cmp-protocol-v1

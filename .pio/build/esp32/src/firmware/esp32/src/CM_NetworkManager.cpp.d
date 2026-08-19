@@ -196,4 +196,8 @@
  /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/Udp.h \
  /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/cbuf.h \
  firmware/esp32/src/CM_NetworkProfileStore.h \
- /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h
+ /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
+ firmware/esp32/src/CM_BackupActivityGuard.h \
+ firmware/esp32/src/CM_RtcClock.h \
+ /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src/Wire.h \
+ /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h

@@ -522,6 +522,25 @@ bool parseCanonicalUint32(const String& source, uint32_t& value)
     return true;
 }
 
+bool parseRtcDecimal(const String& source, uint32_t& value)
+{
+    // RTC fields from browser forms are commonly zero-padded (08/05/00).
+    // Keep parseCanonicalUint32 strict for IDs; only date/time fields differ.
+    value = 0UL;
+    if (source.length() == 0U) return false;
+    uint32_t parsed = 0UL;
+    for (size_t index = 0U; index < source.length(); ++index)
+    {
+        const char ch = source[index];
+        if (!isDigit(ch)) return false;
+        const uint8_t digit = static_cast<uint8_t>(ch - '0');
+        if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        parsed = parsed * 10UL + digit;
+    }
+    value = parsed;
+    return true;
+}
+
 bool sameProgram(const CM::OutgoingWindingJob& left,
                  const CM::OutgoingWindingJob& right)
 {
@@ -1060,7 +1079,7 @@ void configureWebServer()
         CM::RtcDateTime value;
         const bool valid = rtcClock.read(value);
         String response;
-        response.reserve(180U);
+        response.reserve(360U);
         response = F("{\"source\":\"DS3231\",\"detected\":");
         response += rtcClock.detected() ? F("true") : F("false");
         response += F(",\"time_valid\":");
@@ -1080,7 +1099,21 @@ void configureWebServer()
             response += '"'; response += timestamp; response += '"';
         }
         else response += F("null");
-        response += F(",\"timezone_configured\":false,\"scheduling_ready\":false}");
+        response += F(",\"timezone_configured\":true,\"timezone\":\"");
+        response += rtcClock.timezoneName();
+        response += F("\",\"utc_offset_minutes\":360,\"ntp_configured\":");
+        response += rtcClock.networkSyncConfigured() ? F("true") : F("false");
+        response += F(",\"ntp_synced\":");
+        response += rtcClock.networkTimeSynced() ? F("true") : F("false");
+        response += F(",\"ntp_status\":\"");
+        response += rtcClock.lastNetworkSyncResult();
+        response += F("\",\"last_ntp_sync_ms\":");
+        response += rtcClock.lastNetworkSyncMs();
+        response += F(",\"rtc_last_set_result\":\"");
+        response += rtcClock.lastSetResult();
+        response += F("\",\"scheduling_ready\":");
+        response += valid ? F("true") : F("false");
+        response += F("}");
         webServer.send(200, "application/json; charset=utf-8", response);
     });
     webServer.on("/api/system/time", HTTP_POST, []()
@@ -1101,7 +1134,7 @@ void configureWebServer()
         for (uint8_t i = 0U; i < 6U; ++i)
         {
             if (!webServer.hasArg(fields[i]) ||
-                !parseCanonicalUint32(webServer.arg(fields[i]), parsed[i]))
+                !parseRtcDecimal(webServer.arg(fields[i]), parsed[i]))
             {
                 webServer.send(400, "application/json",
                                "{\"error\":\"invalid_rtc_datetime_fields\"}");
@@ -1132,8 +1165,10 @@ void configureWebServer()
         value.second = static_cast<uint8_t>(parsed[5]);
         if (!rtcClock.set(value))
         {
-            webServer.send(500, "application/json",
-                           "{\"error\":\"rtc_write_or_verify_failed\"}");
+            String error = F("{\"error\":\"rtc_write_or_verify_failed\",\"detail\":\"");
+            error += rtcClock.lastSetResult();
+            error += F("\"}");
+            webServer.send(500, "application/json; charset=utf-8", error);
             return;
         }
         webServer.send(200, "application/json; charset=utf-8",

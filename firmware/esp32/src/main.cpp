@@ -1340,7 +1340,9 @@ void setup()
     receiver.begin(ArduinoBaud, ArduinoRxPin, ArduinoTxPin);
     SPI.begin(SdSckPin, SdMisoPin, SdMosiPin, SdCsPin);
     const bool sdReady = SD.begin(SdCsPin, SPI);
-    webRecoveryRequired = sdReady && !SD.exists("/web");
+    webRecoveryRequired = sdReady &&
+        (!SD.exists("/web/desktop/index.html") ||
+         !SD.exists("/web/mobile/index.html"));
     journalReady = sdReady && journal.begin();
     idAllocatorReady = sdReady && idAllocator.begin();
     jobSnapshotStoreReady = sdReady && jobSnapshots.begin();

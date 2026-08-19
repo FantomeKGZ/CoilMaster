@@ -107,6 +107,16 @@ void WebRecoveryFtpServer::stop(const char* result)
 void WebRecoveryFtpServer::update(uint32_t nowMs)
 {
     if (!m_running) return;
+
+    // Emergency FTP is only a bootstrap path. Once both production UI entry
+    // points exist, the site is usable and the emergency server must not stay
+    // advertised as an active recovery condition forever.
+    if (m_automaticRecovery && webRootUsable())
+    {
+        stop("automatic_recovery_complete");
+        return;
+    }
+
     if (!activitySafe())
     {
         stop("stopped_activity_not_safe");
@@ -145,7 +155,14 @@ void WebRecoveryFtpServer::handleStatus()
     response += F(",\"transfer_active\":");
     response += transferActive() ? F("true") : F("false");
     response += F(",\"address\":\""); response += WiFi.softAPIP().toString();
-    response += F("\",\"port\":21,\"username\":\"CoilMaster\",\"root\":\"/web\",\"last_result\":\"");
+    response += F("\",\"ap_address\":\""); response += WiFi.softAPIP().toString();
+    response += F("\",\"sta_available\":");
+    response += WiFi.status() == WL_CONNECTED ? F("true") : F("false");
+    response += F(",\"sta_address\":\"");
+    if (WiFi.status() == WL_CONNECTED) response += WiFi.localIP().toString();
+    response += F("\",\"access_scope\":\"LOCAL_AP_OR_STA\"");
+    response += F(",\"web_root_usable\":"); response += webRootUsable() ? F("true") : F("false");
+    response += F(",\"port\":21,\"username\":\"CoilMaster\",\"root\":\"/web\",\"last_result\":\"");
     response += jsonEscaped(m_lastResult);
     response += F("\"}");
     m_webServer.send(200, "application/json; charset=utf-8", response);
@@ -172,11 +189,11 @@ void WebRecoveryFtpServer::acceptControlClient(uint32_t nowMs)
 {
     WiFiClient candidate = m_controlServer.available();
     if (!candidate) return;
-    if (!sameAccessPointSubnet(candidate.remoteIP()))
+    if (!sameLocalSubnet(candidate.remoteIP()))
     {
-        candidate.print(F("421 Use CoilMaster access point\r\n"));
+        candidate.print(F("421 Use CoilMaster AP or connected local network\r\n"));
         candidate.stop();
-        m_lastResult = "non_ap_client_rejected";
+        m_lastResult = "non_local_client_rejected";
         return;
     }
     m_controlClient = candidate;
@@ -382,7 +399,7 @@ void WebRecoveryFtpServer::updateTransfer(uint32_t nowMs)
         WiFiClient candidate = m_dataServer.available();
         if (candidate)
         {
-            if (!sameAccessPointSubnet(candidate.remoteIP()))
+            if (!sameLocalSubnet(candidate.remoteIP()))
             {
                 candidate.stop();
             }
@@ -560,10 +577,34 @@ bool WebRecoveryFtpServer::resolvePath(const String& argument,
     return true;
 }
 
-bool WebRecoveryFtpServer::sameAccessPointSubnet(const IPAddress& address) const
+bool WebRecoveryFtpServer::sameLocalSubnet(const IPAddress& address) const
 {
-    const IPAddress local = WiFi.softAPIP();
-    return address[0] == local[0] && address[1] == local[1] && address[2] == local[2];
+    const IPAddress ap = WiFi.softAPIP();
+    if (address[0] == ap[0] && address[1] == ap[1] && address[2] == ap[2])
+        return true;
+
+    if (WiFi.status() != WL_CONNECTED) return false;
+    const IPAddress sta = WiFi.localIP();
+    const IPAddress mask = WiFi.subnetMask();
+    for (uint8_t i = 0U; i < 4U; ++i)
+    {
+        if ((address[i] & mask[i]) != (sta[i] & mask[i])) return false;
+    }
+    return true;
+}
+
+bool WebRecoveryFtpServer::webRootUsable() const
+{
+    return m_storage.exists("/web/desktop/index.html") &&
+           m_storage.exists("/web/mobile/index.html");
+}
+
+IPAddress WebRecoveryFtpServer::passiveAddressFor(const IPAddress& remote) const
+{
+    const IPAddress ap = WiFi.softAPIP();
+    if (remote[0] == ap[0] && remote[1] == ap[1] && remote[2] == ap[2])
+        return ap;
+    return WiFi.status() == WL_CONNECTED ? WiFi.localIP() : ap;
 }
 
 bool WebRecoveryFtpServer::sendListEntry()
@@ -610,7 +651,7 @@ void WebRecoveryFtpServer::enterPassive(bool extended)
         reply(229U, "Entering Extended Passive Mode (|||50009|)");
         return;
     }
-    const IPAddress address = WiFi.softAPIP();
+    const IPAddress address = passiveAddressFor(m_controlClient.remoteIP());
     String response = F("Entering Passive Mode (");
     response += address[0]; response += ','; response += address[1]; response += ',';
     response += address[2]; response += ','; response += address[3];

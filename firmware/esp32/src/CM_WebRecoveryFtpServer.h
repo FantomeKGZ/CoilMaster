@@ -64,7 +64,9 @@ private:
     bool openPassiveOrReply();
     bool resolvePath(const String& argument, String& virtualPath,
                      String& storagePath) const;
-    bool sameAccessPointSubnet(const IPAddress& address) const;
+    bool sameLocalSubnet(const IPAddress& address) const;
+    bool webRootUsable() const;
+    IPAddress passiveAddressFor(const IPAddress& remote) const;
     bool sendListEntry();
     void reply(uint16_t code, const String& text);
     void enterPassive(bool extended);

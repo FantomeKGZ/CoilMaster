@@ -77,10 +77,10 @@ jobs:
 
       - name: Commit verified result
         run: |
-          git pull --rebase origin cmp-protocol-v1
           rm .github/workflows/rtc-manual-fix-finalize.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "fix: repair RTC manual setting and expose Bishkek sync"
+          git pull --rebase origin cmp-protocol-v1
           git push origin HEAD:cmp-protocol-v1

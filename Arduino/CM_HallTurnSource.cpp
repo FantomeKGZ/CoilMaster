@@ -118,6 +118,18 @@ bool HallTurnSource::magnetDetected() const
     return m_magnetDetected;
 }
 
+HallRearmState HallTurnSource::rearmState() const
+{
+    if (!m_magnetDetected) return HallRearmState::Armed;
+    return m_releaseCandidate ? HallRearmState::ReleaseDebounce
+                              : HallRearmState::WaitingRelease;
+}
+
+uint16_t HallTurnSource::releaseBoundary() const
+{
+    return releaseThreshold();
+}
+
 uint16_t HallTurnSource::releaseThreshold() const
 {
     if (!m_inverted)

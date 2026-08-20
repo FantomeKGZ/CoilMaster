@@ -57,6 +57,7 @@ struct OutgoingWindingJob
     uint32_t jobId;
     uint32_t sessionId;
     RemoteJobType type;
+    uint16_t repeatTarget;
     uint8_t coilCount;
     uint16_t turns[MaxCoils];
 

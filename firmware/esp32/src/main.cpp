@@ -90,6 +90,7 @@ uint32_t activeSessionId = 0UL;
 uint32_t lastRunId = 0UL;
 uint32_t lastArduinoEventMs = 0UL;
 uint16_t completedRuns = 0U;
+uint16_t activeRepeatTarget = 1U;
 uint8_t activeCoilCount = 0U;
 uint16_t activeTurns[MaxWebCoils] = {};
 CM::RemoteJobType activeJobType = CM::RemoteJobType::Working;
@@ -163,13 +164,11 @@ CM::BackupActivityCheck backupRuntimeActivity()
 {
     if (!recoveryEvaluated || !jobStateStoreReady || !jobStates.isReady())
         return CM::BackupActivityCheck::Unavailable;
-    // Manual review means ESP32 cannot prove that Arduino is physically idle
-    // after a reboot/fault/delivery interruption. Keep heavy backup scans blocked
-    // until the operator explicitly closes the recovery state.
     if (manualReviewRequired())
         return CM::BackupActivityCheck::Busy;
     if (runActive || autonomousRunActive || jobAwaitingAck || jobCancelAwaitingAck ||
-        (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns == 0U))
+        (lastJobResult == CM::JobDeliveryResult::Accepted && activeJobId != 0UL &&
+         completedRuns < activeRepeatTarget))
     {
         return CM::BackupActivityCheck::Busy;
     }
@@ -205,7 +204,10 @@ const char* jobStatusText()
     if (runActive) return "RUNNING";
     if (jobCancelAwaitingAck) return "CANCELLING";
     if (jobAwaitingAck) return "WAITING_ARDUINO_ACK";
-    if (completedRuns > 0U) return "PROGRAM_COMPLETED";
+    if (activeJobId != 0UL && completedRuns >= activeRepeatTarget)
+        return "PROGRAM_COMPLETED";
+    if (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns > 0U)
+        return "WAITING_NEXT_REPEAT";
     switch (lastJobResult)
     {
         case CM::JobDeliveryResult::Accepted: return "ACCEPTED_READY";
@@ -224,7 +226,9 @@ const char* machineStatusText()
     if (runActive) return "Намотка";
     if (jobCancelAwaitingAck) return "Отмена";
     if (jobAwaitingAck) return "Передача";
-    if (completedRuns > 0U) return "Завершено";
+    if (activeJobId != 0UL && completedRuns >= activeRepeatTarget) return "Завершено";
+    if (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns > 0U)
+        return "Готов к повтору";
     if (lastJobResult == CM::JobDeliveryResult::Accepted) return "Готов";
     return "Ожидание";
 }
@@ -263,6 +267,7 @@ void restoreLatestJobState()
     activeSessionId = 0UL;
     lastRunId = 0UL;
     completedRuns = 0U;
+    activeRepeatTarget = 1U;
     activeJobType = CM::RemoteJobType::Working;
     activeJobLinkage = CM::JobLinkage();
     activeJobSpoolSelection = CM::JobSpoolSelection();
@@ -306,6 +311,7 @@ void restoreLatestJobState()
     activeSessionId = recoveryInfo.state.sessionId;
     receiver.rememberJobId(activeJobId);
     activeJobType = display.type;
+    activeRepeatTarget = display.repeatTarget;
     activeJobLinkage = display.linkage;
     activeCoilCount = display.coilCount;
     for (uint8_t i = 0U; i < activeCoilCount; ++i)
@@ -346,6 +352,7 @@ void restoreLatestJobState()
     Serial.print(F("Recovered job state job=")); Serial.print(activeJobId);
     Serial.print(F(" session=")); Serial.print(activeSessionId);
     Serial.print(F(" program=")); Serial.print(activeProgramText());
+    Serial.print(F(" repeat_target=")); Serial.print(activeRepeatTarget);
     if (activeJobLinkage.linked)
     {
         Serial.print(F(" repair=")); Serial.print(activeJobLinkage.repairId);
@@ -378,8 +385,7 @@ bool persistEventState(const CM::RemoteWindingEvent& event)
     if (event.type == CM::RemoteEventType::RunStarted)
     {
         if (state.executionState == CM::JobExecutionState::Running &&
-            state.lastRunId == event.runId &&
-            state.completedRuns == event.completedRuns)
+            state.lastRunId == event.runId)
             return true;
         return jobStates.updateExecution(event.sessionId,
                                          CM::JobExecutionState::Running,
@@ -390,12 +396,18 @@ bool persistEventState(const CM::RemoteWindingEvent& event)
 
     if (event.type == CM::RemoteEventType::RunCompleted)
     {
-        if (state.executionState == CM::JobExecutionState::ProgramCompleted &&
+        if (activeRepeatTarget == 0U || event.completedRuns > activeRepeatTarget)
+            return false;
+        const CM::JobExecutionState completedState =
+            event.completedRuns == activeRepeatTarget
+                ? CM::JobExecutionState::ProgramCompleted
+                : CM::JobExecutionState::WaitingPhysicalStart;
+        if (state.executionState == completedState &&
             state.lastRunId == event.runId &&
             state.completedRuns == event.completedRuns)
             return true;
         return jobStates.updateExecution(event.sessionId,
-                                         CM::JobExecutionState::ProgramCompleted,
+                                         completedState,
                                          event.runId,
                                          event.completedRuns,
                                          millis());
@@ -458,11 +470,14 @@ void handleEvent(const CM::RemoteWindingEvent& event)
         }
         activeSessionId = event.sessionId;
         lastRunId = event.runId;
-        completedRuns = event.completedRuns;
+        if (event.type == CM::RemoteEventType::RunCompleted)
+            completedRuns = event.completedRuns;
         runActive = event.type == CM::RemoteEventType::RunStarted;
         if (runActive) jobCancelAwaitingAck = false;
         recoveryInfo = CM::JobRecoveryInfo();
-        recoveryInfo.mayCreateNewJob = event.type == CM::RemoteEventType::RunCompleted;
+        recoveryInfo.mayCreateNewJob =
+            event.type == CM::RemoteEventType::RunCompleted &&
+            event.completedRuns == activeRepeatTarget;
         recoveryEvaluated = true;
         stateRecovered = false;
         receiver.sendAck(event.runId,
@@ -526,8 +541,6 @@ bool parseCanonicalUint32(const String& source, uint32_t& value)
 
 bool parseRtcDecimal(const String& source, uint32_t& value)
 {
-    // RTC fields from browser forms are commonly zero-padded (08/05/00).
-    // Keep parseCanonicalUint32 strict for IDs; only date/time fields differ.
     value = 0UL;
     if (source.length() == 0U) return false;
     uint32_t parsed = 0UL;
@@ -565,7 +578,8 @@ void sendJsonStatus()
     response += F("\",\"job_type\":\"");
     response += activeJobType == CM::RemoteJobType::Starting ? F("STARTING") : F("WORKING");
     response += F("\",\"program\":\""); response += activeProgramText();
-    response += F("\",\"linked\":"); response += activeJobLinkage.linked ? F("true") : F("false");
+    response += F("\",\"repeat_target\":"); response += activeRepeatTarget;
+    response += F(",\"linked\":"); response += activeJobLinkage.linked ? F("true") : F("false");
     response += F(",\"repair_id\":");
     if (activeJobLinkage.linked) response += activeJobLinkage.repairId;
     else response += F("null");
@@ -777,9 +791,6 @@ void handleCancelJob()
         webServer.send(409, "application/json", "{\"error\":\"job_or_session_mismatch\"}");
         return;
     }
-    // Linked repair/motor/spool metadata is immutable history, not a reason to
-    // trap a delivery that never reached physical START. Cancelling here only
-    // closes the no-run job state; it does not delete snapshots or write off wire.
     if (runActive || completedRuns != 0U || lastRunId != 0UL)
     {
         webServer.send(409, "application/json", "{\"error\":\"job_has_physical_run_evidence\"}");
@@ -865,6 +876,17 @@ void handleCreateJob()
     {
         webServer.send(400, "application/json", "{\"error\":\"invalid_turns\"}");
         return;
+    }
+    if (webServer.hasArg("repeat_target") && webServer.arg("repeat_target").length() > 0U)
+    {
+        uint32_t parsedRepeatTarget = 0UL;
+        if (!parseCanonicalUint32(webServer.arg("repeat_target"), parsedRepeatTarget) ||
+            parsedRepeatTarget == 0UL || parsedRepeatTarget > 0xFFFFUL)
+        {
+            webServer.send(400, "application/json", "{\"error\":\"invalid_repeat_target\"}");
+            return;
+        }
+        job.repeatTarget = static_cast<uint16_t>(parsedRepeatTarget);
     }
 
     CM::JobLinkage linkage;
@@ -1033,6 +1055,7 @@ void handleCreateJob()
     activeJobId = job.jobId;
     activeSessionId = job.sessionId;
     activeJobType = job.type;
+    activeRepeatTarget = job.repeatTarget;
     activeJobLinkage = linkage;
     activeJobSpoolSelection = linkage.linked
         ? persistedSpoolSelection
@@ -1052,6 +1075,7 @@ void handleCreateJob()
 
     String response = F("{\"accepted\":true,\"job_id\":"); response += job.jobId;
     response += F(",\"session_id\":"); response += job.sessionId;
+    response += F(",\"repeat_target\":"); response += job.repeatTarget;
     response += F(",\"linked\":"); response += linkage.linked ? F("true") : F("false");
     if (linkage.linked)
     {
@@ -1246,10 +1270,6 @@ void processJobDelivery()
 
         if (delivery.result == CM::JobDeliveryResult::TimedOut)
         {
-            // No ACK is not proof of rejection: Arduino may have accepted the
-            // JOB while every acknowledgement was lost. Re-evaluate the just-
-            // persisted state through the same recovery path used after reboot
-            // so operator review is required immediately, without auto resend.
             restoreLatestJobState();
             if (!jobStateStoreReady || !manualReviewRequired())
             {
@@ -1266,8 +1286,6 @@ void processJobDelivery()
         if (delivery.result == CM::JobDeliveryResult::Accepted ||
             delivery.result == CM::JobDeliveryResult::Rejected)
         {
-            // Only a parsed JOB_ACK proves that Arduino was heard. Locally
-            // generated timeout/cancel results must not make arduino_online true.
             lastArduinoEventMs = millis();
         }
         activeJobId = delivery.jobId;

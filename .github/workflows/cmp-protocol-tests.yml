@@ -40,6 +40,9 @@ jobs:
       - name: Audit repeat target UI contracts
         run: node Tests/Web/check_repeat_target_ui.js
 
+      - name: Audit motor schema UI contracts
+        run: node Tests/Web/check_motor_schema_ui.js
+
       - name: Audit release safety contracts
         run: node Tests/Web/check_release_contracts.js
 

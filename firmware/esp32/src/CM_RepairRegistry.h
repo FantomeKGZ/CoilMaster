@@ -119,6 +119,29 @@ public:
                               uint16_t& count,
                               uint32_t& nextCursor,
                               bool& hasMore) const;
+
+    // Legacy/client-filtered repair paging remains source-compatible. It
+    // delegates to the extended reader with no motor filter.
+    bool appendRepairsPageJson(String& json,
+                               uint32_t clientId,
+                               const String& statusFilter,
+                               uint32_t cursor,
+                               uint8_t limit,
+                               uint16_t& count,
+                               uint32_t& nextCursor,
+                               bool& hasMore) const
+    {
+        return appendRepairsPageJson(json,
+                                     clientId,
+                                     0UL,
+                                     statusFilter,
+                                     cursor,
+                                     limit,
+                                     count,
+                                     nextCursor,
+                                     hasMore);
+    }
+
     bool appendRepairsPageJson(String& json,
                                uint32_t clientId,
                                uint32_t motorId,

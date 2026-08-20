@@ -2,6 +2,7 @@
 #include "CM_FlatJsonObjectValidator.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
+#include "CM_WarehouseWriteOffRecord.h"
 
 namespace CM
 {
@@ -65,6 +66,11 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
     summary = RepairCostSummary();
     summary.repairId = repairId;
     if (!ready() || repairId == 0UL || !repairExists(repairId)) return false;
+
+    // This is the authoritative whole-journal transaction/provenance validation.
+    // Costing deliberately consumes only CONFIRMED records after this pass instead
+    // of maintaining a second legacy-only parser that could drift from warehouse
+    // persistence semantics.
     if (!WarehouseMovementIntegrityAudit::check(m_storage)) return false;
 
     bool currencySet = false;
@@ -74,179 +80,72 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
         File file = m_storage.open(WireMovementsPath, FILE_READ);
         if (!file) return false;
 
-        uint32_t maximumMovementId = 0UL;
-        uint32_t pendingMovementId = 0UL;
-        uint32_t pendingSpoolId = 0UL;
-        uint32_t pendingRepairId = 0UL;
-        uint32_t pendingBefore = 0UL;
-        uint32_t pendingAfter = 0UL;
-        uint32_t pendingMass = 0UL;
-        uint32_t pendingPrice = 0UL;
-        String pendingCurrency;
-        String pendingTimestamp;
-        String pendingComment;
-
         while (file.available())
         {
             const String line = file.readStringUntil('\n');
             if (line.length() == 0U) continue;
 
-            uint32_t movementId = 0UL;
-            uint32_t spoolId = 0UL;
-            uint32_t lineRepairId = 0UL;
-            uint32_t diameter = 0UL;
-            uint32_t before = 0UL;
-            uint32_t after = 0UL;
-            uint32_t mass = 0UL;
-            uint32_t price = 0UL;
-            String type, status, currency, timestamp, comment, wireType;
-
-            const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
-            const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-            if (!FlatJsonObjectValidator::valid(line) ||
-                !findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
-                !findString(line, "type", type) || type != "WRITE_OFF" ||
-                !findString(line, "status", status) ||
-                !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
-                !findUnsigned(line, "repair_id", lineRepairId) || lineRepairId == 0UL ||
-                !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter > 0xFFFFUL ||
-                !findUnsigned(line, "weight_before_g", before) || before == 0UL ||
-                !findUnsigned(line, "weight_after_g", after) || after >= before ||
-                !findUnsigned(line, "mass_g", mass) || mass != before - after ||
-                !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
-                !findString(line, "currency", currency) || currency.length() != 3U ||
-                !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
-                (hasComment && !findString(line, "comment", comment)) ||
-                (hasWireType && !findString(line, "wire_type", wireType)))
+            WarehouseWriteOffRecord record;
+            if (!WarehouseWriteOffRecordCodec::parse(line, record))
             {
                 file.close();
                 return false;
             }
+            if (record.status != "CONFIRMED" || record.repairId != repairId) continue;
 
-            if (status == "PENDING")
+            const uint64_t product = static_cast<uint64_t>(record.massGrams) *
+                                     static_cast<uint64_t>(record.pricePerKgMinor);
+            if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL)
             {
-                if (pendingMovementId != 0UL || movementId <= maximumMovementId ||
-                    diameter != 0UL || hasWireType)
+                file.close();
+                return false;
+            }
+            const uint64_t lineCost = (product + 500ULL) / 1000ULL;
+
+            if (!addChecked64(summary.wireCostMinor, lineCost) ||
+                summary.wireLineCount == 0xFFFFU ||
+                !acceptCurrency(record.currency, summary.currency, currencySet))
+            {
+                file.close();
+                return false;
+            }
+            ++summary.wireLineCount;
+
+            if (record.wireType == "CU")
+            {
+                if (!addChecked64(summary.copperWireCostMinor, lineCost) ||
+                    !addChecked32(summary.copperWireGrams, record.massGrams) ||
+                    summary.copperWireLineCount == 0xFFFFU)
                 {
                     file.close();
                     return false;
                 }
-                maximumMovementId = movementId;
-                pendingMovementId = movementId;
-                pendingSpoolId = spoolId;
-                pendingRepairId = lineRepairId;
-                pendingBefore = before;
-                pendingAfter = after;
-                pendingMass = mass;
-                pendingPrice = price;
-                pendingCurrency = currency;
-                pendingTimestamp = timestamp;
-                pendingComment = comment;
-                continue;
+                ++summary.copperWireLineCount;
             }
-
-            if (status != "CONFIRMED" && status != "ABORTED")
+            else if (record.wireType == "AL")
             {
-                file.close();
-                return false;
-            }
-
-            if (pendingMovementId == 0UL || movementId != pendingMovementId ||
-                spoolId != pendingSpoolId || lineRepairId != pendingRepairId ||
-                before != pendingBefore || after != pendingAfter || mass != pendingMass ||
-                price != pendingPrice || currency != pendingCurrency ||
-                timestamp != pendingTimestamp || comment != pendingComment)
-            {
-                file.close();
-                return false;
-            }
-
-            if (status == "ABORTED")
-            {
-                if (diameter != 0UL || hasWireType)
+                if (!addChecked64(summary.aluminiumWireCostMinor, lineCost) ||
+                    !addChecked32(summary.aluminiumWireGrams, record.massGrams) ||
+                    summary.aluminiumWireLineCount == 0xFFFFU)
                 {
                     file.close();
                     return false;
                 }
+                ++summary.aluminiumWireLineCount;
             }
             else
             {
-                if (diameter == 0UL ||
-                    (hasWireType && wireType != "CU" && wireType != "AL"))
+                if (!addChecked64(summary.unknownWireCostMinor, lineCost) ||
+                    !addChecked32(summary.unknownWireGrams, record.massGrams) ||
+                    summary.unknownWireLineCount == 0xFFFFU)
                 {
                     file.close();
                     return false;
                 }
-
-                if (lineRepairId == repairId)
-                {
-                    const uint64_t product = static_cast<uint64_t>(mass) *
-                                             static_cast<uint64_t>(price);
-                    if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL)
-                    {
-                        file.close();
-                        return false;
-                    }
-                    const uint64_t lineCost = (product + 500ULL) / 1000ULL;
-
-                    if (!addChecked64(summary.wireCostMinor, lineCost) ||
-                        summary.wireLineCount == 0xFFFFU ||
-                        !acceptCurrency(currency, summary.currency, currencySet))
-                    {
-                        file.close();
-                        return false;
-                    }
-                    ++summary.wireLineCount;
-
-                    if (wireType == "CU")
-                    {
-                        if (!addChecked64(summary.copperWireCostMinor, lineCost) ||
-                            !addChecked32(summary.copperWireGrams, mass) ||
-                            summary.copperWireLineCount == 0xFFFFU)
-                        {
-                            file.close();
-                            return false;
-                        }
-                        ++summary.copperWireLineCount;
-                    }
-                    else if (wireType == "AL")
-                    {
-                        if (!addChecked64(summary.aluminiumWireCostMinor, lineCost) ||
-                            !addChecked32(summary.aluminiumWireGrams, mass) ||
-                            summary.aluminiumWireLineCount == 0xFFFFU)
-                        {
-                            file.close();
-                            return false;
-                        }
-                        ++summary.aluminiumWireLineCount;
-                    }
-                    else
-                    {
-                        if (!addChecked64(summary.unknownWireCostMinor, lineCost) ||
-                            !addChecked32(summary.unknownWireGrams, mass) ||
-                            summary.unknownWireLineCount == 0xFFFFU)
-                        {
-                            file.close();
-                            return false;
-                        }
-                        ++summary.unknownWireLineCount;
-                    }
-                }
+                ++summary.unknownWireLineCount;
             }
-
-            pendingMovementId = 0UL;
-            pendingSpoolId = 0UL;
-            pendingRepairId = 0UL;
-            pendingBefore = 0UL;
-            pendingAfter = 0UL;
-            pendingMass = 0UL;
-            pendingPrice = 0UL;
-            pendingCurrency = String();
-            pendingTimestamp = String();
-            pendingComment = String();
         }
         file.close();
-        if (pendingMovementId != 0UL) return false;
     }
 
     if (m_storage.exists(MaterialUsagePath))

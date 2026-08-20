@@ -98,13 +98,19 @@ requireText(backupPath, backup, 'WAITING_RESTORE_CLEANUP',
 requireText(backupPath, backup, 'auto_resume=0',
   'restore result no longer explicitly prohibits auto-resume');
 
-// Manual exact-run wire writeoff remains the only production deduction path.
-for (const field of ['spool_id', 'source_session_id', 'source_run_id']) {
+// Manual exact-run wire deduction remains the only production path. Legacy
+// exact-spool writeoff is retained, while KG_FIRST may explicitly omit spool_id
+// without weakening source session/run provenance or enabling automatic deduction.
+for (const field of ['spool_id', 'source_session_id', 'source_run_id', 'quantity_kg', 'writeoff_mode']) {
   requireText(writeOffPath, writeOff, '"' + field + '"',
-    'manual writeoff provenance field missing: ' + field);
+    'manual writeoff provenance/material field missing: ' + field);
 }
+requireText(writeOffPath, writeOff, 'm_server.arg("writeoff_mode") == "KG_FIRST"',
+  'explicit kg-first writeoff mode missing');
 requireText(writeOffPath, writeOff, 'confirmedWriteOffForSourceRun(sourceSessionId,',
   'duplicate exact-run writeoff protection missing');
+requireText(writeOffPath, writeOff, 'automatic_wire_writeoff_allowed\\\":false',
+  'manual writeoff response no longer prohibits automatic deduction');
 
 // Final operator UI surface must exist in both variants; generic web audit protects syntax/links.
 for (const variant of ['desktop', 'mobile']) {
@@ -134,4 +140,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, backup inspection, fail-closed restore, manual exact-run writeoff, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, backup inspection, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');

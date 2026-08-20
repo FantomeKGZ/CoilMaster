@@ -18,12 +18,21 @@ add_executable(cmp1_text_tests
     ../CMP1Text/test_main.cpp
 )
 
+add_executable(repeat_target_state_machine_tests
+    test_repeat_target.cpp
+    ../../Core/CM_StateMachine.cpp
+)
+
 target_include_directories(cmp_protocol_tests PRIVATE
     ../../Shared/Protocol
 )
 
 target_include_directories(cmp1_text_tests PRIVATE
     ../../Shared/CMP1Text
+)
+
+target_include_directories(repeat_target_state_machine_tests PRIVATE
+    ../../Core
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -39,8 +48,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wpedantic
         -Werror
     )
+    target_compile_options(repeat_target_state_machine_tests PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Werror
+    )
 endif()
 
 enable_testing()
 add_test(NAME cmp_protocol_tests COMMAND cmp_protocol_tests)
 add_test(NAME cmp1_text_tests COMMAND cmp1_text_tests)
+add_test(NAME repeat_target_state_machine_tests COMMAND repeat_target_state_machine_tests)

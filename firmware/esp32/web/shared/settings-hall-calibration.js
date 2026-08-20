@@ -32,6 +32,23 @@
     }
   }
 
+  function resultFromState(state){
+    if(!state||!state.result_available)return null;
+    return {
+      available:true,
+      valid:!!state.recommendation_valid,
+      baseline:state.baseline,
+      min:state.min,
+      max:state.max,
+      recommended_threshold:state.recommended_threshold,
+      recommended_hysteresis:state.recommended_hysteresis,
+      direction:state.recommended_direction,
+      samples:state.samples,
+      duration_ms:state.duration_ms,
+      received_at_ms:state.result_received_at_ms
+    };
+  }
+
   function mount(options={}){
     const get=id=>document.getElementById(id);
     const box=get(options.statusId||'calibrationStatus');
@@ -92,8 +109,7 @@
       }
       armBtn.disabled=pending||name==='ARMED_WAITING_START'||name==='RUNNING';
       abortBtn.disabled=pending||!(name==='ARMED_WAITING_START'||name==='RUNNING');
-      if(state.result)renderResult(state.result);
-      else renderResult(null);
+      renderResult(resultFromState(state));
     }
 
     async function load(refresh=false){
@@ -110,7 +126,9 @@
       if(!polling)return;
       try{
         const state=await load(false);
-        if(state.state==='COMPLETED'||state.state==='ABORTED'||state.state==='IDLE'){
+        const terminal=!state.pending&&
+          (state.state==='COMPLETED'||state.state==='ABORTED'||state.state==='IDLE');
+        if(terminal){
           polling=false;
           return;
         }

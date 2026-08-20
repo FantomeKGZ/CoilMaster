@@ -84,6 +84,7 @@ void HardwareSettingsController::applyToHall(
     m_hall.setThreshold(settings.hallThreshold);
     m_hall.setHysteresis(settings.hallHysteresis);
     m_hall.setReleaseDebounceMs(settings.hallReleaseDebounceMs);
+    m_hall.setInverted(settings.hallDirection == HallSignalDirection::Falling);
 }
 
 } // namespace CM

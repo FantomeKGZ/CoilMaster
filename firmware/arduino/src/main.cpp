@@ -468,6 +468,8 @@ void processRemoteJobs()
         Serial.print(remoteJob.jobId);
         Serial.print(F(" coils="));
         Serial.print(remoteJob.coilCount);
+        Serial.print(F(" repeat_target="));
+        Serial.print(remoteJob.repeatTarget);
         Serial.print(F(" result="));
         Serial.println(accepted ? F("ACCEPTED") : F("REJECTED"));
     }
@@ -683,16 +685,28 @@ void processUart(uint32_t nowMs)
         switch (delivery.result)
         {
             case CM::UartDeliveryResult::Acknowledged:
+            {
                 persistence.removePendingCompleted(delivery.runId);
+                const bool terminalRemoteCleared =
+                    machine.acknowledgeDeliveredRun(delivery.runId);
                 synchronizationError = false;
                 Serial.println(F("ACK"));
+                if (terminalRemoteCleared)
+                    Serial.println(F("CM_JOB AUTO_CLEAR result=FINAL_RUN_ACKED"));
                 break;
+            }
 
             case CM::UartDeliveryResult::Duplicate:
+            {
                 persistence.removePendingCompleted(delivery.runId);
+                const bool terminalRemoteCleared =
+                    machine.acknowledgeDeliveredRun(delivery.runId);
                 synchronizationError = false;
                 Serial.println(F("DUPLICATE"));
+                if (terminalRemoteCleared)
+                    Serial.println(F("CM_JOB AUTO_CLEAR result=FINAL_RUN_DUPLICATE"));
                 break;
+            }
 
             case CM::UartDeliveryResult::NegativeAcknowledgement:
                 synchronizationError = true;

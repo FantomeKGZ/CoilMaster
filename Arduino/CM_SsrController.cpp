@@ -17,10 +17,13 @@ void SsrController::begin()
     forceOff();
 }
 
-void SsrController::update(MachineState state, bool simulationMode)
+void SsrController::update(MachineState state,
+                           bool simulationMode,
+                           bool serviceMotorPermit)
 {
     m_commandedOn = state == MachineState::Winding ||
-                    state == MachineState::ManualRun;
+                    state == MachineState::ManualRun ||
+                    serviceMotorPermit;
 
     writePhysical(m_commandedOn && !simulationMode);
 }

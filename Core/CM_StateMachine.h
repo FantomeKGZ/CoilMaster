@@ -29,6 +29,7 @@ public:
     bool toggleManual();
     bool registerTurn();
     bool acknowledgeCoilComplete();
+    bool acknowledgeDeliveredRun(uint32_t runId);
     bool cancel();
     void setFault();
 

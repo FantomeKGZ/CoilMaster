@@ -26,6 +26,20 @@ HallTelemetryState::HallTelemetryState()
     rearmState[0] = '\0';
 }
 
+HallCalibrationRemoteStateSnapshot::HallCalibrationRemoteStateSnapshot()
+    : state(HallCalibrationRemoteState::Idle), baselineReady(false),
+      motorPermit(false), valid(false), receivedAtMs(0UL)
+{
+}
+
+HallCalibrationRemoteResult::HallCalibrationRemoteResult()
+    : recommendationValid(false), baselineAdc(0U), minAdc(0U), maxAdc(0U),
+      recommendedThreshold(0U), recommendedHysteresis(0U),
+      direction(HallSignalDirectionRemote::Rising), sampleCount(0U),
+      durationMs(0UL), valid(false), receivedAtMs(0UL)
+{
+}
+
 HardwareControlReply::HardwareControlReply()
     : result(HardwareControlReplyResult::None), sendAttempts(0U)
 {
@@ -35,6 +49,8 @@ HardwareControlClient::HardwareControlClient(HardwareSerial& serial)
     : m_serial(serial), m_requestType(RequestType::None), m_requestPayload(),
       m_waitingReply(false), m_lastSendMs(0UL), m_sendAttempts(0U),
       m_settings(), m_hasSettings(false), m_telemetry(), m_hasTelemetry(false),
+      m_calibrationState(), m_hasCalibrationState(false),
+      m_calibrationResult(), m_hasCalibrationResult(false),
       m_reply(), m_hasReply(false)
 {
     m_requestPayload[0] = '\0';
@@ -72,6 +88,10 @@ bool HardwareControlClient::processLine(char* line, uint32_t nowMs)
         return processSettingsResult(line);
     if (strncmp(line, "CMP1|HALL_STATE|", 16U) == 0)
         return processTelemetryState(line, nowMs);
+    if (strncmp(line, "CMP1|CAL_STATE|", 15U) == 0)
+        return processCalibrationState(line, nowMs);
+    if (strncmp(line, "CMP1|CAL_RESULT|", 16U) == 0)
+        return processCalibrationResult(line, nowMs);
 
     return false;
 }
@@ -110,6 +130,21 @@ bool HardwareControlClient::setTelemetryEnabled(bool enabled)
                                 : "CMP1|HALL_TELEM|STOP|C");
 }
 
+bool HardwareControlClient::armHallCalibration()
+{
+    return queueRequest(RequestType::ArmCalibration, "CMP1|CAL|ARM|C");
+}
+
+bool HardwareControlClient::abortHallCalibration()
+{
+    return queueRequest(RequestType::AbortCalibration, "CMP1|CAL|ABORT|C");
+}
+
+bool HardwareControlClient::requestHallCalibration()
+{
+    return queueRequest(RequestType::GetCalibration, "CMP1|CAL|GET|C");
+}
+
 bool HardwareControlClient::requestPending() const
 {
     return m_requestType != RequestType::None;
@@ -128,6 +163,24 @@ bool HardwareControlClient::takeTelemetry(HallTelemetryState& state)
     if (!m_hasTelemetry) return false;
     state = m_telemetry;
     m_hasTelemetry = false;
+    return true;
+}
+
+bool HardwareControlClient::takeHallCalibrationState(
+    HallCalibrationRemoteStateSnapshot& state)
+{
+    if (!m_hasCalibrationState) return false;
+    state = m_calibrationState;
+    m_hasCalibrationState = false;
+    return true;
+}
+
+bool HardwareControlClient::takeHallCalibrationResult(
+    HallCalibrationRemoteResult& result)
+{
+    if (!m_hasCalibrationResult) return false;
+    result = m_calibrationResult;
+    m_hasCalibrationResult = false;
     return true;
 }
 
@@ -334,6 +387,141 @@ bool HardwareControlClient::processTelemetryState(char* line, uint32_t nowMs)
     parsed.valid = true;
     m_telemetry = parsed;
     m_hasTelemetry = true;
+    return true;
+}
+
+bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
+{
+    if (!validateAndStripCrc(line)) return true;
+
+    char* save = nullptr;
+    char* version = strtok_r(line, "|", &save);
+    char* category = strtok_r(nullptr, "|", &save);
+    char* stateText = strtok_r(nullptr, "|", &save);
+    char* baselineText = strtok_r(nullptr, "|", &save);
+    char* permitText = strtok_r(nullptr, "|", &save);
+    char* capability = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
+
+    if (version == nullptr || category == nullptr || stateText == nullptr ||
+        baselineText == nullptr || permitText == nullptr || capability == nullptr ||
+        extra != nullptr || strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "CAL_STATE") != 0 || strcmp(capability, "C") != 0)
+        return true;
+
+    HallCalibrationRemoteStateSnapshot parsed;
+    if (strcmp(stateText, "IDLE") == 0)
+        parsed.state = HallCalibrationRemoteState::Idle;
+    else if (strcmp(stateText, "ARMED_WAITING_START") == 0)
+        parsed.state = HallCalibrationRemoteState::ArmedWaitingPhysicalStart;
+    else if (strcmp(stateText, "RUNNING") == 0)
+        parsed.state = HallCalibrationRemoteState::Running;
+    else if (strcmp(stateText, "COMPLETED") == 0)
+        parsed.state = HallCalibrationRemoteState::Completed;
+    else if (strcmp(stateText, "ABORTED") == 0)
+        parsed.state = HallCalibrationRemoteState::Aborted;
+    else
+        return true;
+
+    if (strcmp(baselineText, "0") == 0)
+        parsed.baselineReady = false;
+    else if (strcmp(baselineText, "1") == 0)
+        parsed.baselineReady = true;
+    else
+        return true;
+
+    if (strcmp(permitText, "0") == 0)
+        parsed.motorPermit = false;
+    else if (strcmp(permitText, "1") == 0)
+        parsed.motorPermit = true;
+    else
+        return true;
+
+    if (parsed.motorPermit && parsed.state != HallCalibrationRemoteState::Running)
+        return true;
+
+    parsed.valid = true;
+    parsed.receivedAtMs = nowMs;
+    m_calibrationState = parsed;
+    m_hasCalibrationState = true;
+
+    if (m_requestType == RequestType::ArmCalibration)
+    {
+        finishRequest(parsed.state == HallCalibrationRemoteState::ArmedWaitingPhysicalStart
+                          ? HardwareControlReplyResult::Applied
+                          : HardwareControlReplyResult::Busy);
+    }
+    else if (m_requestType == RequestType::AbortCalibration)
+    {
+        const bool stopped = parsed.state == HallCalibrationRemoteState::Aborted ||
+                             parsed.state == HallCalibrationRemoteState::Idle ||
+                             parsed.state == HallCalibrationRemoteState::Completed;
+        finishRequest(stopped ? HardwareControlReplyResult::Applied
+                              : HardwareControlReplyResult::Busy);
+    }
+    else if (m_requestType == RequestType::GetCalibration)
+    {
+        finishRequest(HardwareControlReplyResult::Applied);
+    }
+
+    return true;
+}
+
+bool HardwareControlClient::processCalibrationResult(char* line, uint32_t nowMs)
+{
+    if (!validateAndStripCrc(line)) return true;
+
+    char* save = nullptr;
+    char* version = strtok_r(line, "|", &save);
+    char* category = strtok_r(nullptr, "|", &save);
+    char* validityText = strtok_r(nullptr, "|", &save);
+    char* baselineText = strtok_r(nullptr, "|", &save);
+    char* minText = strtok_r(nullptr, "|", &save);
+    char* maxText = strtok_r(nullptr, "|", &save);
+    char* thresholdText = strtok_r(nullptr, "|", &save);
+    char* hysteresisText = strtok_r(nullptr, "|", &save);
+    char* directionText = strtok_r(nullptr, "|", &save);
+    char* samplesText = strtok_r(nullptr, "|", &save);
+    char* durationText = strtok_r(nullptr, "|", &save);
+    char* capability = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
+
+    if (version == nullptr || category == nullptr || validityText == nullptr ||
+        baselineText == nullptr || minText == nullptr || maxText == nullptr ||
+        thresholdText == nullptr || hysteresisText == nullptr ||
+        directionText == nullptr || samplesText == nullptr || durationText == nullptr ||
+        capability == nullptr || extra != nullptr || strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "CAL_RESULT") != 0 || strcmp(capability, "C") != 0)
+        return true;
+
+    HallCalibrationRemoteResult parsed;
+    if (strcmp(validityText, "VALID") == 0)
+        parsed.recommendationValid = true;
+    else if (strcmp(validityText, "INVALID") == 0)
+        parsed.recommendationValid = false;
+    else
+        return true;
+
+    if (!parseDecimal16(baselineText, parsed.baselineAdc) ||
+        !parseDecimal16(minText, parsed.minAdc) ||
+        !parseDecimal16(maxText, parsed.maxAdc) ||
+        !parseDecimal16(thresholdText, parsed.recommendedThreshold) ||
+        !parseDecimal16(hysteresisText, parsed.recommendedHysteresis) ||
+        !parseDecimal16(samplesText, parsed.sampleCount) ||
+        !parseDecimal32(durationText, parsed.durationMs))
+        return true;
+
+    if (strcmp(directionText, "RISING") == 0)
+        parsed.direction = HallSignalDirectionRemote::Rising;
+    else if (strcmp(directionText, "FALLING") == 0)
+        parsed.direction = HallSignalDirectionRemote::Falling;
+    else
+        return true;
+
+    parsed.valid = true;
+    parsed.receivedAtMs = nowMs;
+    m_calibrationResult = parsed;
+    m_hasCalibrationResult = true;
     return true;
 }
 

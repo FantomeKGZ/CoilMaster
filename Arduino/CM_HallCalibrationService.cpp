@@ -79,6 +79,12 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
 
     if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
     {
+        if (static_cast<uint32_t>(nowMs - m_armedAtMs) >= ArmedTimeoutMs)
+        {
+            abort();
+            return;
+        }
+
         sampleBaseline(nowMs);
         return;
     }

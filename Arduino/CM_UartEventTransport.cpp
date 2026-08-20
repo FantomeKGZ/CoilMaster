@@ -621,8 +621,24 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job)
     char* type = strtok_r(nullptr, "|", &save);
     char* count = strtok_r(nullptr, "|", &save);
     char* turns = strtok_r(nullptr, "|", &save);
-    char* capability = strtok_r(nullptr, "|", &save);
-    char* extra = strtok_r(nullptr, "|", &save);
+    char* repeatOrCapability = strtok_r(nullptr, "|", &save);
+    char* capability = repeatOrCapability;
+    char* extra = nullptr;
+
+    job.clear();
+    if (repeatOrCapability != nullptr && repeatOrCapability[0] == 'R')
+    {
+        char* end = nullptr;
+        const unsigned long parsedRepeat = strtoul(repeatOrCapability + 1, &end, 10);
+        if (end == nullptr || *end != '\0' || parsedRepeat == 0UL ||
+            parsedRepeat > 0xFFFFUL)
+        {
+            return false;
+        }
+        job.repeatTarget = static_cast<uint16_t>(parsedRepeat);
+        capability = strtok_r(nullptr, "|", &save);
+    }
+    extra = strtok_r(nullptr, "|", &save);
 
     if (version == nullptr || category == nullptr || jobId == nullptr ||
         sessionId == nullptr || type == nullptr || count == nullptr ||
@@ -633,7 +649,6 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job)
         return false;
     }
 
-    job.clear();
     job.jobId = strtoul(jobId, nullptr, 10);
     job.sessionId = strtoul(sessionId, nullptr, 10);
     job.type = strcmp(type, "STARTING") == 0 ? WindingType::Starting

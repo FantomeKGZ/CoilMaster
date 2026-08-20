@@ -168,7 +168,9 @@ async function findActiveSpool(spoolId){
         if(cursor)q.set('cursor',String(cursor));
         const data=await jsonFetch('/api/warehouse/spools?'+q,{cache:'no-store'});
         const found=(Array.isArray(data.items)?data.items:[]).find(item=>String(item.spool_id)===String(spoolId));
-        if(found)return found;
+        if(found){
+            return found.material_class==='CU'||found.material_class==='AL'?found:null;
+        }
         if(data.has_more!==true)return null;
         const next=Number(data.next_cursor);
         if(!Number.isSafeInteger(next)||next<=cursor)throw new Error('invalid_spool_cursor');

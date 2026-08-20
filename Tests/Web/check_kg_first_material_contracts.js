@@ -18,12 +18,18 @@ const storePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
+const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
+const desktopPath = 'firmware/esp32/web/desktop/writeoff.html';
+const mobilePath = 'firmware/esp32/web/mobile/writeoff.html';
 const quantity = read(quantityPath);
 const record = read(recordPath);
 const store = read(storePath);
 const writeOff = read(writeOffPath);
 const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
+const controller = read(controllerPath);
+const desktop = read(desktopPath);
+const mobile = read(mobilePath);
 
 // kg-first quantities must be converted deterministically to integer grams;
 // floating-point parsing is forbidden in this accounting boundary.
@@ -52,8 +58,8 @@ for (const text of [
   requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
 }
 
-// The production endpoint now accepts explicit KG_FIRST requests. quantity_kg
-// is mandatory; spool_id is optional only in that mode, and unallocated writes
+// The production endpoint accepts explicit KG_FIRST requests. quantity_kg is
+// mandatory; spool_id is optional only in that mode, and unallocated writes
 // must carry a conductor snapshot.
 for (const text of [
   'm_server.arg("writeoff_mode") == "KG_FIRST"',
@@ -95,8 +101,7 @@ for (const text of [
 }
 
 // Finalization remains anchored to completed runs. Legacy records retain exact
-// spool matching; explicit UNALLOCATED kg-first records may cover the exact run
-// without pretending that warehouse stock was mutated.
+// spool matching; explicit UNALLOCATED kg-first records may cover the exact run.
 requireText(coveragePath, coverage, '\\"event\\":\\"RUN_COMPLETED\\"',
   'finalization coverage no longer anchors to completed runs');
 for (const text of [
@@ -108,9 +113,34 @@ for (const text of [
   requireText(coveragePath, coverage, text, 'finalization kg-first/legacy coverage split missing: ' + text);
 }
 
+// Desktop and mobile must expose kg as the operator-facing quantity. The shared
+// controller owns both variants and may attach only the immutable selected spool.
+for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
+  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'Без привязки к бухте', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
+    requireText(relative, source, text, 'kg-first writeoff UI missing: ' + text);
+  }
+  for (const forbidden of ['id="before"', 'id="after"', 'Вес до работы', 'Вес после работы']) {
+    if (source.includes(forbidden)) failures.push(relative + ': legacy before/after operator UI returned: ' + forbidden);
+  }
+}
+for (const text of [
+  "writeoff_mode:'KG_FIRST'",
+  "quantity_kg:quantity.kg",
+  "source_session_id:sourceSessionId",
+  "source_run_id:sourceRunId",
+  "body.set('spool_id',String(activeSpool.spool_id))",
+  "body.set('diameter_hundredths_mm',String(d))",
+  "body.set('wire_type',wire)",
+  "item.spool_id===null||item.spool_id===undefined?'без бухты'",
+  "item.writeoff_mode==='KG_FIRST'",
+  "event.event!=='RUN_COMPLETED'"
+]) {
+  requireText(controllerPath, controller, text, 'kg-first UI controller contract missing: ' + text);
+}
+
 // Do not allow this migration to accidentally introduce automatic deduction.
 for (const forbidden of ['automaticWriteOff(', 'autoWriteOff(', 'writeOffOnRunCompleted(']) {
-  if (store.includes(forbidden) || writeOff.includes(forbidden) || recovery.includes(forbidden) || coverage.includes(forbidden)) {
+  if (store.includes(forbidden) || writeOff.includes(forbidden) || recovery.includes(forbidden) || coverage.includes(forbidden) || controller.includes(forbidden)) {
     failures.push('kg-first migration introduced automatic write-off hook: ' + forbidden);
   }
 }
@@ -120,4 +150,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact decimal kg parser, active manual API, dual journal schema, reboot recovery, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, recovery/finalization, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

@@ -102,14 +102,61 @@ CMP1|EVT|RUN_COMPLETED|<session_id>|<run_id>|<completed_runs>|<CRC>
 
 ESP32 подтверждает run event через CRC-защищенный ACK/NACK reply.
 
+## Hall hardware-control protocol
+
+Настройка датчика Hall использует тот же физический UART и тот же CRC16, но отдельную service grammar.
+
+ESP32 → Arduino:
+
+```text
+CMP1|CFG_GET|HALL|C|<CRC>
+CMP1|CFG_SET|HALL|<threshold>|<hysteresis>|<release_debounce_ms>|RISING|C|<CRC>
+CMP1|CFG_SET|HALL|<threshold>|<hysteresis>|<release_debounce_ms>|FALLING|C|<CRC>
+CMP1|CFG_RESET|HALL|C|<CRC>
+CMP1|HALL_TELEM|START|C|<CRC>
+CMP1|HALL_TELEM|STOP|C|<CRC>
+```
+
+Arduino → ESP32:
+
+```text
+CMP1|CFG_STATE|HALL|<threshold>|<hysteresis>|<release_debounce_ms>|<direction>|EEPROM|C|<CRC>
+CMP1|CFG_STATE|HALL|<threshold>|<hysteresis>|<release_debounce_ms>|<direction>|FACTORY|C|<CRC>
+CMP1|CFG_ACK|HALL|APPLIED|C|<CRC>
+CMP1|CFG_NACK|HALL|BUSY|C|<CRC>
+CMP1|CFG_NACK|HALL|INVALID|C|<CRC>
+CMP1|CFG_NACK|HALL|PERSISTENCE_FAILED|C|<CRC>
+CMP1|HALL_STATE|<raw>|<min>|<max>|<threshold>|<hysteresis>|<release>|<debounce>|<direction>|<magnet>|<rearm>|<samples>|<captured_ms>|C|<CRC>
+```
+
+Semantics:
+
+- `CFG_GET` только читает settings;
+- `CFG_SET` меняет весь Hall settings tuple атомарно;
+- `CFG_RESET` выполняет factory reset только через Arduino safe-idle gate;
+- `HALL_TELEM START/STOP` управляет только диагностическим sampling/streaming и не создаёт RUN;
+- `BUSY` означает, что физическое состояние Arduino не допускает изменение settings;
+- потеря reply не трактуется как успех;
+- ESP32 hardware-control client делает максимум 3 попытки с интервалом 1 s и возвращает timeout;
+- `CM_UartEventReceiver` остаётся единственным физическим UART reader и делегирует service frames в `CM_HardwareControlClient`;
+- JOB/JOB_CANCEL и hardware-control command используют одну взаимно исключающую control lane, чтобы кадры не конкурировали за UART.
+
+Verified ESP32 integration commit:
+
+```text
+bfc819b1fb4caa955313634180afee7917537760
+chore: finalize verified ESP32 Hall control lane
+```
+
 ## Safety semantics
 
 - `JOB_ACK ACCEPTED` означает только принятие задания Arduino, не запуск двигателя;
 - physical START выполняется только физическим вводом на Arduino;
 - `RUN_STARTED` является фактом начала конкретного run;
 - `RUN_COMPLETED` является фактом завершения run, но не списанием провода;
-- manual wire writeoff требует exact `spool_id + source_session_id + source_run_id`;
-- reboot не должен автоматически возобновлять намотку или unfinished cancel/writeoff action.
+- manual wire writeoff требует exact `spool_id + source_session_id + source_run_id` в текущей production-модели;
+- reboot не должен автоматически возобновлять намотку или unfinished cancel/writeoff action;
+- Hall settings/telemetry protocol никогда не означает physical START и не управляет SSR.
 
 ## Надежность и восстановление
 
@@ -117,4 +164,5 @@ ESP32 подтверждает run event через CRC-защищенный ACK
 - неизвестность после потери ACK сохраняется как uncertainty, а не подменяется положительным результатом;
 - persisted active/recovered job ID должен быть доступен UART receiver после reboot для корреляции физического `ALL_CLEAR`;
 - no-run cancellation может закрыть delivery/waiting-physical-start состояния только при отсутствии run evidence;
-- protocol errors должны fail-safe не влиять на SSR.
+- protocol errors должны fail-safe не влиять на SSR;
+- stale Hall state должен отличаться от fresh state по ESP32 receive timestamp; HTTP/UI слой не должен выдавать старые данные как подтверждение текущего физического состояния.

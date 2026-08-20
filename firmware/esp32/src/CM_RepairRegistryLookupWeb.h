@@ -17,7 +17,13 @@ private:
     void handleClient();
     void handleMotor();
     void handleRepair();
+    void handleMotorRepairs();
     bool parseId(const char* name, uint32_t& value) const;
+    bool parseOptionalUnsigned(const char* name,
+                               uint32_t minimum,
+                               uint32_t maximum,
+                               uint32_t& value,
+                               bool& present) const;
 
     WebServer& m_server;
     RepairRegistry& m_registry;

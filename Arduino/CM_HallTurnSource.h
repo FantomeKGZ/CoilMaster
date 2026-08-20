@@ -8,6 +8,13 @@
 namespace CM
 {
 
+enum class HallRearmState : uint8_t
+{
+    Armed = 0U,
+    WaitingRelease,
+    ReleaseDebounce
+};
+
 /**
  * @brief Non-blocking SS49E adapter using threshold, hysteresis and release debounce.
  *
@@ -45,6 +52,8 @@ public:
 
     uint16_t rawValue() const;
     bool magnetDetected() const;
+    HallRearmState rearmState() const;
+    uint16_t releaseBoundary() const;
 
 private:
     uint16_t releaseThreshold() const;

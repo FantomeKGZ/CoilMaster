@@ -1,6 +1,7 @@
 #include "CM_WarehouseStore.h"
 #include "CM_FlatJsonObjectValidator.h"
 #include "CM_JobSpoolSelectionStore.h"
+#include "CM_KgQuantity.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WindingSessionCompletionAudit.h"
 
@@ -121,6 +122,148 @@ bool WarehouseStore::confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operatio
     result.pricePerKgMinor = price.pricePerKgMinor;
     result.currency = price.currency;
     result.wireType = wireType;
+    return true;
+}
+
+bool WarehouseStore::confirmKgFirstWriteOff(const KgFirstWriteOff& operation,
+                                            SpoolWriteOffResult& result)
+{
+    result = SpoolWriteOffResult();
+    if (!ready() || operation.repairId == 0UL ||
+        operation.sourceSessionId == 0UL || operation.sourceRunId == 0UL ||
+        operation.consumedGrams == 0UL || operation.timestamp.length() < 10U)
+    {
+        return false;
+    }
+
+    bool repairFound = false;
+    if (!repairExists(operation.repairId, repairFound) || !repairFound) return false;
+
+    bool repairOpen = false;
+    if (!RepairLifecycle::isOpen(m_storage, operation.repairId, repairOpen) || !repairOpen)
+        return false;
+
+    JobSpoolSelection selection;
+    bool selectionFound = false;
+    if (!JobSpoolSelectionStore::loadReadOnly(m_storage,
+                                              operation.sourceSessionId,
+                                              selection,
+                                              selectionFound) ||
+        !selectionFound || selection.repairId != operation.repairId)
+    {
+        return false;
+    }
+
+    if (operation.spoolId != 0UL && selection.spoolId != operation.spoolId)
+        return false;
+
+    if (WindingSessionCompletionAudit::check(m_storage,
+                                             operation.sourceSessionId,
+                                             operation.sourceRunId) !=
+        WindingSessionCompletionCheck::Completed)
+    {
+        return false;
+    }
+
+    bool alreadyConfirmed = false;
+    if (!confirmedWriteOffForSourceRun(operation.sourceSessionId,
+                                       operation.sourceRunId,
+                                       alreadyConfirmed) ||
+        alreadyConfirmed)
+    {
+        return false;
+    }
+
+    WarehousePrice price;
+    bool priceConfigured = false;
+    if (!loadWarehousePrice(price, priceConfigured) || !priceConfigured) return false;
+
+    KgFirstWriteOff normalized = operation;
+    uint32_t weightBefore = 0UL;
+    uint32_t weightAfter = 0UL;
+    if (operation.spoolId != 0UL)
+    {
+        ActiveWireSpoolIdentity identity;
+        bool found = false;
+        if (!loadActiveSpoolIdentity(operation.spoolId, identity, found) ||
+            !found || !identity.isValid() || operation.consumedGrams >= identity.currentWeightGrams)
+        {
+            return false;
+        }
+        if ((operation.diameterHundredthsMm != 0U &&
+             operation.diameterHundredthsMm != identity.diameterHundredthsMm) ||
+            (operation.wireType.length() > 0U && operation.wireType != identity.wireType))
+        {
+            return false;
+        }
+        normalized.diameterHundredthsMm = identity.diameterHundredthsMm;
+        normalized.wireType = identity.wireType;
+        weightBefore = identity.currentWeightGrams;
+        weightAfter = weightBefore - operation.consumedGrams;
+    }
+    else if (operation.diameterHundredthsMm == 0U ||
+             (operation.wireType != "CU" && operation.wireType != "AL"))
+    {
+        return false;
+    }
+
+    uint32_t movementId = 0UL;
+    if (!nextMovementId(movementId)) return false;
+
+    if (!appendKgFirstWriteOffRecord(movementId, normalized,
+                                     weightBefore, weightAfter, price, "PENDING"))
+    {
+        return false;
+    }
+
+    if (normalized.spoolId != 0UL)
+    {
+        uint16_t resolvedDiameter = 0U;
+        String resolvedWireType;
+        if (!rewriteSpoolWeight(normalized.spoolId,
+                                weightBefore,
+                                weightAfter,
+                                resolvedDiameter,
+                                resolvedWireType) ||
+            resolvedDiameter != normalized.diameterHundredthsMm ||
+            resolvedWireType != normalized.wireType)
+        {
+            m_ready = false;
+            return false;
+        }
+    }
+
+    if (!appendKgFirstWriteOffRecord(movementId, normalized,
+                                     weightBefore, weightAfter, price, "CONFIRMED"))
+    {
+        if (normalized.spoolId != 0UL)
+        {
+            uint16_t ignoredDiameter = 0U;
+            String ignoredWireType;
+            if (!rewriteSpoolWeight(normalized.spoolId,
+                                    weightAfter,
+                                    weightBefore,
+                                    ignoredDiameter,
+                                    ignoredWireType))
+            {
+                m_ready = false;
+                return false;
+            }
+        }
+        if (!appendKgFirstWriteOffRecord(movementId, normalized,
+                                         weightBefore, weightAfter, price, "ABORTED"))
+        {
+            m_ready = false;
+        }
+        return false;
+    }
+
+    result.movementId = movementId;
+    result.diameterHundredthsMm = normalized.diameterHundredthsMm;
+    result.consumedGrams = normalized.consumedGrams;
+    result.pricePerKgMinor = price.pricePerKgMinor;
+    result.currency = price.currency;
+    result.wireType = normalized.wireType;
     return true;
 }
 
@@ -337,6 +480,87 @@ bool WarehouseStore::appendWriteOffRecord(uint32_t movementId,
     line += F(",\"weight_before_g\":"); line += operation.weightBeforeGrams;
     line += F(",\"weight_after_g\":"); line += operation.weightAfterGrams;
     line += F(",\"mass_g\":"); line += consumedGrams;
+    line += F(",\"price_per_kg_minor\":"); line += price.pricePerKgMinor;
+    line += F(",\"currency\":\""); line += jsonEscape(price.currency);
+    line += F("\",\"timestamp\":\""); line += jsonEscape(operation.timestamp); line += '"';
+    if (operation.comment.length() > 0U)
+    {
+        line += F(",\"comment\":\""); line += jsonEscape(operation.comment); line += '"';
+    }
+    line += F("}\n");
+
+    const size_t written = file.print(line);
+    file.flush();
+    file.close();
+    if (written != line.length())
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
+}
+
+bool WarehouseStore::appendKgFirstWriteOffRecord(uint32_t movementId,
+                                                  const KgFirstWriteOff& operation,
+                                                  uint32_t weightBeforeGrams,
+                                                  uint32_t weightAfterGrams,
+                                                  const WarehousePrice& price,
+                                                  const char* status)
+{
+    if (status == nullptr || movementId == 0UL || operation.repairId == 0UL ||
+        operation.sourceSessionId == 0UL || operation.sourceRunId == 0UL ||
+        operation.diameterHundredthsMm == 0U || operation.consumedGrams == 0UL ||
+        (operation.wireType != "CU" && operation.wireType != "AL") ||
+        operation.timestamp.length() < 10U || price.pricePerKgMinor == 0UL ||
+        price.currency.length() != 3U)
+    {
+        return false;
+    }
+    const String statusText(status);
+    if (statusText != "PENDING" && statusText != "CONFIRMED" && statusText != "ABORTED")
+        return false;
+
+    const bool stockManaged = operation.spoolId != 0UL;
+    if (stockManaged)
+    {
+        if (weightBeforeGrams == 0UL || weightAfterGrams >= weightBeforeGrams ||
+            operation.consumedGrams != weightBeforeGrams - weightAfterGrams)
+            return false;
+    }
+    else if (weightBeforeGrams != 0UL || weightAfterGrams != 0UL)
+    {
+        return false;
+    }
+
+    const String quantityKg = KgQuantity::canonicalKg(operation.consumedGrams);
+    if (quantityKg.length() == 0U) return false;
+
+    File file = m_storage.open(MovementsPath, FILE_APPEND);
+    if (!file) return false;
+
+    String line;
+    line.reserve(620U);
+    line = F("{\"movement_id\":"); line += movementId;
+    line += F(",\"type\":\"WRITE_OFF\",\"status\":\""); line += statusText;
+    line += F("\",\"writeoff_mode\":\"KG_FIRST\",\"stock_mode\":\"");
+    line += stockManaged ? F("SPOOL") : F("UNALLOCATED");
+    line += '"';
+    if (stockManaged)
+    {
+        line += F(",\"spool_id\":"); line += operation.spoolId;
+    }
+    line += F(",\"repair_id\":"); line += operation.repairId;
+    line += F(",\"source_session_id\":"); line += operation.sourceSessionId;
+    line += F(",\"source_run_id\":"); line += operation.sourceRunId;
+    line += F(",\"diameter_hundredths_mm\":"); line += operation.diameterHundredthsMm;
+    line += F(",\"wire_type\":\""); line += jsonEscape(operation.wireType); line += '"';
+    if (stockManaged)
+    {
+        line += F(",\"weight_before_g\":"); line += weightBeforeGrams;
+        line += F(",\"weight_after_g\":"); line += weightAfterGrams;
+    }
+    line += F(",\"mass_g\":"); line += operation.consumedGrams;
+    line += F(",\"quantity_kg\":\""); line += quantityKg; line += '"';
     line += F(",\"price_per_kg_minor\":"); line += price.pricePerKgMinor;
     line += F(",\"currency\":\""); line += jsonEscape(price.currency);
     line += F("\",\"timestamp\":\""); line += jsonEscape(operation.timestamp); line += '"';

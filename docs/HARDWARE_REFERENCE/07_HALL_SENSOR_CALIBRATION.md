@@ -54,7 +54,7 @@ Re-arm: armed / waiting release / release debounce
 Возраст последнего sample
 ```
 
-## Процедура калибровки
+## Ручная процедура калибровки
 
 ### 1. Снять уровень покоя
 
@@ -101,6 +101,139 @@ recommended ≈ (idle_max + magnet_min) / 2
 Проверьте положение магнита, питание, проводку и шум.
 ```
 
+## Автоматическая калибровка — утверждено
+
+Автоматическая калибровка должна быть основным рекомендуемым режимом, а ручная — дополнительным.
+
+Критический safety flow:
+
+```text
+Web: Запустить автокалибровку
+→ ESP32 только подготавливает calibration mode
+→ Arduino проверяет safe idle
+→ Arduino снимает 2–3 секунды idle ADC
+→ LCD/Web: Нажмите физический START
+→ оператор физически нажимает START
+→ только Arduino включает SSR
+→ Arduino вращает станок ограниченное время
+→ Arduino сама выключает SSR
+→ показывает измерения и рекомендации
+→ оператор вручную выбирает Применить / Повторить / Оставить старые
+```
+
+Web/ESP32 не выполняют START и не включают SSR напрямую.
+
+### Длительность
+
+Начальный default:
+
+```text
+15 секунд
+```
+
+Опции:
+
+```text
+10 секунд — короткая
+15 секунд — стандартная
+30 секунд — расширенная
+```
+
+Предпочтительно комбинированное завершение:
+
+```text
+получено минимум 15 валидных проходов
+ИЛИ достигнут timeout 30 секунд
+```
+
+Если данных достаточно раньше, калибровка может завершиться раньше.
+
+### Какие данные собирать
+
+До вращения:
+
+```text
+idle_min
+idle_max
+idle_average
+idle_noise_span
+```
+
+Во время вращения:
+
+```text
+raw_min
+raw_max
+pulse_peak_min
+pulse_peak_max
+valid_pass_count
+period_min_ms
+period_max_ms
+period_average_ms
+signal_noise_span
+```
+
+Просто среднее ADC во время вращения не использовать как единственный критерий, потому что большую часть оборота магнит находится вне активной зоны.
+
+### Определение направления сигнала
+
+Автокалибровка должна уметь определить:
+
+```text
+RISING
+FALLING
+```
+
+Текущий старый setup — RISING, где магнит повышал ADC.
+
+### Ошибки автокалибровки
+
+`STUCK_MAGNET` — сигнал остаётся в active-zone слишком долго.
+
+```text
+SSR OFF
+CALIBRATION_ABORTED
+```
+
+`NO_MAGNET_SIGNAL` — после физического START нет валидных проходов в bounded interval.
+
+```text
+SSR OFF
+CALIBRATION_ABORTED
+```
+
+`SIGNAL_UNSTABLE` / `CALIBRATION_UNRELIABLE` — noise слишком велик или idle/magnet ranges пересекаются.
+
+```text
+SSR OFF
+ничего не сохранять автоматически
+```
+
+`USER_ABORT` — оператор отменяет калибровку физически; Arduino немедленно выключает SSR и не меняет сохранённые settings.
+
+### Calibration state
+
+Не смешивать calibration с winding JOB. Предусмотреть отдельные состояния/сервис, например:
+
+```text
+CalibrationIdle
+CalibrationPreparing
+CalibrationWaitingPhysicalStart
+CalibrationRunning
+CalibrationComplete
+CalibrationAborted
+```
+
+Calibration mode не создаёт:
+
+```text
+RUN_STARTED
+RUN_COMPLETED
+completed_runs
+wire writeoff
+motor history
+```
+
 ## Защита от ложного повторного счёта
 
 Один магнит, остающийся над датчиком, должен давать максимум один виток до реального ухода из зоны.
@@ -124,6 +257,12 @@ D. Лёгкая вибрация магнита около точки сраба
 E. Реальный оборот на рабочей скорости -> каждый оборот считается один раз, пропусков нет.
 F. После reboot сохранённые настройки загружаются корректно.
 G. Повреждённые settings -> fallback на factory defaults + явная диагностика.
+H. Web prepare автокалибровки не запускает двигатель.
+I. Только physical START начинает calibration rotation.
+J. Calibration не создаёт RUN_STARTED/RUN_COMPLETED.
+K. SSR выключается при success, timeout, STUCK_MAGNET, NO_MAGNET_SIGNAL и USER_ABORT.
+L. Ненадёжные измерения не применяются автоматически.
+M. После Apply settings переживают reboot и обычная намотка продолжает работать.
 ```
 
 ## Persistence
@@ -136,30 +275,37 @@ G. Повреждённые settings -> fallback на factory defaults + явн�
 threshold
 hysteresis
 release_debounce_ms
+signal_direction (если реализовано)
 schema_version
 CRC
 ```
 
 Запись должна быть recoverable/fail-safe. Invalid persisted data -> безопасные defaults `590/50`.
+После сохранения обязателен readback verify.
 
 ## Web/ESP32 telemetry
 
 Live telemetry включать только когда открыта страница калибровки:
 
-- Arduino locally samples Hall as required by control loop;
+- Arduino locally samples Hall as required by control/calibration loop;
 - telemetry наружу агрегировать примерно 5-10 Hz;
 - ESP32 кэширует последний sample;
 - browser обновляет экран примерно 250-500 ms;
 - после ухода со страницы telemetry отключается;
 - calibration telemetry не должна блокировать winding loop или засорять UART.
 
+Во время автокалибровки дополнительно показывать elapsed time, valid passes, idle/magnet ranges, noise, текущие и рекомендуемые параметры.
+
 ## Safety
 
 - изменение настроек разрешено только в safe idle;
-- никакой calibration endpoint не выполняет START;
-- никакой calibration endpoint не включает SSR;
-- test UI не должен имитировать физическую намотку;
-- изменение параметров во время Winding/Paused/ManualRun запрещено fail-closed.
+- Web calibration prepare не выполняет START;
+- Web/ESP32 не включают SSR напрямую;
+- реальное вращение начинается только после physical START;
+- Arduino всегда сама выключает SSR по окончанию/ошибке/отмене;
+- calibration не является winding JOB и не создаёт production RUN evidence;
+- изменение параметров во время Winding/Paused/ManualRun запрещено fail-closed;
+- рекомендации не сохраняются без явного действия `Применить`.
 
 ## Связанные файлы
 
@@ -169,4 +315,5 @@ Arduino/CM_HallTurnSource.h
 Arduino/CM_HallTurnSource.cpp
 firmware/arduino/src/main.cpp
 docs/PROJECT_HANDOFF/40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md
+docs/PROJECT_HANDOFF/41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md
 ```

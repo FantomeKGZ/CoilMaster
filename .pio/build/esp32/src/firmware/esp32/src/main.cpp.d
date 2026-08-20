@@ -210,6 +210,7 @@
  /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/esp32-hal.h \
  firmware/esp32/src/CM_AutonomousWindingArchive.h \
  firmware/esp32/src/CM_UartEventReceiver.h \
+ firmware/esp32/src/CM_HardwareControlClient.h \
  firmware/esp32/src/CM_AutonomousWindingWeb.h \
  firmware/esp32/src/CM_RepairRegistry.h \
  firmware/esp32/src/CM_BackupActivityGuard.h \

@@ -135,4 +135,5 @@
  /home/runner/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/esp_hw_support/include/soc/esp32/spiram.h \
  /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/io_pin_remap.h \
  /home/runner/.platformio/packages/framework-arduinoespressif32/cores/esp32/Arduino.h \
+ firmware/esp32/src/CM_HardwareControlClient.h \
  firmware/esp32/src/../../../Shared/CMP1Text/CM_Cmp1Crc.h

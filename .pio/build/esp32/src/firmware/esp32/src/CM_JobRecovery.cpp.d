@@ -138,4 +138,5 @@
  firmware/esp32/src/CM_JobSnapshotStore.h \
  /home/runner/.platformio/packages/framework-arduinoespressif32/libraries/FS/src/FS.h \
  firmware/esp32/src/CM_UartEventReceiver.h \
+ firmware/esp32/src/CM_HardwareControlClient.h \
  firmware/esp32/src/CM_JobStateStore.h

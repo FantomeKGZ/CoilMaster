@@ -211,5 +211,6 @@
  firmware/esp32/src/CM_JobDisplayRecovery.h \
  firmware/esp32/src/CM_JobSnapshotStore.h \
  firmware/esp32/src/CM_UartEventReceiver.h \
+ firmware/esp32/src/CM_HardwareControlClient.h \
  firmware/esp32/src/CM_JobSpoolSelectionStore.h \
  firmware/esp32/src/CM_JobStateStore.h

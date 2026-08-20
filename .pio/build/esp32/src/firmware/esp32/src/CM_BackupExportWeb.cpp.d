@@ -211,4 +211,5 @@
  firmware/esp32/src/CM_PersistentIdIntegrityAudit.h \
  firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.h \
  firmware/esp32/src/CM_AutonomousWindingArchive.h \
- firmware/esp32/src/CM_UartEventReceiver.h
+ firmware/esp32/src/CM_UartEventReceiver.h \
+ firmware/esp32/src/CM_HardwareControlClient.h

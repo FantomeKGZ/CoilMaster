@@ -19,6 +19,7 @@ struct WindingJob
     uint8_t currentCoil;
     uint16_t currentTurns;
     uint16_t completedRuns;
+    uint16_t repeatTarget;
     uint16_t targetTurns[MaxCoilsPerJob];
 
     void clear()
@@ -33,6 +34,7 @@ struct WindingJob
         currentCoil = 0U;
         currentTurns = 0U;
         completedRuns = 0U;
+        repeatTarget = 1U;
 
         for (uint8_t index = 0U; index < MaxCoilsPerJob; ++index)
         {
@@ -42,7 +44,7 @@ struct WindingJob
 
     bool isValid() const
     {
-        if (coilCount == 0U || coilCount > MaxCoilsPerJob)
+        if (coilCount == 0U || coilCount > MaxCoilsPerJob || repeatTarget == 0U)
         {
             return false;
         }
@@ -67,6 +69,12 @@ struct WindingJob
     bool hasMoreCoils() const
     {
         return currentCoil < coilCount;
+    }
+
+    bool repeatTargetReached() const
+    {
+        return source == JobSource::Esp32Web &&
+               completedRuns >= repeatTarget;
     }
 };
 }

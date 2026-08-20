@@ -154,14 +154,56 @@ node Tests/Web/check_release_contracts.js
 node Tests/Web/check_final_acceptance_contracts.js
 ```
 
-Success-path завершился коммитом:
+Success-path Arduino foundation:
 
 ```text
 1c34efac17f8dd41f65f874052e9c693b9c3b048
 chore: finalize verified Hall settings foundation
 ```
 
-После полного успеха временные workflows `hall-settings-phase0-verify.yml` и старый `firmware-identity-finalize.yml` удалены.
+ESP32 hardware-control lane также собран отдельным verifier. Добавлены:
+
+```text
+firmware/esp32/src/CM_HardwareControlClient.h
+firmware/esp32/src/CM_HardwareControlClient.cpp
+firmware/esp32/src/CM_UartEventReceiver.h/.cpp integration
+```
+
+Архитектура ESP32:
+
+- `CM_UartEventReceiver` остаётся единственным reader байтов физического UART;
+- hardware-control ответы делегируются в `CM_HardwareControlClient` до попытки разобрать их как winding evidence;
+- JOB/JOB_CANCEL и Hall control используют одну взаимно исключающую wire-control lane;
+- один Hall request активен за раз;
+- retry interval 1 s, максимум 3 send attempts;
+- timeout возвращается как явный `TimedOut`;
+- `CFG_STATE` и `HALL_STATE` кэшируют ESP32 receive timestamp для дальнейшего freshness API.
+
+Verified ESP32 lane finalization:
+
+```text
+bfc819b1fb4caa955313634180afee7917537760
+chore: finalize verified ESP32 Hall control lane
+```
+
+На этом verifier прошли:
+
+```text
+pio run -e esp32
+pio run -e uno
+node Tests/Web/check_web_assets.js
+node Tests/Web/check_release_contracts.js
+node Tests/Web/check_final_acceptance_contracts.js
+```
+
+После verifier обнаружено, что его `git add -A` захватил generated `.pio/` файлы. Source-of-truth очищен отдельным fast-forward commit:
+
+```text
+bd458b18e227cde03a08a8b25e3114870a4f6385
+chore: remove generated PlatformIO artifacts
+```
+
+`.gitignore` теперь содержит `.pio/`; `.pio/` и временный integration helper подтверждённо отсутствуют из ветки.
 
 Текущий статус:
 
@@ -169,17 +211,15 @@ chore: finalize verified Hall settings foundation
 UNO BUILD: PASSED
 ESP32 BUILD: PASSED
 WEB CHECKS: PASSED
+ESP32 HALL CONTROL UART LANE: PASSED
+HTTP HALL API: IN PROGRESS
 HARDWARE HALL TEST: PENDING
 ```
-
-Build/check status относится именно к foundation до следующего ESP32 hardware-control/API изменения; после новых commits требуется новый verification pass.
 
 ## Следующий активный блок
 
 ```text
-ESP32 hardware-control receive/transmit state
-→ ESP32 cache/freshness/timeout
-→ safe HTTP APIs
+safe HTTP Hall APIs
 → desktop/mobile Equipment page
 → manual live calibration
 → automatic calibration requiring physical START

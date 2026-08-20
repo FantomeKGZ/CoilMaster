@@ -257,6 +257,7 @@ bool RepairRegistry::resolveRepairPageStatuses(
 
 bool RepairRegistry::appendRepairsPageJson(String& json,
                                            uint32_t clientId,
+                                           uint32_t motorId,
                                            const String& statusFilter,
                                            uint32_t cursor,
                                            uint8_t limit,
@@ -311,14 +312,16 @@ bool RepairRegistry::appendRepairsPageJson(String& json,
 
             uint32_t repairId = 0UL;
             uint32_t lineClientId = 0UL;
+            uint32_t lineMotorId = 0UL;
             if (!findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
-                !findUnsigned(line, "client_id", lineClientId) ||
-                lineClientId == 0UL)
+                !findUnsigned(line, "client_id", lineClientId) || lineClientId == 0UL ||
+                !findUnsigned(line, "motor_id", lineMotorId) || lineMotorId == 0UL)
             {
                 file.close();
                 return false;
             }
             if (clientId > 0UL && lineClientId != clientId) continue;
+            if (motorId > 0UL && lineMotorId != motorId) continue;
 
             pageLines[batchCount] = line;
             repairIds[batchCount] = repairId;

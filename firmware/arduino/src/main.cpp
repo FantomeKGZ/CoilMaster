@@ -19,7 +19,10 @@
 #include "../../../Arduino/CM_BuzzerService.h"
 #include "../../../Arduino/CM_DebouncedButton.h"
 #include "../../../Arduino/CM_EepromPersistence.h"
+#include "../../../Arduino/CM_HallTelemetry.h"
 #include "../../../Arduino/CM_HallTurnSource.h"
+#include "../../../Arduino/CM_HardwareSettings.h"
+#include "../../../Arduino/CM_HardwareSettingsController.h"
 #include "../../../Arduino/CM_Lcd1602View.h"
 #include "../../../Arduino/CM_SsrController.h"
 #include "../../../Arduino/CM_UartEventTransport.h"
@@ -81,10 +84,16 @@ CM::UartEventTransport espTransport(CM::Pins::EspRx,
                                     CM::Pins::EspTx,
                                     CM::Defaults::EspUartBaud);
 CM::EepromPersistence persistence;
+CM::HardwareSettingsStore hardwareSettingsStore;
+CM::HardwareSettingsController hardwareSettingsController(hardwareSettingsStore,
+                                                          hall,
+                                                          machine);
+CM::HallTelemetryService hallTelemetry(hall);
 
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
 uint32_t lastAliveReportMs = 0UL;
+uint32_t lastHallTelemetrySendMs = 0UL;
 uint8_t emergencyClearSequenceIndex = 0U;
 uint32_t emergencyClearLastKeyMs = 0UL;
 
@@ -178,6 +187,44 @@ bool simulationMode()
     return true;
 #else
     return false;
+#endif
+}
+
+CM::HardwareControlResult hardwareControlResult(
+    CM::HardwareSettingsApplyResult result)
+{
+    switch (result)
+    {
+        case CM::HardwareSettingsApplyResult::Applied:
+            return CM::HardwareControlResult::Applied;
+        case CM::HardwareSettingsApplyResult::Busy:
+            return CM::HardwareControlResult::Busy;
+        case CM::HardwareSettingsApplyResult::Invalid:
+            return CM::HardwareControlResult::Invalid;
+        case CM::HardwareSettingsApplyResult::PersistenceFailed:
+        default:
+            return CM::HardwareControlResult::PersistenceFailed;
+    }
+}
+
+void printHardwareSettings()
+{
+#if CM_FEATURE_DIAGNOSTICS
+    const CM::HardwareSettings& settings = hardwareSettingsController.settings();
+    Serial.print(F("CM_HW_SETTINGS source="));
+    Serial.print(hardwareSettingsController.loadedFromEeprom()
+                     ? F("EEPROM")
+                     : F("FACTORY_FALLBACK"));
+    Serial.print(F(" threshold="));
+    Serial.print(settings.hallThreshold);
+    Serial.print(F(" hysteresis="));
+    Serial.print(settings.hallHysteresis);
+    Serial.print(F(" release_debounce_ms="));
+    Serial.print(settings.hallReleaseDebounceMs);
+    Serial.print(F(" direction="));
+    Serial.println(settings.hallDirection == CM::HallSignalDirection::Falling
+                       ? F("FALLING")
+                       : F("RISING"));
 #endif
 }
 
@@ -296,6 +343,9 @@ void processStateTransitions(uint32_t nowMs)
 {
     const CM::MachineState currentState = machine.state();
     if (currentState == previousState) return;
+
+    if (!hardwareSettingsController.safeToChange() && hallTelemetry.enabled())
+        hallTelemetry.setEnabled(false, nowMs);
 
     if (currentState == CM::MachineState::Winding)
         activeTurnSource().reset(nowMs);
@@ -416,9 +466,106 @@ void processRemoteCancels()
     }
 }
 
+void processHardwareControlRequests(uint32_t nowMs)
+{
+    CM::HardwareControlRequest request;
+    while (espTransport.takeHardwareControlRequest(request))
+    {
+        switch (request.type)
+        {
+            case CM::HardwareControlRequestType::GetHallSettings:
+                espTransport.sendHardwareSettingsState(
+                    hardwareSettingsController.settings(),
+                    hardwareSettingsController.loadedFromEeprom());
+                break;
+
+            case CM::HardwareControlRequestType::SetHallSettings:
+            {
+                const CM::HardwareSettingsApplyResult result =
+                    hardwareSettingsController.apply(request.settings);
+                espTransport.sendHardwareControlResult(hardwareControlResult(result));
+                if (result == CM::HardwareSettingsApplyResult::Applied)
+                {
+                    hall.reset(nowMs);
+                    hallTelemetry.resetWindow(nowMs);
+                    espTransport.sendHardwareSettingsState(
+                        hardwareSettingsController.settings(), true);
+                    printHardwareSettings();
+                }
+                break;
+            }
+
+            case CM::HardwareControlRequestType::ResetHallSettings:
+            {
+                const CM::HardwareSettingsApplyResult result =
+                    hardwareSettingsController.resetToFactoryDefaults();
+                espTransport.sendHardwareControlResult(hardwareControlResult(result));
+                if (result == CM::HardwareSettingsApplyResult::Applied)
+                {
+                    hall.reset(nowMs);
+                    hallTelemetry.resetWindow(nowMs);
+                    espTransport.sendHardwareSettingsState(
+                        hardwareSettingsController.settings(), true);
+                    printHardwareSettings();
+                }
+                break;
+            }
+
+            case CM::HardwareControlRequestType::StartHallTelemetry:
+                if (hardwareSettingsController.safeToChange())
+                {
+                    hallTelemetry.setEnabled(true, nowMs);
+                    lastHallTelemetrySendMs = nowMs;
+                    espTransport.sendHardwareControlResult(
+                        CM::HardwareControlResult::Applied);
+                }
+                else
+                {
+                    espTransport.sendHardwareControlResult(
+                        CM::HardwareControlResult::Busy);
+                }
+                break;
+
+            case CM::HardwareControlRequestType::StopHallTelemetry:
+                hallTelemetry.setEnabled(false, nowMs);
+                espTransport.sendHardwareControlResult(
+                    CM::HardwareControlResult::Applied);
+                break;
+
+            case CM::HardwareControlRequestType::None:
+            default:
+                espTransport.sendHardwareControlResult(
+                    CM::HardwareControlResult::Unsupported);
+                break;
+        }
+    }
+}
+
+void processHallTelemetry(uint32_t nowMs)
+{
+    if (!hallTelemetry.enabled()) return;
+
+    if (!hardwareSettingsController.safeToChange())
+    {
+        hallTelemetry.setEnabled(false, nowMs);
+        return;
+    }
+
+    hallTelemetry.update(nowMs);
+    if (static_cast<uint32_t>(nowMs - lastHallTelemetrySendMs) < 250UL) return;
+
+    CM::HallTelemetrySnapshot snapshot;
+    if (hallTelemetry.takeSnapshot(snapshot))
+    {
+        espTransport.sendHallTelemetry(snapshot);
+        lastHallTelemetrySendMs = nowMs;
+    }
+}
+
 void processUart(uint32_t nowMs)
 {
     espTransport.update(nowMs);
+    processHardwareControlRequests(nowMs);
     processRemoteJobs();
     processRemoteCancels();
 
@@ -546,6 +693,10 @@ void setup()
     restorePersistentState();
     printBootStage(F("EEPROM"));
 
+    hardwareSettingsController.begin();
+    printHardwareSettings();
+    printBootStage(F("HW_SETTINGS"));
+
 #if CM_FEATURE_SSR
     ssr.begin();
     printBootStage(F("SSR"));
@@ -591,6 +742,7 @@ void loop()
     processCoreEvents();
 
     processUart(nowMs);
+    processHallTelemetry(nowMs);
     processBuzzer(nowMs);
     processStateTransitions(nowMs);
 

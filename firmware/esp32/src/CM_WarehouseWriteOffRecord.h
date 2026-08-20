@@ -77,6 +77,7 @@ public:
         if (!FlatJsonObjectValidator::valid(line)) return false;
 
         String type;
+        uint32_t diameter = 0UL;
         if (!findUnsigned(line, "movement_id", record.movementId) ||
             record.movementId == 0UL ||
             !findString(line, "type", type) || type != "WRITE_OFF" ||
@@ -85,12 +86,11 @@ public:
              record.status != "ABORTED") ||
             !findUnsigned(line, "repair_id", record.repairId) ||
             record.repairId == 0UL ||
-            !findUnsigned(line, "diameter_hundredths_mm", record.massScratch) )
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter > 0xFFFFUL)
         {
             return false;
         }
-        const uint32_t diameter = record.massScratch;
-        if (diameter > 0xFFFFUL) return false;
         record.diameterHundredthsMm = static_cast<uint16_t>(diameter);
 
         record.hasSpoolId = hasUnsigned(line, "spool_id");
@@ -149,10 +149,6 @@ public:
     }
 
 private:
-    // Temporary parse slot kept private so public records do not carry a second
-    // diameter representation.
-    struct ScratchRecord : public WarehouseWriteOffRecord { uint32_t massScratch; };
-
     static bool validateLegacy(WarehouseWriteOffRecord& record, const String& line)
     {
         if (hasString(line, "stock_mode") || hasString(line, "quantity_kg") ||

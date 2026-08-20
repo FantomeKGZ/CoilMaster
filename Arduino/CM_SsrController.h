@@ -11,8 +11,9 @@ namespace CM
 /**
  * @brief Safe adapter for the SSR-40DA control input.
  *
- * The SSR is enabled only for Winding or ManualRun states. Simulation mode can
- * force the physical output off while the state machine continues to run.
+ * The SSR is enabled for Winding/ManualRun or for an explicit Arduino-local
+ * service permit. Simulation mode always forces the physical output off.
+ * ESP32/Web never receive direct access to this controller.
  */
 class SsrController
 {
@@ -20,7 +21,9 @@ public:
     explicit SsrController(uint8_t outputPin, bool activeHigh = true);
 
     void begin();
-    void update(MachineState state, bool simulationMode);
+    void update(MachineState state,
+                bool simulationMode,
+                bool serviceMotorPermit = false);
     void forceOff();
 
     bool isCommandedOn() const;

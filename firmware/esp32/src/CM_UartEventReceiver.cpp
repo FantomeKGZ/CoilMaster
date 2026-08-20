@@ -57,13 +57,13 @@ bool parseEventType(const char* text, RemoteEventType& type)
 
 OutgoingWindingJob::OutgoingWindingJob()
     : jobId(0UL), sessionId(0UL), type(RemoteJobType::Working),
-      coilCount(0U), turns()
+      repeatTarget(1U), coilCount(0U), turns()
 {
 }
 
 bool OutgoingWindingJob::isValid() const
 {
-    if (jobId == 0UL || sessionId == 0UL ||
+    if (jobId == 0UL || sessionId == 0UL || repeatTarget == 0U ||
         coilCount == 0U || coilCount > MaxCoils)
         return false;
     for (uint8_t index = 0U; index < coilCount; ++index)
@@ -636,11 +636,12 @@ bool UartEventReceiver::writeJobFrame(const OutgoingWindingJob& job)
 
     char payload[112];
     const int payloadLength = snprintf(
-        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|C",
+        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|R%u|C",
         static_cast<unsigned long>(job.jobId),
         static_cast<unsigned long>(job.sessionId),
         job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",
-        static_cast<unsigned int>(job.coilCount), turnsText);
+        static_cast<unsigned int>(job.coilCount), turnsText,
+        static_cast<unsigned int>(job.repeatTarget));
     if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= sizeof(payload))
         return false;
 

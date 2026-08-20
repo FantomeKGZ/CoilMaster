@@ -93,32 +93,32 @@ public:
         }
         record.diameterHundredthsMm = static_cast<uint16_t>(diameter);
 
-        record.hasSpoolId = hasUnsigned(line, "spool_id");
+        record.hasSpoolId = hasField(line, "spool_id");
         if (record.hasSpoolId &&
             (!findUnsigned(line, "spool_id", record.spoolId) || record.spoolId == 0UL))
             return false;
 
-        record.hasSourceSessionId = hasUnsigned(line, "source_session_id");
+        record.hasSourceSessionId = hasField(line, "source_session_id");
         if (record.hasSourceSessionId &&
             (!findUnsigned(line, "source_session_id", record.sourceSessionId) ||
              record.sourceSessionId == 0UL))
             return false;
 
-        record.hasSourceRunId = hasUnsigned(line, "source_run_id");
+        record.hasSourceRunId = hasField(line, "source_run_id");
         if (record.hasSourceRunId &&
             (!record.hasSourceSessionId ||
              !findUnsigned(line, "source_run_id", record.sourceRunId) ||
              record.sourceRunId == 0UL))
             return false;
 
-        record.hasWireType = hasString(line, "wire_type");
+        record.hasWireType = hasField(line, "wire_type");
         if (record.hasWireType &&
             (!findString(line, "wire_type", record.wireType) ||
              (record.wireType != "CU" && record.wireType != "AL")))
             return false;
 
-        const bool hasBefore = hasUnsigned(line, "weight_before_g");
-        const bool hasAfter = hasUnsigned(line, "weight_after_g");
+        const bool hasBefore = hasField(line, "weight_before_g");
+        const bool hasAfter = hasField(line, "weight_after_g");
         if (hasBefore != hasAfter) return false;
         record.hasWeights = hasBefore;
         if (record.hasWeights &&
@@ -135,10 +135,10 @@ public:
             !findString(line, "timestamp", record.timestamp) || record.timestamp.length() < 10U)
             return false;
 
-        if (hasString(line, "comment") && !findString(line, "comment", record.comment))
+        if (hasField(line, "comment") && !findString(line, "comment", record.comment))
             return false;
 
-        const bool hasMode = hasString(line, "writeoff_mode");
+        const bool hasMode = hasField(line, "writeoff_mode");
         if (!hasMode)
             return validateLegacy(record, line);
 
@@ -151,7 +151,7 @@ public:
 private:
     static bool validateLegacy(WarehouseWriteOffRecord& record, const String& line)
     {
-        if (hasString(line, "stock_mode") || hasString(line, "quantity_kg") ||
+        if (hasField(line, "stock_mode") || hasField(line, "quantity_kg") ||
             !record.hasSpoolId || !record.hasWeights ||
             record.massGrams != record.weightBeforeGrams - record.weightAfterGrams)
             return false;
@@ -192,15 +192,9 @@ private:
         return false;
     }
 
-    static bool hasUnsigned(const String& line, const char* key)
+    static bool hasField(const String& line, const char* key)
     {
         const String marker = String("\"") + key + F("\":");
-        return line.indexOf(marker) >= 0;
-    }
-
-    static bool hasString(const String& line, const char* key)
-    {
-        const String marker = String("\"") + key + F("\":\"");
         return line.indexOf(marker) >= 0;
     }
 

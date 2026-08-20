@@ -1,4 +1,4 @@
-name: Finalize repeat target UART lifecycle
+name: Verify ESP32 repeat target runtime
 
 on:
   push:
@@ -18,74 +18,95 @@ jobs:
           ref: cmp-protocol-v1
           fetch-depth: 0
 
-      - name: Verify exact source blobs
+      - name: Verify exact main blob
         shell: bash
         run: |
           set -euo pipefail
-          check_blob() {
-            local path="$1"
-            local expected="$2"
-            local actual
-            actual="$(git hash-object "$path")"
-            if [ "$actual" != "$expected" ]; then
-              echo "Blob mismatch for $path: expected $expected got $actual" >&2
-              exit 1
-            fi
+          actual="$(git hash-object firmware/esp32/src/main.cpp)"
+          expected="04a0480ad339670bbd22074970bc7e582f3b6d99"
+          test "$actual" = "$expected" || {
+            echo "main.cpp blob mismatch: expected $expected got $actual" >&2
+            exit 1
           }
-          check_blob firmware/esp32/src/CM_UartEventReceiver.h 979cc614b8d9a5663ad2144f54c004059b443c8e
-          check_blob firmware/esp32/src/CM_UartEventReceiver.cpp ce6a7d8ee516a38c7f0f2aeeed073e319c566efc
-          check_blob Arduino/CM_UartEventTransport.cpp fe350fb61e42d8912b9526db51b323d9a2623208
-          check_blob firmware/arduino/src/main.cpp 0093dc921c543b40a3a9f6bcb6bf24d214d4b783
-          check_blob Core/CM_StateMachine.h e073f19711a8a476af4389f65231d71d36fd9919
 
-      - name: Apply repeat target transport patch
+      - name: Patch ESP32 repeat target runtime
         shell: python
         run: |
           from pathlib import Path
 
-          def replace_exact(path, old, new):
-              p = Path(path)
-              text = p.read_text(encoding='utf-8')
-              if old not in text:
-                  raise SystemExit(f'Expected block not found in {path}')
-              if text.count(old) != 1:
-                  raise SystemExit(f'Expected unique block in {path}, found {text.count(old)}')
-              p.write_text(text.replace(old, new), encoding='utf-8')
+          path = Path('firmware/esp32/src/main.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_exact(old, new):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, got {count}: {old[:100]!r}')
+              text = text.replace(old, new)
 
           replace_exact(
-              'firmware/esp32/src/CM_UartEventReceiver.h',
-              '''    RemoteJobType type;\n    uint8_t coilCount;\n    uint16_t turns[MaxCoils];\n''',
-              '''    RemoteJobType type;\n    uint16_t repeatTarget;\n    uint8_t coilCount;\n    uint16_t turns[MaxCoils];\n''')
+              '''uint16_t completedRuns = 0U;\nuint8_t activeCoilCount = 0U;\n''',
+              '''uint16_t completedRuns = 0U;\nuint16_t activeRepeatTarget = 1U;\nuint8_t activeCoilCount = 0U;\n''')
 
           replace_exact(
-              'firmware/esp32/src/CM_UartEventReceiver.cpp',
-              '''OutgoingWindingJob::OutgoingWindingJob()\n    : jobId(0UL), sessionId(0UL), type(RemoteJobType::Working),\n      coilCount(0U), turns()\n''',
-              '''OutgoingWindingJob::OutgoingWindingJob()\n    : jobId(0UL), sessionId(0UL), type(RemoteJobType::Working),\n      repeatTarget(1U), coilCount(0U), turns()\n''')
+              '''    if (runActive || autonomousRunActive || jobAwaitingAck || jobCancelAwaitingAck ||\n        (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns == 0U))\n''',
+              '''    if (runActive || autonomousRunActive || jobAwaitingAck || jobCancelAwaitingAck ||\n        (lastJobResult == CM::JobDeliveryResult::Accepted && activeJobId != 0UL &&\n         completedRuns < activeRepeatTarget))\n''')
 
           replace_exact(
-              'firmware/esp32/src/CM_UartEventReceiver.cpp',
-              '''    if (jobId == 0UL || sessionId == 0UL ||\n        coilCount == 0U || coilCount > MaxCoils)\n''',
-              '''    if (jobId == 0UL || sessionId == 0UL || repeatTarget == 0U ||\n        coilCount == 0U || coilCount > MaxCoils)\n''')
+              '''    if (jobAwaitingAck) return "WAITING_ARDUINO_ACK";\n    if (completedRuns > 0U) return "PROGRAM_COMPLETED";\n    switch (lastJobResult)\n''',
+              '''    if (jobAwaitingAck) return "WAITING_ARDUINO_ACK";\n    if (activeJobId != 0UL && completedRuns >= activeRepeatTarget)\n        return "PROGRAM_COMPLETED";\n    if (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns > 0U)\n        return "WAITING_NEXT_REPEAT";\n    switch (lastJobResult)\n''')
 
           replace_exact(
-              'firmware/esp32/src/CM_UartEventReceiver.cpp',
-              '''        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|C",\n        static_cast<unsigned long>(job.jobId),\n        static_cast<unsigned long>(job.sessionId),\n        job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",\n        static_cast<unsigned int>(job.coilCount), turnsText);\n''',
-              '''        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|R%u|C",\n        static_cast<unsigned long>(job.jobId),\n        static_cast<unsigned long>(job.sessionId),\n        job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",\n        static_cast<unsigned int>(job.coilCount), turnsText,\n        static_cast<unsigned int>(job.repeatTarget));\n''')
+              '''    if (jobCancelAwaitingAck) return "Отмена";\n    if (jobAwaitingAck) return "Передача";\n    if (completedRuns > 0U) return "Завершено";\n    if (lastJobResult == CM::JobDeliveryResult::Accepted) return "Готов";\n''',
+              '''    if (jobCancelAwaitingAck) return "Отмена";\n    if (jobAwaitingAck) return "Передача";\n    if (activeJobId != 0UL && completedRuns >= activeRepeatTarget) return "Завершено";\n    if (lastJobResult == CM::JobDeliveryResult::Accepted && completedRuns > 0U)\n        return "Готов к повтору";\n    if (lastJobResult == CM::JobDeliveryResult::Accepted) return "Готов";\n''')
 
           replace_exact(
-              'Arduino/CM_UartEventTransport.cpp',
-              '''    char* turns = strtok_r(nullptr, "|", &save);\n    char* capability = strtok_r(nullptr, "|", &save);\n    char* extra = strtok_r(nullptr, "|", &save);\n\n    if (version == nullptr || category == nullptr || jobId == nullptr ||\n        sessionId == nullptr || type == nullptr || count == nullptr ||\n        turns == nullptr || strcmp(version, "CMP1") != 0 ||\n        strcmp(category, "JOB") != 0 || extra != nullptr ||\n        (capability != nullptr && strcmp(capability, "C") != 0))\n    {\n        return false;\n    }\n\n    job.clear();\n''',
-              '''    char* turns = strtok_r(nullptr, "|", &save);\n    char* repeatOrCapability = strtok_r(nullptr, "|", &save);\n    char* capability = repeatOrCapability;\n    char* extra = nullptr;\n\n    job.clear();\n    if (repeatOrCapability != nullptr && repeatOrCapability[0] == 'R')\n    {\n        char* end = nullptr;\n        const unsigned long parsedRepeat = strtoul(repeatOrCapability + 1, &end, 10);\n        if (end == nullptr || *end != '\\0' || parsedRepeat == 0UL ||\n            parsedRepeat > 0xFFFFUL)\n        {\n            return false;\n        }\n        job.repeatTarget = static_cast<uint16_t>(parsedRepeat);\n        capability = strtok_r(nullptr, "|", &save);\n    }\n    extra = strtok_r(nullptr, "|", &save);\n\n    if (version == nullptr || category == nullptr || jobId == nullptr ||\n        sessionId == nullptr || type == nullptr || count == nullptr ||\n        turns == nullptr || strcmp(version, "CMP1") != 0 ||\n        strcmp(category, "JOB") != 0 || extra != nullptr ||\n        (capability != nullptr && strcmp(capability, "C") != 0))\n    {\n        return false;\n    }\n\n''')
+              '''    completedRuns = 0U;\n    activeJobType = CM::RemoteJobType::Working;\n''',
+              '''    completedRuns = 0U;\n    activeRepeatTarget = 1U;\n    activeJobType = CM::RemoteJobType::Working;\n''')
 
           replace_exact(
-              'firmware/arduino/src/main.cpp',
-              '''        Serial.print(F(" coils="));\n        Serial.print(remoteJob.coilCount);\n        Serial.print(F(" result="));\n''',
-              '''        Serial.print(F(" coils="));\n        Serial.print(remoteJob.coilCount);\n        Serial.print(F(" repeat_target="));\n        Serial.print(remoteJob.repeatTarget);\n        Serial.print(F(" result="));\n''')
+              '''    activeJobType = display.type;\n    activeJobLinkage = display.linkage;\n''',
+              '''    activeJobType = display.type;\n    activeRepeatTarget = display.repeatTarget;\n    activeJobLinkage = display.linkage;\n''')
 
           replace_exact(
-              'firmware/arduino/src/main.cpp',
-              '''            case CM::UartDeliveryResult::Acknowledged:\n                persistence.removePendingCompleted(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("ACK"));\n                break;\n\n            case CM::UartDeliveryResult::Duplicate:\n                persistence.removePendingCompleted(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("DUPLICATE"));\n                break;\n''',
-              '''            case CM::UartDeliveryResult::Acknowledged:\n            {\n                persistence.removePendingCompleted(delivery.runId);\n                const bool terminalRemoteCleared =\n                    machine.acknowledgeDeliveredRun(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("ACK"));\n                if (terminalRemoteCleared)\n                    Serial.println(F("CM_JOB AUTO_CLEAR result=FINAL_RUN_ACKED"));\n                break;\n            }\n\n            case CM::UartDeliveryResult::Duplicate:\n            {\n                persistence.removePendingCompleted(delivery.runId);\n                const bool terminalRemoteCleared =\n                    machine.acknowledgeDeliveredRun(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("DUPLICATE"));\n                if (terminalRemoteCleared)\n                    Serial.println(F("CM_JOB AUTO_CLEAR result=FINAL_RUN_DUPLICATE"));\n                break;\n            }\n''')
+              '''    Serial.print(F(" program=")); Serial.print(activeProgramText());\n    if (activeJobLinkage.linked)\n''',
+              '''    Serial.print(F(" program=")); Serial.print(activeProgramText());\n    Serial.print(F(" repeat_target=")); Serial.print(activeRepeatTarget);\n    if (activeJobLinkage.linked)\n''')
+
+          replace_exact(
+              '''    if (event.type == CM::RemoteEventType::RunStarted)\n    {\n        if (state.executionState == CM::JobExecutionState::Running &&\n            state.lastRunId == event.runId &&\n            state.completedRuns == event.completedRuns)\n            return true;\n        return jobStates.updateExecution(event.sessionId,\n                                         CM::JobExecutionState::Running,\n                                         event.runId,\n                                         event.completedRuns,\n                                         millis());\n    }\n\n    if (event.type == CM::RemoteEventType::RunCompleted)\n    {\n        if (state.executionState == CM::JobExecutionState::ProgramCompleted &&\n            state.lastRunId == event.runId &&\n            state.completedRuns == event.completedRuns)\n            return true;\n        return jobStates.updateExecution(event.sessionId,\n                                         CM::JobExecutionState::ProgramCompleted,\n                                         event.runId,\n                                         event.completedRuns,\n                                         millis());\n    }\n''',
+              '''    if (event.type == CM::RemoteEventType::RunStarted)\n    {\n        if (state.executionState == CM::JobExecutionState::Running &&\n            state.lastRunId == event.runId)\n            return true;\n        return jobStates.updateExecution(event.sessionId,\n                                         CM::JobExecutionState::Running,\n                                         event.runId,\n                                         event.completedRuns,\n                                         millis());\n    }\n\n    if (event.type == CM::RemoteEventType::RunCompleted)\n    {\n        if (activeRepeatTarget == 0U || event.completedRuns > activeRepeatTarget)\n            return false;\n        const CM::JobExecutionState completedState =\n            event.completedRuns == activeRepeatTarget\n                ? CM::JobExecutionState::ProgramCompleted\n                : CM::JobExecutionState::WaitingPhysicalStart;\n        if (state.executionState == completedState &&\n            state.lastRunId == event.runId &&\n            state.completedRuns == event.completedRuns)\n            return true;\n        return jobStates.updateExecution(event.sessionId,\n                                         completedState,\n                                         event.runId,\n                                         event.completedRuns,\n                                         millis());\n    }\n''')
+
+          replace_exact(
+              '''        activeSessionId = event.sessionId;\n        lastRunId = event.runId;\n        completedRuns = event.completedRuns;\n        runActive = event.type == CM::RemoteEventType::RunStarted;\n        if (runActive) jobCancelAwaitingAck = false;\n        recoveryInfo = CM::JobRecoveryInfo();\n        recoveryInfo.mayCreateNewJob = event.type == CM::RemoteEventType::RunCompleted;\n''',
+              '''        activeSessionId = event.sessionId;\n        lastRunId = event.runId;\n        if (event.type == CM::RemoteEventType::RunCompleted)\n            completedRuns = event.completedRuns;\n        runActive = event.type == CM::RemoteEventType::RunStarted;\n        if (runActive) jobCancelAwaitingAck = false;\n        recoveryInfo = CM::JobRecoveryInfo();\n        recoveryInfo.mayCreateNewJob =\n            event.type == CM::RemoteEventType::RunCompleted &&\n            event.completedRuns == activeRepeatTarget;\n''')
+
+          replace_exact(
+              '''    response += F("\\\",\\\"program\\\":\\\""); response += activeProgramText();\n    response += F("\\\",\\\"linked\\\":"); response += activeJobLinkage.linked ? F("true") : F("false");\n''',
+              '''    response += F("\\\",\\\"program\\\":\\\""); response += activeProgramText();\n    response += F("\\\",\\\"repeat_target\\\":"); response += activeRepeatTarget;\n    response += F(",\\\"linked\\\":"); response += activeJobLinkage.linked ? F("true") : F("false");\n''')
+
+          replace_exact(
+              '''    CM::OutgoingWindingJob job;\n    job.type = webServer.arg("type") == "starting" ? CM::RemoteJobType::Starting : CM::RemoteJobType::Working;\n    if (!parseTurns(webServer.arg("turns"), job))\n    {\n        webServer.send(400, "application/json", "{\\\"error\\\":\\\"invalid_turns\\\"}");\n        return;\n    }\n\n    CM::JobLinkage linkage;\n''',
+              '''    CM::OutgoingWindingJob job;\n    job.type = webServer.arg("type") == "starting" ? CM::RemoteJobType::Starting : CM::RemoteJobType::Working;\n    if (!parseTurns(webServer.arg("turns"), job))\n    {\n        webServer.send(400, "application/json", "{\\\"error\\\":\\\"invalid_turns\\\"}");\n        return;\n    }\n    if (webServer.hasArg("repeat_target") && webServer.arg("repeat_target").length() > 0U)\n    {\n        uint32_t parsedRepeatTarget = 0UL;\n        if (!parseCanonicalUint32(webServer.arg("repeat_target"), parsedRepeatTarget) ||\n            parsedRepeatTarget == 0UL || parsedRepeatTarget > 0xFFFFUL)\n        {\n            webServer.send(400, "application/json", "{\\\"error\\\":\\\"invalid_repeat_target\\\"}");\n            return;\n        }\n        job.repeatTarget = static_cast<uint16_t>(parsedRepeatTarget);\n    }\n\n    CM::JobLinkage linkage;\n''')
+
+          replace_exact(
+              '''    activeJobId = job.jobId;\n    activeSessionId = job.sessionId;\n    activeJobType = job.type;\n''',
+              '''    activeJobId = job.jobId;\n    activeSessionId = job.sessionId;\n    activeJobType = job.type;\n    activeRepeatTarget = job.repeatTarget;\n''')
+
+          replace_exact(
+              '''    String response = F("{\\\"accepted\\\":true,\\\"job_id\\\":"); response += job.jobId;\n    response += F(",\\\"session_id\\\":"); response += job.sessionId;\n    response += F(",\\\"linked\\\":"); response += linkage.linked ? F("true") : F("false");\n''',
+              '''    String response = F("{\\\"accepted\\\":true,\\\"job_id\\\":"); response += job.jobId;\n    response += F(",\\\"session_id\\\":"); response += job.sessionId;\n    response += F(",\\\"repeat_target\\\":"); response += job.repeatTarget;\n    response += F(",\\\"linked\\\":"); response += linkage.linked ? F("true") : F("false");\n''')
+
+          path.write_text(text, encoding='utf-8')
+
+      - name: Assert repeat target runtime wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'uint16_t activeRepeatTarget = 1U;' firmware/esp32/src/main.cpp
+          grep -q 'WAITING_NEXT_REPEAT' firmware/esp32/src/main.cpp
+          grep -q 'invalid_repeat_target' firmware/esp32/src/main.cpp
+          grep -q 'display.repeatTarget' firmware/esp32/src/main.cpp
+          grep -q 'event.completedRuns == activeRepeatTarget' firmware/esp32/src/main.cpp
 
       - uses: actions/setup-python@v5
         with:
@@ -100,13 +121,13 @@ jobs:
       - name: Build ESP32
         run: pio run -e esp32
 
-      - name: Commit verified patch and self-delete
+      - name: Commit verified runtime patch and self-delete
         shell: bash
         run: |
           set -euo pipefail
           rm .github/workflows/repeat-target-uart-finalize.yml
           git config user.name "CoilMaster CI"
           git config user.email "actions@users.noreply.github.com"
-          git add Core/CM_StateMachine.h firmware/esp32/src/CM_UartEventReceiver.h firmware/esp32/src/CM_UartEventReceiver.cpp Arduino/CM_UartEventTransport.cpp firmware/arduino/src/main.cpp .github/workflows/repeat-target-uart-finalize.yml
-          git commit -m "feat: carry repeat target over UART and clear final remote job"
+          git add firmware/esp32/src/main.cpp .github/workflows/repeat-target-uart-finalize.yml
+          git commit -m "feat: enforce repeat target across ESP32 job runtime"
           git push origin HEAD:cmp-protocol-v1

@@ -33,6 +33,7 @@ JobSnapshot::JobSnapshot()
       sessionId(0UL),
       linkage(),
       type(RemoteJobType::Working),
+      repeatTarget(1U),
       coilCount(0U),
       turns{},
       createdUptimeMs(0UL)
@@ -90,12 +91,23 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
         !readAndParse(tempPath.c_str(), verified) ||
         verified.jobId != job.jobId ||
         verified.sessionId != job.sessionId ||
+        verified.type != job.type ||
+        verified.repeatTarget != job.repeatTarget ||
+        verified.coilCount != job.coilCount ||
         verified.linkage.linked != linkage.linked ||
         verified.linkage.repairId != linkage.repairId ||
         verified.linkage.motorId != linkage.motorId)
     {
         m_fileSystem.remove(tempPath);
         return false;
+    }
+    for (uint8_t index = 0U; index < job.coilCount; ++index)
+    {
+        if (verified.turns[index] != job.turns[index])
+        {
+            m_fileSystem.remove(tempPath);
+            return false;
+        }
     }
 
     if (!m_fileSystem.rename(tempPath, finalPath))
@@ -105,11 +117,22 @@ bool JobSnapshotStore::create(const OutgoingWindingJob& job,
     }
 
     if (!readAndParse(finalPath.c_str(), verified)) return false;
-    return verified.jobId == job.jobId &&
-           verified.sessionId == job.sessionId &&
-           verified.linkage.linked == linkage.linked &&
-           verified.linkage.repairId == linkage.repairId &&
-           verified.linkage.motorId == linkage.motorId;
+    if (verified.jobId != job.jobId ||
+        verified.sessionId != job.sessionId ||
+        verified.type != job.type ||
+        verified.repeatTarget != job.repeatTarget ||
+        verified.coilCount != job.coilCount ||
+        verified.linkage.linked != linkage.linked ||
+        verified.linkage.repairId != linkage.repairId ||
+        verified.linkage.motorId != linkage.motorId)
+    {
+        return false;
+    }
+    for (uint8_t index = 0U; index < job.coilCount; ++index)
+    {
+        if (verified.turns[index] != job.turns[index]) return false;
+    }
+    return true;
 }
 
 bool JobSnapshotStore::exists(uint32_t sessionId) const
@@ -179,7 +202,7 @@ String JobSnapshotStore::serialize(const OutgoingWindingJob& job,
                                    uint32_t createdUptimeMs) const
 {
     String result;
-    result.reserve(416U);
+    result.reserve(448U);
     result = F("{\"schema_version\":1,\"job_id\":");
     result += job.jobId;
     result += F(",\"session_id\":");
@@ -192,7 +215,9 @@ String JobSnapshotStore::serialize(const OutgoingWindingJob& job,
     else result += F("null");
     result += F(",\"program_type\":\"");
     result += job.type == RemoteJobType::Starting ? F("STARTING") : F("WORKING");
-    result += F("\",\"coil_count\":");
+    result += F("\",\"repeat_target\":");
+    result += job.repeatTarget;
+    result += F(",\"coil_count\":");
     result += job.coilCount;
     result += F(",\"turns\":[");
     for (uint8_t index = 0U; index < job.coilCount; ++index)
@@ -243,6 +268,8 @@ bool JobSnapshotStore::parse(const String& content,
 
     uint32_t schemaVersion = 0UL;
     uint32_t coilCount = 0UL;
+    bool hasRepeatTarget = false;
+    uint32_t repeatTarget = 1UL;
     bool hasRepairId = false;
     bool hasMotorId = false;
     uint32_t repairId = 0UL;
@@ -258,6 +285,8 @@ bool JobSnapshotStore::parse(const String& content,
         !findNullableUnsigned(content, "motor_id", hasMotorId, motorId) ||
         hasRepairId != hasMotorId ||
         !findString(content, "program_type", programType) ||
+        !findOptionalUnsigned(content, "repeat_target", hasRepeatTarget, repeatTarget) ||
+        (hasRepeatTarget && (repeatTarget == 0UL || repeatTarget > 0xFFFFUL)) ||
         !findUnsigned(content, "coil_count", coilCount) ||
         coilCount == 0UL || coilCount > JobSnapshot::MaxCoils ||
         !findUnsigned(content, "created_uptime_ms", snapshot.createdUptimeMs))
@@ -277,6 +306,8 @@ bool JobSnapshotStore::parse(const String& content,
     else
         return false;
 
+    snapshot.repeatTarget = static_cast<uint16_t>(
+        hasRepeatTarget ? repeatTarget : 1UL);
     snapshot.coilCount = static_cast<uint8_t>(coilCount);
     return findTurns(content, snapshot.coilCount, snapshot.turns);
 }
@@ -319,6 +350,22 @@ bool JobSnapshotStore::findUnsigned(const String& input,
     }
 
     value = parsed;
+    return true;
+}
+
+bool JobSnapshotStore::findOptionalUnsigned(const String& input,
+                                            const char* key,
+                                            bool& hasValue,
+                                            uint32_t& value)
+{
+    hasValue = false;
+    value = 0UL;
+    const String marker = String('"') + key + F("\":");
+    const int position = input.indexOf(marker);
+    if (position < 0) return true;
+    if (input.indexOf(marker, position + marker.length()) >= 0) return false;
+    if (!findUnsigned(input, key, value)) return false;
+    hasValue = true;
     return true;
 }
 

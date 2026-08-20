@@ -11,6 +11,7 @@
 #include "CM_AutonomousWindingArchive.h"
 #include "CM_AutonomousWindingWeb.h"
 #include "CM_BackupActivityGuard.h"
+#include "CM_HardwareControlWeb.h"
 #include "CM_JobDisplayRecovery.h"
 #include "CM_JobLinkageRequest.h"
 #include "CM_JobLinkageResolver.h"
@@ -70,6 +71,7 @@ CM::RtcClock rtcClock;
 CM::NetworkProfileStore networkProfiles(SD);
 CM::NetworkManager networkManager(networkProfiles);
 WebServer webServer(80);
+CM::HardwareControlWeb hardwareControlWeb(webServer, receiver);
 CM::WebRecoveryFtpServer webRecoveryFtp(webServer, SD);
 CM::RemoteBackupWeb remoteBackupWeb(webServer, SD, remoteBackupSettings,
                                     rtcClock);
@@ -1177,6 +1179,7 @@ void configureWebServer()
     webServer.on("/api/jobs", HTTP_POST, handleCreateJob);
     webServer.on("/api/jobs/cancel", HTTP_POST, handleCancelJob);
     webServer.on("/api/recovery/acknowledge", HTTP_POST, handleRecoveryAcknowledge);
+    hardwareControlWeb.begin();
     jobSpoolSelectionWeb.begin();
     repairRegistryWeb.begin();
     motorSimilarityWeb.begin();
@@ -1396,6 +1399,7 @@ void loop()
     networkManager.update(nowMs);
     webServer.handleClient();
     receiver.update(nowMs);
+    hardwareControlWeb.update(nowMs);
     CM::RemoteWindingEvent event;
     while (receiver.poll(event)) handleEvent(event);
     processJobDelivery();

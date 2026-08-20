@@ -126,6 +126,20 @@ bool StateMachine::startOrResume()
         {
             return false;
         }
+
+        if (m_state == MachineState::Ready)
+        {
+            if (m_job.currentRunId == 0UL || !m_job.hasMoreCoils())
+            {
+                return false;
+            }
+
+            m_job.status = JobStatus::Running;
+            m_state = MachineState::Winding;
+            return true;
+        }
+
+        return m_state == MachineState::JobComplete;
     }
 
     if (m_state == MachineState::Ready)

@@ -84,7 +84,7 @@ JobCancelEvent::JobCancelEvent()
 }
 
 UartEventReceiver::UartEventReceiver(HardwareSerial& serial)
-    : m_serial(serial), m_line(), m_length(0U), m_pendingJob(),
+    : m_serial(serial), m_hardwareControl(serial), m_line(), m_length(0U), m_pendingJob(),
       m_hasPendingJob(false), m_waitingJobAck(false),
       m_lastJobSendMs(0UL), m_jobSendAttempts(0U),
       m_lastQueuedJobId(0UL), m_hasLastQueuedJobId(false),
@@ -116,6 +116,10 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
                     processJobAck(m_line);
                 else if (strncmp(m_line, "CMP1|JOB_CANCEL_ACK|", 20U) == 0)
                     processCancelAck(m_line);
+                else if (m_hardwareControl.processLine(m_line, millis()))
+                {
+                    // Service frame consumed; never reinterpret it as winding evidence.
+                }
                 else
                     eventReady = parseEventLine(m_line, event);
             }
@@ -157,9 +161,9 @@ void UartEventReceiver::update(uint32_t nowMs)
         }
     }
 
-    if (!m_hasPendingCancel) return;
-    if (m_cancelSendAttempts == 0U ||
-        static_cast<uint32_t>(nowMs - m_lastCancelSendMs) >= JobRetryIntervalMs)
+    if (m_hasPendingCancel &&
+        (m_cancelSendAttempts == 0U ||
+         static_cast<uint32_t>(nowMs - m_lastCancelSendMs) >= JobRetryIntervalMs))
     {
         if (m_cancelSendAttempts >= MaxCancelSendAttempts)
         {
@@ -170,16 +174,19 @@ void UartEventReceiver::update(uint32_t nowMs)
             m_hasPendingCancel = false;
             m_cancelJobId = 0UL;
             m_cancelSendAttempts = 0U;
-            return;
         }
-        sendPendingCancel(nowMs);
+        else
+            sendPendingCancel(nowMs);
     }
+
+    m_hardwareControl.update(nowMs);
 }
 
 bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
 {
     if (m_hasPendingJob || m_hasJobDelivery || m_hasPendingCancel ||
-        m_hasJobCancel || !job.isValid()) return false;
+        m_hasJobCancel || m_hardwareControl.requestPending() || !job.isValid())
+        return false;
     if (m_hasLastQueuedJobId && job.jobId <= m_lastQueuedJobId) return false;
     m_pendingJob = job;
     m_hasPendingJob = true;
@@ -242,7 +249,7 @@ bool UartEventReceiver::jobPending() const
 bool UartEventReceiver::requestJobCancel(uint32_t jobId)
 {
     if (jobId == 0UL || m_hasPendingJob || m_hasJobDelivery ||
-        m_hasPendingCancel || m_hasJobCancel)
+        m_hasPendingCancel || m_hasJobCancel || m_hardwareControl.requestPending())
         return false;
     m_cancelJobId = jobId;
     m_hasPendingCancel = true;
@@ -263,6 +270,58 @@ bool UartEventReceiver::takeJobCancel(JobCancelEvent& event)
 bool UartEventReceiver::jobCancelPending() const
 {
     return m_hasPendingCancel;
+}
+
+bool UartEventReceiver::controlLaneBusy() const
+{
+    return m_hasPendingJob || m_waitingJobAck || m_hasPendingCancel;
+}
+
+bool UartEventReceiver::requestHallSettings()
+{
+    return !controlLaneBusy() && m_hardwareControl.requestSettings();
+}
+
+bool UartEventReceiver::setHallSettings(
+    uint16_t threshold,
+    uint16_t hysteresis,
+    uint16_t releaseDebounceMs,
+    HallSignalDirectionRemote direction)
+{
+    return !controlLaneBusy() &&
+           m_hardwareControl.setSettings(
+               threshold, hysteresis, releaseDebounceMs, direction);
+}
+
+bool UartEventReceiver::resetHallSettings()
+{
+    return !controlLaneBusy() && m_hardwareControl.resetSettings();
+}
+
+bool UartEventReceiver::setHallTelemetryEnabled(bool enabled)
+{
+    return !controlLaneBusy() &&
+           m_hardwareControl.setTelemetryEnabled(enabled);
+}
+
+bool UartEventReceiver::hallControlPending() const
+{
+    return m_hardwareControl.requestPending();
+}
+
+bool UartEventReceiver::takeHallSettings(HallSettingsState& state)
+{
+    return m_hardwareControl.takeSettings(state);
+}
+
+bool UartEventReceiver::takeHallTelemetry(HallTelemetryState& state)
+{
+    return m_hardwareControl.takeTelemetry(state);
+}
+
+bool UartEventReceiver::takeHardwareControlReply(HardwareControlReply& reply)
+{
+    return m_hardwareControl.takeReply(reply);
 }
 
 void UartEventReceiver::rememberJobId(uint32_t jobId)

@@ -16,6 +16,8 @@ const shared = read('firmware/esp32/web/shared/settings-hall-calibration.js');
 const webCpp = read('firmware/esp32/src/CM_HardwareControlWeb.cpp');
 const clientCpp = read('firmware/esp32/src/CM_HardwareControlClient.cpp');
 const arduinoMain = read('firmware/arduino/src/main.cpp');
+const calibrationHeader = read('Arduino/CM_HallCalibrationService.h');
+const calibrationCpp = read('Arduino/CM_HallCalibrationService.cpp');
 
 for (const [name, page] of [['desktop', desktop], ['mobile', mobile]]) {
   mustContain(page, '/shared/settings-hall-calibration.js', `${name} Hall page`);
@@ -57,5 +59,17 @@ mustContain(arduinoMain, 'physicalStart', 'Arduino runtime');
 mustContain(arduinoMain, 'HallCalibrationState::Running', 'Arduino runtime');
 mustContain(arduinoMain, 'abort=KEYPAD_INPUT', 'Arduino runtime');
 mustContain(arduinoMain, 'abort=PHYSICAL_START_PRESSED_AGAIN', 'Arduino runtime');
+
+mustContain(calibrationHeader, 'ArmedTimeoutMs = 60000UL', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'nowMs - m_armedAtMs', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, '>= ArmedTimeoutMs', 'Arduino Hall calibration service');
+const armedBranch = calibrationCpp.indexOf('if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)');
+const baselineCall = calibrationCpp.indexOf('sampleBaseline(nowMs);', armedBranch);
+const timeoutCheck = calibrationCpp.indexOf('>= ArmedTimeoutMs', armedBranch);
+const abortCall = calibrationCpp.indexOf('abort();', timeoutCheck);
+if (armedBranch < 0 || timeoutCheck < 0 || abortCall < 0 || baselineCall < 0 ||
+    !(armedBranch < timeoutCheck && timeoutCheck < abortCall && abortCall < baselineCall)) {
+  throw new Error('Arduino Hall calibration service: armed timeout must abort before baseline sampling');
+}
 
 console.log('Hall calibration web/runtime contracts: OK');

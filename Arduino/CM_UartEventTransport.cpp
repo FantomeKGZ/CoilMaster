@@ -29,7 +29,9 @@ UartEventTransport::UartEventTransport(uint8_t rxPin,
       m_hasRemoteCancel(false),
       m_peerJobReplyCrcSupported(false),
       m_hardwareControlRequest(),
-      m_hasHardwareControlRequest(false)
+      m_hasHardwareControlRequest(false),
+      m_hallCalibrationCommand(HallCalibrationCommand::None),
+      m_hasHallCalibrationCommand(false)
 {
     m_remoteJob.clear();
 }
@@ -206,6 +208,39 @@ bool UartEventTransport::sendHallTelemetry(
     char frame[HardwareControlProtocol::MaxFrameLength];
     if (!HardwareControlProtocol::formatHallTelemetry(
             snapshot, frame, sizeof(frame)))
+    {
+        return false;
+    }
+    return writeHardwareFrame(frame);
+}
+
+bool UartEventTransport::takeHallCalibrationCommand(
+    HallCalibrationCommand& command)
+{
+    if (!m_hasHallCalibrationCommand) return false;
+    command = m_hallCalibrationCommand;
+    m_hallCalibrationCommand = HallCalibrationCommand::None;
+    m_hasHallCalibrationCommand = false;
+    return true;
+}
+
+bool UartEventTransport::sendHallCalibrationState(
+    HallCalibrationState state, bool baselineReady, bool motorPermit)
+{
+    char frame[HallCalibrationProtocol::MaxFrameLength];
+    if (!HallCalibrationProtocol::formatState(
+            state, baselineReady, motorPermit, frame, sizeof(frame)))
+    {
+        return false;
+    }
+    return writeHardwareFrame(frame);
+}
+
+bool UartEventTransport::sendHallCalibrationResult(
+    const HallCalibrationResult& result)
+{
+    char frame[HallCalibrationProtocol::MaxFrameLength];
+    if (!HallCalibrationProtocol::formatResult(result, frame, sizeof(frame)))
     {
         return false;
     }
@@ -444,6 +479,18 @@ void UartEventTransport::pollReplies(uint32_t nowMs)
 
 void UartEventTransport::processReply(char* line, uint32_t nowMs)
 {
+    if (strncmp(line, "CMP1|CAL|", 9U) == 0)
+    {
+        HallCalibrationCommand parsed = HallCalibrationCommand::None;
+        if (HallCalibrationProtocol::parseRequest(line, parsed) &&
+            !m_hasHallCalibrationCommand)
+        {
+            m_hallCalibrationCommand = parsed;
+            m_hasHallCalibrationCommand = true;
+        }
+        return;
+    }
+
     const bool hardwareControlFrame =
         strncmp(line, "CMP1|CFG_GET|", 13U) == 0 ||
         strncmp(line, "CMP1|CFG_SET|", 13U) == 0 ||

@@ -13,9 +13,11 @@ function requireText(relative, source, text, description) {
 }
 
 const quantityPath = 'firmware/esp32/src/CM_KgQuantity.h';
+const recordPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecord.h';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
 const quantity = read(quantityPath);
+const record = read(recordPath);
 const writeOff = read(writeOffPath);
 const coverage = read(coveragePath);
 
@@ -26,6 +28,24 @@ for (const text of ['static bool parseGrams', 'fractionalDigits > 3', 'parsed ==
 }
 for (const forbidden of ['toFloat(', 'atof(', 'strtod(', 'double ', 'float ']) {
   if (quantity.includes(forbidden)) failures.push(quantityPath + ': floating-point quantity parsing is forbidden: ' + forbidden);
+}
+
+// The append-only movement journal must distinguish legacy exact-spool records
+// from kg-first records explicitly. Unallocated consumption may omit spool and
+// weight fields, but exact source session/run and conductor snapshot stay required.
+for (const text of [
+  'WarehouseWriteOffMode::KgFirst',
+  '"writeoff_mode"',
+  'mode != "KG_FIRST"',
+  'stockMode == "SPOOL"',
+  'stockMode == "UNALLOCATED"',
+  '!record.hasSourceSessionId || !record.hasSourceRunId',
+  'record.diameterHundredthsMm == 0U || !record.hasWireType',
+  'parsedGrams != record.massGrams',
+  'KgQuantity::canonicalKg(parsedGrams) != record.quantityKg',
+  '!record.hasSpoolId && !record.hasWeights'
+]) {
+  requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
 }
 
 // Existing production write-off remains manual and exact-run protected while
@@ -48,4 +68,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact decimal kg parser, integer-gram accounting boundary, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact decimal kg parser, dual movement schema, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

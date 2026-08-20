@@ -3,11 +3,11 @@
 Дата обновления: **2026-08-20**
 
 Репозиторий: `FantomeKGZ/CoilMaster`  
-Единственная source-of-truth ветка: `cmp-protocol-v1`
+Единственная source-of-truth ветка: `cmp-protocol-v1`. `main` для исходников не использовать.
 
 ## Для AI / coding agent
 
-Перед поиском по всему репозиторию сначала использовать maintenance-layer:
+Перед широким поиском читать maintenance-layer:
 
 ```text
 /AGENTS.md
@@ -18,11 +18,22 @@ docs/AI_AGENT/03_ADD_MODULE_PLAYBOOK.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-Он содержит карту ownership/composition roots, маршрут `что изменить → какие файлы открыть`, правила добавления нового модуля и change-scoped verification matrix. Тематические и исторические handoff-файлы читать после того, как эта карта сузила нужный subsystem.
+Перед изменением существующего файла обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить, что exact path отсутствует. Не утверждать CI/build green без фактического результата.
+
+## Текущие главные checkpoints
+
+Читать в таком порядке:
+
+1. `43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md` — текущая новая motor schema/UI, detail pages, exact motor repair history и regression contracts.
+2. `42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md` — реализованная семантика `program + repeat_target`, один RUN на полный program cycle и final JOB auto-clear после ACK/DUPLICATE.
+3. `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` — утверждённая automatic Hall calibration с обязательным physical START.
+4. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — общий roadmap: hardware settings, motors, Arduino archive, kg-first materials и common web UX.
+5. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — resilient JOB_CANCEL / ALL_CLEAR / reboot recovery.
+6. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый baseline, не доказательство текущего HEAD.
+
+Текущий код `cmp-protocol-v1` имеет приоритет над историческими checkpoints.
 
 ## Аппаратный справочник
-
-Для физической сборки, проверки проводов, RTC и Hall использовать:
 
 ```text
 docs/HARDWARE_REFERENCE/00_READ_FIRST.md
@@ -33,63 +44,37 @@ docs/HARDWARE_REFERENCE/04_RTC_TIME_SYNC.md
 docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md
 ```
 
-Hall reference фиксирует factory baseline `A0 / threshold 590 / hysteresis 50`, live-калибровку по реальному ADC, принятую автоматическую калибровку и обязательные tests против повторного счёта при зависшем магните.
+Hall factory baseline:
 
-## Начать отсюда
+```text
+A0
+threshold 590
+hysteresis 50
+release threshold 540
+```
 
-1. `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` — **последнее утверждённое дополнение**: автоматическая Hall calibration через Web с обязательным физическим START, ограниченным вращением Arduino, автоматическим SSR OFF, live telemetry и ручным `Apply`.
-2. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — основной план: новая модель двигателя/UI, `program + repeat_target`, automatic final JOB clear, Hall/settings, Arduino archive redesign, kg-first materials и web UX roadmap.
-3. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — production firmware hardening: resilient `JOB_CANCEL`, Arduino `ALL_CLEAR`, recovery после reboot и hardware regression.
-4. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` — исторический release-ready checkpoint до последующих firmware/UI изменений.
-5. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md` — release-candidate deployment baseline до JOB cancel/recovery hardening.
-6. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md` — final populated-device acceptance для предыдущего production baseline.
-7. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md` — repo-level final acceptance contract audit и CI protection.
-8. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` — read-only microSD capacity diagnostics подтверждена на реальном ESP32.
-9. `32_MOTOR_IMPORT_HARDWARE_PERSISTENCE_PASS_2026-08-16.md` — motor import успешно выполнен на реальном ESP32, запись сохранилась после reboot.
-10. `02_ARCHITECTURE_AND_HARDWARE.md`, `03_PROTOCOL_AND_WINDING_FLOW.md`, `../03_ARDUINO_CORE.md`, `../04_ESP32_CORE.md`, `../05_CMP_APPLICATION_PROTOCOL.md`, `../10_DIAGNOSTICS.md` — аппаратная архитектура и UART/CMP flow.
-11. `09_KEY_FILES_INDEX.md` и `08_WORK_RULES_AND_VERIFICATION.md` — индекс и правила изменения/проверки.
-12. `01_CURRENT_STATE.md` и `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — исторические сводки; при расхождении использовать текущий код и checkpoints `40/41`.
-
-Предыдущие checkpoints сохраняют историю и не заменяют текущий код. `11_FULL_BRANCH_AUDIT.md` — историческая карта, не source of truth.
-
-## Источник истины
-
-Приоритет:
-
-1. текущий код `cmp-protocol-v1`;
-2. фактический результат build/Actions и подтвержденные hardware tests;
-3. checkpoint `41` для принятой автоматической Hall calibration;
-4. checkpoint `40` для следующего большого функционального блока;
-5. checkpoint `39` для текущего JOB cancel/recovery поведения;
-6. checkpoint `38` для предыдущего подтвержденного release baseline;
-7. остальные checkpoints и тематические документы.
-
-Перед каждым изменением существующего файла заново получать его содержимое и blob SHA из `cmp-protocol-v1`. Для нового файла сначала проверять отсутствие точного пути. `main` не использовать как источник реализации.
+Stable-release защита против repeated count при зависшем магните уже добавлена. Automatic calibration утверждена, но её hardware acceptance не переносить автоматически на текущий HEAD.
 
 ## Safety-инварианты
 
+Нельзя менять:
+
 - physical START только физический;
+- никакого automatic physical START между repeat cycles;
+- никакого auto-resume после reboot;
 - ESP32/Web не управляют SSR напрямую;
-- auto-resume после reboot отсутствует;
 - `RUN_COMPLETED` не выполняет automatic wire writeoff;
-- writeoff остается ручным и сохраняет exact run provenance;
-- legacy exact spool provenance не уничтожать при будущей kg-first миграции;
+- wire writeoff остаётся explicit/manual и сохраняет exact `source_session_id + source_run_id`;
+- legacy exact spool provenance не уничтожать при kg-first migration;
 - linked immutable snapshot/history не удаляется operational cancellation;
-- backup restore operator-only, transactional и fail-closed;
-- reboot не продолжает restore/apply автоматически;
-- persisted restore evidence блокирует новые backup/restore действия до explicit cleanup;
-- заполнение microSD не запускает automatic deletion production data;
-- destructive fault injection на рабочей microSD запрещен;
+- backup restore operator-only, transactional, fail-closed;
 - hardware settings менять только при доказанном safe idle;
-- Web может только подготовить Hall calibration, но не запускает двигатель;
-- calibration rotation начинается только после physical START;
-- calibration mode не создаёт `RUN_STARTED/RUN_COMPLETED`, writeoff или motor history;
-- Arduino обязана выключить SSR при success, timeout, abort или calibration fault;
-- рекомендуемые Hall settings не сохраняются без явного `Apply`.
+- Web может подготовить Hall calibration, но двигатель запускает только physical START;
+- calibration mode не создаёт production RUN events/history/writeoff;
+- SSR OFF обязателен при calibration success/timeout/fault/abort;
+- рекомендуемые Hall settings не сохраняются без explicit Apply.
 
-## Утверждённая новая семантика winding program
-
-Не путать программу и количество повторов.
+## Реализованная winding semantics
 
 ```text
 38/38 × 6
@@ -102,170 +87,129 @@ program = [38, 38]
 repeat_target = 6
 ```
 
-ESP32 отправляет Arduino **один JOB**. Arduino выполняет программу один раз после physical START, затем предлагает следующий повтор и снова ждёт physical START. Никакого automatic START между повторами.
+Это **один JOB**. Один полный проход `38/38` — **один RUN и один run_id**. После каждого полного прохода Arduino ждёт новый physical START. Между повторами automatic START отсутствует.
 
 Различать:
 
 ```text
-repeat_target     — сколько нужно выполнить в текущем JOB
-completed_runs    — сколько фактически выполнено в текущем JOB
-historical_runs   — сколько программа выполнялась когда-либо
+repeat_target     — planned repeats текущего JOB
+completed_runs    — completed repeats текущего JOB
+historical_runs   — историческое число фактических runs
 coil_count        — отдельная физическая характеристика, если нужна
 ```
 
-После последнего подтверждённого `RUN_COMPLETED` active JOB должен быть безопасно очищен автоматически после persistence/delivery handshake, а история RUN остаётся immutable.
+После final repeat Arduino очищает active remote JOB только после ACK/DUPLICATE exact final `RUN_COMPLETED`. History остаётся immutable.
 
-## Новая модель двигателя — обязательные поля
+Repo-level regression `38/38 × 6` добавлен. Host StateMachine test ранее был фактически собран локально с `-Wall -Wextra -Wpedantic -Werror` и прошёл. Полные PlatformIO builds текущего HEAD всё ещё требуют отдельного подтверждения.
 
-Следующий UI/schema block должен добавить:
+## Реализованная motor schema
+
+Предпочтительные поля:
 
 ```text
 manufacturer
 model
 phase_count
 slot_count
-program / coil_program
+coil_program
 repeat_target
 ```
 
-`slot_count` отображается и в quick list, и в detail card.
-Legacy `name` сохранить для backward compatibility, но не делать главным обязательным операторским полем.
+Совместимость:
 
-## Hall SS49E — текущая точка
+- persisted legacy `phases` сохранён;
+- API принимает `phase_count`, legacy `phases` остаётся совместимым;
+- conflicting phase values отклоняются;
+- `repeat_target` хранится явно, диапазон `1..65535`;
+- новые records default `repeat_target=1`;
+- отсутствующие legacy `phase/slot/repeat` metadata показываются `не указано`, не выводятся из догадок;
+- legacy `name` сохранён, но основной UI title — `manufacturer + model`.
 
-Factory/reference baseline:
+Desktop/mobile motor catalogs уже показывают phases/slots/repeats, поддерживают numeric search и раздельные действия `Подробнее` / `Выбрать для ремонта`.
 
-```text
-pin A0
-threshold 590
-hysteresis 50
-release threshold 540
-```
+## Motor detail pages и repair history
 
-Старый рабочий sketch пользователя давал ориентировочно `522` в покое и `660` с магнитом. Реальный UI должен показывать фактические ADC values конкретной установки.
-
-На реальном стенде обнаружен repeated-count edge case при магните, остающемся над Hall. В код добавлена stable-release защита:
+Добавлены:
 
 ```text
-081b3ed1dc3849ec8b0c6898fd841acb6d5f2d76
-fix: debounce Hall sensor release before rearming
-
-2b14a91c5a90d8fd2d694c5c54308f47fcfea0b4
-fix: require stable Hall release before next turn
+/desktop/motor-details.html?motor_id=<id>
+/mobile/motor-details.html?motor_id=<id>
 ```
 
-Автоматическая калибровка утверждена:
+Они показывают identity, winding program/repeats, electrical/mechanical/winding metadata, source/confidence/comment и bounded repair history.
+
+Backend endpoint:
 
 ```text
-Web prepare
-→ Arduino safe idle check
-→ 2–3 s idle sampling
-→ physical START
-→ bounded 10/15/30 s calibration rotation
-→ Arduino SSR OFF
-→ measured idle/magnet/noise/pass statistics
-→ recommended threshold/hysteresis/direction
-→ explicit Apply only
+GET /api/motors/repairs?motor_id=<id>&cursor=<optional>&limit=<optional>&status=<optional>
 ```
 
-Подробно: `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` и `docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md`.
+Он фильтрует repair journal по exact motor_id на ESP32 и возвращает bounded pagination, поэтому browser не сканирует весь journal.
 
-Не утверждать UNO build/CI green для новых Hall changes без фактического результата.
+## JOB cancel/recovery
 
-## JOB cancel/recovery hardening после release-ready checkpoint 38
+Ключевое поведение остаётся:
 
-Ключевые commits:
+- no-run pending/accepted remote JOB может быть safely cancelled;
+- Arduino cancel идемпотентна для already-clear state;
+- physical fallback `D → * → # → D` отправляет `ALL_CLEAR`;
+- reboot recovery не создаёт auto-start, RUN_COMPLETED или wire writeoff.
+
+Подробно: checkpoint `39`.
+
+## Verification status текущего HEAD
+
+Не считать подтверждёнными без отдельного результата:
 
 ```text
-7d8bc93fdcd626f358dd1baa22428b8447355b2d
-fix: make ESP32 Arduino job cancellation resilient
-
-1c66938cd52ce790b9833faf93fc647b5bae5725
-fix: allow safe cancellation of linked no-run jobs
+pio run -e uno
+pio run -e esp32
+CMP Protocol Tests current HEAD
+hardware UART E2E current HEAD
 ```
 
-Теперь:
+Старые release/build successes остаются историческим доказательством прежнего baseline, но не нового motor/repeat/Hall блока.
 
-- pending JOB после возможной отправки отменяется через remote `JOB_CANCEL`, а не локальным discard;
-- accepted linked no-run job можно безопасно отменить до physical START;
-- Arduino cancellation идемпотентна для already-clear state;
-- физический fallback `D → * → # → D` отправляет CRC-protected `ALL_CLEAR`;
-- ESP32 умеет коррелировать `ALL_CLEAR` с recovered persisted job после reboot;
-- ни один recovery path не создаёт `RUN_COMPLETED` и не списывает провод.
+## Следующий repo-level приоритет
 
-Host protocol/web checks и PlatformIO builds Arduino Uno + ESP32 для этого старого change-set прошли в one-shot verifier до final commit `1c66938c...`. Это не является подтверждением более новых Hall/UI changes.
-
-## Hardware status
-
-Предыдущий production baseline был hardware-accepted, но после него менялись JOB recovery, FTP/RTC/firmware identification и Hall logic. Поэтому hardware acceptance не переносить автоматически на текущий HEAD.
-
-Для Hall минимум проверить:
+Motor schema/details и repeat lifecycle уже реализованы. Следующий крупный блок из checkpoint `40`:
 
 ```text
-stationary magnet -> максимум 1 count
-remove + return -> ровно следующий count
-magnet already present at START -> нет бесконечного счёта
-noise/vibration around release threshold -> нет серии false counts
-real rotating magnet -> нет пропусков нормальных оборотов
-Web calibration prepare -> motor remains OFF
-physical START -> starts calibration rotation
-calibration -> no RUN events
-success/fault/abort -> SSR OFF
-unreliable ranges -> no automatic apply
+Arduino winding archive redesign
+→ compact rows/table
+→ multi-select checkboxes
+→ ID / planned repeats / program / historical actual runs
+→ status badges + accessible details
+→ bulk create/link/combine motor actions
+→ preserve immutable RUN provenance
 ```
 
-Для JOB/repeat target будущий acceptance описан в checkpoint `40`.
-
-## Предыдущий CoilMaster v1 baseline
-
-Hardware-accepted ESP32/Web baseline предыдущего состояния:
+После archive redesign:
 
 ```text
-cfcf2b7fb2f7f3376a97179f28303b0e9e0e295a
+kg-first material consumption
+→ quantity_kg required
+→ exact run/session + immutable material snapshot
+→ spool_id optional
+→ exact stock decrement only when spool exists
+→ unallocated/manual consumption when no spool
+→ RUN_COMPLETED still never auto-writes off wire
 ```
 
-Confirmed ESP32 Build того baseline:
-
-```text
-ESP32 Build run 31938372488 — SUCCESS
-```
-
-Confirmed release-candidate CI:
-
-```text
-CMP Protocol Tests run 31941111206 — SUCCESS
-head: df188ca49d95ee4953bd228c05aec849dcd947b5
-```
-
-Эти результаты остаются доказательством предыдущего release state, но не заменяют verification текущего HEAD.
-
-## Следующее практическое действие
-
-Следовать checkpoints `40` + `41`.
-
-Начать с:
-
-```text
-Phase 0 — reconcile current cmp-protocol-v1 HEAD/build/workflows
-Phase 1 — Hall correctness + real ADC measurements
-Phase 2 — Arduino persistent hardware settings + safe CFG protocol
-Phase 3A — desktop/mobile manual live Hall calibration
-Phase 3B — automatic Hall calibration with physical START
-```
-
-Только после этого переходить к `repeat_target`/automatic final JOB clear и большой переработке motors/Arduino archive.
+Затем common web UX: FTP page shell, common app shell, Asia/Bishkek clock everywhere, unified status/toast/search/navigation.
 
 ## Короткий текст для нового чата
 
 ```text
 Продолжаем CoilMaster.
-Repo FantomeKGZ/CoilMaster, source-of-truth branch cmp-protocol-v1, main не использовать.
-Сначала прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
-40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md и
-41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md.
-Также прочитай docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md.
-Перед изменением существующего файла fetch актуальный blob SHA.
-Не утверждай build/CI green без фактической проверки.
-Начать с Phase 0/Phase 1: Hall correctness, затем persistent settings,
-manual live calibration и automatic calibration с обязательным physical START.
+Repo FantomeKGZ/CoilMaster, source-of-truth cmp-protocol-v1, main не использовать.
+Прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
+43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md,
+42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md,
+41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md и
+40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md.
+Перед каждым изменением existing file fetch current blob SHA.
+Не заявляй build/CI green без фактической проверки.
+Текущий repo-level приоритет: Arduino winding archive redesign,
+затем kg-first material consumption и common web UX.
 ```

@@ -1,5 +1,6 @@
 #include "CM_WarehouseWeb.h"
 #include <SD.h>
+#include "CM_KgQuantity.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WindingSessionCompletionAudit.h"
 
@@ -151,20 +152,72 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
+    const bool hasMode = m_server.hasArg("writeoff_mode");
+    const bool kgFirst = hasMode && m_server.arg("writeoff_mode") == "KG_FIRST";
+    if (hasMode && !kgFirst)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"unsupported_writeoff_mode\",\"write_performed\":false}");
+        return;
+    }
+
     uint32_t spoolId = 0UL;
     uint32_t repairId = 0UL;
     uint32_t before = 0UL;
     uint32_t after = 0UL;
+    uint32_t consumedGrams = 0UL;
+    uint32_t diameter = 0UL;
+    String wireType;
 
-    if (!parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId) ||
-        !parseUnsignedArg(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId) ||
-        !parseUnsignedArg(m_server, "weight_before_g", 1UL, 1000000UL, before) ||
-        !parseUnsignedArg(m_server, "weight_after_g", 0UL, 999999UL, after))
+    if (!parseUnsignedArg(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_write_off_fields\"}");
         return;
     }
+
+    if (kgFirst)
+    {
+        if (!m_server.hasArg("quantity_kg") ||
+            !KgQuantity::parseGrams(m_server.arg("quantity_kg"), consumedGrams))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_quantity_kg\",\"write_performed\":false}");
+            return;
+        }
+        if (m_server.hasArg("spool_id") && m_server.arg("spool_id").length() > 0U &&
+            !parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_spool_id\",\"write_performed\":false}");
+            return;
+        }
+        if (spoolId == 0UL)
+        {
+            if (!parseUnsignedArg(m_server, "diameter_hundredths_mm", 1UL, 0xFFFFUL, diameter))
+            {
+                m_server.send(400, "application/json; charset=utf-8",
+                              "{\"error\":\"diameter_required_for_unallocated\",\"write_performed\":false}");
+                return;
+            }
+            wireType = m_server.arg("wire_type");
+            if (wireType != "CU" && wireType != "AL")
+            {
+                m_server.send(400, "application/json; charset=utf-8",
+                              "{\"error\":\"wire_type_required_for_unallocated\",\"write_performed\":false}");
+                return;
+            }
+        }
+    }
+    else if (!parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId) ||
+             !parseUnsignedArg(m_server, "weight_before_g", 1UL, 1000000UL, before) ||
+             !parseUnsignedArg(m_server, "weight_after_g", 0UL, 999999UL, after))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_write_off_fields\"}");
+        return;
+    }
+
     bool repairFound = false;
     if (!m_store.repairExists(repairId, repairFound))
     {
@@ -201,15 +254,14 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
-    if (after >= before)
+    if (!kgFirst && after >= before)
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"weight_after_must_be_lower\"}");
         return;
     }
 
-    if (!m_server.hasArg("source_session_id") ||
-        !m_server.hasArg("source_run_id"))
+    if (!m_server.hasArg("source_session_id") || !m_server.hasArg("source_run_id"))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"source_session_and_run_required\",\"write_performed\":false}");
@@ -220,10 +272,8 @@ void WarehouseWeb::handleConfirmWriteOff()
     uint32_t sourceRunId = 0UL;
     if (m_server.arg("source_session_id").length() == 0U ||
         m_server.arg("source_run_id").length() == 0U ||
-        !parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
-                          sourceSessionId) ||
-        !parseUnsignedArg(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
-                          sourceRunId))
+        !parseUnsignedArg(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL, sourceSessionId) ||
+        !parseUnsignedArg(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL, sourceRunId))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_source_session_or_run_id\",\"write_performed\":false}");
@@ -267,7 +317,7 @@ void WarehouseWeb::handleConfirmWriteOff()
                       "{\"error\":\"source_session_spool_selection_not_found\",\"write_performed\":false}");
         return;
     }
-    if (selection.repairId != repairId || selection.spoolId != spoolId)
+    if (selection.repairId != repairId || (spoolId != 0UL && selection.spoolId != spoolId))
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
@@ -275,9 +325,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     }
 
     const WindingSessionCompletionCheck completion =
-        WindingSessionCompletionAudit::check(m_store.storage(),
-                                             sourceSessionId,
-                                             sourceRunId);
+        WindingSessionCompletionAudit::check(m_store.storage(), sourceSessionId, sourceRunId);
     if (completion == WindingSessionCompletionCheck::StorageUnavailable)
     {
         m_server.send(503, "application/json; charset=utf-8",
@@ -298,9 +346,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     }
 
     bool alreadyConfirmed = false;
-    if (!m_store.confirmedWriteOffForSourceRun(sourceSessionId,
-                                               sourceRunId,
-                                               alreadyConfirmed))
+    if (!m_store.confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed))
     {
         if (!m_store.ready())
             m_server.send(503, "application/json; charset=utf-8",
@@ -325,62 +371,82 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
-    ConfirmedSpoolWriteOff operation;
-    operation.spoolId = spoolId;
-    operation.repairId = repairId;
-    operation.sourceSessionId = sourceSessionId;
-    operation.sourceRunId = sourceRunId;
-    operation.weightBeforeGrams = before;
-    operation.weightAfterGrams = after;
-    operation.timestamp = timestamp;
-    operation.comment = m_server.arg("comment");
-
     SpoolWriteOffResult result;
-    if (!m_store.confirmSpoolWriteOff(operation, result))
+    if (kgFirst)
     {
-        if (!m_store.ready())
+        KgFirstWriteOff operation;
+        operation.spoolId = spoolId;
+        operation.repairId = repairId;
+        operation.sourceSessionId = sourceSessionId;
+        operation.sourceRunId = sourceRunId;
+        operation.diameterHundredthsMm = static_cast<uint16_t>(diameter);
+        operation.consumedGrams = consumedGrams;
+        operation.wireType = wireType;
+        operation.timestamp = timestamp;
+        operation.comment = m_server.arg("comment");
+        if (!m_store.confirmKgFirstWriteOff(operation, result))
         {
-            m_server.send(503, "application/json; charset=utf-8",
-                          "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
+            if (!m_store.ready())
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
+            else
+                m_server.send(409, "application/json; charset=utf-8",
+                              "{\"error\":\"write_off_not_committed\",\"write_performed\":false}");
+            return;
         }
-        else
+    }
+    else
+    {
+        ConfirmedSpoolWriteOff operation;
+        operation.spoolId = spoolId;
+        operation.repairId = repairId;
+        operation.sourceSessionId = sourceSessionId;
+        operation.sourceRunId = sourceRunId;
+        operation.weightBeforeGrams = before;
+        operation.weightAfterGrams = after;
+        operation.timestamp = timestamp;
+        operation.comment = m_server.arg("comment");
+        if (!m_store.confirmSpoolWriteOff(operation, result))
         {
-            m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"write_off_not_committed\"}");
+            if (!m_store.ready())
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
+            else
+                m_server.send(409, "application/json; charset=utf-8",
+                              "{\"error\":\"write_off_not_committed\"}");
+            return;
         }
-        return;
     }
 
     const uint64_t consumedValueMinor =
-        (static_cast<uint64_t>(result.consumedGrams) * result.pricePerKgMinor + 500ULL) /
-        1000ULL;
+        (static_cast<uint64_t>(result.consumedGrams) * result.pricePerKgMinor + 500ULL) / 1000ULL;
     char valueBuffer[24];
     snprintf(valueBuffer, sizeof(valueBuffer), "%llu",
              static_cast<unsigned long long>(consumedValueMinor));
 
     String response;
-    response.reserve(480U);
-    response = F("{\"confirmed\":true,\"movement_id\":");
-    response += result.movementId;
-    response += F(",\"spool_id\":"); response += spoolId;
+    response.reserve(620U);
+    response = F("{\"confirmed\":true,\"movement_id\":"); response += result.movementId;
+    response += F(",\"writeoff_mode\":\""); response += kgFirst ? F("KG_FIRST") : F("LEGACY_SPOOL"); response += '"';
+    response += F(",\"stock_mode\":\""); response += kgFirst ? (spoolId != 0UL ? F("SPOOL") : F("UNALLOCATED")) : F("SPOOL"); response += '"';
+    response += F(",\"spool_id\":");
+    if (spoolId != 0UL) response += spoolId; else response += F("null");
     response += F(",\"repair_id\":"); response += repairId;
     response += F(",\"source_session_id\":"); response += sourceSessionId;
     response += F(",\"source_run_id\":"); response += sourceRunId;
-    response += F(",\"diameter_hundredths_mm\":");
-    response += result.diameterHundredthsMm;
+    response += F(",\"diameter_hundredths_mm\":"); response += result.diameterHundredthsMm;
     response += F(",\"wire_type\":");
-    if (result.wireType.length() > 0U)
-    {
-        response += '"'; response += result.wireType; response += '"';
-    }
+    if (result.wireType.length() > 0U) { response += '"'; response += result.wireType; response += '"'; }
     else response += F("null");
-    response += F(",\"legacy_unknown_material\":");
-    response += result.wireType.length() > 0U ? F("false") : F("true");
+    response += F(",\"legacy_unknown_material\":"); response += result.wireType.length() > 0U ? F("false") : F("true");
     response += F(",\"consumed_g\":"); response += result.consumedGrams;
+    response += F(",\"quantity_kg\":");
+    if (kgFirst) { response += '"'; response += KgQuantity::canonicalKg(result.consumedGrams); response += '"'; }
+    else response += F("null");
     response += F(",\"consumed_value_minor\":"); response += valueBuffer;
-    response += F(",\"current_weight_g\":"); response += after;
-    response += F(",\"price_per_kg_minor\":");
-    response += result.pricePerKgMinor;
+    response += F(",\"current_weight_g\":");
+    if (!kgFirst) response += after; else response += F("null");
+    response += F(",\"price_per_kg_minor\":"); response += result.pricePerKgMinor;
     response += F(",\"currency\":\""); response += result.currency;
     response += F("\",\"value_rounding\":\"NEAREST_MINOR_UNIT\",\"automatic_wire_writeoff_allowed\":false}");
     m_server.send(201, "application/json; charset=utf-8", response);

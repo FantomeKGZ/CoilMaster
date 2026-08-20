@@ -76,6 +76,10 @@
                 addRow('Файловая система',byteSize(used)+' / '+byteSize(total));
                 const freePercent=total>0?Math.max(0,Math.min(100,free*100/total)):null;
                 addRow('Свободно на microSD',byteSize(free)+(freePercent===null?'':' ('+freePercent.toLocaleString('ru-RU',{maximumFractionDigits:1})+'%)'));
+                addRow('Журнал списаний',byteSize(storage.warehouse_movements_bytes));
+                addRow('Журнал намоток',byteSize(storage.winding_events_bytes));
+                addRow('Реестр ремонтов',byteSize(storage.repair_registry_bytes));
+                addRow('Реестр бухт',byteSize(storage.wire_spools_bytes));
             }else{
                 addRow('microSD','диагностика недоступна');
             }
@@ -90,7 +94,7 @@
                 note.textContent='microSD не готова: проверьте карту и перезагрузите устройство. Автоматическое удаление production данных не выполняется.';
             }else{
                 note.className='muted';
-                note.textContent='Brownout прошлого запуска не зафиксирован. Свободное место microSD контролируется вручную; автоматическое удаление production данных отключено.';
+                note.textContent='Brownout прошлого запуска не зафиксирован. Размеры растущих NDJSON показаны для наблюдения; автоматическая очистка/ротация production данных отключена.';
             }
             root.appendChild(note);
         }catch(error){

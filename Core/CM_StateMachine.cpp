@@ -110,7 +110,7 @@ bool StateMachine::startOrResume()
 {
     if (m_state == MachineState::JobComplete)
     {
-        if (!m_job.isValid())
+        if (!m_job.isValid() || m_job.repeatTargetReached())
         {
             return false;
         }
@@ -227,6 +227,22 @@ bool StateMachine::acknowledgeCoilComplete()
     return true;
 }
 
+bool StateMachine::acknowledgeDeliveredRun(uint32_t runId)
+{
+    if (runId == 0UL ||
+        m_job.source != JobSource::Esp32Web ||
+        m_state != MachineState::JobComplete ||
+        m_job.status != JobStatus::Completed ||
+        m_job.currentRunId != runId ||
+        !m_job.repeatTargetReached())
+    {
+        return false;
+    }
+
+    resetToHome();
+    return true;
+}
+
 bool StateMachine::cancel()
 {
     if (m_state == MachineState::Fault)
@@ -277,7 +293,7 @@ uint32_t StateMachine::nextRunId() const
 
 bool StateMachine::beginRun()
 {
-    if (!m_job.hasMoreCoils())
+    if (!m_job.hasMoreCoils() || m_job.repeatTargetReached())
     {
         return false;
     }

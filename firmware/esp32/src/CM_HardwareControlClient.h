@@ -45,6 +45,43 @@ struct HallTelemetryState
     HallTelemetryState();
 };
 
+enum class HallCalibrationRemoteState : uint8_t
+{
+    Idle = 0U,
+    ArmedWaitingPhysicalStart,
+    Running,
+    Completed,
+    Aborted
+};
+
+struct HallCalibrationRemoteStateSnapshot
+{
+    HallCalibrationRemoteState state;
+    bool baselineReady;
+    bool motorPermit;
+    bool valid;
+    uint32_t receivedAtMs;
+
+    HallCalibrationRemoteStateSnapshot();
+};
+
+struct HallCalibrationRemoteResult
+{
+    bool recommendationValid;
+    uint16_t baselineAdc;
+    uint16_t minAdc;
+    uint16_t maxAdc;
+    uint16_t recommendedThreshold;
+    uint16_t recommendedHysteresis;
+    HallSignalDirectionRemote direction;
+    uint16_t sampleCount;
+    uint32_t durationMs;
+    bool valid;
+    uint32_t receivedAtMs;
+
+    HallCalibrationRemoteResult();
+};
+
 enum class HardwareControlReplyResult : uint8_t
 {
     None = 0U,
@@ -79,10 +116,15 @@ public:
                      HallSignalDirectionRemote direction);
     bool resetSettings();
     bool setTelemetryEnabled(bool enabled);
+    bool armHallCalibration();
+    bool abortHallCalibration();
+    bool requestHallCalibration();
 
     bool requestPending() const;
     bool takeSettings(HallSettingsState& state);
     bool takeTelemetry(HallTelemetryState& state);
+    bool takeHallCalibrationState(HallCalibrationRemoteStateSnapshot& state);
+    bool takeHallCalibrationResult(HallCalibrationRemoteResult& result);
     bool takeReply(HardwareControlReply& reply);
 
 private:
@@ -93,7 +135,10 @@ private:
         SetSettings,
         ResetSettings,
         StartTelemetry,
-        StopTelemetry
+        StopTelemetry,
+        ArmCalibration,
+        AbortCalibration,
+        GetCalibration
     };
 
     static constexpr uint32_t RetryIntervalMs = 1000UL;
@@ -105,6 +150,8 @@ private:
     bool processSettingsState(char* line, uint32_t nowMs);
     bool processSettingsResult(char* line);
     bool processTelemetryState(char* line, uint32_t nowMs);
+    bool processCalibrationState(char* line, uint32_t nowMs);
+    bool processCalibrationResult(char* line, uint32_t nowMs);
     void finishRequest(HardwareControlReplyResult result);
 
     static bool validateAndStripCrc(char* line);
@@ -124,6 +171,10 @@ private:
     bool m_hasSettings;
     HallTelemetryState m_telemetry;
     bool m_hasTelemetry;
+    HallCalibrationRemoteStateSnapshot m_calibrationState;
+    bool m_hasCalibrationState;
+    HallCalibrationRemoteResult m_calibrationResult;
+    bool m_hasCalibrationResult;
     HardwareControlReply m_reply;
     bool m_hasReply;
 };

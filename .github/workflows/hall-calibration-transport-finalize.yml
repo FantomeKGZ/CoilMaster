@@ -1,0 +1,72 @@
+name: Hall calibration transport finalize
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - '.github/workflows/hall-calibration-transport-finalize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Guard and integrate calibration transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object Arduino/CM_UartEventTransport.cpp)" = '4cbdaf0db5dc1a0edb0a928ff2b9ee79d734d90f'
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('Arduino/CM_UartEventTransport.cpp')
+          t = p.read_text(encoding='utf-8')
+          reps = [
+            (
+              '      m_hardwareControlRequest(),\n      m_hasHardwareControlRequest(false)\n',
+              '      m_hardwareControlRequest(),\n      m_hasHardwareControlRequest(false),\n      m_hallCalibrationCommand(HallCalibrationCommand::None),\n      m_hasHallCalibrationCommand(false)\n'
+            ),
+            (
+              'bool UartEventTransport::sendHallTelemetry(\n    const HallTelemetrySnapshot& snapshot)\n{\n    char frame[HardwareControlProtocol::MaxFrameLength];\n    if (!HardwareControlProtocol::formatHallTelemetry(\n            snapshot, frame, sizeof(frame)))\n    {\n        return false;\n    }\n    return writeHardwareFrame(frame);\n}\n',
+              'bool UartEventTransport::sendHallTelemetry(\n    const HallTelemetrySnapshot& snapshot)\n{\n    char frame[HardwareControlProtocol::MaxFrameLength];\n    if (!HardwareControlProtocol::formatHallTelemetry(\n            snapshot, frame, sizeof(frame)))\n    {\n        return false;\n    }\n    return writeHardwareFrame(frame);\n}\n\nbool UartEventTransport::takeHallCalibrationCommand(\n    HallCalibrationCommand& command)\n{\n    if (!m_hasHallCalibrationCommand) return false;\n    command = m_hallCalibrationCommand;\n    m_hallCalibrationCommand = HallCalibrationCommand::None;\n    m_hasHallCalibrationCommand = false;\n    return true;\n}\n\nbool UartEventTransport::sendHallCalibrationState(\n    HallCalibrationState state, bool baselineReady, bool motorPermit)\n{\n    char frame[HallCalibrationProtocol::MaxFrameLength];\n    if (!HallCalibrationProtocol::formatState(\n            state, baselineReady, motorPermit, frame, sizeof(frame)))\n    {\n        return false;\n    }\n    return writeHardwareFrame(frame);\n}\n\nbool UartEventTransport::sendHallCalibrationResult(\n    const HallCalibrationResult& result)\n{\n    char frame[HallCalibrationProtocol::MaxFrameLength];\n    if (!HallCalibrationProtocol::formatResult(result, frame, sizeof(frame)))\n    {\n        return false;\n    }\n    return writeHardwareFrame(frame);\n}\n'
+            ),
+            (
+              'void UartEventTransport::processReply(char* line, uint32_t nowMs)\n{\n    const bool hardwareControlFrame =\n',
+              'void UartEventTransport::processReply(char* line, uint32_t nowMs)\n{\n    if (strncmp(line, "CMP1|CAL|", 9U) == 0)\n    {\n        HallCalibrationCommand parsed = HallCalibrationCommand::None;\n        if (HallCalibrationProtocol::parseRequest(line, parsed) &&\n            !m_hasHallCalibrationCommand)\n        {\n            m_hallCalibrationCommand = parsed;\n            m_hasHallCalibrationCommand = true;\n        }\n        return;\n    }\n\n    const bool hardwareControlFrame =\n'
+            ),
+          ]
+          for old, new in reps:
+              c=t.count(old)
+              if c != 1:
+                  raise SystemExit(f'anchor count {c}: {old[:80]!r}')
+              t=t.replace(old,new,1)
+          p.write_text(t,encoding='utf-8')
+          PY
+
+      - name: Commit transport locally
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Arduino/CM_UartEventTransport.cpp
+          git commit -m 'feat: integrate Hall calibration UART transport'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Build Arduino Uno
+        run: pio run -e uno
+      - name: Build ESP32 regression
+        run: pio run -e esp32
+
+      - name: Finalize and self-delete
+        run: |
+          rm .github/workflows/hall-calibration-transport-finalize.yml
+          git add -A
+          git commit -m 'chore: finalize verified Hall calibration transport'
+          git pull --rebase origin cmp-protocol-v1
+          git push origin HEAD:cmp-protocol-v1

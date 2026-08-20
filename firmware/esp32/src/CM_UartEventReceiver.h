@@ -129,9 +129,14 @@ public:
                          HallSignalDirectionRemote direction);
     bool resetHallSettings();
     bool setHallTelemetryEnabled(bool enabled);
+    bool armHallCalibration();
+    bool abortHallCalibration();
+    bool requestHallCalibration();
     bool hallControlPending() const;
     bool takeHallSettings(HallSettingsState& state);
     bool takeHallTelemetry(HallTelemetryState& state);
+    bool takeHallCalibrationState(HallCalibrationRemoteStateSnapshot& state);
+    bool takeHallCalibrationResult(HallCalibrationRemoteResult& result);
     bool takeHardwareControlReply(HardwareControlReply& reply);
 
     void sendAck(uint32_t runId, const char* status);

@@ -27,7 +27,9 @@ UartEventTransport::UartEventTransport(uint8_t rxPin,
       m_hasRemoteJob(false),
       m_remoteCancelJobId(0UL),
       m_hasRemoteCancel(false),
-      m_peerJobReplyCrcSupported(false)
+      m_peerJobReplyCrcSupported(false),
+      m_hardwareControlRequest(),
+      m_hasHardwareControlRequest(false)
 {
     m_remoteJob.clear();
 }
@@ -160,6 +162,54 @@ void UartEventTransport::sendJobClear()
 
     const size_t frameLength = static_cast<size_t>(payloadLength + suffixLength);
     m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength);
+}
+
+bool UartEventTransport::takeHardwareControlRequest(
+    HardwareControlRequest& request)
+{
+    if (!m_hasHardwareControlRequest) return false;
+
+    request = m_hardwareControlRequest;
+    m_hardwareControlRequest = HardwareControlRequest();
+    m_hasHardwareControlRequest = false;
+    return true;
+}
+
+bool UartEventTransport::sendHardwareSettingsState(
+    const HardwareSettings& settings,
+    bool loadedFromEeprom)
+{
+    char frame[HardwareControlProtocol::MaxFrameLength];
+    if (!HardwareControlProtocol::formatSettingsState(
+            settings, loadedFromEeprom, frame, sizeof(frame)))
+    {
+        return false;
+    }
+    return writeHardwareFrame(frame);
+}
+
+bool UartEventTransport::sendHardwareControlResult(
+    HardwareControlResult result)
+{
+    char frame[HardwareControlProtocol::MaxFrameLength];
+    if (!HardwareControlProtocol::formatSettingsResult(
+            result, frame, sizeof(frame)))
+    {
+        return false;
+    }
+    return writeHardwareFrame(frame);
+}
+
+bool UartEventTransport::sendHallTelemetry(
+    const HallTelemetrySnapshot& snapshot)
+{
+    char frame[HardwareControlProtocol::MaxFrameLength];
+    if (!HardwareControlProtocol::formatHallTelemetry(
+            snapshot, frame, sizeof(frame)))
+    {
+        return false;
+    }
+    return writeHardwareFrame(frame);
 }
 
 void UartEventTransport::writeJobReply(bool cancelReply,
@@ -357,6 +407,16 @@ bool UartEventTransport::writeLocalFrame(
            frameLength;
 }
 
+bool UartEventTransport::writeHardwareFrame(const char* frame)
+{
+    if (frame == nullptr || *frame == '\0') return false;
+    const size_t frameLength = strlen(frame);
+    if (frameLength == 0U || frameLength >= HardwareControlProtocol::MaxFrameLength)
+        return false;
+    return m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength) ==
+           frameLength;
+}
+
 void UartEventTransport::pollReplies(uint32_t nowMs)
 {
     while (m_serial.available() > 0)
@@ -384,6 +444,23 @@ void UartEventTransport::pollReplies(uint32_t nowMs)
 
 void UartEventTransport::processReply(char* line, uint32_t nowMs)
 {
+    const bool hardwareControlFrame =
+        strncmp(line, "CMP1|CFG_GET|", 13U) == 0 ||
+        strncmp(line, "CMP1|CFG_SET|", 13U) == 0 ||
+        strncmp(line, "CMP1|CFG_RESET|", 15U) == 0 ||
+        strncmp(line, "CMP1|HALL_TELEM|", 16U) == 0;
+    if (hardwareControlFrame)
+    {
+        HardwareControlRequest parsed;
+        if (HardwareControlProtocol::parseRequest(line, parsed) &&
+            !m_hasHardwareControlRequest)
+        {
+            m_hardwareControlRequest = parsed;
+            m_hasHardwareControlRequest = true;
+        }
+        return;
+    }
+
     if (strncmp(line, "CMP1|JOB_CANCEL|", 16U) == 0)
     {
         uint32_t jobId = 0UL;

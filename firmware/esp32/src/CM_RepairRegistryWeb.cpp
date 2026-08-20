@@ -313,13 +313,29 @@ void RepairRegistryWeb::handleCreateMotor()
         return;
     }
     motor.frequencyHz = static_cast<uint16_t>(parsed);
-    if (!optionalUnsigned("phases", 3UL, parsed))
+
+    const bool hasPhaseCount = m_server.hasArg("phase_count") &&
+                               m_server.arg("phase_count").length() > 0U;
+    const bool hasLegacyPhases = m_server.hasArg("phases") &&
+                                 m_server.arg("phases").length() > 0U;
+    if (hasPhaseCount && hasLegacyPhases &&
+        m_server.arg("phase_count") != m_server.arg("phases"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"conflicting_phase_count\"}");
+        return;
+    }
+    parsed = 0UL;
+    if ((hasPhaseCount || hasLegacyPhases) &&
+        !parseUnsigned(m_server, hasPhaseCount ? "phase_count" : "phases",
+                       1UL, 255UL, parsed))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_motor_numeric_field\"}");
         return;
     }
     motor.phases = static_cast<uint8_t>(parsed);
+
     if (!optionalUnsigned("slot_count", 1000UL, parsed))
     {
         m_server.send(400, "application/json; charset=utf-8",
@@ -327,6 +343,17 @@ void RepairRegistryWeb::handleCreateMotor()
         return;
     }
     motor.slotCount = static_cast<uint16_t>(parsed);
+
+    parsed = 1UL;
+    if (m_server.hasArg("repeat_target") &&
+        !parseUnsigned(m_server, "repeat_target", 1UL, 0xFFFFUL, parsed))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_repeat_target\"}");
+        return;
+    }
+    motor.repeatTarget = static_cast<uint16_t>(parsed);
+
     if (!optionalUnsigned("pole_count", 128UL, parsed))
     {
         m_server.send(400, "application/json; charset=utf-8",
@@ -511,6 +538,11 @@ void RepairRegistryWeb::handleCreateMotor()
     }
     String response = F("{\"created\":true,\"motor_id\":");
     response += motorId;
+    response += F(",\"repeat_target\":");
+    response += motor.repeatTarget;
+    response += F(",\"phase_count\":");
+    if (motor.phases > 0U) response += motor.phases;
+    else response += F("null");
     response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
 }

@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#include "CM_HardwareControlClient.h"
+
 namespace CM
 {
 enum class RemoteEventType : uint8_t
@@ -120,6 +122,18 @@ public:
     bool jobCancelPending() const;
     void rememberJobId(uint32_t jobId);
 
+    bool requestHallSettings();
+    bool setHallSettings(uint16_t threshold,
+                         uint16_t hysteresis,
+                         uint16_t releaseDebounceMs,
+                         HallSignalDirectionRemote direction);
+    bool resetHallSettings();
+    bool setHallTelemetryEnabled(bool enabled);
+    bool hallControlPending() const;
+    bool takeHallSettings(HallSettingsState& state);
+    bool takeHallTelemetry(HallTelemetryState& state);
+    bool takeHardwareControlReply(HardwareControlReply& reply);
+
     void sendAck(uint32_t runId, const char* status);
     void sendNack(uint32_t runId, const char* reason);
 
@@ -129,6 +143,7 @@ private:
     static constexpr uint8_t MaxJobSendAttempts = 5U;
     static constexpr uint8_t MaxCancelSendAttempts = 3U;
 
+    bool controlLaneBusy() const;
     bool parseEventLine(char* line, RemoteWindingEvent& event) const;
     bool processJobAck(char* line);
     bool processCancelAck(char* line);
@@ -154,6 +169,7 @@ private:
     static bool validateAndStripJobReplyCrc(char* line);
 
     HardwareSerial& m_serial;
+    HardwareControlClient m_hardwareControl;
     char m_line[MaxLineLength];
     size_t m_length;
 

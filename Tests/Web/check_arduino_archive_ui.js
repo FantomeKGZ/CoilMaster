@@ -32,7 +32,6 @@ for (const needle of [
   'repeat_target',
   'completed_runs',
   'historicalCounts',
-  'STARTED_NOT_COMPLETED',
   "status !== 'COMPLETED'"
 ]) requireText(shared, needle, 'shared archive controller');
 

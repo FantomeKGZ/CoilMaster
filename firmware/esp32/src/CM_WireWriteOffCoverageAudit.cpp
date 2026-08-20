@@ -1,5 +1,6 @@
 #include "CM_WireWriteOffCoverageAudit.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
+#include "CM_WarehouseWriteOffRecord.h"
 #include "CM_WindingJournalQuery.h"
 #include <string.h>
 
@@ -204,60 +205,72 @@ bool confirmedWriteOffExists(fs::FS& storage,
         return false;
     }
 
-    bool matchingLegacySession = false;
-    bool matchingRun = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (line.indexOf(F("\"status\":\"CONFIRMED\"")) < 0) continue;
 
-        const bool hasSession = line.indexOf(F("\"source_session_id\":")) >= 0;
-        if (!hasSession) continue;
-
-        uint32_t currentSession = 0UL;
-        if (!findUnsigned(line, "source_session_id", currentSession) || currentSession == 0UL)
+        WarehouseWriteOffRecord record;
+        if (!WarehouseWriteOffRecordCodec::parse(line, record))
         {
             file.close();
             return false;
         }
-        if (currentSession != sessionId) continue;
+        if (record.status != "CONFIRMED" || !record.hasSourceSessionId ||
+            record.sourceSessionId != sessionId)
+            continue;
 
-        uint32_t currentRepair = 0UL, currentSpool = 0UL;
-        if (!findUnsigned(line, "repair_id", currentRepair) || currentRepair == 0UL ||
-            !findUnsigned(line, "spool_id", currentSpool) || currentSpool == 0UL ||
-            currentRepair != repairId || currentSpool != spoolId)
+        if (record.repairId != repairId)
         {
             file.close();
             return false;
         }
 
-        const bool hasRun = line.indexOf(F("\"source_run_id\":")) >= 0;
-        if (!hasRun)
+        if (record.mode == WarehouseWriteOffMode::LegacySpool)
         {
-            if (matchingLegacySession || matchingRun)
+            if (!record.hasSpoolId || record.spoolId != spoolId)
             {
                 file.close();
                 return false;
             }
-            matchingLegacySession = true;
-            found = true;
-            continue;
+            // Preserve the legacy session-level record semantics for old data.
+            if (!record.hasSourceRunId)
+            {
+                if (found)
+                {
+                    file.close();
+                    return false;
+                }
+                found = true;
+                continue;
+            }
+            if (record.sourceRunId != runId) continue;
+        }
+        else
+        {
+            // New KG_FIRST records are always exact-run. A stock-managed record
+            // must retain the immutable selected spool; UNALLOCATED explicitly
+            // covers the run without mutating any spool stock.
+            if (!record.hasSourceRunId || record.sourceRunId != runId) continue;
+            if (record.stockMode == WarehouseWriteOffStockMode::Spool &&
+                (!record.hasSpoolId || record.spoolId != spoolId))
+            {
+                file.close();
+                return false;
+            }
+            if (record.stockMode == WarehouseWriteOffStockMode::Unallocated &&
+                record.hasSpoolId)
+            {
+                file.close();
+                return false;
+            }
         }
 
-        uint32_t currentRun = 0UL;
-        if (!findUnsigned(line, "source_run_id", currentRun) || currentRun == 0UL)
+        if (found)
         {
             file.close();
             return false;
         }
-        if (currentRun != runId) continue;
-        if (matchingLegacySession || matchingRun)
-        {
-            file.close();
-            return false;
-        }
-        matchingRun = true;
         found = true;
     }
 

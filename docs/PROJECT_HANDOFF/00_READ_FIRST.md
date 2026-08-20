@@ -24,12 +24,13 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 Читать в таком порядке:
 
-1. `43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md` — текущая новая motor schema/UI, detail pages, exact motor repair history и regression contracts.
-2. `42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md` — реализованная семантика `program + repeat_target`, один RUN на полный program cycle и final JOB auto-clear после ACK/DUPLICATE.
-3. `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` — утверждённая automatic Hall calibration с обязательным physical START.
-4. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — общий roadmap: hardware settings, motors, Arduino archive, kg-first materials и common web UX.
-5. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — resilient JOB_CANCEL / ALL_CLEAR / reboot recovery.
-6. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый baseline, не доказательство текущего HEAD.
+1. `44_ARDUINO_ARCHIVE_UI_REDESIGN_2026-08-20.md` — compact desktop/mobile Arduino archive, multi-select, bulk create/link/combine, on-demand historical RUN counts и current `repeat_target` provenance limitation.
+2. `43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md` — текущая новая motor schema/UI, detail pages, exact motor repair history и regression contracts.
+3. `42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md` — реализованная семантика `program + repeat_target`, один RUN на полный program cycle и final JOB auto-clear после ACK/DUPLICATE.
+4. `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` — утверждённая automatic Hall calibration с обязательным physical START.
+5. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — общий roadmap: hardware settings, motors, Arduino archive, kg-first materials и common web UX.
+6. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — resilient JOB_CANCEL / ALL_CLEAR / reboot recovery.
+7. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый baseline, не доказательство текущего HEAD.
 
 Текущий код `cmp-protocol-v1` имеет приоритет над историческими checkpoints.
 
@@ -146,6 +147,31 @@ GET /api/motors/repairs?motor_id=<id>&cursor=<optional>&limit=<optional>&status=
 
 Он фильтрует repair journal по exact motor_id на ESP32 и возвращает bounded pagination, поэтому browser не сканирует весь journal.
 
+## Arduino winding archive redesign
+
+Первый UI этап реализован:
+
+```text
+compact desktop table
+compact mobile rows/cards
+multi-select completed RUN records
+bulk link/create/combine motor actions
+status badges + accessible details
+on-demand historical completed RUN count by program
+```
+
+Shared controller:
+
+```text
+firmware/esp32/web/shared/arduino-windings-archive.js
+```
+
+Важно: текущий autonomous archive event API публикует `completed_runs`, но не имеет authoritative persisted `repeat_target`. Planned repeats показываются только если API явно вернул `repeat_target`; иначе UI показывает `—`. Нельзя вычислять planned repeats из completed/history/coil count.
+
+Linkage не меняет immutable RUN events и exact `session_id + run_id`.
+
+Подробно: checkpoint `44`.
+
 ## JOB cancel/recovery
 
 Ключевое поведение остаётся:
@@ -168,23 +194,21 @@ CMP Protocol Tests current HEAD
 hardware UART E2E current HEAD
 ```
 
-Старые release/build successes остаются историческим доказательством прежнего baseline, но не нового motor/repeat/Hall блока.
+Старые release/build successes остаются историческим доказательством прежнего baseline, но не нового motor/repeat/Hall/archive блока.
 
 ## Следующий repo-level приоритет
 
-Motor schema/details и repeat lifecycle уже реализованы. Следующий крупный блок из checkpoint `40`:
+Archive UI redesign реализован. Ближайший substep:
 
 ```text
-Arduino winding archive redesign
-→ compact rows/table
-→ multi-select checkboxes
-→ ID / planned repeats / program / historical actual runs
-→ status badges + accessible details
-→ bulk create/link/combine motor actions
-→ preserve immutable RUN provenance
+planned repeat provenance audit
+→ найти authoritative persisted source repeat_target для autonomous/archive RUN
+→ если source отсутствует, спроектировать backward-compatible exact JOB/session/run metadata
+→ старые RUN records не переписывать
+→ никаких guessed repeat_target
 ```
 
-После archive redesign:
+После закрытия archive provenance:
 
 ```text
 kg-first material consumption
@@ -204,12 +228,13 @@ kg-first material consumption
 Продолжаем CoilMaster.
 Repo FantomeKGZ/CoilMaster, source-of-truth cmp-protocol-v1, main не использовать.
 Прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
+44_ARDUINO_ARCHIVE_UI_REDESIGN_2026-08-20.md,
 43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md,
 42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md,
 41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md и
 40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md.
 Перед каждым изменением existing file fetch current blob SHA.
 Не заявляй build/CI green без фактической проверки.
-Текущий repo-level приоритет: Arduino winding archive redesign,
+Текущий repo-level приоритет: repeat_target provenance audit для Arduino archive,
 затем kg-first material consumption и common web UX.
 ```

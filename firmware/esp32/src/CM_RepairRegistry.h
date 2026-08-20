@@ -28,6 +28,7 @@ struct NewMotor
     uint16_t frequencyHz;
     uint8_t phases;
     uint16_t slotCount;
+    uint16_t repeatTarget;
     uint8_t poleCount;
     uint16_t coilPitch;
     uint16_t turnsPerCoil;
@@ -48,7 +49,7 @@ struct NewMotor
     NewMotor()
         : ratedPowerW(0UL), ratedVoltageV(0U), ratedCurrentMa(0UL),
           ratedSpeedRpm(0U), frequencyHz(0U), phases(0U), slotCount(0U),
-          poleCount(0U), coilPitch(0U), turnsPerCoil(0U),
+          repeatTarget(1U), poleCount(0U), coilPitch(0U), turnsPerCoil(0U),
           wireDiameterHundredthsMm(0U), parallelStrands(0U),
           statorBoreMm(0U), statorCoreLengthMm(0U),
           calculatedFields(false)

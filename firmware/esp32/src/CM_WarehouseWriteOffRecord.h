@@ -159,7 +159,13 @@ private:
         record.mode = WarehouseWriteOffMode::LegacySpool;
         record.stockMode = WarehouseWriteOffStockMode::LegacySpool;
         if (record.status == "CONFIRMED")
-            return record.diameterHundredthsMm != 0U && record.hasWireType;
+        {
+            // Historic write-offs created before spool material classification may
+            // legitimately have no wire_type. Preserve them as UNKNOWN; when the
+            // field is present the common parser above has already restricted it
+            // to CU/AL. New writes still always persist an explicit material.
+            return record.diameterHundredthsMm != 0U;
+        }
         return record.diameterHundredthsMm == 0U && !record.hasWireType;
     }
 

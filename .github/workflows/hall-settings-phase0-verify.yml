@@ -18,92 +18,6 @@ jobs:
           ref: cmp-protocol-v1
           fetch-depth: 0
 
-      - name: Verify expected source blobs
-        run: |
-          test "$(git hash-object firmware/arduino/src/main.cpp)" = "425422cc1531bf1133aaa7bb2f5650f2d048285e"
-          test "$(git hash-object .github/workflows/firmware-identity-finalize.yml)" = "357cbbb0cad3ef5a77256e72b039c4503c71cd99"
-
-      - name: Integrate persistent Hall settings
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p=Path('firmware/arduino/src/main.cpp')
-          s=p.read_text(encoding='utf-8')
-
-          inc='#include "../../../Arduino/CM_EepromPersistence.h"\n'
-          add=inc+'#include "../../../Arduino/CM_HardwareSettings.h"\n'
-          if 'CM_HardwareSettings.h' not in s:
-              assert inc in s
-              s=s.replace(inc, add, 1)
-
-          anchor='CM::EepromPersistence persistence;\n'
-          repl=anchor+'CM::HardwareSettingsStore hardwareSettings;\n'
-          if 'HardwareSettingsStore hardwareSettings' not in s:
-              assert anchor in s
-              s=s.replace(anchor, repl, 1)
-
-          restore_end='''    Serial.print(F(" next_run="));\n    Serial.println(machine.nextRunId());\n}\n\nvoid processBuzzer'''
-          helper='''    Serial.print(F(" next_run="));\n    Serial.println(machine.nextRunId());\n}\n\nvoid loadHardwareSettings()\n{\n    hardwareSettings.begin();\n    const CM::HardwareSettings& settings = hardwareSettings.settings();\n    hall.setThreshold(settings.hallThreshold);\n    hall.setHysteresis(settings.hallHysteresis);\n    hall.setReleaseDebounceMs(settings.hallReleaseDebounceMs);\n\n    Serial.print(F("CM_HW_SETTINGS source="));\n    Serial.print(hardwareSettings.loadedFromEeprom()\n                     ? F("EEPROM")\n                     : F("FACTORY_FALLBACK"));\n    Serial.print(F(" hall_threshold="));\n    Serial.print(settings.hallThreshold);\n    Serial.print(F(" hall_hysteresis="));\n    Serial.print(settings.hallHysteresis);\n    Serial.print(F(" hall_release_debounce_ms="));\n    Serial.println(settings.hallReleaseDebounceMs);\n}\n\nvoid processBuzzer'''
-          if 'void loadHardwareSettings()' not in s:
-              assert restore_end in s
-              s=s.replace(restore_end, helper, 1)
-
-          setup_anchor='''    restorePersistentState();\n    printBootStage(F("EEPROM"));\n'''
-          setup_repl='''    restorePersistentState();\n    printBootStage(F("EEPROM"));\n\n    loadHardwareSettings();\n    printBootStage(F("HW_SETTINGS"));\n'''
-          if 'printBootStage(F("HW_SETTINGS"))' not in s:
-              assert setup_anchor in s
-              s=s.replace(setup_anchor, setup_repl, 1)
-
-          p.write_text(s, encoding='utf-8')
-          PY
-
-      - name: Complete ESP32 firmware identity source changes
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p=Path('firmware/esp32/src/main.cpp')
-          s=p.read_text(encoding='utf-8')
-          anchor='''    webServer.on("/api/status", HTTP_GET, sendJsonStatus);\n'''
-          route='''    webServer.on("/api/system/firmware", HTTP_GET, []()\n    {\n        String response = F("{\\\"target\\\":\\\"ESP32\\\",\\\"git_sha\\\":\\\"");\n        response += CM_FIRMWARE_GIT_SHA;\n        response += F("\\\",\\\"git_branch\\\":\\\"");\n        response += CM_FIRMWARE_GIT_BRANCH;\n        response += F("\\\",\\\"build_utc\\\":\\\"");\n        response += CM_FIRMWARE_BUILD_UTC;\n        response += F("\\\"}");\n        webServer.send(200, "application/json; charset=utf-8", response);\n    });\n'''
-          if '/api/system/firmware' not in s:
-              assert anchor in s, 'web route anchor missing'
-              s=s.replace(anchor, route+anchor, 1)
-
-          reset='''    Serial.print(F("ESP32 reset reason: "));\n    Serial.println(resetReasonText(bootResetReason));\n'''
-          identity='''    Serial.print(F("ESP32 firmware build: "));\n    Serial.print(CM_FIRMWARE_GIT_SHA);\n    Serial.print(F(" branch="));\n    Serial.print(CM_FIRMWARE_GIT_BRANCH);\n    Serial.print(F(" built="));\n    Serial.println(CM_FIRMWARE_BUILD_UTC);\n'''
-          if 'ESP32 firmware build:' not in s:
-              assert reset in s, 'serial reset anchor missing'
-              s=s.replace(reset, reset+identity, 1)
-          p.write_text(s,encoding='utf-8')
-
-          j=Path('firmware/esp32/web/shared/settings-system-diagnostics.js')
-          t=j.read_text(encoding='utf-8')
-          old='''            const storagePromise=loadStorage();\n            const response=await fetch('/api/system/diagnostics',{cache:'no-store'});\n            const data=await response.json();\n'''
-          new='''            const storagePromise=loadStorage();\n            const firmwarePromise=fetch('/api/system/firmware',{cache:'no-store'}).then(async response=>{\n                const value=await response.json();\n                return response.ok?value:null;\n            }).catch(()=>null);\n            const response=await fetch('/api/system/diagnostics',{cache:'no-store'});\n            const data=await response.json();\n'''
-          if 'firmwarePromise' not in t:
-              assert old in t, 'diagnostics fetch anchor missing'
-              t=t.replace(old,new,1)
-          old2='''            const storage=await storagePromise;\n            root.textContent='';\n            addRow('Причина прошлого сброса',labels[data.reset_reason]||String(data.reset_reason||'—'));\n'''
-          new2='''            const storage=await storagePromise;\n            const firmware=await firmwarePromise;\n            root.textContent='';\n            if(firmware){\n                addRow('Firmware build',String(firmware.git_sha||'—'));\n                addRow('Firmware branch',String(firmware.git_branch||'—'));\n                addRow('Build UTC',String(firmware.build_utc||'—'));\n            }else{\n                addRow('Firmware build','идентификатор недоступен');\n            }\n            addRow('Причина прошлого сброса',labels[data.reset_reason]||String(data.reset_reason||'—'));\n'''
-          if "addRow('Firmware build'" not in t:
-              assert old2 in t, 'diagnostics render anchor missing'
-              t=t.replace(old2,new2,1)
-          j.write_text(t,encoding='utf-8')
-
-          doc=Path('docs/HARDWARE_REFERENCE/06_FIRMWARE_IDENTIFICATION.md')
-          if not doc.exists():
-              doc.write_text('''# Идентификация прошивки ESP32\n\nSource of truth: `cmp-protocol-v1`.\n\nКаждая сборка ESP32 получает Git build ID. Serial Monitor 115200 выводит `ESP32 firmware build: <git_sha> branch=<branch> built=<UTC>`. Read-only API `GET /api/system/firmware` возвращает `target`, `git_sha`, `git_branch`, `build_utc`. Эти значения также показываются в системной диагностике.\n\nОбновление `/web` на microSD не меняет firmware build ID, поэтому им можно отличить web-only update от реальной перепрошивки ESP32.\n''', encoding='utf-8')
-          PY
-
-      - name: Commit source batch before build
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Arduino/CM_HardwareSettings.h Arduino/CM_HardwareSettings.cpp firmware/arduino/src/main.cpp firmware/esp32/src/main.cpp firmware/esp32/web/shared/settings-system-diagnostics.js docs/HARDWARE_REFERENCE/06_FIRMWARE_IDENTIFICATION.md
-          git commit -m "feat: persist Hall settings and expose firmware identity"
-
       - name: Install PlatformIO
         run: python3 -m pip install --disable-pip-version-check platformio
 
@@ -121,6 +35,8 @@ jobs:
 
       - name: Finalize verified batch
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           rm -f .github/workflows/firmware-identity-finalize.yml
           rm -f .github/workflows/hall-settings-phase0-verify.yml
           git add -A

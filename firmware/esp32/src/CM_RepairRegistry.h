@@ -105,8 +105,6 @@ public:
                                  uint8_t& returnedCount,
                                  bool& itemsTruncated) const;
 
-    // Bounded page readers. Cursor is an opaque byte offset returned by the
-    // previous call and must point to an NDJSON record boundary.
     bool appendClientsPageJson(String& json,
                                const String& phoneQuery,
                                uint32_t cursor,
@@ -123,6 +121,7 @@ public:
                               bool& hasMore) const;
     bool appendRepairsPageJson(String& json,
                                uint32_t clientId,
+                               uint32_t motorId,
                                const String& statusFilter,
                                uint32_t cursor,
                                uint8_t limit,
@@ -130,8 +129,6 @@ public:
                                uint32_t& nextCursor,
                                bool& hasMore) const;
 
-    // Exact read-only lookups for screens that already know the identity and
-    // should not enumerate an entire catalog just to render one repair card.
     bool appendClientByIdJson(String& json, uint32_t clientId, bool& found) const;
     bool appendMotorByIdJson(String& json, uint32_t motorId, bool& found) const;
     bool appendRepairByIdJson(String& json, uint32_t repairId, bool& found) const;

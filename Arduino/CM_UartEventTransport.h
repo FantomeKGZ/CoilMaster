@@ -7,6 +7,7 @@
 #include "../Core/CM_WindingEvent.h"
 #include "../Core/CM_WindingJob.h"
 #include "CM_HardwareControlProtocol.h"
+#include "CM_HallCalibrationProtocol.h"
 
 namespace CM
 {
@@ -50,6 +51,12 @@ public:
                                    bool loadedFromEeprom);
     bool sendHardwareControlResult(HardwareControlResult result);
     bool sendHallTelemetry(const HallTelemetrySnapshot& snapshot);
+
+    bool takeHallCalibrationCommand(HallCalibrationCommand& command);
+    bool sendHallCalibrationState(HallCalibrationState state,
+                                  bool baselineReady,
+                                  bool motorPermit);
+    bool sendHallCalibrationResult(const HallCalibrationResult& result);
 
     uint8_t queuedCount() const;
     bool waitingForAck() const;
@@ -126,6 +133,8 @@ private:
     bool m_peerJobReplyCrcSupported;
     HardwareControlRequest m_hardwareControlRequest;
     bool m_hasHardwareControlRequest;
+    HallCalibrationCommand m_hallCalibrationCommand;
+    bool m_hasHallCalibrationCommand;
 };
 }
 

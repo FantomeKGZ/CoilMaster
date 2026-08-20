@@ -6,6 +6,7 @@ RecoveredJobDisplay::RecoveredJobDisplay()
     : jobId(0UL),
       sessionId(0UL),
       type(RemoteJobType::Working),
+      repeatTarget(1U),
       coilCount(0U),
       turns{},
       linkage()
@@ -25,6 +26,7 @@ bool JobDisplayRecovery::load(const JobSnapshotStore& snapshots,
     if (!snapshots.load(expectedSessionId, snapshot) ||
         snapshot.jobId != expectedJobId ||
         snapshot.sessionId != expectedSessionId ||
+        snapshot.repeatTarget == 0U ||
         snapshot.coilCount == 0U || snapshot.coilCount > 10U)
     {
         return false;
@@ -33,6 +35,7 @@ bool JobDisplayRecovery::load(const JobSnapshotStore& snapshots,
     display.jobId = snapshot.jobId;
     display.sessionId = snapshot.sessionId;
     display.type = snapshot.type;
+    display.repeatTarget = snapshot.repeatTarget;
     display.coilCount = snapshot.coilCount;
     display.linkage = snapshot.linkage;
     for (uint8_t index = 0U; index < snapshot.coilCount; ++index)

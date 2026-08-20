@@ -12,9 +12,9 @@
 <body>
 <header><b>CoilMaster</b><span id="health" style="float:right">Проверка</span></header>
 <main>
-<div class="grid"><section class="card metric"><span class="muted">Станок</span><strong id="machine">—</strong></section><section class="card metric"><span class="muted">Повторов</span><strong id="runs">0</strong></section></div>
-<section class="card"><h2>Намотка</h2><p id="program">Нет задания</p><div id="jobContext" class="context">Контекст задания: —</div><div id="hint" class="note">Ожидание данных ESP32.</div><a class="action" href="/mobile/service-job.html">🧭 Управление текущим заданием</a><a class="action" href="/mobile/arduino-windings.html">🔌 Автономные намотки Arduino</a></section>
-<section class="card"><h2>Быстрая отправка</h2><form id="jobForm"><select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select><input name="turns" placeholder="140/100/80/40" required><button id="serviceSend" disabled>Отправить на Arduino</button></form><div id="serviceState" class="note">Проверка готовности сервисного режима.</div><div id="result" class="note">Сервисный режим без привязки к ремонту. Запуск выполняется физической кнопкой START.</div><a class="action" href="/mobile/service-job.html">Удалить/закрыть зависшее сервисное задание</a></section>
+<div class="grid"><section class="card metric"><span class="muted">Станок</span><strong id="machine">—</strong></section><section class="card metric"><span class="muted">Повторы</span><strong id="runs">0 / 1</strong></section></div>
+<section class="card"><h2>Намотка</h2><p id="program">Нет задания</p><div id="repeatProgress" class="note">Повторы: 0 / 1</div><div id="jobContext" class="context">Контекст задания: —</div><div id="hint" class="note">Ожидание данных ESP32.</div><a class="action" href="/mobile/service-job.html">🧭 Управление текущим заданием</a><a class="action" href="/mobile/arduino-windings.html">🔌 Автономные намотки Arduino</a></section>
+<section class="card"><h2>Быстрая отправка</h2><form id="jobForm"><select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select><input name="turns" placeholder="140/100/80/40" required><input name="repeat_target" type="number" min="1" max="65535" value="1" aria-label="Количество повторений" required><button id="serviceSend" disabled>Отправить на Arduino</button></form><div id="serviceState" class="note">Проверка готовности сервисного режима.</div><div id="result" class="note">Сервисный режим без привязки к ремонту. Запуск выполняется физической кнопкой START.</div><a class="action" href="/mobile/service-job.html">Удалить/закрыть зависшее сервисное задание</a></section>
 </main>
 <nav><a href="/mobile/"><b>🏠</b>Главная</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
 <script>
@@ -23,14 +23,18 @@ const $=id=>document.getElementById(id);
 let serviceReady=false,sending=false;
 function updateServiceButton(){ $('serviceSend').disabled=sending||!serviceReady }
 function persistentHealthy(s){return s.storage_ready===true&&s.autonomous_winding_archive_ready===true&&s.id_allocator_ready===true&&s.job_snapshot_store_ready===true&&s.job_state_store_ready===true}
+function repeatTarget(s){const value=Number(s.repeat_target);return Number.isFinite(value)&&value>0?Math.floor(value):1}
+function completedRuns(s){const value=Number(s.completed_runs);return Number.isFinite(value)&&value>0?Math.floor(value):0}
+function repeatProgressText(s){return completedRuns(s)+' / '+repeatTarget(s)}
 function statusHint(s){
   if(s.manual_review_required===true)return 'Требуется ручная проверка восстановления. Откройте «Управление текущим заданием».';
   switch(s.job_status){
     case 'ARDUINO_LOCAL_RUNNING':return 'Arduino выполняет автономную намотку. Результат будет сохранён в отдельном Arduino-архиве.';
     case 'WAITING_ARDUINO_ACK':return 'Задание передаётся на Arduino. Ожидается подтверждение.';
     case 'ACCEPTED_READY':return 'Arduino приняла программу. Запуск выполняется физической кнопкой A или START.';
-    case 'RUNNING':return 'Намотка выполняется.';
-    case 'PROGRAM_COMPLETED':return 'Программа намотки завершена. Можно подготовить следующее задание.';
+    case 'RUNNING':return 'Намотка выполняется. Повтор '+Math.min(completedRuns(s)+1,repeatTarget(s))+' из '+repeatTarget(s)+'.';
+    case 'WAITING_NEXT_REPEAT':return 'Повтор '+completedRuns(s)+' из '+repeatTarget(s)+' завершён. Для следующего повтора нажмите физическую кнопку START.';
+    case 'PROGRAM_COMPLETED':return 'Все '+repeatTarget(s)+' повторов программы завершены.';
     case 'REJECTED':return 'Arduino отклонила последнее задание. Его можно убрать через управление заданием.';
     case 'TIMED_OUT':return 'Arduino не подтвердила последнее задание. Его можно убрать через управление заданием.';
     case 'CANCELLED':return 'Последнее задание отменено. Его можно убрать через управление заданием.';
@@ -54,7 +58,9 @@ async function refresh(){
     const r=await fetch('/api/status',{cache:'no-store'}),s=await r.json();
     if(!r.ok)throw new Error('status unavailable');
     $('machine').textContent=s.machine_status;
-    $('runs').textContent=s.completed_runs;
+    const repeats=s.job_id?repeatProgressText(s):'0 / '+repeatTarget(s);
+    $('runs').textContent=repeats;
+    $('repeatProgress').textContent='Повторы: '+repeats;
     $('program').textContent=s.program||'Нет задания';
     const context=$('jobContext');
     if(s.autonomous_run_active===true){
@@ -77,6 +83,8 @@ async function refresh(){
     serviceReady=false;
     updateServiceButton();
     $('machine').textContent='Нет связи';
+    $('runs').textContent='—';
+    $('repeatProgress').textContent='Повторы: —';
     $('jobContext').textContent='Контекст недоступен';
     $('serviceState').className='note warning';
     $('serviceState').textContent='Не удалось подтвердить готовность ESP32. Сервисная отправка заблокирована.';
@@ -97,7 +105,7 @@ $('jobForm').onsubmit=async e=>{
   try{
     const r=await fetch('/api/jobs',{method:'POST',body:new FormData(e.target)}),j=await r.json();
     $('result').className=r.ok?'note ok':'note warning';
-    $('result').textContent=r.ok?'Сервисное задание №'+j.job_id+' передано без привязки к ремонту.':'Ошибка: '+(j.error||'unknown');
+    $('result').textContent=r.ok?'Сервисное задание №'+j.job_id+' · повторов '+j.repeat_target+' · передано без привязки к ремонту.':'Ошибка: '+(j.error||'unknown');
   }catch(e){
     $('result').className='note warning';
     $('result').textContent='Нет связи с ESP32';

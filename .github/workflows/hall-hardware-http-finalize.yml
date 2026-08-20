@@ -1,0 +1,101 @@
+# retrigger: 2026-08-20T05:38Z
+name: Hall hardware HTTP finalize
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - '.github/workflows/hall-hardware-http-finalize.yml'
+      - 'firmware/esp32/src/CM_HardwareControlWeb.h'
+      - 'firmware/esp32/src/CM_HardwareControlWeb.cpp'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Guard and patch ESP32 composition root
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='e63fe84b85b4d259cfa67cd403986c1c511a87d7'
+          actual="$(git hash-object firmware/esp32/src/main.cpp)"
+          test "$actual" = "$expected" || {
+            echo "main.cpp blob changed: expected $expected actual $actual"
+            exit 1
+          }
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('firmware/esp32/src/main.cpp')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '#include "CM_BackupActivityGuard.h"\n',
+                  '#include "CM_BackupActivityGuard.h"\n#include "CM_HardwareControlWeb.h"\n'
+              ),
+              (
+                  'WebServer webServer(80);\n',
+                  'WebServer webServer(80);\nCM::HardwareControlWeb hardwareControlWeb(webServer, receiver);\n'
+              ),
+              (
+                  '    jobSpoolSelectionWeb.begin();\n',
+                  '    hardwareControlWeb.begin();\n    jobSpoolSelectionWeb.begin();\n'
+              ),
+              (
+                  '    receiver.update(nowMs);\n',
+                  '    receiver.update(nowMs);\n    hardwareControlWeb.update(nowMs);\n'
+              ),
+          ]
+
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'anchor count for {old!r}: {text.count(old)}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit integration locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firmware/esp32/src/main.cpp
+          git commit -m 'feat: integrate Hall hardware HTTP API'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build Arduino Uno
+        run: pio run -e uno
+
+      - name: Build ESP32
+        run: pio run -e esp32
+
+      - name: Check web contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node Tests/Web/check_web_assets.js
+          node Tests/Web/check_release_contracts.js
+          node Tests/Web/check_final_acceptance_contracts.js
+
+      - name: Finalize and self-delete
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/hall-hardware-http-finalize.yml
+          git add -A
+          git commit -m 'chore: finalize verified Hall hardware HTTP API'
+          git push origin HEAD:cmp-protocol-v1

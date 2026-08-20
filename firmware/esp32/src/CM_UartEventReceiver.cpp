@@ -304,6 +304,21 @@ bool UartEventReceiver::setHallTelemetryEnabled(bool enabled)
            m_hardwareControl.setTelemetryEnabled(enabled);
 }
 
+bool UartEventReceiver::armHallCalibration()
+{
+    return !controlLaneBusy() && m_hardwareControl.armHallCalibration();
+}
+
+bool UartEventReceiver::abortHallCalibration()
+{
+    return !controlLaneBusy() && m_hardwareControl.abortHallCalibration();
+}
+
+bool UartEventReceiver::requestHallCalibration()
+{
+    return !controlLaneBusy() && m_hardwareControl.requestHallCalibration();
+}
+
 bool UartEventReceiver::hallControlPending() const
 {
     return m_hardwareControl.requestPending();
@@ -317,6 +332,18 @@ bool UartEventReceiver::takeHallSettings(HallSettingsState& state)
 bool UartEventReceiver::takeHallTelemetry(HallTelemetryState& state)
 {
     return m_hardwareControl.takeTelemetry(state);
+}
+
+bool UartEventReceiver::takeHallCalibrationState(
+    HallCalibrationRemoteStateSnapshot& state)
+{
+    return m_hardwareControl.takeHallCalibrationState(state);
+}
+
+bool UartEventReceiver::takeHallCalibrationResult(
+    HallCalibrationRemoteResult& result)
+{
+    return m_hardwareControl.takeHallCalibrationResult(result);
 }
 
 bool UartEventReceiver::takeHardwareControlReply(HardwareControlReply& reply)

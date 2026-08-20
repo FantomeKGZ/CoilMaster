@@ -230,8 +230,12 @@ bool JobStateStore::updateExecution(uint32_t sessionId,
         }
         state.lastRunId = runId;
     }
-    else if (executionState == JobExecutionState::ProgramCompleted)
+    else if (executionState == JobExecutionState::WaitingPhysicalStart ||
+             executionState == JobExecutionState::ProgramCompleted)
     {
+        // A RUN_COMPLETED proves exactly one new physical repetition. For an
+        // intermediate repetition we persist WaitingPhysicalStart; only the
+        // final target repetition is persisted as ProgramCompleted.
         if (runId == 0UL || runId != state.lastRunId ||
             completedRuns == 0U ||
             state.completedRuns == 0xFFFFU ||
@@ -416,8 +420,10 @@ bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
     }
     if (state.executionState == JobExecutionState::WaitingPhysicalStart)
     {
-        return state.deliveryState == JobDeliveryState::Accepted &&
-               state.lastRunId == 0UL && state.completedRuns == 0U;
+        if (state.deliveryState != JobDeliveryState::Accepted) return false;
+        const bool initialWait = state.lastRunId == 0UL && state.completedRuns == 0U;
+        const bool repeatWait = state.lastRunId != 0UL && state.completedRuns != 0U;
+        return initialWait || repeatWait;
     }
     if (state.executionState == JobExecutionState::Running)
     {
@@ -577,7 +583,8 @@ bool JobStateStore::validTransition(JobExecutionState from,
         from == JobExecutionState::ProgramCompleted)
         return to == JobExecutionState::Running;
     if (from == JobExecutionState::Running)
-        return to == JobExecutionState::ProgramCompleted;
+        return to == JobExecutionState::WaitingPhysicalStart ||
+               to == JobExecutionState::ProgramCompleted;
     return false;
 }
 }

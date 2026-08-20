@@ -46,6 +46,9 @@ jobs:
       - name: Audit motor details and repair history contracts
         run: node Tests/Web/check_motor_details_ui.js
 
+      - name: Audit Arduino archive UI contracts
+        run: node Tests/Web/check_arduino_archive_ui.js
+
       - name: Audit release safety contracts
         run: node Tests/Web/check_release_contracts.js
 

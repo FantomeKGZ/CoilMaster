@@ -16,6 +16,15 @@ for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
   if (!source.includes('max="65535"')) failures.push(`${relative}: repeat_target limit mismatch`);
 }
 
+const repairQuickAdd = fs.readFileSync(path.join(webRoot, 'desktop/repairs.html'), 'utf8');
+for (const field of ['manufacturer', 'model', 'phase_count', 'slot_count', 'coil_program', 'repeat_target']) {
+  if (!repairQuickAdd.includes(`name="${field}"`)) failures.push(`desktop/repairs.html: quick-add missing ${field}`);
+}
+if (!repairQuickAdd.includes('38/38')) failures.push('desktop/repairs.html: quick-add program/repeat example missing');
+if (!repairQuickAdd.includes('физический START')) failures.push('desktop/repairs.html: quick-add physical START wording missing');
+if (!repairQuickAdd.includes('max="65535"')) failures.push('desktop/repairs.html: quick-add repeat_target limit mismatch');
+if (!repairQuickAdd.includes("fd.set('name',derived)")) failures.push('desktop/repairs.html: quick-add legacy name derivation missing');
+
 const registryHeader = fs.readFileSync(path.join(repoRoot, 'firmware/esp32/src/CM_RepairRegistry.h'), 'utf8');
 const registrySource = fs.readFileSync(path.join(repoRoot, 'firmware/esp32/src/CM_RepairRegistry.cpp'), 'utf8');
 const registryWeb = fs.readFileSync(path.join(repoRoot, 'firmware/esp32/src/CM_RepairRegistryWeb.cpp'), 'utf8');
@@ -33,4 +42,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor schema UI contracts OK: manufacturer/model, phase_count, slot_count, program, repeat_target, legacy unknown display, and backend persistence/API guards are present.');
+console.log('Motor schema UI contracts OK: catalogs and repair quick-add expose manufacturer/model, phase_count, slot_count, program, repeat_target, legacy compatibility, and physical START semantics.');

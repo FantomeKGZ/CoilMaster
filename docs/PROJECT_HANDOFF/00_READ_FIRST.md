@@ -33,21 +33,22 @@ docs/HARDWARE_REFERENCE/04_RTC_TIME_SYNC.md
 docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md
 ```
 
-Hall reference фиксирует factory baseline `A0 / threshold 590 / hysteresis 50`, live-калибровку по реальному ADC и обязательные tests против повторного счёта при зависшем магните.
+Hall reference фиксирует factory baseline `A0 / threshold 590 / hysteresis 50`, live-калибровку по реальному ADC, принятую автоматическую калибровку и обязательные tests против повторного счёта при зависшем магните.
 
 ## Начать отсюда
 
-1. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — **актуальная точка продолжения**: утверждённая новая модель двигателя/UI, `program + repeat_target`, автоматическое завершение active JOB после последнего подтверждённого RUN, Hall live calibration/settings, redesign Arduino archive, kg-first material plan и общий web UX roadmap.
-2. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — production firmware hardening: resilient `JOB_CANCEL`, Arduino `ALL_CLEAR`, recovery после reboot и hardware regression.
-3. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` — исторический release-ready checkpoint до последующих firmware/UI изменений.
-4. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md` — release-candidate deployment baseline до JOB cancel/recovery hardening.
-5. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md` — final populated-device acceptance для предыдущего production baseline.
-6. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md` — repo-level final acceptance contract audit и CI protection.
-7. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` — read-only microSD capacity diagnostics подтверждена на реальном ESP32.
-8. `32_MOTOR_IMPORT_HARDWARE_PERSISTENCE_PASS_2026-08-16.md` — motor import успешно выполнен на реальном ESP32, запись сохранилась после reboot.
-9. `02_ARCHITECTURE_AND_HARDWARE.md`, `03_PROTOCOL_AND_WINDING_FLOW.md`, а также `../03_ARDUINO_CORE.md`, `../04_ESP32_CORE.md`, `../05_CMP_APPLICATION_PROTOCOL.md`, `../10_DIAGNOSTICS.md` — аппаратная архитектура и UART/CMP flow.
-10. `09_KEY_FILES_INDEX.md` и `08_WORK_RULES_AND_VERIFICATION.md` — индекс и правила изменения/проверки.
-11. `01_CURRENT_STATE.md` и `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — исторические сводки; при расхождении использовать текущий код и checkpoint `40`.
+1. `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` — **последнее утверждённое дополнение**: автоматическая Hall calibration через Web с обязательным физическим START, ограниченным вращением Arduino, автоматическим SSR OFF, live telemetry и ручным `Apply`.
+2. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — основной план: новая модель двигателя/UI, `program + repeat_target`, automatic final JOB clear, Hall/settings, Arduino archive redesign, kg-first materials и web UX roadmap.
+3. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — production firmware hardening: resilient `JOB_CANCEL`, Arduino `ALL_CLEAR`, recovery после reboot и hardware regression.
+4. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` — исторический release-ready checkpoint до последующих firmware/UI изменений.
+5. `37_RELEASE_CANDIDATE_BASELINE_2026-08-16.md` — release-candidate deployment baseline до JOB cancel/recovery hardening.
+6. `36_FINAL_POPULATED_DEVICE_ACCEPTANCE_PASS_2026-08-16.md` — final populated-device acceptance для предыдущего production baseline.
+7. `35_FINAL_ACCEPTANCE_CONTRACT_AUDIT_2026-08-16.md` — repo-level final acceptance contract audit и CI protection.
+8. `34_MICROSD_DIAGNOSTICS_HARDWARE_PASS_2026-08-16.md` — read-only microSD capacity diagnostics подтверждена на реальном ESP32.
+9. `32_MOTOR_IMPORT_HARDWARE_PERSISTENCE_PASS_2026-08-16.md` — motor import успешно выполнен на реальном ESP32, запись сохранилась после reboot.
+10. `02_ARCHITECTURE_AND_HARDWARE.md`, `03_PROTOCOL_AND_WINDING_FLOW.md`, `../03_ARDUINO_CORE.md`, `../04_ESP32_CORE.md`, `../05_CMP_APPLICATION_PROTOCOL.md`, `../10_DIAGNOSTICS.md` — аппаратная архитектура и UART/CMP flow.
+11. `09_KEY_FILES_INDEX.md` и `08_WORK_RULES_AND_VERIFICATION.md` — индекс и правила изменения/проверки.
+12. `01_CURRENT_STATE.md` и `06_ACTIVE_WORK_AND_NEXT_STEPS.md` — исторические сводки; при расхождении использовать текущий код и checkpoints `40/41`.
 
 Предыдущие checkpoints сохраняют историю и не заменяют текущий код. `11_FULL_BRANCH_AUDIT.md` — историческая карта, не source of truth.
 
@@ -57,10 +58,11 @@ Hall reference фиксирует factory baseline `A0 / threshold 590 / hystere
 
 1. текущий код `cmp-protocol-v1`;
 2. фактический результат build/Actions и подтвержденные hardware tests;
-3. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` для следующего функционального блока;
-4. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` для текущего JOB cancel/recovery поведения;
-5. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` для предыдущего подтвержденного release baseline;
-6. остальные checkpoints и тематические документы.
+3. checkpoint `41` для принятой автоматической Hall calibration;
+4. checkpoint `40` для следующего большого функционального блока;
+5. checkpoint `39` для текущего JOB cancel/recovery поведения;
+6. checkpoint `38` для предыдущего подтвержденного release baseline;
+7. остальные checkpoints и тематические документы.
 
 Перед каждым изменением существующего файла заново получать его содержимое и blob SHA из `cmp-protocol-v1`. Для нового файла сначала проверять отсутствие точного пути. `main` не использовать как источник реализации.
 
@@ -79,7 +81,11 @@ Hall reference фиксирует factory baseline `A0 / threshold 590 / hystere
 - заполнение microSD не запускает automatic deletion production data;
 - destructive fault injection на рабочей microSD запрещен;
 - hardware settings менять только при доказанном safe idle;
-- Hall calibration/test endpoint не выполняет START и не включает SSR.
+- Web может только подготовить Hall calibration, но не запускает двигатель;
+- calibration rotation начинается только после physical START;
+- calibration mode не создаёт `RUN_STARTED/RUN_COMPLETED`, writeoff или motor history;
+- Arduino обязана выключить SSR при success, timeout, abort или calibration fault;
+- рекомендуемые Hall settings не сохраняются без явного `Apply`.
 
 ## Утверждённая новая семантика winding program
 
@@ -148,9 +154,23 @@ fix: debounce Hall sensor release before rearming
 fix: require stable Hall release before next turn
 ```
 
-Следующий шаг — hardware regression и затем persistent/live Hall settings по checkpoint `40` и `docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md`.
+Автоматическая калибровка утверждена:
 
-Не утверждать UNO build/CI green для этого изменения без фактического результата.
+```text
+Web prepare
+→ Arduino safe idle check
+→ 2–3 s idle sampling
+→ physical START
+→ bounded 10/15/30 s calibration rotation
+→ Arduino SSR OFF
+→ measured idle/magnet/noise/pass statistics
+→ recommended threshold/hysteresis/direction
+→ explicit Apply only
+```
+
+Подробно: `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` и `docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md`.
+
+Не утверждать UNO build/CI green для новых Hall changes без фактического результата.
 
 ## JOB cancel/recovery hardening после release-ready checkpoint 38
 
@@ -187,6 +207,11 @@ remove + return -> ровно следующий count
 magnet already present at START -> нет бесконечного счёта
 noise/vibration around release threshold -> нет серии false counts
 real rotating magnet -> нет пропусков нормальных оборотов
+Web calibration prepare -> motor remains OFF
+physical START -> starts calibration rotation
+calibration -> no RUN events
+success/fault/abort -> SSR OFF
+unreliable ranges -> no automatic apply
 ```
 
 Для JOB/repeat target будущий acceptance описан в checkpoint `40`.
@@ -216,7 +241,7 @@ head: df188ca49d95ee4953bd228c05aec849dcd947b5
 
 ## Следующее практическое действие
 
-Следовать `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md`.
+Следовать checkpoints `40` + `41`.
 
 Начать с:
 
@@ -224,7 +249,8 @@ head: df188ca49d95ee4953bd228c05aec849dcd947b5
 Phase 0 — reconcile current cmp-protocol-v1 HEAD/build/workflows
 Phase 1 — Hall correctness + real ADC measurements
 Phase 2 — Arduino persistent hardware settings + safe CFG protocol
-Phase 3 — desktop/mobile live Hall calibration UI
+Phase 3A — desktop/mobile manual live Hall calibration
+Phase 3B — automatic Hall calibration with physical START
 ```
 
 Только после этого переходить к `repeat_target`/automatic final JOB clear и большой переработке motors/Arduino archive.
@@ -234,10 +260,12 @@ Phase 3 — desktop/mobile live Hall calibration UI
 ```text
 Продолжаем CoilMaster.
 Repo FantomeKGZ/CoilMaster, source-of-truth branch cmp-protocol-v1, main не использовать.
-Сначала прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md и
-40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md.
+Сначала прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
+40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md и
+41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md.
 Также прочитай docs/HARDWARE_REFERENCE/07_HALL_SENSOR_CALIBRATION.md.
 Перед изменением существующего файла fetch актуальный blob SHA.
 Не утверждай build/CI green без фактической проверки.
-Начать с Phase 0/Phase 1: reconcile branch и Hall hardware correctness, затем live calibration/settings.
+Начать с Phase 0/Phase 1: Hall correctness, затем persistent settings,
+manual live calibration и automatic calibration с обязательным physical START.
 ```

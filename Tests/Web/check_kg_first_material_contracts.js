@@ -18,6 +18,7 @@ const storePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
+const costingPath = 'firmware/esp32/src/CM_RepairCosting.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
 const desktopPath = 'firmware/esp32/web/desktop/writeoff.html';
 const mobilePath = 'firmware/esp32/web/mobile/writeoff.html';
@@ -27,6 +28,7 @@ const store = read(storePath);
 const writeOff = read(writeOffPath);
 const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
+const costing = read(costingPath);
 const controller = read(controllerPath);
 const desktop = read(desktopPath);
 const mobile = read(mobilePath);
@@ -113,6 +115,29 @@ for (const text of [
   requireText(coveragePath, coverage, text, 'finalization kg-first/legacy coverage split missing: ' + text);
 }
 
+// Costing must consume the same validated dual-schema codec instead of repeating
+// the old mandatory-spool/weight parser. Otherwise an UNALLOCATED record would
+// pass warehouse integrity but make repair costing fail closed.
+for (const text of [
+  '#include "CM_WarehouseWriteOffRecord.h"',
+  'WarehouseMovementIntegrityAudit::check(m_storage)',
+  'WarehouseWriteOffRecordCodec::parse(line, record)',
+  'record.status != "CONFIRMED"',
+  'record.massGrams',
+  'record.pricePerKgMinor',
+  'record.wireType'
+]) {
+  requireText(costingPath, costing, text, 'kg-first costing consumer guard missing: ' + text);
+}
+for (const forbidden of [
+  'pendingSpoolId',
+  '!findUnsigned(line, "spool_id", spoolId)',
+  '!findUnsigned(line, "weight_before_g", before)',
+  '!findUnsigned(line, "weight_after_g", after)'
+]) {
+  if (costing.includes(forbidden)) failures.push(costingPath + ': legacy spool-only costing parser returned: ' + forbidden);
+}
+
 // Desktop and mobile must expose kg as the operator-facing quantity. The shared
 // controller owns both variants and may attach only the immutable selected spool.
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
@@ -133,7 +158,8 @@ for (const text of [
   "body.set('wire_type',wire)",
   "item.spool_id===null||item.spool_id===undefined?'без бухты'",
   "item.writeoff_mode==='KG_FIRST'",
-  "event.event!=='RUN_COMPLETED'"
+  "event.event!=='RUN_COMPLETED'",
+  "found.material_class==='CU'||found.material_class==='AL'"
 ]) {
   requireText(controllerPath, controller, text, 'kg-first UI controller contract missing: ' + text);
 }
@@ -150,4 +176,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, recovery/finalization, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

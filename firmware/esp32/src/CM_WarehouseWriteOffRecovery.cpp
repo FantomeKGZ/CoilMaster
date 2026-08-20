@@ -1,7 +1,43 @@
 #include "CM_WarehouseStore.h"
+#include "CM_WarehouseWriteOffRecord.h"
 
 namespace CM
 {
+namespace
+{
+bool sameTransactionCore(const WarehouseWriteOffRecord& left,
+                         const WarehouseWriteOffRecord& right)
+{
+    if (left.mode != right.mode || left.stockMode != right.stockMode ||
+        left.movementId != right.movementId ||
+        left.hasSpoolId != right.hasSpoolId || left.spoolId != right.spoolId ||
+        left.repairId != right.repairId ||
+        left.hasSourceSessionId != right.hasSourceSessionId ||
+        left.sourceSessionId != right.sourceSessionId ||
+        left.hasSourceRunId != right.hasSourceRunId ||
+        left.sourceRunId != right.sourceRunId ||
+        left.hasWeights != right.hasWeights ||
+        left.weightBeforeGrams != right.weightBeforeGrams ||
+        left.weightAfterGrams != right.weightAfterGrams ||
+        left.massGrams != right.massGrams ||
+        left.pricePerKgMinor != right.pricePerKgMinor ||
+        left.currency != right.currency || left.timestamp != right.timestamp ||
+        left.comment != right.comment)
+    {
+        return false;
+    }
+
+    if (left.mode == WarehouseWriteOffMode::KgFirst)
+    {
+        return left.diameterHundredthsMm == right.diameterHundredthsMm &&
+               left.hasWireType == right.hasWireType &&
+               left.wireType == right.wireType &&
+               left.quantityKg == right.quantityKg;
+    }
+    return true;
+}
+}
+
 bool WarehouseStore::recoverPendingWriteOff()
 {
     if (!m_storage.exists(MovementsPath)) return true;
@@ -10,146 +46,73 @@ bool WarehouseStore::recoverPendingWriteOff()
     if (!file) return false;
 
     uint32_t maximumId = 0UL;
-    uint32_t pendingId = 0UL;
-    ConfirmedSpoolWriteOff pendingOperation;
-    WarehousePrice pendingPrice;
-    uint32_t pendingConsumed = 0UL;
+    bool hasPending = false;
+    WarehouseWriteOffRecord pending;
 
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
 
-        uint32_t movementId = 0UL;
-        uint32_t spoolId = 0UL;
-        uint32_t repairId = 0UL;
-        uint32_t sourceSessionId = 0UL;
-        uint32_t sourceRunId = 0UL;
-        uint32_t diameter = 0UL;
-        uint32_t before = 0UL;
-        uint32_t after = 0UL;
-        uint32_t mass = 0UL;
-        uint32_t price = 0UL;
-        String type, status, currency, timestamp, comment, wireType;
-
-        if (!findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
-            !findString(line, "type", type) || type != "WRITE_OFF" ||
-            !findString(line, "status", status) ||
-            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
-            !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
-            !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter > 0xFFFFUL ||
-            !findUnsigned(line, "weight_before_g", before) || before == 0UL ||
-            !findUnsigned(line, "weight_after_g", after) || after >= before ||
-            !findUnsigned(line, "mass_g", mass) || mass != before - after ||
-            !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
-            !findString(line, "currency", currency) || currency.length() != 3U ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+        WarehouseWriteOffRecord record;
+        if (!WarehouseWriteOffRecordCodec::parse(line, record))
         {
             file.close();
             return false;
         }
 
-        const bool hasSourceSession = line.indexOf(F("\"source_session_id\":")) >= 0;
-        const bool hasSourceRun = line.indexOf(F("\"source_run_id\":")) >= 0;
-        if ((hasSourceSession &&
-             (!findUnsigned(line, "source_session_id", sourceSessionId) ||
-              sourceSessionId == 0UL)) ||
-            (hasSourceRun &&
-             (!hasSourceSession || !findUnsigned(line, "source_run_id", sourceRunId) ||
-              sourceRunId == 0UL)))
+        if (record.status == "PENDING")
         {
-            file.close();
-            return false;
-        }
-
-        const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
-        if (hasComment && !findString(line, "comment", comment))
-        {
-            file.close();
-            return false;
-        }
-        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-        if (hasWireType && !findString(line, "wire_type", wireType))
-        {
-            file.close();
-            return false;
-        }
-
-        if (status == "PENDING")
-        {
-            if (pendingId != 0UL || movementId <= maximumId ||
-                diameter != 0UL || hasWireType)
+            if (hasPending || record.movementId <= maximumId)
             {
                 file.close();
                 return false;
             }
-
-            maximumId = movementId;
-            pendingId = movementId;
-            pendingOperation.spoolId = spoolId;
-            pendingOperation.repairId = repairId;
-            pendingOperation.sourceSessionId = sourceSessionId;
-            pendingOperation.sourceRunId = sourceRunId;
-            pendingOperation.weightBeforeGrams = before;
-            pendingOperation.weightAfterGrams = after;
-            pendingOperation.timestamp = timestamp;
-            pendingOperation.comment = comment;
-            pendingPrice.pricePerKgMinor = price;
-            pendingPrice.currency = currency;
-            pendingConsumed = mass;
+            maximumId = record.movementId;
+            pending = record;
+            hasPending = true;
             continue;
         }
 
-        if (status != "CONFIRMED" && status != "ABORTED")
+        if (!hasPending || record.movementId != pending.movementId ||
+            !sameTransactionCore(pending, record))
         {
             file.close();
             return false;
         }
-
-        const bool pendingHasSourceSession = pendingOperation.sourceSessionId != 0UL;
-        const bool pendingHasSourceRun = pendingOperation.sourceRunId != 0UL;
-        if (pendingId == 0UL || movementId != pendingId ||
-            spoolId != pendingOperation.spoolId ||
-            repairId != pendingOperation.repairId ||
-            hasSourceSession != pendingHasSourceSession ||
-            sourceSessionId != pendingOperation.sourceSessionId ||
-            hasSourceRun != pendingHasSourceRun ||
-            sourceRunId != pendingOperation.sourceRunId ||
-            before != pendingOperation.weightBeforeGrams ||
-            after != pendingOperation.weightAfterGrams ||
-            mass != pendingConsumed ||
-            price != pendingPrice.pricePerKgMinor ||
-            currency != pendingPrice.currency ||
-            timestamp != pendingOperation.timestamp ||
-            comment != pendingOperation.comment)
-        {
-            file.close();
-            return false;
-        }
-
-        if (status == "CONFIRMED")
-        {
-            if (diameter == 0UL ||
-                (hasWireType && wireType != "CU" && wireType != "AL"))
-            {
-                file.close();
-                return false;
-            }
-        }
-        else if (diameter != 0UL || hasWireType)
-        {
-            file.close();
-            return false;
-        }
-
-        pendingId = 0UL;
-        pendingOperation = ConfirmedSpoolWriteOff();
-        pendingPrice = WarehousePrice();
-        pendingConsumed = 0UL;
+        hasPending = false;
+        pending = WarehouseWriteOffRecord();
     }
     file.close();
 
-    if (pendingId == 0UL) return true;
+    if (!hasPending) return true;
+
+    WarehousePrice price;
+    price.pricePerKgMinor = pending.pricePerKgMinor;
+    price.currency = pending.currency;
+
+    if (pending.mode == WarehouseWriteOffMode::KgFirst &&
+        pending.stockMode == WarehouseWriteOffStockMode::Unallocated)
+    {
+        KgFirstWriteOff operation;
+        operation.repairId = pending.repairId;
+        operation.sourceSessionId = pending.sourceSessionId;
+        operation.sourceRunId = pending.sourceRunId;
+        operation.diameterHundredthsMm = pending.diameterHundredthsMm;
+        operation.consumedGrams = pending.massGrams;
+        operation.wireType = pending.wireType;
+        operation.timestamp = pending.timestamp;
+        operation.comment = pending.comment;
+        // No stock mutation ever occurs for UNALLOCATED. A dangling PENDING can
+        // therefore only be closed as ABORTED after reboot; it must never be
+        // guessed into a confirmed material deduction.
+        return appendKgFirstWriteOffRecord(pending.movementId,
+                                           operation,
+                                           0UL,
+                                           0UL,
+                                           price,
+                                           "ABORTED");
+    }
 
     File spools = m_storage.open(SpoolsPath, FILE_READ);
     if (!spools) return false;
@@ -182,7 +145,7 @@ bool WarehouseStore::recoverPendingWriteOff()
         }
         previousSpoolId = spoolId;
 
-        if (spoolId != pendingOperation.spoolId) continue;
+        if (!pending.hasSpoolId || spoolId != pending.spoolId) continue;
         if (found || status != "ACTIVE")
         {
             spools.close();
@@ -196,28 +159,77 @@ bool WarehouseStore::recoverPendingWriteOff()
     spools.close();
     if (!found) return false;
 
-    if (currentWeight == pendingOperation.weightBeforeGrams)
+    if (pending.mode == WarehouseWriteOffMode::LegacySpool)
     {
-        return appendWriteOffRecord(pendingId,
-                                    pendingOperation,
-                                    0U,
-                                    pendingConsumed,
-                                    pendingPrice,
-                                    "ABORTED",
-                                    String());
+        ConfirmedSpoolWriteOff operation;
+        operation.spoolId = pending.spoolId;
+        operation.repairId = pending.repairId;
+        operation.sourceSessionId = pending.sourceSessionId;
+        operation.sourceRunId = pending.sourceRunId;
+        operation.weightBeforeGrams = pending.weightBeforeGrams;
+        operation.weightAfterGrams = pending.weightAfterGrams;
+        operation.timestamp = pending.timestamp;
+        operation.comment = pending.comment;
+
+        if (currentWeight == pending.weightBeforeGrams)
+        {
+            return appendWriteOffRecord(pending.movementId,
+                                        operation,
+                                        0U,
+                                        pending.massGrams,
+                                        price,
+                                        "ABORTED",
+                                        String());
+        }
+
+        if (currentWeight == pending.weightAfterGrams)
+        {
+            return appendWriteOffRecord(pending.movementId,
+                                        operation,
+                                        diameter,
+                                        pending.massGrams,
+                                        price,
+                                        "CONFIRMED",
+                                        wireType);
+        }
+        return false;
     }
 
-    if (currentWeight == pendingOperation.weightAfterGrams)
+    if (pending.stockMode != WarehouseWriteOffStockMode::Spool ||
+        diameter != pending.diameterHundredthsMm || wireType != pending.wireType)
     {
-        return appendWriteOffRecord(pendingId,
-                                    pendingOperation,
-                                    diameter,
-                                    pendingConsumed,
-                                    pendingPrice,
-                                    "CONFIRMED",
-                                    wireType);
+        return false;
     }
 
+    KgFirstWriteOff operation;
+    operation.spoolId = pending.spoolId;
+    operation.repairId = pending.repairId;
+    operation.sourceSessionId = pending.sourceSessionId;
+    operation.sourceRunId = pending.sourceRunId;
+    operation.diameterHundredthsMm = pending.diameterHundredthsMm;
+    operation.consumedGrams = pending.massGrams;
+    operation.wireType = pending.wireType;
+    operation.timestamp = pending.timestamp;
+    operation.comment = pending.comment;
+
+    if (currentWeight == pending.weightBeforeGrams)
+    {
+        return appendKgFirstWriteOffRecord(pending.movementId,
+                                           operation,
+                                           pending.weightBeforeGrams,
+                                           pending.weightAfterGrams,
+                                           price,
+                                           "ABORTED");
+    }
+    if (currentWeight == pending.weightAfterGrams)
+    {
+        return appendKgFirstWriteOffRecord(pending.movementId,
+                                           operation,
+                                           pending.weightBeforeGrams,
+                                           pending.weightAfterGrams,
+                                           price,
+                                           "CONFIRMED");
+    }
     return false;
 }
 }

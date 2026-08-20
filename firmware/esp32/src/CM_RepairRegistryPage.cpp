@@ -139,7 +139,30 @@ bool RepairRegistry::appendMotorsPageJson(String& json,
             if (findString(line, "model", field)) searchable += field + ' ';
             if (findString(line, "manufacturer", field)) searchable += field + ' ';
             if (findString(line, "tags", field)) searchable += field + ' ';
-            if (findString(line, "coil_program", field)) searchable += field;
+            if (findString(line, "coil_program", field)) searchable += field + ' ';
+
+            uint32_t numeric = 0UL;
+            if (findUnsigned(line, "phases", numeric))
+            {
+                searchable += String(numeric);
+                searchable += F(" фазы фаз ");
+            }
+            if (findUnsigned(line, "slot_count", numeric))
+            {
+                searchable += String(numeric);
+                searchable += F(" пазы пазов ");
+            }
+            if (findUnsigned(line, "repeat_target", numeric))
+            {
+                searchable += String(numeric);
+                searchable += F(" повторы повторов ");
+            }
+            if (findUnsigned(line, "pole_count", numeric))
+            {
+                searchable += String(numeric);
+                searchable += F(" полюсы полюсов ");
+            }
+
             searchable.toLowerCase();
             if (searchable.indexOf(query) < 0) continue;
         }

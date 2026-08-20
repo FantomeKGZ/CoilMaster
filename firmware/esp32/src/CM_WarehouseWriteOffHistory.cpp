@@ -1,8 +1,44 @@
 #include "CM_WarehouseStore.h"
-#include "CM_FlatJsonObjectValidator.h"
+#include "CM_WarehouseWriteOffRecord.h"
 
 namespace CM
 {
+namespace
+{
+bool matchingTransaction(const WarehouseWriteOffRecord& pending,
+                         const WarehouseWriteOffRecord& finalRecord)
+{
+    if (pending.movementId != finalRecord.movementId ||
+        pending.mode != finalRecord.mode ||
+        pending.stockMode != finalRecord.stockMode ||
+        pending.hasSpoolId != finalRecord.hasSpoolId ||
+        pending.spoolId != finalRecord.spoolId ||
+        pending.repairId != finalRecord.repairId ||
+        pending.hasSourceSessionId != finalRecord.hasSourceSessionId ||
+        pending.sourceSessionId != finalRecord.sourceSessionId ||
+        pending.hasSourceRunId != finalRecord.hasSourceRunId ||
+        pending.sourceRunId != finalRecord.sourceRunId ||
+        pending.hasWeights != finalRecord.hasWeights ||
+        pending.weightBeforeGrams != finalRecord.weightBeforeGrams ||
+        pending.weightAfterGrams != finalRecord.weightAfterGrams ||
+        pending.massGrams != finalRecord.massGrams ||
+        pending.quantityKg != finalRecord.quantityKg ||
+        pending.pricePerKgMinor != finalRecord.pricePerKgMinor ||
+        pending.currency != finalRecord.currency ||
+        pending.timestamp != finalRecord.timestamp ||
+        pending.comment != finalRecord.comment)
+        return false;
+
+    if (pending.mode == WarehouseWriteOffMode::KgFirst)
+    {
+        return pending.diameterHundredthsMm == finalRecord.diameterHundredthsMm &&
+               pending.hasWireType == finalRecord.hasWireType &&
+               pending.wireType == finalRecord.wireType;
+    }
+    return true;
+}
+}
+
 bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
                                                        uint32_t repairId,
                                                        uint32_t cursor,
@@ -22,8 +58,7 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
     totalConsumedGrams = 0UL;
     totalValueMinor = 0ULL;
     materialTotals = WriteOffMaterialTotals();
-    if (!ready() || repairId == 0UL ||
-        limit == 0U || limit > WarehouseMaxListPageSize)
+    if (!ready() || repairId == 0UL || limit == 0U || limit > WarehouseMaxListPageSize)
         return false;
     if (!m_storage.exists(MovementsPath)) return cursor == 0UL;
 
@@ -39,21 +74,9 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
     bool cursorSeen = cursor == 0UL;
     uint32_t pageEndCursor = 0UL;
     uint32_t maximumId = 0UL;
-    uint32_t pendingId = 0UL;
+    bool hasPending = false;
     uint32_t pendingRecordStart = 0UL;
-    uint32_t pendingSpoolId = 0UL;
-    uint32_t pendingRepairId = 0UL;
-    uint32_t pendingSourceSessionId = 0UL;
-    uint32_t pendingSourceRunId = 0UL;
-    bool pendingHasSourceSession = false;
-    bool pendingHasSourceRun = false;
-    uint32_t pendingBefore = 0UL;
-    uint32_t pendingAfter = 0UL;
-    uint32_t pendingMass = 0UL;
-    uint32_t pendingPrice = 0UL;
-    String pendingCurrency;
-    String pendingTimestamp;
-    String pendingComment;
+    WarehouseWriteOffRecord pending;
 
     while (file.available())
     {
@@ -61,144 +84,48 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
         if (lineStart == cursor) cursorSeen = true;
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
+
+        WarehouseWriteOffRecord record;
+        if (!WarehouseWriteOffRecordCodec::parse(line, record))
         {
             file.close();
             return false;
         }
 
-        uint32_t currentRepairId = 0UL;
-        uint32_t movementId = 0UL;
-        uint32_t spoolId = 0UL;
-        uint32_t sourceSessionId = 0UL;
-        uint32_t sourceRunId = 0UL;
-        uint32_t diameter = 0UL;
-        uint32_t before = 0UL;
-        uint32_t after = 0UL;
-        uint32_t mass = 0UL;
-        uint32_t price = 0UL;
-        String type, status, wireType, currency, timestamp, comment;
-
-        if (!findString(line, "type", type) || type != "WRITE_OFF" ||
-            !findString(line, "status", status) ||
-            !findUnsigned(line, "repair_id", currentRepairId) || currentRepairId == 0UL ||
-            !findUnsigned(line, "movement_id", movementId) || movementId == 0UL ||
-            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
-            !findUnsigned(line, "diameter_hundredths_mm", diameter) || diameter > 0xFFFFUL ||
-            !findUnsigned(line, "weight_before_g", before) || before == 0UL ||
-            !findUnsigned(line, "weight_after_g", after) || after >= before ||
-            !findUnsigned(line, "mass_g", mass) || mass != before - after ||
-            !findUnsigned(line, "price_per_kg_minor", price) || price == 0UL ||
-            !findString(line, "currency", currency) || currency.length() != 3U ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
+        if (record.status == "PENDING")
         {
-            file.close();
-            return false;
-        }
-
-        const bool hasSourceSession = line.indexOf(F("\"source_session_id\":")) >= 0;
-        const bool hasSourceRun = line.indexOf(F("\"source_run_id\":")) >= 0;
-        if ((hasSourceSession &&
-             (!findUnsigned(line, "source_session_id", sourceSessionId) ||
-              sourceSessionId == 0UL)) ||
-            (hasSourceRun &&
-             (!hasSourceSession || !findUnsigned(line, "source_run_id", sourceRunId) ||
-              sourceRunId == 0UL)))
-        {
-            file.close();
-            return false;
-        }
-
-        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-        if (hasWireType && (!findString(line, "wire_type", wireType) ||
-                            (wireType != "CU" && wireType != "AL")))
-        {
-            file.close();
-            return false;
-        }
-
-        const bool hasComment = line.indexOf(F("\"comment\":")) >= 0;
-        if (hasComment && !findString(line, "comment", comment))
-        {
-            file.close();
-            return false;
-        }
-
-        if (status == "PENDING")
-        {
-            if (pendingId != 0UL || movementId <= maximumId ||
-                diameter != 0UL || hasWireType)
+            if (hasPending || record.movementId <= maximumId)
             {
                 file.close();
                 return false;
             }
-
-            maximumId = movementId;
-            pendingId = movementId;
+            maximumId = record.movementId;
+            pending = record;
             pendingRecordStart = lineStart;
-            pendingSpoolId = spoolId;
-            pendingRepairId = currentRepairId;
-            pendingSourceSessionId = sourceSessionId;
-            pendingSourceRunId = sourceRunId;
-            pendingHasSourceSession = hasSourceSession;
-            pendingHasSourceRun = hasSourceRun;
-            pendingBefore = before;
-            pendingAfter = after;
-            pendingMass = mass;
-            pendingPrice = price;
-            pendingCurrency = currency;
-            pendingTimestamp = timestamp;
-            pendingComment = comment;
+            hasPending = true;
             continue;
         }
 
-        if (status != "CONFIRMED" && status != "ABORTED")
+        if (!hasPending || !matchingTransaction(pending, record))
         {
             file.close();
             return false;
         }
 
-        if (pendingId == 0UL || movementId != pendingId ||
-            spoolId != pendingSpoolId || currentRepairId != pendingRepairId ||
-            hasSourceSession != pendingHasSourceSession ||
-            sourceSessionId != pendingSourceSessionId ||
-            hasSourceRun != pendingHasSourceRun ||
-            sourceRunId != pendingSourceRunId ||
-            before != pendingBefore || after != pendingAfter || mass != pendingMass ||
-            price != pendingPrice || currency != pendingCurrency ||
-            timestamp != pendingTimestamp || comment != pendingComment)
+        if (record.status == "ABORTED")
         {
-            file.close();
-            return false;
-        }
-
-        if (status == "ABORTED")
-        {
-            if (diameter != 0UL || hasWireType)
-            {
-                file.close();
-                return false;
-            }
-            pendingId = 0UL;
-            pendingSourceSessionId = 0UL;
-            pendingSourceRunId = 0UL;
-            pendingHasSourceSession = false;
-            pendingHasSourceRun = false;
+            hasPending = false;
+            pending = WarehouseWriteOffRecord();
             continue;
         }
 
-        if (diameter == 0UL)
-        {
-            file.close();
-            return false;
-        }
-
-        if (currentRepairId == repairId)
+        if (record.repairId == repairId)
         {
             const uint64_t consumedValueMinor =
-                (static_cast<uint64_t>(mass) * static_cast<uint64_t>(price) + 500ULL) / 1000ULL;
+                (static_cast<uint64_t>(record.massGrams) *
+                 static_cast<uint64_t>(record.pricePerKgMinor) + 500ULL) / 1000ULL;
 
-            if (totalConsumedGrams > 0xFFFFFFFFUL - mass ||
+            if (totalConsumedGrams > 0xFFFFFFFFUL - record.massGrams ||
                 totalValueMinor > 0xFFFFFFFFFFFFFFFFULL - consumedValueMinor ||
                 totalMatchingCount == 0xFFFFU)
             {
@@ -206,24 +133,23 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
                 return false;
             }
 
-            WriteOffMaterialTotals* totals = &materialTotals;
-            uint32_t* gramsTarget = &totals->unknownGrams;
-            uint64_t* valueTarget = &totals->unknownValueMinor;
-            uint16_t* countTarget = &totals->unknownCount;
-            if (wireType == "CU")
+            uint32_t* gramsTarget = &materialTotals.unknownGrams;
+            uint64_t* valueTarget = &materialTotals.unknownValueMinor;
+            uint16_t* countTarget = &materialTotals.unknownCount;
+            if (record.wireType == "CU")
             {
-                gramsTarget = &totals->copperGrams;
-                valueTarget = &totals->copperValueMinor;
-                countTarget = &totals->copperCount;
+                gramsTarget = &materialTotals.copperGrams;
+                valueTarget = &materialTotals.copperValueMinor;
+                countTarget = &materialTotals.copperCount;
             }
-            else if (wireType == "AL")
+            else if (record.wireType == "AL")
             {
-                gramsTarget = &totals->aluminiumGrams;
-                valueTarget = &totals->aluminiumValueMinor;
-                countTarget = &totals->aluminiumCount;
+                gramsTarget = &materialTotals.aluminiumGrams;
+                valueTarget = &materialTotals.aluminiumValueMinor;
+                countTarget = &materialTotals.aluminiumCount;
             }
 
-            if (*gramsTarget > 0xFFFFFFFFUL - mass ||
+            if (*gramsTarget > 0xFFFFFFFFUL - record.massGrams ||
                 *valueTarget > 0xFFFFFFFFFFFFFFFFULL - consumedValueMinor ||
                 *countTarget == 0xFFFFU)
             {
@@ -232,9 +158,9 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
             }
 
             ++totalMatchingCount;
-            totalConsumedGrams += mass;
+            totalConsumedGrams += record.massGrams;
             totalValueMinor += consumedValueMinor;
-            *gramsTarget += mass;
+            *gramsTarget += record.massGrams;
             *valueTarget += consumedValueMinor;
             ++(*countTarget);
 
@@ -252,34 +178,58 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
 
                     if (!first) json += ',';
                     first = false;
-                    json += F("{\"movement_id\":"); json += movementId;
-                    json += F(",\"spool_id\":"); json += spoolId;
-                    json += F(",\"repair_id\":"); json += currentRepairId;
+                    json += F("{\"movement_id\":"); json += record.movementId;
+                    json += F(",\"writeoff_mode\":\"");
+                    json += record.mode == WarehouseWriteOffMode::KgFirst
+                                ? F("KG_FIRST") : F("LEGACY_SPOOL");
+                    json += F("\",\"stock_mode\":\"");
+                    if (record.stockMode == WarehouseWriteOffStockMode::Unallocated)
+                        json += F("UNALLOCATED");
+                    else if (record.stockMode == WarehouseWriteOffStockMode::Spool)
+                        json += F("SPOOL");
+                    else
+                        json += F("LEGACY_SPOOL");
+                    json += F("\",\"spool_id\":");
+                    if (record.hasSpoolId) json += record.spoolId;
+                    else json += F("null");
+                    json += F(",\"repair_id\":"); json += record.repairId;
                     json += F(",\"source_session_id\":");
-                    if (hasSourceSession) json += sourceSessionId;
+                    if (record.hasSourceSessionId) json += record.sourceSessionId;
                     else json += F("null");
                     json += F(",\"source_run_id\":");
-                    if (hasSourceRun) json += sourceRunId;
+                    if (record.hasSourceRunId) json += record.sourceRunId;
                     else json += F("null");
-                    json += F(",\"diameter_hundredths_mm\":"); json += diameter;
+                    json += F(",\"diameter_hundredths_mm\":");
+                    json += record.diameterHundredthsMm;
                     json += F(",\"wire_type\":");
-                    if (hasWireType)
+                    if (record.hasWireType)
                     {
-                        json += '"'; json += jsonEscape(wireType); json += '"';
+                        json += '"'; json += jsonEscape(record.wireType); json += '"';
                     }
                     else json += F("null");
                     json += F(",\"legacy_unknown_material\":");
-                    json += hasWireType ? F("false") : F("true");
-                    json += F(",\"weight_before_g\":"); json += before;
-                    json += F(",\"weight_after_g\":"); json += after;
-                    json += F(",\"consumed_g\":"); json += mass;
-                    json += F(",\"price_per_kg_minor\":"); json += price;
-                    json += F(",\"consumed_value_minor\":"); json += valueBuffer;
-                    json += F(",\"currency\":\""); json += jsonEscape(currency); json += '"';
-                    json += F(",\"timestamp\":\""); json += jsonEscape(timestamp); json += '"';
-                    if (hasComment)
+                    json += record.hasWireType ? F("false") : F("true");
+                    json += F(",\"quantity_kg\":");
+                    if (record.mode == WarehouseWriteOffMode::KgFirst)
                     {
-                        json += F(",\"comment\":\""); json += jsonEscape(comment); json += '"';
+                        json += '"'; json += jsonEscape(record.quantityKg); json += '"';
+                    }
+                    else json += F("null");
+                    json += F(",\"weight_before_g\":");
+                    if (record.hasWeights) json += record.weightBeforeGrams;
+                    else json += F("null");
+                    json += F(",\"weight_after_g\":");
+                    if (record.hasWeights) json += record.weightAfterGrams;
+                    else json += F("null");
+                    json += F(",\"consumed_g\":"); json += record.massGrams;
+                    json += F(",\"price_per_kg_minor\":"); json += record.pricePerKgMinor;
+                    json += F(",\"consumed_value_minor\":"); json += valueBuffer;
+                    json += F(",\"currency\":\""); json += jsonEscape(record.currency); json += '"';
+                    json += F(",\"timestamp\":\""); json += jsonEscape(record.timestamp); json += '"';
+                    if (record.comment.length() > 0U)
+                    {
+                        json += F(",\"comment\":\"");
+                        json += jsonEscape(record.comment); json += '"';
                     }
                     json += '}';
 
@@ -289,11 +239,8 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
             }
         }
 
-        pendingId = 0UL;
-        pendingSourceSessionId = 0UL;
-        pendingSourceRunId = 0UL;
-        pendingHasSourceSession = false;
-        pendingHasSourceRun = false;
+        hasPending = false;
+        pending = WarehouseWriteOffRecord();
     }
 
     const uint32_t endPosition = static_cast<uint32_t>(file.position());
@@ -302,6 +249,6 @@ bool WarehouseStore::appendConfirmedWriteOffsPageJson(String& json,
     if (hasMore) nextCursor = pageEndCursor;
     // WarehouseStore::begin() reconciles a dangling PENDING before m_ready=true.
     // Seeing one here therefore means runtime corruption or storage loss.
-    return pendingId == 0UL && cursorSeen;
+    return !hasPending && cursorSeen;
 }
 }

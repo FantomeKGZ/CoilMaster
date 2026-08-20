@@ -19,6 +19,7 @@
 #include "../../../Arduino/CM_BuzzerService.h"
 #include "../../../Arduino/CM_DebouncedButton.h"
 #include "../../../Arduino/CM_EepromPersistence.h"
+#include "../../../Arduino/CM_HallCalibrationService.h"
 #include "../../../Arduino/CM_HallTelemetry.h"
 #include "../../../Arduino/CM_HallTurnSource.h"
 #include "../../../Arduino/CM_HardwareSettings.h"
@@ -89,6 +90,11 @@ CM::HardwareSettingsController hardwareSettingsController(hardwareSettingsStore,
                                                           hall,
                                                           machine);
 CM::HallTelemetryService hallTelemetry(hall);
+CM::HallCalibrationService hallCalibration(hall);
+CM::HallCalibrationResult lastHallCalibrationResult;
+bool hasHallCalibrationResult = false;
+CM::HallCalibrationState previousHallCalibrationState =
+    CM::HallCalibrationState::Idle;
 
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
@@ -188,6 +194,12 @@ bool simulationMode()
 #else
     return false;
 #endif
+}
+
+bool hallCalibrationEnvironmentSafe()
+{
+    return machine.state() == CM::MachineState::EnterCoilCount &&
+           !machine.job().isValid();
 }
 
 CM::HardwareControlResult hardwareControlResult(
@@ -292,6 +304,13 @@ void processKeypad()
 #if CM_FEATURE_KEYPAD_4X4
     const char key = keypad.getKey();
     if (key == NO_KEY) return;
+    if (hallCalibration.active())
+    {
+        hallCalibration.abort();
+        ssr.forceOff();
+        Serial.println(F("CM_HALL_CAL abort=KEYPAD_INPUT"));
+        return;
+    }
     if (processEmergencyJobClearKey(key)) return;
 
     bool handled = false;
@@ -324,6 +343,24 @@ void processExternalStart(uint32_t nowMs)
 #if CM_FEATURE_EXTERNAL_START
     if (startButton.pollPressed(nowMs))
     {
+        if (hallCalibration.state() ==
+            CM::HallCalibrationState::ArmedWaitingPhysicalStart)
+        {
+            const bool started = hallCalibration.physicalStart(nowMs);
+            Serial.println(started
+                               ? F("CM_HALL_CAL physical_start=ACCEPTED")
+                               : F("CM_HALL_CAL physical_start=BASELINE_NOT_READY"));
+            return;
+        }
+
+        if (hallCalibration.state() == CM::HallCalibrationState::Running)
+        {
+            hallCalibration.abort();
+            ssr.forceOff();
+            Serial.println(F("CM_HALL_CAL abort=PHYSICAL_START_PRESSED_AGAIN"));
+            return;
+        }
+
         CM::KeyEvent event;
         event.action = CM::InputAction::StartOrResume;
         input.handleEvent(event);
@@ -410,6 +447,14 @@ void processRemoteJobs()
     CM::WindingJob remoteJob;
     while (espTransport.takeRemoteJob(remoteJob))
     {
+        if (hallCalibration.active())
+        {
+            espTransport.sendJobResult(remoteJob.jobId,
+                                       false,
+                                       "BUSY_CALIBRATION");
+            continue;
+        }
+
         const bool accepted = machine.loadRemoteJob(remoteJob);
         espTransport.sendJobResult(remoteJob.jobId,
                                    accepted,
@@ -466,11 +511,69 @@ void processRemoteCancels()
     }
 }
 
+void processHallCalibrationCommands(uint32_t nowMs)
+{
+    CM::HallCalibrationCommand command;
+    while (espTransport.takeHallCalibrationCommand(command))
+    {
+        switch (command)
+        {
+            case CM::HallCalibrationCommand::Arm:
+                if (hallCalibrationEnvironmentSafe())
+                {
+                    hallTelemetry.setEnabled(false, nowMs);
+                    hallCalibration.reset();
+                    lastHallCalibrationResult = CM::HallCalibrationResult();
+                    hasHallCalibrationResult = false;
+                    hallCalibration.arm(nowMs);
+                    previousHallCalibrationState = hallCalibration.state();
+                }
+                espTransport.sendHallCalibrationState(
+                    hallCalibration.state(),
+                    hallCalibration.baselineReady(),
+                    hallCalibration.motorPermit());
+                break;
+
+            case CM::HallCalibrationCommand::Abort:
+                hallCalibration.abort();
+                ssr.forceOff();
+                espTransport.sendHallCalibrationState(
+                    hallCalibration.state(),
+                    hallCalibration.baselineReady(),
+                    hallCalibration.motorPermit());
+                break;
+
+            case CM::HallCalibrationCommand::Get:
+                espTransport.sendHallCalibrationState(
+                    hallCalibration.state(),
+                    hallCalibration.baselineReady(),
+                    hallCalibration.motorPermit());
+                if (hasHallCalibrationResult)
+                    espTransport.sendHallCalibrationResult(
+                        lastHallCalibrationResult);
+                break;
+
+            case CM::HallCalibrationCommand::None:
+            default:
+                break;
+        }
+    }
+}
+
 void processHardwareControlRequests(uint32_t nowMs)
 {
     CM::HardwareControlRequest request;
     while (espTransport.takeHardwareControlRequest(request))
     {
+        if (hallCalibration.active() &&
+            request.type != CM::HardwareControlRequestType::GetHallSettings &&
+            request.type != CM::HardwareControlRequestType::StopHallTelemetry)
+        {
+            espTransport.sendHardwareControlResult(
+                CM::HardwareControlResult::Busy);
+            continue;
+        }
+
         switch (request.type)
         {
             case CM::HardwareControlRequestType::GetHallSettings:
@@ -565,6 +668,7 @@ void processHallTelemetry(uint32_t nowMs)
 void processUart(uint32_t nowMs)
 {
     espTransport.update(nowMs);
+    processHallCalibrationCommands(nowMs);
     processHardwareControlRequests(nowMs);
     processRemoteJobs();
     processRemoteCancels();
@@ -659,10 +763,45 @@ void processAliveReport(uint32_t nowMs)
 #endif
 }
 
+void processHallCalibration(uint32_t nowMs)
+{
+    if (hallCalibration.active())
+    {
+        if (hallTelemetry.enabled())
+            hallTelemetry.setEnabled(false, nowMs);
+        hallCalibration.update(nowMs, hallCalibrationEnvironmentSafe());
+    }
+
+    CM::HallCalibrationResult result;
+    if (hallCalibration.takeResult(result))
+    {
+        lastHallCalibrationResult = result;
+        hasHallCalibrationResult = true;
+        espTransport.sendHallCalibrationResult(lastHallCalibrationResult);
+    }
+
+    if (hallCalibration.state() != previousHallCalibrationState)
+    {
+        previousHallCalibrationState = hallCalibration.state();
+        espTransport.sendHallCalibrationState(
+            hallCalibration.state(),
+            hallCalibration.baselineReady(),
+            hallCalibration.motorPermit());
+    }
+
+    if (hallCalibration.state() == CM::HallCalibrationState::Completed ||
+        hallCalibration.state() == CM::HallCalibrationState::Aborted)
+    {
+        ssr.forceOff();
+    }
+}
+
 void updateOutputs()
 {
 #if CM_FEATURE_SSR
-    ssr.update(machine.state(), simulationMode());
+    ssr.update(machine.state(),
+               simulationMode(),
+               hallCalibration.motorPermit());
 #endif
 
 #if CM_FEATURE_LCD1602
@@ -742,6 +881,7 @@ void loop()
     processCoreEvents();
 
     processUart(nowMs);
+    processHallCalibration(nowMs);
     processHallTelemetry(nowMs);
     processBuzzer(nowMs);
     processStateTransitions(nowMs);

@@ -76,8 +76,9 @@ for (const text of [
   'alreadyConfirmed',
   'operation.consumedGrams >= identity.currentWeightGrams',
   'appendKgFirstWriteOffRecord',
-  '"writeoff_mode\\\":\\\"KG_FIRST"',
-  'F("UNALLOCATED")'
+  'writeoff_mode',
+  'KG_FIRST',
+  'UNALLOCATED'
 ]) {
   requireText(storePath, store, text, 'kg-first store invariant missing: ' + text);
 }

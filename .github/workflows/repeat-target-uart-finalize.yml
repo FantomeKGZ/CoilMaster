@@ -1,0 +1,112 @@
+name: Finalize repeat target UART lifecycle
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - '.github/workflows/repeat-target-uart-finalize.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Verify exact source blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_blob() {
+            local path="$1"
+            local expected="$2"
+            local actual
+            actual="$(git hash-object "$path")"
+            if [ "$actual" != "$expected" ]; then
+              echo "Blob mismatch for $path: expected $expected got $actual" >&2
+              exit 1
+            fi
+          }
+          check_blob firmware/esp32/src/CM_UartEventReceiver.h 979cc614b8d9a5663ad2144f54c004059b443c8e
+          check_blob firmware/esp32/src/CM_UartEventReceiver.cpp ce6a7d8ee516a38c7f0f2aeeed073e319c566efc
+          check_blob Arduino/CM_UartEventTransport.cpp fe350fb61e42d8912b9526db51b323d9a2623208
+          check_blob firmware/arduino/src/main.cpp 0093dc921c543b40a3a9f6bcb6bf24d214d4b783
+          check_blob Core/CM_StateMachine.h e073f19711a8a476af4389f65231d71d36fd9919
+
+      - name: Apply repeat target transport patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_exact(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'Expected block not found in {path}')
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected unique block in {path}, found {text.count(old)}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_exact(
+              'firmware/esp32/src/CM_UartEventReceiver.h',
+              '''    RemoteJobType type;\n    uint8_t coilCount;\n    uint16_t turns[MaxCoils];\n''',
+              '''    RemoteJobType type;\n    uint16_t repeatTarget;\n    uint8_t coilCount;\n    uint16_t turns[MaxCoils];\n''')
+
+          replace_exact(
+              'firmware/esp32/src/CM_UartEventReceiver.cpp',
+              '''OutgoingWindingJob::OutgoingWindingJob()\n    : jobId(0UL), sessionId(0UL), type(RemoteJobType::Working),\n      coilCount(0U), turns()\n''',
+              '''OutgoingWindingJob::OutgoingWindingJob()\n    : jobId(0UL), sessionId(0UL), type(RemoteJobType::Working),\n      repeatTarget(1U), coilCount(0U), turns()\n''')
+
+          replace_exact(
+              'firmware/esp32/src/CM_UartEventReceiver.cpp',
+              '''    if (jobId == 0UL || sessionId == 0UL ||\n        coilCount == 0U || coilCount > MaxCoils)\n''',
+              '''    if (jobId == 0UL || sessionId == 0UL || repeatTarget == 0U ||\n        coilCount == 0U || coilCount > MaxCoils)\n''')
+
+          replace_exact(
+              'firmware/esp32/src/CM_UartEventReceiver.cpp',
+              '''        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|C",\n        static_cast<unsigned long>(job.jobId),\n        static_cast<unsigned long>(job.sessionId),\n        job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",\n        static_cast<unsigned int>(job.coilCount), turnsText);\n''',
+              '''        payload, sizeof(payload), "CMP1|JOB|%lu|%lu|%s|%u|%s|R%u|C",\n        static_cast<unsigned long>(job.jobId),\n        static_cast<unsigned long>(job.sessionId),\n        job.type == RemoteJobType::Starting ? "STARTING" : "WORKING",\n        static_cast<unsigned int>(job.coilCount), turnsText,\n        static_cast<unsigned int>(job.repeatTarget));\n''')
+
+          replace_exact(
+              'Arduino/CM_UartEventTransport.cpp',
+              '''    char* turns = strtok_r(nullptr, "|", &save);\n    char* capability = strtok_r(nullptr, "|", &save);\n    char* extra = strtok_r(nullptr, "|", &save);\n\n    if (version == nullptr || category == nullptr || jobId == nullptr ||\n        sessionId == nullptr || type == nullptr || count == nullptr ||\n        turns == nullptr || strcmp(version, "CMP1") != 0 ||\n        strcmp(category, "JOB") != 0 || extra != nullptr ||\n        (capability != nullptr && strcmp(capability, "C") != 0))\n    {\n        return false;\n    }\n\n    job.clear();\n''',
+              '''    char* turns = strtok_r(nullptr, "|", &save);\n    char* repeatOrCapability = strtok_r(nullptr, "|", &save);\n    char* capability = repeatOrCapability;\n    char* extra = nullptr;\n\n    job.clear();\n    if (repeatOrCapability != nullptr && repeatOrCapability[0] == 'R')\n    {\n        char* end = nullptr;\n        const unsigned long parsedRepeat = strtoul(repeatOrCapability + 1, &end, 10);\n        if (end == nullptr || *end != '\\0' || parsedRepeat == 0UL ||\n            parsedRepeat > 0xFFFFUL)\n        {\n            return false;\n        }\n        job.repeatTarget = static_cast<uint16_t>(parsedRepeat);\n        capability = strtok_r(nullptr, "|", &save);\n    }\n    extra = strtok_r(nullptr, "|", &save);\n\n    if (version == nullptr || category == nullptr || jobId == nullptr ||\n        sessionId == nullptr || type == nullptr || count == nullptr ||\n        turns == nullptr || strcmp(version, "CMP1") != 0 ||\n        strcmp(category, "JOB") != 0 || extra != nullptr ||\n        (capability != nullptr && strcmp(capability, "C") != 0))\n    {\n        return false;\n    }\n\n''')
+
+          replace_exact(
+              'firmware/arduino/src/main.cpp',
+              '''        Serial.print(F(" coils="));\n        Serial.print(remoteJob.coilCount);\n        Serial.print(F(" result="));\n''',
+              '''        Serial.print(F(" coils="));\n        Serial.print(remoteJob.coilCount);\n        Serial.print(F(" repeat_target="));\n        Serial.print(remoteJob.repeatTarget);\n        Serial.print(F(" result="));\n''')
+
+          replace_exact(
+              'firmware/arduino/src/main.cpp',
+              '''            case CM::UartDeliveryResult::Acknowledged:\n                persistence.removePendingCompleted(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("ACK"));\n                break;\n\n            case CM::UartDeliveryResult::Duplicate:\n                persistence.removePendingCompleted(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("DUPLICATE"));\n                break;\n''',
+              '''            case CM::UartDeliveryResult::Acknowledged:\n            {\n                persistence.removePendingCompleted(delivery.runId);\n                const bool terminalRemoteCleared =\n                    machine.acknowledgeDeliveredRun(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("ACK"));\n                if (terminalRemoteCleared)\n                    Serial.println(F("CM_JOB AUTO_CLEAR result=FINAL_RUN_ACKED"));\n                break;\n            }\n\n            case CM::UartDeliveryResult::Duplicate:\n            {\n                persistence.removePendingCompleted(delivery.runId);\n                const bool terminalRemoteCleared =\n                    machine.acknowledgeDeliveredRun(delivery.runId);\n                synchronizationError = false;\n                Serial.println(F("DUPLICATE"));\n                if (terminalRemoteCleared)\n                    Serial.println(F("CM_JOB AUTO_CLEAR result=FINAL_RUN_DUPLICATE"));\n                break;\n            }\n''')
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO
+        run: python -m pip install --upgrade platformio
+
+      - name: Build Arduino Uno
+        run: pio run -e uno
+
+      - name: Build ESP32
+        run: pio run -e esp32
+
+      - name: Commit verified patch and self-delete
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/repeat-target-uart-finalize.yml
+          git config user.name "CoilMaster CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add Core/CM_StateMachine.h firmware/esp32/src/CM_UartEventReceiver.h firmware/esp32/src/CM_UartEventReceiver.cpp Arduino/CM_UartEventTransport.cpp firmware/arduino/src/main.cpp .github/workflows/repeat-target-uart-finalize.yml
+          git commit -m "feat: carry repeat target over UART and clear final remote job"
+          git push origin HEAD:cmp-protocol-v1

@@ -6,7 +6,8 @@ namespace CM
 HallTurnSource::HallTurnSource(uint8_t analogPin,
                                uint16_t threshold,
                                uint16_t hysteresis,
-                               uint16_t releaseDebounceMs)
+                               uint16_t releaseDebounceMs,
+                               bool inverted)
     : m_analogPin(analogPin),
       m_threshold(threshold),
       m_hysteresis(hysteresis),
@@ -14,7 +15,8 @@ HallTurnSource::HallTurnSource(uint8_t analogPin,
       m_rawValue(0U),
       m_releaseCandidateSinceMs(0UL),
       m_releaseCandidate(false),
-      m_magnetDetected(false)
+      m_magnetDetected(false),
+      m_inverted(inverted)
 {
 }
 
@@ -25,7 +27,7 @@ bool HallTurnSource::pollTurn(uint32_t nowMs)
     if (!m_magnetDetected)
     {
         m_releaseCandidate = false;
-        if (m_rawValue >= m_threshold)
+        if (activeLevelReached())
         {
             m_magnetDetected = true;
             return true;
@@ -33,7 +35,7 @@ bool HallTurnSource::pollTurn(uint32_t nowMs)
         return false;
     }
 
-    if (m_rawValue > releaseThreshold())
+    if (!releaseLevelReached())
     {
         // Magnet is still present (or ADC bounced back into the active band).
         // Any pending release must start over so noise cannot re-arm counting.
@@ -61,7 +63,7 @@ bool HallTurnSource::pollTurn(uint32_t nowMs)
 void HallTurnSource::reset(uint32_t nowMs)
 {
     m_rawValue = static_cast<uint16_t>(analogRead(m_analogPin));
-    m_magnetDetected = m_rawValue >= m_threshold;
+    m_magnetDetected = activeLevelReached();
     m_releaseCandidate = false;
     m_releaseCandidateSinceMs = nowMs;
 }
@@ -96,6 +98,16 @@ uint16_t HallTurnSource::releaseDebounceMs() const
     return m_releaseDebounceMs;
 }
 
+void HallTurnSource::setInverted(bool inverted)
+{
+    m_inverted = inverted;
+}
+
+bool HallTurnSource::inverted() const
+{
+    return m_inverted;
+}
+
 uint16_t HallTurnSource::rawValue() const
 {
     return m_rawValue;
@@ -108,9 +120,28 @@ bool HallTurnSource::magnetDetected() const
 
 uint16_t HallTurnSource::releaseThreshold() const
 {
-    return m_threshold > m_hysteresis
-               ? static_cast<uint16_t>(m_threshold - m_hysteresis)
-               : 0U;
+    if (!m_inverted)
+    {
+        return m_threshold > m_hysteresis
+                   ? static_cast<uint16_t>(m_threshold - m_hysteresis)
+                   : 0U;
+    }
+
+    const uint32_t upper =
+        static_cast<uint32_t>(m_threshold) + static_cast<uint32_t>(m_hysteresis);
+    return upper > 1023UL ? 1023U : static_cast<uint16_t>(upper);
+}
+
+bool HallTurnSource::activeLevelReached() const
+{
+    return m_inverted ? m_rawValue <= m_threshold
+                      : m_rawValue >= m_threshold;
+}
+
+bool HallTurnSource::releaseLevelReached() const
+{
+    return m_inverted ? m_rawValue >= releaseThreshold()
+                      : m_rawValue <= releaseThreshold();
 }
 
 } // namespace CM

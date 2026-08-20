@@ -60,6 +60,7 @@ private:
     static constexpr uint16_t BaselineSampleIntervalMs = 20U;
     static constexpr uint8_t MinimumBaselineSamples = 8U;
     static constexpr uint16_t MinimumSignalSpan = 60U;
+    static constexpr uint32_t ArmedTimeoutMs = 60000UL;
     static constexpr uint32_t RunDurationMs = 5000UL;
     static constexpr uint32_t AbsoluteRunTimeoutMs = 6500UL;
 

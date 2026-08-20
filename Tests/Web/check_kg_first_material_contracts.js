@@ -14,11 +14,15 @@ function requireText(relative, source, text, description) {
 
 const quantityPath = 'firmware/esp32/src/CM_KgQuantity.h';
 const recordPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecord.h';
+const storePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
+const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
 const quantity = read(quantityPath);
 const record = read(recordPath);
+const store = read(storePath);
 const writeOff = read(writeOffPath);
+const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
 
 // kg-first quantities must be converted deterministically to integer grams;
@@ -48,17 +52,64 @@ for (const text of [
   requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
 }
 
-// Existing production write-off remains manual and exact-run protected while
-// kg-first storage/API migration is implemented incrementally.
-for (const text of ['source_session_id', 'source_run_id', 'confirmedWriteOffForSourceRun(sourceSessionId,']) {
-  requireText(writeOffPath, writeOff, text, 'manual exact-run guard missing: ' + text);
+// The production endpoint now accepts explicit KG_FIRST requests. quantity_kg
+// is mandatory; spool_id is optional only in that mode, and unallocated writes
+// must carry a conductor snapshot.
+for (const text of [
+  'm_server.arg("writeoff_mode") == "KG_FIRST"',
+  'KgQuantity::parseGrams(m_server.arg("quantity_kg"), consumedGrams)',
+  'm_server.hasArg("spool_id")',
+  'diameter_required_for_unallocated',
+  'wire_type_required_for_unallocated',
+  'confirmKgFirstWriteOff(operation, result)',
+  'source_session_id',
+  'source_run_id',
+  'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)'
+]) {
+  requireText(writeOffPath, writeOff, text, 'active kg-first API guard missing: ' + text);
 }
+
+// Store-level safety remains authoritative even if HTTP validation changes.
+for (const text of [
+  'bool WarehouseStore::confirmKgFirstWriteOff',
+  'WindingSessionCompletionAudit::check',
+  'alreadyConfirmed',
+  'operation.consumedGrams >= identity.currentWeightGrams',
+  'appendKgFirstWriteOffRecord',
+  '"writeoff_mode\\\":\\\"KG_FIRST"',
+  'F("UNALLOCATED")'
+]) {
+  requireText(storePath, store, text, 'kg-first store invariant missing: ' + text);
+}
+
+// Recovery must never invent an unallocated write-off after reboot. Stock-backed
+// transactions may be confirmed only when the durable spool state proves it.
+for (const text of [
+  'WarehouseWriteOffStockMode::Unallocated',
+  '"ABORTED"',
+  'currentWeight == pending.weightBeforeGrams',
+  'currentWeight == pending.weightAfterGrams'
+]) {
+  requireText(recoveryPath, recovery, text, 'kg-first recovery invariant missing: ' + text);
+}
+
+// Finalization remains anchored to completed runs. Legacy records retain exact
+// spool matching; explicit UNALLOCATED kg-first records may cover the exact run
+// without pretending that warehouse stock was mutated.
 requireText(coveragePath, coverage, '\\"event\\":\\"RUN_COMPLETED\\"',
   'finalization coverage no longer anchors to completed runs');
+for (const text of [
+  'record.mode == WarehouseWriteOffMode::LegacySpool',
+  'record.spoolId != spoolId',
+  'record.stockMode == WarehouseWriteOffStockMode::Unallocated',
+  'record.sourceRunId != runId'
+]) {
+  requireText(coveragePath, coverage, text, 'finalization kg-first/legacy coverage split missing: ' + text);
+}
 
 // Do not allow this migration to accidentally introduce automatic deduction.
 for (const forbidden of ['automaticWriteOff(', 'autoWriteOff(', 'writeOffOnRunCompleted(']) {
-  if (writeOff.includes(forbidden) || coverage.includes(forbidden)) {
+  if (store.includes(forbidden) || writeOff.includes(forbidden) || recovery.includes(forbidden) || coverage.includes(forbidden)) {
     failures.push('kg-first migration introduced automatic write-off hook: ' + forbidden);
   }
 }
@@ -68,4 +119,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact decimal kg parser, dual movement schema, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact decimal kg parser, active manual API, dual journal schema, reboot recovery, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

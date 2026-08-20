@@ -107,6 +107,34 @@ ESP32:
 
 Она не может закрыть job с run evidence.
 
+## Hall hardware-control lane
+
+Для настройки Hall добавлен отдельный `CM_HardwareControlClient`, но физический UART остаётся общим с winding protocol.
+
+Архитектурные правила:
+
+- `CM_UartEventReceiver` остаётся единственным reader байтов UART;
+- `CFG_STATE`, `CFG_ACK/NACK` и `HALL_STATE` делегируются в hardware-control client до winding parser;
+- JOB/JOB_CANCEL и Hall control не передаются одновременно: используется одна взаимно исключающая control lane;
+- один hardware request активен за раз;
+- retry interval — 1 s, максимум 3 send attempts;
+- отсутствие ответа завершается явным `TimedOut`, а не положительным предположением;
+- settings/telemetry state сохраняют ESP32 `receivedAtMs`, чтобы HTTP/UI могли различать fresh и stale данные;
+- hardware-control кадры не выполняют physical START и не управляют SSR.
+
+Verified ESP32 Hall UART lane:
+
+```text
+bfc819b1fb4caa955313634180afee7917537760
+chore: finalize verified ESP32 Hall control lane
+```
+
+Для этого batch подтверждены `pio run -e esp32`, `pio run -e uno` и web contract checks.
+
+Случайно попавшие после verifier generated `.pio/` artifacts удалены из source-of-truth коммитом `bd458b18e227cde03a08a8b25e3114870a4f6385`; `.gitignore` теперь запрещает `.pio/`.
+
+HTTP Hall API и web Equipment UI являются следующим блоком и в данном документированном состоянии ещё не считаются завершёнными.
+
 ## Wire writeoff
 
 `RUN_COMPLETED` — только фактическое событие Arduino. Списание провода остается ручным и привязывается к точному:

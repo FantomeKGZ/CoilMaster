@@ -37,6 +37,9 @@ jobs:
       - name: Audit web JavaScript and navigation
         run: node Tests/Web/check_web_assets.js
 
+      - name: Audit repeat target UI contracts
+        run: node Tests/Web/check_repeat_target_ui.js
+
       - name: Audit release safety contracts
         run: node Tests/Web/check_release_contracts.js
 

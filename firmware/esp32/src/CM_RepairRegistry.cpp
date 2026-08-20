@@ -95,7 +95,7 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
 {
     motorId = 0UL;
     String canonicalProgram;
-    if (!ready() || motor.name.length() == 0U ||
+    if (!ready() || motor.name.length() == 0U || motor.repeatTarget == 0U ||
         !WindingProgramParser::canonicalize(motor.coilProgram, canonicalProgram) ||
         !nextId(MotorsPath, "motor_id", motorId))
     {
@@ -110,14 +110,15 @@ bool RepairRegistry::addMotor(const NewMotor& motor, uint32_t& motorId)
     }
 
     String line;
-    line.reserve(1400U);
+    line.reserve(1440U);
     line = F("{\"motor_id\":"); line += motorId;
     line += F(",\"name\":\""); line += jsonEscape(motor.name);
     line += F("\",\"model\":\""); line += jsonEscape(motor.model);
     line += F("\",\"manufacturer\":\""); line += jsonEscape(motor.manufacturer);
     line += F("\",\"tags\":\""); line += jsonEscape(motor.tags);
     line += F("\",\"coil_program\":\""); line += canonicalProgram;
-    line += F("\",\"status\":\"ACTIVE\"");
+    line += F("\",\"repeat_target\":"); line += motor.repeatTarget;
+    line += F(",\"status\":\"ACTIVE\"");
     if (motor.ratedPowerW > 0UL)
     {
         line += F(",\"rated_power_w\":"); line += motor.ratedPowerW;

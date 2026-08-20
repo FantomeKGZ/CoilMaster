@@ -1,21 +1,28 @@
-# CoilMaster — Hall settings foundation in progress
+# CoilMaster — Hall settings foundation verified
 
 Дата: **2026-08-20**  
 Ветка: **`cmp-protocol-v1`**
 
 ## Статус
 
-Реализация утверждённого Hall/settings/autocalibration блока из checkpoints `40` и `41` продолжается.
+Arduino Hall/settings foundation завершён и подтверждён сборкой.
 
-Текущий кодовый foundation уже включает:
+Текущий кодовый foundation включает:
 
 ```text
 Arduino/CM_HardwareSettings.h
 Arduino/CM_HardwareSettings.cpp
 Arduino/CM_HardwareSettingsController.h
 Arduino/CM_HardwareSettingsController.cpp
+Arduino/CM_HallTelemetry.h
+Arduino/CM_HallTelemetry.cpp
+Arduino/CM_HardwareControlProtocol.h
+Arduino/CM_HardwareControlProtocol.cpp
 Arduino/CM_HallTurnSource.h
 Arduino/CM_HallTurnSource.cpp
+Arduino/CM_UartEventTransport.h
+Arduino/CM_UartEventTransport.cpp
+firmware/arduino/src/main.cpp
 ```
 
 ## Persistent hardware settings
@@ -48,9 +55,7 @@ hall_direction = RISING
 
 ## Safe settings controller
 
-Добавлен `CM_HardwareSettingsController`.
-
-Он:
+`CM_HardwareSettingsController`:
 
 - загружает settings store;
 - применяет threshold/hysteresis/release debounce/direction к Hall driver;
@@ -60,7 +65,7 @@ hall_direction = RISING
 
 ## Hall driver hardening
 
-Ранее добавленная stable-release защита остаётся обязательной:
+Stable-release защита обязательна:
 
 ```text
 081b3ed1dc3849ec8b0c6898fd841acb6d5f2d76
@@ -70,7 +75,7 @@ fix: debounce Hall sensor release before rearming
 fix: require stable Hall release before next turn
 ```
 
-После этого driver расширен:
+Driver поддерживает:
 
 - `RISING`: магнит активен при `ADC >= threshold`, release при `ADC <= threshold-hysteresis`;
 - `FALLING`: магнит активен при `ADC <= threshold`, release при `ADC >= threshold+hysteresis`;
@@ -82,83 +87,102 @@ fix: require stable Hall release before next turn
   - `WaitingRelease`;
   - `ReleaseDebounce`.
 
-Это состояние будет передаваться в live telemetry и показываться в Web.
+## Live Hall telemetry
 
-## Commits этого этапа
+Добавлен bounded `CM_HallTelemetry`:
+
+- ADC sample примерно 20 Гц;
+- наружу snapshot ограничен примерно 4 Гц;
+- snapshot содержит raw/min/max, threshold, hysteresis, release boundary, release debounce, direction, magnet-detected, re-arm state, sample count и captured-at;
+- telemetry не создаёт winding RUN;
+- при переходе в физически активные состояния telemetry автоматически выключается.
+
+## CMP1 hardware-control protocol
+
+Все hardware-control кадры защищены CMP1 CRC.
+
+ESP32 → Arduino:
 
 ```text
-438f571dafb0e30471de1960a9a5142a4408bd4c
-22260155148d81db70ca00148b831721bab89397
-feat: add persistent Arduino hardware settings
-
-8387e5444db491d56069e7015985e34faf608023
-d7158087af030760783e2e71ae9bd1e6fc52d749
-feat: add safe Arduino hardware settings controller
-
-dda5e0d2700b05a837cd26007cfcc9a86e77b54c
-e314abb488274d802cd85af90f69af6831d100bd
-feat: support rising and falling Hall signals
-
-a95120a1fb29388202a81a4ac253f3c1364b573d
-feat: apply Hall signal direction from settings
-
-276f032a77bd110268ec97da189268f0e1b3f326
-01367522ee84039b35a7db2dfdbabca4e7d875a4
-feat: expose Hall rearm state for diagnostics
+CMP1|CFG_GET|HALL|C|<CRC>
+CMP1|CFG_SET|HALL|<threshold>|<hysteresis>|<debounce_ms>|RISING|C|<CRC>
+CMP1|CFG_SET|HALL|<threshold>|<hysteresis>|<debounce_ms>|FALLING|C|<CRC>
+CMP1|CFG_RESET|HALL|C|<CRC>
+CMP1|HALL_TELEM|START|C|<CRC>
+CMP1|HALL_TELEM|STOP|C|<CRC>
 ```
+
+Arduino → ESP32:
+
+```text
+CMP1|CFG_STATE|HALL|<threshold>|<hysteresis>|<debounce_ms>|<direction>|EEPROM|C|<CRC>
+CMP1|CFG_STATE|HALL|<threshold>|<hysteresis>|<debounce_ms>|<direction>|FACTORY|C|<CRC>
+CMP1|CFG_ACK|HALL|APPLIED|C|<CRC>
+CMP1|CFG_NACK|HALL|BUSY|C|<CRC>
+CMP1|CFG_NACK|HALL|INVALID|C|<CRC>
+CMP1|CFG_NACK|HALL|PERSISTENCE_FAILED|C|<CRC>
+CMP1|HALL_STATE|<raw>|<min>|<max>|<threshold>|<hysteresis>|<release>|<debounce>|<direction>|<magnet>|<rearm>|<samples>|<captured_ms>|C|<CRC>
+```
+
+Hardware-control parser/formatter отделён от winding JOB/EVT transport, при этом используется тот же физический UART и тот же CRC алгоритм.
 
 ## Composition/runtime integration
 
-`firmware/arduino/src/main.cpp` ещё не считается интегрированным с новым settings controller на момент этого checkpoint.
-Большой composition root изменять только после свежего полного fetch и с текущим blob SHA; не заменять файл по обрезанному содержимому.
-
-Следующая связка:
+`firmware/arduino/src/main.cpp` интегрирован с новым foundation:
 
 ```text
-HardwareSettingsController::begin at boot
-→ safe CFG read/write protocol
+boot
+→ HardwareSettingsController::begin
+→ EEPROM settings или factory fallback
+→ settings применяются к Hall driver
+→ safe CFG read/write/reset
 → bounded Hall telemetry
-→ ESP32 cache/API
-→ desktop/mobile Equipment UI
-→ manual calibration
-→ automatic calibration with physical START
+→ auto-stop telemetry при physical-active state
 ```
+
+Никакой hardware-control запрос не выполняет physical START и не включает SSR напрямую.
 
 ## Verification
 
-Временный one-shot verifier был создан как:
+Одноразовый verifier был переписан в verification-only режим и на текущем batch выполнил:
 
 ```text
-.github/workflows/hall-settings-phase0-verify.yml
-7272d902c7421df25a17120c979aa483f7b35f6c
+pio run -e uno
+pio run -e esp32
+node Tests/Web/check_web_assets.js
+node Tests/Web/check_release_contracts.js
+node Tests/Web/check_final_acceptance_contracts.js
 ```
 
-Его success-path пока фактически не подтверждён: workflow не self-delete, combined status не дал подтверждённого green результата, а Arduino composition root остался без интеграции.
-
-Поэтому для текущего Hall/settings code batch:
+Success-path завершился коммитом:
 
 ```text
-UNO BUILD: NOT YET CONFIRMED
-ESP32 BUILD: NOT YET CONFIRMED
-WEB CHECKS: NOT YET CONFIRMED FOR THIS BATCH
+1c34efac17f8dd41f65f874052e9c693b9c3b048
+chore: finalize verified Hall settings foundation
+```
+
+После полного успеха временные workflows `hall-settings-phase0-verify.yml` и старый `firmware-identity-finalize.yml` удалены.
+
+Текущий статус:
+
+```text
+UNO BUILD: PASSED
+ESP32 BUILD: PASSED
+WEB CHECKS: PASSED
 HARDWARE HALL TEST: PENDING
 ```
 
-Старые успешные build/checkpoint результаты не переносить автоматически на новый код.
+Build/check status относится именно к foundation до следующего ESP32 hardware-control/API изменения; после новых commits требуется новый verification pass.
 
-## Следующие изменения
-
-Без остановки продолжать:
+## Следующий активный блок
 
 ```text
-bounded Hall telemetry module
-→ safe settings/CAL protocol
-→ Arduino composition integration
-→ ESP32 cache + APIs
+ESP32 hardware-control receive/transmit state
+→ ESP32 cache/freshness/timeout
+→ safe HTTP APIs
 → desktop/mobile Equipment page
 → manual live calibration
 → automatic calibration requiring physical START
-→ build/tests/hardware regression
 ```
 
 После Hall/settings блока:

@@ -27,6 +27,7 @@ struct JobSnapshot
     uint32_t sessionId;
     JobLinkage linkage;
     RemoteJobType type;
+    uint16_t repeatTarget;
     uint8_t coilCount;
     uint16_t turns[MaxCoils];
     uint32_t createdUptimeMs;
@@ -54,6 +55,7 @@ public:
     bool exists(uint32_t sessionId) const;
 
     // Loads and validates immutable program and linkage data for recovery.
+    // Legacy schema-v1 snapshots without repeat_target are read as target 1.
     bool load(uint32_t sessionId, JobSnapshot& snapshot) const;
 
     // Verifies that the persisted immutable snapshot is structurally valid and
@@ -79,6 +81,10 @@ private:
     static bool findUnsigned(const String& input,
                              const char* key,
                              uint32_t& value);
+    static bool findOptionalUnsigned(const String& input,
+                                     const char* key,
+                                     bool& hasValue,
+                                     uint32_t& value);
     static bool findNullableUnsigned(const String& input,
                                      const char* key,
                                      bool& hasValue,

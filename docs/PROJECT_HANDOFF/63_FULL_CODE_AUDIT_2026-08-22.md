@@ -13,7 +13,7 @@ The audit was temporarily paused to finish the remaining Phase 9 work from the a
 docs/PROJECT_HANDOFF/64_PHASE9_SHARED_WEB_SHELL_AND_SEARCH_2026-08-22.md
 ```
 
-Current Phase 9 HEAD CI is still `NOT VERIFIED` until an exact Actions run with matching `head_sha` is inspected. This does not reopen Phase 9 implementation as active backlog.
+Current Phase 9/newer HEAD CI is still `NOT VERIFIED` until an exact Actions run with matching `head_sha` is inspected. This does not reopen Phase 9 implementation as active backlog.
 
 The active repo-level phase is again a full audit of the current `cmp-protocol-v1` codebase for defects, weak contracts, unsafe state transitions, persistence inconsistencies, resource risks, stale/dead implementation, and missing regression coverage.
 
@@ -158,24 +158,71 @@ CMP Protocol Tests for exact change/head — NOT VERIFIED here
 hardware remote JOB smoke — external gate
 ```
 
-### A-002 — P2 — production JOB parser accepts non-canonical tokens — CONFIRMED, OPEN
+### A-002 — P2 — production JOB parser accepted non-canonical tokens — FIXED, CI PENDING
 
-`Arduino/CM_UartEventTransport.cpp::parseRemoteJob()` currently uses permissive `strtoul(..., nullptr, 10)` for several numeric fields and maps any non-`STARTING` type token to `WORKING`.
+Before the fix, `Arduino/CM_UartEventTransport.cpp::parseRemoteJob()` used permissive `strtoul(..., nullptr, 10)` for `job_id`, `session_id`, coil count and turn values, while any non-`STARTING` type token became `WORKING`.
 
-Therefore a CRC-valid but syntactically malformed frame can be interpreted instead of rejected fail-closed, e.g. numeric tokens with trailing characters or an unknown winding type.
+A CRC-valid but malformed JOB could therefore be interpreted rather than rejected fail-closed.
 
-State-machine hardening from A-001 prevents zero/mismatched identity from overwriting active state, but the wire parser itself still requires strict canonical validation and regression coverage.
+Fix commits:
 
-**This is the current Phase A code target after Phase 9 closure.**
+```text
+baa028cf7bc72a5d7b0e523cc33013cb4050e677
+Reject non-canonical Arduino JOB frames
 
-Required fix direction:
+699116497c3614bc2a8fc621bc326d686d98f221
+Fix bounded canonical integer parsing
+```
 
-- strict full-token unsigned parsing;
-- overflow rejection;
-- reject empty/non-digit/trailing characters;
-- exact accepted winding type tokens only;
-- preserve explicit protocol compatibility where documented;
-- regression cases for malformed-but-CRC-valid JOB frames.
+Current wire rules:
+
+- unsigned decimal tokens are full-token digits only;
+- signs, whitespace, suffixes and leading-zero non-canonical forms are rejected;
+- per-field upper bounds and uint32 overflow are checked before assignment/narrowing;
+- remote `job_id` and `session_id` must be non-zero at the wire boundary;
+- repeat target, coil count and every turns token use the same bounded canonical parser;
+- only exact `STARTING` and `WORKING` type tokens are accepted;
+- CRC/capability handling and normal CMP1 JOB layout are unchanged.
+
+Compatibility check against current ESP32 sender:
+
+`CM_UartEventReceiver.cpp::writeJobFrame()` emits `%lu/%u`, exact `STARTING`/`WORKING`, `R%u` and `C`; therefore current normal ESP32 frames remain canonical under the stricter Arduino parser.
+
+Regression guard:
+
+```text
+583d9275519058029ff9477ffb1b2ec894ae9fa6
+Guard strict Arduino JOB parsing
+Tests/Protocol/check_arduino_job_parser_contracts.js
+
+7d4a5cadda6dd3971a182d9fb20fced48accfb01
+Run Arduino JOB parser audit in CI
+.github/workflows/cmp-protocol-tests.yml
+```
+
+Current verification:
+
+```text
+repo implementation: FIXED
+source regression guard: PRESENT
+current exact CMP Protocol Tests run: NOT VERIFIED
+current exact Arduino Uno Build: NOT VERIFIED
+```
+
+Do not promote this to CI-verified until exact matching workflow results are inspected.
+
+## Current targeted review — UART desync/recovery
+
+With A-002 fixed at repo level, continue immediately through current inbound/outbound UART correlation and persisted state:
+
+1. strict/canonical validation of ACK/NACK and JOB_CANCEL paths;
+2. JOB retry -> cancel handoff after possible lost JOB_ACK;
+3. `ALREADY_CLEAR` and physical `ALL_CLEAR` correlation;
+4. late ACK / late ALL_CLEAR after state transitions;
+5. ESP32 and Arduino reboot behavior;
+6. persisted ESP32 job-state transition consistency.
+
+Record new findings as A-003/B-* depending on ownership/severity; do not reimplement generic cancellation unless a concrete defect is proven.
 
 ## Execution rules
 
@@ -212,8 +259,8 @@ Current newer HEAD CI: NOT VERIFIED
 Phase A inventory / cross-cutting ownership: IN PROGRESS
 Arduino audit: IN PROGRESS
   A-001 FIXED / exact-current verification pending
-  A-002 CONFIRMED / OPEN / CURRENT CODE TARGET
-Targeted JOB/JOB_CANCEL/ALL_CLEAR desync audit: NEXT AFTER A-002
+  A-002 FIXED / CI PENDING
+Targeted JOB/JOB_CANCEL/ALL_CLEAR desync audit: IN PROGRESS / CURRENT TARGET
 ESP32 audit: PENDING
 Web audit: PENDING
 Tests/CI audit: PENDING

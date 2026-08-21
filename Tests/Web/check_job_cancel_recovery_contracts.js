@@ -13,10 +13,14 @@ function requireText(relative, source, text, description) {
 }
 
 const espTransportPath = 'firmware/esp32/src/CM_UartEventReceiver.cpp';
+const espMainPath = 'firmware/esp32/src/main.cpp';
+const remoteCancelStatePath = 'firmware/esp32/src/CM_JobStateRemoteCancel.cpp';
 const arduinoMainPath = 'firmware/arduino/src/main.cpp';
 const arduinoTransportPath = 'Arduino/CM_UartEventTransport.cpp';
 
 const espTransport = read(espTransportPath);
+const espMain = read(espMainPath);
+const remoteCancelState = read(remoteCancelStatePath);
 const arduinoMain = read(arduinoMainPath);
 const arduinoTransport = read(arduinoTransportPath);
 
@@ -45,6 +49,30 @@ for (const text of [
 ]) {
   requireText(espTransportPath, espTransport, text,
     'ESP32 ALL_CLEAR recovery contract missing: ' + text);
+}
+
+// A positive cancel acknowledgement must close persisted state only through the
+// dedicated no-run transition, then re-evaluate recovery before a new job can be
+// permitted. Immutable snapshot/history is intentionally not deleted here.
+for (const text of [
+  'void processJobCancel()',
+  '!jobStates.closeAfterRemoteCancel(sessionId, millis())',
+  'restoreLatestJobState();',
+  'if (!jobStateStoreReady || manualReviewRequired())',
+  'recoveryInfo.mayCreateNewJob = false;'
+]) {
+  requireText(espMainPath, espMain, text,
+    'ESP32 persisted cancel recovery contract missing: ' + text);
+}
+for (const text of [
+  'state.executionState == JobExecutionState::WaitingDelivery ||',
+  'state.executionState == JobExecutionState::WaitingPhysicalStart;',
+  'state.lastRunId != 0UL || state.completedRuns != 0U',
+  'state.deliveryState = JobDeliveryState::Cancelled;',
+  'state.executionState = JobExecutionState::ClosedAfterReview;'
+]) {
+  requireText(remoteCancelStatePath, remoteCancelState, text,
+    'persisted remote-cancel no-run safety contract missing: ' + text);
 }
 
 // Arduino remote cancel remains safe, exact and idempotent for a job that is
@@ -83,4 +111,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, and normal ESP32 cancellation correlation.');
+console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, and recovery re-evaluation.');

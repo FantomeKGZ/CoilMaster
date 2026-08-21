@@ -1,14 +1,15 @@
 # ESP32 build recovery marker
 
-Date: 2026-08-21
+Date: 2026-08-22
 
 This file is intentionally kept under `firmware/esp32/**` so a documentation-only recovery commit can trigger the existing `ESP32 Build` workflow without changing runtime firmware behavior.
 
-Current recovery baseline before this trigger:
+Current candidate being verified by this trigger:
 
 - source of truth: `cmp-protocol-v1`
-- `CMP Protocol Tests #2170`: GREEN on `2c00b2c8d57e4f4dd0806ac29be7f24893ebf2c2`
-- ESP32 runtime sources were not changed by the protocol-contract recovery commits after `a141f7d5fcf9216a178ca31dbefc6189638f8e22`
+- lifecycle hardening includes timeout manual-review isolation, stale terminal cancel no-op, immutable repeat-target journal guards, and snapshot/state repeat-target integrity checks
+- latest confirmed protocol result before this trigger: `CMP Protocol Tests #2210` GREEN on `ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133`
+- this marker changes documentation only; production firmware semantics are unchanged by this trigger commit
 - hardware acceptance is not implied by a CI build
 
-The resulting ESP32 workflow run is the authoritative compile check for the current recovery state.
+The resulting ESP32 workflow run is the authoritative compile check for the current lifecycle-hardening source tree.

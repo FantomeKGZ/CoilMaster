@@ -1,16 +1,31 @@
 # CoilMaster — AI maintenance start guide
 
-Purpose: let a new AI/coding agent understand where to make a change in minutes, without scanning the whole repository or relying on stale chat history.
+Purpose: let a new AI/coding agent understand the current project without scanning historical handoffs or reviving closed work.
 
 ## 1. Current status
 
-CoilMaster v1 is a stable **RELEASE READY** baseline. The authoritative release checkpoint is:
+Authoritative current recovery/status checkpoint:
 
 ```text
-docs/PROJECT_HANDOFF/38_COILMASTER_V1_RELEASE_READY_2026-08-16.md
+docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
 ```
 
-Closed hardware gates must not be repeated merely because documentation/tests change. Re-run only verification that is relevant to production code actually modified.
+Current verified production commit:
+
+```text
+e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
+```
+
+Verified on that exact commit:
+
+```text
+CMP Protocol Tests #2175 — GREEN
+ESP32 Build #1241 — GREEN
+```
+
+JOB cancel/recovery is implemented and closed at repo level. Do not treat checkpoint 39 or earlier chat history as an unfinished task unless a concrete regression is reported.
+
+Older checkpoints, including release checkpoint 38, are historical evidence for the code they verified. They are not the current active-work selector.
 
 ## 2. Source precedence
 
@@ -18,9 +33,11 @@ When information conflicts, use this order:
 
 1. current code in `cmp-protocol-v1`;
 2. actual build/test/hardware result;
-3. `docs/AI_AGENT/` navigation docs for locating the current implementation;
-4. release checkpoint `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md`;
-5. thematic docs and older handoff checkpoints.
+3. `docs/PROJECT_HANDOFF/00_READ_FIRST.md`;
+4. current checkpoint `61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md`;
+5. `docs/AI_AGENT/` navigation docs;
+6. thematic docs;
+7. older numbered handoff checkpoints.
 
 `main` is not an implementation source.
 
@@ -41,83 +58,64 @@ When information conflicts, use this order:
 └──────────────────────────────────────────────────────────────┘
 
 Production flow:
-client → motor → OPEN repair → costing → linked winding → exact spool
-→ immutable snapshot/spool selection → UART → physical START
-→ RUN_STARTED/RUN_COMPLETED → manual exact-run wire writeoff
-→ finalization preflight → CLOSED → reports → backup
+client -> motor -> OPEN repair -> costing -> linked winding
+-> immutable job snapshot/material selection -> UART
+-> physical START -> RUN_STARTED/RUN_COMPLETED
+-> manual exact-run material writeoff
+-> finalization -> CLOSED -> reports -> backup
 ```
 
 The ESP32 may prepare/deliver a job, but it does not physically start the machine and does not directly own SSR.
 
+For new KG-first material consumption, exact `source_session_id + source_run_id` provenance is mandatory. `spool_id` may be absent only in the approved unallocated/manual KG-first path; exact spool provenance remains mandatory whenever a spool is used.
+
 ## 4. Where to go next
 
-### Need to understand the whole project layout?
+### Need the project layout?
+Open `01_PROJECT_MAP.md`.
+
+### Know the task but not the files?
+Open `02_CHANGE_ROUTER.md`.
+
+### Adding a module/service/page/storage domain?
+Open `03_ADD_MODULE_PLAYBOOK.md`.
+
+### Need build/test/hardware routing?
+Open `04_VERIFICATION_MATRIX.md`.
+
+### Need active work?
 Open:
 
 ```text
-01_PROJECT_MAP.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-It maps hardware ownership, source trees, major modules, persistence and integration points.
-
-### Know what you want to change but not where?
-Open:
-
-```text
-02_CHANGE_ROUTER.md
-```
-
-It maps common tasks to the first files to inspect, coupled contracts and expected verification.
-
-### Adding a new module/service/page/storage domain?
-Open:
-
-```text
-03_ADD_MODULE_PLAYBOOK.md
-```
-
-It defines ownership, lifecycle, registration, persistence, API/UI and test checklist.
-
-### Need to know which build/test/hardware gates apply?
-Open:
-
-```text
-04_VERIFICATION_MATRIX.md
-```
+Do not use an old checkpoint's `next` section as active work.
 
 ## 5. Critical integration points
 
-### Arduino production entrypoint
+Arduino production entrypoint:
 
 ```text
 firmware/arduino/src/main.cpp
 ```
 
-Compiled together with:
+Compiled with `Core/*.cpp` and `Arduino/*.cpp`.
 
-```text
-Core/*.cpp
-Arduino/*.cpp
-```
-
-### ESP32 production entrypoint
+ESP32 production entrypoint:
 
 ```text
 firmware/esp32/src/main.cpp
 ```
 
-This owns many top-level production service objects and the main job lifecycle.
-
-### ESP32 web/static service composition
+ESP32 web/static composition:
 
 ```text
 firmware/esp32/src/CM_StaticSiteServer.h
 firmware/esp32/src/CM_StaticSiteServer.cpp
 ```
 
-Some HTTP modules are owned here rather than directly in `main.cpp`.
-
-### Production web assets
+Production web assets:
 
 ```text
 firmware/esp32/web/mobile/
@@ -125,9 +123,7 @@ firmware/esp32/web/desktop/
 firmware/esp32/web/shared/
 ```
 
-Substantial UI changes normally require mobile + desktop parity.
-
-### Production UART
+Production UART:
 
 ```text
 Arduino/CM_UartEventTransport.h/.cpp
@@ -135,51 +131,48 @@ firmware/esp32/src/CM_UartEventReceiver.h/.cpp
 Shared/CMP1Text/CM_Cmp1Crc.h
 ```
 
-Do not substitute `Shared/Protocol/`; it is an older binary protocol used by host tests.
+Do not substitute `Shared/Protocol/`; it is the older binary host-test protocol.
 
-## 6. Change procedure for an AI agent
-
-For every task:
+## 6. Change procedure
 
 1. Confirm branch `cmp-protocol-v1` and current HEAD.
-2. Use `02_CHANGE_ROUTER.md` to find the smallest relevant file set.
-3. Fetch every existing target file immediately before editing and keep its current blob SHA.
-4. Inspect owner + contract + persistence + UI/API + tests before changing behavior.
-5. Make the smallest coherent change.
-6. Add/update tests that protect the changed contract.
-7. Run the relevant verification from `04_VERIFICATION_MATRIX.md`.
-8. Update the AI map/router if a component was added/moved or ownership changed.
-9. Only update release/handoff state when the actual project/release state changed.
+2. Read `00_READ_FIRST.md` + checkpoint 61.
+3. Use `02_CHANGE_ROUTER.md` to find the smallest relevant file set.
+4. Fetch every existing target file immediately before editing and keep its current blob SHA.
+5. Inspect owner + contract + persistence + UI/API + tests before changing behavior.
+6. Make the smallest coherent change.
+7. Add/update tests that protect the changed contract.
+8. Run the relevant verification from `04_VERIFICATION_MATRIX.md`.
+9. Update AI map/router only if topology/ownership/contract location changed.
+10. Update current handoff state only when project status materially changed.
 
 ## 7. Safety stop signs
 
-If a proposed change would do any of the following, do not implement it as a convenience shortcut:
+Do not implement convenience shortcuts that create:
 
 - remote/automatic physical START;
+- automatic START between repeats;
 - direct ESP32/Web SSR control;
 - automatic resume after reboot;
-- automatic wire deduction from `RUN_COMPLETED`;
-- writeoff without exact spool/session/run provenance;
+- automatic material deduction from `RUN_COMPLETED`;
+- material writeoff without exact source session/run provenance;
+- loss of exact spool provenance when a spool is used;
 - automatic restore/apply after reboot;
 - bypass of persisted restore stale evidence;
 - automatic deletion of production data when storage fills.
 
-These are release safety contracts, not implementation details.
+These are safety contracts, not implementation details.
 
-## 8. Existing detailed project documentation
+## 8. Current active direction
 
-Important thematic references:
+Repo-level Protocol and ESP32 build recovery are closed.
+
+Active verification priority:
 
 ```text
-ARCHITECTURE.md
-docs/PROJECT_HANDOFF/02_ARCHITECTURE_AND_HARDWARE.md
-docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
-docs/PROJECT_HANDOFF/04_DATA_STORAGE_API_UI.md
-docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
-docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
-docs/MOTOR_IMPORT_FORMAT.md
-docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
-docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+1. Arduino Uno Build current HEAD
+2. targeted two-board UART/hardware smoke when hardware is available
+3. concrete current failures or explicitly requested product work
 ```
 
-Use them for detail after the AI map has narrowed the relevant subsystem.
+Do not restart closed archive/pagination/backup/KG_FIRST/JOB-cancel work based solely on historical documents.

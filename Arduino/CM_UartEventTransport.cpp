@@ -8,6 +8,27 @@
 
 namespace CM
 {
+namespace
+{
+bool parseCanonicalUnsigned(const char* text,
+                            uint32_t maximum,
+                            uint32_t& value)
+{
+    value = 0UL;
+    if (text == nullptr || *text == '\0') return false;
+    if (text[0] == '0' && text[1] != '\0') return false;
+
+    for (const char* cursor = text; *cursor != '\0'; ++cursor)
+    {
+        if (*cursor < '0' || *cursor > '9') return false;
+        const uint8_t digit = static_cast<uint8_t>(*cursor - '0');
+        if (value > (maximum - digit) / 10UL) return false;
+        value = value * 10UL + digit;
+    }
+    return true;
+}
+}
+
 UartEventTransport::UartEventTransport(uint8_t rxPin,
                                        uint8_t txPin,
                                        uint32_t baudRate)
@@ -628,10 +649,11 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job)
     job.clear();
     if (repeatOrCapability != nullptr && repeatOrCapability[0] == 'R')
     {
-        char* end = nullptr;
-        const unsigned long parsedRepeat = strtoul(repeatOrCapability + 1, &end, 10);
-        if (end == nullptr || *end != '\0' || parsedRepeat == 0UL ||
-            parsedRepeat > 0xFFFFUL)
+        uint32_t parsedRepeat = 0UL;
+        if (!parseCanonicalUnsigned(repeatOrCapability + 1,
+                                    0xFFFFUL,
+                                    parsedRepeat) ||
+            parsedRepeat == 0UL)
         {
             return false;
         }
@@ -649,26 +671,41 @@ bool UartEventTransport::parseRemoteJob(char* line, WindingJob& job)
         return false;
     }
 
-    job.jobId = strtoul(jobId, nullptr, 10);
-    job.sessionId = strtoul(sessionId, nullptr, 10);
-    job.type = strcmp(type, "STARTING") == 0 ? WindingType::Starting
-                                             : WindingType::Working;
-    job.source = JobSource::Esp32Web;
-    job.coilCount = static_cast<uint8_t>(strtoul(count, nullptr, 10));
-
-    if (job.jobId == 0UL || job.coilCount == 0U ||
-        job.coilCount > MaxCoilsPerJob)
+    uint32_t parsedJobId = 0UL;
+    uint32_t parsedSessionId = 0UL;
+    uint32_t parsedCoilCount = 0UL;
+    if (!parseCanonicalUnsigned(jobId, 0xFFFFFFFFUL, parsedJobId) ||
+        !parseCanonicalUnsigned(sessionId, 0xFFFFFFFFUL, parsedSessionId) ||
+        !parseCanonicalUnsigned(count, MaxCoilsPerJob, parsedCoilCount) ||
+        parsedJobId == 0UL || parsedSessionId == 0UL ||
+        parsedCoilCount == 0UL)
     {
         return false;
     }
+
+    if (strcmp(type, "STARTING") == 0)
+        job.type = WindingType::Starting;
+    else if (strcmp(type, "WORKING") == 0)
+        job.type = WindingType::Working;
+    else
+        return false;
+
+    job.jobId = parsedJobId;
+    job.sessionId = parsedSessionId;
+    job.source = JobSource::Esp32Web;
+    job.coilCount = static_cast<uint8_t>(parsedCoilCount);
 
     char* turnsSave = nullptr;
     char* token = strtok_r(turns, ",", &turnsSave);
     uint8_t index = 0U;
     while (token != nullptr && index < job.coilCount)
     {
-        const unsigned long value = strtoul(token, nullptr, 10);
-        if (value == 0UL || value > MaxTurnsPerCoil) return false;
+        uint32_t value = 0UL;
+        if (!parseCanonicalUnsigned(token, MaxTurnsPerCoil, value) ||
+            value == 0UL)
+        {
+            return false;
+        }
         job.targetTurns[index++] = static_cast<uint16_t>(value);
         token = strtok_r(nullptr, ",", &turnsSave);
     }

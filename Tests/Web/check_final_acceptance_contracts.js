@@ -22,6 +22,8 @@ const lookupPath = 'firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp';
 const warehousePath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const backupPath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
+const sessionAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
+const sessionAuditHeaderPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h';
 const staticSitePath = 'firmware/esp32/src/CM_StaticSiteServer.cpp';
 const storagePath = 'firmware/esp32/src/CM_StorageDiagnosticsWeb.cpp';
 const releaseAuditPath = 'Tests/Web/check_release_contracts.js';
@@ -33,6 +35,8 @@ const lookup = read(lookupPath);
 const warehouse = read(warehousePath);
 const writeOff = read(writeOffPath);
 const backup = read(backupPath);
+const sessionAudit = read(sessionAuditPath);
+const sessionAuditHeader = read(sessionAuditHeaderPath);
 const staticSite = read(staticSitePath);
 const storage = read(storagePath);
 const releaseAudit = read(releaseAuditPath);
@@ -98,6 +102,36 @@ requireText(backupPath, backup, 'WAITING_RESTORE_CLEANUP',
 requireText(backupPath, backup, 'auto_resume=0',
   'restore result no longer explicitly prohibits auto-resume');
 
+// Session persistence must perform one authoritative read-only canonical preflight
+// before any store begin() that could recover a temp file. It exposes failure type
+// and timing so backup manifest can consume this evidence without weakening safety.
+for (const text of [
+  'enum class WindingSessionPersistenceAuditFailure',
+  'TemporaryFilePresent',
+  'InvalidDirectoryEntry',
+  'directoryPreflightMeasured',
+  'directoryPreflightDurationMs'
+]) {
+  requireText(sessionAuditHeaderPath, sessionAuditHeader, text,
+    'session persistence preflight result contract missing: ' + text);
+}
+for (const text of [
+  'directoryContentsCanonical(storage, directories[index])',
+  'isCanonicalTempName(name)',
+  'const uint32_t preflightStartedAtMs = millis();',
+  'validatedMetrics.directoryPreflightMeasured = true;',
+  'JobSnapshotStore snapshots(storage);',
+  'JobSpoolSelectionStore selections(storage);'
+]) {
+  requireText(sessionAuditPath, sessionAudit, text,
+    'read-only session persistence preflight missing: ' + text);
+}
+const preflightPos = sessionAudit.indexOf('const uint32_t preflightStartedAtMs = millis();');
+const storeBeginPos = sessionAudit.indexOf('JobSnapshotStore snapshots(storage);');
+if (preflightPos < 0 || storeBeginPos < 0 || preflightPos >= storeBeginPos) {
+  failures.push(sessionAuditPath + ': session directory preflight must finish before mutable store begin paths');
+}
+
 // Manual exact-run wire deduction remains the only production path. Legacy
 // exact-spool writeoff is retained, while KG_FIRST may explicitly omit spool_id
 // without weakening source session/run provenance or enabling automatic deduction.
@@ -140,4 +174,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, backup inspection, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, backup inspection/session preflight, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');

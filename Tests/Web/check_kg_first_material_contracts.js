@@ -35,8 +35,6 @@ const controller = read(controllerPath);
 const desktop = read(desktopPath);
 const mobile = read(mobilePath);
 
-// kg-first quantities must be converted deterministically to integer grams;
-// floating-point parsing is forbidden in this accounting boundary.
 for (const text of ['static bool parseGrams', 'fractionalDigits > 3', 'parsed == 0UL', 'static String canonicalKg']) {
   requireText(quantityPath, quantity, text, 'exact kg quantity contract missing: ' + text);
 }
@@ -44,9 +42,6 @@ for (const forbidden of ['toFloat(', 'atof(', 'strtod(', 'double ', 'float ']) {
   if (quantity.includes(forbidden)) failures.push(quantityPath + ': floating-point quantity parsing is forbidden: ' + forbidden);
 }
 
-// The append-only movement journal must distinguish legacy exact-spool records
-// from kg-first records explicitly. Unallocated consumption may omit spool and
-// weight fields, but exact source session/run and conductor snapshot stay required.
 for (const text of [
   'WarehouseWriteOffMode::KgFirst',
   '"writeoff_mode"',
@@ -62,9 +57,6 @@ for (const text of [
   requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
 }
 
-// The production endpoint accepts explicit KG_FIRST requests. quantity_kg is
-// mandatory; spool_id is optional only in that mode, and unallocated writes
-// must carry a conductor snapshot.
 for (const text of [
   'm_server.arg("writeoff_mode") == "KG_FIRST"',
   'KgQuantity::parseGrams(m_server.arg("quantity_kg"), consumedGrams)',
@@ -79,7 +71,6 @@ for (const text of [
   requireText(writeOffPath, writeOff, text, 'active kg-first API guard missing: ' + text);
 }
 
-// Store-level safety remains authoritative even if HTTP validation changes.
 for (const text of [
   'bool WarehouseStore::confirmKgFirstWriteOff',
   'WindingSessionCompletionAudit::check',
@@ -93,8 +84,6 @@ for (const text of [
   requireText(storePath, store, text, 'kg-first store invariant missing: ' + text);
 }
 
-// Recovery must never invent an unallocated write-off after reboot. Stock-backed
-// transactions may be confirmed only when the durable spool state proves it.
 for (const text of [
   'WarehouseWriteOffStockMode::Unallocated',
   '"ABORTED"',
@@ -104,22 +93,29 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'kg-first recovery invariant missing: ' + text);
 }
 
-// Finalization remains anchored to completed runs. Legacy records retain exact
-// spool matching; explicit UNALLOCATED kg-first records may cover the exact run.
 requireText(coveragePath, coverage, '\\"event\\":\\"RUN_COMPLETED\\"',
   'finalization coverage no longer anchors to completed runs');
 for (const text of [
   'record.mode == WarehouseWriteOffMode::LegacySpool',
-  'record.spoolId != spoolId',
+  'record.spoolId != target.spoolId',
   'record.stockMode == WarehouseWriteOffStockMode::Unallocated',
-  'record.sourceRunId != runId'
+  'record.sourceRunId != target.runId'
 ]) {
   requireText(coveragePath, coverage, text, 'finalization kg-first/legacy coverage split missing: ' + text);
 }
+for (const text of [
+  'constexpr uint8_t CoverageBatchSize = 32U;',
+  'CoverageTarget targets[CoverageBatchSize];',
+  'confirmedWriteOffBatch(storage, repairId, targets, targetCount)',
+  'history.appendHistoryJson(0UL, repairId, cursor, CoverageBatchSize',
+  'for (uint8_t i = 0U; i < targetCount; ++i)'
+]) {
+  requireText(coveragePath, coverage, text, 'batched finalization coverage guard missing: ' + text);
+}
+if (coverage.includes('bool confirmedWriteOffExists(')) {
+  failures.push(coveragePath + ': per-run full movement scan implementation returned');
+}
 
-// Costing must consume the same validated dual-schema codec instead of repeating
-// the old mandatory-spool/weight parser. Otherwise an UNALLOCATED record would
-// pass warehouse integrity but make repair costing fail closed.
 for (const text of [
   '#include "CM_WarehouseWriteOffRecord.h"',
   'WarehouseMovementIntegrityAudit::check(m_storage)',
@@ -140,9 +136,6 @@ for (const forbidden of [
   if (costing.includes(forbidden)) failures.push(costingPath + ': legacy spool-only costing parser returned: ' + forbidden);
 }
 
-// Provenance uniqueness must remain authoritative but bounded in RAM/I/O. The
-// verifier checks up to 32 identities per full-file scan instead of reopening
-// and rescanning the movement journal once per confirmed record.
 for (const text of [
   'constexpr uint8_t BatchSize = 32U;',
   'ProvenanceEntry batch[BatchSize];',
@@ -157,8 +150,6 @@ if (movementAudit.includes('candidate.movementId == record.movementId')) {
   failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
 }
 
-// Desktop and mobile must expose kg as the operator-facing quantity. The shared
-// controller owns both variants and may attach only the immutable selected spool.
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
   for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'Без привязки к бухте', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
     requireText(relative, source, text, 'kg-first writeoff UI missing: ' + text);
@@ -183,7 +174,6 @@ for (const text of [
   requireText(controllerPath, controller, text, 'kg-first UI controller contract missing: ' + text);
 }
 
-// Do not allow this migration to accidentally introduce automatic deduction.
 for (const forbidden of ['automaticWriteOff(', 'autoWriteOff(', 'writeOffOnRunCompleted(']) {
   if (store.includes(forbidden) || writeOff.includes(forbidden) || recovery.includes(forbidden) || coverage.includes(forbidden) || controller.includes(forbidden)) {
     failures.push('kg-first migration introduced automatic write-off hook: ' + forbidden);
@@ -195,4 +185,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched provenance audit, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched provenance and finalization coverage scans, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

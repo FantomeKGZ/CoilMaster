@@ -54,6 +54,27 @@ bool isCanonicalTempName(const String& path)
     return parseCanonicalUint32(idText, sessionId) && sessionId != 0UL;
 }
 
+bool stateConsistentWithSnapshot(const JobRuntimeState& state,
+                                 const JobSnapshot& snapshot)
+{
+    if (snapshot.repeatTarget == 0U || state.completedRuns > snapshot.repeatTarget)
+        return false;
+
+    if (state.executionState == JobExecutionState::ProgramCompleted)
+        return state.completedRuns == snapshot.repeatTarget;
+
+    if (state.executionState == JobExecutionState::WaitingPhysicalStart ||
+        state.executionState == JobExecutionState::Running)
+    {
+        return state.completedRuns < snapshot.repeatTarget;
+    }
+
+    // WaitingDelivery is already constrained by JobStateStore parsing to zero
+    // run evidence. ClosedAfterReview/Fault may preserve partial or final run
+    // evidence, but they still must never exceed the immutable target.
+    return true;
+}
+
 WindingSessionPersistenceAuditFailure directoryContentsCanonical(fs::FS& storage,
                                                                   const char* path)
 {
@@ -257,7 +278,8 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             JobSnapshot snapshot;
             if (!states.load(sessionId, state) || state.sessionId != sessionId || state.jobId == 0UL ||
                 !hasSnapshots || !snapshots.load(sessionId, snapshot) ||
-                snapshot.jobId != state.jobId || snapshot.sessionId != state.sessionId)
+                snapshot.jobId != state.jobId || snapshot.sessionId != state.sessionId ||
+                !stateConsistentWithSnapshot(state, snapshot))
             {
                 directory.close();
                 return failAudit(metrics, validatedMetrics,

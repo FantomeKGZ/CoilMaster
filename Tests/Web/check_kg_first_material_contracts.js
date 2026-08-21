@@ -21,6 +21,7 @@ const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
 const costingPath = 'firmware/esp32/src/CM_RepairCosting.cpp';
 const movementAuditPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp';
 const movementAuditHeaderPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h';
+const warehousePersistencePath = 'firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.cpp';
 const completionAuditPath = 'firmware/esp32/src/CM_WindingSessionCompletionAudit.cpp';
 const transitionAuditPath = 'firmware/esp32/src/CM_WindingJournalTransitionAudit.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
@@ -35,6 +36,7 @@ const coverage = read(coveragePath);
 const costing = read(costingPath);
 const movementAudit = read(movementAuditPath);
 const movementAuditHeader = read(movementAuditHeaderPath);
+const warehousePersistence = read(warehousePersistencePath);
 const completionAudit = read(completionAuditPath);
 const transitionAudit = read(transitionAuditPath);
 const controller = read(controllerPath);
@@ -176,6 +178,34 @@ if (movementAudit.includes('candidate.movementId == record.movementId')) {
   failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
 }
 
+// Deep backup warehouse persistence must understand the same dual movement
+// schema as runtime. UNALLOCATED records have no spool reference; spool-backed
+// and legacy records keep exact-one spool provenance. References are resolved in
+// bounded batches instead of rescanning spool/repair ledgers for every line.
+for (const text of [
+  '#include "CM_WarehouseWriteOffRecord.h"',
+  'constexpr uint8_t ReferenceBatchSize = 32U;',
+  'WarehouseWriteOffRecordCodec::parse(line, record)',
+  'repairReferences[repairCount].id = record.repairId;',
+  'if (record.hasSpoolId)',
+  'spoolReferences[spoolCount].id = record.spoolId;',
+  'validateReferenceBatch(storage,',
+  'resolveReferences(storage, RepairsPath, "repair_id"',
+  'resolveReferences(storage, SpoolsPath, "spool_id"'
+]) {
+  requireText(warehousePersistencePath, warehousePersistence, text, 'kg-first backup warehouse audit guard missing: ' + text);
+}
+for (const forbidden of [
+  'bool idExists(',
+  '!findUnsigned(line, "spool_id", spoolId)',
+  '!idExists(storage, SpoolsPath',
+  '!idExists(storage, RepairsPath'
+]) {
+  if (warehousePersistence.includes(forbidden)) {
+    failures.push(warehousePersistencePath + ': legacy per-record/mandatory-spool backup audit returned: ' + forbidden);
+  }
+}
+
 for (const text of [
   'query.validateAll()',
   'WindingJournalTransitionAudit::validate(storage, sessionId, runId, completed)',
@@ -230,4 +260,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

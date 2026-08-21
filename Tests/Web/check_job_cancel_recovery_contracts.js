@@ -12,15 +12,23 @@ function requireText(relative, source, text, description) {
   if (!source.includes(text)) failures.push(relative + ': ' + description);
 }
 
+function requireAbsent(relative, source, text, description) {
+  if (source.includes(text)) failures.push(relative + ': ' + description);
+}
+
 const espTransportPath = 'firmware/esp32/src/CM_UartEventReceiver.cpp';
 const espMainPath = 'firmware/esp32/src/main.cpp';
 const remoteCancelStatePath = 'firmware/esp32/src/CM_JobStateRemoteCancel.cpp';
+const dismissStatePath = 'firmware/esp32/src/CM_JobStateDismiss.cpp';
+const recoveryPath = 'firmware/esp32/src/CM_JobRecovery.cpp';
 const arduinoMainPath = 'firmware/arduino/src/main.cpp';
 const arduinoTransportPath = 'Arduino/CM_UartEventTransport.cpp';
 
 const espTransport = read(espTransportPath);
 const espMain = read(espMainPath);
 const remoteCancelState = read(remoteCancelStatePath);
+const dismissState = read(dismissStatePath);
+const recovery = read(recoveryPath);
 const arduinoMain = read(arduinoMainPath);
 const arduinoTransport = read(arduinoTransportPath);
 
@@ -75,6 +83,19 @@ for (const text of [
     'persisted remote-cancel no-run safety contract missing: ' + text);
 }
 
+// TIMED_OUT is ambiguous because Arduino may have accepted the JOB while every
+// ACK was lost. Ordinary inactive dismissal must never treat timeout as terminal;
+// only the explicit manual-review closure path may resolve it.
+requireText(recoveryPath, recovery,
+  'if (state.deliveryState == JobDeliveryState::TimedOut)',
+  'JobRecovery must keep timed-out delivery in manual review');
+requireText(dismissStatePath, dismissState,
+  'state.deliveryState == JobDeliveryState::Rejected ||\n        state.deliveryState == JobDeliveryState::Cancelled;',
+  'ordinary dismiss must be limited to proven terminal delivery states');
+requireAbsent(dismissStatePath, dismissState,
+  'state.deliveryState == JobDeliveryState::TimedOut ||',
+  'TIMED_OUT must not be dismissible without manual review');
+
 // Arduino remote cancel remains safe, exact and idempotent for a job that is
 // already absent. ALREADY_CLEAR is success so retries/reboots cannot strand ESP32.
 for (const text of [
@@ -111,4 +132,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, and recovery re-evaluation.');
+console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, timeout manual-review isolation, and recovery re-evaluation.');

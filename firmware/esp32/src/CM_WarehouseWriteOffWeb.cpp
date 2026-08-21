@@ -148,7 +148,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     if (!m_store.ready())
     {
         m_server.send(503, "application/json; charset=utf-8",
-                      "{\"error\":\"warehouse_unavailable\"}");
+                      "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
         return;
     }
 
@@ -172,7 +172,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     if (!parseUnsignedArg(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"invalid_write_off_fields\"}");
+                      "{\"error\":\"invalid_write_off_fields\",\"write_performed\":false}");
         return;
     }
 
@@ -214,7 +214,7 @@ void WarehouseWeb::handleConfirmWriteOff()
              !parseUnsignedArg(m_server, "weight_after_g", 0UL, 999999UL, after))
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"invalid_write_off_fields\"}");
+                      "{\"error\":\"invalid_write_off_fields\",\"write_performed\":false}");
         return;
     }
 
@@ -223,16 +223,16 @@ void WarehouseWeb::handleConfirmWriteOff()
     {
         if (!m_store.ready())
             m_server.send(503, "application/json; charset=utf-8",
-                          "{\"error\":\"warehouse_unavailable\"}");
+                          "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
         else
             m_server.send(500, "application/json; charset=utf-8",
-                          "{\"error\":\"repair_reference_read_failed\"}");
+                          "{\"error\":\"repair_reference_read_failed\",\"write_performed\":false}");
         return;
     }
     if (!repairFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
-                      "{\"error\":\"repair_not_found\"}");
+                      "{\"error\":\"repair_not_found\",\"write_performed\":false}");
         return;
     }
 
@@ -257,7 +257,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     if (!kgFirst && after >= before)
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"weight_after_must_be_lower\"}");
+                      "{\"error\":\"weight_after_must_be_lower\",\"write_performed\":false}");
         return;
     }
 
@@ -367,7 +367,7 @@ void WarehouseWeb::handleConfirmWriteOff()
     if (timestamp.length() < 10U)
     {
         m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"timestamp_required\"}");
+                      "{\"error\":\"timestamp_required\",\"write_performed\":false}");
         return;
     }
 
@@ -413,7 +413,7 @@ void WarehouseWeb::handleConfirmWriteOff()
                               "{\"error\":\"warehouse_unavailable\",\"write_performed\":false}");
             else
                 m_server.send(409, "application/json; charset=utf-8",
-                              "{\"error\":\"write_off_not_committed\"}");
+                              "{\"error\":\"write_off_not_committed\",\"write_performed\":false}");
             return;
         }
     }

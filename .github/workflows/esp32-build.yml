@@ -33,4 +33,16 @@ jobs:
         run: pip install --upgrade platformio
 
       - name: Build ESP32 firmware
-        run: pio run -e esp32
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e esp32 2>&1 | tee esp32-build.log
+
+      - name: Upload ESP32 build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32-build-log
+          path: esp32-build.log
+          if-no-files-found: warn
+          retention-days: 7

@@ -20,6 +20,8 @@ const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
 const costingPath = 'firmware/esp32/src/CM_RepairCosting.cpp';
 const movementAuditPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp';
+const completionAuditPath = 'firmware/esp32/src/CM_WindingSessionCompletionAudit.cpp';
+const transitionAuditPath = 'firmware/esp32/src/CM_WindingJournalTransitionAudit.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
 const desktopPath = 'firmware/esp32/web/desktop/writeoff.html';
 const mobilePath = 'firmware/esp32/web/mobile/writeoff.html';
@@ -31,6 +33,8 @@ const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
 const costing = read(costingPath);
 const movementAudit = read(movementAuditPath);
+const completionAudit = read(completionAuditPath);
+const transitionAudit = read(transitionAuditPath);
 const controller = read(controllerPath);
 const desktop = read(desktopPath);
 const mobile = read(mobilePath);
@@ -150,6 +154,25 @@ if (movementAudit.includes('candidate.movementId == record.movementId')) {
   failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
 }
 
+for (const text of [
+  'query.validateAll()',
+  'WindingJournalTransitionAudit::validate(storage, sessionId, runId, completed)',
+  'return completed',
+]) {
+  requireText(completionAuditPath, completionAudit, text, 'two-pass completion audit guard missing: ' + text);
+}
+if (completionAudit.includes('appendHistoryJson(') || completionAudit.includes('pageContainsCompletedRun')) {
+  failures.push(completionAuditPath + ': redundant third winding-journal scan returned');
+}
+for (const text of [
+  'bool* completed',
+  'targetRunId == 0UL || runId == targetRunId',
+  'sessionId == targetSessionId',
+  'return validateInternal(storage, sessionId, runId, &completed);'
+]) {
+  requireText(transitionAuditPath, transitionAudit, text, 'transition completion evidence guard missing: ' + text);
+}
+
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
   for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'Без привязки к бухте', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
     requireText(relative, source, text, 'kg-first writeoff UI missing: ' + text);
@@ -185,4 +208,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched provenance and finalization coverage scans, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched warehouse scans, two-pass winding completion evidence, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

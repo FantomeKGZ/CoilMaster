@@ -7,11 +7,12 @@
 
 Этот checkpoint фиксирует новый production candidate после подтверждённого baseline `e35c4bfe`.
 
-Закрыты три связанных lifecycle edge-case:
+Закрыты четыре связанных lifecycle/integrity edge-case:
 
 1. `TIMED_OUT` больше нельзя закрыть обычным `dismissInactive()`;
 2. поздний duplicate `CANCELLED/ALL_CLEAR` после уже завершённого JOB не превращается в storage fault и не переписывает run evidence;
-3. immutable `repeat_target` проверяется до append winding event в NDJSON, поэтому завершённая программа не может быть повторно открыта новым `RUN_STARTED`, а `RUN_COMPLETED` выше planned target не попадает в журнал.
+3. immutable `repeat_target` проверяется до append winding event в NDJSON, поэтому завершённая программа не может быть повторно открыта новым `RUN_STARTED`, а `RUN_COMPLETED` выше planned target не попадает в журнал;
+4. deep session persistence audit cross-check-ит persisted `JobRuntimeState` против immutable snapshot repeat target, поэтому уже сохранённый state с impossible completed count fail-closed блокирует backup/integrity acceptance.
 
 ## Production commits
 
@@ -24,6 +25,9 @@ Ignore stale cancel after completed job
 
 9e68bd865257ad6f4f070304a38703f4d8aa5445
 Reject runs beyond immutable repeat target
+
+5fa6bcea812c33f0b2dc8e13baae476221839b3a
+Validate session state against repeat target
 ```
 
 Regression guards:
@@ -37,6 +41,9 @@ Guard stale cancel after completed job
 
 5188084d02f300425f7ce1508f15c968f3ac33f7
 Guard immutable repeat target journal boundary
+
+5e407f2e57946be31b7c740bd4b40fea363b0d59
+Guard repeat target session integrity
 ```
 
 ## Safety semantics
@@ -93,6 +100,20 @@ snapshot/state identity mismatch
 
 The guard uses the small session state file rather than adding another full NDJSON scan.
 
+### Deep session integrity
+
+`CM_WindingSessionPersistenceIntegrityAudit.cpp` now validates snapshot/state semantics in the same per-session pass already used for identity checks:
+
+```text
+state.completed_runs <= snapshot.repeat_target
+PROGRAM_COMPLETED -> completed_runs == repeat_target
+WAITING_PHYSICAL_START/RUNNING -> completed_runs < repeat_target
+```
+
+`ClosedAfterReview` and `Fault` may preserve partial/final evidence, but can never exceed the immutable target.
+
+This adds no `WindingJournalQuery` pass and does not reintroduce duplicate full journal scanning.
+
 ## Regression audit
 
 `Tests/Web/check_job_cancel_recovery_contracts.js` now protects:
@@ -105,6 +126,8 @@ The guard uses the small session state file rather than adding another full NDJS
 - stale terminal cancel no-op;
 - timeout manual-review isolation;
 - immutable repeat-target journal boundary;
+- snapshot/state repeat-target integrity;
+- no extra full journal scan for those guards;
 - recovery re-evaluation before new JOB creation.
 
 The audit is executed by `.github/workflows/cmp-protocol-tests.yml` with `if: always()` like the other contract audits.
@@ -119,7 +142,7 @@ CMP Protocol Tests #2175 — GREEN
 ESP32 Build #1241 — GREEN
 ```
 
-For this checkpoint's production candidate, exact workflow run IDs have not yet been inspected in this chat after the final changes above.
+For this checkpoint's current production candidate, exact workflow run IDs have not yet been inspected in this chat after the final changes above.
 
 Therefore current labels are:
 
@@ -138,7 +161,8 @@ Do not promote these to GREEN until actual runs are confirmed.
    - normal JOB -> physical START -> RUN_STARTED/RUN_COMPLETED;
    - lost/no ACK -> manual review semantics;
    - no-run cancel / ALREADY_CLEAR / ALL_CLEAR;
-   - final repeat cannot reopen automatically.
+   - final repeat cannot reopen automatically;
+   - backup/session audit remains stable on normal persisted sessions.
 3. After that, select further work only from a concrete defect, measured hotspot, or requested feature.
 
 Historical checkpoints remain evidence only and must not override `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.

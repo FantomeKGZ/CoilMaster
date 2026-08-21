@@ -1,6 +1,6 @@
 # CoilMaster — продолжение проекта
 
-Дата обновления: **2026-08-20**
+Дата обновления: **2026-08-21**
 
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: `cmp-protocol-v1`. `main` для исходников не использовать.
@@ -24,14 +24,17 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 Читать в таком порядке:
 
-1. `45_ARDUINO_ARCHIVE_REPEAT_PROVENANCE_AUDIT_2026-08-20.md` — authoritative planned `repeat_target` для `localStandalone` archive отсутствует; unknown metadata не угадывать и не подмешивать из Web JOB snapshot.
-2. `44_ARDUINO_ARCHIVE_UI_REDESIGN_2026-08-20.md` — compact desktop/mobile Arduino archive, multi-select, bulk create/link/combine, on-demand historical RUN counts.
-3. `43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md` — новая motor schema/UI, detail pages, exact motor repair history и regression contracts.
-4. `42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md` — семантика `program + repeat_target`, один RUN на полный program cycle и final JOB auto-clear после ACK/DUPLICATE.
-5. `41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md` — утверждённая automatic Hall calibration с обязательным physical START.
-6. `40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md` — общий roadmap: hardware settings, motors, Arduino archive, kg-first materials и common web UX.
-7. `39_JOB_CANCEL_RECOVERY_2026-08-18.md` — resilient JOB_CANCEL / ALL_CLEAR / reboot recovery.
-8. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый baseline, не доказательство текущего HEAD.
+1. `59_BACKUP_SESSION_PREFLIGHT_INTEGRATION_2026-08-21.md` — duplicate manifest session-directory preflight удалён; backup manifest теперь использует authoritative classified/measured `WindingSessionPersistenceIntegrityAudit`.
+2. `58_BACKUP_SESSION_PREFLIGHT_CONSOLIDATION_2026-08-21.md` — read-only classified session preflight перенесён внутрь authoritative persistence audit до любых store `begin()`.
+3. `57_KG_FIRST_BACKUP_WAREHOUSE_INTEGRITY_2026-08-21.md` — kg-first warehouse/material persistence включены в deep backup integrity.
+4. `56_COSTING_SINGLE_PASS_WAREHOUSE_AGGREGATION_2026-08-21.md` — warehouse costing aggregation переведена на bounded/single-pass путь.
+5. `55_WAREHOUSE_WINDING_BOUNDED_SCAN_HARDENING_2026-08-21.md` — bounded scan hardening для warehouse/winding provenance.
+6. `54_WRITEOFF_FAULT_HTTP_AND_PROVENANCE_SCALING_2026-08-21.md` — fault HTTP semantics и provenance scaling writeoff path.
+7. `53_WRITEOFF_HARDWARE_FAULT_INJECTION_2026-08-21.md` и `52_WRITE_OFF_FAULT_PATH_ACCEPTANCE_2026-08-21.md` — writeoff fault-path acceptance/hardware injection checkpoints.
+8. `51_NDJSON_GROWTH_OBSERVABILITY_2026-08-20.md` — observability растущих NDJSON без преждевременной миграции в БД.
+9. `50_KG_FIRST_COSTING_COMPATIBILITY_2026-08-20.md`, `49_KG_FIRST_WRITEOFF_UI_2026-08-20.md`, `48_KG_FIRST_BACKEND_ACTIVATION_2026-08-20.md`, `47_KG_FIRST_QUANTITY_FOUNDATION_2026-08-20.md`, `46_KG_FIRST_WAREHOUSE_STORAGE_API_AUDIT_2026-08-20.md` — реализованный kg-first material flow.
+10. `45_ARDUINO_ARCHIVE_REPEAT_PROVENANCE_AUDIT_2026-08-20.md` и checkpoints `39–44` — repeat/archive/motor/Hall/JOB cancel baseline.
+11. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый release/hardware baseline; не доказательство текущего HEAD.
 
 Текущий код `cmp-protocol-v1` имеет приоритет над историческими checkpoints.
 
@@ -67,9 +70,10 @@ Stable-release защита против repeated count при зависшем 
 - ESP32/Web не управляют SSR напрямую;
 - `RUN_COMPLETED` не выполняет automatic wire writeoff;
 - wire writeoff остаётся explicit/manual и сохраняет exact `source_session_id + source_run_id`;
-- legacy exact spool provenance не уничтожать при kg-first migration;
+- legacy exact spool provenance сохраняется;
 - linked immutable snapshot/history не удаляется operational cancellation;
 - backup restore operator-only, transactional, fail-closed;
+- deep backup validation остаётся read-only/fail-closed;
 - hardware settings менять только при доказанном safe idle;
 - Web может подготовить Hall calibration, но двигатель запускает только physical START;
 - calibration mode не создаёт production RUN events/history/writeoff;
@@ -102,8 +106,6 @@ coil_count        — отдельная физическая характери
 
 После final repeat Arduino очищает active remote JOB только после ACK/DUPLICATE exact final `RUN_COMPLETED`. History остаётся immutable.
 
-Repo-level regression `38/38 × 6` добавлен. Host StateMachine test ранее был фактически собран локально с `-Wall -Wextra -Wpedantic -Werror` и прошёл. Полные PlatformIO builds текущего HEAD всё ещё требуют отдельного подтверждения.
-
 ## Реализованная motor schema
 
 Предпочтительные поля:
@@ -127,30 +129,24 @@ repeat_target
 - отсутствующие legacy `phase/slot/repeat` metadata показываются `не указано`, не выводятся из догадок;
 - legacy `name` сохранён, но основной UI title — `manufacturer + model`.
 
-Desktop/mobile motor catalogs уже показывают phases/slots/repeats, поддерживают numeric search и раздельные действия `Подробнее` / `Выбрать для ремонта`.
+Desktop/mobile motor catalogs показывают phases/slots/repeats, поддерживают numeric search и раздельные действия `Подробнее` / `Выбрать для ремонта`.
 
-## Motor detail pages и repair history
-
-Добавлены:
+Motor detail pages:
 
 ```text
 /desktop/motor-details.html?motor_id=<id>
 /mobile/motor-details.html?motor_id=<id>
 ```
 
-Они показывают identity, winding program/repeats, electrical/mechanical/winding metadata, source/confidence/comment и bounded repair history.
-
-Backend endpoint:
+Backend repair-history endpoint:
 
 ```text
 GET /api/motors/repairs?motor_id=<id>&cursor=<optional>&limit=<optional>&status=<optional>
 ```
 
-Он фильтрует repair journal по exact motor_id на ESP32 и возвращает bounded pagination, поэтому browser не сканирует весь journal.
+## Arduino winding archive
 
-## Arduino winding archive redesign
-
-Первый UI этап реализован:
+Реализованы:
 
 ```text
 compact desktop table
@@ -167,70 +163,121 @@ Shared controller:
 firmware/esp32/web/shared/arduino-windings-archive.js
 ```
 
-Linkage не меняет immutable RUN events и exact `session_id + run_id`.
-
-Planned repeat provenance audit закрыт: autonomous archive относится к `localStandalone`, а Web JOB snapshot — к другому lifecycle. Текущий local UART/archive path не содержит authoritative planned `repeat_target`; local default `1` не является доказанным operator plan. Поэтому planned repeats показываются `—`, если explicit API metadata отсутствует. Старые RUN records не переписываются.
-
-Подробно: checkpoints `44` и `45`.
+Autonomous `localStandalone` archive не имеет authoritative planned `repeat_target`. Не подмешивать Web JOB snapshot, `completed_runs`, `coil_count` или local default `1`; unknown показывать как `—`. Старые immutable RUN records не переписывать.
 
 ## JOB cancel/recovery
 
-Ключевое поведение остаётся:
+Ключевое поведение:
 
 - no-run pending/accepted remote JOB может быть safely cancelled;
 - Arduino cancel идемпотентна для already-clear state;
 - physical fallback `D → * → # → D` отправляет `ALL_CLEAR`;
 - reboot recovery не создаёт auto-start, RUN_COMPLETED или wire writeoff.
 
-Подробно: checkpoint `39`.
+Подробно: checkpoint `39_JOB_CANCEL_RECOVERY_2026-08-18.md`.
+
+## Kg-first material consumption — реализованная линия
+
+Checkpoints `46–50` перевели новый material consumption на kg-first semantics:
+
+```text
+quantity_kg authoritative для нового consumption
+exact source_session_id + source_run_id сохраняются
+immutable material/conductor provenance сохраняется
+spool_id optional в KG_FIRST mode
+exact stock decrement выполняется только при наличии spool
+unallocated/manual consumption допустим без spool
+legacy exact-spool provenance остаётся совместимым
+RUN_COMPLETED никогда не списывает провод автоматически
+```
+
+Следующие checkpoints `52–57` усилили fault paths, bounded provenance scans, costing aggregation и backup integrity.
+
+## Backup session persistence — текущий завершённый recovery block
+
+`WindingSessionPersistenceIntegrityAudit` является authoritative owner read-only preflight для:
+
+```text
+/data/winding-jobs/snapshots
+/data/winding-jobs/state
+/data/winding-jobs/spool-selection
+```
+
+До любых store `begin()` он классифицирует:
+
+```text
+DirectoryUnavailable
+TemporaryFilePresent
+InvalidDirectoryEntry
+ContentInvalid
+None
+```
+
+Backup manifest больше не выполняет второй preflight scan. Он использует те же measured/classified результаты audit и сохраняет внешние reason strings:
+
+```text
+session_directory_unavailable
+session_temp_present
+session_directory_invalid
+winding_session_persistence_unstable_or_invalid
+```
+
+`scanSessionDirectory()` при этом остаётся для bounded `/api/backup/sessions` enumeration; его не удалять как якобы duplicate helper.
+
+Подробно: checkpoints `58` и `59`.
 
 ## Verification status текущего HEAD
 
-Не считать подтверждёнными без отдельного результата:
+На момент обновления `00_READ_FIRST.md` последние recovery commits:
+
+```text
+a141f7d5fcf9216a178ca31dbefc6189638f8e22  Consolidate backup session preflight
+9d8e3799422fcd6bd38c4a8e89fe6c1f45ad7289  Guard consolidated backup session preflight
+53052f2279631675c125c780ceed85379a433ec1  Checkpoint consolidated backup session preflight
+```
+
+GitHub workflow definitions существуют и `CMP Protocol Tests` настроен на `push` в `cmp-protocol-v1`, включая `Tests/Web/**` и `firmware/esp32/src/**`. Однако connector не показал status checks/workflow runs для recovery HEAD.
+
+Поэтому без нового фактического результата не считать подтверждёнными:
 
 ```text
 pio run -e uno
 pio run -e esp32
 CMP Protocol Tests current HEAD
 hardware UART E2E current HEAD
+GitHub CI current HEAD
 ```
 
-Старые release/build successes остаются историческим доказательством прежнего baseline, но не нового motor/repeat/Hall/archive блока.
+Старые release/build successes — только историческое доказательство прежнего baseline.
 
-## Следующий repo-level приоритет
+## Текущий recovery-приоритет
 
-Planned repeat provenance audit для autonomous archive закрыт без ложного schema extension.
+Kg-first material flow и backup session-preflight integration уже не являются next task.
 
-Текущий приоритет:
+Продолжать от текущего HEAD:
 
 ```text
-kg-first material consumption
-→ quantity_kg authoritative/required для нового consumption
-→ exact source_session_id + source_run_id
-→ immutable material/conductor snapshot
-→ spool_id optional для нового режима
-→ exact stock decrement only when spool exists
-→ unallocated/manual consumption when no spool
-→ legacy exact spool provenance сохраняется
-→ RUN_COMPLETED still never auto-writes off wire
+1. проверить оставшиеся build/test regressions после recent Uno Flash/SRAM recovery;
+2. проверить recent Uno footprint commits на functional regression, не откатывая safety semantics;
+3. затем focused source-level audit изменений после последнего hardware-accepted baseline;
+4. найденные подтверждённые ошибки исправлять сразу с current blob SHA + regression contract;
+5. hardware acceptance текущего HEAD проводить отдельно — старый hardware pass не переносить автоматически.
 ```
-
-После этого common web UX: FTP page shell, common app shell, Asia/Bishkek clock everywhere, unified status/toast/search/navigation.
 
 ## Короткий текст для нового чата
 
 ```text
-Продолжаем CoilMaster.
+Продолжаем CoilMaster recovery.
 Repo FantomeKGZ/CoilMaster, source-of-truth cmp-protocol-v1, main не использовать.
-Прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
-45_ARDUINO_ARCHIVE_REPEAT_PROVENANCE_AUDIT_2026-08-20.md,
-44_ARDUINO_ARCHIVE_UI_REDESIGN_2026-08-20.md,
-43_MOTOR_SCHEMA_AND_DETAILS_IMPLEMENTATION_2026-08-20.md,
-42_REPEAT_TARGET_JOB_LIFECYCLE_IMPLEMENTATION_2026-08-20.md,
-41_HALL_AUTOCALIBRATION_ACCEPTED_2026-08-20.md и
-40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md.
+Сначала прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
+59_BACKUP_SESSION_PREFLIGHT_INTEGRATION_2026-08-21.md,
+58_BACKUP_SESSION_PREFLIGHT_CONSOLIDATION_2026-08-21.md,
+57_KG_FIRST_BACKUP_WAREHOUSE_INTEGRITY_2026-08-21.md,
+56_COSTING_SINGLE_PASS_WAREHOUSE_AGGREGATION_2026-08-21.md,
+55_WAREHOUSE_WINDING_BOUNDED_SCAN_HARDENING_2026-08-21.md
+и checkpoints 46–54 по kg-first/writeoff recovery.
 Перед каждым изменением existing file fetch current blob SHA.
-Не заявляй build/CI green без фактической проверки.
-Текущий repo-level приоритет: kg-first material consumption,
-затем common web UX.
+Не заявляй build/CI green без фактического результата.
+Текущий приоритет: build/test recovery после recent Uno Flash/SRAM fixes,
+затем focused audit изменений после последнего hardware-accepted baseline.
 ```

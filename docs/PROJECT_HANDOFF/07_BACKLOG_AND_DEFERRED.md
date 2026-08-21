@@ -1,382 +1,175 @@
-# Будущие планы, backlog и отложенные функции
+# Backlog и отложенные функции
 
-## Правило этого списка
+Дата актуализации: **2026-08-21**  
+Ветка: `cmp-protocol-v1`
 
-Элементы ниже являются планами или отложенными функциями. Нельзя описывать их пользователю как уже реализованные, пока код, тесты и UI фактически не добавлены.
+Этот файл содержит только **реально отложенные/неутверждённые** направления. Он не является текущей очередью работ.
 
-Основной документ отложенного блока:
-
-```text
-docs/46_DEFERRED_UNASSIGNED_WINDINGS_AND_ANALOGUE_MOTORS.md
-```
-
-Коммит:
+Текущая работа выбирается из:
 
 ```text
-d790bae05532b71f1a828be47ec1f2cb12c1f622
+docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+explicit current user request
+concrete current failure
 ```
 
-## Приоритет A — завершение первой рабочей версии
+Старые пункты этого файла про job linkage, immutable snapshot, persisted recovery, autonomous archive, pagination, Wi-Fi/AP, FTP, backup, KG_FIRST, writeoff hardening и другие уже реализованные блоки удалены из backlog, чтобы новый AI не начинал их заново.
 
-### A1. Полная связь задания и запуска
+## Не считать backlog
 
-Нужно связать:
+Следующие области уже реализованы/закрыты на repo level и не должны автоматически превращаться в новую задачу:
 
-- `job_id`;
-- `session_id`;
-- `run_id`;
-- ремонт;
-- двигатель;
-- индекс катушки;
-- программу витков.
+- persistent linked job identity/state/snapshot;
+- repeat_target and one-physical-START-per-run semantics;
+- JOB cancel/recovery with `ALREADY_CLEAR` / safe `ALL_CLEAR`;
+- Arduino autonomous winding archive and assignment UI;
+- motor schema/import/detail/repair-history flows;
+- bounded/paged growing collection APIs;
+- network profile manager/fallback AP;
+- outgoing remote backup FTP and incoming `/web` recovery FTP foundation;
+- read-only backup/deep integrity and session preflight consolidation;
+- KG_FIRST material consumption/writeoff/costing compatibility;
+- writeoff fault-path hardening;
+- NDJSON growth observability;
+- Hall settings/calibration safety flow;
+- current Protocol/Web/safety CI recovery;
+- current ESP32 compile/link recovery.
 
-### A2. Снимок программы намотки
+Reopen only after a concrete regression or explicit feature extension request.
 
-Перед отправкой Arduino сохранять неизменяемый снимок программы, чтобы последующее редактирование двигателя не меняло историю выполненного ремонта.
+## Deferred A — motor winding engineering knowledge base
 
-### A3. Полный статус выполнения
+Potential future work:
 
-Предусмотреть состояния:
+- collect verified manufacturer winding data in reviewed batches;
+- distinguish factory/documented data from calculated/field-observed data;
+- maintain provenance/confidence/source metadata;
+- expand conductor/winding descriptors where needed for real comparison;
+- build analogue suggestions only with explainable matching criteria.
+
+Do not treat internet/community values as verified factory truth without provenance.
+
+## Deferred B — aluminium-to-copper winding calculator
+
+A future calculator may:
+
+- convert aluminium conductor cross-section to copper equivalent;
+- consider multiple parallel wires;
+- consider only wire actually available in warehouse;
+- evaluate slot-fill feasibility;
+- present several candidate combinations;
+- retain engineering assumptions/provenance;
+- save result as a draft/calculation rather than silently altering motor truth.
+
+Before production use, formulas and acceptance limits require explicit engineering validation.
+
+## Deferred C — richer winding/motor comparison
+
+Potential future schema may include:
 
 ```text
-CREATED
-QUEUED
-DELIVERING
-ACCEPTED
-REJECTED
-WAITING_PHYSICAL_START
-RUNNING
-COIL_COMPLETED
-PROGRAM_COMPLETED
-CANCELLED
-TIMED_OUT
-FAULT
+conductor material
+diameter / parallel count
+connection type
+coil pitch
+slot count
+pole count
+coil count
+turns/program
+winding type
+lead/terminal scheme
 ```
 
-Название состояний должно быть утверждено спецификацией до реализации.
-
-### A4. Восстановление после перезапуска
-
-Нужен безопасный механизм восстановления состояния ESP32 после:
-
-- потери питания;
-- перезапуска веб-сервера;
-- потери SD;
-- разрыва UART.
-
-Автоматически включать SSR или продолжать физическую намотку после перезапуска запрещено.
-
-### A5. Единый экран оператора
-
-Объединить:
-
-- выбранный ремонт;
-- двигатель;
-- программу;
-- выбранную катушку провода;
-- остаток;
-- статус Arduino;
-- текущую катушку;
-- целевые и фактические витки;
-- сообщения безопасности;
-- историю событий.
-
-### A6. Финальные испытания
-
-Нужны реальные испытания:
-
-- длительная намотка;
-- дребезг/шум датчика Холла;
-- потеря UART;
-- зависание одной платы;
-- заполнение SD;
-- повторные события;
-- отключение питания во время транзакций;
-- безопасный уровень SSR при загрузке.
-
-## Приоритет B — производственный учёт
-
-### B1. Привязка фактического провода к намотке
-
-Нужно сохранять:
-
-- spool_id;
-- CU/AL;
-- диаметр;
-- массу до и после;
-- стоимость;
-- связь с катушкой программы.
-
-### B2. Автоматическое предложение списания
-
-После завершения намотки система может подготовить предложение списания, но подтверждение и фактическая масса должны оставаться контролируемыми оператором до появления надёжного измерения.
-
-### B3. Полная карточка ремонта
-
-Карточка должна объединять:
-
-- клиента;
-- двигатель;
-- исходные данные;
-- программу;
-- фактическую намотку;
-- провод;
-- дополнительные материалы;
-- стоимость;
-- цену работы;
-- статус;
-- журнал изменений.
-
-### B4. Экспорт и резервное копирование
-
-Планы:
-
-- экспорт ремонта;
-- резервная копия SD;
-- восстановление;
-- проверка целостности NDJSON;
-- архивирование старых ремонтов;
-- перенос на новую карту памяти.
-
-## Приоритет C — неразобранные намотки
-
-Запланирован раздел:
+This is needed to distinguish:
 
 ```text
-Неразобранные намотки
+same coil program
+same winding
+similar motor
+confirmed analogue
 ```
 
-Возможности:
+Program similarity alone must never auto-merge motor identity/history.
 
-- сохранение записи без заранее выбранного двигателя;
-- временный статус `UNASSIGNED`;
-- последующая привязка к существующему двигателю;
-- создание нового двигателя из записи;
-- групповые операции;
-- предупреждение о совпадениях;
-- сохранение первичных измерений без потери данных.
+## Deferred D — multi-currency policy
 
-Эта функция пока не реализована.
+Do not add mixed-currency totals until policy exists for:
 
-## Приоритет D — группировка одинаковых программ
+- repair currency;
+- operation currency;
+- exchange-rate source/date;
+- historical rate snapshot;
+- display and aggregation rules;
+- fail-closed behavior for incompatible values.
 
-Будущая функция:
+Current historical costing must remain based on persisted operation snapshots.
 
-- находить идентичные программы катушек;
-- группировать их для просмотра;
-- сохранять отдельные ремонты и отдельные фактические запуски;
-- не сливать историю разных двигателей в одну запись;
-- показывать различия идентичности двигателя.
+## Deferred E — storage scaling beyond measured current strategy
 
-Совпадение программы не означает полное совпадение обмотки.
+Possible future options include segmentation/rotation/indexing/database migration, but only after device measurements show an actual bottleneck.
 
-## Приоритет E — полноценное сравнение обмоток
-
-Для точного сравнения нужно добавить модель проводников:
-
-- материал;
-- диаметр;
-- число параллельных проводников;
-- тип соединения;
-- шаг;
-- число пазов;
-- число полюсов;
-- число катушек;
-- витки каждой катушки;
-- тип обмотки;
-- схема выводов.
-
-Только после этого можно разделять:
+Do not implement:
 
 ```text
-одинаковая программа катушек
-полностью одинаковая обмотка
-похожий двигатель
-аналог двигателя
+arbitrary rotation thresholds
+destructive compaction
+optimistic persistent caches
+database migration
 ```
 
-## Приоритет F — аналоги двигателей
+without measured size/latency/RAM evidence and a safe migration/rollback design.
 
-Запланировано:
-
-- идентификатор семейства/группы аналогов;
-- ручное подтверждение аналога;
-- автоматические предложения;
-- объяснение причин совпадения;
-- счётчик подтверждённых ремонтов;
-- теги и заметки;
-- предупреждение, а не автоматическое объединение.
-
-Текущая функция `motors/similar` является только предварительным поиском похожих записей.
-
-## Приоритет G — пересчёт алюминия на медь
-
-Будущий веб-генератор должен:
-
-- принимать исходную алюминиевую обмотку;
-- пересчитывать эквивалент на медь;
-- учитывать доступные диаметры на складе;
-- учитывать число параллельных проводников;
-- показывать электрическое сечение;
-- учитывать коэффициент заполнения паза;
-- предлагать несколько реальных складских вариантов;
-- предупреждать о недопустимых комбинациях;
-- сохранять расчёт как черновик, а не автоматически менять карточку двигателя.
-
-Перед реализацией нужна отдельная утверждённая инженерная спецификация и проверка формул специалистом.
-
-## Приоритет H — денежная политика
-
-Текущие дополнительные материалы используют `KGS_ONLY`.
-
-До поддержки нескольких валют нужно решить:
-
-- валюта ремонта;
-- валюта каждой складской операции;
-- запрет суммирования разных валют;
-- курс и дата курса;
-- исторический снимок курса;
-- отображение смешанных данных.
-
-До этого нельзя молча суммировать разные валюты.
-
-## Приоритет I — производительность SD
-
-По мере роста данных потребуются:
-
-- ротация журналов;
-- индексы по repair_id, session_id и run_id;
-- ограничение размера ответов;
-- пагинация;
-- безопасная очистка временных файлов;
-- проверка повреждённых строк;
-- диагностика заполнения SD.
-
-## Приоритет J — сервисные функции
-
-Будущие возможности:
-
-- диагностика модулей из веб-интерфейса;
-- просмотр состояния RTC и SD;
-- безопасная выгрузка логов;
-- версия прошивки Arduino и ESP32;
-- контроль совместимости протокола;
-- OTA для ESP32;
-- резервное обновление;
-- режим обслуживания без возможности включения SSR.
-
-## Приоритет K — Wi-Fi manager, fallback AP и FTP
-
-Подробный план:
+Current reference:
 
 ```text
-docs/82_WIFI_MANAGER_AND_FTP_CONFIGURATION.md
+docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 ```
 
-### K1. Несколько сохранённых Wi-Fi сетей
+## Deferred F — update/maintenance enhancements
 
-ESP32 должна поддерживать:
+Potential later work:
 
-- несколько сохранённых сетей;
-- SSID и защищённый пароль;
-- приоритет подключения;
-- включение и отключение каждой записи;
-- редактирование и удаление;
-- скрытые сети;
-- DHCP и настраиваемый статический IP;
-- ограниченное время попытки подключения;
-- автоматическое переключение на следующую доступную сеть;
-- восстановление подключения после обрыва;
-- сохранение настроек после перезапуска.
+- explicit firmware compatibility/version UI;
+- carefully designed ESP32 OTA/update flow;
+- safer packaged `/web` update workflow;
+- maintenance export/log tooling;
+- additional non-destructive module diagnostics.
 
-Пароли нельзя возвращать через API или показывать в интерфейсе открытым текстом.
+Any firmware update feature must preserve recovery path and must never create remote physical START/SSR authority.
 
-### K2. Локальная точка доступа для настройки
+## Deferred G — additional hardware modules
 
-Если сети не заданы, конфигурация повреждена или ни одна сохранённая сеть недоступна, ESP32 должна запустить локальную точку доступа CoilMaster.
-
-Через неё должны быть доступны:
-
-- основной служебный экран;
-- сканирование сетей;
-- добавление и изменение Wi-Fi;
-- проверка подключения;
-- просмотр IP и состояния;
-- мобильная и ПК-страницы настройки.
-
-Отсутствие внешней Wi-Fi сети не должно мешать работе Arduino и не должно влиять на безопасное состояние SSR.
-
-### K3. Отдельные страницы Wi-Fi
-
-Создать:
+Any new ESP32/Arduino module is a separate integration project. Use:
 
 ```text
-firmware/esp32/web/mobile/settings-wifi.html
-firmware/esp32/web/desktop/settings-wifi.html
+docs/AI_AGENT/03_ADD_MODULE_PLAYBOOK.md
+docs/HARDWARE_REFERENCE/
 ```
 
-Обе страницы должны иметь одинаковые функции, но подходящий для устройства интерфейс.
+Before integration define power, logic voltage, pins/bus, ownership, initialization failure semantics, diagnostics and targeted hardware verification.
 
-### K4. FTP-доступ к microSD
+## Deferred H — broader destructive fault campaign
 
-Добавить отключаемый FTP-сервер для обслуживания карты памяти:
+Destructive tests such as intentional filesystem corruption or power interruption may be useful, but only on disposable media/filesystem images.
 
-- загрузка сайта и справочника;
-- выгрузка журналов и резервных копий;
-- работа с экспортами и пакетами обновления;
-- настраиваемые логин, пароль, порт и корневая папка;
-- режим только чтение;
-- ограничение доступных каталогов;
-- таймаут и ограничение клиентов;
-- журналирование входов и файловых операций.
+Never perform destructive fault injection on the working production microSD.
 
-FTP не может управлять Arduino, SSR или физическим запуском.
+## Safety boundaries for all future work
 
-Во время активной намотки запись в критические журналы, pending-файлы, снимки заданий и другие транзакционные данные должна блокироваться. Анонимный доступ и выдача пароля через API запрещены.
+Never weaken:
 
-Так как обычный FTP не шифрует пароль и данные, доступ должен быть ограничен доверенной локальной сетью либо позже заменён безопасным протоколом после отдельного решения.
+- physical START only;
+- no automatic repeat START;
+- Arduino owns SSR;
+- no auto-resume after reboot;
+- RUN_COMPLETED does not auto-writeoff;
+- exact source session/run provenance for manual consumption;
+- exact spool provenance whenever a spool is used;
+- operator-only fail-closed restore;
+- no automatic production-data deletion.
 
-### K5. Отдельные страницы FTP
+## How to promote a deferred item
 
-Создать:
-
-```text
-firmware/esp32/web/mobile/settings-ftp.html
-firmware/esp32/web/desktop/settings-ftp.html
-```
-
-Страницы должны позволять включать и выключать FTP, изменять учётные данные, задавать область доступа, режим чтения, порт и видеть текущее состояние.
-
-### K6. Проверка и восстановление
-
-Обязательно проверить:
-
-- первый запуск без сетей;
-- несколько сетей с приоритетами;
-- неверный пароль;
-- недоступность всех сетей;
-- повреждение файла конфигурации;
-- потерю питания при сохранении;
-- запуск fallback AP;
-- неверный FTP-пароль;
-- попытку выхода за разрешённый каталог;
-- запись во время намотки;
-- удаление SD во время передачи;
-- восстановление после перезапуска без раскрытия паролей.
-
-Статус всего блока K: `PLANNED`, не реализовано.
-
-## Запрещённые сокращения пути
-
-Нельзя:
-
-- считать UNKNOWN медью;
-- включать SSR через веб-запрос;
-- автоматически объединять двигатели по одной программе;
-- пересчитывать старую стоимость по новой цене;
-- считать доставленное задание выполненным;
-- считать `RUN_COMPLETED` достаточной полной записью ремонта без связи с job/repair;
-- внедрять автоматическое продолжение после перезапуска без отдельной модели безопасности;
-- хранить или возвращать Wi-Fi/FTP пароли открытым текстом;
-- разрешать анонимный FTP;
-- позволять FTP изменять активные транзакционные файлы во время намотки.
+A deferred item becomes active only when the user explicitly requests it or current evidence makes it necessary. Then move the concrete next action into `06_ACTIVE_WORK_AND_NEXT_STEPS.md`; do not use this backlog directly as an execution queue.

@@ -73,6 +73,24 @@ for (const text of [
   requireText(writeoffPath, writeoff, text, 'write-off HTTP fault guard missing: ' + text);
 }
 
+// Every JSON error emitted from the POST handler must explicitly state that no
+// write was performed. GET history errors are outside this contract.
+const postStart = writeoff.indexOf('void WarehouseWeb::handleConfirmWriteOff()');
+if (postStart < 0) {
+  failures.push(writeoffPath + ': POST handler not found');
+} else {
+  const postSource = writeoff.slice(postStart);
+  const errorResponses = [...postSource.matchAll(/"\{\\"error\\":\\"[^\n]+?\}"/g)];
+  if (!errorResponses.length) {
+    failures.push(writeoffPath + ': no POST JSON error responses found');
+  }
+  for (const match of errorResponses) {
+    if (!match[0].includes('write_performed\\\":false')) {
+      failures.push(writeoffPath + ': POST failure missing write_performed:false: ' + match[0]);
+    }
+  }
+}
+
 // Store-level duplicate/completion protection must remain authoritative even if
 // a future caller bypasses the web handler.
 for (const text of [
@@ -117,4 +135,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: fail-closed storage/repair/run guards, exact-run duplicate protection, deterministic reboot recovery, and no automatic deduction.');
+console.log('Write-off fault contracts OK: explicit write_performed:false failures, fail-closed storage/repair/run guards, exact-run duplicate protection, deterministic reboot recovery, and no automatic deduction.');

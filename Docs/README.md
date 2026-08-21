@@ -1,45 +1,33 @@
-# CoilMaster OS
+# CoilMaster legacy `Docs/` tree
 
-## Версия
+This capitalized `Docs/` directory contains early architecture/protocol/development documents from the foundation phase.
 
-Release: 0.1.0
+It is **not** the current project-status or active-work source.
 
-Build: 002
+For current work use:
 
-Status: Foundation Development
+```text
+/AGENTS.md
+/docs/PROJECT_HANDOFF/00_READ_FIRST.md
+/docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+/docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+/docs/AI_AGENT/
+```
 
----
+Important distinction:
 
-## Описание
+```text
+Docs/CMP_Protocol_v1.md and Docs/Protocol/*
+```
 
-CoilMaster OS — программная платформа для станка намотки электродвигателей.
+may describe early protocol work. Production ESP32<->Arduino communication currently uses text `CMP1|...` implemented by:
 
-Проект построен на двух контроллерах:
+```text
+Arduino/CM_UartEventTransport.*
+firmware/esp32/src/CM_UartEventReceiver.*
+Shared/CMP1Text/CM_Cmp1Crc.h
+```
 
-- Arduino Uno R3
-- ESP32 DevKit V1
+`Shared/Protocol/` / older binary CMP material is host-test/legacy context, not a drop-in production wire implementation.
 
-Arduino отвечает за управление оборудованием.
-
-ESP32 отвечает за сеть, Web Interface, SD Card, Database и дополнительные сервисы.
-
----
-
-## Архитектура
-
-Core
-
-Hardware
-
-Services
-
-Network
-
-Applications
-
----
-
-## Статус
-
-В активной разработке.
-В активной разработке.
+Do not resume a task from this legacy tree merely because it is labelled unfinished or foundation development.

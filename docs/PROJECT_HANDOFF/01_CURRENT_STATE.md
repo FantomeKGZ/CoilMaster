@@ -1,861 +1,156 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-16**  
-Ветка: **`cmp-protocol-v1`**  
-Статус: **основной production workflow собран; Arduino local path реально проверен; ESP32 clean build подтверждён; продолжается backup/E2E доводка**
+Дата обновления: **2026-08-21**  
+Ветка: **`cmp-protocol-v1`**
+
+Этот файл описывает только **текущее** состояние. Исторические детали находятся в numbered checkpoints и не являются очередью активных работ.
 
 ## Source of truth
 
-Единственный источник кода — `cmp-protocol-v1`. `main` не использовать как источник реализации.
+Единственный источник реализации — `cmp-protocol-v1`. `main` не использовать как источник кода.
 
-Перед изменением существующего файла всегда заново fetch текущую версию из `cmp-protocol-v1` и использовать актуальный blob SHA.
+Перед изменением existing file fetch текущего содержимого и blob SHA. Не объявлять build/CI/hardware success без фактического результата.
+
+## Current verified repo baseline
+
+Production commit:
+
+```text
+e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
+Fix duplicate ESP32 job lifecycle definitions
+```
+
+Verified GitHub Actions на exact commit:
+
+```text
+CMP Protocol Tests #2175 — GREEN
+ESP32 Build #1241 — GREEN
+```
+
+Последняя ESP32 build regression была linker duplicate-definition в job lifecycle и исправлена удалением obsolete `CM_JobStateStoreLifecycle.cpp`. Authoritative implementations находятся в `CM_JobStateRemoteCancel.cpp` и `CM_JobStateDismiss.cpp`.
+
+## Architectural ownership
+
+Arduino Uno:
+
+- physical START;
+- SSR;
+- Hall turn counting;
+- keypad/LCD/buzzer;
+- realtime winding state machine;
+- accepted remote job execution;
+- RUN_STARTED/RUN_COMPLETED generation.
+
+ESP32:
+
+- Wi-Fi/AP/HTTP/FTP;
+- microSD/RTC;
+- workshop registry;
+- winding job preparation/persistence;
+- warehouse/materials/costing;
+- winding journal/archive;
+- backup/restore;
+- mobile/desktop UI.
+
+Production cross-board protocol: text `CMP1|...` over SoftwareSerial/UART link. `Shared/Protocol/` is older binary host-test code, not production wire protocol.
 
 ## Safety boundary
 
-CoilMaster объединяет Arduino Uno и ESP32:
+- physical START только local/physical;
+- no automatic START between repeats;
+- no auto-resume after reboot;
+- ESP32/Web never drive SSR directly;
+- `RUN_COMPLETED` never auto-writes off material;
+- manual writeoff requires exact `source_session_id + source_run_id`;
+- `spool_id` optional only for approved KG_FIRST unallocated/manual consumption;
+- exact spool provenance remains mandatory whenever a spool is actually used;
+- backup restore operator-only, transactional, fail-closed;
+- hardware settings and Hall calibration safe-idle gated.
 
-- Arduino Uno — real-time winding, SSR, Hall, физический START, keypad/LCD/buzzer;
-- ESP32 — WEB, microSD, задания, workshop registry, warehouse/materials, costing, reports, autonomous archive и backup;
-- UART — job delivery и winding events.
-
-Safety invariants:
-
-- ESP32/Web не управляют SSR напрямую;
-- automatic physical START отсутствует;
-- после reboot нет auto-resume;
-- `RUN_COMPLETED` не выполняет automatic wire writeoff;
-- wire writeoff остаётся ручным и связан с exact `spool_id + source_session_id + source_run_id`.
-
-## Основной production flow
+## Current production flow
 
 ```text
-client
-→ motor + authoritative coil_program
-→ OPEN repair
-→ costing
-→ linked winding
-→ exact ACTIVE spool_id
-→ immutable job snapshot + immutable spool selection
-→ UART delivery
-→ JOB_ACK ACCEPTED
-→ physical START
-→ RUN_STARTED / RUN_COMPLETED
-→ manual exact-run wire writeoff
-→ materials / pricing
-→ read-only finalization preflight
-→ CLOSED
-→ reports/archive
-→ read-only backup
+client -> motor -> OPEN repair -> costing -> linked winding
+-> immutable job snapshot/material selection
+-> UART delivery -> physical START
+-> RUN_STARTED / RUN_COMPLETED
+-> manual exact-run material writeoff
+-> costing/finalization -> CLOSED -> reports -> backup
 ```
 
-## Подтверждённый Arduino hardware checkpoint
+A repeat target is one JOB containing multiple physical RUNs. Every RUN requires a new physical START.
 
-После SRAM-оптимизации Arduino Uno больше не находится в reset-loop.
+## JOB cancel / recovery
 
-Подтверждённый runtime:
+Implemented and repo-level CLOSED:
+
+- no-run remote JOB cancel;
+- Arduino idempotent `ALREADY_CLEAR` response when remote job is absent;
+- physical fallback `D -> * -> # -> D`;
+- fallback emits `ALL_CLEAR`, never `RUN_COMPLETED`;
+- active physical run prevents unsafe clear;
+- reboot never auto-starts and never fabricates run completion/writeoff;
+- historical/immutable run evidence is not erased by operational cancellation.
+
+Do not reopen this area without a concrete observed regression.
+
+## Material/writeoff model
+
+Current new-consumption model is KG_FIRST:
 
 ```text
-CM_BOOT stage=READY free_sram=357
-CM_ALIVE ... free_sram=366
+quantity_kg authoritative
+exact source_session_id + source_run_id provenance mandatory
+spool optional only for unallocated/manual KG_FIRST path
+exact spool decrement only with explicit spool
+legacy exact-spool records remain supported
 ```
 
-Пользователь реально проверил:
+Wire/material writeoff remains explicit operator action after a completed run.
+
+## Persistence and integrity
+
+Implemented persisted domains include:
+
+- clients/motors/repairs/status;
+- winding job allocator/snapshots/state/spool selection;
+- winding event journal;
+- warehouse/spools/movements/pricing;
+- materials usage/adjustments;
+- autonomous Arduino winding archive;
+- conductor settings;
+- backup/restore metadata.
+
+Backup deep validation is read-only and fail-closed. Session persistence preflight is owned by `WindingSessionPersistenceIntegrityAudit`; duplicate full session-directory preflight in backup export was removed.
+
+## UI/API state
+
+Desktop and mobile interfaces cover the implemented workshop, motor/import, repairs, linked winding, Arduino archive, materials/warehouse, costing, reports, settings, backup/network and diagnostics flows. Growing collections use bounded/paged APIs where implemented; old checkpoints describing their migration are historical, not active work.
+
+## Verification still separate
+
+The following are **not implied** by current green Protocol + ESP32 workflows:
 
 ```text
-создание программы на Arduino
-→ подтверждение keypad
-→ physical START
-→ выполнение намотки
-→ LOCAL_EVT
-→ доставка на ESP32
+Arduino Uno Build current HEAD
+two-board UART hardware smoke current HEAD
+full hardware acceptance current HEAD
 ```
 
-Постоянный buzzer tone был аппаратной ошибкой подключения: buzzer был на D12 (SSR) вместо D11. После переноса проблема устранена.
+Historical real-device checks remain valid evidence for the older code scope they tested, but must not be silently promoted to a newer modified production scope.
 
-Pin-map:
+## Current active direction
+
+1. verify current Arduino Uno Build;
+2. perform targeted current-head ESP32<->Arduino UART/hardware smoke when hardware is available;
+3. fix only concrete current failures;
+4. use measured data for performance/storage changes;
+5. otherwise continue with the user's current requested product work.
+
+Do **not** restart old archive/pagination/backup/KG_FIRST/JOB-cancel tasks merely because historical checkpoints contain old `next` sections.
+
+Current authoritative recovery checkpoint:
 
 ```text
-D11 = Buzzer
-D12 = SSR
-A0  = Hall
-A1  = Arduino TX → ESP32 RX
-A2  = Arduino RX ← ESP32 TX
+docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
 ```
-
-## Подтверждённый ESP32 build checkpoint
-
-Clean local PlatformIO build текущего ESP32 firmware подтверждён пользователем 2026-08-12:
-
-```text
-RAM:   14.4% (used 47320 bytes from 327680 bytes)
-Flash: 86.7% (used 1136229 bytes from 1310720 bytes)
-SUCCESS Took 31.04 seconds
-```
-
-Это подтверждает compile/link текущего ESP32 кода, включая UART hardening, autonomous archive integrity, backup integration и server-side UI switch footer. Это не заменяет hardware/runtime E2E и не является GitHub CI result.
-
-## UART protocol
-
-Обычный web-linked event:
-
-```text
-CMP1|EVT|RUN_STARTED|session|run|0|CRC
-CMP1|EVT|RUN_COMPLETED|session|run|completed|CRC
-```
-
-Standalone Arduino event:
-
-```text
-CMP1|LOCAL_EVT|RUN_STARTED|session|run|0|WORKING|coil_count|turns|CRC
-CMP1|LOCAL_EVT|RUN_COMPLETED|session|run|completed|WORKING|coil_count|turns|CRC
-```
-
-`WORKING` может быть `STARTING`.
-
-ESP32 parser fail-closed требует:
-
-```text
-RUN_STARTED   -> completed_runs == 0
-RUN_COMPLETED -> completed_runs > 0
-```
-
-Никакой event сам по себе не запускает physical START и не списывает провод.
-
-## Автономные намотки Arduino
-
-Отдельный workflow для задач, созданных и выполненных непосредственно на Arduino:
-
-```text
-Arduino local keypad
-→ physical START
-→ LOCAL_EVT
-→ ESP32 autonomous archive
-→ completed/incomplete status
-→ поиск программы ±20%
-→ existing/similar motor
-→ ручная assignment completed task → motor
-```
-
-Persistent files:
-
-```text
-/data/autonomous-windings/events.ndjson
-/data/autonomous-windings/assignments.ndjson
-```
-
-Event сохраняет:
-
-- exact `session_id/run_id`;
-- `RUN_STARTED` или `RUN_COMPLETED`;
-- `WORKING/STARTING`;
-- coil count;
-- canonical program;
-- completed runs;
-- `start_observed`;
-- receive uptime.
-
-Incomplete task можно искать и просматривать, но нельзя назначить как completed evidence.
-
-Если ESP32 пропустила START, но Arduino позднее replay-ит persisted completion, запись сохраняется с `start_observed=0` и UI показывает предупреждение.
-
-Assignment log append-only. Completed autonomous tasks можно группировать на одном motor с ролями `WORKING`, `STARTING`, `AUXILIARY`. Исходные Arduino events не переписываются.
-
-## Намотка и persisted linked state
-
-Реализованы:
-
-- persistent `job_id/session_id` allocator;
-- immutable job snapshot;
-- immutable exact spool selection;
-- persisted runtime state;
-- recovery/manual-review flow;
-- strict repair/motor linkage;
-- authoritative `coil_program` parser;
-- winding journal schema 2;
-- semantic `RUN_STARTED → RUN_COMPLETED` audit;
-- exact-run provenance для ручного wire writeoff.
-
-Session persistence:
-
-```text
-/data/winding-jobs/id-state.txt
-/data/winding-jobs/id-state.bak
-/data/winding-jobs/snapshots/session-<id>.json
-/data/winding-jobs/spool-selection/session-<id>.json
-/data/winding-jobs/state/session-<id>.json
-/data/winding-runs/events.ndjson
-```
-
-Deep winding validation использует authoritative `WindingJournalQuery::validateAll()` до EOF и затем `WindingJournalTransitionAudit::validate()`.
-
-## Exact spool и wire writeoff
-
-Новый linked job требует конкретную ACTIVE CU/AL бухту с положительным остатком. Выбор сохраняется immutable до UART delivery.
-
-После `RUN_COMPLETED` оператор вручную вводит фактический расход/остаток. Server-side доказывает:
-
-- exact run завершён;
-- repair/spool совпадают с immutable selection;
-- второй CONFIRMED для того же `(session, run)` запрещён;
-- recovery сохраняет provenance через `PENDING → CONFIRMED | ABORTED`.
-
-Exact-session `spool-selection/session-<id>.json.tmp` блокирует writeoff fail-closed.
-
-## CLOSED / finalization
-
-Перед `OPEN → CLOSED` backend проверяет:
-
-- нет unfinished/recovery winding job;
-- costing/material/warehouse persistence цела;
-- winding journal и transitions целы;
-- каждый новый completed linked run покрыт ручным exact-run writeoff.
-
-Preflight read-only. Реальный close повторяет проверки независимо.
-
-## Warehouse / materials / costing
-
-Реализованы:
-
-- CU/AL + legacy UNKNOWN;
-- spool catalogue;
-- recoverable spool swap;
-- warehouse writeoff `PENDING → CONFIRMED | ABORTED`;
-- material catalogue/usage/adjustments + recovery;
-- warehouse price history;
-- strict persisted parsing/reference lookup;
-- RepairCosting с currency/formula/overflow/transaction checks.
-- pricing history API/UI с обязательной пагинацией: default 20, max 32,
-  opaque byte-offset cursor; полный журнал продолжает проверяться для
-  `total_count/latest/current pricing` consistency.
-
-## Mobile / desktop UI
-
-Основные разделы доступны в обеих версиях.
-
-Дополнительно переключатель mobile ↔ desktop теперь централизованно добавляется `CM_StaticSiteServer` в конец каждой `/mobile/...` и `/desktop/...` HTML-страницы. Он сохраняет текущий path/query/hash, поэтому пользователь может вернуться на ту же страницу в другой версии интерфейса.
-
-Этот блок подтверждён пользователем в реальной работе.
-
-## Network and local backup target
-
-The service AP has been extended to a bounded non-blocking AP+STA manager. Up to
-five DHCP profiles are stored atomically and attempted by priority while the
-`CoilMaster` AP remains at `192.168.4.1`. Passwords are never returned through
-the API. Desktop/mobile pages manage the bounded profiles.
-
-The external backup target is a TP-Link TL-WR942N hardware v1. Remote FTP
-configuration and greeting/login/CWD testing are implemented. Actual backup
-upload and incoming recovery FTP are not implemented yet.
-
-```text
-d7a541acc2f752137783a0b6a0cfb6a86c4d727c
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web asset/navigation audit: SUCCESS
-```
-
-Remote backup has since gained asynchronous per-file upload for the fixed main
-manifest whitelist. It uses `.part`, exact FTP `SIZE` verification and final
-rename, and aborts if runtime winding activity becomes busy/unprovable. Session
-files and complete versioned batches remain incomplete.
-
-```text
-bc910d773a15f8c3fd5d7b261ae22046b2732826
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web asset/navigation audit: SUCCESS
-```
-
-The single-file FTP transfer has now been confirmed by the user on the real
-TL-WR942N v1. A complete asynchronous batch is also implemented: main whitelist
-plus all session snapshot/spool-selection/state files, a persistent `cm-b<id>`
-prefix and a final `COMPLETE.txt` marker. The complete batch is compile/CI
-confirmed but still requires hardware execution.
-
-```text
-b2e1adac054ae88b1afc873eeac37fc9c53267a5
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web asset/navigation audit: SUCCESS
-REAL COMPLETE-BATCH TEST: PENDING
-```
-
-Incoming website recovery FTP is now implemented. At boot the absence of
-`/web` is captured before the service creates that directory, and the server
-starts automatically on the fixed AP at `192.168.4.1:21`. If `/web` already
-exists it stays stopped until the operator uses the desktop/mobile FTP settings
-page. The fixed recovery account is `CoilMaster` / `CoilMaster123`.
-
-The service accepts one client from the CoilMaster AP subnet, maps FTP `/`
-strictly to microSD `/web`, rejects traversal, exposes no `/data` path, and has
-no anonymous login. It supports directory upload through passive FTP. `STOR`
-writes to `.part` and only replaces the target by rename after a complete data
-connection; an existing target is temporarily preserved as `.bak`. Runtime
-activity is fail-closed: the server cannot start unless safe idle is proven and
-is stopped if that condition changes. It never controls Arduino, SSR or START.
-
-```text
-2505e1f06a55cf251cfb54614e99d4c6277c5c8e
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web asset/navigation audit: SUCCESS
-RAM: 14.8% (48352 / 327680 bytes)
-Flash: 38.6% (1215773 / 3145728 bytes)
-REAL INCOMING-FTP DIRECTORY/INTERRUPTION TEST: PENDING
-```
-
-## Read-only backup/export
-
-Endpoints:
-
-```text
-GET /api/backup/manifest
-GET /api/backup/file?name=...
-GET /api/backup/sessions
-GET /api/backup/session-file?kind=...&session_id=...
-```
-
-Arbitrary filesystem paths запрещены. Export/deep audit блокируется во время active winding.
-
-Static whitelist включает workshop, winding, warehouse, materials, pricing, allocator, conductor settings и теперь также:
-
-```text
-/data/autonomous-windings/events.ndjson
-/data/autonomous-windings/assignments.ndjson
-```
-
-Для autonomous archive добавлен read-only authoritative audit:
-
-```text
-AutonomousWindingArchive::validateStorage(...)
-```
-
-Он не вызывает `begin()`, не создаёт каталоги и не меняет microSD.
-
-При failure:
-
-```text
-snapshot_stability_reason = autonomous_winding_archive_unstable_or_invalid
-```
-
-Manifest дополнительно содержит:
-
-```text
-autonomous_winding_archive_audit_duration_ms
-autonomous_winding_event_record_count
-autonomous_winding_started_record_count
-autonomous_winding_completed_record_count
-autonomous_winding_assignment_record_count
-```
-
-Per-domain timing теперь включает 10 полей:
-
-```text
-persistent_id_audit_duration_ms
-conductor_settings_audit_duration_ms
-material_persistence_audit_duration_ms
-business_data_audit_duration_ms
-autonomous_winding_archive_audit_duration_ms
-winding_persistence_audit_duration_ms
-warehouse_persistence_audit_duration_ms
-warehouse_movements_audit_duration_ms
-winding_session_directory_scan_duration_ms
-winding_session_persistence_audit_duration_ms
-```
-
-Stage 0 observability теперь содержит **34 metrics**: прежние 29 + autonomous audit duration + 4 autonomous record counters.
-
-При safe machine-state `snapshot_stable=true` означает успешную read-only проверку всего backup whitelist и необходимых recovery/session adjuncts, включая autonomous Arduino archive.
-
-## Performance strategy
-
-Не вводить database migration, arbitrary rotation threshold или persistent optimistic cache без измерений.
-
-На реальном dataset сначала сохранить manifest с:
-
-- `items[].size_bytes`;
-- `snapshot_stability_duration_ms`;
-- все per-domain durations;
-- record counts;
-- session file counts/bytes;
-- allocator high-water.
-
-Оптимизировать только подтверждённый hotspot.
-
-## Что ещё не подтверждено
-
-Текущий ESP32 clean local build **подтверждён**. GitHub CI остаётся неподтверждённым:
-
-```text
-LOCAL ESP32 BUILD: SUCCESS
-CI NOT CONFIRMED
-```
-
-Arduino local hardware path подтверждён, но полный linked production E2E ещё нужен:
-
-```text
-linked repair
-→ exact spool
-→ JOB_ACK
-→ physical START
-→ RUN_STARTED
-→ RUN_COMPLETED
-→ manual exact-run wire writeoff
-→ costing
-→ finalization preflight
-→ CLOSED
-→ stable backup
-```
-
-Отдельно проверить negative/fault cases: reboot/manual review, microSD loss, corrupted persistence, UART timeout/reject/duplicate, wrong spool/session/run, duplicate writeoff, close without coverage и backup during active winding.
-
-## Workshop repair-status paging checkpoint — 2026-08-12
-
-Paged repair responses no longer scan `/data/workshop/repair-status.ndjson` once per returned repair. A bounded page (maximum 32 repairs) is collected first, then all current CLOSED states are resolved in one strict forward pass.
-
-Commits:
-
-```text
-6a64bf66045281bf2f37e8f9d7ad2250205f1369  Batch repair status resolution for paged registry
-52b6e2a69664bc150a51978b292b437079bd1933  Resolve paged repair statuses in one scan
-```
-
-Preserved semantics:
-
-- full flat-JSON validation of the status ledger;
-- required newline termination;
-- exact-one CLOSED occurrence for every repair in the page;
-- fail-closed response on storage/integrity failure;
-- unchanged bounded API and NDJSON storage format.
-
-Verification for code HEAD `52b6e2a69664bc150a51978b292b437079bd1933`:
-
-```text
-ESP32 Build: SUCCESS
-CMP Protocol Tests: SUCCESS
-```
-
-## Browser-visible pagination checkpoint — 2026-08-12
-
-The main growing UI collections no longer reconstruct an entire paged registry/archive in browser memory.
-
-Paged at 20 visible records with cursor-backed Previous/Next navigation in both mobile and desktop:
-
-- clients;
-- motors;
-- repairs;
-- winding history;
-- monthly report rows.
-
-Repair creation now loads only the selected client and motor through exact `/by-id` endpoints instead of downloading both complete catalogs into `select` elements. Costing scans the exact repair winding archive page-by-page using streaming counters and latest-completion state rather than storing every event.
-
-A pre-existing invalid desktop repair winding-program regex was also corrected.
-
-Code checkpoint:
-
-```text
-df632cd17aec82af6861fcdcf552a3ef90e20224
-ESP32 Build: SUCCESS
-CMP Protocol Tests: SUCCESS
-```
-
-The monthly financial total intentionally still verifies every CLOSED repair in the selected month; only visible report rows are paged. This preserves authoritative totals while bounding rendered DOM size.
-
-
-## Materials and warehouse pagination checkpoint — 2026-08-12
-
-The remaining unbounded catalogue/history endpoints now use bounded cursor pages at the storage and HTTP boundaries:
-
-- `GET /api/materials`;
-- `GET /api/materials/adjustments`;
-- `GET /api/materials/usage`;
-- `GET /api/warehouse/spools`;
-- `GET /api/warehouse/write-offs`.
-
-Default page size is 20 records and the hard server maximum is 32. Desktop and mobile provide independent Previous/Next controls for material catalogues, adjustment history, repair material selection, active spools, spool selection and repair write-off history.
-
-Warehouse write-off mass, value and material-group totals still cover every confirmed movement for the repair even though only one page of rows is returned. Exact `spool_id + source_session_id + source_run_id` write-off provenance and all existing fail-closed safety rules are unchanged.
-
-Code checkpoint:
-
-```text
-53285422a646b488776013029a438f24faeabfc6
-ESP32 Build: SUCCESS
-CMP Protocol Tests: SUCCESS
-```
-
-
-## Safe motor database import checkpoint — 2026-08-12
-
-CoilMaster now has a review-first JSON import path for motor and winding records. The persistent motor record supports nameplate data, winding geometry, conductor data, stator dimensions, source citation, confidence classification, and an explicit calculated-fields flag.
-
-The import preview is read-only, checks the complete package locally, and queries the bounded similarity endpoint before any write. Exact identity matches are unchecked by default. Import remains an explicit user-confirmed sequence of individual append operations; there is no autonomous data ingestion.
-
-Format and example:
-
-- `docs/MOTOR_IMPORT_FORMAT.md`
-- `docs/examples/motor-import.example.json`
-
-
-## Settings and navigation audit — 2026-08-12
-
-Desktop and mobile settings now link to motor import, material catalogue, backup export, pricing audit, winding history, autonomous Arduino archive, recovery, Wi-Fi and FTP status pages.
-
-The warehouse price and conductor conversion settings were traced through their real GET/POST handlers and persistent stores. Their UIs now reject non-success GET responses instead of presenting an API error as an unconfigured/default value.
-
-The older capability audit below is superseded by the network checkpoints in
-this file. Current network capability boundary is:
-
-- fixed password-protected `CoilMaster` fallback AP is implemented and starts in firmware;
-- up to five saved DHCP/static-IP STA profiles and priority selection are implemented;
-- asynchronous nearby-network scanning is implemented with 20 unique visible SSIDs per result;
-- restricted incoming `/web` FTP and its start/stop/status controls are implemented;
-- incoming FTP credentials are fixed recovery credentials and are intentionally
-  shown in the trusted-local-network UI; no business-data FTP root exists.
-
-CI now runs `Tests/Web/check_web_assets.js` to compile every embedded script, reject duplicate HTML IDs, and reject missing static internal page targets.
-
-Verified code checkpoint:
-
-```text
-a2faccb7a19bb4e96cf6982c93af241cc46da6f6
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web navigation audit: SUCCESS
-```
-
-
-## ESP32 application partition baseline — 2026-08-13
-
-The physical target was measured on-device:
-
-```text
-ESP32-D0WD-V3
-physical flash: 4 MiB
-PSRAM: absent
-CPU: 2 cores, 240 MHz
-flash mode: QIO, 80 MHz
-```
-
-Arduino IDE `Huge APP (3MB No OTA/1MB SPIFFS)` was tested successfully on the device. PlatformIO now pins the equivalent layout:
-
-```ini
-board_build.partitions = huge_app.csv
-```
-
-Verified at code commit `fb656563da7737ebd51d2853b7f42c077790236d`:
-
-```text
-ESP32 Build: SUCCESS
-RAM:   14.4% (47336 / 327680 bytes)
-Flash: 36.8% (1158861 / 3145728 bytes)
-Arduino Uno Build: SUCCESS
-CMP Protocol Tests + web navigation audit: SUCCESS
-```
-
-OTA is unavailable with this layout. CoilMaster is updated through USB; website and business data remain on microSD. This change does not alter START, reboot recovery, SSR ownership, or manual write-off rules.
-
-## Local `coil.local` hostname — 2026-08-15
-
-The ESP32 now starts an mDNS responder with host `coil` and advertises the HTTP
-service on TCP port 80. While the client is connected to the CoilMaster AP or
-to the same LAN as the ESP32 STA interface, the normal site can be opened at:
-
-```text
-http://coil.local/
-```
-
-`GET /api/system/network` reports `mdns_supported`, `mdns_active`,
-`local_hostname` and `local_url`. The fixed AP address `http://192.168.4.1/`
-remains the mandatory fallback; mDNS is not a replacement for IP access. Some
-routers, guest networks, client-isolation modes or clients that block multicast
-UDP 5353 may not resolve `.local` names.
-
-```text
-b2205640478c6b24509389ef17794e76036709d6
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web asset/navigation audit: SUCCESS
-RAM: 15.3% (50288 / 327680 bytes)
-Flash: 39.5% (1243269 / 3145728 bytes)
-REAL AP/STA mDNS TEST: PENDING
-```
-
-## Desktop navigation icon normalization — 2026-08-15
-
-Desktop pages previously used inconsistent sidebar markup: some links already
-contained emoji icons while many secondary pages contained text only. Compact
-sidebars also set the anchor font size to zero, which made text-only entries
-appear empty. `CM_StaticSiteServer` now normalizes every `aside a` on streamed
-desktop HTML, preserves explicit existing icons, assigns missing icons from the
-route/label and renders icon and label in separate spans. The icon therefore
-keeps a visible size when the compact layout hides the label.
-
-`Tests/Web/check_web_assets.js` now compiles the injected PROGMEM UI script and
-requires the desktop icon normalizer in addition to checking all 48 HTML files.
-
-```text
-c065ede2ebf439cc55a95bff4cd460e4709cfef2
-ESP32 Build: SUCCESS
-CMP Protocol Tests + web asset/navigation/injected-script audit: SUCCESS
-```
-
-
-## Current v1 completion estimate and motor-import verification — 2026-08-15
-
-The completion estimate is **90%** against the defined CoilMaster v1 target: a
-deployable workshop controller with the established physical-START safety
-boundary, linked repair/winding flow, warehouse accounting, bounded UI, network
-services and recoverable backups. It is not an estimate against every possible
-future catalogue, analytics or automation feature.
-
-| Area | Weight | Complete |
-|---|---:|---:|
-| Winding hardware, UART and safety invariants | 20% | 95% |
-| Client → repair → winding → manual writeoff → close flow | 20% | 94% |
-| Persistent data integrity, exact lookup and pagination | 15% | 93% |
-| Warehouse, calculator and reviewed motor import | 15% | 90% |
-| Wi-Fi, FTP, scheduled backup and recovery preparation | 15% | 88% |
-| Final hardware acceptance, recovery drill and release documentation | 15% | 82% |
-
-Weighted result: **91%**.
-
-The old motor/winding JSON importer was re-audited and hardened at
-`684e848c235b5f37607e9ca814e8bc11647c1b5d`. Desktop and mobile now reject
-unknown fields, impossible source dates, non-HTTP(S) source URLs, oversized text,
-calculated-provenance mismatches and duplicate identities inside one package.
-Successfully created rows are disabled in the current preview so they cannot be
-submitted twice accidentally. Firmware repeats the text, date, URL, required
-source metadata and calculated-provenance checks before appending a motor.
-
-The web audit now executes the documented example and negative validation cases
-for both UIs. CMP Protocol Tests and ESP32 Build are confirmed successful:
-
-```text
-RAM:   15.7% (51408 / 327680 bytes)
-Flash: 41.8% (1314657 / 3145728 bytes)
-```
-
-This is code/CI confirmation. A real-device import of a small disposable reviewed
-package is still required before calling the importer hardware-confirmed.
-
-
-## Completed in firmware: verified local rollback snapshot — 2026-08-15
-
-After a V2 batch has been inspected, staged and mapped by the strict restore plan,
-the operator can explicitly create a local safety snapshot of the current working
-files. The snapshot is stored only under
-`/data/settings/remote-restore-rollback`.
-
-For every fixed target in the plan, the state machine records either the current
-file or an explicit `MISSING` state. Present files are copied through a local
-`.part`, read back and checked with CRC32 before they are added to the atomic
-rollback manifest. Work is bounded to 1 KiB per update step. Machine activity
-becoming busy or unavailable fails closed and removes the incomplete rollback
-directory.
-
-Completion creates `FILES.tsv` and `ROLLBACK.txt` with
-`restore_apply_enabled=0` and `restore_applied=0`. No working path is opened
-for writing, no staged file is applied, and reboot never resumes or applies the
-snapshot. A surviving directory is reported as `STALE` and requires explicit
-cleanup.
-
-```text
-1e7af6c3031f513b97cbfa974c922cd593d02c78
-CMP Protocol Tests + web asset audit: SUCCESS
-ESP32 Build: SUCCESS
-RAM: 15.7% (51608 / 327680 bytes)
-Flash: 42.1% (1324989 / 3145728 bytes)
-```
-
-This checkpoint is hardware-confirmed by the user on the real device. Creation,
-CRC32 completion, unchanged working data, reboot `STALE` behavior and explicit
-cleanup all passed. The rounded CoilMaster v1 estimate is now **91%**.
-
-## Completed in firmware: restore apply preflight — 2026-08-15
-
-After a verified rollback snapshot, the operator can explicitly run a final
-read-only preflight across the strict restore plan. The state machine rechecks
-every current working file against the rollback CRC32, rereads every rollback
-copy, and calculates CRC32 for every staged file in bounded 1 KiB steps.
-Targets marked `MISSING` must still be absent from both the working and rollback
-paths.
-
-Successful completion atomically creates `APPLY_PREFLIGHT.tsv` and
-`APPLY_READY.txt` under the rollback directory. Both explicitly retain
-`restore_apply_enabled=0` and `working_data_changed=0`. No working data is
-opened for writing, no staged file is applied, and a reboot never resumes the
-operation. Surviving readiness metadata is reported as `STALE` and requires
-explicit operator cleanup.
-
-Code checkpoint:
-
-```text
-9ad5a889e26e0da717577bdd06b23546b6951de7
-f4f6b20bfc52a50e26af0673bf54be76f0eff8f7
-228a99e40ace0a25cd7b0a1d6d65e3db7940d999
-CMP Protocol Tests: SUCCESS (run 31889384628)
-ESP32 Build: SUCCESS (run 31889384626)
-```
-
-Hardware confirmation for this new preflight remains pending, so the rounded
-CoilMaster v1 estimate remains **91%**.
-
-## Repository structure cleanup — 2026-08-16
-
-The confirmed cleanup removed 37 tracked files from 15 unused placeholder or
-legacy directory trees, including the obsolete uppercase `Firmware/`, unused
-`Shared/Core/`, old `Core/CM_System/` sketches and empty placeholder test/
-service directories. Active `Core/`, `Arduino/`, lowercase `firmware/`,
-`Shared/Protocol/`, `Tests/Protocol/`, `Tests/Web/`, hardware references and
-all handoff history remain intact.
-
-Root `README.md`, `ARCHITECTURE.md`, `PROJECT.manifest` and `BUILD_INFO.md`
-now identify `cmp-protocol-v1` and the actual production source paths. The
-cleanup changes repository clarity only; it does not reduce firmware RAM/Flash.
-
-```text
-11b4a79b583a79b83743024ff22110c93f817871
-CMP Protocol Tests: SUCCESS (run 31924588724)
-Arduino Uno Build: SUCCESS (run 31924588743)
-ESP32 Build: not triggered; no ESP32 source changed
-```
-
-No product feature or hardware acceptance state changed, so the rounded
-completion estimate remains **91%**.
-
-## Shared production CMP1 CRC — 2026-08-16
-
-Arduino `CM_UartEventTransport` и ESP32 `CM_UartEventReceiver` больше не
-содержат отдельные копии CRC. Обе production-стороны используют stateless
-header-only `Shared/CMP1Text/CM_Cmp1Crc.h` с CRC-16/MODBUS (`0xFFFF`, reflected
-`0xA001`). Модуль не содержит persistent buffers или allocation и подходит для
-малого запаса Uno SRAM.
-
-Binary `Shared/Protocol/` остаётся отдельным host-test-only форматом с
-CRC-CCITT и не включается в firmware builds.
-
-```text
-de8ee6b5da6b68d0880884e75f04e39e79c6b66d
-CMP Protocol Tests: SUCCESS (run 31928080265)
-Arduino Uno Build: SUCCESS (run 31928080266)
-ESP32 Build: SUCCESS (run 31928080285)
-```
-
-Hardware acceptance state не менялся; общая оценка остаётся **91%**.
-
-## ESP32 reset/power diagnostics — 2026-08-16
-
-Read-only `GET /api/system/diagnostics` публикует причину прошлого reset,
-отдельный `brownout_reset_detected`, uptime и три heap-показателя. Mobile и
-desktop Settings автоматически показывают эти данные. При `BROWNOUT` интерфейс
-требует проверить источник 5 В, кабель, общую землю и 3,3 В во время старта
-Wi-Fi. Endpoint явно возвращает `voltage_measured=false`: firmware не заменяет
-измерение мультиметром.
-
-```text
-d2f9b7371481ccd762bfc24f46a71b1d3c8d6904
-CMP Protocol Tests: SUCCESS (run 31929236228)
-ESP32 Build: SUCCESS (run 31929236220)
-RAM: 15.8% (51840 / 327680 bytes)
-Flash: 42.5% (1337369 / 3145728 bytes)
-```
-
-Safety и hardware acceptance state не менялись; оценка остаётся **91%**.
-
-## CMP1 run ACK/NACK CRC hardening — 2026-08-16
-
-ESP32 теперь передаёт подтверждения событий как
-`CMP1|ACK/NACK|RUN_ID|DETAIL|CRC16`. Arduino проверяет CRC до изменения очереди
-и retry state. Для безопасного staged rollout новая Arduino продолжает
-принимать старый exact четырёхполевой ответ без CRC; дополнительные или
-повреждённые поля отклоняются. Старые Arduino игнорируют новый завершающий CRC,
-поэтому порядок прошивки плат не критичен.
-
-```text
-a695440cbcae2582c158d1f29ff68cac5a38ba95
-CMP Protocol Tests: SUCCESS (run 31929625664)
-Arduino Uno Build: SUCCESS (run 31929625657)
-ESP32 Build: SUCCESS (run 31929625636)
-Uno RAM: 70.5% (1444 / 2048 bytes)
-Uno Flash: 75.4% (24332 / 32256 bytes)
-ESP32 RAM: 15.8% (51840 / 327680 bytes)
-ESP32 Flash: 42.5% (1337597 / 3145728 bytes)
-```
-
-Safety и completion estimate не менялись: **91%**.
-
-## CMP1 job reply CRC negotiation — 2026-08-16
-
-ESP32 теперь объявляет короткую capability `C` в исходящем `JOB`. Новая
-Arduino запоминает её только после полностью валидного job и защищает
-`JOB_ACK/JOB_CANCEL_ACK` CRC-16/MODBUS. ESP32 проверяет checksum до изменения
-job state. Без capability обе стороны используют точный legacy reply, поэтому
-Arduino и ESP32 можно прошивать в любом порядке. Неизвестные дополнительные
-поля и повреждённые negotiated replies отклоняются.
-
-```text
-b288ec82ed18aae4a7610f745cfa170cfc58c897  protocol implementation
-b3385fb1aab08fced8d27010ba62ca58b183d947  keep new Uno literals in flash
-CMP Protocol Tests: SUCCESS (runs 31930079088, 31930198758)
-Arduino Uno Build: SUCCESS (run 31930198773)
-ESP32 Build: SUCCESS (run 31930079023)
-Uno RAM: 70.7% (1447 / 2048 bytes; 601 bytes remain)
-Uno Flash: 77.3% (24924 / 32256 bytes)
-ESP32 RAM: 15.8% (51840 / 327680 bytes)
-ESP32 Flash: 42.5% (1337777 / 3145728 bytes)
-```
-
-Safety и hardware acceptance state не менялись; общая оценка остаётся
-**91%**.
-
-## Saved continuation checkpoint — 2026-08-16
-
-The current continuation entry is
-`28_REPOSITORY_PROTOCOL_POWER_HANDOFF_2026-08-16.md`. It records the completed
-repository cleanup, the non-production status of binary `Shared/Protocol/`, the
-actual CMP1 text/CRC16-MODBUS boundary, and the selected dual-USB power topology
-for ESP32 and Arduino. External-power Wi-Fi is now hardware-confirmed below;
-read-only apply preflight still requires real-device confirmation.
-
-## External-power Wi-Fi hardware gate — CONFIRMED 2026-08-16
-
-Пользователь подтвердил, что после замены прежнего источника на хороший блок
-питания ESP32 нормально запускает Wi-Fi от внешнего питания. Исходная проблема
-была в power source/path, а не в firmware. Точные измерения `VIN/5V` и `3V3` в
-этом подтверждении не записаны, поэтому документация не приписывает блоку
-неизмеренные значения.
-
-Power/Wi-Fi gate закрыт. Следующий обязательный hardware-gate — read-only
-restore apply preflight до `READY`, затем reboot → `STALE` без auto-resume и
-explicit cleanup. Готовность CoilMaster v1 повышена с **91%** до **92%**.
-
-## Apply preflight hardware confirmation and transactional apply — 2026-08-16
-
-Пользователь подтвердил на реальном устройстве полный read-only preflight:
-`READY`, неизменность рабочих данных, reboot → `STALE` без auto-resume и
-explicit cleanup. Этот gate закрыт.
-
-Следующий разрешённый блок реализован в commits
-`bbade2392d72263288511c0fc7a41617269b269b` и
-`0062cb90c49d957a8cdc09dd1e92719e63739e0f`:
-
-- `POST /api/backup/remote/apply` требует in-memory fresh preflight, exact
-  `batch_id` и explicit `confirmed=APPLY`; после reboot запуск невозможен;
-- UI требует отдельное подтверждение и ручной повтор ID копии;
-- перед каждой заменой intent сохраняется и flush-ится в bounded journal;
-- staged или rollback source копируется блоками по 1 KiB в
-  `target.cm-restore.part`, CRC32 проверяется при записи и повторном чтении;
-- рабочий target заменяется только после проверки `.part`;
-- при обычной runtime-ошибке journal немедленно проигрывается в rollback-mode:
-  прежние PRESENT восстанавливаются из страховочной копии, прежние MISSING
-  удаляются;
-- если machine state становится busy/unavailable, дальнейшие storage writes
-  fail closed; evidence сохраняется для ручной проверки;
-- успешное применение требует reboot, но firmware ничего не продолжает и не
-  применяет автоматически после reboot.
-
-```text
-CMP Protocol Tests + 48-page web audit: SUCCESS (run 31931042147)
-ESP32 Build: SUCCESS (run 31931042116)
-RAM: 15.9% (52080 / 327680 bytes)
-Flash: 43.0% (1351573 / 3145728 bytes)
-```
-
-Transactional apply ещё требует positive hardware test. Negative/fault
-injection выполнять только на disposable card/image. Готовность проекта —
-**93%**.

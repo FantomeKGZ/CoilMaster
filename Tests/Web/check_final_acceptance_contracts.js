@@ -22,6 +22,7 @@ const lookupPath = 'firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp';
 const warehousePath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const backupPath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
+const backupExportPath = 'firmware/esp32/src/CM_BackupExportWeb.cpp';
 const sessionAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
 const sessionAuditHeaderPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h';
 const staticSitePath = 'firmware/esp32/src/CM_StaticSiteServer.cpp';
@@ -35,6 +36,7 @@ const lookup = read(lookupPath);
 const warehouse = read(warehousePath);
 const writeOff = read(writeOffPath);
 const backup = read(backupPath);
+const backupExport = read(backupExportPath);
 const sessionAudit = read(sessionAuditPath);
 const sessionAuditHeader = read(sessionAuditHeaderPath);
 const staticSite = read(staticSitePath);
@@ -130,6 +132,25 @@ const preflightPos = sessionAudit.indexOf('const uint32_t preflightStartedAtMs =
 const storeBeginPos = sessionAudit.indexOf('JobSnapshotStore snapshots(storage);');
 if (preflightPos < 0 || storeBeginPos < 0 || preflightPos >= storeBeginPos) {
   failures.push(sessionAuditPath + ': session directory preflight must finish before mutable store begin paths');
+}
+
+// Backup manifest must consume that same preflight result instead of scanning the
+// session directories a second time. Keep the existing externally visible reasons.
+for (const text of [
+  'windingSessionMetrics.directoryPreflightDurationMs',
+  'windingSessionMetrics.directoryPreflightMeasured',
+  'WindingSessionPersistenceAuditFailure::DirectoryUnavailable',
+  'WindingSessionPersistenceAuditFailure::TemporaryFilePresent',
+  'WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry',
+  'session_directory_unavailable',
+  'session_temp_present',
+  'session_directory_invalid'
+]) {
+  requireText(backupExportPath, backupExport, text,
+    'backup manifest no longer consumes authoritative session preflight evidence: ' + text);
+}
+if (backupExport.includes('scanSessionDirectory(storage, directories[i], 0UL,')) {
+  failures.push(backupExportPath + ': duplicate backup-manifest session directory preflight scan detected');
 }
 
 // Manual exact-run wire deduction remains the only production path. Legacy

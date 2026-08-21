@@ -1,11 +1,22 @@
 #include "CM_WarehousePersistenceIntegrityAudit.h"
 #include "CM_FlatJsonObjectValidator.h"
+#include "CM_WarehouseWriteOffRecord.h"
 #include <Arduino.h>
 
 namespace CM
 {
 namespace
 {
+constexpr uint8_t ReferenceBatchSize = 32U;
+
+struct IdReference
+{
+    uint32_t id;
+    uint8_t matches;
+
+    IdReference() : id(0UL), matches(0U) {}
+};
+
 bool findUnsigned(const String& line, const char* key, uint32_t& value)
 {
     value = 0UL;
@@ -63,34 +74,50 @@ bool incrementRecordCount(uint32_t& recordCount)
     return true;
 }
 
-bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wanted)
+bool resolveReferences(fs::FS& storage,
+                       const char* path,
+                       const char* key,
+                       IdReference* references,
+                       uint8_t count)
 {
-    if (wanted == 0UL || !storage.exists(path)) return false;
+    if (count == 0U) return true;
+    if (!storage.exists(path)) return false;
     File file = storage.open(path, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
         return false;
     }
-    uint8_t matches = 0U;
+
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        uint32_t id = 0UL;
-        if (!findUnsigned(line, key, id) || id == 0UL)
+        uint32_t candidate = 0UL;
+        if (!findUnsigned(line, key, candidate) || candidate == 0UL)
         {
             file.close();
             return false;
         }
-        if (id == wanted && ++matches > 1U)
+        for (uint8_t index = 0U; index < count; ++index)
         {
-            file.close();
-            return false;
+            if (references[index].id != candidate) continue;
+            if (references[index].matches == 0xFFU)
+            {
+                file.close();
+                return false;
+            }
+            ++references[index].matches;
         }
     }
     file.close();
-    return matches == 1U;
+
+    for (uint8_t index = 0U; index < count; ++index)
+    {
+        if (references[index].id == 0UL || references[index].matches != 1U)
+            return false;
+    }
+    return true;
 }
 
 bool checkSpools(fs::FS& storage, uint32_t& recordCount)
@@ -176,11 +203,23 @@ bool checkPrice(fs::FS& storage, uint32_t& recordCount)
     return true;
 }
 
+bool validateReferenceBatch(fs::FS& storage,
+                            IdReference* spoolReferences,
+                            uint8_t spoolCount,
+                            IdReference* repairReferences,
+                            uint8_t repairCount)
+{
+    constexpr const char* SpoolsPath = "/data/warehouse/spools.ndjson";
+    constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
+    return resolveReferences(storage, RepairsPath, "repair_id",
+                             repairReferences, repairCount) &&
+           resolveReferences(storage, SpoolsPath, "spool_id",
+                             spoolReferences, spoolCount);
+}
+
 bool checkMovementReferences(fs::FS& storage)
 {
     constexpr const char* MovementsPath = "/data/warehouse/movements.ndjson";
-    constexpr const char* SpoolsPath = "/data/warehouse/spools.ndjson";
-    constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
     if (!storage.exists(MovementsPath)) return true;
 
     File file = storage.open(MovementsPath, FILE_READ);
@@ -190,21 +229,57 @@ bool checkMovementReferences(fs::FS& storage)
         return false;
     }
 
+    IdReference spoolReferences[ReferenceBatchSize];
+    IdReference repairReferences[ReferenceBatchSize];
+    uint8_t spoolCount = 0U;
+    uint8_t repairCount = 0U;
+
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        uint32_t spoolId = 0UL, repairId = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "spool_id", spoolId) || spoolId == 0UL ||
-            !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
-            !idExists(storage, SpoolsPath, "spool_id", spoolId) ||
-            !idExists(storage, RepairsPath, "repair_id", repairId))
+
+        WarehouseWriteOffRecord record;
+        if (!WarehouseWriteOffRecordCodec::parse(line, record))
         {
             file.close();
             return false;
         }
+
+        repairReferences[repairCount].id = record.repairId;
+        repairReferences[repairCount].matches = 0U;
+        ++repairCount;
+
+        if (record.hasSpoolId)
+        {
+            spoolReferences[spoolCount].id = record.spoolId;
+            spoolReferences[spoolCount].matches = 0U;
+            ++spoolCount;
+        }
+
+        if (repairCount == ReferenceBatchSize || spoolCount == ReferenceBatchSize)
+        {
+            if (!validateReferenceBatch(storage,
+                                        spoolReferences, spoolCount,
+                                        repairReferences, repairCount))
+            {
+                file.close();
+                return false;
+            }
+            spoolCount = 0U;
+            repairCount = 0U;
+        }
     }
+
+    if ((repairCount > 0U || spoolCount > 0U) &&
+        !validateReferenceBatch(storage,
+                                spoolReferences, spoolCount,
+                                repairReferences, repairCount))
+    {
+        file.close();
+        return false;
+    }
+
     file.close();
     return true;
 }

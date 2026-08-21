@@ -9,7 +9,7 @@
 ```text
 /AGENTS.md
 this file
-docs/PROJECT_HANDOFF/62_JOB_LIFECYCLE_SAFETY_HARDENING_2026-08-22.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/01_PROJECT_MAP.md
@@ -17,141 +17,125 @@ docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-Checkpoint `61` и более старые numbered checkpoints — история/evidence, а не очередь активных работ. Не продолжать старую задачу только потому, что в checkpoint 24, 38, 61 или другом старом файле написано `next`/`pending`.
+Checkpoint `62` — текущий verified repo-level baseline. Более старые numbered checkpoints — история/evidence, а не очередь активных работ. Не продолжать старую задачу только потому, что старый checkpoint содержит `next`/`pending`.
 
 Перед изменением existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата.
 
-## Last exact verified production baseline
+## Current verified repo baseline — checkpoint 62
+
+Production ESP32 C++ baseline:
 
 ```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-Fix duplicate ESP32 job lifecycle definitions
-
-CMP Protocol Tests #2175 — GREEN
-run 32499582610
-
-ESP32 Build #1241 — GREEN
-run 32499582503
+5fa6bcea812c33f0b2dc8e13baae476221839b3a
+Validate session state against repeat target
 ```
 
-Пользователь позже сообщил, что workflows зелёные после documentation cleanup, но current production candidate из checkpoint 62 содержит новые ESP32 safety changes и требует своих exact workflow results.
-
-## Current production candidate — checkpoint 62
-
-Production hardening:
+Verified Actions:
 
 ```text
-ce38711c  Keep timed-out jobs in manual review
-2ecebb5e  Ignore stale cancel after completed job
-9e68bd86  Reject runs beyond immutable repeat target
+ESP32 Build #1245 — GREEN
+run 32515224487
+head_sha 5fa6bcea812c33f0b2dc8e13baae476221839b3a
+
+CMP Protocol Tests #2210 — GREEN
+run 32515361340
+head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
 ```
 
-Regression guards:
+Repo-level update/hardening plan through checkpoint 62 is closed.
+
+## External hardware gate
+
+Targeted two-board ESP32<->Arduino UART/repeat/cancel smoke remains required when the physical stand is available. It is an external verification gate, not an active software-development backlog item, and must not prevent repo-level audit work.
+
+Hardware GREEN is not implied by CI.
+
+## Current active phase — full code audit
+
+The active task is now:
 
 ```text
-fa5a0073  Guard timed-out job manual review
-44d1e037  Guard stale cancel after completed job
-5188084d  Guard immutable repeat target journal boundary
+FULL CODE AUDIT of cmp-protocol-v1
 ```
 
-Current candidate verification label until actual runs are inspected:
+Authoritative audit checkpoint:
 
 ```text
-ESP32 Build — NOT VERIFIED
-CMP Protocol Tests — NOT VERIFIED
-hardware UART/repeat/cancel smoke — NOT VERIFIED
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
 
-## JOB lifecycle semantics
+Audit order:
 
-Implemented/current candidate:
+```text
+Arduino safety/realtime/UART/resources
+ESP32 runtime/API/persistence/integrity/network/backup
+Desktop/mobile web parity/error/security
+Tests/CI/build filters/triggers
+Docs/AI routing consistency
+Final cross-layer recheck + applicable CI
+```
 
-- if a JOB may have reached Arduino, ESP32 cancellation uses remote `JOB_CANCEL`, not local-only closure;
-- Arduino `ALREADY_CLEAR` is idempotent success;
-- physical fallback `D -> * -> # -> D` emits CRC-protected `ALL_CLEAR` only when safe;
-- `ALL_CLEAR` never means `RUN_COMPLETED`;
-- positive remote cancellation can persist closure only with zero physical-run evidence;
-- `TIMED_OUT` is ambiguous and remains manual-review-only;
-- ordinary `dismissInactive()` cannot close `TIMED_OUT`;
-- stale duplicate cancel after `ProgramCompleted`/`ClosedAfterReview` is a persisted-state no-op;
-- immutable `repeat_target` is checked before winding journal append;
-- `RUN_STARTED` cannot reopen an already completed target;
-- `RUN_COMPLETED` beyond immutable repeat target is rejected before NDJSON mutation;
-- reboot never auto-starts, auto-completes or auto-writes off material.
+Confirmed defects are fixed as they are found, using current blob SHA and the smallest safe change. Do not accumulate speculative redesigns.
 
-See checkpoint `62` for exact files/commits.
+## Safety invariants
 
-## Safety-инварианты
+Never weaken:
 
-Нельзя менять:
-
-- physical START только физический/local;
-- никакого automatic physical START между repeat cycles;
-- никакого auto-resume после reboot;
-- ESP32/Web не управляют SSR напрямую;
+- physical START only physical/local;
+- no automatic physical START between repeat cycles;
+- no auto-resume after reboot;
+- Arduino owns SSR;
+- ESP32/Web never directly control SSR;
 - lost ACK / timeout never proves Arduino idle;
-- `RUN_COMPLETED` не выполняет automatic wire writeoff;
-- manual material writeoff требует exact `source_session_id + source_run_id`;
-- `spool_id` optional только в утверждённом KG_FIRST unallocated/manual path;
-- если spool используется, exact spool provenance сохраняется;
-- linked immutable history не удаляется operational cancellation;
-- backup restore operator-only, transactional, fail-closed;
-- hardware settings/calibration только при доказанном safe idle;
-- Hall calibration запускает двигатель только через physical START и не создаёт production RUN history/writeoff.
+- final repeat cannot reopen automatically;
+- `RUN_COMPLETED` never performs automatic wire/material writeoff;
+- manual writeoff requires exact `source_session_id + source_run_id`;
+- `spool_id` optional only in approved KG_FIRST unallocated/manual path;
+- exact spool provenance retained whenever a spool is used;
+- operational cancellation does not erase immutable run/history evidence;
+- backup restore operator-only, transactional and fail-closed;
+- no automatic production-data deletion.
 
-## Реализованный production flow
+## Production architecture
+
+```text
+ESP32: service/data/UI orchestration, SD/RTC/network, registry, jobs,
+       persistence, warehouse/material/costing, backup/restore
+
+CMP1 UART: JOB/control down, run/status events up
+
+Arduino Uno: physical START, SSR, Hall, keypad/LCD/buzzer,
+             realtime winding machine and RUN event generation
+```
+
+Production flow:
 
 ```text
 client -> motor -> OPEN repair -> costing -> linked winding
--> immutable job snapshot/material selection
--> UART JOB delivery -> physical START
--> RUN_STARTED / RUN_COMPLETED
--> explicit manual exact-run material writeoff
--> costing / finalization -> CLOSED -> reports -> backup
+-> immutable snapshot/material selection -> UART JOB
+-> physical START -> RUN_STARTED/RUN_COMPLETED
+-> explicit manual exact-run writeoff
+-> costing/finalization -> CLOSED -> reports -> backup
 ```
 
-Repeat semantics:
+## Implemented blocks that are not active backlog
 
-```text
-program + repeat_target = one JOB
-one complete program pass = one RUN / one run_id
-new physical START required for every repeat
-```
+Do not restart without a concrete regression:
 
-Automatic repeat START отсутствует.
+- JOB cancel/recovery and timeout/manual-review hardening;
+- repeat-target/final-repeat semantics;
+- Arduino autonomous archive;
+- motor schema/import/detail/repair history;
+- bounded/paged growing APIs;
+- network/AP/FTP foundations;
+- backup/deep integrity/session preflight;
+- KG_FIRST material/writeoff/costing;
+- writeoff fault-path hardening;
+- NDJSON observability groundwork;
+- Hall settings/calibration safety;
+- Protocol/Web/ESP32 build recovery.
 
-## KG_FIRST material semantics — реализовано
-
-```text
-quantity_kg authoritative for new consumption
-source_session_id + source_run_id mandatory
-spool_id optional only for approved unallocated/manual KG_FIRST consumption
-spool decrement only when exact spool is present
-legacy exact-spool records remain compatible
-RUN_COMPLETED never auto-deducts material
-```
-
-Checkpoints `46–57` — historical implementation/hardening evidence, not active tasks.
-
-## Backup/session integrity — реализовано
-
-`WindingSessionPersistenceIntegrityAudit` является authoritative read-only preflight owner для session snapshot/state/spool-selection storage. Backup manifest использует его classified/measured results и не выполняет прежний duplicate full session preflight scan.
-
-Checkpoints `58–59` — закрытый recovery block.
-
-## Текущая точка продолжения
-
-```text
-1. подтвердить current-candidate ESP32 Build + CMP Protocol Tests;
-2. если green — targeted ESP32 <-> Arduino UART/repeat/cancel smoke при доступном стенде;
-3. исправлять только concrete failures/regressions;
-4. performance/storage work делать по measurements;
-5. новые product features брать из прямой текущей задачи пользователя.
-```
-
-Не возвращаться автоматически к уже закрытым pagination/archive/backup/KG_FIRST работам.
-
-## Основные тематические документы
+## Main thematic docs
 
 ```text
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
@@ -165,4 +149,4 @@ docs/HARDWARE_REFERENCE/
 docs/AI_AGENT/
 ```
 
-Если тематический документ конфликтует с current code или checkpoint `62`, приоритет у current code + фактического verification result + этого entrypoint.
+If a thematic or historical document conflicts with current code, actual verification evidence, this entrypoint, or checkpoint 63, prioritize current code + actual evidence + current entrypoints.

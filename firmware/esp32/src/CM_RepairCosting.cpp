@@ -2,7 +2,6 @@
 #include "CM_FlatJsonObjectValidator.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
-#include "CM_WarehouseWriteOffRecord.h"
 
 namespace CM
 {
@@ -11,13 +10,6 @@ namespace
 bool addChecked64(uint64_t& target, uint64_t value)
 {
     if (target > 0xFFFFFFFFFFFFFFFFULL - value) return false;
-    target += value;
-    return true;
-}
-
-bool addChecked32(uint32_t& target, uint32_t value)
-{
-    if (target > 0xFFFFFFFFUL - value) return false;
     target += value;
     return true;
 }
@@ -67,86 +59,27 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
     summary.repairId = repairId;
     if (!ready() || repairId == 0UL || !repairExists(repairId)) return false;
 
-    // This is the authoritative whole-journal transaction/provenance validation.
-    // Costing deliberately consumes only CONFIRMED records after this pass instead
-    // of maintaining a second legacy-only parser that could drift from warehouse
-    // persistence semantics.
-    if (!WarehouseMovementIntegrityAudit::check(m_storage)) return false;
+    // Validate the whole movement journal authoritatively and aggregate this
+    // repair's confirmed wire records during that same first pass. Provenance
+    // uniqueness remains the bounded batch pass owned by the audit itself.
+    WarehouseMovementRepairTotals wireTotals;
+    if (!WarehouseMovementIntegrityAudit::checkRepair(m_storage, repairId, wireTotals))
+        return false;
 
-    bool currencySet = false;
+    summary.wireCostMinor = wireTotals.wireCostMinor;
+    summary.copperWireCostMinor = wireTotals.copperWireCostMinor;
+    summary.aluminiumWireCostMinor = wireTotals.aluminiumWireCostMinor;
+    summary.unknownWireCostMinor = wireTotals.unknownWireCostMinor;
+    summary.copperWireGrams = wireTotals.copperWireGrams;
+    summary.aluminiumWireGrams = wireTotals.aluminiumWireGrams;
+    summary.unknownWireGrams = wireTotals.unknownWireGrams;
+    summary.wireLineCount = wireTotals.wireLineCount;
+    summary.copperWireLineCount = wireTotals.copperWireLineCount;
+    summary.aluminiumWireLineCount = wireTotals.aluminiumWireLineCount;
+    summary.unknownWireLineCount = wireTotals.unknownWireLineCount;
 
-    if (m_storage.exists(WireMovementsPath))
-    {
-        File file = m_storage.open(WireMovementsPath, FILE_READ);
-        if (!file) return false;
-
-        while (file.available())
-        {
-            const String line = file.readStringUntil('\n');
-            if (line.length() == 0U) continue;
-
-            WarehouseWriteOffRecord record;
-            if (!WarehouseWriteOffRecordCodec::parse(line, record))
-            {
-                file.close();
-                return false;
-            }
-            if (record.status != "CONFIRMED" || record.repairId != repairId) continue;
-
-            const uint64_t product = static_cast<uint64_t>(record.massGrams) *
-                                     static_cast<uint64_t>(record.pricePerKgMinor);
-            if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL)
-            {
-                file.close();
-                return false;
-            }
-            const uint64_t lineCost = (product + 500ULL) / 1000ULL;
-
-            if (!addChecked64(summary.wireCostMinor, lineCost) ||
-                summary.wireLineCount == 0xFFFFU ||
-                !acceptCurrency(record.currency, summary.currency, currencySet))
-            {
-                file.close();
-                return false;
-            }
-            ++summary.wireLineCount;
-
-            if (record.wireType == "CU")
-            {
-                if (!addChecked64(summary.copperWireCostMinor, lineCost) ||
-                    !addChecked32(summary.copperWireGrams, record.massGrams) ||
-                    summary.copperWireLineCount == 0xFFFFU)
-                {
-                    file.close();
-                    return false;
-                }
-                ++summary.copperWireLineCount;
-            }
-            else if (record.wireType == "AL")
-            {
-                if (!addChecked64(summary.aluminiumWireCostMinor, lineCost) ||
-                    !addChecked32(summary.aluminiumWireGrams, record.massGrams) ||
-                    summary.aluminiumWireLineCount == 0xFFFFU)
-                {
-                    file.close();
-                    return false;
-                }
-                ++summary.aluminiumWireLineCount;
-            }
-            else
-            {
-                if (!addChecked64(summary.unknownWireCostMinor, lineCost) ||
-                    !addChecked32(summary.unknownWireGrams, record.massGrams) ||
-                    summary.unknownWireLineCount == 0xFFFFU)
-                {
-                    file.close();
-                    return false;
-                }
-                ++summary.unknownWireLineCount;
-            }
-        }
-        file.close();
-    }
+    bool currencySet = wireTotals.currencySet;
+    if (currencySet) summary.currency = wireTotals.currency;
 
     if (m_storage.exists(MaterialUsagePath))
     {

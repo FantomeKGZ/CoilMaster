@@ -120,6 +120,23 @@ public:
                               uint32_t& nextCursor,
                               bool& hasMore) const;
 
+    // Read-only global-search readers. These scan each NDJSON source once from
+    // the supplied cursor and do not alter the legacy list/filter semantics.
+    bool appendClientsSearchPageJson(String& json,
+                                     const String& query,
+                                     uint32_t cursor,
+                                     uint8_t limit,
+                                     uint16_t& count,
+                                     uint32_t& nextCursor,
+                                     bool& hasMore) const;
+    bool appendRepairsSearchPageJson(String& json,
+                                     const String& query,
+                                     uint32_t cursor,
+                                     uint8_t limit,
+                                     uint16_t& count,
+                                     uint32_t& nextCursor,
+                                     bool& hasMore) const;
+
     // Legacy/client-filtered repair paging remains source-compatible. It
     // delegates to the extended reader with no motor filter.
     bool appendRepairsPageJson(String& json,

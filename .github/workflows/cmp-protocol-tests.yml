@@ -58,6 +58,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_release_contracts.js
 
+      - name: Audit job cancel recovery contracts
+        if: always()
+        run: node Tests/Web/check_job_cancel_recovery_contracts.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

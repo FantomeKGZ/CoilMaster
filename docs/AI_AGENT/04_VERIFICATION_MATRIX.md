@@ -6,20 +6,15 @@ Do not claim a workflow is green until its actual run has completed successfully
 
 ## 1. Current known automated baseline
 
-On production commit:
+Production firmware baseline:
 
 ```text
 e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-```
-
-verified:
-
-```text
 CMP Protocol Tests #2175 — GREEN
 ESP32 Build #1241 — GREEN
 ```
 
-This does not imply a current-head Arduino Uno Build or hardware acceptance result.
+After the documentation cleanup through `a1260921`, the user explicitly confirmed that the visible workflows were all green, including the current Arduino Uno build gate. Later commits that only add/route static regression tests or documentation do not change the production firmware binary; their affected CMP/Web workflow still requires its own result.
 
 ## 2. Available automated gates
 
@@ -113,6 +108,7 @@ Primary automated guards include:
 
 ```text
 Tests/Web/check_release_contracts.js
+Tests/Web/check_job_cancel_recovery_contracts.js
 Tests/Web/check_final_acceptance_contracts.js
 Tests/Web/check_kg_first_material_contracts.js
 Tests/Web/check_writeoff_fault_contracts.js
@@ -125,14 +121,22 @@ Use the exact current workflow/script names from `.github/workflows/cmp-protocol
 
 Current repo implementation is closed unless a regression is observed.
 
-If code touching this boundary changes, verify at least:
+The dedicated static guard is:
 
 ```text
-no-run remote cancel succeeds
-already-clear is idempotent
+Tests/Web/check_job_cancel_recovery_contracts.js
+```
+
+It protects both transport and persisted recovery semantics:
+
+```text
+JOB may have reached Arduino -> remote JOB_CANCEL handshake
+already-clear -> idempotent success
 active physical run cannot be cleared
-D -> * -> # -> D fallback emits ALL_CLEAR only when safe
+D -> * -> # -> D fallback emits CRC-protected ALL_CLEAR only when safe
 ALL_CLEAR never means RUN_COMPLETED
+positive cancel -> closeAfterRemoteCancel only with zero run evidence
+persisted cancel -> restoreLatestJobState re-evaluation before new job
 reboot does not auto-start or auto-complete
 ```
 

@@ -10,9 +10,11 @@ bool JobStateStore::dismissInactive(uint32_t sessionId, uint32_t nowMs)
     if (state.executionState == JobExecutionState::ClosedAfterReview)
         return true;
 
+    // TIMED_OUT is intentionally excluded here. Losing every JOB_ACK cannot
+    // prove that Arduino did not accept and retain the remote job, so timeout
+    // closure must go through the explicit manual-review path instead.
     const bool terminalDelivery =
         state.deliveryState == JobDeliveryState::Rejected ||
-        state.deliveryState == JobDeliveryState::TimedOut ||
         state.deliveryState == JobDeliveryState::Cancelled;
     const bool programCompleted =
         state.executionState == JobExecutionState::ProgramCompleted;

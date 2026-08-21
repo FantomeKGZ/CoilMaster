@@ -1,6 +1,6 @@
 # Backlog и отложенные функции
 
-Дата актуализации: **2026-08-21**  
+Дата актуализации: **2026-08-22**  
 Ветка: `cmp-protocol-v1`
 
 Этот файл содержит только **реально отложенные/неутверждённые** направления. Он не является текущей очередью работ.
@@ -9,21 +9,22 @@
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 explicit current user request
 concrete current failure
 ```
 
-Старые пункты этого файла про job linkage, immutable snapshot, persisted recovery, autonomous archive, pagination, Wi-Fi/AP, FTP, backup, KG_FIRST, writeoff hardening и другие уже реализованные блоки удалены из backlog, чтобы новый AI не начинал их заново.
+Checkpoint 62 — verified baseline. Старые completed implementation checkpoints не являются backlog.
 
 ## Не считать backlog
 
-Следующие области уже реализованы/закрыты на repo level и не должны автоматически превращаться в новую задачу:
+Уже реализованы/закрыты на repo level и не должны автоматически превращаться в новую задачу:
 
 - persistent linked job identity/state/snapshot;
 - repeat_target and one-physical-START-per-run semantics;
-- JOB cancel/recovery with `ALREADY_CLEAR` / safe `ALL_CLEAR`;
+- JOB cancel/recovery with `ALREADY_CLEAR` / safe `ALL_CLEAR` / timeout manual review;
+- final-repeat journal/state integrity hardening;
 - Arduino autonomous winding archive and assignment UI;
 - motor schema/import/detail/repair-history flows;
 - bounded/paged growing collection APIs;
@@ -34,10 +35,14 @@ concrete current failure
 - writeoff fault-path hardening;
 - NDJSON growth observability;
 - Hall settings/calibration safety flow;
-- current Protocol/Web/safety CI recovery;
-- current ESP32 compile/link recovery.
+- Protocol/Web/safety CI recovery;
+- ESP32 compile/link recovery.
 
-Reopen only after a concrete regression or explicit feature extension request.
+The current full-code audit may discover defects in these areas. A confirmed audit defect is active because of evidence, not because the old feature was unfinished.
+
+## External hardware verification
+
+Targeted two-board UART/hardware smoke remains required when the stand is available, but it is an external verification gate and is not stored here as deferred product development.
 
 ## Deferred A — motor winding engineering knowledge base
 
@@ -95,14 +100,7 @@ Program similarity alone must never auto-merge motor identity/history.
 
 ## Deferred D — multi-currency policy
 
-Do not add mixed-currency totals until policy exists for:
-
-- repair currency;
-- operation currency;
-- exchange-rate source/date;
-- historical rate snapshot;
-- display and aggregation rules;
-- fail-closed behavior for incompatible values.
+Do not add mixed-currency totals until policy exists for repair currency, operation currency, exchange-rate source/date, historical rate snapshot, display/aggregation rules and fail-closed behavior for incompatible values.
 
 Current historical costing must remain based on persisted operation snapshots.
 
@@ -110,16 +108,7 @@ Current historical costing must remain based on persisted operation snapshots.
 
 Possible future options include segmentation/rotation/indexing/database migration, but only after device measurements show an actual bottleneck.
 
-Do not implement:
-
-```text
-arbitrary rotation thresholds
-destructive compaction
-optimistic persistent caches
-database migration
-```
-
-without measured size/latency/RAM evidence and a safe migration/rollback design.
+Do not implement arbitrary rotation thresholds, destructive compaction, optimistic persistent caches or database migration without measured size/latency/RAM evidence and a safe migration/rollback design.
 
 Current reference:
 

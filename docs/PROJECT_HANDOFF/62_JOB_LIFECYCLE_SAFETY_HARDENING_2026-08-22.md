@@ -5,7 +5,7 @@
 
 ## Scope
 
-Этот checkpoint фиксирует новый production candidate после подтверждённого baseline `e35c4bfe`.
+Этот checkpoint фиксирует verified production baseline после lifecycle/integrity hardening.
 
 Закрыты четыре связанных lifecycle/integrity edge-case:
 
@@ -80,7 +80,7 @@ Running/inter-repeat states still reject cancellation closure unless there is ze
 
 ### Final repeat boundary
 
-`CM_WindingJournalSnapshotContext.cpp` now loads:
+`CM_WindingJournalSnapshotContext.cpp` loads:
 
 ```text
 immutable JobSnapshot.repeatTarget
@@ -102,7 +102,7 @@ The guard uses the small session state file rather than adding another full NDJS
 
 ### Deep session integrity
 
-`CM_WindingSessionPersistenceIntegrityAudit.cpp` now validates snapshot/state semantics in the same per-session pass already used for identity checks:
+`CM_WindingSessionPersistenceIntegrityAudit.cpp` validates snapshot/state semantics in the same per-session pass already used for identity checks:
 
 ```text
 state.completed_runs <= snapshot.repeat_target
@@ -116,7 +116,7 @@ This adds no `WindingJournalQuery` pass and does not reintroduce duplicate full 
 
 ## Regression audit
 
-`Tests/Web/check_job_cancel_recovery_contracts.js` now protects:
+`Tests/Web/check_job_cancel_recovery_contracts.js` protects:
 
 - lost ACK -> remote `JOB_CANCEL`;
 - idempotent `ALREADY_CLEAR`;
@@ -132,37 +132,58 @@ This adds no `WindingJournalQuery` pass and does not reintroduce duplicate full 
 
 The audit is executed by `.github/workflows/cmp-protocol-tests.yml` with `if: always()` like the other contract audits.
 
-## Verification status
+## Verified baseline
 
-Last exact verified production baseline remains:
-
-```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-CMP Protocol Tests #2175 — GREEN
-ESP32 Build #1241 — GREEN
-```
-
-For this checkpoint's current production candidate, exact workflow run IDs have not yet been inspected in this chat after the final changes above.
-
-Therefore current labels are:
+ESP32 production C++ changed through:
 
 ```text
-ESP32 Build — NOT VERIFIED for current candidate
-CMP Protocol Tests — NOT VERIFIED for current candidate
-hardware UART/cancel/repeat smoke — NOT VERIFIED for current candidate
+5fa6bcea812c33f0b2dc8e13baae476221839b3a
+Validate session state against repeat target
 ```
 
-Do not promote these to GREEN until actual runs are confirmed.
+Verified exact Actions result:
+
+```text
+ESP32 Build #1245 — GREEN
+run 32515224487
+head_sha 5fa6bcea812c33f0b2dc8e13baae476221839b3a
+```
+
+After `5fa6bcea`, the commits through `ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133` changed only regression tests and documentation, not ESP32 production C++.
+
+Current lifecycle regression suite is verified on:
+
+```text
+ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
+CMP Protocol Tests #2210 — GREEN
+run 32515361340
+```
+
+The immediately preceding docs state was also green:
+
+```text
+5f6272f51ba3c81d94bf24894a08667219d91e8d
+CMP Protocol Tests #2209 — GREEN
+run 32515329411
+```
+
+Therefore checkpoint 62 repo-level status is:
+
+```text
+ESP32 production build — GREEN
+CMP Protocol Tests / lifecycle audit — GREEN
+hardware UART/cancel/repeat smoke — NOT VERIFIED for checkpoint 62
+```
 
 ## Next
 
-1. Confirm current-candidate `ESP32 Build` and `CMP Protocol Tests`.
-2. If green, perform targeted two-board UART smoke when hardware is available:
+1. Do not reopen checkpoint-62 lifecycle work without a concrete regression.
+2. When hardware is available, perform targeted two-board UART smoke:
    - normal JOB -> physical START -> RUN_STARTED/RUN_COMPLETED;
    - lost/no ACK -> manual review semantics;
    - no-run cancel / ALREADY_CLEAR / ALL_CLEAR;
    - final repeat cannot reopen automatically;
    - backup/session audit remains stable on normal persisted sessions.
-3. After that, select further work only from a concrete defect, measured hotspot, or requested feature.
+3. Otherwise continue only from a concrete bug, measured hotspot, or requested feature.
 
 Historical checkpoints remain evidence only and must not override `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.

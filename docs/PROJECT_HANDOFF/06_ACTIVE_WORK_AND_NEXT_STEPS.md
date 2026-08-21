@@ -5,17 +5,30 @@
 
 Этот файл — единственный handoff-файл с активной очередью. Старые checkpoints сохраняются как история и **не являются backlog**.
 
-## Last verified production baseline
+## Current verified repo baseline — checkpoint 62
+
+ESP32 production C++ hardening завершён на:
 
 ```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-CMP Protocol Tests #2175 — GREEN
-ESP32 Build #1241 — GREEN
+5fa6bcea812c33f0b2dc8e13baae476221839b3a
+Validate session state against repeat target
 ```
 
-Пользователь после documentation cleanup сообщил, что workflows зелёные, но current production candidate ниже содержит новые ESP32 safety/integrity changes и требует своих exact automated results перед присвоением GREEN.
+Verified Actions:
 
-## Current production candidate — checkpoint 62
+```text
+ESP32 Build #1245 — GREEN
+run 32515224487
+head_sha 5fa6bcea812c33f0b2dc8e13baae476221839b3a
+
+CMP Protocol Tests #2210 — GREEN
+run 32515361340
+head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
+```
+
+После `5fa6bcea` до `ba3ac4bb` менялись только regression tests и documentation. Checkpoint 62 repo-level gates закрыты.
+
+## Checkpoint 62 — закрытый hardening block
 
 Production hardening:
 
@@ -35,7 +48,7 @@ fa5a0073  Guard timed-out job manual review
 5e407f2e  Guard repeat target session integrity
 ```
 
-Current safety semantics:
+Verified semantics:
 
 - lost ACK / `TIMED_OUT` never proves Arduino idle;
 - ordinary dismiss cannot close `TIMED_OUT`;
@@ -46,26 +59,19 @@ Current safety semantics:
 - `RUN_COMPLETED` above immutable target is rejected before NDJSON mutation;
 - deep session audit validates `JobRuntimeState.completedRuns` against immutable snapshot `repeatTarget` without another full journal scan.
 
-Current candidate verification required:
-
-```text
-ESP32 Build — NOT VERIFIED
-CMP Protocol Tests — NOT VERIFIED
-```
-
-Arduino production code/wire format этим candidate не менялись.
+Не возвращаться к этому блоку без конкретной регрессии.
 
 ## Закрытые блоки — не поднимать без регрессии
 
 Не считать следующей работой:
 
-- старую реализацию JOB cancel/recovery (`ALREADY_CLEAR`, `ALL_CLEAR`, physical fallback), кроме проверки checkpoint 62;
-- repeat-target UI/model implementation как новую функцию — сейчас проверяется только новый final-boundary hardening;
+- JOB cancel/recovery (`ALREADY_CLEAR`, `ALL_CLEAR`, physical fallback, timeout hardening);
+- repeat-target model/UI/final-boundary implementation;
 - Arduino autonomous archive UI/provenance;
 - motor schema/detail/repair-history contracts;
 - KG_FIRST quantity/writeoff/costing compatibility;
 - writeoff fault-path hardening;
-- NDJSON observability/rotation strategy groundwork;
+- NDJSON observability/rotation groundwork;
 - warehouse/winding bounded scan hardening;
 - backup whitelist/deep integrity/session preflight consolidation;
 - web regression-contract recovery;
@@ -75,20 +81,9 @@ Arduino production code/wire format этим candidate не менялись.
 
 ## Текущая активная очередь
 
-### 1. Verify checkpoint 62 candidate
+### 1. Targeted two-board UART/hardware smoke
 
-Получить exact results:
-
-```text
-ESP32 Build
-CMP Protocol Tests
-```
-
-Если красный — исправлять только фактическую compile/test ошибку.
-
-### 2. Targeted two-board UART/hardware smoke
-
-После green automated gates, при доступном стенде:
+При доступном стенде проверить current checkpoint 62 boundary:
 
 ```text
 normal JOB delivery
@@ -111,14 +106,16 @@ lost JOB_ACK / timeout -> manual review, not ordinary dismiss/new-job bypass
 late ALL_CLEAR after completed job -> no corruption/storage fault
 ```
 
-### 3. Дальнейшая работа
+Это verification gate, а не новая разработка.
 
-После current gates выбирать задачу только из:
+### 2. Дальнейшая работа
+
+Если hardware smoke сейчас недоступен, не простаивать и не поднимать старые задачи. Выбирать следующую repo-level работу только из:
 
 - конкретного bug report;
+- подтверждённого persistence/integrity fault;
 - измеренного performance/storage hotspot;
-- явно запрошенной новой функциональности;
-- подтверждённого persistence/integrity fault.
+- явно запрошенной новой функциональности.
 
 Не начинать speculative database migration, destructive compaction или новую rotation policy без измерений.
 

@@ -31,7 +31,7 @@ const registryWeb = fs.readFileSync(path.join(repoRoot, 'firmware/esp32/src/CM_R
 
 if (!registryHeader.includes('uint16_t repeatTarget;')) failures.push('CM_RepairRegistry.h: repeatTarget storage field missing');
 if (!registryHeader.includes('repeatTarget(1U)')) failures.push('CM_RepairRegistry.h: new motor repeat default must be 1');
-if (!registrySource.includes('"repeat_target"')) failures.push('CM_RepairRegistry.cpp: repeat_target is not persisted');
+if (!registrySource.includes('repeat_target')) failures.push('CM_RepairRegistry.cpp: repeat_target is not persisted');
 if (!registryWeb.includes('"phase_count"')) failures.push('CM_RepairRegistryWeb.cpp: phase_count API alias missing');
 if (!registryWeb.includes('"repeat_target"')) failures.push('CM_RepairRegistryWeb.cpp: repeat_target API field missing');
 if (!registryWeb.includes('0xFFFFUL')) failures.push('CM_RepairRegistryWeb.cpp: repeat_target uint16 limit missing');

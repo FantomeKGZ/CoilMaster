@@ -5,22 +5,21 @@ Branch: `cmp-protocol-v1`
 
 ## Purpose
 
-Checkpoint 62 is the current verified repo-level safety/integrity baseline. The update/hardening plan is closed at repo level.
+Checkpoint 62 established the repo-level safety/integrity baseline that existed when this audit began.
 
-The remaining two-board UART/hardware smoke is an external verification gate, not an active software-development backlog item. It remains required when the physical stand is available, but it must not block repo-level review or cause old completed tasks to be reopened.
+The audit was temporarily paused to finish the remaining Phase 9 work from the approved 2026-08-20 UI/hardware/job-lifecycle plan. That implementation is now closed by:
 
-The new active phase is a full audit of the current `cmp-protocol-v1` codebase for defects, weak contracts, unsafe state transitions, persistence inconsistencies, resource risks, stale/dead implementation, and missing regression coverage.
+```text
+docs/PROJECT_HANDOFF/64_PHASE9_SHARED_WEB_SHELL_AND_SEARCH_2026-08-22.md
+```
+
+Current Phase 9 HEAD CI is still `NOT VERIFIED` until an exact Actions run with matching `head_sha` is inspected. This does not reopen Phase 9 implementation as active backlog.
+
+The active repo-level phase is again a full audit of the current `cmp-protocol-v1` codebase for defects, weak contracts, unsafe state transitions, persistence inconsistencies, resource risks, stale/dead implementation, and missing regression coverage.
 
 ## Verified baseline entering the audit
 
-Production ESP32 C++ baseline:
-
-```text
-5fa6bcea812c33f0b2dc8e13baae476221839b3a
-Validate session state against repeat target
-```
-
-Verified automated gates:
+Previously verified automated gates:
 
 ```text
 ESP32 Build #1245 — GREEN
@@ -32,7 +31,7 @@ run 32515361340
 head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
 ```
 
-Do not claim physical hardware acceptance from these CI results.
+These older successful runs do not prove the newer Phase 9/current HEAD green. Do not claim physical hardware acceptance from CI.
 
 ## External verification gate retained
 
@@ -54,7 +53,35 @@ lost JOB_ACK / timeout -> manual review
 late ALL_CLEAR after completed job -> no persisted corruption/storage fault
 ```
 
-This gate is retained but is not the active repo-level work queue.
+This gate is retained but does not block repo-level review.
+
+## Targeted desync/recovery review retained after Phase 9
+
+In addition to the normal audit sequence, explicitly review the cross-board scenario that motivated the temporary recovery investigation:
+
+```text
+ESP32 believes a JOB was sent/pending
+Arduino does not visibly hold the expected JOB
+operator tries to cancel/clear
+both boards must converge without inventing RUN completion or corrupting persisted state
+```
+
+Trace current transitions for:
+
+```text
+JOB / JOB_ACK
+JOB_CANCEL / JOB_CANCEL_ACK
+ALREADY_CLEAR
+ALL_CLEAR
+timeout / retry
+late ACK / late ALL_CLEAR
+ESP32 reboot
+Arduino reboot
+replay
+persisted ESP32 job state
+```
+
+The generic cancel/recovery feature already exists; this is a targeted defect audit, not an instruction to reimplement it. Change code only if a concrete inconsistent/fail-open transition is proven.
 
 ## Full audit scope
 
@@ -123,11 +150,11 @@ Guard remote job admission boundaries
 Tests/Protocol/test_repeat_target.cpp
 ```
 
-Required verification after this production Arduino change:
+Required verification after this production Arduino change remains separate from older green evidence:
 
 ```text
-Arduino Uno Build — NOT VERIFIED
-CMP Protocol Tests — NOT VERIFIED
+Arduino Uno Build — NOT VERIFIED here
+CMP Protocol Tests for exact change/head — NOT VERIFIED here
 hardware remote JOB smoke — external gate
 ```
 
@@ -137,9 +164,18 @@ hardware remote JOB smoke — external gate
 
 Therefore a CRC-valid but syntactically malformed frame can be interpreted instead of rejected fail-closed, e.g. numeric tokens with trailing characters or an unknown winding type.
 
-State-machine hardening from A-001 now prevents zero/mismatched identity from overwriting active state, but the wire parser itself still requires strict canonical validation and regression coverage.
+State-machine hardening from A-001 prevents zero/mismatched identity from overwriting active state, but the wire parser itself still requires strict canonical validation and regression coverage.
 
-This is the current Phase A code target.
+**This is the current Phase A code target after Phase 9 closure.**
+
+Required fix direction:
+
+- strict full-token unsigned parsing;
+- overflow rejection;
+- reject empty/non-digit/trailing characters;
+- exact accepted winding type tokens only;
+- preserve explicit protocol compatibility where documented;
+- regression cases for malformed-but-CRC-valid JOB frames.
 
 ## Execution rules
 
@@ -171,10 +207,13 @@ no automatic production-data cleanup
 ## Audit status
 
 ```text
+Approved plan Phase 9 implementation: COMPLETE (checkpoint 64)
+Current newer HEAD CI: NOT VERIFIED
 Phase A inventory / cross-cutting ownership: IN PROGRESS
 Arduino audit: IN PROGRESS
-  A-001 FIXED / CI PENDING
-  A-002 CONFIRMED / OPEN
+  A-001 FIXED / exact-current verification pending
+  A-002 CONFIRMED / OPEN / CURRENT CODE TARGET
+Targeted JOB/JOB_CANCEL/ALL_CLEAR desync audit: NEXT AFTER A-002
 ESP32 audit: PENDING
 Web audit: PENDING
 Tests/CI audit: PENDING

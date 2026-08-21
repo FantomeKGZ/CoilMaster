@@ -2,6 +2,30 @@
 
 namespace CM
 {
+namespace
+{
+void appendSearchPageMetadata(String& response,
+                              uint16_t count,
+                              uint8_t limit,
+                              uint32_t cursor,
+                              bool hasMore,
+                              uint32_t nextCursor)
+{
+    response += F("],\"count\":");
+    response += count;
+    response += F(",\"limit\":");
+    response += limit;
+    response += F(",\"cursor\":");
+    response += cursor;
+    response += F(",\"has_more\":");
+    response += hasMore ? F("true") : F("false");
+    response += F(",\"next_cursor\":");
+    if (hasMore) response += nextCursor;
+    else response += F("null");
+    response += '}';
+}
+}
+
 RepairRegistryLookupWeb::RepairRegistryLookupWeb(WebServer& server,
                                                  RepairRegistry& registry)
     : m_server(server), m_registry(registry)
@@ -18,6 +42,10 @@ void RepairRegistryLookupWeb::begin()
                 [this]() { handleMotorRepairs(); });
     m_server.on("/api/repairs/by-id", HTTP_GET,
                 [this]() { handleRepair(); });
+    m_server.on("/api/search/clients", HTTP_GET,
+                [this]() { handleClientSearch(); });
+    m_server.on("/api/search/repairs", HTTP_GET,
+                [this]() { handleRepairSearch(); });
 }
 
 void RepairRegistryLookupWeb::handleClient()
@@ -217,6 +245,118 @@ void RepairRegistryLookupWeb::handleRepair()
     }
     response += item;
     response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryLookupWeb::handleClientSearch()
+{
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
+
+    String query = m_server.hasArg("q") ? m_server.arg("q") : String();
+    query.trim();
+    if (query.length() == 0U || query.length() > 120U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_search_query\"}");
+        return;
+    }
+
+    uint32_t cursor = 0UL;
+    uint32_t parsedLimit = 6UL;
+    bool cursorPresent = false;
+    bool limitPresent = false;
+    if (!parseOptionalUnsigned("cursor", 0UL, 0xFFFFFFFFUL,
+                               cursor, cursorPresent) ||
+        !parseOptionalUnsigned("limit", 1UL,
+                               RepairRegistry::MaxListPageSize,
+                               parsedLimit, limitPresent))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_cursor_or_limit\"}");
+        return;
+    }
+    if (!limitPresent) parsedLimit = 6UL;
+
+    const uint8_t limit = static_cast<uint8_t>(parsedLimit);
+    String response = F("{\"items\":[");
+    response.reserve(256U + static_cast<unsigned int>(limit) * 320U);
+    uint16_t count = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_registry.appendClientsSearchPageJson(response,
+                                                query,
+                                                cursor,
+                                                limit,
+                                                count,
+                                                nextCursor,
+                                                hasMore))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"client_search_failed\"}");
+        return;
+    }
+    appendSearchPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryLookupWeb::handleRepairSearch()
+{
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
+
+    String query = m_server.hasArg("q") ? m_server.arg("q") : String();
+    query.trim();
+    if (query.length() == 0U || query.length() > 120U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_search_query\"}");
+        return;
+    }
+
+    uint32_t cursor = 0UL;
+    uint32_t parsedLimit = 6UL;
+    bool cursorPresent = false;
+    bool limitPresent = false;
+    if (!parseOptionalUnsigned("cursor", 0UL, 0xFFFFFFFFUL,
+                               cursor, cursorPresent) ||
+        !parseOptionalUnsigned("limit", 1UL,
+                               RepairRegistry::MaxListPageSize,
+                               parsedLimit, limitPresent))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_cursor_or_limit\"}");
+        return;
+    }
+    if (!limitPresent) parsedLimit = 6UL;
+
+    const uint8_t limit = static_cast<uint8_t>(parsedLimit);
+    String response = F("{\"items\":[");
+    response.reserve(256U + static_cast<unsigned int>(limit) * 520U);
+    uint16_t count = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_registry.appendRepairsSearchPageJson(response,
+                                                query,
+                                                cursor,
+                                                limit,
+                                                count,
+                                                nextCursor,
+                                                hasMore))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_search_failed\"}");
+        return;
+    }
+    appendSearchPageMetadata(response, count, limit, cursor, hasMore, nextCursor);
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 

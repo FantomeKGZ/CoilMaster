@@ -35,34 +35,45 @@ jobs:
         run: ctest --test-dir build/cmp-protocol --output-on-failure
 
       - name: Audit web JavaScript and navigation
+        if: always()
         run: node Tests/Web/check_web_assets.js
 
       - name: Audit repeat target UI contracts
+        if: always()
         run: node Tests/Web/check_repeat_target_ui.js
 
       - name: Audit motor schema UI contracts
+        if: always()
         run: node Tests/Web/check_motor_schema_ui.js
 
       - name: Audit motor details and repair history contracts
+        if: always()
         run: node Tests/Web/check_motor_details_ui.js
 
       - name: Audit Arduino archive UI contracts
+        if: always()
         run: node Tests/Web/check_arduino_archive_ui.js
 
       - name: Audit release safety contracts
+        if: always()
         run: node Tests/Web/check_release_contracts.js
 
       - name: Audit final acceptance contracts
+        if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js
 
       - name: Audit kg-first material contracts
+        if: always()
         run: node Tests/Web/check_kg_first_material_contracts.js
 
       - name: Audit write-off fault contracts
+        if: always()
         run: node Tests/Web/check_writeoff_fault_contracts.js
 
       - name: Audit NDJSON growth diagnostics
+        if: always()
         run: node Tests/Web/check_ndjson_growth_diagnostics.js
 
       - name: Audit Hall calibration safety contracts
+        if: always()
         run: node Tests/Web/check_hall_calibration_contracts.js

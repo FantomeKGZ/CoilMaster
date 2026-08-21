@@ -14,7 +14,7 @@ function forbidText(text, message) {
 }
 
 requireText('bool parseCanonicalUnsigned(const char* text,',
-  'Arduino JOB parser must use strict canonical unsigned parsing');
+  'Arduino transport must use strict canonical unsigned parsing');
 requireText("if (text[0] == '0' && text[1] != '\\0') return false;",
   'Canonical numeric tokens must reject leading zeroes');
 requireText("if (*cursor < '0' || *cursor > '9') return false;",
@@ -42,6 +42,11 @@ requireText('else if (strcmp(type, "WORKING") == 0)',
 requireText('else\n        return false;',
   'Unknown winding type must fail closed');
 
+requireText('parseCanonicalUnsigned(runText, 0xFFFFFFFFUL, runId)',
+  'ACK/NACK run id must be parsed as a complete canonical token before queue correlation');
+requireText('parseCanonicalUnsigned(jobText, 0xFFFFFFFFUL, parsed)',
+  'JOB_CANCEL job id must be parsed as a complete canonical token');
+
 forbidText('job.jobId = strtoul(jobId, nullptr, 10);',
   'JOB id must not return to permissive strtoul parsing');
 forbidText('job.sessionId = strtoul(sessionId, nullptr, 10);',
@@ -52,5 +57,9 @@ forbidText('const unsigned long value = strtoul(token, nullptr, 10);',
   'turn tokens must not accept numeric prefixes');
 forbidText('strcmp(type, "STARTING") == 0 ? WindingType::Starting',
   'unknown winding type must not silently become WORKING');
+forbidText('const uint32_t runId = strtoul(runText, nullptr, 10);',
+  'ACK/NACK correlation must not accept a numeric prefix');
+forbidText('const unsigned long parsed = strtoul(jobText, &end, 10);',
+  'JOB_CANCEL correlation must not accept signs/whitespace/non-canonical tokens');
 
-console.log('Arduino JOB parser contracts: OK');
+console.log('Arduino JOB/ACK/cancel parser contracts: OK');

@@ -24,17 +24,18 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 Читать в таком порядке:
 
-1. `59_BACKUP_SESSION_PREFLIGHT_INTEGRATION_2026-08-21.md` — duplicate manifest session-directory preflight удалён; backup manifest теперь использует authoritative classified/measured `WindingSessionPersistenceIntegrityAudit`.
-2. `58_BACKUP_SESSION_PREFLIGHT_CONSOLIDATION_2026-08-21.md` — read-only classified session preflight перенесён внутрь authoritative persistence audit до любых store `begin()`.
-3. `57_KG_FIRST_BACKUP_WAREHOUSE_INTEGRITY_2026-08-21.md` — kg-first warehouse/material persistence включены в deep backup integrity.
-4. `56_COSTING_SINGLE_PASS_WAREHOUSE_AGGREGATION_2026-08-21.md` — warehouse costing aggregation переведена на bounded/single-pass путь.
-5. `55_WAREHOUSE_WINDING_BOUNDED_SCAN_HARDENING_2026-08-21.md` — bounded scan hardening для warehouse/winding provenance.
-6. `54_WRITEOFF_FAULT_HTTP_AND_PROVENANCE_SCALING_2026-08-21.md` — fault HTTP semantics и provenance scaling writeoff path.
-7. `53_WRITEOFF_HARDWARE_FAULT_INJECTION_2026-08-21.md` и `52_WRITE_OFF_FAULT_PATH_ACCEPTANCE_2026-08-21.md` — writeoff fault-path acceptance/hardware injection checkpoints.
-8. `51_NDJSON_GROWTH_OBSERVABILITY_2026-08-20.md` — observability растущих NDJSON без преждевременной миграции в БД.
-9. `50_KG_FIRST_COSTING_COMPATIBILITY_2026-08-20.md`, `49_KG_FIRST_WRITEOFF_UI_2026-08-20.md`, `48_KG_FIRST_BACKEND_ACTIVATION_2026-08-20.md`, `47_KG_FIRST_QUANTITY_FOUNDATION_2026-08-20.md`, `46_KG_FIRST_WAREHOUSE_STORAGE_API_AUDIT_2026-08-20.md` — реализованный kg-first material flow.
-10. `45_ARDUINO_ARCHIVE_REPEAT_PROVENANCE_AUDIT_2026-08-20.md` и checkpoints `39–44` — repeat/archive/motor/Hall/JOB cancel baseline.
-11. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый release/hardware baseline; не доказательство текущего HEAD.
+1. `60_PROTOCOL_CI_RECOVERY_2026-08-21.md` — `CMP Protocol Tests #2170` подтверждён зелёным на `2c00b2c8`; stale Web/safety contracts восстановлены, workflow теперь показывает все audit failures за один run.
+2. `59_BACKUP_SESSION_PREFLIGHT_INTEGRATION_2026-08-21.md` — duplicate manifest session-directory preflight удалён; backup manifest теперь использует authoritative classified/measured `WindingSessionPersistenceIntegrityAudit`.
+3. `58_BACKUP_SESSION_PREFLIGHT_CONSOLIDATION_2026-08-21.md` — read-only classified session preflight перенесён внутрь authoritative persistence audit до любых store `begin()`.
+4. `57_KG_FIRST_BACKUP_WAREHOUSE_INTEGRITY_2026-08-21.md` — kg-first warehouse/material persistence включены в deep backup integrity.
+5. `56_COSTING_SINGLE_PASS_WAREHOUSE_AGGREGATION_2026-08-21.md` — warehouse costing aggregation переведена на bounded/single-pass путь.
+6. `55_WAREHOUSE_WINDING_BOUNDED_SCAN_HARDENING_2026-08-21.md` — bounded scan hardening для warehouse/winding provenance.
+7. `54_WRITEOFF_FAULT_HTTP_AND_PROVENANCE_SCALING_2026-08-21.md` — fault HTTP semantics и provenance scaling writeoff path.
+8. `53_WRITEOFF_HARDWARE_FAULT_INJECTION_2026-08-21.md` и `52_WRITE_OFF_FAULT_PATH_ACCEPTANCE_2026-08-21.md` — writeoff fault-path acceptance/hardware injection checkpoints.
+9. `51_NDJSON_GROWTH_OBSERVABILITY_2026-08-20.md` — observability растущих NDJSON без преждевременной миграции в БД.
+10. `50_KG_FIRST_COSTING_COMPATIBILITY_2026-08-20.md`, `49_KG_FIRST_WRITEOFF_UI_2026-08-20.md`, `48_KG_FIRST_BACKEND_ACTIVATION_2026-08-20.md`, `47_KG_FIRST_QUANTITY_FOUNDATION_2026-08-20.md`, `46_KG_FIRST_WAREHOUSE_STORAGE_API_AUDIT_2026-08-20.md` — реализованный kg-first material flow.
+11. `45_ARDUINO_ARCHIVE_REPEAT_PROVENANCE_AUDIT_2026-08-20.md` и checkpoints `39–44` — repeat/archive/motor/Hall/JOB cancel baseline.
+12. `38_COILMASTER_V1_RELEASE_READY_2026-08-16.md` и более старые checkpoints — предыдущий подтверждённый release/hardware baseline; не доказательство текущего HEAD.
 
 Текущий код `cmp-protocol-v1` имеет приоритет над историческими checkpoints.
 
@@ -193,7 +194,7 @@ RUN_COMPLETED никогда не списывает провод автомат
 
 Следующие checkpoints `52–57` усилили fault paths, bounded provenance scans, costing aggregation и backup integrity.
 
-## Backup session persistence — текущий завершённый recovery block
+## Backup session persistence — завершённый recovery block
 
 `WindingSessionPersistenceIntegrityAudit` является authoritative owner read-only preflight для:
 
@@ -228,40 +229,40 @@ winding_session_persistence_unstable_or_invalid
 
 ## Verification status текущего HEAD
 
-На момент обновления `00_READ_FIRST.md` последние recovery commits:
+Подтверждённый CI baseline recovery:
 
 ```text
-a141f7d5fcf9216a178ca31dbefc6189638f8e22  Consolidate backup session preflight
-9d8e3799422fcd6bd38c4a8e89fe6c1f45ad7289  Guard consolidated backup session preflight
-53052f2279631675c125c780ceed85379a433ec1  Checkpoint consolidated backup session preflight
+2c00b2c8d57e4f4dd0806ac29be7f24893ebf2c2  Fix write-off fault error token contract
+CMP Protocol Tests #2170                           GREEN
 ```
 
-GitHub workflow definitions существуют и `CMP Protocol Tests` настроен на `push` в `cmp-protocol-v1`, включая `Tests/Web/**` и `firmware/esp32/src/**`. Однако connector не показал status checks/workflow runs для recovery HEAD.
+В `#2170` зелёным завершился весь `.github/workflows/cmp-protocol-tests.yml`: host protocol/state-machine tests и все настроенные Web/safety audits. Подробно: checkpoint `60_PROTOCOL_CI_RECOVERY_2026-08-21.md`.
 
-Поэтому без нового фактического результата не считать подтверждёнными:
+Следующие documentation commits после этого baseline не изменяют production firmware semantics, но отдельные build workflows всё равно проверять по их собственным runs.
+
+Без нового фактического результата не считать подтверждёнными:
 
 ```text
-pio run -e uno
-pio run -e esp32
-CMP Protocol Tests current HEAD
+pio run -e uno / Arduino Uno Build current HEAD
+pio run -e esp32 / ESP32 Build current HEAD
 hardware UART E2E current HEAD
-GitHub CI current HEAD
+hardware acceptance current HEAD
 ```
 
 Старые release/build successes — только историческое доказательство прежнего baseline.
 
 ## Текущий recovery-приоритет
 
-Kg-first material flow и backup session-preflight integration уже не являются next task.
+Protocol CI восстановлен и больше не является blocker.
 
 Продолжать от текущего HEAD:
 
 ```text
-1. проверить оставшиеся build/test regressions после recent Uno Flash/SRAM recovery;
-2. проверить recent Uno footprint commits на functional regression, не откатывая safety semantics;
+1. разобрать отдельно падающий ESP32 Build и исправить подтверждённые compile/link/size regressions;
+2. проверить Arduino Uno Build текущего HEAD и recent Flash/SRAM footprint commits на functional regression;
 3. затем focused source-level audit изменений после последнего hardware-accepted baseline;
 4. найденные подтверждённые ошибки исправлять сразу с current blob SHA + regression contract;
-5. hardware acceptance текущего HEAD проводить отдельно — старый hardware pass не переносить автоматически.
+5. hardware acceptance текущего HEAD проводить отдельно — CI не заменяет hardware E2E.
 ```
 
 ## Короткий текст для нового чата
@@ -270,14 +271,13 @@ Kg-first material flow и backup session-preflight integration уже не яв�
 Продолжаем CoilMaster recovery.
 Repo FantomeKGZ/CoilMaster, source-of-truth cmp-protocol-v1, main не использовать.
 Сначала прочитай docs/PROJECT_HANDOFF/00_READ_FIRST.md,
+60_PROTOCOL_CI_RECOVERY_2026-08-21.md,
 59_BACKUP_SESSION_PREFLIGHT_INTEGRATION_2026-08-21.md,
 58_BACKUP_SESSION_PREFLIGHT_CONSOLIDATION_2026-08-21.md,
-57_KG_FIRST_BACKUP_WAREHOUSE_INTEGRITY_2026-08-21.md,
-56_COSTING_SINGLE_PASS_WAREHOUSE_AGGREGATION_2026-08-21.md,
-55_WAREHOUSE_WINDING_BOUNDED_SCAN_HARDENING_2026-08-21.md
-и checkpoints 46–54 по kg-first/writeoff recovery.
+57_KG_FIRST_BACKUP_WAREHOUSE_INTEGRITY_2026-08-21.md
+и checkpoints 46–56 по kg-first/writeoff recovery.
 Перед каждым изменением existing file fetch current blob SHA.
 Не заявляй build/CI green без фактического результата.
-Текущий приоритет: build/test recovery после recent Uno Flash/SRAM fixes,
-затем focused audit изменений после последнего hardware-accepted baseline.
+CMP Protocol Tests #2170 на 2c00b2c8 подтверждён GREEN.
+Текущий приоритет: ESP32 Build recovery, затем Arduino Uno Build/Flash-SRAM audit и hardware E2E.
 ```

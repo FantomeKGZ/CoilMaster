@@ -82,20 +82,42 @@ bool StateMachine::setCoilTurns(uint8_t index, uint16_t turns)
 
 bool StateMachine::loadRemoteJob(const WindingJob& remoteJob)
 {
-    if (m_state == MachineState::Winding ||
-        m_state == MachineState::Paused ||
-        m_state == MachineState::ManualRun ||
-        !remoteJob.isValid())
+    if (!remoteJob.isValid() || remoteJob.jobId == 0UL ||
+        remoteJob.sessionId == 0UL)
+    {
+        return false;
+    }
+
+    // JOB delivery is retried when JOB_ACK is lost. Accept an exact duplicate
+    // of the already-held no-run remote job idempotently, without resetting any
+    // state. A different JOB must never replace an accepted/local/partial job.
+    if (m_state == MachineState::Ready &&
+        m_job.source == JobSource::Esp32Web &&
+        m_job.status == JobStatus::Ready &&
+        m_job.currentRunId == 0UL && m_job.completedRuns == 0U &&
+        m_job.jobId == remoteJob.jobId &&
+        m_job.sessionId == remoteJob.sessionId &&
+        m_job.type == remoteJob.type &&
+        m_job.repeatTarget == remoteJob.repeatTarget &&
+        m_job.coilCount == remoteJob.coilCount)
+    {
+        for (uint8_t index = 0U; index < m_job.coilCount; ++index)
+        {
+            if (m_job.targetTurns[index] != remoteJob.targetTurns[index])
+                return false;
+        }
+        return true;
+    }
+
+    // A new remote job is accepted only from the genuinely empty HOME state.
+    // This prevents UART traffic from overwriting local entry, a coil boundary,
+    // a completed run awaiting ACK, a fault, or another accepted remote job.
+    if (m_state != MachineState::EnterCoilCount || m_job.isValid())
     {
         return false;
     }
 
     m_job = remoteJob;
-    if (m_job.sessionId == 0UL)
-    {
-        m_job.sessionId = allocateSessionId();
-    }
-
     m_job.source = JobSource::Esp32Web;
     m_job.status = JobStatus::Ready;
     m_job.currentRunId = 0UL;

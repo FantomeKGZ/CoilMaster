@@ -38,6 +38,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_web_assets.js
 
+      - name: Audit shared app shell contracts
+        if: always()
+        run: node Tests/Web/check_shared_app_shell_contracts.js
+
       - name: Audit repeat target UI contracts
         if: always()
         run: node Tests/Web/check_repeat_target_ui.js

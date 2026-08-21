@@ -1,239 +1,237 @@
 # Индекс ключевых файлов
 
-Перед редактированием всегда получать актуальное содержимое файла из ветки `cmp-protocol-v1`.
+Дата актуализации: **2026-08-21**  
+Ветка: `cmp-protocol-v1`
 
-## Главная интеграция ESP32
+Перед редактированием любого existing file получать его актуальное содержимое и current blob SHA.
+
+## Current entrypoints
+
+```text
+/AGENTS.md
+docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/AI_AGENT/00_START_HERE.md
+docs/AI_AGENT/01_PROJECT_MAP.md
+docs/AI_AGENT/02_CHANGE_ROUTER.md
+docs/AI_AGENT/04_VERIFICATION_MATRIX.md
+```
+
+Do not use old `00 -> 28 -> ...` or checkpoint-24/38 continuation orders anymore. Older checkpoints are history/evidence only.
+
+## Arduino production
+
+```text
+firmware/arduino/src/main.cpp
+Core/
+Arduino/
+Arduino/Config/CM_Pins.h
+Arduino/CM_UartEventTransport.h/.cpp
+Arduino/CM_SsrController.*
+Arduino/CM_HallTurnSource.*
+Arduino/CM_HallCalibrationService.*
+```
+
+Arduino owns physical START, SSR, Hall counting, local state machine and generation of RUN events.
+
+## ESP32 main integration
 
 ```text
 firmware/esp32/src/main.cpp
-```
-
-Содержит `/api/status`, `/api/jobs`, `/api/recovery/acknowledge`, регистрацию web/API, startup persistent-компонентов и lifecycle текущего job.
-
-## Сеть, исходящий backup FTP и входящий recovery FTP
-
-```text
-firmware/esp32/src/CM_NetworkProfileStore.h/.cpp
-firmware/esp32/src/CM_NetworkManager.h/.cpp
-firmware/esp32/src/CM_NetworkWeb.h/.cpp
-firmware/esp32/src/CM_RemoteBackupSettings.h/.cpp
-firmware/esp32/src/CM_RemoteBackupTransfer.h/.cpp
-firmware/esp32/src/CM_RemoteBackupWeb.h/.cpp
-firmware/esp32/src/CM_WebRecoveryFtpServer.h/.cpp
 firmware/esp32/src/CM_StaticSiteServer.h/.cpp
-firmware/esp32/web/shared/settings-wifi.js
-firmware/esp32/web/shared/settings-remote-backup.js
-firmware/esp32/web/shared/settings-system-diagnostics.js
 ```
 
-`CM_WebRecoveryFtpServer` — отдельный одноклиентный входящий FTP только для
-`/web`. Не путать с `CM_RemoteBackupTransfer`, который является исходящим FTP-
-клиентом для резервных копий на USB-хранилище роутера. Оба пути используют
-общий fail-closed runtime activity probe, но имеют разные корни и назначение.
+ESP32 owns service/data/UI orchestration, job persistence/delivery, registry, warehouse/materials/costing, backup/restore, network and diagnostics.
 
-`GET /api/system/diagnostics` зарегистрирован в `firmware/esp32/src/main.cpp` и
-read-only публикует reset reason/brownout и heap. Он не измеряет напряжение и не
-заменяет проверку 5 В/3,3 В мультиметром под Wi-Fi load.
-
-## Persistent job identity и recovery
-
-```text
-firmware/esp32/src/CM_PersistentIdAllocator.h/.cpp
-firmware/esp32/src/CM_JobSnapshotStore.h/.cpp
-firmware/esp32/src/CM_JobStateStore.h/.cpp
-firmware/esp32/src/CM_JobRecovery.h/.cpp
-firmware/esp32/src/CM_JobDisplayRecovery.h/.cpp
-firmware/esp32/src/CM_JobSpoolSelectionStore.h/.cpp
-```
-
-Хранилища:
-
-```text
-/data/winding-jobs/id-state.txt
-/data/winding-jobs/snapshots/session-<session_id>.json
-/data/winding-jobs/spool-selection/session-<session_id>.json
-/data/winding-jobs/state/session-<session_id>.json
-```
-
-`CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload. Он возвращает validated `lastAllocatedId` из уже выполняемой проверки `last_job_id == last_session_id`; старый `check(storage)` сохранён.
-
-## UART и журнал намотки
+## Production CMP1 / job cancel
 
 ```text
 Arduino/CM_UartEventTransport.h/.cpp
 firmware/esp32/src/CM_UartEventReceiver.h/.cpp
 Shared/CMP1Text/CM_Cmp1Crc.h
-firmware/esp32/src/CM_WindingJournal.h/.cpp
-firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp
+firmware/arduino/src/main.cpp
 ```
 
-`Shared/CMP1Text/CM_Cmp1Crc.h` — единственная production-реализация
-CRC-16/MODBUS для текстовых кадров CMP1. Не заменять её binary
-`Shared/Protocol/`: там другой wire format и CRC-CCITT.
+Current cancel/recovery implementation includes no-run cancel, idempotent `ALREADY_CLEAR`, safe `ALL_CLEAR` fallback and no automatic run-completion semantics.
 
-Журнал:
+`Shared/Protocol/` is older binary host-test protocol and not production CMP1.
+
+## Persistent job identity/state/recovery
 
 ```text
-/data/winding-runs/events.ndjson
+CM_PersistentIdAllocator.*
+CM_JobSnapshotStore.*
+CM_JobStateStore.*
+CM_JobStateRemoteCancel.cpp
+CM_JobStateDismiss.cpp
+CM_JobRecovery.*
+CM_JobDisplayRecovery.*
+CM_JobSpoolSelectionStore.*
 ```
 
-## История и full validation журнала намотки
+The obsolete duplicate `CM_JobStateStoreLifecycle.cpp` was removed in `e35c4bfe`; do not recreate its duplicate method definitions.
+
+Relevant data:
 
 ```text
-firmware/esp32/src/CM_WindingJournalQuery.h
-firmware/esp32/src/CM_WindingJournalQuery.cpp
-firmware/esp32/src/CM_WindingJournalQueryValidation.cpp
-firmware/esp32/src/CM_WindingJournalWeb.h/.cpp
+/data/winding-jobs/id-state.txt
+/data/winding-jobs/snapshots/session-<id>.json
+/data/winding-jobs/spool-selection/session-<id>.json
+/data/winding-jobs/state/session-<id>.json
 ```
 
-`CM_WindingJournalQueryValidation.cpp` содержит authoritative `WindingJournalQuery::validateAll()` / count overload для full-file schema scan до EOF. Не возвращать backup audit к cursor-pagination.
-
-## Программа намотки
+## Winding journal
 
 ```text
-firmware/esp32/src/CM_WindingProgramParser.h
+CM_WindingJournal.*
+CM_WindingJournalQuery.h/.cpp
+CM_WindingJournalQueryValidation.cpp
+CM_WindingJournalTransitionAudit.*
+CM_WindingJournalWeb.*
 ```
 
-Единый parser для job creation, registry, similarity и UI-validation.
-
-## Flat persisted JSON validator
+Authoritative full validation:
 
 ```text
-firmware/esp32/src/CM_FlatJsonObjectValidator.h
+WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
 ```
 
-Header-only syntax validator для уже прочитанной flat JSON object строки. Используется workshop/pricing/material/warehouse/settings authoritative readers. Не вызывать его повторно внутри O(n²)/O(n*m) identity/reference scans, если соответствующий authoritative outer pass уже проверяет каждую строку.
+Do not reintroduce cursor-pagination as full authoritative validation.
 
-## Linked job и workshop registry
+## Workshop / motors / repairs
 
 ```text
-firmware/esp32/src/CM_JobLinkageRequest.h/.cpp
-firmware/esp32/src/CM_JobLinkageResolver.h/.cpp
-firmware/esp32/src/CM_RepairRegistry.h/.cpp
-firmware/esp32/src/CM_RepairRegistrySimilarity.cpp
-firmware/esp32/src/CM_RepairRegistryWeb.h/.cpp
-firmware/esp32/src/CM_MotorSimilarityWeb.h/.cpp
+CM_RepairRegistry.*
+CM_RepairRegistryWeb.*
+CM_RepairRegistryLookupWeb.*
+CM_MotorSimilarityWeb.*
+CM_WindingProgramParser.h
 ```
 
-Данные:
+Data root:
 
 ```text
-/data/workshop/clients.ndjson
-/data/workshop/motors.ndjson
-/data/workshop/repairs.ndjson
-/data/workshop/repair-status.ndjson
+/data/workshop/
 ```
 
-`CM_RepairRegistry` теперь fail-closed проверяет flat JSON syntax в authoritative/runtime reads, поэтому corrupted persisted line не должна молча попасть в JSON API.
+Motor import format: `docs/MOTOR_IMPORT_FORMAT.md`.
 
-## Production UI
+## Warehouse / KG_FIRST / material writeoff
 
 ```text
-firmware/esp32/web/mobile/
-firmware/esp32/web/desktop/
+CM_Warehouse*.h/.cpp
+CM_Material*.h/.cpp
+CM_RepairCosting*.h/.cpp
+CM_RepairPricing*.h/.cpp
+CM_JobSpoolSelectionStore.*
+CM_WindingJournalQuery*
 ```
 
-Основной production UI flow уже собран. Следующий обязательный внешний этап — hardware E2E ESP32 + Arduino, а не повторная реализация repair/winding UI.
-
-## Склад, материалы и costing
-
-Ключевые группы:
+Current new-consumption provenance:
 
 ```text
-firmware/esp32/src/CM_Warehouse*.h/.cpp
-firmware/esp32/src/CM_Material*.h/.cpp
-firmware/esp32/src/CM_RepairCosting*.h/.cpp
-firmware/esp32/src/CM_RepairPricing*.h/.cpp
+source_session_id + source_run_id mandatory
+spool_id optional only for approved KG_FIRST unallocated/manual path
 ```
 
-`CM_MaterialPersistenceIntegrityAudit` имеет совместимый metrics overload для catalogue/usage/adjustment counts; старый `check(storage)` сохранён. Authoritative material/usage/adjustment passes также требуют valid flat JSON syntax.
+If a spool is used, exact spool provenance and decrement remain exact. `RUN_COMPLETED` never auto-writes off material.
 
-`CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload для spool/price counts; старый `check(storage)` сохранён. Counts публикуются только после полного warehouse persistence audit, включая movement-reference validation. Spool/price/movement authoritative passes требуют valid flat JSON syntax.
-
-## Read-only backup/export и deep integrity
+## Backup / deep integrity
 
 Orchestration:
 
 ```text
-firmware/esp32/src/CM_BackupActivityGuard.h/.cpp
-firmware/esp32/src/CM_BackupExportWeb.h/.cpp
+CM_BackupActivityGuard.*
+CM_BackupExportWeb.*
+CM_RemoteBackupSettings.*
+CM_RemoteBackupTransfer.*
+CM_RemoteBackupWeb.*
 ```
 
-Deep audit modules:
+Key integrity owners:
 
 ```text
-firmware/esp32/src/CM_BackupBusinessDataIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_WarehousePersistenceIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_PersistentIdIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_WindingPersistenceIntegrityAudit.h/.cpp
-firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h/.cpp
+CM_BackupBusinessDataIntegrityAudit.*
+CM_WorkshopPersistenceIntegrityAudit.*
+CM_MaterialPersistenceIntegrityAudit.*
+CM_WarehousePersistenceIntegrityAudit.*
+CM_WarehouseMovementIntegrityAudit.*
+CM_PersistentIdIntegrityAudit.*
+CM_ConductorSettingsIntegrityAudit.*
+CM_WindingPersistenceIntegrityAudit.*
+CM_WindingSessionPersistenceIntegrityAudit.*
 ```
 
-Ключевые правила:
+`WindingSessionPersistenceIntegrityAudit` owns authoritative read-only session preflight. Backup export must not reintroduce the removed duplicate full directory scan.
 
-- `CM_WindingPersistenceIntegrityAudit` использует `WindingJournalQuery::validateAll()` + отдельный transition audit; cursor-pagination full scan там отсутствует.
-- `CM_WindingSessionPersistenceIntegrityAudit` — authoritative deep parser/cross-identity audit snapshot/state/spool-selection. Не дублировать его.
-- Session audit имеет совместимый metrics overload `WindingSessionPersistenceAuditMetrics`; старый `check(storage)` сохранён.
-- Session metrics возвращают `snapshotFileCount`, `stateFileCount`, `spoolSelectionFileCount` только после полного successful deep audit; partial counts при failure не публикуются.
-- Те же session passes возвращают `snapshotTotalBytes`, `stateTotalBytes`, `spoolSelectionTotalBytes`; 32-bit telemetry overflow не меняет integrity result.
-- `CM_PersistentIdIntegrityAudit` имеет совместимый `PersistentIdIntegrityAuditMetrics` overload; `lastAllocatedId` публикуется только после successful main/optional-backup audit.
-- `CM_BackupBusinessDataIntegrityAudit` имеет совместимый `BackupBusinessDataAuditMetrics` overload; business counts берутся из существующих validation passes без telemetry-only full scan.
-- Business/material/warehouse/settings flat JSON authoritative rows теперь проходят `CM_FlatJsonObjectValidator`; malformed flat JSON должен fail closed.
-- Strict flat JSON validation выполняется на outer pass; repeated identity/reference scans остаются identity-focused, чтобы не умножать parser CPU внутри уже известных O(n²)/O(n*m) paths.
-- `CM_WarehousePersistenceIntegrityAudit` имеет совместимый `WarehousePersistenceAuditMetrics` overload; spool/price counts считаются в authoritative passes, partial metrics при failure не публикуются.
-- `CM_BackupExportWeb.cpp` публикует **29 Stage 0 metrics**: total duration, 9 per-domain timings, allocator high-water, material/business/winding/warehouse record counts, session file counts и session byte totals.
-- Per-domain timing использует `millis()` вокруг уже существующих audit calls; дополнительного SD I/O нет.
-- `winding_session_directory_scan_duration_ms` измеряет preliminary directory scan отдельно от `winding_session_persistence_audit_duration_ms`, чтобы benchmark показал цену обоих passes до Stage 1 refactor.
-- `BackupActivityGuard::Safe` gating не ослаблять: heavy deep scan не выполняется во время active winding.
+Historical Stage-0 metric counts in older checkpoints are historical snapshots; use current code/manifest contract rather than copying old numeric counts.
 
-## Performance/rotation
+## Network / FTP / diagnostics
 
 ```text
-docs/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
+CM_NetworkProfileStore.*
+CM_NetworkManager.*
+CM_NetworkWeb.*
+CM_RemoteBackupSettings.*
+CM_RemoteBackupTransfer.*
+CM_RemoteBackupWeb.*
+CM_WebRecoveryFtpServer.*
+CM_StorageDiagnosticsWeb.*
 ```
 
-До hardware benchmark не делать произвольный rotation threshold, persistent optimistic cache, database migration или Stage 1 duplicate-scan refactor без отдельной correctness-причины.
+Incoming recovery FTP is restricted to `/web`; outbound remote backup is a separate client path.
 
-## HTTP semantics
+## Web UI
 
 ```text
-docs/84_BACKUP_AND_RUN_LEVEL_HTTP_SEMANTICS_AUDIT.md
+firmware/esp32/web/desktop/
+firmware/esp32/web/mobile/
+firmware/esp32/web/shared/
+Tests/Web/
 ```
 
-## CI
+Dynamic markup may live in shared JS. Regression tests should inspect the actual source of generated markup rather than require it in static HTML.
+
+## Build / CI
 
 ```text
-.github/workflows/esp32-build.yml
+platformio.ini
 .github/workflows/arduino-uno-build.yml
+.github/workflows/esp32-build.yml
 .github/workflows/cmp-protocol-tests.yml
-Tests/Protocol/CMakeLists.txt
-Tests/Protocol/test_main.cpp
-Tests/CMP1Text/test_main.cpp
+Tests/Protocol/
+Tests/CMP1Text/
+Tests/Web/
 ```
 
-Отсутствие workflow/status результата в GitHub connector не доказывает GREEN push-run.
-
-## Handoff
+Verified production baseline `e35c4bfe`:
 
 ```text
-docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
-docs/PROJECT_HANDOFF/02_ARCHITECTURE_AND_HARDWARE.md
-docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
-docs/PROJECT_HANDOFF/04_DATA_STORAGE_API_UI.md
-docs/PROJECT_HANDOFF/05_COMPLETED_WORK_LOG.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/07_BACKLOG_AND_DEFERRED.md
-docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
-docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
-docs/PROJECT_HANDOFF/10_SESSION_LOG.md
-docs/PROJECT_HANDOFF/11_FULL_BRANCH_AUDIT.md
-docs/PROJECT_HANDOFF/12_LATEST_HANDOFF_2026-08-08.md
+CMP Protocol Tests #2175 — GREEN
+ESP32 Build #1241 — GREEN
 ```
 
-При переносе в новый чат: `00` → `28` → `06` → `01` → актуальные исходники;
-затем тематические и исторические handoff-файлы.
+Arduino Uno Build and current-head hardware acceptance remain separate evidence.
+
+## Hardware references
+
+```text
+docs/HARDWARE_REFERENCE/
+docs/PROJECT_HANDOFF/02_ARCHITECTURE_AND_HARDWARE.md
+Engineering/Hardware/
+```
+
+Known UART pairing remains Arduino A1/A2 through level shifting to ESP32 GPIO16/17, with common signal ground.
+
+## Historical docs
+
+```text
+docs/PROJECT_HANDOFF/05_COMPLETED_WORK_LOG.md
+docs/PROJECT_HANDOFF/10_SESSION_LOG.md
+older numbered checkpoints
+Docs/
+```
+
+These are useful for archaeology and old verification evidence only. They do not select current active work.

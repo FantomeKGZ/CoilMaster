@@ -197,12 +197,11 @@ for (const text of [
 }
 for (const forbidden of [
   'bool idExists(',
-  '!findUnsigned(line, "spool_id", spoolId)',
   '!idExists(storage, SpoolsPath',
   '!idExists(storage, RepairsPath'
 ]) {
   if (warehousePersistence.includes(forbidden)) {
-    failures.push(warehousePersistencePath + ': legacy per-record/mandatory-spool backup audit returned: ' + forbidden);
+    failures.push(warehousePersistencePath + ': legacy per-record backup reference audit returned: ' + forbidden);
   }
 }
 

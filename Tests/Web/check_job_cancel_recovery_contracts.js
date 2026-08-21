@@ -83,6 +83,18 @@ for (const text of [
     'persisted remote-cancel no-run safety contract missing: ' + text);
 }
 
+// A late duplicate CANCELLED/ALL_CLEAR after an already completed or explicitly
+// closed job is stale transport evidence. It must be a no-op, not a storage
+// failure, and must never rewrite completed run evidence as cancellation.
+for (const text of [
+  'state.executionState == JobExecutionState::ProgramCompleted ||',
+  'state.executionState == JobExecutionState::ClosedAfterReview)',
+  'return true;'
+]) {
+  requireText(remoteCancelStatePath, remoteCancelState, text,
+    'stale cancel terminal-state no-op contract missing: ' + text);
+}
+
 // TIMED_OUT is ambiguous because Arduino may have accepted the JOB while every
 // ACK was lost. Ordinary inactive dismissal must never treat timeout as terminal;
 // only the explicit manual-review closure path may resolve it.
@@ -132,4 +144,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, timeout manual-review isolation, and recovery re-evaluation.');
+console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, and recovery re-evaluation.');

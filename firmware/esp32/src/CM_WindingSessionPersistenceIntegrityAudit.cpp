@@ -44,14 +44,25 @@ bool parseSessionFileName(const String& path, uint32_t& sessionId)
     return parseCanonicalUint32(idText, sessionId) && sessionId != 0UL;
 }
 
-bool directoryContentsCanonical(fs::FS& storage, const char* path)
+bool isCanonicalTempName(const String& path)
 {
-    if (!storage.exists(path)) return true;
+    const String name = baseNameOf(path);
+    if (!name.startsWith(F("session-")) || !name.endsWith(F(".tmp"))) return false;
+    if (name.length() <= 12U) return false;
+    const String idText = name.substring(8U, name.length() - 4U);
+    uint32_t sessionId = 0UL;
+    return parseCanonicalUint32(idText, sessionId) && sessionId != 0UL;
+}
+
+WindingSessionPersistenceAuditFailure directoryContentsCanonical(fs::FS& storage,
+                                                                  const char* path)
+{
+    if (!storage.exists(path)) return WindingSessionPersistenceAuditFailure::None;
     File directory = storage.open(path, FILE_READ);
     if (!directory || !directory.isDirectory())
     {
         if (directory) directory.close();
-        return false;
+        return WindingSessionPersistenceAuditFailure::DirectoryUnavailable;
     }
 
     File entry = directory.openNextFile();
@@ -62,20 +73,26 @@ bool directoryContentsCanonical(fs::FS& storage, const char* path)
         {
             entry.close();
             directory.close();
-            return false;
+            return WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry;
+        }
+        if (isCanonicalTempName(name))
+        {
+            entry.close();
+            directory.close();
+            return WindingSessionPersistenceAuditFailure::TemporaryFilePresent;
         }
         uint32_t sessionId = 0UL;
         if (!parseSessionFileName(name, sessionId))
         {
             entry.close();
             directory.close();
-            return false;
+            return WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry;
         }
         entry.close();
         entry = directory.openNextFile();
     }
     directory.close();
-    return true;
+    return WindingSessionPersistenceAuditFailure::None;
 }
 
 void addFileSizeMetric(File& entry,
@@ -99,6 +116,15 @@ void addFileSizeMetric(File& entry,
     }
     totalBytes += sizeBytes;
 }
+
+bool failAudit(WindingSessionPersistenceAuditMetrics& metrics,
+               WindingSessionPersistenceAuditMetrics& validatedMetrics,
+               WindingSessionPersistenceAuditFailure failure)
+{
+    validatedMetrics.failure = failure;
+    metrics = validatedMetrics;
+    return false;
+}
 }
 
 bool WindingSessionPersistenceIntegrityAudit::check(fs::FS& storage)
@@ -118,20 +144,31 @@ bool WindingSessionPersistenceIntegrityAudit::check(
     const bool hasStates = storage.exists(StateDirectory);
     const bool hasSelections = storage.exists(SelectionDirectory);
 
+    // Complete the read-only directory audit before any store begin(). In
+    // particular JobSpoolSelectionStore::begin() can recover a .tmp file, so a
+    // non-canonical entry must fail here before that code is reached. The backup
+    // manifest consumes this same measured preflight instead of rescanning the
+    // three directories separately.
+    const uint32_t preflightStartedAtMs = millis();
+    const char* directories[] = {SnapshotDirectory, StateDirectory, SelectionDirectory};
+    for (uint8_t index = 0U; index < sizeof(directories) / sizeof(directories[0]); ++index)
+    {
+        const WindingSessionPersistenceAuditFailure failure =
+            directoryContentsCanonical(storage, directories[index]);
+        if (failure != WindingSessionPersistenceAuditFailure::None)
+        {
+            validatedMetrics.directoryPreflightDurationMs = millis() - preflightStartedAtMs;
+            validatedMetrics.directoryPreflightMeasured = true;
+            return failAudit(metrics, validatedMetrics, failure);
+        }
+    }
+    validatedMetrics.directoryPreflightDurationMs = millis() - preflightStartedAtMs;
+    validatedMetrics.directoryPreflightMeasured = true;
+
     if (!hasSnapshots && !hasStates && !hasSelections)
     {
         metrics = validatedMetrics;
         return true;
-    }
-
-    // Complete the read-only directory audit before any store begin(). In
-    // particular JobSpoolSelectionStore::begin() can recover a .tmp file, so a
-    // non-canonical entry must fail here before that code is reached.
-    if (!directoryContentsCanonical(storage, SnapshotDirectory) ||
-        !directoryContentsCanonical(storage, StateDirectory) ||
-        !directoryContentsCanonical(storage, SelectionDirectory))
-    {
-        return false;
     }
 
     JobSnapshotStore snapshots(storage);
@@ -141,12 +178,19 @@ bool WindingSessionPersistenceIntegrityAudit::check(
         (hasStates && !states.begin()) ||
         (hasSelections && !selections.begin()))
     {
-        return false;
+        return failAudit(metrics, validatedMetrics,
+                         WindingSessionPersistenceAuditFailure::ContentInvalid);
     }
 
     if (hasSnapshots)
     {
         File directory = storage.open(SnapshotDirectory, FILE_READ);
+        if (!directory || !directory.isDirectory())
+        {
+            if (directory) directory.close();
+            return failAudit(metrics, validatedMetrics,
+                             WindingSessionPersistenceAuditFailure::DirectoryUnavailable);
+        }
         File entry = directory.openNextFile();
         while (entry)
         {
@@ -154,7 +198,9 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             uint32_t sessionId = 0UL;
             if (entry.isDirectory() || !parseSessionFileName(name, sessionId))
             {
-                entry.close(); directory.close(); return false;
+                entry.close(); directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry);
             }
             addFileSizeMetric(entry,
                               validatedMetrics.snapshotTotalBytes,
@@ -166,15 +212,17 @@ bool WindingSessionPersistenceIntegrityAudit::check(
                 snapshot.sessionId != sessionId || snapshot.jobId == 0UL ||
                 !snapshot.linkage.isValid())
             {
-                directory.close(); return false;
+                directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
             if (validatedMetrics.snapshotFileCount == 0xFFFFFFFFUL)
             {
-                directory.close(); return false;
+                directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
             ++validatedMetrics.snapshotFileCount;
-            // Snapshot-only sessions are valid legacy archive entries. Newer
-            // state/spool files, when present, are cross-checked below.
             entry = directory.openNextFile();
         }
         directory.close();
@@ -183,6 +231,12 @@ bool WindingSessionPersistenceIntegrityAudit::check(
     if (hasStates)
     {
         File directory = storage.open(StateDirectory, FILE_READ);
+        if (!directory || !directory.isDirectory())
+        {
+            if (directory) directory.close();
+            return failAudit(metrics, validatedMetrics,
+                             WindingSessionPersistenceAuditFailure::DirectoryUnavailable);
+        }
         File entry = directory.openNextFile();
         while (entry)
         {
@@ -190,7 +244,9 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             uint32_t sessionId = 0UL;
             if (entry.isDirectory() || !parseSessionFileName(name, sessionId))
             {
-                entry.close(); directory.close(); return false;
+                entry.close(); directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry);
             }
             addFileSizeMetric(entry,
                               validatedMetrics.stateTotalBytes,
@@ -203,11 +259,15 @@ bool WindingSessionPersistenceIntegrityAudit::check(
                 !hasSnapshots || !snapshots.load(sessionId, snapshot) ||
                 snapshot.jobId != state.jobId || snapshot.sessionId != state.sessionId)
             {
-                directory.close(); return false;
+                directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
             if (validatedMetrics.stateFileCount == 0xFFFFFFFFUL)
             {
-                directory.close(); return false;
+                directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
             ++validatedMetrics.stateFileCount;
             entry = directory.openNextFile();
@@ -218,6 +278,12 @@ bool WindingSessionPersistenceIntegrityAudit::check(
     if (hasSelections)
     {
         File directory = storage.open(SelectionDirectory, FILE_READ);
+        if (!directory || !directory.isDirectory())
+        {
+            if (directory) directory.close();
+            return failAudit(metrics, validatedMetrics,
+                             WindingSessionPersistenceAuditFailure::DirectoryUnavailable);
+        }
         File entry = directory.openNextFile();
         while (entry)
         {
@@ -225,7 +291,9 @@ bool WindingSessionPersistenceIntegrityAudit::check(
             uint32_t sessionId = 0UL;
             if (entry.isDirectory() || !parseSessionFileName(name, sessionId))
             {
-                entry.close(); directory.close(); return false;
+                entry.close(); directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry);
             }
             addFileSizeMetric(entry,
                               validatedMetrics.spoolSelectionTotalBytes,
@@ -244,11 +312,15 @@ bool WindingSessionPersistenceIntegrityAudit::check(
                 selection.repairId != snapshot.linkage.repairId ||
                 selection.motorId != snapshot.linkage.motorId)
             {
-                directory.close(); return false;
+                directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
             if (validatedMetrics.spoolSelectionFileCount == 0xFFFFFFFFUL)
             {
-                directory.close(); return false;
+                directory.close();
+                return failAudit(metrics, validatedMetrics,
+                                 WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
             ++validatedMetrics.spoolSelectionFileCount;
             entry = directory.openNextFile();

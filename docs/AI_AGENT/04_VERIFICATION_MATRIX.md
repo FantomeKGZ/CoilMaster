@@ -2,21 +2,31 @@
 
 This document answers: **what must be verified after a specific class of change.**
 
-Do not claim a workflow is green until its actual run has completed successfully. A successful Git commit is not a build result.
+Do not claim a workflow is green until its actual run has completed successfully. A Git commit is not a build result.
 
-## 1. Available automated gates
+## 1. Current known automated baseline
+
+On production commit:
+
+```text
+e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
+```
+
+verified:
+
+```text
+CMP Protocol Tests #2175 — GREEN
+ESP32 Build #1241 — GREEN
+```
+
+This does not imply a current-head Arduino Uno Build or hardware acceptance result.
+
+## 2. Available automated gates
 
 ### Arduino Uno Build
 
-Workflow:
-
 ```text
 .github/workflows/arduino-uno-build.yml
-```
-
-Local equivalent:
-
-```bash
 pio run -e uno
 ```
 
@@ -30,15 +40,8 @@ firmware/arduino/src/main.cpp
 
 ### ESP32 Build
 
-Workflow:
-
 ```text
 .github/workflows/esp32-build.yml
-```
-
-Local equivalent:
-
-```bash
 pio run -e esp32
 ```
 
@@ -56,93 +59,88 @@ Workflow:
 .github/workflows/cmp-protocol-tests.yml
 ```
 
-Equivalent host commands:
+It includes host protocol/state-machine tests plus the configured `Tests/Web/*.js` contract audits. The workflow is intentionally configured so later audits still run after an earlier audit failure; any failed audit still fails the job.
 
-```bash
-cmake -S Tests/Protocol -B build/cmp-protocol
-cmake --build build/cmp-protocol --parallel
-ctest --test-dir build/cmp-protocol --output-on-failure
-node Tests/Web/check_web_assets.js
-node Tests/Web/check_release_contracts.js
-node Tests/Web/check_final_acceptance_contracts.js
-```
-
-## 2. Verification matrix
+## 3. Verification matrix
 
 | Change type | Arduino Build | ESP32 Build | CMP/Web audits | Hardware regression |
 |---|---:|---:|---:|---:|
 | Docs only | No | No | Usually no | No |
 | `Tests/*` only | No unless source coupled | No unless source coupled | Yes for affected tests | No |
-| Desktop/mobile/shared web only | No | ESP32 workflow may run because it watches `firmware/esp32/**`; C++ compile impact normally none | Yes | Only if runtime behavior needs device proof |
-| ESP32 C++ service/API/storage | No | **Yes** | Usually **Yes** for public/data/safety contract | Targeted when persistence/network/hardware behavior changed |
+| Desktop/mobile/shared web only | No | Workflow may run because it watches `firmware/esp32/**` | Yes | Only if device behavior needs proof |
+| ESP32 C++ service/API/storage | No | **Yes** | Usually **Yes** | Targeted when runtime/persistence/hardware behavior changed |
 | Arduino `Core/` or `Arduino/` | **Yes** | No unless protocol peer changed | Usually **Yes** | Targeted for machine/input/output behavior |
 | UART/CMP1 wire contract | **Yes** | **Yes** | **Yes** | **Yes**, targeted cross-board regression |
-| Physical START / SSR / Hall / machine state | **Yes** | Only if peer/service behavior changed | Relevant contract audits | **Mandatory targeted hardware test** |
-| Workshop persisted schema | No | **Yes** | **Yes** | Persistence/reboot test when semantics changed |
-| Warehouse/writeoff | No | **Yes** | **Yes** | Targeted exact-run/writeoff test when production logic changed |
-| Backup/restore/apply | No | **Yes** | **Yes** | Targeted safe restore/reboot gate; destructive tests only disposable media |
-| Network/FTP | No | **Yes** | Relevant Web contracts | Targeted device/network test when behavior changed |
-| ESP32 hardware peripheral | No | **Yes** | As applicable | **Mandatory targeted hardware test** |
-| Arduino hardware peripheral | **Yes** | No unless protocol coupled | As applicable | **Mandatory targeted hardware test** |
-| Build/workflow config | Affected build | Affected build | Affected workflow | No unless production binary/behavior changes |
+| Physical START / SSR / Hall / machine state | **Yes** | If peer/service changed | Relevant audits | **Mandatory targeted hardware test** |
+| Workshop persisted schema | No | **Yes** | **Yes** | Persistence/reboot when semantics changed |
+| Warehouse/material writeoff | No | **Yes** | **Yes** | Targeted exact-run/writeoff test when production logic changed |
+| Backup/restore/apply | No | **Yes** | **Yes** | Targeted safe restore/reboot gate |
+| Network/FTP | No | **Yes** | Relevant Web contracts | Targeted device/network test |
+| Build/workflow config | Affected build | Affected build | Affected workflow | No unless binary/behavior changes |
 
-## 3. Hardware gates are change-scoped
+## 4. Hardware gates are change-scoped
 
-CoilMaster v1 already passed the mandatory release hardware acceptance sequence.
-
-Do **not** repeat the entire historical E2E suite for:
-
-- documentation-only changes;
-- test-only changes;
-- unrelated static contract hardening.
+Do not repeat a historical full E2E suite for docs/test-only changes or unrelated static contract hardening.
 
 Do re-run a closed hardware gate when the production code that established that gate changes.
 
 Examples:
 
-- changing `CM_StorageDiagnosticsWeb.*` → recheck storage diagnostics on device;
-- changing motor import validation/persistence → recheck import + reboot persistence;
-- changing transactional restore apply → recheck the relevant restore gate;
-- changing Arduino START/SSR state logic → recheck physical START/safe SSR behavior;
-- changing CMP1 framing → recheck ESP32↔Arduino communication.
+- changing Arduino START/SSR state logic -> recheck physical START/safe SSR;
+- changing CMP1 framing/cancel/ACK behavior -> recheck ESP32<->Arduino communication;
+- changing restore apply -> recheck the relevant restore safety gate;
+- changing persisted writeoff semantics -> recheck exact-run manual writeoff behavior.
 
-## 4. Safety-contract verification
+## 5. Safety-contract verification
 
-The following invariants are protected by repo audits and must also be considered during code review:
+Protect these invariants:
 
 ```text
 physical START only
+no automatic START between repeats
 Arduino owns SSR
 no automatic resume after reboot
 RUN_COMPLETED does not auto-writeoff
-manual exact spool/session/run writeoff
+manual writeoff requires exact source_session_id + source_run_id
+spool_id optional only for approved KG_FIRST unallocated/manual path
+exact spool provenance preserved whenever a spool is used
 operator-only transactional restore
 persisted stale restore evidence blocks operations
 no automatic production-data cleanup
 ```
 
-Primary automated guards:
+Primary automated guards include:
 
 ```text
 Tests/Web/check_release_contracts.js
 Tests/Web/check_final_acceptance_contracts.js
+Tests/Web/check_kg_first_material_contracts.js
+Tests/Web/check_writeoff_fault_contracts.js
+Tests/Web/check_hall_calibration_contracts.js
 ```
 
-When touching one of these contracts, update/extend the relevant assertion rather than relying only on prose documentation.
+Use the exact current workflow/script names from `.github/workflows/cmp-protocol-tests.yml` if they change.
 
-## 5. Protocol verification
+## 6. JOB cancel/recovery verification
 
-Any change to `CMP1|...` must cover at least:
+Current repo implementation is closed unless a regression is observed.
 
-- valid frame;
-- bad CRC;
-- wrong field count;
-- invalid numeric range;
-- unknown status/type/capability;
-- duplicate/stale identity where relevant;
-- compatibility with the staged old/new peer behavior;
-- timeout/retry behavior;
-- no conversion of remote acceptance into physical start.
+If code touching this boundary changes, verify at least:
+
+```text
+no-run remote cancel succeeds
+already-clear is idempotent
+active physical run cannot be cleared
+D -> * -> # -> D fallback emits ALL_CLEAR only when safe
+ALL_CLEAR never means RUN_COMPLETED
+reboot does not auto-start or auto-complete
+```
+
+A docs-only or unrelated change must not reopen this hardware block automatically.
+
+## 7. Protocol verification
+
+Any change to `CMP1|...` must cover valid frame, bad CRC, field count, numeric range, unknown type/status, stale/duplicate identity where relevant, timeout/retry behavior and staged peer compatibility.
 
 Run:
 
@@ -152,9 +150,9 @@ Arduino Uno Build
 ESP32 Build
 ```
 
-Then perform targeted two-board hardware verification if the wire behavior changed.
+Then perform targeted two-board hardware verification if wire behavior changed.
 
-## 6. Persistence verification
+## 8. Persistence verification
 
 For changes that create/modify `/data` records or files, verify applicable cases:
 
@@ -170,94 +168,58 @@ backup inclusion
 restore-plan/rollback/apply coverage
 ```
 
-A successful API response alone is not enough for a persistence change.
+## 9. UI verification
 
-## 7. UI verification
-
-For operator UI changes check both:
+Check both:
 
 ```text
 firmware/esp32/web/desktop/
 firmware/esp32/web/mobile/
 ```
 
-And run:
+UI must not hide server errors, invent authoritative totals, imply physical motion from queued state, silently downgrade corruption, or offer automatic destructive cleanup/restore.
 
-```bash
-node Tests/Web/check_web_assets.js
-node Tests/Web/check_release_contracts.js
-node Tests/Web/check_final_acceptance_contracts.js
-```
+## 10. Backup/restore verification levels
 
-UI should not:
+- **Repo-level only** for docs/tests/refactors without runtime behavior change.
+- **Device non-destructive** for preflight/inspection/safe-idle logic changes.
+- **Destructive fault injection** only on disposable media/filesystem images, never the working production microSD.
 
-- hide server errors;
-- invent authoritative totals;
-- imply physical motion from queued/accepted remote state;
-- silently downgrade UNKNOWN/corrupted data;
-- offer automatic destructive cleanup/restore behavior.
-
-## 8. Backup/restore verification levels
-
-### Repo-level only
-
-Use for docs/tests/refactors that do not change runtime restore behavior.
-
-### Device non-destructive
-
-Use when status/preflight/inspection/safe-idle logic changes without intentionally corrupting data.
-
-### Destructive fault injection
-
-Only on:
+## 11. Result labels
 
 ```text
-disposable microSD
-or disposable filesystem image
-```
-
-Never intentionally corrupt or power-cut the working production microSD for a test.
-
-## 9. Result labels
-
-Use precise language:
-
-```text
-NOT VERIFIED       code/docs changed; relevant gate not run
-FAILED             gate ran and failed
+NOT VERIFIED       result unavailable/not run
+FAILED             named gate ran and failed
 SUCCESS / GREEN    named workflow/test completed successfully
 USER CONFIRMED     user explicitly verified real-device behavior
 APPROVED           architecture/contract decision accepted
 ```
 
-Do not transform missing CI visibility into `SUCCESS`.
+## 12. Current-baseline rule
 
-## 10. Release-baseline rule
-
-Current v1 release baseline is documented in:
+Current authoritative project status is selected by:
 
 ```text
-docs/PROJECT_HANDOFF/38_COILMASTER_V1_RELEASE_READY_2026-08-16.md
+docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
 ```
 
-If a future change modifies production firmware/web behavior, the modified state is a **new candidate** for that affected scope until relevant automated and hardware regression gates pass.
+Older release checkpoint 38 and earlier numbered checkpoints are historical evidence, not the current active-work baseline.
 
-Do not silently describe a new production commit as the old hardware-accepted baseline.
+If production firmware/web behavior changes, the affected scope becomes a new candidate until relevant automated and hardware gates pass.
 
-## 11. Before saying "done"
-
-Confirm all applicable boxes:
+## 13. Before saying "done"
 
 ```text
-[ ] current target files were fetched before edit
-[ ] current blob SHA used for existing-file update
-[ ] source-of-truth branch is cmp-protocol-v1
+[ ] current target files fetched before edit
+[ ] current blob SHA used
+[ ] source branch is cmp-protocol-v1
 [ ] ownership/lifecycle remains explicit
 [ ] safety invariants preserved
 [ ] persisted-data implications handled
 [ ] desktop/mobile parity handled if relevant
-[ ] automated gate actually passed or is explicitly NOT VERIFIED
+[ ] applicable automated gate actually passed or is explicitly NOT VERIFIED
 [ ] hardware regression passed if required
-[ ] AI project map/router updated if component topology changed
-[ ] handoff/release docs updated only if project status materially changed
+[ ] AI docs updated if topology/contract location changed
+[ ] old historical checkpoint was not accidentally treated as active work
 ```

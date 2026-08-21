@@ -590,8 +590,12 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
         return;
     }
 
-    const uint32_t runId = strtoul(runText, nullptr, 10);
-    if (runId == 0UL || runId != m_queue[m_head].event.runId) return;
+    uint32_t runId = 0UL;
+    if (!parseCanonicalUnsigned(runText, 0xFFFFFFFFUL, runId) ||
+        runId == 0UL || runId != m_queue[m_head].event.runId)
+    {
+        return;
+    }
 
     if (strcmp(category, "ACK") == 0)
     {
@@ -747,10 +751,10 @@ bool UartEventTransport::parseRemoteCancel(char* line, uint32_t& jobId) const
         return false;
     }
 
-    char* end = nullptr;
-    const unsigned long parsed = strtoul(jobText, &end, 10);
-    if (end == nullptr || *end != '\0' || parsed == 0UL) return false;
-    jobId = static_cast<uint32_t>(parsed);
+    uint32_t parsed = 0UL;
+    if (!parseCanonicalUnsigned(jobText, 0xFFFFFFFFUL, parsed) || parsed == 0UL)
+        return false;
+    jobId = parsed;
     return true;
 }
 

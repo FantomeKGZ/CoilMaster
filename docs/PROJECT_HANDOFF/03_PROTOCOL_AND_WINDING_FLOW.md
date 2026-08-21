@@ -1,321 +1,193 @@
 # UART-протокол и рабочий цикл намотки
 
-## Актуальная реализация
+Дата актуализации: **2026-08-21**  
+Ветка: `cmp-protocol-v1`
 
-Ветка `cmp-protocol-v1` использует строковые кадры протокола с префиксом `CMP1`.
+Этот документ описывает текущую production CMP1 semantics. Старые binary CMP документы в `Docs/Protocol/` и `Shared/Protocol/` являются legacy/host-test context.
 
-Перед изменением формата всегда проверять текущие файлы:
-
-```text
-firmware/esp32/src/CM_UartEventReceiver.h
-firmware/esp32/src/CM_UartEventReceiver.cpp
-firmware/esp32/src/CM_WindingJournal.h
-firmware/esp32/src/CM_WindingJournal.cpp
-```
-
-Старые документы о бинарном пакете CMP могут относиться к другой ветке или более ранней архитектуре и не должны автоматически применяться к этому коду.
-
-## Задание ESP32 → Arduino
-
-Фактический кадр формируется как:
+## Production owners
 
 ```text
-CMP1|JOB|<JOB_ID>|<SESSION_ID>|<TYPE>|<COIL_COUNT>|<TURNS>|<CRC16>
+Arduino/CM_UartEventTransport.h/.cpp
+firmware/arduino/src/main.cpp
+firmware/esp32/src/CM_UartEventReceiver.h/.cpp
+firmware/esp32/src/main.cpp
+Shared/CMP1Text/CM_Cmp1Crc.h
 ```
 
-Где:
+Arduino side uses SoftwareSerial on project pins A1/A2; ESP32 peer uses its UART side. Production CRC is CRC-16/MODBUS from `CM_Cmp1Crc.h`.
 
-- `JOB_ID` — ненулевой идентификатор задания;
-- `SESSION_ID` — ненулевой идентификатор сессии;
-- `TYPE` — `WORKING` или `STARTING`;
-- `COIL_COUNT` — от 1 до 10;
-- `TURNS` — список чисел через запятую;
-- число витков каждой катушки — от 1 до 9999;
-- CRC вычисляется реализацией `UartEventReceiver::crc16()`.
+## ESP32 -> Arduino JOB
 
-Основная структура:
-
-```cpp
-CM::OutgoingWindingJob
-```
-
-## Подтверждение Arduino → ESP32
-
-Текущая реализация принимает кадр вида:
+Current negotiated job frame is:
 
 ```text
-CMP1|JOB_ACK|<JOB_ID>|<STATUS>|<DETAIL>
+CMP1|JOB|JOB_ID|SESSION_ID|TYPE|COIL_COUNT|TURNS|R<REPEAT_TARGET>|C|CRC16
 ```
 
-Допустимые статусы:
+Where:
+
+- `JOB_ID` and `SESSION_ID` are non-zero;
+- `TYPE` is `WORKING` or `STARTING`;
+- `COIL_COUNT` is bounded by the production job structure;
+- `TURNS` is the comma-separated program;
+- `REPEAT_TARGET` is non-zero;
+- `C` requests CRC-protected job replies;
+- CRC is calculated over the payload before `|CRC16`.
+
+A remote JOB only prepares/loads the Arduino program. It never means physical START.
+
+## JOB_ACK
+
+Negotiated reply:
 
 ```text
-ACCEPTED
-REJECTED
+CMP1|JOB_ACK|JOB_ID|ACCEPTED|DETAIL|C|CRC16
+CMP1|JOB_ACK|JOB_ID|REJECTED|DETAIL|C|CRC16
 ```
 
-Для `REJECTED` поле `DETAIL` обязательно.
+Legacy reply without `C|CRC16` remains accepted only for staged compatibility where allowed by the current parser. A negotiated/truncated/bad-CRC reply must not silently downgrade to legacy.
 
-Поле детали ограничено по длине и допускает только:
+ESP32 job delivery retries are bounded. Timeout/rejection/acceptance are delivery state only and never authorize SSR.
 
-- `A-Z`;
-- `0-9`;
-- `_`;
-- `-`.
+## JOB cancellation / ghost-job recovery
 
-Неизвестный статус или неправильный `JOB_ID` не завершает ожидающую доставку.
+Current ESP32 cancellation behavior:
 
-## Повторная доставка задания
+- if a queued JOB was never transmitted, local cancellation can complete without remote handshake;
+- once a JOB may have reached Arduino, cancellation switches to idempotent `JOB_CANCEL` handshake;
+- this prevents a lost `JOB_ACK` from leaving a ghost job on Arduino.
 
-Текущая политика ESP32:
+Cancel frame:
 
 ```text
-Интервал повторной отправки: 2000 мс
-Максимальное число отправок: 5
+CMP1|JOB_CANCEL|JOB_ID|CRC16
 ```
 
-Результаты доставки:
-
-```cpp
-JobDeliveryResult::Accepted
-JobDeliveryResult::Rejected
-JobDeliveryResult::TimedOut
-JobDeliveryResult::Cancelled
-```
-
-`JobDeliveryEvent` содержит:
-
-- результат;
-- `jobId`;
-- число попыток;
-- строку детали.
-
-Новое задание нельзя поставить в очередь, пока предыдущий результат не извлечён через `takeJobDelivery()`.
-
-`job_id` должен возрастать. Повторное или меньшее значение после ранее поставленного задания отклоняется.
-
-Ожидающее задание можно отменить через:
-
-```cpp
-cancelPendingJob()
-```
-
-Отмена прекращает повторы передачи, но сама по себе не является удалённой командой остановки уже запущенного физического оборудования.
-
-## События Arduino → ESP32
-
-Формат события:
+Arduino reply:
 
 ```text
-CMP1|EVT|<TYPE>|<SESSION_ID>|<RUN_ID>|<COMPLETED_RUNS>|<CRC16>
+CMP1|JOB_CANCEL_ACK|JOB_ID|CANCELLED|DETAIL|C|CRC16
+CMP1|JOB_CANCEL_ACK|JOB_ID|REJECTED|DETAIL|C|CRC16
 ```
 
-Поддерживаемые типы:
+Important implemented semantics:
+
+- already-clear Arduino state returns successful `ALREADY_CLEAR` rather than making absence a permanent error;
+- no-run remote job can be cancelled safely;
+- active physical-run evidence prevents unsafe cancellation;
+- physical fallback `D -> * -> # -> D` sends:
 
 ```text
-RUN_STARTED
-RUN_COMPLETED
+CMP1|JOB_CANCEL_ACK|0|CANCELLED|ALL_CLEAR|C|CRC16
 ```
 
-Правила разбора:
+only after Arduino proves no remote job is physically active;
+- ESP32 correlates `job_id=0 + ALL_CLEAR` to the current/persisted job and follows the normal audited cancellation path;
+- `ALL_CLEAR` never means `RUN_COMPLETED` and never creates wire/material writeoff.
 
-- `SESSION_ID` и `RUN_ID` — строгие десятичные `uint32_t`, больше нуля;
-- знаки `+` и `-`, суффиксы и переполнение запрещены;
-- `COMPLETED_RUNS` должен помещаться в `uint16_t`;
-- `RUN_STARTED` требует `COMPLETED_RUNS = 0`;
-- `RUN_COMPLETED` требует `COMPLETED_RUNS > 0`;
-- лишние поля запрещены;
-- CRC должен совпадать.
+This recovery block is implemented/closed. Reopen only for a concrete regression.
 
-## Ответы ESP32 на события
+## Arduino -> ESP32 winding events
 
-Используются методы:
-
-```cpp
-sendAck(runId, status)
-sendNack(runId, reason)
-```
-
-Форматы:
+Linked remote run:
 
 ```text
-CMP1|ACK|<RUN_ID>|<STATUS>
-CMP1|NACK|<RUN_ID>|<REASON>
+CMP1|EVT|RUN_STARTED|SESSION_ID|RUN_ID|0|CRC16
+CMP1|EVT|RUN_COMPLETED|SESSION_ID|RUN_ID|COMPLETED_RUNS|CRC16
 ```
 
-Перед расширением этих ответов нужно проверить совместимость с Arduino.
+Standalone/local Arduino run includes immutable local program snapshot:
 
-## Журнал намотки
+```text
+CMP1|LOCAL_EVT|TYPE|SESSION_ID|RUN_ID|COMPLETED_RUNS|WORKING_OR_STARTING|COIL_COUNT|TURNS|CRC16
+```
 
-Файл журнала:
+Strict parser rules include non-zero session/run IDs, bounded numeric fields, no extra fields, valid CRC, `RUN_STARTED -> completed_runs == 0` and `RUN_COMPLETED -> completed_runs > 0`.
+
+## ESP32 ACK/NACK for run events
+
+Current replies are CRC-protected:
+
+```text
+CMP1|ACK|RUN_ID|DETAIL|CRC16
+CMP1|NACK|RUN_ID|DETAIL|CRC16
+```
+
+Arduino only removes/retries a queued run event according to valid reply semantics. Lost or malformed replies do not convert into successful completion of transport persistence.
+
+## Repeat semantics
+
+Example:
+
+```text
+program = [38, 38]
+repeat_target = 6
+```
+
+This is one JOB with six physical RUNs. Each full program pass gets its own `run_id` and requires a new physical START.
+
+```text
+RUN 1 -> physical START -> RUN_STARTED -> RUN_COMPLETED
+RUN 2 -> physical START -> RUN_STARTED -> RUN_COMPLETED
+...
+```
+
+No automatic START exists between repeats.
+
+## Winding journal
+
+Authoritative linked event journal:
 
 ```text
 /data/winding-runs/events.ndjson
 ```
 
-Текущая запись содержит:
-
-```json
-{
-  "schema_version": 1,
-  "run_id": 1,
-  "event": "RUN_STARTED",
-  "session_id": 10,
-  "completed_runs": 0,
-  "uptime_ms": 12345
-}
-```
-
-Журнал защищает от следующих ошибок:
-
-- повторное сохранение одинакового события;
-- `RUN_COMPLETED` без ранее сохранённого `RUN_STARTED`;
-- несовпадение сессии запуска и завершения;
-- нулевые идентификаторы;
-- неправильный счётчик `completed_runs`;
-- два одновременных активных запуска в одной сессии;
-- завершение неактивного запуска;
-- повторное или уменьшающееся значение `run_id` в одной сессии.
-
-## Правила последовательности
-
-Для одной сессии нормальный порядок выглядит так:
+Full validation uses:
 
 ```text
-RUN_STARTED(run_id=1, completed_runs=0)
-RUN_COMPLETED(run_id=1, completed_runs=1)
-RUN_STARTED(run_id=2, completed_runs=0)
-RUN_COMPLETED(run_id=2, completed_runs=2)
+WindingJournalQuery::validateAll()
+WindingJournalTransitionAudit::validate()
 ```
 
-Нельзя принимать:
+Do not reintroduce cursor pagination as authoritative full-file validation.
+
+The journal and transition audit reject invalid ordering/identity such as completion without start, mismatched session/run, invalid completed counters or conflicting active transitions.
+
+## Physical production flow
 
 ```text
-RUN_COMPLETED без RUN_STARTED
-RUN_STARTED второго run до завершения первого
-RUN_COMPLETED другой session_id
-RUN_STARTED с run_id <= уже использованного
-скачок completed_runs с 1 сразу на 3
+ESP32 prepares persisted linked JOB
+-> UART JOB delivery
+-> Arduino validates and ACKs
+-> operator presses physical START
+-> Arduino owns SSR/Hall winding
+-> RUN_STARTED / RUN_COMPLETED
+-> ESP32 persists exact run evidence
+-> operator performs explicit manual material writeoff
 ```
 
-## Физический рабочий цикл
+Remote acceptance, cancel ACK and event ACK never directly control SSR.
 
-1. ESP32 подготавливает программу.
-2. ESP32 передаёт задание Arduino.
-3. Arduino проверяет возможность принять задание.
-4. Arduino отвечает `ACCEPTED` или `REJECTED`.
-5. Принятое задание не включает SSR автоматически.
-6. Оператор физически подтверждает старт первой катушки.
-7. Arduino отправляет `RUN_STARTED`.
-8. Arduino выполняет счёт витков и управление SSR.
-9. Arduino безопасно отключает SSR.
-10. Arduino отправляет `RUN_COMPLETED`.
-11. ESP32 сохраняет событие.
-12. Для следующей катушки снова требуется физический START.
-13. После последней катушки программа получает финальный статус.
+## Reboot safety
 
-## Текущее ограничение событий
+Neither board may interpret reboot recovery as permission to start/continue physical movement. Recovery is state reconciliation/manual review only.
 
-`RemoteWindingEvent` пока содержит только:
-
-- тип события;
-- `sessionId`;
-- `runId`;
-- `completedRuns`.
-
-В нём пока отсутствуют:
-
-- `job_id`;
-- `repair_id`;
-- номер катушки программы;
-- целевое число витков;
-- фактическое число витков;
-- материал и диаметр провода;
-- снимок программы;
-- причина остановки;
-- источник задания.
-
-Поэтому текущий журнал подтверждает последовательность запусков, но ещё не является полным производственным журналом ремонта.
-
-## Граница Shared/Protocol — 2026-08-16
-
-`Shared/Protocol/` является ранним binary CMP и участвует только в host tests;
-production PlatformIO builds его не подключают. Рабочие `CMP1|...` transport
-classes Arduino и ESP32 реализованы отдельно и обе используют CRC16/MODBUS
-(initial `0xFFFF`, polynomial `0xA001`). Это несовместимо с binary CMP
-CRC-CCITT `0x1021`. Поэтому существующий Shared core нельзя просто добавить в
-build. На момент этого checkpoint описание CRC-CCITT в
-`docs/17_UART_EVENT_TRANSPORT.md` было устаревшим; исправление зафиксировано
-ниже.
-
-## Общий CRC рабочего CMP1 — 2026-08-16
-
-Commit `de8ee6b5da6b68d0880884e75f04e39e79c6b66d` устранил дублирование
-CRC16/MODBUS в production transport classes. Arduino и ESP32 теперь используют
-один stateless header `Shared/CMP1Text/CM_Cmp1Crc.h` без очередей, буферов и
-динамической памяти. Binary `Shared/Protocol/` не изменён и остаётся отдельным
-host-test-only форматом.
-
-Добавлены прямые проверки контрольного вектора `123456789 -> 4B37`, реального
-CMP1 event payload и инкрементального расчёта. `docs/17_UART_EVENT_TRANSPORT.md`
-исправлен: рабочий протокол использует CRC-16/MODBUS (`0xFFFF`, reflected
-`0xA001`), а не CRC-CCITT.
+Reboot/cancel/ALL_CLEAR must never synthesize:
 
 ```text
-CMP Protocol Tests: SUCCESS (run 31928080265)
-Arduino Uno Build: SUCCESS (run 31928080266)
-ESP32 Build: SUCCESS (run 31928080285)
+physical START
+RUN_COMPLETED
+material writeoff
 ```
 
-Этот блок не меняет safety contract: удалённый job не включает SSR, физический
-START остаётся локальным, автоматического resume после reboot нет.
+## Current verification reference
 
-## CRC подтверждений RUN — 2026-08-16
-
-ESP32 формирует `ACK/NACK` с CRC-16/MODBUS, а Arduino проверяет checksum до
-удаления RUN-события из очереди или изменения retry interval. Это закрывает
-случай принятия повреждённого UART-подтверждения.
-
-Новая Arduino временно принимает legacy `ACK/NACK` без CRC для staged rollout;
-старый Arduino parser совместим с новым ESP32-кадром и игнорирует завершающее
-поле. Любое другое число полей или неверный CRC отклоняются.
+Production commit `e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00` has:
 
 ```text
-a695440cbcae2582c158d1f29ff68cac5a38ba95
-CMP Protocol Tests: SUCCESS (run 31929625664)
-Arduino Uno Build: SUCCESS (run 31929625657)
-ESP32 Build: SUCCESS (run 31929625636)
+CMP Protocol Tests #2175 — GREEN
+ESP32 Build #1241 — GREEN
 ```
 
-## CRC ответов удалённого задания — 2026-08-16
-
-Актуальный ESP32 отправляет job с negotiated capability:
-
-```text
-CMP1|JOB|JOB_ID|SESSION_ID|TYPE|COUNT|TURNS|C|CRC16
-```
-
-Если Arduino приняла полностью валидный job с `C`, ответы имеют вид:
-
-```text
-CMP1|JOB_ACK|JOB_ID|STATUS|DETAIL|C|CRC16
-CMP1|JOB_CANCEL_ACK|JOB_ID|STATUS|DETAIL|C|CRC16
-```
-
-ESP32 проверяет число полей, capability и CRC до изменения job state. Если
-capability отсутствует, новая Arduino выдаёт точный legacy reply без CRC;
-новый ESP32 принимает такой reply для staged rollout. Старый Arduino игнорирует
-неизвестную capability в job, а старый ESP32 её не отправляет, поэтому порядок
-прошивки плат безопасен. Negotiated reply нельзя молча понизить до legacy:
-кадр с оставшейся `C`, неверным числом полей или CRC отклоняется.
-
-```text
-b288ec82ed18aae4a7610f745cfa170cfc58c897
-b3385fb1aab08fced8d27010ba62ca58b183d947
-CMP Protocol Tests: SUCCESS (runs 31930079088, 31930198758)
-Arduino Uno Build: SUCCESS (run 31930198773)
-ESP32 Build: SUCCESS (run 31930079023)
-```
-
-Удалённое принятие задания по-прежнему не запускает двигатель и SSR: после
-приёма job обязателен локальный физический START.
+Current Arduino Uno Build and current-head two-board hardware smoke remain separate verification gates as documented in `00_READ_FIRST.md` / checkpoint `61`.

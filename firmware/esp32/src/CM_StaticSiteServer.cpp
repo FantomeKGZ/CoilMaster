@@ -7,6 +7,16 @@
 #include "CM_JobSpoolSelectionStore.h"
 #include "CM_JobStateStore.h"
 
+#ifndef CM_FIRMWARE_GIT_SHA
+#define CM_FIRMWARE_GIT_SHA "unknown"
+#endif
+#ifndef CM_FIRMWARE_GIT_BRANCH
+#define CM_FIRMWARE_GIT_BRANCH "unknown"
+#endif
+#ifndef CM_FIRMWARE_BUILD_UTC
+#define CM_FIRMWARE_BUILD_UTC "unknown"
+#endif
+
 namespace
 {
 constexpr size_t HtmlStreamChunkSize = 512U;
@@ -211,6 +221,20 @@ void StaticSiteServer::begin(const char* webRoot)
 
     m_server.on("/mobile", HTTP_GET, [this]() { redirect("/mobile/"); });
     m_server.on("/desktop", HTTP_GET, [this]() { redirect("/desktop/"); });
+
+    m_server.on("/api/system/build", HTTP_GET, [this]()
+    {
+        String response;
+        response.reserve(220U);
+        response += F("{\"firmware_git_sha\":\"");
+        response += CM_FIRMWARE_GIT_SHA;
+        response += F("\",\"firmware_git_branch\":\"");
+        response += CM_FIRMWARE_GIT_BRANCH;
+        response += F("\",\"firmware_build_utc\":\"");
+        response += CM_FIRMWARE_BUILD_UTC;
+        response += F("\",\"web_contract_version\":\"2026.08.22-phase9\"}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+    });
 
     // Runtime-only status. Profile secrets remain in the separate bounded API.
     m_server.on("/api/system/network", HTTP_GET, [this]()

@@ -54,12 +54,14 @@ requireText(arduinoPath, arduino,
   'boot must return the winding state machine to HOME');
 
 // SSR authority belongs to Arduino. ESP32/Web must not gain a direct SSR driver path.
+// Hall calibration may grant the Arduino-local motor permit, but physical START and
+// Arduino state remain the only production authority for energizing the SSR.
 requireText(arduinoPath, arduino,
   'CM::SsrController ssr(CM::Pins::Ssr, true);',
   'Arduino SSR controller ownership missing');
 requireText(arduinoPath, arduino,
-  'ssr.update(machine.state(), simulationMode());',
-  'SSR output is no longer derived from Arduino machine state');
+  'ssr.update(machine.state(),\n               simulationMode(),\n               hallCalibration.motorPermit());',
+  'SSR output is no longer derived from Arduino machine state plus calibration permit');
 const esp32SourceRoot = path.join(root, 'firmware/esp32/src');
 for (const file of walkText(esp32SourceRoot, new Set(['.cpp', '.h']))) {
   const relative = path.relative(root, file).split(path.sep).join('/');
@@ -127,4 +129,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Release safety contracts OK: physical START, Arduino SSR authority, no auto-resume/writeoff, exact manual writeoff linkage, transactional restore lock, and motor-import audits.');
+console.log('Release safety contracts OK: physical START, Arduino SSR authority, Hall calibration permit, no auto-resume/writeoff, exact manual writeoff linkage, transactional restore lock, and motor-import audits.');

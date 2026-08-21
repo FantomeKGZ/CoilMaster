@@ -21,6 +21,7 @@ const espMainPath = 'firmware/esp32/src/main.cpp';
 const remoteCancelStatePath = 'firmware/esp32/src/CM_JobStateRemoteCancel.cpp';
 const dismissStatePath = 'firmware/esp32/src/CM_JobStateDismiss.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_JobRecovery.cpp';
+const journalSnapshotPath = 'firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp';
 const arduinoMainPath = 'firmware/arduino/src/main.cpp';
 const arduinoTransportPath = 'Arduino/CM_UartEventTransport.cpp';
 
@@ -29,6 +30,7 @@ const espMain = read(espMainPath);
 const remoteCancelState = read(remoteCancelStatePath);
 const dismissState = read(dismissStatePath);
 const recovery = read(recoveryPath);
+const journalSnapshot = read(journalSnapshotPath);
 const arduinoMain = read(arduinoMainPath);
 const arduinoTransport = read(arduinoTransportPath);
 
@@ -108,6 +110,26 @@ requireAbsent(dismissStatePath, dismissState,
   'state.deliveryState == JobDeliveryState::TimedOut ||',
   'TIMED_OUT must not be dismissible without manual review');
 
+// Immutable repeat_target is authoritative before a winding event is appended.
+// The journal wrapper must reject a new RUN_STARTED once the persisted job has
+// completed its target, and reject any RUN_COMPLETED whose cumulative count is
+// already beyond the immutable target. Use the small state file, not another
+// full NDJSON scan, to preserve growing-log performance.
+for (const text of [
+  '#include "CM_JobStateStore.h"',
+  'JobStateStore states(m_fileSystem);',
+  'runtime.jobId != snapshot.jobId || runtime.sessionId != snapshot.sessionId',
+  'runtime.executionState == JobExecutionState::ProgramCompleted ||',
+  'runtime.completedRuns >= snapshot.repeatTarget',
+  'event.completedRuns > snapshot.repeatTarget'
+]) {
+  requireText(journalSnapshotPath, journalSnapshot, text,
+    'immutable repeat-target journal guard missing: ' + text);
+}
+requireAbsent(journalSnapshotPath, journalSnapshot,
+  'loadSessionState(event.sessionId',
+  'repeat-target guard must not add another full journal state scan');
+
 // Arduino remote cancel remains safe, exact and idempotent for a job that is
 // already absent. ALREADY_CLEAR is success so retries/reboots cannot strand ESP32.
 for (const text of [
@@ -144,4 +166,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB cancel/recovery contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, and recovery re-evaluation.');
+console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal guard, and recovery re-evaluation.');

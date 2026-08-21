@@ -22,6 +22,7 @@ const remoteCancelStatePath = 'firmware/esp32/src/CM_JobStateRemoteCancel.cpp';
 const dismissStatePath = 'firmware/esp32/src/CM_JobStateDismiss.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_JobRecovery.cpp';
 const journalSnapshotPath = 'firmware/esp32/src/CM_WindingJournalSnapshotContext.cpp';
+const sessionAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
 const arduinoMainPath = 'firmware/arduino/src/main.cpp';
 const arduinoTransportPath = 'Arduino/CM_UartEventTransport.cpp';
 
@@ -31,6 +32,7 @@ const remoteCancelState = read(remoteCancelStatePath);
 const dismissState = read(dismissStatePath);
 const recovery = read(recoveryPath);
 const journalSnapshot = read(journalSnapshotPath);
+const sessionAudit = read(sessionAuditPath);
 const arduinoMain = read(arduinoMainPath);
 const arduinoTransport = read(arduinoTransportPath);
 
@@ -130,6 +132,23 @@ requireAbsent(journalSnapshotPath, journalSnapshot,
   'loadSessionState(event.sessionId',
   'repeat-target guard must not add another full journal state scan');
 
+// Deep session integrity must also reject already-persisted snapshot/state
+// mismatches without introducing another winding-journal pass.
+for (const text of [
+  'bool stateConsistentWithSnapshot(const JobRuntimeState& state,',
+  'state.completedRuns > snapshot.repeatTarget',
+  'state.executionState == JobExecutionState::ProgramCompleted',
+  'state.completedRuns == snapshot.repeatTarget',
+  'state.completedRuns < snapshot.repeatTarget',
+  '!stateConsistentWithSnapshot(state, snapshot)'
+]) {
+  requireText(sessionAuditPath, sessionAudit, text,
+    'repeat-target session integrity guard missing: ' + text);
+}
+requireAbsent(sessionAuditPath, sessionAudit,
+  'WindingJournalQuery',
+  'session repeat-target integrity must not add a duplicate journal scan');
+
 // Arduino remote cancel remains safe, exact and idempotent for a job that is
 // already absent. ALREADY_CLEAR is success so retries/reboots cannot strand ESP32.
 for (const text of [
@@ -166,4 +185,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal guard, and recovery re-evaluation.');
+console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');

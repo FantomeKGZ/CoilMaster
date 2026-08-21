@@ -33,7 +33,7 @@ requireText(shell,"'/api/motors?'",'Global search must query motors');
 requireText(shell,"'/api/clients?'",'Global search must query clients');
 requireText(shell,'winding-history.html?repair_id=','Global search must provide repair navigation by ID');
 requireText(shell,"placeholder=\"Поиск: двигатель, клиент, ремонт\"",'Global search control must be visible');
-requireText(shell,'Ctrl','');
+requireText(shell,'event.ctrlKey||event.metaKey','Global search keyboard shortcut must support Ctrl/Cmd');
 
 // This shared layer is read-only/navigation UX. It must never become a physical-control path.
 forbidText(shell,"method:'POST'",'Shared shell must remain read-only');

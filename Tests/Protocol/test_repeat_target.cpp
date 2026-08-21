@@ -24,6 +24,89 @@ void completeSegment(CM::StateMachine& machine, uint16_t turns)
     }
 }
 
+CM::WindingJob makeRemote(uint32_t jobId,
+                          uint32_t sessionId,
+                          uint16_t firstTurns,
+                          uint16_t secondTurns = 0U)
+{
+    CM::WindingJob remote;
+    remote.clear();
+    remote.jobId = jobId;
+    remote.sessionId = sessionId;
+    remote.type = CM::WindingType::Working;
+    remote.coilCount = secondTurns == 0U ? 1U : 2U;
+    remote.repeatTarget = 1U;
+    remote.targetTurns[0] = firstTurns;
+    if (secondTurns != 0U) remote.targetTurns[1] = secondTurns;
+    return remote;
+}
+
+void testRemoteJobAdmissionIsFailClosed()
+{
+    {
+        CM::StateMachine machine;
+        CM::WindingJob missingJobId = makeRemote(0UL, 10UL, 12U);
+        check(!machine.loadRemoteJob(missingJobId),
+              "remote job with zero job id is rejected");
+        CM::WindingJob missingSession = makeRemote(10UL, 0UL, 12U);
+        check(!machine.loadRemoteJob(missingSession),
+              "remote job with zero session id is rejected");
+    }
+
+    {
+        CM::StateMachine machine;
+        check(machine.setCoilCount(1U), "start local job entry");
+        CM::WindingJob remote = makeRemote(20UL, 30UL, 12U);
+        check(!machine.loadRemoteJob(remote),
+              "remote job cannot overwrite local turn entry");
+        check(machine.state() == CM::MachineState::EnterTurns,
+              "local entry state survives rejected remote job");
+    }
+
+    {
+        CM::StateMachine machine;
+        CM::WindingJob remote = makeRemote(40UL, 50UL, 5U, 7U);
+        check(machine.loadRemoteJob(remote), "initial remote job accepted at home");
+
+        CM::WindingJob exactRetry = remote;
+        check(machine.loadRemoteJob(exactRetry),
+              "exact no-run remote retry is idempotently accepted");
+        check(machine.job().jobId == 40UL && machine.job().sessionId == 50UL,
+              "exact retry preserves accepted remote identity");
+
+        CM::WindingJob different = makeRemote(41UL, 51UL, 9U);
+        check(!machine.loadRemoteJob(different),
+              "different remote job cannot replace accepted READY job");
+        check(machine.job().jobId == 40UL && machine.job().sessionId == 50UL,
+              "rejected replacement preserves original remote identity");
+
+        check(machine.startOrResume(), "physical START begins accepted remote job");
+        CM::WindingEvent event;
+        check(machine.takeEvent(event), "run start event consumed");
+        completeSegment(machine, 5U);
+        check(machine.state() == CM::MachineState::CoilComplete,
+              "first coil reaches coil-complete boundary");
+        check(!machine.loadRemoteJob(different),
+              "remote job cannot overwrite partially completed run");
+        check(machine.job().jobId == 40UL && machine.job().currentRunId != 0UL,
+              "partial run identity survives rejected remote replacement");
+    }
+
+    {
+        CM::StateMachine machine;
+        CM::WindingJob remote = makeRemote(60UL, 70UL, 1U);
+        check(machine.loadRemoteJob(remote), "single-coil remote job accepted");
+        check(machine.startOrResume(), "single-coil remote job starts physically");
+        CM::WindingEvent event;
+        check(machine.takeEvent(event), "single-coil RUN_STARTED consumed");
+        completeSegment(machine, 1U);
+        check(machine.state() == CM::MachineState::JobComplete,
+              "single-coil job reaches completed state");
+        check(!machine.loadRemoteJob(makeRemote(61UL, 71UL, 1U)),
+              "remote job cannot replace completed job awaiting exact ACK");
+    }
+}
+
 void testRepeatTargetKeepsOneRunPerProgramCycle()
 {
     CM::StateMachine machine;
@@ -132,6 +215,7 @@ void testRepeatTargetKeepsOneRunPerProgramCycle()
 
 int main()
 {
+    testRemoteJobAdmissionIsFailClosed();
     testRepeatTargetKeepsOneRunPerProgramCycle();
 
     if (g_failures == 0)

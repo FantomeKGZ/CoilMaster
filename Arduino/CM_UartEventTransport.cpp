@@ -18,11 +18,14 @@ bool parseCanonicalUnsigned(const char* text,
     if (text == nullptr || *text == '\0') return false;
     if (text[0] == '0' && text[1] != '\0') return false;
 
+    const uint32_t quotient = maximum / 10UL;
+    const uint8_t remainder = static_cast<uint8_t>(maximum % 10UL);
     for (const char* cursor = text; *cursor != '\0'; ++cursor)
     {
         if (*cursor < '0' || *cursor > '9') return false;
         const uint8_t digit = static_cast<uint8_t>(*cursor - '0');
-        if (value > (maximum - digit) / 10UL) return false;
+        if (value > quotient || (value == quotient && digit > remainder))
+            return false;
         value = value * 10UL + digit;
     }
     return true;

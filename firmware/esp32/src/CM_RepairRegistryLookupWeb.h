@@ -18,6 +18,8 @@ private:
     void handleMotor();
     void handleRepair();
     void handleMotorRepairs();
+    void handleClientSearch();
+    void handleRepairSearch();
     bool parseId(const char* name, uint32_t& value) const;
     bool parseOptionalUnsigned(const char* name,
                                uint32_t minimum,

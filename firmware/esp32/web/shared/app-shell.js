@@ -141,15 +141,21 @@ async function searchMotors(query){
 }
 
 async function searchClients(query){
- if(!/^[0-9+() -]+$/.test(query))return [{label:`Клиенты: «${query}»`,meta:'Открыть каталог клиентов',href:`/${uiMode}/clients.html?cm_search=${encodeURIComponent(query)}`}];
- const data=await fetchJson('/api/clients?'+new URLSearchParams({limit:'6',phone:query}));
- return (data.items||[]).map(x=>({label:x.name||`Клиент #${x.client_id}`,meta:`Клиент #${x.client_id}${x.phone?' · '+x.phone:''}`,href:`/${uiMode}/repairs.html?client_id=${encodeURIComponent(x.client_id)}`}));
+ const data=await fetchJson('/api/search/clients?'+new URLSearchParams({limit:'6',q:query}));
+ return (data.items||[]).map(x=>({
+  label:x.name||`Клиент #${x.client_id}`,
+  meta:`Клиент #${x.client_id}${x.phone?' · '+x.phone:''}`,
+  href:`/${uiMode}/repairs.html?client_id=${encodeURIComponent(x.client_id)}`
+ }));
 }
 
 async function searchRepairs(query){
- const id=String(query).trim().match(/^#?(\d+)$/);
- if(id)return [{label:`Ремонт #${id[1]}`,meta:'Открыть историю ремонта по номеру',href:`/${uiMode}/winding-history.html?repair_id=${encodeURIComponent(id[1])}`}];
- return [{label:`Ремонты: «${query}»`,meta:'Открыть список ремонтов',href:`/${uiMode}/repairs.html?cm_search=${encodeURIComponent(query)}`}];
+ const data=await fetchJson('/api/search/repairs?'+new URLSearchParams({limit:'6',q:query}));
+ return (data.items||[]).map(x=>({
+  label:`Ремонт #${x.repair_id}`,
+  meta:`${x.current_status||x.status||'OPEN'} · клиент #${x.client_id} · двигатель #${x.motor_id}${x.complaint?' · '+x.complaint:''}`,
+  href:`/${uiMode}/winding-history.html?repair_id=${encodeURIComponent(x.repair_id)}`
+ }));
 }
 
 async function globalSearch(query){

@@ -22,7 +22,8 @@ requireText(desktop, 'class="table-wrap"', 'desktop compact table');
 requireText(desktop, '.tip{', 'desktop accessible detail tooltip style');
 requireText(shared, 'class="tip" tabindex="0" aria-label="Подробности"', 'desktop accessible detail tooltip markup');
 requireText(shared, 'class="tip-box"', 'desktop accessible detail tooltip content');
-requireText(mobile, '<details>', 'mobile accessible details');
+requireText(mobile, 'details{', 'mobile accessible details style');
+requireText(shared, '<details><summary>Подробности</summary>', 'mobile accessible details markup');
 
 for (const needle of [
   '/api/autonomous-windings?',

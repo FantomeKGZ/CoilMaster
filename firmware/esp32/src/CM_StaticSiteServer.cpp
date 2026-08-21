@@ -18,6 +18,12 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
   const m=p.match(/^\/(mobile|desktop)(\/.*)?$/);
   if(!m)return;
   const current=m[1],target=current==='mobile'?'desktop':'mobile',rest=m[2]||'/';
+  if(!document.getElementById('cm-app-shell-loader')){
+    const appShell=document.createElement('script');
+    appShell.id='cm-app-shell-loader';
+    appShell.src='/shared/app-shell.js';
+    document.body.appendChild(appShell);
+  }
   if(current==='desktop'){
     const style=document.createElement('style');
     style.id='cm-desktop-nav-icons';

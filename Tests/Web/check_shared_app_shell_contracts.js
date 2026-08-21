@@ -8,6 +8,8 @@ function forbidText(source,text,message){if(source.includes(text))throw new Erro
 
 const shell=read('firmware/esp32/web/shared/app-shell.js');
 const server=read('firmware/esp32/src/CM_StaticSiteServer.cpp');
+const registrySearch=read('firmware/esp32/src/CM_RepairRegistrySearch.cpp');
+const lookupWeb=read('firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp');
 const desktopFtp=read('firmware/esp32/web/desktop/settings-ftp.html');
 const mobileFtp=read('firmware/esp32/web/mobile/settings-ftp.html');
 
@@ -30,10 +32,23 @@ requireText(shell,"fetchJson('/api/system/time')",'Global clock must use device 
 requireText(shell,'45000','Clock must resync infrequently rather than polling every second');
 requireText(shell,"fetchJson('/api/system/build')",'Shell must display firmware/web build identity');
 requireText(shell,"'/api/motors?'",'Global search must query motors');
-requireText(shell,"'/api/clients?'",'Global search must query clients');
+requireText(shell,"'/api/search/clients?'",'Global search must query clients by name/phone/id');
+requireText(shell,"'/api/search/repairs?'",'Global search must query repair records rather than use a decorative fallback');
 requireText(shell,'winding-history.html?repair_id=','Global search must provide repair navigation by ID');
 requireText(shell,"placeholder=\"Поиск: двигатель, клиент, ремонт\"",'Global search control must be visible');
 requireText(shell,'event.ctrlKey||event.metaKey','Global search keyboard shortcut must support Ctrl/Cmd');
+forbidText(shell,'cm_search=${encodeURIComponent(query)}','Global search must not fall back to catalog-only pseudo search');
+
+requireText(lookupWeb,'/api/search/clients','Client global-search endpoint must be registered');
+requireText(lookupWeb,'/api/search/repairs','Repair global-search endpoint must be registered');
+requireText(lookupWeb,'HTTP_GET','Registry search endpoints must remain read-only');
+requireText(registrySearch,'appendClientsSearchPageJson','Client search must use a bounded registry reader');
+requireText(registrySearch,'appendRepairsSearchPageJson','Repair search must use a bounded registry reader');
+requireText(registrySearch,'count < limit','Client search must stop at the requested page size');
+requireText(registrySearch,'batchCount < MaxListPageSize','Repair search must keep bounded temporary batches');
+requireText(registrySearch,'resolveRepairPageStatuses','Repair search must preserve authoritative current status decoration');
+forbidText(registrySearch,'FILE_APPEND','Global search must never write workshop data');
+forbidText(registrySearch,'FILE_WRITE','Global search must never write workshop data');
 
 // This shared layer is read-only/navigation UX. It must never become a physical-control path.
 forbidText(shell,"method:'POST'",'Shared shell must remain read-only');

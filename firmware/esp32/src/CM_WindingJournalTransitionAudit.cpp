@@ -71,10 +71,14 @@ bool parseEvent(const String& line, AuditEvent& event)
     event = startedPos >= 0 ? AuditEvent::Started : AuditEvent::Completed;
     return true;
 }
-}
 
-WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::FS& storage)
+WindingJournalTransitionAuditResult validateInternal(fs::FS& storage,
+                                                     uint32_t targetSessionId,
+                                                     uint32_t targetRunId,
+                                                     bool* completed)
 {
+    if (completed != nullptr) *completed = false;
+
     File root = storage.open("/", FILE_READ);
     if (!root) return WindingJournalTransitionAuditResult::StorageUnavailable;
     root.close();
@@ -141,9 +145,28 @@ WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::
 
         completedRuns = static_cast<uint16_t>(persistedCompletedRuns);
         activeRunId = 0UL;
+        if (completed != nullptr && sessionId == targetSessionId && runId == targetRunId)
+            *completed = true;
     }
 
     file.close();
     return WindingJournalTransitionAuditResult::Ok;
+}
+}
+
+WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::FS& storage)
+{
+    return validateInternal(storage, 0UL, 0UL, nullptr);
+}
+
+WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::FS& storage,
+                                                                            uint32_t sessionId,
+                                                                            uint32_t runId,
+                                                                            bool& completed)
+{
+    completed = false;
+    if (sessionId == 0UL || runId == 0UL)
+        return WindingJournalTransitionAuditResult::ReadFailed;
+    return validateInternal(storage, sessionId, runId, &completed);
 }
 }

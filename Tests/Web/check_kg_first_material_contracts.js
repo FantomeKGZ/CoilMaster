@@ -20,6 +20,7 @@ const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
 const costingPath = 'firmware/esp32/src/CM_RepairCosting.cpp';
 const movementAuditPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp';
+const movementAuditHeaderPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h';
 const completionAuditPath = 'firmware/esp32/src/CM_WindingSessionCompletionAudit.cpp';
 const transitionAuditPath = 'firmware/esp32/src/CM_WindingJournalTransitionAudit.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
@@ -33,6 +34,7 @@ const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
 const costing = read(costingPath);
 const movementAudit = read(movementAuditPath);
+const movementAuditHeader = read(movementAuditHeaderPath);
 const completionAudit = read(completionAuditPath);
 const transitionAudit = read(transitionAuditPath);
 const controller = read(controllerPath);
@@ -121,23 +123,43 @@ if (coverage.includes('bool confirmedWriteOffExists(')) {
 }
 
 for (const text of [
-  '#include "CM_WarehouseWriteOffRecord.h"',
-  'WarehouseMovementIntegrityAudit::check(m_storage)',
-  'WarehouseWriteOffRecordCodec::parse(line, record)',
-  'record.status != "CONFIRMED"',
-  'record.massGrams',
-  'record.pricePerKgMinor',
-  'record.wireType'
+  'struct WarehouseMovementRepairTotals',
+  'static bool checkRepair(fs::FS& storage',
+  'uint64_t wireCostMinor',
+  'uint32_t copperWireGrams',
+  'uint16_t wireLineCount'
 ]) {
-  requireText(costingPath, costing, text, 'kg-first costing consumer guard missing: ' + text);
+  requireText(movementAuditHeaderPath, movementAuditHeader, text, 'movement repair aggregation API missing: ' + text);
+}
+for (const text of [
+  'accumulateRepairRecord(record, repairId, *totals)',
+  'record.status != "CONFIRMED" || record.repairId != repairId',
+  '(product + 500ULL) / 1000ULL',
+  'totals.currency != record.currency',
+  'record.wireType == "CU"',
+  'record.wireType == "AL"'
+]) {
+  requireText(movementAuditPath, movementAudit, text, 'single-pass repair wire aggregation guard missing: ' + text);
+}
+for (const text of [
+  'WarehouseMovementRepairTotals wireTotals;',
+  'WarehouseMovementIntegrityAudit::checkRepair(m_storage, repairId, wireTotals)',
+  'summary.wireCostMinor = wireTotals.wireCostMinor;',
+  'summary.copperWireGrams = wireTotals.copperWireGrams;',
+  'bool currencySet = wireTotals.currencySet;'
+]) {
+  requireText(costingPath, costing, text, 'costing must consume audited movement totals: ' + text);
 }
 for (const forbidden of [
+  'WarehouseWriteOffRecordCodec::parse(line, record)',
+  'm_storage.open(WireMovementsPath, FILE_READ)',
+  '#include "CM_WarehouseWriteOffRecord.h"',
   'pendingSpoolId',
   '!findUnsigned(line, "spool_id", spoolId)',
   '!findUnsigned(line, "weight_before_g", before)',
   '!findUnsigned(line, "weight_after_g", after)'
 ]) {
-  if (costing.includes(forbidden)) failures.push(costingPath + ': legacy spool-only costing parser returned: ' + forbidden);
+  if (costing.includes(forbidden)) failures.push(costingPath + ': redundant/legacy wire costing scan returned: ' + forbidden);
 }
 
 for (const text of [
@@ -208,4 +230,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched warehouse scans, two-pass winding completion evidence, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

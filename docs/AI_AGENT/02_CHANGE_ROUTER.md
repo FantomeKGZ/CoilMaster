@@ -2,9 +2,11 @@
 
 Use this document when the task is known but the implementation location is not.
 
-For every route below, **fetch the listed files from `cmp-protocol-v1` immediately before editing**. The list is a starting set, not permission to ignore current call sites.
+For every route below, fetch the listed files from `cmp-protocol-v1` immediately before editing. The list is a starting set, not permission to ignore current call sites.
 
-## 1. Change physical START, SSR, Hall, keypad, LCD or buzzer
+Do not use historical handoff `next` sections to choose work. Current active work is selected by `docs/PROJECT_HANDOFF/00_READ_FIRST.md`, checkpoint `61`, a concrete current failure or the user's explicit request.
+
+## 1. Physical START, SSR, Hall, keypad, LCD or buzzer
 
 Open first:
 
@@ -19,93 +21,56 @@ Arduino/CM_Lcd1602View.*
 Arduino/CM_Buzzer*.h/.cpp
 ```
 
-Also inspect the current state-machine/input path in `Core/`.
-
 Safety impact:
 
-- physical START must remain physical;
+- physical START remains physical;
 - SSR authority stays on Arduino;
-- errors/lost communication must fail safe;
-- reboot must not auto-resume movement.
+- no automatic START between repeat runs;
+- lost communication/errors fail safe;
+- reboot never auto-resumes movement.
 
-Verification:
+Verification: Arduino Uno Build + relevant host tests + targeted hardware test when physical behavior changed.
 
-- Arduino Uno build;
-- relevant host tests;
-- targeted hardware test for physical behavior.
-
-## 2. Change UART/CMP1 frame, field, CRC, ACK/NACK or retry behavior
+## 2. UART/CMP1 frame, CRC, ACK/NACK, cancel or retry behavior
 
 Open first:
 
 ```text
-Arduino/CM_UartEventTransport.h
-Arduino/CM_UartEventTransport.cpp
-firmware/esp32/src/CM_UartEventReceiver.h
-firmware/esp32/src/CM_UartEventReceiver.cpp
+Arduino/CM_UartEventTransport.h/.cpp
+firmware/esp32/src/CM_UartEventReceiver.h/.cpp
 Shared/CMP1Text/CM_Cmp1Crc.h
+firmware/arduino/src/main.cpp
+firmware/esp32/src/main.cpp
 Tests/Protocol/
 Tests/CMP1Text/
 docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 ```
 
-Then search exact message names in both board entrypoints.
-
 Required questions:
 
 - Is wire compatibility preserved?
-- What does an old peer do with the new frame?
-- Are field count/length/range/CRC checks still strict?
+- Are field count/length/range/CRC checks strict?
 - Are retries bounded?
-- Does any changed ACK accidentally become a physical-start permission?
+- Can any ACK/cancel state accidentally imply physical START or completed run?
+- Is already-clear cancellation idempotent where intended?
 
-Verification:
+Current JOB cancel/recovery is implemented and closed: `ALREADY_CLEAR`, safe `ALL_CLEAR`, physical `D -> * -> # -> D` fallback and no auto-start/run-complete semantics. Do not reopen it without a concrete regression.
 
-- CMP Protocol Tests;
-- Arduino Uno Build;
-- ESP32 Build;
-- targeted hardware UART regression when wire behavior changes.
+Verification: CMP Protocol Tests + Arduino Uno Build + ESP32 Build + targeted hardware UART regression when wire behavior changes.
 
-Do not use `Shared/Protocol/` as a shortcut; it is the older binary protocol.
+Do not use `Shared/Protocol/` as a production shortcut; it is the older binary host-test protocol.
 
-## 3. Add or change an ESP32 HTTP API endpoint
+## 3. ESP32 HTTP API endpoint
 
-Open first:
+Open `firmware/esp32/src/main.cpp`, `CM_StaticSiteServer.*`, then the owning `*Web.*` and domain store/service.
 
-```text
-firmware/esp32/src/main.cpp
-firmware/esp32/src/CM_StaticSiteServer.h
-firmware/esp32/src/CM_StaticSiteServer.cpp
-```
+Check method/path/status/error semantics, strict validation, bounded request/response sizes, fail-closed behavior, mutation semantics, UI consumers and Web audit coverage.
 
-Then open the owning domain `*Web.h/.cpp` plus the domain store/service it calls.
+Verification: ESP32 Build + affected `Tests/Web/` audits; hardware only when device behavior requires proof.
 
-Pattern:
+## 4. Web page / operator UI
 
-```text
-WebServer route → strict request validation → domain operation/read → authoritative response
-```
-
-Check:
-
-- who owns the `*Web` object;
-- where routes are registered;
-- method/path/status/error semantics;
-- max request/response sizes;
-- fail-closed behavior;
-- whether the endpoint mutates production data;
-- whether UI uses the same contract;
-- whether Web audits need a new contract assertion.
-
-Verification:
-
-- ESP32 Build for C++ changes;
-- `Tests/Web/` audits for public route/UI contract changes;
-- hardware check only when runtime/device behavior actually requires it.
-
-## 4. Add or change a web page / operator UI
-
-Open first:
+Open:
 
 ```text
 firmware/esp32/web/desktop/
@@ -116,57 +81,19 @@ Tests/Web/check_release_contracts.js
 Tests/Web/check_final_acceptance_contracts.js
 ```
 
-Then inspect the API route used by the page.
+Maintain desktop/mobile parity where functionality is operator-facing. Shared dynamic markup must be tested where it is actually generated rather than assuming it exists statically in HTML.
 
-Default parity rule:
+Never make UI state imply that a physical action happened before confirmed hardware evidence.
 
-- implement meaningful operator functionality in both desktop and mobile;
-- move common logic to `web/shared/` when practical;
-- update navigation/links for both variants;
-- keep server truth authoritative;
-- show server errors instead of hiding them.
+## 5. Clients, motors or repairs
 
-Never make UI state imply that a physical action happened before the confirmed hardware event.
+Open `CM_RepairRegistry*`, `CM_RepairRegistryWeb*`, lookup/similarity modules and `/data/workshop/` integrity/backup coverage.
 
-## 5. Change clients, motors or repairs
+For motor import also inspect `docs/MOTOR_IMPORT_FORMAT.md` and desktop/mobile import pages.
 
-Open first:
+Old persisted records must remain intentionally readable or have an explicit migration plan.
 
-```text
-firmware/esp32/src/CM_RepairRegistry.h
-firmware/esp32/src/CM_RepairRegistry.cpp
-firmware/esp32/src/CM_RepairRegistryWeb.h
-firmware/esp32/src/CM_RepairRegistryWeb.cpp
-firmware/esp32/src/CM_RepairRegistryLookupWeb.*
-firmware/esp32/src/CM_MotorSimilarityWeb.*
-```
-
-Data root:
-
-```text
-/data/workshop/
-```
-
-If changing a persisted record shape, also inspect:
-
-```text
-CM_WorkshopPersistenceIntegrityAudit.*
-CM_BackupBusinessDataIntegrityAudit.*
-CM_FlatJsonObjectValidator.h
-backup/restore whitelist or plan code that covers workshop data
-```
-
-For motor import also inspect:
-
-```text
-docs/MOTOR_IMPORT_FORMAT.md
-firmware/esp32/web/desktop/motor-import.html
-firmware/esp32/web/mobile/motor-import.html
-```
-
-Compatibility rule: old records must remain intentionally readable or have an explicit migration plan.
-
-## 6. Change linked winding job creation
+## 6. Linked winding job creation
 
 Open first:
 
@@ -182,46 +109,22 @@ CM_PersistentIdAllocator.*
 CM_WindingProgramParser.h
 ```
 
-Core contract:
+Preserve immutable job identity/snapshot, current linkage rules, and the boundary that UART acceptance never becomes physical START.
 
-```text
-repair + motor + exact ACTIVE spool
-→ immutable snapshot/spool selection
-→ UART job delivery
-→ physical START later on Arduino
-```
+If exact spool selection is present in the linked-job path, preserve it exactly. Do not infer that KG_FIRST optional-spool writeoff automatically removes linked-job selection requirements elsewhere; inspect current code before changing that contract.
 
-Do not loosen exact spool identity or turn job acceptance into physical start.
+## 7. RUN_STARTED / RUN_COMPLETED journaling or winding history
 
-## 7. Change RUN_STARTED / RUN_COMPLETED journaling or winding history
-
-Open first:
-
-```text
-CM_UartEventReceiver.*
-CM_WindingJournal.*
-CM_WindingJournalQuery.h
-CM_WindingJournalQuery.cpp
-CM_WindingJournalQueryValidation.cpp
-CM_WindingJournalWeb.*
-CM_WindingPersistenceIntegrityAudit.*
-CM_WindingJournalTransitionAudit.*
-```
-
-Authoritative journal:
-
-```text
-/data/winding-runs/events.ndjson
-```
+Open `CM_UartEventReceiver.*`, `CM_WindingJournal*`, `CM_WindingJournalQuery*`, `CM_WindingPersistenceIntegrityAudit.*` and `CM_WindingJournalTransitionAudit.*`.
 
 Important:
 
-- full-file validation uses `WindingJournalQuery::validateAll()`;
+- authoritative full validation uses `WindingJournalQuery::validateAll()`;
 - transition audit is separate;
-- do not reintroduce cursor-pagination as authoritative full validation;
-- `RUN_COMPLETED` itself must never write off wire.
+- do not reintroduce pagination as authoritative full validation;
+- `RUN_COMPLETED` never writes off material automatically.
 
-## 8. Change wire spool warehouse, pricing or movements
+## 8. Warehouse, wire spool, pricing, movements or manual writeoff
 
 Open first by prefix:
 
@@ -229,113 +132,59 @@ Open first by prefix:
 firmware/esp32/src/CM_Warehouse*.h/.cpp
 ```
 
-For writeoff specifically inspect:
+For writeoff also inspect:
 
 ```text
 CM_WarehouseWriteOffWeb.*
 CM_JobSpoolSelectionStore.*
 CM_WindingJournalQuery*
+Tests/Web/check_kg_first_material_contracts.js
+Tests/Web/check_writeoff_fault_contracts.js
 ```
 
-Required exact provenance:
+Current provenance rules:
 
 ```text
-spool_id + source_session_id + source_run_id
+source_session_id + source_run_id  mandatory for new run-linked consumption
+spool_id                           optional only in approved KG_FIRST unallocated/manual path
 ```
+
+When a spool is used, exact spool identity/provenance and stock decrement must remain exact. Legacy exact-spool records remain supported.
 
 Rules:
 
-- writeoff remains manual;
-- persisted exact spool selection must match;
-- completed run must be proven;
+- writeoff remains explicit/manual;
+- completed source run must be proven;
 - duplicate exact-run writeoff remains rejected;
-- historical price/material snapshot must not be recomputed from current values.
+- `RUN_COMPLETED` alone never mutates warehouse/material stock;
+- historical price/material snapshots are not recomputed from current values;
+- fault paths remain fail-closed before partial mutation.
 
-Also inspect:
+Also inspect warehouse persistence/movement integrity and backup coverage.
 
-```text
-CM_WarehousePersistenceIntegrityAudit.*
-CM_WarehouseMovementIntegrityAudit.*
-CM_BackupBusinessDataIntegrityAudit.*
-```
+## 9. Auxiliary materials / material usage
 
-## 9. Change auxiliary materials or material usage
+Open `firmware/esp32/src/CM_Material*.h/.cpp`, then costing/pricing integration and `CM_MaterialPersistenceIntegrityAudit.*`.
 
-Open first by prefix:
+Validate material identity, repair identity, quantity/stock rules, currency policy, persisted cost snapshot and pending/recovery semantics.
 
-```text
-firmware/esp32/src/CM_Material*.h/.cpp
-```
+## 10. Costing, finalization or pricing
 
-Then inspect repair costing/pricing integration.
+Open `CM_RepairCosting*` and `CM_RepairPricing*`, then warehouse/material persisted snapshots, finalization preflight and both UIs.
 
-Persistence concerns:
+Historical cost must remain based on persisted operation snapshots, not current prices.
 
-- material exists and is active;
-- repair exists;
-- currency policy is explicit;
-- quantity/stock validated before commit;
-- line cost snapshot persisted;
-- pending/recovery semantics preserved where multi-step.
+## 11. Persistent data on microSD
 
-Integrity:
+Open writer + authoritative reader, then applicable validator, domain integrity audit, backup/export, restore plan/rollback/apply and final-acceptance tests.
 
-```text
-CM_MaterialPersistenceIntegrityAudit.*
-```
+Before adding a path answer: exact `/data/...` location, atomic/pending strategy, corruption detection, old-record compatibility, cross-reference validation, deep-audit inclusion, backup/restore inclusion and reboot-mid-write behavior.
 
-## 10. Change costing, finalization or pricing
+A production data file unknown to backup/integrity logic is incomplete integration.
 
-Open first by prefix:
+## 12. Backup/export/remote backup/restore
 
-```text
-CM_RepairCosting*.h/.cpp
-CM_RepairPricing*.h/.cpp
-```
-
-Then inspect:
-
-- warehouse/material persisted snapshots;
-- repair status/finalization preflight;
-- UI pages showing totals;
-- backup/integrity coverage if new persisted data appears.
-
-Rule: historical cost remains based on persisted operation snapshots, not today's price.
-
-## 11. Add or change persistent data on microSD
-
-Open the writer and authoritative reader first.
-
-Then inspect all applicable layers:
-
-```text
-CM_FlatJsonObjectValidator.h
-<domain>PersistenceIntegrityAudit.*
-CM_BackupBusinessDataIntegrityAudit.*
-CM_BackupExportWeb.*
-CM_RemoteBackupWeb.*
-restore plan / rollback / apply code
-Tests/Web/check_final_acceptance_contracts.js
-```
-
-Before adding a new path, answer:
-
-1. What is the exact `/data/...` path?
-2. Is it append-only, replaceable, snapshot, journal or state?
-3. What is its atomic/pending strategy?
-4. How are corrupted rows detected?
-5. How are old rows parsed?
-6. What references must be cross-validated?
-7. Is it included in deep integrity audit?
-8. Is it included in backup manifest/restore plan?
-9. Does rollback cover it?
-10. What happens after reboot mid-write?
-
-If backup/restore does not know the file exists, the persistence feature is incomplete.
-
-## 12. Change backup/export/remote backup/restore
-
-Open first:
+Open:
 
 ```text
 CM_BackupActivityGuard.*
@@ -347,84 +196,29 @@ CM_RemoteBackupWeb.*
 CM_WebRecoveryFtpServer.*
 ```
 
-And domain integrity audits:
+Plus all domain persistence integrity audits.
 
-```text
-CM_WorkshopPersistenceIntegrityAudit.*
-CM_MaterialPersistenceIntegrityAudit.*
-CM_WarehousePersistenceIntegrityAudit.*
-CM_PersistentIdIntegrityAudit.*
-CM_ConductorSettingsIntegrityAudit.*
-CM_WindingPersistenceIntegrityAudit.*
-CM_WindingSessionPersistenceIntegrityAudit.*
-```
+Preserve safe-idle gating, strict source validation, rollback snapshot, explicit operator APPLY, persisted stale evidence, reboot -> STALE/no resume and no automatic production-data deletion.
 
-Safety semantics to preserve:
+`WindingSessionPersistenceIntegrityAudit` owns authoritative read-only session preflight; do not reintroduce a duplicate backup manifest full scan.
 
-- heavy scans only when machine state is provably safe;
-- explicit operator restore/apply;
-- exact batch identity;
-- staged source validation;
-- rollback snapshot before replacement;
-- persisted apply evidence;
-- reboot → STALE, never resume;
-- explicit cleanup;
-- no automatic production-data deletion.
+## 13. Network, Wi-Fi, AP/STA, mDNS or diagnostics
 
-Backup/restore changes deserve a narrow contract audit before optimization.
+Open `CM_NetworkProfileStore.*`, `CM_NetworkManager.*`, `CM_NetworkWeb.*`, `main.cpp`, `CM_StaticSiteServer.*` and relevant diagnostics modules.
 
-## 13. Change network, Wi-Fi, AP/STA, mDNS or diagnostics
+Network behavior must remain bounded/non-blocking enough not to interfere with core service operation. Keep IP fallback; do not assume `coil.local` is always available.
 
-Open first:
+## 14. Incoming `/web` recovery FTP
 
-```text
-CM_NetworkProfileStore.*
-CM_NetworkManager.*
-CM_NetworkWeb.*
-main.cpp
-CM_StaticSiteServer.*
-```
+Open `CM_WebRecoveryFtpServer.*`, `CM_StaticSiteServer.*`, `main.cpp`.
 
-For read-only system/storage diagnostics also inspect:
+Recovery FTP is `/web` only, not `/data`, and remains distinct from outbound remote backup.
 
-```text
-CM_StorageDiagnosticsWeb.*
-firmware/esp32/web/shared/settings-system-diagnostics.js
-```
+## 15. ESP32 hardware module
 
-Network behavior must remain bounded/non-blocking enough not to interfere with core service operation.
+Open `firmware/esp32/src/main.cpp`, hardware docs and `03_ADD_MODULE_PLAYBOOK.md`.
 
-Do not treat `coil.local` as the only operational access path; IP fallback remains required.
-
-## 14. Change incoming `/web` recovery FTP
-
-Open first:
-
-```text
-CM_WebRecoveryFtpServer.*
-CM_StaticSiteServer.*
-main.cpp
-```
-
-Contract:
-
-- recovery FTP is for `/web` only;
-- it must not expose `/data`;
-- staging/backup behavior must remain safe;
-- it is distinct from outbound remote backup transfer.
-
-## 15. Add an ESP32 hardware module (sensor, display, peripheral)
-
-Open first:
-
-```text
-firmware/esp32/src/main.cpp
-docs/PROJECT_HANDOFF/02_ARCHITECTURE_AND_HARDWARE.md
-```
-
-Then use `03_ADD_MODULE_PLAYBOOK.md`.
-
-Before choosing pins, compare against current reserved ESP32 pins:
+Check reserved pins before assignment:
 
 ```text
 GPIO16/17 UART2
@@ -432,92 +226,47 @@ GPIO5/18/19/23 microSD SPI
 GPIO21/22 RTC I2C
 ```
 
-Define power, logic voltage, bus ownership, startup failure behavior and diagnostics before integration.
+Define power, logic voltage, bus ownership, startup failure behavior and diagnostics.
 
-## 16. Add an Arduino hardware module
+## 16. Arduino hardware module
 
-Open first:
+Open `Arduino/Config/CM_Pins.h`, `firmware/arduino/src/main.cpp`, `Core/`, `Arduino/`, `platformio.ini`.
 
-```text
-Arduino/Config/CM_Pins.h
-firmware/arduino/src/main.cpp
-Core/
-Arduino/
-platformio.ini
-```
+Uno SRAM/Flash budgets matter. Do not bypass the state machine or steal START/SSR/Hall/UART pins.
 
-Constraints:
+## 17. Motor import format
 
-- Uno SRAM/flash budget matters;
-- do not allocate large dynamic strings/buffers casually;
-- do not steal physical START/SSR/Hall/UART pins;
-- hardware adapter should not bypass the state machine.
+Open `docs/MOTOR_IMPORT_FORMAT.md`, registry/similarity Web modules, both import pages and Web audits.
 
-## 17. Change motor import format
+Keep preview-before-write, strict documented fields, provenance, duplicate detection, one-record append semantics and reboot persistence.
 
-Open first:
+## 18. Storage-capacity behavior
 
-```text
-docs/MOTOR_IMPORT_FORMAT.md
-CM_RepairRegistryWeb.*
-CM_MotorSimilarityWeb.*
-firmware/esp32/web/desktop/motor-import.html
-firmware/esp32/web/mobile/motor-import.html
-Tests/Web/check_web_assets.js
-```
-
-Keep:
-
-- preview before write;
-- strict documented field names;
-- provenance rules;
-- package duplicate detection;
-- one-record server append semantics;
-- persistence after reboot.
-
-## 18. Change storage-capacity behavior
-
-Read-only diagnostics live in:
-
-```text
-CM_StorageDiagnosticsWeb.*
-settings-system-diagnostics.js
-```
-
-Release policy:
+Read-only diagnostics live in `CM_StorageDiagnosticsWeb.*` and settings diagnostics JS.
 
 ```text
 automatic_cleanup_allowed = false
 ```
 
-Do not turn a low-space condition into automatic deletion of production records.
+Low-space conditions must not trigger automatic deletion of production records.
 
-## 19. Change tests or CI only
+## 19. Tests or CI only
 
-Open:
+Open `.github/workflows/*.yml`, `Tests/Protocol/`, `Tests/CMP1Text/`, `Tests/Web/`.
 
-```text
-.github/workflows/*.yml
-Tests/Protocol/
-Tests/CMP1Text/
-Tests/Web/
-```
+Test/docs-only commits do not automatically invalidate closed hardware gates. Do not report a workflow green until its actual run completed successfully.
 
-A test/docs-only commit does not automatically invalidate closed hardware gates or require a firmware reflash.
-
-Do not report a workflow as green until the actual run has completed successfully.
+The CMP Protocol workflow intentionally continues later Web/safety audits after an earlier audit failure so one run exposes all failing contracts; any failed audit must still fail the job.
 
 ## 20. Search order when the router is not enough
 
-Use this order instead of repository-wide guessing:
-
 ```text
 1. Search exact API route / class / data path / protocol token.
-2. Open its owner (`main.cpp`, `CM_StaticSiteServer`, or parent service).
-3. Open matching `*Web`, store/ledger, validator, integrity audit.
+2. Open its runtime owner.
+3. Open matching Web/store/validator/integrity audit.
 4. Open mobile + desktop consumers.
 5. Open contract tests.
-6. Only then broaden the search by class prefix.
+6. Only then broaden by class prefix.
 ```
 
-Avoid using old handoff text to infer current implementation when the current source is available.
+Avoid using old handoff text to infer current implementation when current source is available.

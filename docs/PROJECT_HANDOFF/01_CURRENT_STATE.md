@@ -11,45 +11,42 @@
 
 Перед изменением existing file fetch текущего содержимого и blob SHA. Не объявлять build/CI/hardware success без фактического результата.
 
-## Last verified production baseline
-
-Production commit:
+## Last exact verified production baseline
 
 ```text
 e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
 Fix duplicate ESP32 job lifecycle definitions
-```
 
-Verified GitHub Actions на exact commit:
-
-```text
 CMP Protocol Tests #2175 — GREEN
 ESP32 Build #1241 — GREEN
 ```
 
-Пользователь позже сообщил, что последующие workflows также зелёные, но текущий production candidate ниже ещё требует exact automated result после нового safety change.
+Пользователь позже сообщил, что последующие workflows также зелёные, но current production candidate из checkpoint 62 содержит новые ESP32 safety/integrity changes и требует своих exact automated results.
 
-## Current production candidate
+## Current production candidate — checkpoint 62
+
+Production hardening:
 
 ```text
-ce38711ca9ecd21fa3432e0981f0933878ac85dd
-Keep timed-out jobs in manual review
+ce38711c  Keep timed-out jobs in manual review
+2ecebb5e  Ignore stale cancel after completed job
+9e68bd86  Reject runs beyond immutable repeat target
+5fa6bcea  Validate session state against repeat target
 ```
 
-`CM_JobStateDismiss.cpp` больше не трактует `JobDeliveryState::TimedOut` как обычный terminal delivery. Потеря всех `JOB_ACK` остаётся неоднозначной: Arduino могла принять JOB, поэтому timeout разрешается только explicit manual-review path.
-
-Regression guard:
+Regression coverage:
 
 ```text
 Tests/Web/check_job_cancel_recovery_contracts.js
-fa5a0073ee80c58a1d1cab67d50a1249b9479d00
+fa5a0073 / 44d1e037 / 5188084d / 5e407f2e
 ```
 
 Current candidate status:
 
 ```text
-ESP32 Build — NOT VERIFIED after ce38711c
-CMP Protocol Tests — NOT VERIFIED after ce38711c/fa5a0073
+ESP32 Build — NOT VERIFIED
+CMP Protocol Tests — NOT VERIFIED
+hardware UART/repeat/cancel smoke — NOT VERIFIED
 ```
 
 ## Architectural ownership
@@ -84,6 +81,7 @@ Production cross-board protocol: text `CMP1|...`. `Shared/Protocol/` is older bi
 - no auto-resume after reboot;
 - ESP32/Web never drive SSR directly;
 - lost ACK / `TIMED_OUT` never proves Arduino idle;
+- final repeat cannot reopen automatically;
 - `RUN_COMPLETED` never auto-writes off material;
 - manual writeoff requires exact `source_session_id + source_run_id`;
 - `spool_id` optional only for approved KG_FIRST unallocated/manual consumption;
@@ -104,9 +102,9 @@ client -> motor -> OPEN repair -> costing -> linked winding
 
 A repeat target is one JOB containing multiple physical RUNs. Every RUN requires a new physical START.
 
-## JOB cancel / recovery
+## JOB lifecycle / recovery
 
-Implemented:
+Implemented/current candidate:
 
 - no-run remote JOB cancel;
 - lost-ACK cancel escalates to remote `JOB_CANCEL` rather than local-only closure;
@@ -116,6 +114,11 @@ Implemented:
 - active physical run prevents unsafe clear;
 - positive remote cancel closes persisted state only with zero physical-run evidence;
 - `TIMED_OUT` requires manual review and cannot use ordinary inactive dismiss;
+- stale cancel after `ProgramCompleted`/`ClosedAfterReview` is a persisted-state no-op;
+- immutable `repeatTarget` is enforced before winding journal append;
+- `RUN_STARTED` cannot reopen a completed target;
+- `RUN_COMPLETED` above immutable target is rejected before NDJSON mutation;
+- deep session audit checks persisted completed runs against immutable target;
 - recovery is re-evaluated before a new job may be created;
 - reboot never auto-starts and never fabricates completion/writeoff;
 - immutable snapshots/history are not erased by operational cancellation.
@@ -147,27 +150,16 @@ Implemented persisted domains include:
 - conductor settings;
 - backup/restore metadata.
 
-Backup deep validation is read-only and fail-closed. Session persistence preflight is owned by `WindingSessionPersistenceIntegrityAudit`; duplicate full session-directory preflight in backup export was removed.
+Backup deep validation is read-only and fail-closed. Session persistence preflight is owned by `WindingSessionPersistenceIntegrityAudit`; duplicate full session-directory preflight in backup export was removed. Current candidate additionally validates snapshot/state repeat-target consistency without another full journal pass.
 
 ## UI/API state
 
 Desktop and mobile interfaces cover the implemented workshop, motor/import, repairs, linked winding, Arduino archive, materials/warehouse, costing, reports, settings, backup/network and diagnostics flows. Growing collections use bounded/paged APIs where implemented; old checkpoints describing their migration are historical, not active work.
 
-## Verification still separate
-
-Current safety candidate needs its exact automated gates. Hardware verification is separate from CI:
-
-```text
-ESP32 Build current candidate
-CMP Protocol Tests current candidate
-two-board UART hardware smoke current candidate
-full hardware acceptance only when affected scope requires it
-```
-
 ## Current active direction
 
-1. verify `ce38711c`/`fa5a0073` through ESP32 Build + CMP Protocol Tests;
-2. perform targeted ESP32<->Arduino UART/cancel smoke when hardware is available;
+1. verify checkpoint 62 current candidate through ESP32 Build + CMP Protocol Tests;
+2. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
 3. fix only concrete current failures;
 4. use measured data for performance/storage changes;
 5. otherwise continue with requested product work.
@@ -178,4 +170,10 @@ Current active queue:
 
 ```text
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+```
+
+Current authoritative checkpoint:
+
+```text
+docs/PROJECT_HANDOFF/62_JOB_LIFECYCLE_SAFETY_HARDENING_2026-08-22.md
 ```

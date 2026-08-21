@@ -19,6 +19,7 @@ const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
 const costingPath = 'firmware/esp32/src/CM_RepairCosting.cpp';
+const movementAuditPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
 const desktopPath = 'firmware/esp32/web/desktop/writeoff.html';
 const mobilePath = 'firmware/esp32/web/mobile/writeoff.html';
@@ -29,6 +30,7 @@ const writeOff = read(writeOffPath);
 const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
 const costing = read(costingPath);
+const movementAudit = read(movementAuditPath);
 const controller = read(controllerPath);
 const desktop = read(desktopPath);
 const mobile = read(mobilePath);
@@ -138,6 +140,23 @@ for (const forbidden of [
   if (costing.includes(forbidden)) failures.push(costingPath + ': legacy spool-only costing parser returned: ' + forbidden);
 }
 
+// Provenance uniqueness must remain authoritative but bounded in RAM/I/O. The
+// verifier checks up to 32 identities per full-file scan instead of reopening
+// and rescanning the movement journal once per confirmed record.
+for (const text of [
+  'constexpr uint8_t BatchSize = 32U;',
+  'ProvenanceEntry batch[BatchSize];',
+  'while (outer.available() && batchCount < BatchSize)',
+  'for (uint8_t index = 0U; index < batchCount; ++index)',
+  'provenanceConflicts(batch[index], candidate)',
+  'candidate.sourceRunId == entry.sourceRunId'
+]) {
+  requireText(movementAuditPath, movementAudit, text, 'batched provenance audit guard missing: ' + text);
+}
+if (movementAudit.includes('candidate.movementId == record.movementId')) {
+  failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
+}
+
 // Desktop and mobile must expose kg as the operator-facing quantity. The shared
 // controller owns both variants and may attach only the immutable selected spool.
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
@@ -176,4 +195,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched provenance audit, recovery/finalization, costing, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

@@ -59,16 +59,17 @@ for (const text of [
 
 // HTTP writes must fail closed when warehouse/storage is unavailable, when the
 // repair is closed, when RUN_COMPLETED cannot be proven, or when the exact run
-// already has a confirmed write-off.
+// already has a confirmed write-off. Error tokens are checked independent of
+// C++ string-literal escaping so the contract follows the JSON semantics.
 for (const text of [
-  '"warehouse_unavailable"',
-  '"repair_closed"',
-  '"winding_history_unavailable"',
-  '"winding_history_integrity_failed"',
-  '"source_run_not_completed"',
+  'warehouse_unavailable',
+  'repair_closed',
+  'winding_history_unavailable',
+  'winding_history_integrity_failed',
+  'source_run_not_completed',
   'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)',
-  '"source_run_already_written_off"',
-  '"write_performed\\":false'
+  'source_run_already_written_off',
+  'write_performed\\\":false'
 ]) {
   requireText(writeoffPath, writeoff, text, 'write-off HTTP fault guard missing: ' + text);
 }

@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-21**  
+Дата обновления: **2026-08-22**  
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
@@ -9,29 +9,24 @@
 ```text
 /AGENTS.md
 this file
-docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/62_JOB_LIFECYCLE_SAFETY_HARDENING_2026-08-22.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/01_PROJECT_MAP.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-Старые numbered checkpoints — **история**, а не очередь активных работ. Не продолжать старую задачу только потому, что в checkpoint 24, 38 или другом старом файле написано `next`/`pending`. Активная работа определяется этим файлом, checkpoint `61`, текущим кодом/CI failure или прямой просьбой пользователя.
+Checkpoint `61` и более старые numbered checkpoints — история/evidence, а не очередь активных работ. Не продолжать старую задачу только потому, что в checkpoint 24, 38, 61 или другом старом файле написано `next`/`pending`.
 
 Перед изменением existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата.
 
-## Текущий подтверждённый repo baseline
-
-Production commit:
+## Last exact verified production baseline
 
 ```text
 e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
 Fix duplicate ESP32 job lifecycle definitions
-```
 
-На этом exact commit подтверждены:
-
-```text
 CMP Protocol Tests #2175 — GREEN
 run 32499582610
 
@@ -39,22 +34,52 @@ ESP32 Build #1241 — GREEN
 run 32499582503
 ```
 
-Protocol/Web/safety audits и ESP32 compile/link сейчас не являются blocker.
+Пользователь позже сообщил, что workflows зелёные после documentation cleanup, но current production candidate из checkpoint 62 содержит новые ESP32 safety changes и требует своих exact workflow results.
 
-## JOB cancel/recovery — реализовано и закрыто
+## Current production candidate — checkpoint 62
 
-Не считать этот блок текущей задачей без конкретной регрессии.
+Production hardening:
 
-Реализовано:
+```text
+ce38711c  Keep timed-out jobs in manual review
+2ecebb5e  Ignore stale cancel after completed job
+9e68bd86  Reject runs beyond immutable repeat target
+```
 
-- no-run pending/accepted remote JOB может быть safely cancelled;
-- Arduino cancel идемпотентна для already-clear state (`ALREADY_CLEAR`);
-- physical fallback `D -> * -> # -> D` отправляет `ALL_CLEAR` только когда нет active physical run;
-- `ALL_CLEAR` не означает `RUN_COMPLETED`;
-- reboot recovery не создаёт auto-start, fake completion или automatic wire writeoff;
-- operational cancellation не должна стирать immutable run/history evidence.
+Regression guards:
 
-Историческая реализация описана в checkpoint `39_JOB_CANCEL_RECOVERY_2026-08-18.md`; текущий статус зафиксирован в checkpoint `61`.
+```text
+fa5a0073  Guard timed-out job manual review
+44d1e037  Guard stale cancel after completed job
+5188084d  Guard immutable repeat target journal boundary
+```
+
+Current candidate verification label until actual runs are inspected:
+
+```text
+ESP32 Build — NOT VERIFIED
+CMP Protocol Tests — NOT VERIFIED
+hardware UART/repeat/cancel smoke — NOT VERIFIED
+```
+
+## JOB lifecycle semantics
+
+Implemented/current candidate:
+
+- if a JOB may have reached Arduino, ESP32 cancellation uses remote `JOB_CANCEL`, not local-only closure;
+- Arduino `ALREADY_CLEAR` is idempotent success;
+- physical fallback `D -> * -> # -> D` emits CRC-protected `ALL_CLEAR` only when safe;
+- `ALL_CLEAR` never means `RUN_COMPLETED`;
+- positive remote cancellation can persist closure only with zero physical-run evidence;
+- `TIMED_OUT` is ambiguous and remains manual-review-only;
+- ordinary `dismissInactive()` cannot close `TIMED_OUT`;
+- stale duplicate cancel after `ProgramCompleted`/`ClosedAfterReview` is a persisted-state no-op;
+- immutable `repeat_target` is checked before winding journal append;
+- `RUN_STARTED` cannot reopen an already completed target;
+- `RUN_COMPLETED` beyond immutable repeat target is rejected before NDJSON mutation;
+- reboot never auto-starts, auto-completes or auto-writes off material.
+
+See checkpoint `62` for exact files/commits.
 
 ## Safety-инварианты
 
@@ -64,6 +89,7 @@ Protocol/Web/safety audits и ESP32 compile/link сейчас не являют�
 - никакого automatic physical START между repeat cycles;
 - никакого auto-resume после reboot;
 - ESP32/Web не управляют SSR напрямую;
+- lost ACK / timeout never proves Arduino idle;
 - `RUN_COMPLETED` не выполняет automatic wire writeoff;
 - manual material writeoff требует exact `source_session_id + source_run_id`;
 - `spool_id` optional только в утверждённом KG_FIRST unallocated/manual path;
@@ -105,7 +131,7 @@ legacy exact-spool records remain compatible
 RUN_COMPLETED never auto-deducts material
 ```
 
-Checkpoints `46–57` — исторические implementation/hardening records, не active tasks.
+Checkpoints `46–57` — historical implementation/hardening evidence, not active tasks.
 
 ## Backup/session integrity — реализовано
 
@@ -113,40 +139,17 @@ Checkpoints `46–57` — исторические implementation/hardening reco
 
 Checkpoints `58–59` — закрытый recovery block.
 
-## Verification status
-
-Подтверждено на `e35c4bfe`:
-
-```text
-CMP Protocol Tests — GREEN
-ESP32 Build — GREEN
-```
-
-Отдельно не считать автоматически подтверждёнными:
-
-```text
-Arduino Uno Build current HEAD
-current-head two-board UART hardware smoke
-current-head full hardware acceptance
-```
-
-Старые hardware confirmations остаются историческим evidence соответствующего baseline, но не превращаются автоматически в доказательство нового production HEAD после затронувших scope изменений.
-
 ## Текущая точка продолжения
 
-Repo-level recovery Protocol + ESP32 build закрыт.
-
-Следующие действия выбирать только по текущему evidence:
-
 ```text
-1. проверить Arduino Uno Build текущего HEAD;
-2. при наличии железа выполнить targeted ESP32 <-> Arduino UART/hardware smoke для текущего HEAD;
+1. подтвердить current-candidate ESP32 Build + CMP Protocol Tests;
+2. если green — targeted ESP32 <-> Arduino UART/repeat/cancel smoke при доступном стенде;
 3. исправлять только concrete failures/regressions;
-4. performance/storage work делать по measurements, не по старым TODO;
+4. performance/storage work делать по measurements;
 5. новые product features брать из прямой текущей задачи пользователя.
 ```
 
-Не возвращаться автоматически к уже закрытым pagination/archive/backup/KG_FIRST/JOB-cancel работам.
+Не возвращаться автоматически к уже закрытым pagination/archive/backup/KG_FIRST работам.
 
 ## Основные тематические документы
 
@@ -162,4 +165,4 @@ docs/HARDWARE_REFERENCE/
 docs/AI_AGENT/
 ```
 
-Если тематический документ конфликтует с current code или checkpoint `61`, приоритет у current code + фактического verification result + этого entrypoint.
+Если тематический документ конфликтует с current code или checkpoint `62`, приоритет у current code + фактического verification result + этого entrypoint.

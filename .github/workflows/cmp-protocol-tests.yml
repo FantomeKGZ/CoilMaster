@@ -58,6 +58,9 @@ jobs:
       - name: Audit kg-first material contracts
         run: node Tests/Web/check_kg_first_material_contracts.js
 
+      - name: Audit write-off fault contracts
+        run: node Tests/Web/check_writeoff_fault_contracts.js
+
       - name: Audit NDJSON growth diagnostics
         run: node Tests/Web/check_ndjson_growth_diagnostics.js
 

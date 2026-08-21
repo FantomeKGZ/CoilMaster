@@ -19,7 +19,9 @@ for (const [label, page] of [['desktop', desktop], ['mobile', mobile]]) {
   requireText(page, 'id="selectedCount"', label);
 }
 requireText(desktop, 'class="table-wrap"', 'desktop compact table');
-requireText(desktop, 'class="tip"', 'desktop accessible detail tooltip');
+requireText(desktop, '.tip{', 'desktop accessible detail tooltip style');
+requireText(shared, 'class="tip" tabindex="0" aria-label="Подробности"', 'desktop accessible detail tooltip markup');
+requireText(shared, 'class="tip-box"', 'desktop accessible detail tooltip content');
 requireText(mobile, '<details>', 'mobile accessible details');
 
 for (const needle of [

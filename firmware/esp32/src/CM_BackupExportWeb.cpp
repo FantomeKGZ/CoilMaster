@@ -371,43 +371,6 @@ const char* snapshotStabilityReason(fs::FS& storage,
         metrics.warehouseMovementRecordCountMeasured = true;
     }
 
-    const char* directories[] =
-    {
-        SnapshotDirectory,
-        SpoolSelectionDirectory,
-        StateDirectory
-    };
-    uint32_t ignoredIds[1] = {};
-    const char* sessionDirectoryReason = nullptr;
-    startedAtMs = millis();
-    for (uint8_t i = 0U; i < sizeof(directories) / sizeof(directories[0]); ++i)
-    {
-        uint8_t count = 0U;
-        bool truncated = false;
-        const SessionScanResult result =
-            scanSessionDirectory(storage, directories[i], 0UL,
-                                 ignoredIds, count, 1U, truncated);
-        if (result == SessionScanResult::StorageUnavailable)
-        {
-            sessionDirectoryReason = "session_directory_unavailable";
-            break;
-        }
-        if (result == SessionScanResult::TemporaryFilePresent)
-        {
-            sessionDirectoryReason = "session_temp_present";
-            break;
-        }
-        if (result == SessionScanResult::InvalidEntry)
-        {
-            sessionDirectoryReason = "session_directory_invalid";
-            break;
-        }
-    }
-    metrics.windingSessionDirectoryScanTiming.durationMs = millis() - startedAtMs;
-    metrics.windingSessionDirectoryScanTiming.measured = true;
-    if (sessionDirectoryReason != nullptr)
-        return sessionDirectoryReason;
-
     WindingSessionPersistenceAuditMetrics windingSessionMetrics;
     startedAtMs = millis();
     const bool windingSessionPersistenceValid =
@@ -415,8 +378,23 @@ const char* snapshotStabilityReason(fs::FS& storage,
                                                        windingSessionMetrics);
     metrics.windingSessionPersistenceAuditTiming.durationMs = millis() - startedAtMs;
     metrics.windingSessionPersistenceAuditTiming.measured = true;
+    metrics.windingSessionDirectoryScanTiming.durationMs =
+        windingSessionMetrics.directoryPreflightDurationMs;
+    metrics.windingSessionDirectoryScanTiming.measured =
+        windingSessionMetrics.directoryPreflightMeasured;
     if (!windingSessionPersistenceValid)
+    {
+        if (windingSessionMetrics.failure ==
+            WindingSessionPersistenceAuditFailure::DirectoryUnavailable)
+            return "session_directory_unavailable";
+        if (windingSessionMetrics.failure ==
+            WindingSessionPersistenceAuditFailure::TemporaryFilePresent)
+            return "session_temp_present";
+        if (windingSessionMetrics.failure ==
+            WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry)
+            return "session_directory_invalid";
         return "winding_session_persistence_unstable_or_invalid";
+    }
     metrics.windingSnapshotFileCount = windingSessionMetrics.snapshotFileCount;
     metrics.windingStateFileCount = windingSessionMetrics.stateFileCount;
     metrics.windingSpoolSelectionFileCount =

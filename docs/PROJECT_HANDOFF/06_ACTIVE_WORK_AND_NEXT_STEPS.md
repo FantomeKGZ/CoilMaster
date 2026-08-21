@@ -28,9 +28,41 @@ head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
 
 Checkpoint 62 repo-level gates закрыты.
 
-## План обновления — ЗАКРЫТ на repo level
+## Активный приоритет — закончить утверждённый план 2026-08-20
 
-Закрыты и не являются активной разработкой:
+Перед продолжением общего full-code audit сначала довести до 100% утверждённый план:
+
+```text
+docs/PROJECT_HANDOFF/40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md
+```
+
+Phase 1–8 считаются реализованными на repo level последующими checkpoints. Текущий незакрытый остаток — Phase 9 / Web UX core, включая проверку и при необходимости реализацию:
+
+- unified desktop/mobile navigation;
+- нормальный shell для FTP settings;
+- global device clock без тяжёлого request каждую секунду;
+- firmware/web version identification;
+- shared toast/error handling;
+- global search / recent items / breadcrumbs;
+- UI contract tests для shell/nav/clock/internal desktop-mobile links.
+
+План не считать полностью завершённым, пока каждый пункт Phase 9 не подтверждён текущим кодом/tests или явно не закрыт совместимой реализацией.
+
+## После закрытия плана — ОБЯЗАТЕЛЬНО продолжить отложенную работу
+
+Сразу после фиксации 100% завершения плана 2026-08-20 вернуться к работе, которую временно отложили ради последовательного завершения одного блока:
+
+1. продолжить `FULL CODE AUDIT` по checkpoint 63;
+2. продолжить targeted ESP32↔Arduino desync/recovery audit сценария, где JOB не появился на Arduino и затем не удаётся нормально очистить состояние;
+3. отдельно пройти `JOB / JOB_CANCEL / ALL_CLEAR / timeout / reboot / recovery` transitions на обеих платах и в ESP32 persisted state;
+4. исправлять только подтверждённые дефекты, не ослабляя safety-инварианты;
+5. затем продолжить оставшиеся пункты checkpoint 63 по ESP32 runtime/API/persistence, Web parity, tests/CI и docs consistency.
+
+Эта очередь **не отменена и не заменена Phase 9**. Она намеренно отложена до закрытия утверждённого плана, чтобы сначала закончить один блок полностью и только потом переходить дальше.
+
+## План обновления — закрытая основная production-функциональность
+
+Закрыты и не являются активной разработкой без конкретного defect/regression:
 
 - JOB cancel/recovery (`ALREADY_CLEAR`, `ALL_CLEAR`, timeout/manual-review hardening);
 - repeat-target/final-repeat lifecycle hardening;
@@ -43,8 +75,6 @@ Checkpoint 62 repo-level gates закрыты.
 - backup whitelist/deep integrity/session preflight consolidation;
 - web regression-contract recovery;
 - ESP32 compile/link lifecycle recovery.
-
-Не возвращаться к этим блокам без конкретного defect/regression.
 
 ## External hardware verification gate
 
@@ -69,15 +99,13 @@ late ALL_CLEAR after completed job -> no persisted corruption/storage fault
 
 Недоступность стенда не должна блокировать repo-level аудит.
 
-## Текущая активная фаза — FULL CODE AUDIT
+## Deferred full-code audit — authoritative checkpoint 63
 
-Authoritative checkpoint:
+После завершения Phase 9 использовать:
 
 ```text
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
-
-Провести полный аудит текущего `cmp-protocol-v1` с исправлением подтверждённых находок по мере обнаружения.
 
 Порядок:
 
@@ -130,13 +158,14 @@ Git commit сам по себе не является build result.
 
 ## Документация для продолжения
 
-Перед работой читать:
+Пока Phase 9 не закрыт, перед работой читать:
 
 ```text
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/40_UI_HARDWARE_SETTINGS_AND_JOB_LIFECYCLE_PLAN_2026-08-20.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md

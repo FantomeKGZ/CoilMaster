@@ -4,28 +4,25 @@ Purpose: let a new AI/coding agent understand the current project without scanni
 
 ## 1. Current status
 
-Authoritative current recovery/status checkpoint:
+Authoritative current active checkpoint:
 
 ```text
-docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
 
-Current verified production commit:
+Current verified repo-level baseline entering the audit:
 
 ```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
+ESP32 production C++: 5fa6bcea812c33f0b2dc8e13baae476221839b3a
+ESP32 Build #1245 — GREEN — run 32515224487
+CMP Protocol Tests #2210 — GREEN — run 32515361340
 ```
 
-Verified on that exact commit:
+Checkpoint 62 is verified baseline/evidence. The update/hardening plan is closed at repo level.
 
-```text
-CMP Protocol Tests #2175 — GREEN
-ESP32 Build #1241 — GREEN
-```
+The remaining targeted ESP32<->Arduino hardware smoke is an external verification gate for when the physical stand is available. It is not the current software backlog.
 
-JOB cancel/recovery is implemented and closed at repo level. Do not treat checkpoint 39 or earlier chat history as an unfinished task unless a concrete regression is reported.
-
-Older checkpoints, including release checkpoint 38, are historical evidence for the code they verified. They are not the current active-work selector.
+The current active phase is a full audit of the `cmp-protocol-v1` codebase. Confirmed defects are fixed as they are found; completed historical features are not reopened merely because they are being audited.
 
 ## 2. Source precedence
 
@@ -34,10 +31,11 @@ When information conflicts, use this order:
 1. current code in `cmp-protocol-v1`;
 2. actual build/test/hardware result;
 3. `docs/PROJECT_HANDOFF/00_READ_FIRST.md`;
-4. current checkpoint `61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md`;
-5. `docs/AI_AGENT/` navigation docs;
-6. thematic docs;
-7. older numbered handoff checkpoints.
+4. `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`;
+5. `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`;
+6. `docs/AI_AGENT/` navigation docs;
+7. thematic docs;
+8. older numbered handoff checkpoints.
 
 `main` is not an implementation source.
 
@@ -87,6 +85,7 @@ Open `04_VERIFICATION_MATRIX.md`.
 Open:
 
 ```text
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
@@ -133,10 +132,34 @@ Shared/CMP1Text/CM_Cmp1Crc.h
 
 Do not substitute `Shared/Protocol/`; it is the older binary host-test protocol.
 
-## 6. Change procedure
+## 6. Current audit order
+
+Audit in this order unless a concrete higher-severity defect redirects the work:
+
+```text
+A. Arduino safety/realtime/UART/resources
+B. ESP32 runtime/API/persistence/integrity/network/backup
+C. desktop/mobile web parity/error/security
+D. tests/CI/build filters/path triggers
+E. docs/AI routing consistency
+F. final cross-layer recheck + applicable CI
+```
+
+Severity:
+
+```text
+P0 physical/data safety or destructive corruption
+P1 serious functional/state/persistence defect
+P2 concrete robustness/performance/maintainability weakness
+P3 low-risk cleanup/dead code/docs/test-quality issue
+```
+
+Do not manufacture findings from style preferences or speculative redesigns.
+
+## 7. Change procedure
 
 1. Confirm branch `cmp-protocol-v1` and current HEAD.
-2. Read `00_READ_FIRST.md` + checkpoint 61.
+2. Read `00_READ_FIRST.md` + checkpoint 63.
 3. Use `02_CHANGE_ROUTER.md` to find the smallest relevant file set.
 4. Fetch every existing target file immediately before editing and keep its current blob SHA.
 5. Inspect owner + contract + persistence + UI/API + tests before changing behavior.
@@ -146,7 +169,7 @@ Do not substitute `Shared/Protocol/`; it is the older binary host-test protocol.
 9. Update AI map/router only if topology/ownership/contract location changed.
 10. Update current handoff state only when project status materially changed.
 
-## 7. Safety stop signs
+## 8. Safety stop signs
 
 Do not implement convenience shortcuts that create:
 
@@ -163,16 +186,6 @@ Do not implement convenience shortcuts that create:
 
 These are safety contracts, not implementation details.
 
-## 8. Current active direction
+## 9. External hardware gate
 
-Repo-level Protocol and ESP32 build recovery are closed.
-
-Active verification priority:
-
-```text
-1. Arduino Uno Build current HEAD
-2. targeted two-board UART/hardware smoke when hardware is available
-3. concrete current failures or explicitly requested product work
-```
-
-Do not restart closed archive/pagination/backup/KG_FIRST/JOB-cancel work based solely on historical documents.
+When hardware is available, perform the targeted checkpoint-62 two-board smoke defined in checkpoint 63. Hardware GREEN must never be inferred from CI.

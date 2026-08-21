@@ -11,21 +11,32 @@
 
 Перед изменением existing file fetch текущего содержимого и blob SHA. Не объявлять build/CI/hardware success без фактического результата.
 
-## Last exact verified production baseline
+## Current verified repo baseline — checkpoint 62
+
+Production ESP32 C++ hardening завершён на:
 
 ```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-Fix duplicate ESP32 job lifecycle definitions
-
-CMP Protocol Tests #2175 — GREEN
-ESP32 Build #1241 — GREEN
+5fa6bcea812c33f0b2dc8e13baae476221839b3a
+Validate session state against repeat target
 ```
 
-Пользователь позже сообщил, что последующие workflows также зелёные, но current production candidate из checkpoint 62 содержит новые ESP32 safety/integrity changes и требует своих exact automated results.
+Verified Actions:
 
-## Current production candidate — checkpoint 62
+```text
+ESP32 Build #1245 — GREEN
+run 32515224487
+head_sha 5fa6bcea812c33f0b2dc8e13baae476221839b3a
 
-Production hardening:
+CMP Protocol Tests #2210 — GREEN
+run 32515361340
+head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
+```
+
+После `5fa6bcea` до protocol run `ba3ac4bb` менялись только regression tests и документация, не ESP32 production C++.
+
+Checkpoint 62 repo-level automated verification закрыт.
+
+## Checkpoint 62 lifecycle/integrity hardening
 
 ```text
 ce38711c  Keep timed-out jobs in manual review
@@ -39,14 +50,6 @@ Regression coverage:
 ```text
 Tests/Web/check_job_cancel_recovery_contracts.js
 fa5a0073 / 44d1e037 / 5188084d / 5e407f2e
-```
-
-Current candidate status:
-
-```text
-ESP32 Build — NOT VERIFIED
-CMP Protocol Tests — NOT VERIFIED
-hardware UART/repeat/cancel smoke — NOT VERIFIED
 ```
 
 ## Architectural ownership
@@ -104,7 +107,7 @@ A repeat target is one JOB containing multiple physical RUNs. Every RUN requires
 
 ## JOB lifecycle / recovery
 
-Implemented/current candidate:
+Implemented and repo-level verified:
 
 - no-run remote JOB cancel;
 - lost-ACK cancel escalates to remote `JOB_CANCEL` rather than local-only closure;
@@ -150,21 +153,29 @@ Implemented persisted domains include:
 - conductor settings;
 - backup/restore metadata.
 
-Backup deep validation is read-only and fail-closed. Session persistence preflight is owned by `WindingSessionPersistenceIntegrityAudit`; duplicate full session-directory preflight in backup export was removed. Current candidate additionally validates snapshot/state repeat-target consistency without another full journal pass.
+Backup deep validation is read-only and fail-closed. Session persistence preflight is owned by `WindingSessionPersistenceIntegrityAudit`; duplicate full session-directory preflight in backup export was removed. Checkpoint 62 additionally validates snapshot/state repeat-target consistency without another full journal pass.
 
 ## UI/API state
 
 Desktop and mobile interfaces cover the implemented workshop, motor/import, repairs, linked winding, Arduino archive, materials/warehouse, costing, reports, settings, backup/network and diagnostics flows. Growing collections use bounded/paged APIs where implemented; old checkpoints describing their migration are historical, not active work.
 
+## Verification still separate
+
+Repo-level checkpoint 62 is GREEN. Hardware remains a separate gate:
+
+```text
+two-board UART hardware smoke checkpoint 62 — NOT VERIFIED
+full hardware acceptance — only when affected scope requires it
+```
+
 ## Current active direction
 
-1. verify checkpoint 62 current candidate through ESP32 Build + CMP Protocol Tests;
-2. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
-3. fix only concrete current failures;
-4. use measured data for performance/storage changes;
-5. otherwise continue with requested product work.
+1. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
+2. fix only concrete current failures;
+3. use measured data for performance/storage changes;
+4. otherwise continue with requested product work.
 
-Do **not** restart old archive/pagination/backup/KG_FIRST work merely because historical checkpoints contain old `next` sections.
+Do **not** restart old archive/pagination/backup/KG_FIRST/JOB-cancel implementation work merely because historical checkpoints contain old `next` sections.
 
 Current active queue:
 

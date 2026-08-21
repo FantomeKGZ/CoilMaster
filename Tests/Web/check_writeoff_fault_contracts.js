@@ -84,13 +84,15 @@ for (const text of [
   requireText(writeoffStorePath, writeoffStore, text, 'store-level fault guard missing: ' + text);
 }
 
-// UI must not present a failed transaction as successful and must re-query the
-// next uncovered completed run only after a successful confirmed response.
+// UI must route every non-2xx response to the error path and may advance to the
+// next uncovered run only after jsonFetch() returned successfully.
 for (const text of [
-  "if(!response.ok)",
-  "if(payload&&payload.confirmed===true",
-  "setTimeout(run,600)",
-  "write_performed:false"
+  "if(!response.ok){const error=new Error(payload.error||('http_'+response.status))",
+  "const data=await jsonFetch('/api/warehouse/write-offs'",
+  "setResult('Списано '+kgFromGrams(data.consumed_g)",
+  'await loadHistory(0,true);',
+  'await prepareNextRun();',
+  "catch(error){\n        setResult('Ошибка: '+error.message,'bad');"
 ]) {
   requireText(controllerPath, controller, text, 'manual UI fault semantics missing: ' + text);
 }

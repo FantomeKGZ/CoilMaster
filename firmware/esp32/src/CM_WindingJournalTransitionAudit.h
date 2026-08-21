@@ -17,6 +17,10 @@ class WindingJournalTransitionAudit
 {
 public:
     static WindingJournalTransitionAuditResult validate(fs::FS& storage);
+    static WindingJournalTransitionAuditResult validate(fs::FS& storage,
+                                                        uint32_t sessionId,
+                                                        uint32_t runId,
+                                                        bool& completed);
 };
 }
 

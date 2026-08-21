@@ -11,7 +11,10 @@
 #define CM_FEATURE_SSR              1
 #define CM_FEATURE_BUZZER           1
 #define CM_FEATURE_ESP32_UART       1
-#define CM_FEATURE_DIAGNOSTICS      1
+// Verbose human-readable Serial diagnostics are disabled in the production Uno
+// image to preserve ATmega328P flash. CMP1 transport, safety, calibration,
+// physical START and SSR behavior do not depend on this flag.
+#define CM_FEATURE_DIAGNOSTICS      0
 #define CM_FEATURE_CALIBRATION      1
 
 // Simulation is disabled in the normal machine firmware.

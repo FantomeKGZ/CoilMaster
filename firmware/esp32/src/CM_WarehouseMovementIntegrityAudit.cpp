@@ -32,15 +32,79 @@ bool sameTransactionCore(const WarehouseWriteOffRecord& pending,
         return false;
     }
 
-    // Legacy PENDING/ABORTED deliberately have no conductor snapshot; the
-    // durable spool mutation supplies it only on CONFIRMED. KG_FIRST records
-    // carry an immutable conductor snapshot through the whole transaction.
     if (pending.mode == WarehouseWriteOffMode::KgFirst)
     {
         return pending.diameterHundredthsMm == finalRecord.diameterHundredthsMm &&
                pending.hasWireType == finalRecord.hasWireType &&
                pending.wireType == finalRecord.wireType;
     }
+    return true;
+}
+
+bool addChecked64(uint64_t& target, uint64_t value)
+{
+    if (target > 0xFFFFFFFFFFFFFFFFULL - value) return false;
+    target += value;
+    return true;
+}
+
+bool addChecked32(uint32_t& target, uint32_t value)
+{
+    if (target > 0xFFFFFFFFUL - value) return false;
+    target += value;
+    return true;
+}
+
+bool accumulateRepairRecord(const WarehouseWriteOffRecord& record,
+                            uint32_t repairId,
+                            WarehouseMovementRepairTotals& totals)
+{
+    if (record.status != "CONFIRMED" || record.repairId != repairId) return true;
+
+    const uint64_t product = static_cast<uint64_t>(record.massGrams) *
+                             static_cast<uint64_t>(record.pricePerKgMinor);
+    if (product > 0xFFFFFFFFFFFFFFFFULL - 500ULL) return false;
+    const uint64_t lineCost = (product + 500ULL) / 1000ULL;
+
+    if (totals.wireLineCount == 0xFFFFU ||
+        !addChecked64(totals.wireCostMinor, lineCost))
+        return false;
+    ++totals.wireLineCount;
+
+    if (!totals.currencySet)
+    {
+        totals.currency = record.currency;
+        totals.currencySet = true;
+    }
+    else if (totals.currency != record.currency)
+    {
+        return false;
+    }
+
+    if (record.wireType == "CU")
+    {
+        if (totals.copperWireLineCount == 0xFFFFU ||
+            !addChecked64(totals.copperWireCostMinor, lineCost) ||
+            !addChecked32(totals.copperWireGrams, record.massGrams))
+            return false;
+        ++totals.copperWireLineCount;
+        return true;
+    }
+    if (record.wireType == "AL")
+    {
+        if (totals.aluminiumWireLineCount == 0xFFFFU ||
+            !addChecked64(totals.aluminiumWireCostMinor, lineCost) ||
+            !addChecked32(totals.aluminiumWireGrams, record.massGrams))
+            return false;
+        ++totals.aluminiumWireLineCount;
+        return true;
+    }
+
+    if (totals.unknownWireLineCount == 0xFFFFU ||
+        !addChecked64(totals.unknownWireCostMinor, lineCost) ||
+        !addChecked32(totals.unknownWireGrams, record.massGrams))
+        return false;
+    ++totals.unknownWireLineCount;
     return true;
 }
 
@@ -63,9 +127,6 @@ bool provenanceConflicts(const ProvenanceEntry& entry,
         return false;
     }
 
-    // A legacy session-level write-off conflicts with every other confirmed
-    // write-off for that session. Run-level records conflict only when the
-    // exact run is duplicated, regardless of legacy/KG_FIRST mode.
     return !entry.hasSourceRunId || !candidate.hasSourceRunId ||
            candidate.sourceRunId == entry.sourceRunId;
 }
@@ -108,9 +169,6 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
 
         if (batchCount == 0U) continue;
 
-        // Bounded memory, bounded number of full-file scans: one scan checks up
-        // to 32 confirmed provenance identities. This preserves authoritative
-        // duplicate detection while avoiding one complete SD scan per record.
         File inner = storage.open(path, FILE_READ);
         if (!inner || inner.isDirectory())
         {
@@ -148,18 +206,15 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
     outer.close();
     return true;
 }
-}
 
-bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
-{
-    uint32_t ignoredRecordCount = 0UL;
-    return check(storage, ignoredRecordCount);
-}
-
-bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
-                                            uint32_t& validatedRecordCount)
+bool checkInternal(fs::FS& storage,
+                   uint32_t& validatedRecordCount,
+                   uint32_t repairId,
+                   WarehouseMovementRepairTotals* totals)
 {
     validatedRecordCount = 0UL;
+    if (totals != nullptr) *totals = WarehouseMovementRepairTotals();
+
     constexpr const char* Path = "/data/warehouse/movements.ndjson";
     if (!storage.exists(Path)) return true;
 
@@ -208,6 +263,12 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
             return false;
         }
 
+        if (totals != nullptr && !accumulateRepairRecord(record, repairId, *totals))
+        {
+            file.close();
+            return false;
+        }
+
         hasPending = false;
         pending = WarehouseWriteOffRecord();
         ++recordCount;
@@ -215,13 +276,32 @@ bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
     file.close();
 
     if (hasPending) return false;
-
-    // Syntax and transaction shape were already validated above. The bounded
-    // batch pass enforces source-session/run uniqueness across legacy and
-    // KG_FIRST records without weakening old exact-run provenance.
     if (!confirmedProvenanceUnique(storage, Path)) return false;
 
     validatedRecordCount = recordCount;
     return true;
+}
+}
+
+bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
+{
+    uint32_t ignoredRecordCount = 0UL;
+    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr);
+}
+
+bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
+                                            uint32_t& validatedRecordCount)
+{
+    return checkInternal(storage, validatedRecordCount, 0UL, nullptr);
+}
+
+bool WarehouseMovementIntegrityAudit::checkRepair(
+    fs::FS& storage,
+    uint32_t repairId,
+    WarehouseMovementRepairTotals& totals)
+{
+    if (repairId == 0UL) return false;
+    uint32_t ignoredRecordCount = 0UL;
+    return checkInternal(storage, ignoredRecordCount, repairId, &totals);
 }
 }

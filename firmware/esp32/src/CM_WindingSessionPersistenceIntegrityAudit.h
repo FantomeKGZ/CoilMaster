@@ -6,6 +6,15 @@
 
 namespace CM
 {
+enum class WindingSessionPersistenceAuditFailure : uint8_t
+{
+    None = 0U,
+    DirectoryUnavailable,
+    TemporaryFilePresent,
+    InvalidDirectoryEntry,
+    ContentInvalid
+};
+
 struct WindingSessionPersistenceAuditMetrics
 {
     uint32_t snapshotFileCount = 0UL;
@@ -15,6 +24,10 @@ struct WindingSessionPersistenceAuditMetrics
     uint32_t snapshotTotalBytes = 0UL;
     uint32_t stateTotalBytes = 0UL;
     uint32_t spoolSelectionTotalBytes = 0UL;
+    bool directoryPreflightMeasured = false;
+    uint32_t directoryPreflightDurationMs = 0UL;
+    WindingSessionPersistenceAuditFailure failure =
+        WindingSessionPersistenceAuditFailure::None;
 };
 
 class WindingSessionPersistenceIntegrityAudit

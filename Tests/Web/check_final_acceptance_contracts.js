@@ -189,19 +189,27 @@ if (backupExport.includes('scanSessionDirectory(storage, directories[i], 0UL,'))
   failures.push(backupExportPath + ': duplicate backup-manifest session directory preflight scan detected');
 }
 
-// Manual exact-run wire deduction remains the only production path. Legacy
-// exact-spool writeoff is retained, while KG_FIRST may explicitly omit spool_id
-// without weakening source session/run provenance or enabling automatic deduction.
+// Manual exact-run wire deduction remains the only production path. Both legacy
+// and current KG_FIRST mutations preserve exact spool provenance. Historical
+// unallocated records remain a read/recovery compatibility concern only; the
+// current KG_FIRST POST must require the immutable source-session spool.
 for (const field of ['spool_id', 'source_session_id', 'source_run_id', 'quantity_kg', 'writeoff_mode']) {
   requireText(writeOffPath, writeOff, '"' + field + '"',
     'manual writeoff provenance/material field missing: ' + field);
 }
 requireText(writeOffPath, writeOff, 'm_server.arg("writeoff_mode") == "KG_FIRST"',
   'explicit kg-first writeoff mode missing');
+requireText(writeOffPath, writeOff, 'spool_id_required_for_kg_first',
+  'current kg-first writeoff no longer requires exact spool_id');
+requireText(writeOffPath, writeOff, 'selection.repairId != repairId || selection.spoolId != spoolId',
+  'current kg-first writeoff no longer validates immutable session spool');
 requireText(writeOffPath, writeOff, 'confirmedWriteOffForSourceRun(sourceSessionId,',
   'duplicate exact-run writeoff protection missing');
 requireText(writeOffPath, writeOff, 'automatic_wire_writeoff_allowed\\\":false',
   'manual writeoff response no longer prohibits automatic deduction');
+for (const forbidden of ['diameter_required_for_unallocated', 'wire_type_required_for_unallocated']) {
+  if (writeOff.includes(forbidden)) failures.push(writeOffPath + ': current POST exposes obsolete unallocated fallback: ' + forbidden);
+}
 
 // Final operator UI surface must exist in both variants; generic web audit protects syntax/links.
 for (const variant of ['desktop', 'mobile']) {
@@ -231,4 +239,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, network error semantics, fail-closed live backup activity, backup inspection/session preflight, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded/exact workshop reads, exact linked and writeoff spool identity, diagnostics/storage/network/time, network error semantics, fail-closed live backup activity, backup inspection/session preflight, fail-closed restore, manual exact-run writeoff, and desktop/mobile acceptance UI.');

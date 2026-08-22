@@ -99,14 +99,20 @@ void NetworkWeb::handleProfiles()
 
 void NetworkWeb::handleSave()
 {
-    if (!m_store.ready() || !m_server.hasArg("ssid") ||
-        !m_server.hasArg("priority") || !m_server.hasArg("enabled") ||
-        !m_server.hasArg("hidden"))
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_profiles_unavailable\"}");
+        return;
+    }
+    if (!m_server.hasArg("ssid") || !m_server.hasArg("priority") ||
+        !m_server.hasArg("enabled") || !m_server.hasArg("hidden"))
     {
         m_server.send(400, "application/json",
                       "{\"error\":\"network_profile_fields_required\"}");
         return;
     }
+
     uint32_t id = 0UL, priority = 0UL;
     bool enabled = false, hidden = false, useStaticIp = false;
     if ((m_server.hasArg("id") && m_server.arg("id").length() > 0U &&
@@ -121,6 +127,7 @@ void NetworkWeb::handleSave()
                       "{\"error\":\"invalid_network_profile_fields\"}");
         return;
     }
+
     NetworkProfile profile;
     profile.id = static_cast<uint8_t>(id);
     profile.ssid = m_server.arg("ssid");
@@ -143,28 +150,64 @@ void NetworkWeb::handleSave()
         if (m_server.hasArg("dns1")) profile.dns1 = m_server.arg("dns1");
         if (m_server.hasArg("dns2")) profile.dns2 = m_server.arg("dns2");
     }
-    if (profile.id != 0U)
+
+    NetworkProfile existing[NetworkProfileStore::MaxProfiles];
+    uint8_t count = 0U;
+    if (!m_store.load(existing, count))
     {
-        NetworkProfile existing[NetworkProfileStore::MaxProfiles];
-        uint8_t count = 0U;
-        if (!m_store.load(existing, count))
-        {
-            m_server.send(503, "application/json",
-                          "{\"error\":\"network_profiles_unavailable\"}");
-            return;
-        }
-        for (uint8_t i = 0U; i < count; ++i)
-            if (existing[i].id == profile.id) profile.password = existing[i].password;
-    }
-    if (m_server.hasArg("password") && m_server.arg("password").length() > 0U)
-        profile.password = m_server.arg("password");
-    if (!NetworkProfileStore::valid(profile) || !m_store.upsert(profile))
-    {
-        m_server.send(400, "application/json",
-                      "{\"error\":\"network_profile_save_failed\"}");
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_profiles_unavailable\"}");
         return;
     }
+    if (profile.id != 0U)
+    {
+        bool found = false;
+        for (uint8_t i = 0U; i < count; ++i)
+        {
+            if (existing[i].id != profile.id) continue;
+            profile.password = existing[i].password;
+            found = true;
+            break;
+        }
+        if (!found)
+        {
+            m_server.send(404, "application/json",
+                          "{\"error\":\"network_profile_not_found\"}");
+            return;
+        }
+    }
+    else if (count >= NetworkProfileStore::MaxProfiles)
+    {
+        m_server.send(409, "application/json",
+                      "{\"error\":\"network_profile_capacity_reached\"}");
+        return;
+    }
+
+    if (m_server.hasArg("password") && m_server.arg("password").length() > 0U)
+        profile.password = m_server.arg("password");
+    if (!NetworkProfileStore::valid(profile))
+    {
+        m_server.send(400, "application/json",
+                      "{\"error\":\"invalid_network_profile\"}");
+        return;
+    }
+    if (!m_store.upsert(profile))
+    {
+        m_server.send(m_store.ready() ? 500 : 503,
+                      "application/json",
+                      m_store.ready()
+                          ? "{\"error\":\"network_profile_persistence_failed\"}"
+                          : "{\"error\":\"network_profiles_unavailable\"}");
+        return;
+    }
+
     m_manager.reload();
+    if (!m_manager.ready())
+    {
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_manager_reload_failed\",\"saved\":true}");
+        return;
+    }
     String response = F("{\"saved\":true,\"id\":"); response += profile.id;
     response += F(",\"credentials_exposed\":false}");
     m_server.send(200, "application/json", response);
@@ -172,22 +215,69 @@ void NetworkWeb::handleSave()
 
 void NetworkWeb::handleDelete()
 {
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_profiles_unavailable\"}");
+        return;
+    }
+
     uint32_t id = 0UL;
     if (!m_server.hasArg("id") ||
         !parseUnsigned(m_server.arg("id"), NetworkProfileStore::MaxProfiles, id) ||
-        id == 0UL || !m_store.remove(static_cast<uint8_t>(id)))
+        id == 0UL)
     {
         m_server.send(400, "application/json",
-                      "{\"error\":\"network_profile_delete_failed\"}");
+                      "{\"error\":\"invalid_network_profile_id\"}");
+        return;
+    }
+
+    NetworkProfile existing[NetworkProfileStore::MaxProfiles];
+    uint8_t count = 0U;
+    if (!m_store.load(existing, count))
+    {
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_profiles_unavailable\"}");
+        return;
+    }
+    bool found = false;
+    for (uint8_t i = 0U; i < count; ++i)
+        if (existing[i].id == static_cast<uint8_t>(id)) { found = true; break; }
+    if (!found)
+    {
+        m_server.send(404, "application/json",
+                      "{\"error\":\"network_profile_not_found\"}");
+        return;
+    }
+
+    if (!m_store.remove(static_cast<uint8_t>(id)))
+    {
+        m_server.send(m_store.ready() ? 500 : 503,
+                      "application/json",
+                      m_store.ready()
+                          ? "{\"error\":\"network_profile_delete_persistence_failed\"}"
+                          : "{\"error\":\"network_profiles_unavailable\"}");
         return;
     }
     m_manager.reload();
+    if (!m_manager.ready())
+    {
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_manager_reload_failed\",\"deleted\":true}");
+        return;
+    }
     m_server.send(200, "application/json", "{\"deleted\":true}");
 }
 
 void NetworkWeb::handleReconnect()
 {
     m_manager.reload();
+    if (!m_manager.ready())
+    {
+        m_server.send(503, "application/json",
+                      "{\"error\":\"network_manager_reload_failed\"}");
+        return;
+    }
     m_server.send(202, "application/json", "{\"reconnecting\":true}");
 }
 

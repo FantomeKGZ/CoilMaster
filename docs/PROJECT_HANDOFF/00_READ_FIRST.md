@@ -9,8 +9,10 @@
 ```text
 /AGENTS.md
 this file
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/01_PROJECT_MAP.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
@@ -19,30 +21,30 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 Старые numbered checkpoints — history/evidence, а не backlog. Не продолжать старую задачу только потому, что исторический checkpoint содержит `next`/`pending`.
 
-Перед изменением existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата или явного подтверждения оператора.
+Перед изменением/deletion existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата или явного подтверждения оператора. Empty GitHub code-search не является достаточным доказательством отсутствия dependency.
 
 ## Current verification baseline
 
-Последний явно подтверждённый пользователем GREEN state:
+Последний явно подтверждённый пользователем implementation GREEN state:
 
 ```text
-3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
-Record calculator standard alternatives feature
+e16a7daeae8962e4eb6b457661970f873faf8a87
+Align final acceptance exact spool contract
 USER CONFIRMED GREEN
 ```
 
-Коммиты после этого SHA, включая заключительный full-audit пакет и network JSON hardening, требуют нового applicable workflow result или явного подтверждения пользователя. Пустой GitHub status response не считается GREEN.
+Более поздние documentation-only commits не создают новый firmware GREEN baseline. Более поздние implementation changes требуют нового applicable workflow result или явного подтверждения пользователя.
 
 ## Current active phase
 
-Full code audit A..E завершён на repo-review/source-contract уровне:
+Full code audit A..E завершён:
 
 ```text
-A Arduino safety/realtime/UART
-B ESP32 runtime/API/persistence/integrity/network/backup
-C desktop/mobile/shared Web parity/error/security
-D tests/CI/build filters/triggers
-E docs/AI routing consistency
+A Arduino safety/realtime/UART/resources                  COMPLETE
+B ESP32 runtime/API/persistence/integrity/network/backup COMPLETE
+C desktop/mobile/shared Web parity/error/security        COMPLETE
+D tests/CI/build filters/triggers                         COMPLETE
+E docs/AI routing consistency                            COMPLETE
 ```
 
 Authoritative audit checkpoint:
@@ -51,7 +53,14 @@ Authoritative audit checkpoint:
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
 
-До начала cleanup нужен final applicable CI gate для текущего post-`3ebc942f...` набора. После него пользователь уже одобрил отдельную repository cleanup/de-duplication phase.
+Текущая software phase — **final controlled repository cleanup / zero-debt sweep**. Актуальная оценка и остаток всегда берутся из:
+
+```text
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+```
+
+На момент этого обновления cleanup оценивается примерно в **94% complete / 6% remaining**. Не переносить этот процент механически после новых изменений.
 
 ## Safety invariants
 
@@ -65,12 +74,13 @@ Never weaken:
 - lost ACK / timeout never proves Arduino idle;
 - final repeat cannot reopen automatically;
 - `RUN_COMPLETED` never performs automatic wire/material writeoff;
-- manual writeoff requires exact `source_session_id + source_run_id`;
-- `spool_id` optional only in approved KG_FIRST unallocated/manual path;
-- exact spool provenance retained whenever a spool is used;
+- current linked-production manual writeoff requires exact `source_session_id + source_run_id + immutable spool_id`;
+- historical `UNALLOCATED` KG_FIRST remains read/audit/recovery compatibility evidence only, not permission to drop a selected spool from a new run;
+- a future true unallocated production workflow, if ever needed, must establish immutable material provenance before UART rather than as a post-run fallback;
 - operational cancellation does not erase immutable run/history evidence;
 - backup restore operator-only, transactional and fail-closed;
-- no automatic production-data deletion.
+- reboot never auto-continues restore/apply;
+- no automatic production-data deletion/truncation.
 
 ## Production architecture
 
@@ -88,16 +98,43 @@ Production flow:
 
 ```text
 client -> motor -> OPEN repair -> costing -> linked winding
--> immutable snapshot/material selection -> UART JOB
+-> immutable snapshot + exact immutable spool selection -> UART JOB
 -> physical START -> RUN_STARTED/RUN_COMPLETED
--> explicit manual exact-run writeoff
+-> explicit manual exact-run exact-spool writeoff
 -> costing/finalization -> CLOSED -> reports -> backup
 ```
 
+## Crash-residue policy already reviewed
+
+Do not reopen this as generic cleanup merely to make all stores look alike:
+
+```text
+JobStateStore .tmp/.bak
+  KEEP fail-closed replacement evidence
+
+JobSpoolSelectionStore .json.tmp
+  KEEP bounded recovery of one fully valid pre-UART selection temp when final is absent
+
+JobSnapshotStore .json.tmp
+  REVIEW / fail-closed resilience; before durable state, no ad-hoc auto-delete/promote
+```
+
+The policies differ because their durable transaction boundaries differ.
+
 ## External hardware gate
 
-Targeted two-board ESP32<->Arduino UART/repeat/cancel smoke remains required when the physical stand is available. It is an external verification gate, not a repo-review backlog item. Hardware GREEN is never inferred from CI.
+Targeted two-board ESP32<->Arduino UART/repeat/cancel/reboot smoke remains required for final physical release confidence when the stand is needed. It is separate from software cleanup completion. Hardware GREEN is never inferred from CI.
+
+Do not ask for broad Serial logs during source cleanup. Ask for an exact capture window only when an unresolved issue becomes hardware-only.
 
 ## Cleanup phase rule
 
-After current applicable CI is GREEN, build a dependency inventory before deleting anything and classify every candidate as DELETE / MERGE / KEEP / REVIEW. Already known candidates include legacy conductor settings ownership, the obsolete calculator multisource helper and one-byte placeholder README files, but nothing is deleted solely because it looks old.
+Continue final cleanup directly. For every candidate prove dependency ownership first and classify:
+
+```text
+DELETE / MERGE / KEEP / REVIEW
+```
+
+Inspect build inclusion, direct call-sites, HTTP/static ownership, persistence/recovery, tests, operator workflow and docs routing. A filename containing `Legacy`, `Old` or similar is never deletion proof.
+
+Current remaining work is primarily final owner inventory, stale thematic contract/docs sweep, final tree/Web/shared/scripts/tools zero-debt pass and handoff consolidation. Do not restart completed A–E audit or provenance/residue review without a concrete current-source inconsistency.

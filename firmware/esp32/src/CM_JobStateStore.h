@@ -63,6 +63,11 @@ public:
                          uint16_t completedRuns,
                          uint32_t nowMs);
 
+    // CREATED + WAITING_DELIVERY + zero run evidence is the only durable state
+    // that proves local preparation has not crossed the UART delivery boundary.
+    // It may remain as immutable audit evidence after a pre-delivery failure.
+    static bool isLocalPreparation(const JobRuntimeState& state);
+
     // Reconciles the narrow lost-JOB_ACK case where delivery was persisted as
     // TIMED_OUT but a later CRC-valid RUN_STARTED proves that Arduino accepted
     // and physically started that exact persisted session. No other timeout

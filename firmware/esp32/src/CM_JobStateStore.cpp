@@ -297,6 +297,11 @@ String JobStateStore::tempPath(uint32_t sessionId) const
     return String(StateDirectory) + F("/session-") + sessionId + F(".tmp");
 }
 
+String JobStateStore::backupPath(uint32_t sessionId) const
+{
+    return String(StateDirectory) + F("/session-") + sessionId + F(".bak");
+}
+
 bool JobStateStore::writeAtomic(const JobRuntimeState& state)
 {
     if (!isReady() || state.jobId == 0UL || state.sessionId == 0UL)
@@ -307,7 +312,11 @@ bool JobStateStore::writeAtomic(const JobRuntimeState& state)
 
     const String target = statePath(state.sessionId);
     const String temp = tempPath(state.sessionId);
-    if (m_fileSystem.exists(temp) && !m_fileSystem.remove(temp)) return false;
+    const String backup = backupPath(state.sessionId);
+
+    // A previous interrupted transaction is evidence, not garbage. Never erase
+    // it automatically while live runtime state may depend on the older record.
+    if (m_fileSystem.exists(temp) || m_fileSystem.exists(backup)) return false;
 
     File file = m_fileSystem.open(temp, FILE_WRITE);
     if (!file) return false;
@@ -342,14 +351,49 @@ bool JobStateStore::writeAtomic(const JobRuntimeState& state)
         return false;
     }
 
-    if (m_fileSystem.exists(target) && !m_fileSystem.remove(target))
+    const bool hadTarget = m_fileSystem.exists(target);
+    if (hadTarget && !m_fileSystem.rename(target, backup))
     {
         m_fileSystem.remove(temp);
         return false;
     }
+
     if (!m_fileSystem.rename(temp, target))
     {
-        m_fileSystem.remove(temp);
+        // The candidate was never committed. Restore the previously authoritative
+        // record when possible; otherwise preserve .bak/.tmp evidence so reboot
+        // recovery fails closed instead of silently losing RUN/manual-review state.
+        bool rollbackRestored = !hadTarget || m_fileSystem.exists(target);
+        if (hadTarget && !rollbackRestored && m_fileSystem.exists(backup))
+            rollbackRestored = m_fileSystem.rename(backup, target);
+        if (rollbackRestored && m_fileSystem.exists(temp))
+            m_fileSystem.remove(temp);
+        return false;
+    }
+
+    // Verify the committed pathname, not only the temporary file. This catches
+    // media/rename anomalies before the old authoritative record is discarded.
+    JobRuntimeState committed;
+    if (!load(state.sessionId, committed) ||
+        committed.jobId != state.jobId ||
+        committed.sessionId != state.sessionId ||
+        committed.deliveryState != state.deliveryState ||
+        committed.executionState != state.executionState ||
+        committed.lastRunId != state.lastRunId ||
+        committed.completedRuns != state.completedRuns ||
+        committed.updatedUptimeMs != state.updatedUptimeMs)
+    {
+        // Do not delete the backup on a failed commit verification. The presence
+        // of .bak makes the strict directory scan fail closed after reboot.
+        return false;
+    }
+
+    if (hadTarget && m_fileSystem.exists(backup) &&
+        !m_fileSystem.remove(backup))
+    {
+        // New target is valid, but stale backup cleanup failed. Keep readiness
+        // fail-closed for subsequent writes/scans rather than hiding the residue.
+        m_ready = false;
         return false;
     }
     return true;

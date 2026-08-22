@@ -78,6 +78,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_job_state_atomic_replace.js
 
+      - name: Audit network profile atomic recovery contracts
+        if: always()
+        run: node Tests/Web/check_network_profile_atomic_recovery.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

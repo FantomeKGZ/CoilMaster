@@ -34,6 +34,10 @@ jobs:
       - name: Test
         run: ctest --test-dir build/cmp-protocol --output-on-failure
 
+      - name: Audit CI trigger coverage
+        if: always()
+        run: node Tests/Web/check_ci_trigger_contracts.js
+
       - name: Audit Arduino JOB parser contracts
         if: always()
         run: node Tests/Protocol/check_arduino_job_parser_contracts.js

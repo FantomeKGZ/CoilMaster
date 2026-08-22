@@ -4,7 +4,7 @@ Use this document when the task is known but the implementation location is not.
 
 For every route below, fetch the listed files from `cmp-protocol-v1` immediately before editing. The list is a starting set, not permission to ignore current call sites.
 
-Do not use historical handoff `next` sections to choose work. Current active work is selected by `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`, `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`, a concrete current failure or the user's explicit request.
+Do not use historical handoff `next` sections to choose work. Current active work is selected by `docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md`, `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`, a concrete current failure or the user's explicit request.
 
 ## 1. Physical START, SSR, Hall, keypad, LCD or buzzer
 
@@ -109,9 +109,9 @@ CM_PersistentIdAllocator.*
 CM_WindingProgramParser.h
 ```
 
-Preserve immutable job identity/snapshot, current linkage rules, and the boundary that UART acceptance never becomes physical START.
+Preserve immutable job identity/snapshot, current linkage rules, exact material selection and the boundary that UART acceptance never becomes physical START.
 
-If exact spool selection is present in the linked-job path, preserve it exactly. Do not infer that KG_FIRST optional-spool writeoff automatically removes linked-job selection requirements elsewhere; inspect current code before changing that contract.
+Current linked production requires an exact immutable spool selection before `DELIVERING` and before the UART boundary. Do not weaken that requirement because historical movement records may contain older `UNALLOCATED` KG_FIRST evidence. A future true unallocated production mode would require its own immutable material selection before UART; it is not a post-run fallback.
 
 ## 7. RUN_STARTED / RUN_COMPLETED journaling or winding history
 
@@ -142,14 +142,13 @@ Tests/Web/check_kg_first_material_contracts.js
 Tests/Web/check_writeoff_fault_contracts.js
 ```
 
-Current provenance rules:
+Current linked-production provenance rule:
 
 ```text
-source_session_id + source_run_id  mandatory for new run-linked consumption
-spool_id                           optional only in approved KG_FIRST unallocated/manual path
+source_session_id + source_run_id + exact immutable spool_id
 ```
 
-When a spool is used, exact spool identity/provenance and stock decrement must remain exact. Legacy exact-spool records remain supported.
+All three are mandatory for the current KG_FIRST production writeoff path. The selected spool must match the immutable source-session selection exactly. Historical `UNALLOCATED` KG_FIRST records remain supported only for read/audit/recovery compatibility and must not be treated as permission to drop a selected spool from a new run.
 
 Rules:
 
@@ -157,10 +156,11 @@ Rules:
 - completed source run must be proven;
 - duplicate exact-run writeoff remains rejected;
 - `RUN_COMPLETED` alone never mutates warehouse/material stock;
+- exact selected spool provenance and stock decrement remain exact;
 - historical price/material snapshots are not recomputed from current values;
 - fault paths remain fail-closed before partial mutation.
 
-Also inspect warehouse persistence/movement integrity and backup coverage.
+Also inspect warehouse persistence/movement integrity, finalization coverage and backup coverage.
 
 ## 9. Conductor calculator / Al-Cu conversion settings / standard wire alternatives
 
@@ -196,9 +196,9 @@ Validate material identity, repair identity, quantity/stock rules, currency poli
 
 ## 11. Costing, finalization or pricing
 
-Open `CM_RepairCosting*` and `CM_RepairPricing*`, then warehouse/material persisted snapshots, finalization preflight and both UIs.
+Open `CM_RepairCosting*` and `CM_RepairPricing*`, then warehouse/material persisted snapshots, `CM_WireWriteOffCoverageAudit.*`, finalization preflight and both UIs.
 
-Historical cost must remain based on persisted operation snapshots, not current prices.
+Historical cost must remain based on persisted operation snapshots, not current prices. Repair closure must not treat ambiguous session-level writeoff evidence or a missing immutable selection as exact run coverage.
 
 ## 12. Persistent data on microSD
 
@@ -288,7 +288,7 @@ Shared production code (`Shared/**`) must trigger all applicable Arduino/ESP32/p
 
 ## 21. Controlled cleanup / dead code / duplicate files
 
-The full audit sections A..E and final repo-level cross-layer review are complete; controlled cleanup is the current active phase. Use `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md` as the authoritative queue and verification gate.
+The full audit sections A..E are complete; final controlled cleanup/zero-debt sweep is the active software phase. Use `docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md` and `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md` as the active transition/queue documents.
 
 For each candidate prove:
 

@@ -7,7 +7,7 @@
 
 ## Current USER CONFIRMED GREEN baseline
 
-Пользователь явно подтвердил GREEN для полного текущего provenance/finalization hardening chain через:
+Пользователь явно подтвердил GREEN для полного provenance/finalization hardening chain через:
 
 ```text
 e16a7daeae8962e4eb6b457661970f873faf8a87
@@ -15,13 +15,9 @@ Align final acceptance exact spool contract
 USER CONFIRMED GREEN
 ```
 
-Это новый применимый GREEN baseline. Более поздние commits нельзя называть GREEN без нового CI/operator подтверждения.
-
-Предыдущие GREEN gates по Arduino Uno, warehouse spool-list cleanup и ранним cleanup chains остаются historical evidence и подробно записаны в старых handoff/checkpoint файлах.
+Это применимый implementation GREEN baseline. Более поздние documentation commits не являются новым firmware GREEN доказательством. Более поздние implementation changes нельзя называть GREEN без нового CI/operator подтверждения.
 
 ## Full-code audit status
-
-Repo-review/source-contract этапы завершены:
 
 ```text
 A Arduino safety/realtime/UART/resources                  COMPLETE
@@ -31,70 +27,70 @@ D tests/CI/build-filter/path-trigger audit               COMPLETE
 E docs/AI routing consistency                            COMPLETE
 ```
 
-Authoritative detail: `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`.
+Detail: `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`.
 
-## Current active phase — controlled cleanup / zero-debt sweep
+## Current active phase — final controlled cleanup / zero-debt sweep
 
-Classification policy:
+Classification:
 
 ```text
-DELETE  proven unused and unreferenced by production/build/tests/docs/runtime
-MERGE   duplicate implementation; retain one authoritative owner
+DELETE  proven unused and unreferenced
+MERGE   proven duplicate ownership
 KEEP    active production/build/test/docs/history/operator dependency
-REVIEW  uncertain dependency; do not delete
+REVIEW  uncertain or intentionally unresolved dependency/policy
 ```
 
-Rules:
-
-- never delete only because a name contains `Legacy`, `Old`, etc.;
-- empty GitHub code-search is not enough proof of no dependency;
-- inspect direct owner/call-site/build composition before deletion;
-- before modifying an existing file fetch current `cmp-protocol-v1` content and current blob SHA;
-- before creating a file verify the exact path does not exist;
-- do not weaken safety in the name of cleanup.
+Never delete from filename alone. Empty GitHub code search is supporting evidence only, never proof. Fetch current file + SHA before every edit/delete.
 
 ## Cleanup completion estimate
 
-**Current controlled cleanup: approximately 92% complete.**
+**Current controlled cleanup: approximately 94% complete.**
 
-This estimate is deliberately conservative and refers to code/docs/tree cleanup, not complete physical release validation.
+**Estimated remaining cleanup: approximately 6%.**
 
-Already completed:
+This estimate is for software code/docs/tree cleanup. Physical hardware smoke/rescue-restore confidence is a separate release gate.
+
+### Completed cleanup/audit blocks
 
 - full audit A–E;
-- major duplicate/legacy/generated root and docs layers removed;
+- major duplicate/legacy/generated root/docs cleanup;
 - obsolete conductor-settings implementation removed;
-- obsolete Arduino parallel entrypoint and stale version header removed;
-- obsolete Arduino buzzer/start-button implementations removed;
-- generated `build/` removed and ignored;
-- obsolete warehouse wire catalogue and non-paginated spool-list backend removed;
+- obsolete Arduino parallel entrypoint, stale version header, buzzer/start-button implementations removed;
+- generated `build/` removed/ignored;
+- obsolete warehouse wire catalogue and non-paginated spool-list API/backend removed;
 - obsolete Web calculator helper/injection removed;
-- AI routing/docs aligned with cleaned tree;
-- active migration/recovery modules separated from real dead code and protected as KEEP;
-- ESP32/Arduino owner inventory covered the major production clusters;
-- deep UART timeout/recovery review completed;
+- active migration/recovery modules separated from dead code and protected as KEEP;
+- major ESP32/Arduino production owner inventory completed;
+- UART lost-ACK/timeout/late-RUN_STARTED review completed;
 - exact run/session/spool provenance hardening completed;
-- finalization coverage tightened to exact run evidence;
-- production KG_FIRST POST/UI/store now require the immutable exact `spool_id`;
-- historical `UNALLOCATED` KG_FIRST remains read/recovery compatibility only;
-- provenance/finalization chain through `e16a7dae...` is USER CONFIRMED GREEN.
+- exact-run finalization coverage completed;
+- missing immutable selection now blocks deep integrity and closure;
+- current KG_FIRST store/API/desktop/mobile UI require exact immutable `spool_id`;
+- historical `UNALLOCATED` KG_FIRST remains read/audit/recovery compatibility only;
+- runtime provenance/finalization chain through `e16a7dae...` USER CONFIRMED GREEN;
+- snapshot/state/selection crash-residue policy reviewed/classified by transaction boundary;
+- AI `00_START_HERE`, `02_CHANGE_ROUTER`, `04_VERIFICATION_MATRIX` aligned to current GREEN/exact-spool model.
 
-Estimated remaining **~8%**:
-
-1. final owner-by-owner sweep of build-included ESP32/Arduino files for stale/duplicate artifacts;
-2. remaining snapshot/state/selection crash-residue consistency REVIEW;
-3. final stale wording/test/docs sweep, especially old claims about new-production `UNALLOCATED` write-off;
-4. final root/tree zero-debt pass with explicit `DELETE / MERGE / KEEP / REVIEW` classification for any remaining candidates;
-5. final documentation consolidation and next-chat handoff maintenance as the tree changes.
-
-Hardware smoke/rescue-restore proof is a separate release-readiness gate and is not counted as software cleanup debt.
-
-## Cleanup completed — important removals
-
-Dependency-proven removals include:
+Recent doc-only cleanup commits after GREEN baseline:
 
 ```text
-legacy CM_ConductorSettings.* implementation + obsolete source-contract
+fa2e14c5...  Align AI start guide with exact spool baseline
+e2860fa6...  Align AI change router with exact spool flow
+50ab5705...  Align verification matrix with current GREEN baseline
+```
+
+## Remaining ~6%
+
+1. final owner-by-owner sweep of build-included ESP32/Arduino files for stale/duplicate artifacts;
+2. remaining thematic docs/tests stale-contract sweep outside the three AI routing docs;
+3. final top-level/tree/Web/shared/scripts/tools zero-debt pass;
+4. explicit final classification of any remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;
+5. final handoff consolidation for the next chat.
+
+## Important completed removals
+
+```text
+legacy CM_ConductorSettings.* implementation
 empty .github placeholder README files
 empty LICENSE placeholder
 CONTINUE_CMP_PROTOCOL_V1.md
@@ -103,121 +99,92 @@ CHANGELOG.md
 TASKBOOK.md
 BUILD_INFO.md
 old root ARCHITECTURE.md
-capitalized Docs/ legacy documentation
-Engineering/ legacy documentation layer
+capitalized Docs/
+Engineering/
 tracked generated build/
 old Arduino CM_Buzzer.* / CM_BuzzerController.*
 old Arduino CM_StartButton.*
 Arduino/CoilMaster_Arduino.ino
 Arduino/Config/CM_Version.h
-Tests/README.md Build-002A artifact
-old untyped CM_WarehouseWireCatalogue.cpp path
+Tests/README.md
+old untyped CM_WarehouseWireCatalogue.cpp
 firmware/esp32/src/CM_WarehouseSpoolList.cpp
-obsolete WarehouseStore::appendActiveSpoolsJson() declaration
+WarehouseStore::appendActiveSpoolsJson() obsolete declaration
 firmware/esp32/web/shared/calculator-multisource.js
 obsolete StaticSiteServer calculator injection
 ```
 
-Regression contracts protect the important cleanup boundaries so deleted parallel implementations are not silently reintroduced.
-
 ## Confirmed KEEP clusters
-
-Do not treat these as cleanup debt without new direct dependency proof:
 
 ```text
 CM_WarehouseMaterialCatalogue.cpp
-  material-specific CU/AL catalogue for ConductorCalculatorWeb
-
 CM_WarehouseSpoolMaterialList.cpp
-  paginated material-aware /api/warehouse/spools backend
-
 CM_WarehouseLegacySpoolMaterial.cpp
-  active migration endpoint for old ACTIVE spools missing wire_type
-
-CM_MaterialHistory.cpp + CM_MaterialUsageHistory.cpp
-  distinct adjustment and usage journals
-
+CM_MaterialHistory.cpp
+CM_MaterialUsageHistory.cpp
 CM_JobDisplayRecovery.*
-  immutable-snapshot display recovery; no UART/SSR side effects
-
 Arduino/CM_HallCalibrationProtocol.*
 Arduino/CM_HardwareControlProtocol.*
 Arduino/CM_HallCalibrationService.*
 Arduino/CM_HallTelemetry.*
-  active Hall/settings/telemetry stack
-
 Arduino/Config/CM_Features.h
 Arduino/Config/CM_Pins.h
-  authoritative compile-time/hardware configuration
-
 Arduino/Diagnostics/CM_Lcd1602CyrillicTest/CM_Lcd1602CyrillicTest.ino
-  standalone diagnostic tool; no production START/SSR/UART ownership
-
 PROJECT.manifest
-  current source/boundary manifest
-
 data/motor_catalog/
-  active reference catalogue
-
-scripts/ + tools/
-  active build-id and motor-reference tooling
+scripts/
+tools/
 ```
 
-Important cleanup lesson: `CM_WarehouseLegacySpoolMaterial.cpp` was once wrongly classified unused from empty search results. Direct owner inspection proved the active `POST /api/warehouse/spools/material` path. Search emptiness must never be sole deletion proof.
+Important lesson: `CM_WarehouseLegacySpoolMaterial.cpp` was once wrongly classified unused from empty code-search. Direct route/owner inspection proved active `POST /api/warehouse/spools/material`. Never use search emptiness as sole deletion proof.
 
 ## Runtime provenance block — completed and GREEN
 
-Authoritative detail: `docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md`.
+Detail: `docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md`.
 
-Important completed fixes:
+Current production material rule:
 
 ```text
-late RUN_STARTED after lost JOB_ACK/TIMED_OUT
-  narrow exact-session reconciliation only; no auto START/resume
-
-KG_FIRST exact-spool provenance
-  current linked production writeoff cannot hide immutable spool_id
-
-linked session persistence integrity
-  post-preparation linked state requires matching immutable spool selection
-
-exact-run finalization
-  legacy session-only writeoff cannot cover multiple concrete runs
-
-missing selection closure guard
-  completed run cannot disappear from coverage because selection evidence is missing
-
-production Web + HTTP alignment
-  current KG_FIRST POST/UI uses exact immutable spool only
+source_session_id + source_run_id + exact immutable spool_id
 ```
 
-Current migration rule is intentionally asymmetric:
+for current linked-production manual writeoff.
 
-- historical `UNALLOCATED` KG_FIRST records remain readable/auditable/recoverable;
-- new linked production mutations are exact-spool only;
-- a future true unallocated production workflow, if ever required, must create an immutable material selection **before** the UART boundary, not after `RUN_COMPLETED`.
+Historical `UNALLOCATED` records are immutable compatibility evidence only. A future true unallocated production mode would require immutable material provenance before UART; never recreate it as a post-`RUN_COMPLETED` fallback.
 
-## Remaining crash-residue REVIEW
+## Crash-residue consistency — REVIEW completed
 
-`JobStateStore` intentionally fails closed when atomic replacement `.tmp/.bak` residue exists. Existing contract protects `target -> backup -> verified candidate -> target -> verify -> cleanup` ordering and forbids deleting the only authoritative state as a shortcut.
+Current classification is intentional:
 
-`JobSnapshotStore` orphan `.json.tmp` remains **REVIEW / resilience**, not a current safety defect. Snapshot creation occurs before CREATED state and before UART delivery, so orphan temp evidence cannot itself start/resume hardware. Do not introduce ad-hoc automatic deletion; any recovery policy must be consistent across snapshot/state/selection stores.
+```text
+JobStateStore .tmp/.bak
+  KEEP fail-closed
+  atomic replacement may have old/new authoritative runtime state ambiguity
 
-Direct append tail resilience for production NDJSON is also not a cleanup deletion task. Never auto-truncate malformed/torn production evidence.
+JobSpoolSelectionStore .json.tmp
+  KEEP bounded recovery
+  selection is after durable CREATED state but before DELIVERING/UART;
+  only one fully valid temp with absent final is renamed temp -> final
+
+JobSnapshotStore .json.tmp
+  REVIEW / fail-closed resilience
+  snapshot is before durable state; do not auto-delete/promote ad hoc
+```
+
+Do not force these into one policy merely for symmetry. Their transaction boundaries differ. Production NDJSON malformed/torn evidence also must never be auto-truncated.
 
 ## Current next cleanup sequence
 
-1. continue final ESP32/Arduino owner inventory using build/call-site proof;
-2. inspect suspicious stale/duplicate names but classify before changing anything;
-3. complete snapshot/state/selection crash-residue consistency review;
-4. sweep tests/docs for stale pre-fix contracts, especially new-production unallocated wording;
-5. final root/tree/docs reference zero-debt pass;
-6. keep `docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md` synchronized for transition;
-7. ask for exact Serial/runtime capture only when the remaining unresolved item actually requires hardware proof.
+1. continue final ESP32/Arduino owner inventory with direct build/call-site proof;
+2. inspect suspicious stale/duplicate names and classify before changing;
+3. sweep remaining thematic tests/docs for pre-fix exact-spool contradictions;
+4. final root/tree/Web/shared/scripts/tools reference pass;
+5. keep `67_NEXT_CHAT_HANDOFF_2026-08-22.md` synchronized;
+6. request exact Serial/runtime capture only when an unresolved item truly becomes hardware-only.
 
 ## External hardware verification gate
 
-Targeted ESP32<->Arduino smoke remains required for final runtime release confidence when the stand is available, but it does not block deletion of dependency-proven dead software:
+Targeted ESP32<->Arduino smoke remains separate from cleanup completion:
 
 ```text
 normal JOB -> Arduino READY
@@ -243,12 +210,11 @@ Hardware GREEN is never inferred from CI.
 - timeout/lost ACK alone never proves Arduino idle;
 - final repeat cannot reopen automatically;
 - `RUN_COMPLETED` never auto-writes off material;
-- manual writeoff uses exact `source_session_id + source_run_id`;
-- current linked production writeoff retains exact immutable `spool_id`;
-- historical `UNALLOCATED` records are compatibility evidence, not permission to drop a selected spool from a new run;
-- backup/restore is explicit, operator-only, transactional/fail-closed;
+- current linked manual writeoff is exact session + run + immutable spool;
+- historical unallocated records do not authorize dropping a selected spool;
+- backup/restore explicit/operator-only/transactional/fail-closed;
 - reboot never auto-continues restore/apply;
-- no automatic production-data deletion.
+- no automatic production-data deletion/truncation.
 
 ## Read order for a new chat / AI
 
@@ -264,4 +230,4 @@ docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-New chat should continue directly from the current branch state. Do not restart the full audit unless a concrete inconsistency requires it.
+New chat should continue directly from the current branch state. Do not restart completed audit/provenance/crash-residue review unless current source proves a concrete inconsistency.

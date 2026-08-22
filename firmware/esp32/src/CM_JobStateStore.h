@@ -76,6 +76,12 @@ public:
                                             uint32_t runId,
                                             uint32_t nowMs);
 
+    // Closes only states already proven inactive by terminal delivery evidence
+    // or completed execution. TIMED_OUT remains excluded because lost ACK never
+    // proves that Arduino is idle. This is used by the explicit operator-only
+    // recovery acknowledgement endpoint for unlinked jobs.
+    bool dismissInactive(uint32_t sessionId, uint32_t nowMs);
+
     // Persists an operator-confirmed closure after physical inspection.
     // It never queues, resumes, or controls the machine.
     bool closeAfterManualReview(uint32_t sessionId, uint32_t nowMs);

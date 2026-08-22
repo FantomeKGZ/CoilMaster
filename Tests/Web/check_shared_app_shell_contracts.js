@@ -8,6 +8,7 @@ function forbidText(source,text,message){if(source.includes(text))throw new Erro
 
 const shell=read('firmware/esp32/web/shared/app-shell.js');
 const server=read('firmware/esp32/src/CM_StaticSiteServer.cpp');
+const buildIdentity=read('scripts/platformio_build_id.py');
 const registrySearch=read('firmware/esp32/src/CM_RepairRegistrySearch.cpp');
 const lookupWeb=read('firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp');
 const desktopFtp=read('firmware/esp32/web/desktop/settings-ftp.html');
@@ -22,6 +23,19 @@ requireText(server,'/api/system/build','Firmware build identity endpoint must be
 requireText(server,'CM_FIRMWARE_GIT_SHA','Build identity must use PlatformIO git SHA macro');
 requireText(server,'CM_FIRMWARE_GIT_BRANCH','Build identity must expose the compiled branch');
 requireText(server,'CM_FIRMWARE_BUILD_UTC','Build identity must expose firmware build time');
+
+// Build metadata contains hyphens, timestamps and hexadecimal text. Passing
+// quoted values through CPPDEFINES proved unsafe because SCons/compiler quoting
+// can remove the C-string delimiter. Require a generated build-only header.
+for(const text of [
+  'CM_BuildIdentityGenerated.h',
+  '#define CM_FIRMWARE_GIT_SHA',
+  '#define CM_FIRMWARE_GIT_BRANCH',
+  '#define CM_FIRMWARE_BUILD_UTC',
+  'env.Append(CPPPATH=[build_dir])',
+  'env.Append(CCFLAGS=["-include", header_name])'
+]) requireText(buildIdentity,text,'Build identity generated-header contract missing: '+text);
+forbidText(buildIdentity,'env.Append(CPPDEFINES=','Build identity strings must not use fragile CPPDEFINES quoting');
 
 requireText(shell,'cm-shell-nav','Shared shell must provide one navigation layer');
 requireText(shell,'aria-current="page"','Shared navigation must expose the active section');

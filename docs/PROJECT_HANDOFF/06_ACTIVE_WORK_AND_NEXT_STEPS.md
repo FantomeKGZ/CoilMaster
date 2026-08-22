@@ -71,6 +71,8 @@ firmware/esp32/web/shared/calculator-multisource.js
 
 Final docs sweep also removed stale navigation references left behind by that cleanup: `docs/AI_AGENT/01_PROJECT_MAP.md` now points to `docs/01_SYSTEM_ARCHITECTURE.md` and `docs/HARDWARE_REFERENCE/` instead of the already removed root `ARCHITECTURE.md` and `Engineering/Hardware/`. Commit: `0649fa769aafb836522127b483e14c998a28cf59`.
 
+AI maintenance routing is now aligned with the active cleanup phase: `docs/AI_AGENT/00_START_HERE.md` records the current `a29e2ab9...` operator-GREEN baseline, marks audit A..E complete and no longer lists removed `CM_ConductorSettings.*` as a future candidate; `docs/AI_AGENT/02_CHANGE_ROUTER.md` routes buzzer work to `CM_BuzzerService.*`, records the removed conductor-settings duplicate, and treats controlled cleanup as the active phase. Commits: `a5d2a42a98bdda0bf0a81736b5b49d2e6c4d9ef6`, `ef2df11179b84a35108967950c39481086c581d9`.
+
 Calculator helper cleanup is regression-protected by `Tests/Web/check_calculator_source_wire_input.js`: the old helper file and StaticSiteServer injection must remain absent while the `sourceWires` UI remains authoritative.
 
 Полезная binary host-test CMP документация из старого `Docs/` сохранена рядом с owner в `Shared/Protocol/README.md`.

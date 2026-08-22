@@ -91,7 +91,7 @@ Arduino/CoilMaster_Arduino.ino
   obsolete parallel Arduino IDE entrypoint; production owner is firmware/arduino/src/main.cpp
 ```
 
-### Completed Arduino parallel-entrypoint cleanup
+### Completed Arduino parallel-entrypoint cleanup — CI VERIFIED
 
 `Arduino/CoilMaster_Arduino.ino` was directly compared with current production composition and build ownership before deletion.
 
@@ -117,7 +117,44 @@ cd2d3311d9f2a56a537ad27ba9149073d64a10ff
 
 Regression contract requires the obsolete `.ino` to remain absent and preserves `firmware/arduino/src/main.cpp` as the PlatformIO production entrypoint with current UART/persistence/hardware-control composition.
 
-Status: **DELETE completed; fresh CMP Protocol Tests + Arduino Uno Build required for this cleanup chain before calling it CI-verified.**
+The first post-deletion Uno build run `32573351876` failed after successful compilation/linking only at PlatformIO size validation:
+
+```text
+Flash 33156 / 32256 bytes = 102.8%  (+900 bytes)
+SRAM   2044 / 2048 bytes  = 99.8%  (4 bytes static headroom)
+```
+
+This was a real pre-existing production-resource problem exposed by the fresh build, not a dependency on the deleted `.ino`.
+
+Resource recovery chain:
+
+```text
+82ab5d8bc822d4415db77c29a676cf8d14ecbbcb
+  expose retained Hall calibration result access
+
+ef33cb8b09e737f5d02d47f4fd6e6e0417335d1f
+  compile disabled human-readable USB diagnostics out of the production Uno image
+  and remove duplicate calibration-result state; CMP1 remains on SoftwareSerial
+
+c361214c0b89d64ea537c75bcb180ea8e82e20c5
+  transient pointer-style GET accessor; CMP tests passed but Uno build failed compatibility
+
+de70cce10664636da0a6686535693887da1ad695
+  restore bounded compatible calibration result accessor
+```
+
+Operator screenshot confirms on `de70cce...`:
+
+```text
+Arduino Uno Build GREEN
+CMP Protocol Tests GREEN
+```
+
+The screenshot does not expose exact post-fix Flash/SRAM byte counts, so no new numerical headroom is inferred. Resource margin remains worth monitoring, but the old 4-byte SRAM condition must not be treated as current after the GREEN recovery.
+
+Status: **DELETE completed and CI VERIFIED.**
+
+The remaining `Arduino/Diagnostics/CM_Lcd1602CyrillicTest/CM_Lcd1602CyrillicTest.ino` is **KEEP / diagnostic tool**: it is an intentionally standalone LCD character-ROM probe and explicitly does not initialize/control SSR, motor, Hall, UART JOB, or START.
 
 ### Completed warehouse spool-list cleanup — CI VERIFIED
 
@@ -228,6 +265,9 @@ Arduino/CM_HallCalibrationService.*
 Arduino/CM_HallTelemetry.*
   current Hall calibration/settings/telemetry stack; directly owned by UartEventTransport + production main
 
+Arduino/Diagnostics/CM_Lcd1602CyrillicTest/CM_Lcd1602CyrillicTest.ino
+  standalone LCD character-ROM diagnostic; no production motor/SSR/UART/START ownership
+
 PROJECT.manifest
   current source/boundary manifest
 ```
@@ -258,8 +298,8 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. verify fresh `CMP Protocol Tests` + `Arduino Uno Build` for the Arduino parallel-entrypoint cleanup chain;
-2. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+1. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+2. audit Uno resource margin without weakening safety/features; exact post-fix bytes should be recorded if a successful build log is available;
 3. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
 4. add/update regression coverage before or with any deletion that could otherwise silently regress;
 5. continue final root/tree/docs reference sweep as the tree changes;

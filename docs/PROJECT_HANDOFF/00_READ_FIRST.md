@@ -17,45 +17,32 @@ docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-Checkpoint `62` — текущий verified repo-level baseline. Более старые numbered checkpoints — история/evidence, а не очередь активных работ. Не продолжать старую задачу только потому, что старый checkpoint содержит `next`/`pending`.
+Старые numbered checkpoints — history/evidence, а не backlog. Не продолжать старую задачу только потому, что исторический checkpoint содержит `next`/`pending`.
 
-Перед изменением existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата.
+Перед изменением existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата или явного подтверждения оператора.
 
-## Current verified repo baseline — checkpoint 62
+## Current verification baseline
 
-Production ESP32 C++ baseline:
+Последний явно подтверждённый пользователем GREEN state:
 
 ```text
-5fa6bcea812c33f0b2dc8e13baae476221839b3a
-Validate session state against repeat target
+3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
+Record calculator standard alternatives feature
+USER CONFIRMED GREEN
 ```
 
-Verified Actions:
+Коммиты после этого SHA, включая заключительный full-audit пакет и network JSON hardening, требуют нового applicable workflow result или явного подтверждения пользователя. Пустой GitHub status response не считается GREEN.
+
+## Current active phase
+
+Full code audit A..E завершён на repo-review/source-contract уровне:
 
 ```text
-ESP32 Build #1245 — GREEN
-run 32515224487
-head_sha 5fa6bcea812c33f0b2dc8e13baae476221839b3a
-
-CMP Protocol Tests #2210 — GREEN
-run 32515361340
-head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
-```
-
-Repo-level update/hardening plan through checkpoint 62 is closed.
-
-## External hardware gate
-
-Targeted two-board ESP32<->Arduino UART/repeat/cancel smoke remains required when the physical stand is available. It is an external verification gate, not an active software-development backlog item, and must not prevent repo-level audit work.
-
-Hardware GREEN is not implied by CI.
-
-## Current active phase — full code audit
-
-The active task is now:
-
-```text
-FULL CODE AUDIT of cmp-protocol-v1
+A Arduino safety/realtime/UART
+B ESP32 runtime/API/persistence/integrity/network/backup
+C desktop/mobile/shared Web parity/error/security
+D tests/CI/build filters/triggers
+E docs/AI routing consistency
 ```
 
 Authoritative audit checkpoint:
@@ -64,18 +51,7 @@ Authoritative audit checkpoint:
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
 
-Audit order:
-
-```text
-Arduino safety/realtime/UART/resources
-ESP32 runtime/API/persistence/integrity/network/backup
-Desktop/mobile web parity/error/security
-Tests/CI/build filters/triggers
-Docs/AI routing consistency
-Final cross-layer recheck + applicable CI
-```
-
-Confirmed defects are fixed as they are found, using current blob SHA and the smallest safe change. Do not accumulate speculative redesigns.
+До начала cleanup нужен final applicable CI gate для текущего post-`3ebc942f...` набора. После него пользователь уже одобрил отдельную repository cleanup/de-duplication phase.
 
 ## Safety invariants
 
@@ -118,35 +94,10 @@ client -> motor -> OPEN repair -> costing -> linked winding
 -> costing/finalization -> CLOSED -> reports -> backup
 ```
 
-## Implemented blocks that are not active backlog
+## External hardware gate
 
-Do not restart without a concrete regression:
+Targeted two-board ESP32<->Arduino UART/repeat/cancel smoke remains required when the physical stand is available. It is an external verification gate, not a repo-review backlog item. Hardware GREEN is never inferred from CI.
 
-- JOB cancel/recovery and timeout/manual-review hardening;
-- repeat-target/final-repeat semantics;
-- Arduino autonomous archive;
-- motor schema/import/detail/repair history;
-- bounded/paged growing APIs;
-- network/AP/FTP foundations;
-- backup/deep integrity/session preflight;
-- KG_FIRST material/writeoff/costing;
-- writeoff fault-path hardening;
-- NDJSON observability groundwork;
-- Hall settings/calibration safety;
-- Protocol/Web/ESP32 build recovery.
+## Cleanup phase rule
 
-## Main thematic docs
-
-```text
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
-docs/PROJECT_HANDOFF/02_ARCHITECTURE_AND_HARDWARE.md
-docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
-docs/PROJECT_HANDOFF/04_DATA_STORAGE_API_UI.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/08_WORK_RULES_AND_VERIFICATION.md
-docs/PROJECT_HANDOFF/09_KEY_FILES_INDEX.md
-docs/HARDWARE_REFERENCE/
-docs/AI_AGENT/
-```
-
-If a thematic or historical document conflicts with current code, actual verification evidence, this entrypoint, or checkpoint 63, prioritize current code + actual evidence + current entrypoints.
+After current applicable CI is GREEN, build a dependency inventory before deleting anything and classify every candidate as DELETE / MERGE / KEEP / REVIEW. Already known candidates include legacy conductor settings ownership, the obsolete calculator multisource helper and one-byte placeholder README files, but nothing is deleted solely because it looks old.

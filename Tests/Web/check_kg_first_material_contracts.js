@@ -107,10 +107,12 @@ requireText(coveragePath, coverage, '\\"event\\":\\"RUN_COMPLETED\\"',
 for (const text of [
   'record.mode == WarehouseWriteOffMode::LegacySpool',
   'record.spoolId != target.spoolId',
+  'if (!record.hasSourceRunId) return false;',
+  'matches = record.sourceRunId == target.runId;',
   'record.stockMode == WarehouseWriteOffStockMode::Unallocated',
   'record.sourceRunId != target.runId'
 ]) {
-  requireText(coveragePath, coverage, text, 'finalization kg-first/legacy coverage split missing: ' + text);
+  requireText(coveragePath, coverage, text, 'finalization exact-run/legacy coverage split missing: ' + text);
 }
 for (const text of [
   'constexpr uint8_t CoverageBatchSize = 32U;',
@@ -260,4 +262,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization, desktop/mobile manual UI, exact source-run and immutable-spool provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization with exact-run legacy handling, desktop/mobile manual UI, exact source-run and immutable-spool provenance, and no automatic RUN_COMPLETED deduction.');

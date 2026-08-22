@@ -1,7 +1,39 @@
 #include "CM_ConductorCalculatorWeb.h"
 
+#include "CM_StandardWireCatalogue.h"
+
 namespace CM
 {
+namespace
+{
+uint32_t availableGramsFor(const KnownWireDiameter* known,
+                           uint8_t knownCount,
+                           uint16_t diameterHundredthsMm)
+{
+    if (known == nullptr || diameterHundredthsMm == 0U) return 0UL;
+    for (uint8_t index = 0U; index < knownCount; ++index)
+    {
+        if (known[index].diameterHundredthsMm == diameterHundredthsMm)
+            return known[index].availableGrams;
+    }
+    return 0UL;
+}
+
+bool optionAvailableFromWarehouse(const ConversionOption& option,
+                                  const KnownWireDiameter* known,
+                                  uint8_t knownCount)
+{
+    if (!option.valid || option.componentCount == 0U) return false;
+    for (uint8_t index = 0U; index < option.componentCount; ++index)
+    {
+        if (availableGramsFor(known, knownCount,
+                              option.components[index].diameterHundredthsMm) == 0UL)
+            return false;
+    }
+    return true;
+}
+}
+
 ConductorCalculatorWeb::ConductorCalculatorWeb(WebServer& server,
                                                WarehouseStore& warehouse)
     : m_server(server), m_warehouse(warehouse) {}
@@ -106,29 +138,32 @@ void ConductorCalculatorWeb::handleCalculate()
         }
         return;
     }
-    if (knownCount == 0U)
-    {
-        String error = F("{\"error\":\"wire_catalogue_empty_for_material\",\"target_material\":\"");
-        error += targetWireType;
-        error += F("\"}");
-        m_server.send(404, "application/json; charset=utf-8", error);
-        return;
-    }
 
-    WireCandidate candidates[WarehouseMaxDiameters];
+    WireCandidate warehouseCandidates[WarehouseMaxDiameters];
     for (uint8_t i = 0U; i < knownCount; ++i)
     {
-        candidates[i].diameterHundredthsMm = known[i].diameterHundredthsMm;
-        candidates[i].availableGrams = known[i].availableGrams;
-        candidates[i].catalogKnown = true;
+        warehouseCandidates[i].diameterHundredthsMm = known[i].diameterHundredthsMm;
+        warehouseCandidates[i].availableGrams = known[i].availableGrams;
+        warehouseCandidates[i].catalogKnown = true;
     }
 
     ConversionOption options[MaxRecommendedConversionOptions];
-    const uint8_t optionCount = ConductorCalculator::findRecommendedOptions(
-        source, targetMaterial, settings, candidates, knownCount, options);
+    const uint8_t optionCount = knownCount == 0U
+        ? 0U
+        : ConductorCalculator::findRecommendedOptions(
+              source, targetMaterial, settings,
+              warehouseCandidates, knownCount, options);
+
+    WireCandidate standardCandidates[StandardWireMaxDiameters];
+    const uint8_t standardCandidateCount = StandardWireCatalogue::load(
+        targetMaterial, standardCandidates, StandardWireMaxDiameters);
+    ConversionOption standardOptions[MaxRecommendedConversionOptions];
+    const uint8_t standardOptionCount = ConductorCalculator::findRecommendedOptions(
+        source, targetMaterial, settings,
+        standardCandidates, standardCandidateCount, standardOptions);
 
     String response;
-    response.reserve(3200U);
+    response.reserve(5600U);
     response = F("{\"source_material\":\""); response += materialText(sourceMaterial);
     response += F("\",\"target_material\":\""); response += targetWireType;
     response += F("\",\"source_component_count\":"); response += source.componentCount;
@@ -148,6 +183,9 @@ void ConductorCalculatorWeb::handleCalculate()
     response += ConductorCalculator::requiredTargetAreaMicrometre2(source, targetMaterial, settings);
     response += F(",\"catalogue_material\":\""); response += targetWireType;
     response += F("\",\"catalogue_diameter_count\":"); response += knownCount;
+    response += F(",\"standard_catalogue_basis\":\""); response += StandardWireCatalogue::basis();
+    response += F("\",\"standard_catalogue_diameter_count\":"); response += standardCandidateCount;
+    response += F(",\"diameter_storage_precision_mm\":0.01");
     response += F(",\"legacy_unknown_material_excluded\":true");
     response += F(",\"settings_source\":\"PERSISTED\"");
     response += F(",\"aluminium_to_copper_permille\":"); response += settings.aluminiumToCopperPermille;
@@ -180,6 +218,42 @@ void ConductorCalculatorWeb::handleCalculate()
             response += component.diameterHundredthsMm;
             response += F(",\"parallel_strands\":"); response += component.parallelStrands;
             response += F(",\"available_g\":"); response += component.availableGrams;
+            response += '}';
+        }
+        response += F("]}");
+    }
+
+    response += F("],\"standard_recommendation_count\":");
+    response += standardOptionCount;
+    response += F(",\"standard_recommendations\":[");
+    for (uint8_t i = 0U; i < standardOptionCount; ++i)
+    {
+        if (i > 0U) response += ',';
+        const ConversionOption& option = standardOptions[i];
+        const bool warehouseAvailable = optionAvailableFromWarehouse(
+            option, known, knownCount);
+        response += F("{\"rank\":"); response += static_cast<uint8_t>(i + 1U);
+        response += F(",\"parallel_strands\":"); response += option.targetParallelStrands;
+        response += F(",\"target_area_um2\":"); response += option.targetAreaMicrometre2;
+        response += F(",\"deviation_permille\":"); response += option.deviationPermille;
+        response += F(",\"availability\":\"");
+        response += warehouseAvailable ? F("IN_STOCK") : F("PURCHASE_REQUIRED");
+        response += F("\",\"warehouse_available\":");
+        response += warehouseAvailable ? F("true") : F("false");
+        response += F(",\"component_count\":"); response += option.componentCount;
+        response += F(",\"components\":[");
+        for (uint8_t componentIndex = 0U;
+             componentIndex < option.componentCount;
+             ++componentIndex)
+        {
+            if (componentIndex > 0U) response += ',';
+            const ConversionComponent& component = option.components[componentIndex];
+            response += F("{\"diameter_hundredths_mm\":");
+            response += component.diameterHundredthsMm;
+            response += F(",\"parallel_strands\":"); response += component.parallelStrands;
+            response += F(",\"available_g\":");
+            response += availableGramsFor(known, knownCount,
+                                          component.diameterHundredthsMm);
             response += '}';
         }
         response += F("]}");

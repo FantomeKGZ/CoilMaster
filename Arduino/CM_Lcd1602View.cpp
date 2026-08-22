@@ -11,6 +11,9 @@
 namespace
 {
 constexpr uint8_t DisplayColumns = 16U;
+constexpr uint8_t SyncMarkerStart = 13U;
+static_assert(SyncMarkerStart + 3U == DisplayColumns,
+              "LCD sync marker must occupy the final three columns");
 
 #if CM_FEATURE_DIAGNOSTICS
 bool firstRenderTrace = true;
@@ -146,10 +149,13 @@ void Lcd1602View::buildLines(const UiModel& model,
     uint8_t p1 = 0U;
     uint8_t p2 = 0U;
 
+    // Columns 13..15 of row 1 are reserved for the synchronization marker.
+    // Keep every row-1 label compact enough that the marker never destroys
+    // operator-facing text. MaxCoilsPerJob is 10, so X/Y uses at most 5 chars.
     switch (model.screen)
     {
         case UiScreen::EnterCoilCount:
-            appendFlash(line1, p1, F("KOL-VO KATUSHEK?"));
+            appendFlash(line1, p1, F("KOL-VO KAT.?"));
             if (model.inputDigits > 0U)
             {
                 appendFlash(line2, p2, F("VVOD:"));
@@ -163,7 +169,7 @@ void Lcd1602View::buildLines(const UiModel& model,
             break;
 
         case UiScreen::EnterTurns:
-            appendFlash(line1, p1, F("VITKI KAT."));
+            appendFlash(line1, p1, F("VITKI "));
             appendUnsigned(line1, p1, model.coilNumber);
             appendFlash(line1, p1, F("/"));
             appendUnsigned(line1, p1, model.coilCount);
@@ -180,7 +186,7 @@ void Lcd1602View::buildLines(const UiModel& model,
             break;
 
         case UiScreen::Ready:
-            appendFlash(line1, p1, F("GOTOVO KAT."));
+            appendFlash(line1, p1, F("GOTOV "));
             appendUnsigned(line1, p1, model.coilNumber);
             appendFlash(line1, p1, F("/"));
             appendUnsigned(line1, p1, model.coilCount);
@@ -188,7 +194,7 @@ void Lcd1602View::buildLines(const UiModel& model,
             break;
 
         case UiScreen::Winding:
-            appendFlash(line1, p1, F("NAMOTKA KAT."));
+            appendFlash(line1, p1, F("NAMOTKA "));
             appendUnsigned(line1, p1, model.coilNumber);
             appendFlash(line1, p1, F("/"));
             appendUnsigned(line1, p1, model.coilCount);
@@ -199,7 +205,7 @@ void Lcd1602View::buildLines(const UiModel& model,
             break;
 
         case UiScreen::Paused:
-            appendFlash(line1, p1, F("PAUZA KAT."));
+            appendFlash(line1, p1, F("PAUZA "));
             appendUnsigned(line1, p1, model.coilNumber);
             appendFlash(line1, p1, F("/"));
             appendUnsigned(line1, p1, model.coilCount);
@@ -211,25 +217,25 @@ void Lcd1602View::buildLines(const UiModel& model,
             break;
 
         case UiScreen::ManualRun:
-            appendFlash(line1, p1, F("RUCHNOY REZHIM"));
+            appendFlash(line1, p1, F("RUCHNOY REZH."));
             appendFlash(line2, p2, F("C=STOP"));
             break;
 
         case UiScreen::CoilComplete:
-            appendFlash(line1, p1, F("KATUSHKA GOTOVA"));
+            appendFlash(line1, p1, F("KAT. GOTOVA"));
             appendFlash(line2, p2, F("A=DAL'SHE"));
             break;
 
         case UiScreen::JobComplete:
-            appendFlash(line1, p1, F("GOTOVO: "));
+            appendFlash(line1, p1, F("GOTOVO "));
             appendUnsigned(line1, p1, model.completedRuns);
-            appendFlash(line1, p1, F(" RAZ"));
+            appendFlash(line1, p1, F("X"));
             appendFlash(line2, p2, F("A=POVTOR B=MENU"));
             break;
 
         case UiScreen::Fault:
         default:
-            appendFlash(line1, p1, F("OSHIBKA SISTEMY"));
+            appendFlash(line1, p1, F("OSHIBKA"));
             appendFlash(line2, p2, F("B=SBROS"));
             break;
     }
@@ -262,22 +268,22 @@ void Lcd1602View::applySyncMarker(char (&line)[Columns + 1U],
                                        ? 9U
                                        : model.pendingSyncCount;
 
-    line[13] = ' ';
+    line[SyncMarkerStart] = ' ';
     if (model.syncState == UiSyncState::Error)
     {
-        line[14] = 'E';
-        line[15] = static_cast<char>('0' + displayedCount);
+        line[SyncMarkerStart + 1U] = 'E';
+        line[SyncMarkerStart + 2U] = static_cast<char>('0' + displayedCount);
     }
     else if (model.syncState == UiSyncState::Pending ||
              model.pendingSyncCount > 0U)
     {
-        line[14] = 'P';
-        line[15] = static_cast<char>('0' + displayedCount);
+        line[SyncMarkerStart + 1U] = 'P';
+        line[SyncMarkerStart + 2U] = static_cast<char>('0' + displayedCount);
     }
     else
     {
-        line[14] = 'O';
-        line[15] = 'K';
+        line[SyncMarkerStart + 1U] = 'O';
+        line[SyncMarkerStart + 2U] = 'K';
     }
 }
 

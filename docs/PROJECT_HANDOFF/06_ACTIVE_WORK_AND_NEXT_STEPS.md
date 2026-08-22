@@ -87,7 +87,37 @@ firmware/esp32/web/shared/calculator-multisource.js
   + its obsolete CM_StaticSiteServer calculator injection
 firmware/esp32/src/CM_WarehouseSpoolList.cpp
   + obsolete WarehouseStore::appendActiveSpoolsJson() declaration
+Arduino/CoilMaster_Arduino.ino
+  obsolete parallel Arduino IDE entrypoint; production owner is firmware/arduino/src/main.cpp
 ```
+
+### Completed Arduino parallel-entrypoint cleanup
+
+`Arduino/CoilMaster_Arduino.ino` was directly compared with current production composition and build ownership before deletion.
+
+Proof:
+
+- `platformio.ini` compiles `Core/*.cpp`, `Arduino/*.cpp` and `firmware/arduino/src/main.cpp`; the `.ino` is not part of the production build;
+- current `firmware/arduino/src/main.cpp` owns UART event transport, EEPROM persistence, hardware settings/control, Hall calibration/telemetry, remote JOB handling and current diagnostics;
+- the old `.ino` lacked those production paths and already diverged from current buzzer/state behavior, so retaining it as a second Arduino entrypoint could mislead future maintenance/operator work;
+- no exact current repository reference to `CoilMaster_Arduino.ino` was found; deletion classification does not rely on search alone, but on the direct build/owner comparison above.
+
+Cleanup chain:
+
+```text
+857f5b21299a04fdc6a80b764609dfee6c7e0b01
+  remove Arduino/CoilMaster_Arduino.ino
+
+cd2d3311d9f2a56a537ad27ba9149073d64a10ff
+  add Tests/Protocol/check_arduino_entrypoint_cleanup.js
+
+6b036f04e3b82f8af7450df1b37abb35cb75f0cb
+  run authoritative Arduino entrypoint contract in CMP Protocol Tests
+```
+
+Regression contract requires the obsolete `.ino` to remain absent and preserves `firmware/arduino/src/main.cpp` as the PlatformIO production entrypoint with current UART/persistence/hardware-control composition.
+
+Status: **DELETE completed; fresh CMP Protocol Tests + Arduino Uno Build required for this cleanup chain before calling it CI-verified.**
 
 ### Completed warehouse spool-list cleanup — CI VERIFIED
 
@@ -132,7 +162,7 @@ The test now checks stable field tokens without depending on C++ string-literal 
 Verified results supplied by operator:
 
 ```text
-ESP32 Build GREEN       5d5d793...
+ESP32 Build GREEN        5d5d793...
 CMP Protocol Tests GREEN 7f93db3...
 CMP Protocol Tests GREEN 6045707...
 ```
@@ -192,6 +222,12 @@ CM_MaterialHistory.cpp + CM_MaterialUsageHistory.cpp
 CM_JobDisplayRecovery.*
   active immutable-snapshot display recovery; no UART/SSR side effects
 
+Arduino/CM_HallCalibrationProtocol.*
+Arduino/CM_HardwareControlProtocol.*
+Arduino/CM_HallCalibrationService.*
+Arduino/CM_HallTelemetry.*
+  current Hall calibration/settings/telemetry stack; directly owned by UartEventTransport + production main
+
 PROJECT.manifest
   current source/boundary manifest
 ```
@@ -222,11 +258,12 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
-2. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
-3. add/update regression coverage before or with any deletion that could otherwise silently regress;
-4. continue final root/tree/docs reference sweep as the tree changes;
-5. final hardware smoke remains a separate gate and is requested only when runtime behavior needs physical proof.
+1. verify fresh `CMP Protocol Tests` + `Arduino Uno Build` for the Arduino parallel-entrypoint cleanup chain;
+2. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+3. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
+4. add/update regression coverage before or with any deletion that could otherwise silently regress;
+5. continue final root/tree/docs reference sweep as the tree changes;
+6. final hardware smoke remains a separate gate and is requested only when runtime behavior needs physical proof.
 
 ## External hardware verification gate
 

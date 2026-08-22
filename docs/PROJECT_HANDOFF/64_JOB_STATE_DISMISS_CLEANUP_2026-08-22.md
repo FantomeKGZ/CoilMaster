@@ -36,6 +36,15 @@ JobStateStore::dismissInactive(uint32_t sessionId, uint32_t nowMs)
   - removed CM_JobStateDismiss.cpp
 ```
 
+## Adjacent owner sweep
+
+The nearby validation split was also checked instead of being removed by similarity alone:
+
+- `CM_WarehouseRepairValidation.cpp` — **KEEP**. `WarehouseStore::repairExists(...)` is used by the manual warehouse writeoff path to validate the exact repair reference before mutation.
+- `CM_RepairCostingValidation.cpp` — **KEEP**. `RepairCostingWeb` directly calls `m_costing.repairExists(...)` for `/api/repairs/costing` and `/api/repairs/pricing-history` before reading or exposing costing/history data.
+- These implementations intentionally belong to different storage/service owners. Their similar validation loops are not sufficient evidence for deletion or premature cross-owner merge.
+- `CM_WarehousePrice.cpp` — **KEEP**. It owns fail-closed warehouse price lookup used by current warehouse/material costing behavior.
+
 ## Safety invariants preserved
 
 - no automatic physical START;

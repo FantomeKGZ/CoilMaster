@@ -9,16 +9,18 @@ This checkpoint owns the active full-code audit. Phase 9 Web implementation is c
 
 Historical checkpoints are evidence, not an automatic task queue.
 
+After the audit is complete, the next explicitly approved phase is a repository cleanup: remove only proven-unused folders/files, duplicated implementations, stale transition artifacts and dead code after dependency/build/test evidence shows they are not part of production or required history/tooling.
+
 ## Verification baseline
 
-The operator explicitly reported **all visible workflows green** when branch HEAD was:
+The operator explicitly reported **all visible workflows green** for branch HEAD:
 
 ```text
-1bff98965c8608a66d269f51966a22fbd907047f
-Advance ESP32 persistence audit queue
+ef095a5eb05ae5f886020510ef11324d0f4882ad
+Advance persistence audit past settings recovery
 ```
 
-Treat that exact state as **USER CONFIRMED GREEN**. B-005/B-007/B-008 commits created after it remain **exact-current verification pending** until matching workflow results are inspected or explicitly confirmed.
+Treat that exact state as **USER CONFIRMED GREEN**. Any commit after this SHA requires a new exact-current verification or explicit operator confirmation.
 
 ## Audit scope
 
@@ -41,6 +43,21 @@ Review `Tests/`, workflows, `platformio.ini` and build scripts for real producti
 ### E. Documentation/AI routing
 
 Review authoritative entrypoints for current-code accuracy and stale-task routing.
+
+### F. Post-audit repository cleanup — AFTER A..E only
+
+Build a dependency inventory before deleting anything. Classify candidates as:
+
+```text
+DELETE       proven unused and unreferenced by production/build/tests/docs/runtime assets
+MERGE        duplicate implementations with one authoritative owner
+KEEP         active source/tooling/history required by build, tests, docs or operation
+REVIEW       uncertain dependency; do not delete until proven safe
+```
+
+Cleanup must not change safety behavior, persistence schema/provenance, required migration/history evidence or hardware ownership. Run applicable CI after cleanup and compare the final tree against the pre-cleanup baseline.
+
+Initial inventory already exposes obvious low-risk candidates such as one-byte placeholder README files, but nothing is deleted until this phase begins.
 
 ## Severity
 
@@ -85,9 +102,9 @@ remove .bak only after verification
 
 Interrupted `.bak/.tmp` evidence is preserved/fails closed instead of silently losing RUN/manual-review state. Regression: `Tests/Web/check_job_state_atomic_replace.js`.
 
-### B-005 — P2 — linked JOB preparation partial transaction — FIXED / exact-current verification pending
+### B-005 — P2 — linked JOB preparation partial transaction — FIXED / USER CONFIRMED GREEN at ef095a5e
 
-Implemented durable pre-UART boundary:
+Authoritative order:
 
 ```text
 snapshot
@@ -99,53 +116,21 @@ UART queueJob
 
 `JobStateStore::isLocalPreparation()` is true only for exact CREATED/WAITING_DELIVERY/zero-run state. It may remain as immutable audit evidence and be superseded by a higher-ID job, but never auto-queues/resumes. DELIVERING/TIMED_OUT/accepted/running/fault remain fail-closed.
 
-Commits:
-
-```text
-65a8e982c85fbacbb0c430f20b664d9796848423
-dde7b1338a320f9af53ce55baaa0c7ffbebeb500
-5894da84e0c0133f54a2499fda81f1614f4a8013
-c5ac8c84618495e27c828cc5b7ec8e5b8c3a0d4e
-be8a31d0f1a4ba8a16bb8dd1f40e4a80e59f9463
-a1da06c4d2c5a9c148a3d1c4669c6d87f4be8744
-bdfee58d83b6d18663dfbf9db88604a952bee34a
-```
-
 Regression: `Tests/Web/check_job_preparation_transaction.js`.
 
 ### B-006 — P2 — network profile recovery could promote uncommitted temp over committed backup — FIXED
 
-Recovery now prefers valid committed main, otherwise valid backup, and promotes temp only when no backup exists (interrupted first write). Invalid evidence fails closed. Regression: `Tests/Web/check_network_profile_atomic_recovery.js`.
+Recovery prefers valid committed main, otherwise valid backup, and promotes temp only when no backup exists (interrupted first write). Invalid evidence fails closed. Regression: `Tests/Web/check_network_profile_atomic_recovery.js`.
 
-### B-007 — P2 — remote backup settings recovery could promote uncommitted temp — FIXED / exact-current verification pending
+### B-007 — P2 — remote backup settings recovery could promote uncommitted temp — FIXED / USER CONFIRMED GREEN at ef095a5e
 
-`RemoteBackupSettingsStore::recoverFileSwap()` had the same crash window as network profiles: after `SettingsPath -> BackupPath`, a brownout before `TempPath -> SettingsPath` left valid temp + backup, and recovery preferred temp. This could silently apply FTP credentials, target directory, retention or schedule that `save()` never completed.
-
-Implemented committed-first recovery:
-
-```text
-9a724ecf276b534bcfb79a41206d56fd86fb602e  Recover committed backup settings first
-fb9752b7a3b4bfd237cd881dbff24df3c94a7791  Guard committed backup settings recovery
-b4c939c3ff713266437e320d58a4b0d35c983304  Run backup settings atomic recovery audit
-```
-
-Rule: valid main wins; without valid main, existing valid backup wins and prepared temp is discarded; temp promotion is allowed only when no backup exists, i.e. interrupted first write. Invalid backup evidence fails closed.
+Committed-first recovery prevents a brownout from silently applying FTP credentials, target directory, retention or schedule that `save()` never completed.
 
 Regression: `Tests/Web/check_remote_backup_settings_atomic_recovery.js`.
 
-### B-008 — P2 — conductor settings recovery could promote uncommitted temp — FIXED / exact-current verification pending
+### B-008 — P2 — conductor settings recovery could promote uncommitted temp — FIXED / USER CONFIRMED GREEN at ef095a5e
 
-`ConductorSettingsStore::recoverFileSwap()` had the same unsafe temp-first recovery. A brownout could therefore make uncommitted Al/Cu conversion ratios, deviation limits or maximum strand count authoritative after reboot.
-
-Implemented:
-
-```text
-95d8025f439312ec02aa757bdeb5203be090c5f9  Recover committed conductor settings first
-77c9d466ee3749030322294d36e9f7e6abd8bac9  Guard committed conductor settings recovery
-cd543399070974795857bff49eeabea8c02a87eb  Run conductor settings atomic recovery audit
-```
-
-Recovery semantics now match network/backup settings: committed backup wins over prepared temp; temp promotion is first-write only; invalid backup evidence fails closed.
+Committed-first recovery prevents an interrupted write from making uncommitted Al/Cu conversion ratios, deviation limits or maximum strand count authoritative after reboot.
 
 Regression: `Tests/Web/check_conductor_settings_atomic_recovery.js`.
 
@@ -161,13 +146,13 @@ Regression: `Tests/Web/check_conductor_settings_atomic_recovery.js`.
 
 ## Current active target
 
-The known temp-vs-backup recovery defects in network profiles, remote backup settings and conductor settings are now committed-first. Continue section B only for concrete findings:
+Continue section B only for concrete findings:
 
 1. remaining mutable single-file stores for destructive swap/ambiguous recovery;
 2. remaining backup/restore/activity-guard consistency;
 3. resource/NDJSON hotspots only where evidence exists.
 
-If no concrete section-B defect remains, advance immediately to section C desktop/mobile Web/API/error/security parity, then D tests/CI and E docs/AI routing.
+Then complete C Web, D tests/CI and E docs/AI routing. Only after A..E are complete move to F cleanup/de-duplication.
 
 Do not reopen B-001..B-008 without a concrete regression.
 
@@ -224,10 +209,11 @@ Phase 9 implementation: COMPLETE (checkpoint 64)
 Arduino findings A-001..A-007: FIXED
 Targeted UART repo review: COMPLETE -> hardware gate retained
 ESP32 B-001..B-008: FIXED at repo/source-contract level
-Current post-1bff989 candidate CI: NOT VERIFIED in chat
+HEAD ef095a5e: USER CONFIRMED GREEN
 ESP32 remaining persistence/backup/resource audit: CURRENT
 Web audit: NEXT after section B concrete findings exhausted
 Tests/CI audit: PENDING
 Documentation/AI consistency audit: PENDING
 Final repo-wide recheck: PENDING
+Post-audit cleanup/de-duplication: APPROVED / PENDING audit completion
 ```

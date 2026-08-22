@@ -27,7 +27,6 @@ public:
     bool begin(); bool ready() const; bool loadSummary(const char* monthPrefix);
     fs::FS& storage() { return m_storage; }
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
-    bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
     bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity) const;
     bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity,bool& found) const;
     bool repairExists(uint32_t repairId) const;

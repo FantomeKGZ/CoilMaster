@@ -44,9 +44,7 @@ public:
     bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,uint16_t& appendedCount) const;
     bool appendActiveSpoolsPageJson(String& json,uint16_t diameterHundredthsMm,const char* materialFilter,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore) const;
     bool appendMaterialSummaryJson(String& json,const char* monthPrefix) const;
-    bool loadKnownWireDiameters(KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;
     bool loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;
-    uint8_t loadKnownWireDiameters(KnownWireDiameter* items,uint8_t capacity) const;
     uint8_t loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity) const;
     uint8_t summaryCount() const; bool summaryAt(uint8_t index,WireStockSummary& summary) const;
     uint32_t totalRemainingGrams() const; uint32_t totalConsumedMonthGrams() const; uint32_t totalConsumedAllTimeGrams() const;

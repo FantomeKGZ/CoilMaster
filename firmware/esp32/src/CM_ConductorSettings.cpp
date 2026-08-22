@@ -124,16 +124,22 @@ bool ConductorSettingsStore::recoverFileSwap()
 
     if (mainExists && !m_storage.remove(SettingsPath)) return false;
 
-    if (tempValid)
+    // Backup is the last committed conversion configuration. A valid temp next
+    // to it means save() prepared a candidate and rotated the old main, but the
+    // candidate was not yet committed. Restore backup first so a brownout cannot
+    // silently apply new conversion ratios or limits that the operator never saw
+    // complete successfully.
+    if (backupExists)
     {
-        if (!m_storage.rename(TempPath, SettingsPath)) return false;
-        if (backupExists && !m_storage.remove(BackupPath)) return false;
-        return true;
+        if (!backupValid) return false;
+        if (tempExists && !m_storage.remove(TempPath)) return false;
+        return m_storage.rename(BackupPath, SettingsPath);
     }
 
+    // No backup means there was no previous committed settings file. A complete
+    // verified temp is therefore an interrupted first write and may be promoted.
+    if (tempValid) return m_storage.rename(TempPath, SettingsPath);
     if (tempExists && !m_storage.remove(TempPath)) return false;
-    if (backupValid)
-        return m_storage.rename(BackupPath, SettingsPath);
 
     return false;
 }

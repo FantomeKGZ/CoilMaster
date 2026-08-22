@@ -7,18 +7,16 @@
 
 ## Verification baseline
 
-Пользователь явно сообщил **«Все зелёное»** для состояния ветки:
+Пользователь явно сообщил **«Все обновления зелёные»** для состояния ветки:
 
 ```text
-ef095a5eb05ae5f886020510ef11324d0f4882ad
-Advance persistence audit past settings recovery
+3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
+Record calculator standard alternatives feature
 ```
 
-Это **USER CONFIRMED GREEN** для B-005/B-007/B-008 и всего предыдущего текущего набора. Любые commits после этого SHA требуют нового подтверждения.
+Это **USER CONFIRMED GREEN** для калькулятора с одной строкой до 5 исходных проводов, отдельными warehouse/standard recommendations и всего предыдущего audit-набора. Любые commits после этого SHA требуют нового подтверждения или exact workflow result.
 
-## Завершённое улучшение калькулятора после baseline — CI pending
-
-По предложению пользователя калькулятор проводника расширен без изменения математического ядра:
+## Калькулятор — текущий production contract
 
 ```text
 source input:
@@ -30,27 +28,13 @@ output block 1:
 По складу — диаметры, уже известные warehouse catalogue
 
 output block 2:
-Стандартные варианты — read-only IEC 60317 reference catalogue,
+Стандартные варианты — read-only IEC 60317 R20 reference catalogue,
 включая диаметры, которых никогда не было на складе
 ```
 
-Backend `/api/calculator/conductor` теперь возвращает одновременно:
+Backend `/api/calculator/conductor` возвращает `recommendations` и `standard_recommendations`. Стандартный каталог не создаёт spool, не изменяет warehouse и не участвует в writeoff/provenance.
 
-```text
-recommendations
-standard_recommendations
-standard_catalogue_basis = IEC_60317_R20_PROJECT_0_01_MM
-standard_catalogue_diameter_count
-warehouse_available
-```
-
-Пустой warehouse catalogue больше не отключает стандартные рекомендации.
-
-Текущая модель диаметра CoilMaster остаётся `diameterHundredthsMm`, то есть точность **0,01 мм**. Стандартный справочник явно ограничен этой точностью; переход на 0,001 мм не делать скрытно и не смешивать с текущим UI improvement.
-
-Reference catalogue read-only: не создаёт spool, не изменяет warehouse и не участвует в writeoff/provenance.
-
-После этих commits нужен новый applicable CI; до него статус — **NOT VERIFIED**.
+Текущая модель диаметра CoilMaster — `diameterHundredthsMm`, точность **0,01 мм**. Реальный IEC R20 ряд адаптирован к этой точности; переход на 0,001 мм делать только отдельной явной миграцией модели/данных.
 
 ## Закрыто в full-code audit — не возвращать без concrete regression
 
@@ -63,35 +47,85 @@ B-004 recoverable JobStateStore atomic replacement
 B-005 provenance-safe linked JOB preparation transaction
 B-006 committed-first NetworkProfileStore recovery
 B-007 committed-first RemoteBackupSettingsStore recovery
-B-008 committed-first ConductorSettingsStore recovery
+B-008 committed-first legacy ConductorSettingsStore recovery
+B-009 production /data/settings/conductor.json atomic transaction
+B-010 verified warehouse spool swap / rollback
+B-011 verified material ledger swap / rollback
 ```
 
-Общий crash-consistency rule для mutable settings stores:
+Для spool/material replacement rename сам по себе не считается commit-proof: temp и новый authoritative main проходят parser-backed validation, `.bak` удаляется только после проверки нового main, damaged promoted main откатывается на последний valid backup.
+
+Прямой append при создании новой spool/material записи остаётся отдельным **P2 crash-resilience finding**: partial tail корректно fail-closed, но может сделать весь catalogue unavailable до operator recovery. Не лечить автоматическим truncation — автоматическое удаление production evidence запрещено.
+
+## Web/API audit — текущие результаты
+
+Проверены shared app-shell, Wi-Fi settings, Arduino archive, winding-history spool metadata, pricing history и writeoff UI. В просмотренных местах user/server strings либо проходят HTML escaping, либо выводятся через `textContent`.
+
+Открытый P2:
 
 ```text
-valid committed main -> keep main, cleanup residue
-no valid main + valid backup -> restore backup, discard prepared temp
-no backup + valid temp -> promote only as interrupted first write
-invalid backup evidence -> fail closed
+network JSON escaping
 ```
 
-B-005 strict pre-UART order:
+`CM_NetworkWeb.cpp` escape helper экранирует quote/backslash, но не все JSON control bytes. Старый `/api/system/network` в `CM_StaticSiteServer.cpp` вставляет STA SSID без JSON escaping вообще. Исправить через безопасный owner/refactor, не делать слепой full-file replace большого StaticSiteServer.
+
+Подтверждённый cleanup-кандидат, пока НЕ удалять:
 
 ```text
-snapshot
--> CREATED + WAITING_DELIVERY + zero-run state
--> exact spool selection
--> DELIVERING state
--> UART queueJob
+firmware/esp32/web/shared/calculator-multisource.js
 ```
 
-## Current active queue — сначала полный аудит
+`CM_StaticSiteServer` всё ещё загружает helper на calculator page, но новый calculator больше не имеет legacy `#diameter/#strands`; helper сразу выходит и дублирует уже встроенный новый UI contract. Удаление/инъекцию чистить только в post-audit cleanup phase после dependency check.
 
-1. закончить ESP32 persistence/backup/activity/resource audit;
-2. полный desktop/mobile/shared Web/API/error/security parity audit;
-3. полный tests/CI/build-filter/false-positive audit;
-4. docs/AI routing consistency audit;
-5. final cross-layer recheck + applicable CI.
+## Tests/CI audit — сделано после GREEN baseline, verification pending
+
+Добавлено:
+
+```text
+Tests/Web/check_material_ledger_atomic_recovery.js
+```
+
+Он защищает B-011 material-ledger swap/rollback contract и подключён к `CMP Protocol Tests`.
+
+Исправлены workflow trigger gaps:
+
+```text
+Arduino Uno Build: Shared/** теперь запускает UNO compile
+CMP Protocol Tests PR: Shared/** вместо только Shared/Protocol/**
+```
+
+Это необходимо, потому что production Arduino transport включает `Shared/CMP1Text/CM_Cmp1Crc.h`.
+
+Добавлен `Tests/Web/check_ci_trigger_contracts.js`, защищающий критические build/test path filters и production environments.
+
+`motor-reference.yml` проверен: checkout/build/push жёстко работают с `cmp-protocol-v1`; `main` источником не используется.
+
+## Docs/AI routing audit — сделано после GREEN baseline, verification pending
+
+Исправлены:
+
+```text
+docs/AI_AGENT/00_START_HERE.md
+docs/AI_AGENT/02_CHANGE_ROUTER.md
+```
+
+Убрана stale routing-ссылка на checkpoint 61, active work теперь checkpoint 63 + этот файл 06. Добавлен approved post-audit cleanup stage и явный authoritative owner conductor calculator settings:
+
+```text
+CM_ConductorSettingsWeb.*
+WarehouseStore::loadConversionSettings / setConversionSettings
+/data/settings/conductor.json
+```
+
+Legacy `CM_ConductorSettings.*` не является production owner и остаётся cleanup candidate до dependency proof.
+
+## Current active queue — сначала завершить полный аудит
+
+1. закрыть Web/API JSON escaping finding и завершить desktop/mobile/shared parity/security review;
+2. закончить tests/CI false-positive/orphan-test audit;
+3. проверить `docs/AI_AGENT/04_VERIFICATION_MATRIX.md` и оставшиеся AI/docs entrypoints;
+4. final cross-layer recheck production flow + safety invariants;
+5. получить applicable GREEN для commits после `3ebc942f...`.
 
 ## После завершения аудита — отдельная cleanup phase
 
@@ -104,26 +138,16 @@ KEEP    — нужен production/build/tests/docs/history/operator flow
 REVIEW  — зависимость не доказана; не удалять
 ```
 
-Cleanup scope:
+Из уже подтверждённых кандидатов:
 
-- лишние/пустые папки и файлы;
-- временные файлы и переходные artifacts;
-- мёртвый код;
-- устаревшие реализации, оставшиеся после переноса между чатами/архитектурных изменений;
-- дубли классов, helpers, web assets, tests или docs;
-- пустые placeholder-файлы, если они действительно не нужны GitHub/tooling.
+```text
+CM_ConductorSettings.cpp/.h               legacy parallel persistence owner
+shared/calculator-multisource.js          legacy calculator UI helper
+.github/workflows/README.md                1-byte placeholder
+.github/ISSUE_TEMPLATE/README.md           ранее замеченный placeholder; перепроверить перед delete
+```
 
-Не удалять ничего только потому, что имя выглядит старым. Сначала проверять includes/imports, build manifests, workflow paths, web references, runtime file paths, docs/AI routing и tests. После cleanup — полный applicable CI и сравнение дерева до/после.
-
-## Уже просмотрено без нового production-data defect
-
-- PersistentIdAllocator transaction/high-water recovery;
-- immutable JobSnapshotStore create path;
-- immutable JobSpoolSelectionStore create/temp identity checks;
-- append-only RepairRegistry integrity behavior;
-- NetworkManager AP recovery sequencing;
-- RTC safe-idle NTP write/verify path;
-- WebRecoveryFtpServer activity guard and `/web`-only scope.
+Не удалять ничего только потому, что имя выглядит старым. Проверять includes/imports, PlatformIO build, workflow/test references, static script injection, runtime file paths, migrations/history and AI/docs routing. После cleanup — полный applicable CI и сравнение дерева до/после.
 
 ## External hardware verification gate
 
@@ -184,10 +208,10 @@ USER CONFIRMED user explicitly verified visible workflow/hardware state
 ```text
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/66_ESP32_BUILD_ID_CI_RECOVERY_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/66_ESP32_BUILD_ID_CI_RECOVERY_2026-08-22.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md

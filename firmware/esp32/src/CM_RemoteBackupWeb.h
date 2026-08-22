@@ -4,6 +4,7 @@
 #include <FS.h>
 #include <WebServer.h>
 
+#include "CM_ProductionMutationInterlock.h"
 #include "CM_RemoteBackupSettings.h"
 #include "CM_RemoteBackupTransfer.h"
 #include "CM_RtcClock.h"
@@ -190,7 +191,37 @@ private:
         Failed
     };
 
+    class ApplyStageState
+    {
+    public:
+        ApplyStageState() : m_value(ApplyStage::Idle) {}
+
+        operator ApplyStage() const
+        {
+            return m_value;
+        }
+
+        ApplyStageState& operator=(ApplyStage value)
+        {
+            // APPLY owns one global production-data mutation lock. A successful
+            // apply keeps the lock until reboot because RAM stores still reflect
+            // the pre-restore files. A failed apply also remains fail-closed.
+            // Only a proven rollback completion or explicit idle cleanup releases
+            // the lock.
+            if (value == ApplyStage::Idle || value == ApplyStage::RolledBack)
+                ProductionMutationInterlock::release();
+            else
+                ProductionMutationInterlock::acquire();
+            m_value = value;
+            return *this;
+        }
+
+    private:
+        ApplyStage m_value;
+    };
+
     WebServer& m_server;
+    ProductionMutationInterlockRegistration m_productionInterlockRegistration{m_server};
     fs::FS& m_storage;
     RemoteBackupSettingsStore& m_settingsStore;
     RtcClock& m_rtcClock;
@@ -266,7 +297,7 @@ private:
     uint32_t m_applyPreflightInputExpected = 0UL;
     uint32_t m_applyPreflightInputCrc = 0xFFFFFFFFUL;
     String m_applyPreflightError;
-    ApplyStage m_applyStage = ApplyStage::Idle;
+    ApplyStageState m_applyStage;
     File m_applyManifest;
     File m_applyJournal;
     File m_applySource;

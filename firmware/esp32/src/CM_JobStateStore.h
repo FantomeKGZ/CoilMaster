@@ -84,11 +84,6 @@ public:
     // no remote job remains. This is valid only before any physical-run evidence.
     bool closeAfterRemoteCancel(uint32_t sessionId, uint32_t nowMs);
 
-    // Hides an already inactive job from the active runtime view while keeping
-    // its immutable snapshot and historical records. Only terminal delivery or
-    // a completed program may be dismissed; accepted/running jobs are refused.
-    bool dismissInactive(uint32_t sessionId, uint32_t nowMs);
-
 private:
     static constexpr const char* RootDirectory = "/data/winding-jobs";
     static constexpr const char* StateDirectory = "/data/winding-jobs/state";

@@ -279,29 +279,47 @@ bool NetworkProfileStore::recoverFileSwap()
     const bool tempExists = m_storage.exists(TempPath);
     const bool backupExists = m_storage.exists(BackupPath);
     if (!tempExists && !backupExists) return true;
+
     NetworkProfile profiles[MaxProfiles];
     uint8_t count = 0U;
     if (mainExists && loadFromPath(ProfilesPath, profiles, count))
     {
+        // A valid main file is already committed. Residual temp/backup files are
+        // stale transaction artifacts and may be cleaned without changing state.
         if (tempExists && !m_storage.remove(TempPath)) return false;
         if (backupExists && !m_storage.remove(BackupPath)) return false;
         return true;
     }
+
     uint8_t tempCount = 0U, backupCount = 0U;
     NetworkProfile tempProfiles[MaxProfiles], backupProfiles[MaxProfiles];
     const bool tempValid = tempExists &&
         loadFromPath(TempPath, tempProfiles, tempCount);
     const bool backupValid = backupExists &&
         loadFromPath(BackupPath, backupProfiles, backupCount);
-    if (mainExists && !m_storage.remove(ProfilesPath)) return false;
+
+    // If a valid backup exists while main is missing/invalid, the transaction
+    // had not committed a replacement main file. Restore the previously
+    // authoritative profiles. Never promote a merely prepared temp over it.
+    if (backupValid)
+    {
+        if (mainExists && !m_storage.remove(ProfilesPath)) return false;
+        if (tempExists && !m_storage.remove(TempPath)) return false;
+        return m_storage.rename(BackupPath, ProfilesPath);
+    }
+
+    // An existing but invalid backup is corruption evidence. Do not erase it in
+    // order to promote a candidate temp and silently invent transaction order.
+    if (backupExists) return false;
+
+    // No prior main/backup means this can only be an interrupted first write.
+    // A fully validated temp may become authoritative; otherwise fail closed and
+    // preserve the invalid evidence for operator recovery.
     if (tempValid)
     {
-        if (!m_storage.rename(TempPath, ProfilesPath)) return false;
-        if (backupExists && !m_storage.remove(BackupPath)) return false;
-        return true;
+        if (mainExists && !m_storage.remove(ProfilesPath)) return false;
+        return m_storage.rename(TempPath, ProfilesPath);
     }
-    if (tempExists && !m_storage.remove(TempPath)) return false;
-    if (backupValid) return m_storage.rename(BackupPath, ProfilesPath);
     return false;
 }
 

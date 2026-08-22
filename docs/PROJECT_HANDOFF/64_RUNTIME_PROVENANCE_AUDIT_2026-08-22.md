@@ -6,7 +6,15 @@ This checkpoint records the current source-level audit of the ESP32 job-event, w
 
 ## Verification boundary
 
-The user explicitly confirmed the pre-audit state GREEN earlier in this session. Changes listed below occurred after that confirmation and must not be called GREEN until fresh applicable CI/operator evidence is supplied.
+The user explicitly confirmed the complete provenance/finalization hardening chain GREEN through:
+
+```text
+e16a7daeae8962e4eb6b457661970f873faf8a87
+Align final acceptance exact spool contract
+USER CONFIRMED GREEN
+```
+
+This is now the applicable GREEN baseline for the work recorded in this checkpoint. Later changes must not be called GREEN until fresh applicable CI/operator evidence is supplied.
 
 ## Late RUN_STARTED after delivery timeout
 
@@ -226,6 +234,17 @@ The migration rule is therefore asymmetric by design:
 - old evidence remains readable/auditable;
 - new production mutations are exact-spool only.
 
+## Final acceptance alignment
+
+The top-level acceptance contract was updated after the runtime fixes:
+
+```text
+e16a7daeae8962e4eb6b457661970f873faf8a87
+  Align final acceptance exact spool contract
+```
+
+`Tests/Web/check_final_acceptance_contracts.js` now states and protects the same production rule as the store, HTTP handler and UI: current KG_FIRST write-off requires exact immutable `spool_id`. Historical `UNALLOCATED` compatibility remains a read/recovery concern only.
+
 ## Transaction residue policy reviewed
 
 `JobStateStore` deliberately fails closed when `.tmp` or `.bak` transaction residue exists. Its existing regression contract requires authoritative state rotation and commit ordering to remain `target -> backup`, verified temp -> target, committed target verification, then backup cleanup; it explicitly forbids erasing interrupted transaction residue as a shortcut.
@@ -234,8 +253,9 @@ The migration rule is therefore asymmetric by design:
 
 ## Current next review
 
-Continue with:
+With the provenance/finalization chain now USER CONFIRMED GREEN, continue with:
 
-1. exact run/material costing and closure provenance after the new selection-coverage guard;
-2. remaining snapshot/state/selection crash-residue consistency review;
-3. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.
+1. final owner-by-owner cleanup/zero-debt sweep of build-included ESP32/Arduino files and stale contracts;
+2. remaining snapshot/state/selection crash-residue consistency REVIEW without destructive automatic cleanup;
+3. final handoff/tree consistency pass;
+4. request precise hardware/runtime logs only when the remaining source-level work reaches a hardware-only verification point.

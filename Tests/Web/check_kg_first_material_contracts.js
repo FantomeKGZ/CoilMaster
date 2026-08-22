@@ -114,9 +114,12 @@ for (const text of [
   'if (!record.hasSourceRunId) return false;',
   'matches = record.sourceRunId == target.runId;',
   'record.stockMode == WarehouseWriteOffStockMode::Unallocated',
-  'record.sourceRunId != target.runId'
+  'record.sourceRunId != target.runId',
+  'selectionCatalog == ReadOnlyCatalogCheck::Missing',
+  'if (!selectionFound)',
+  'return WireWriteOffCoverageCheck::IntegrityFailed;'
 ]) {
-  requireText(coveragePath, coverage, text, 'finalization exact-run/legacy coverage split missing: ' + text);
+  requireText(coveragePath, coverage, text, 'finalization exact-run/selection coverage guard missing: ' + text);
 }
 for (const text of [
   'constexpr uint8_t CoverageBatchSize = 32U;',
@@ -127,8 +130,12 @@ for (const text of [
 ]) {
   requireText(coveragePath, coverage, text, 'batched finalization coverage guard missing: ' + text);
 }
-if (coverage.includes('bool confirmedWriteOffExists(')) {
-  failures.push(coveragePath + ': per-run full movement scan implementation returned');
+for (const forbidden of [
+  'if (selectionCatalog == ReadOnlyCatalogCheck::Missing) continue;',
+  'if (!selectionFound) continue;',
+  'bool confirmedWriteOffExists('
+]) {
+  if (coverage.includes(forbidden)) failures.push(coveragePath + ': closure coverage bypass returned: ' + forbidden);
 }
 
 for (const text of [
@@ -274,4 +281,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, historical dual journal compatibility, exact-spool current POST/UI, batched runtime and backup scans, audited costing, exact-run finalization, historical unallocated rendering/recovery, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, historical dual journal compatibility, exact-spool current POST/UI, batched runtime and backup scans, audited costing, exact-run finalization with mandatory immutable selection evidence, historical unallocated rendering/recovery, and no automatic RUN_COMPLETED deduction.');

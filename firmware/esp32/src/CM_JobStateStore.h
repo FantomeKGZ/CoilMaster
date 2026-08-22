@@ -63,6 +63,14 @@ public:
                          uint16_t completedRuns,
                          uint32_t nowMs);
 
+    // Reconciles the narrow lost-JOB_ACK case where delivery was persisted as
+    // TIMED_OUT but a later CRC-valid RUN_STARTED proves that Arduino accepted
+    // and physically started that exact persisted session. No other timeout
+    // state is promoted and no physical action is triggered here.
+    bool confirmStartedAfterDeliveryTimeout(uint32_t sessionId,
+                                            uint32_t runId,
+                                            uint32_t nowMs);
+
     // Persists an operator-confirmed closure after physical inspection.
     // It never queues, resumes, or controls the machine.
     bool closeAfterManualReview(uint32_t sessionId, uint32_t nowMs);

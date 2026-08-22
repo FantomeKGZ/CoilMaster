@@ -94,6 +94,7 @@ private:
     bool ensureDirectories();
     String statePath(uint32_t sessionId) const;
     String tempPath(uint32_t sessionId) const;
+    String backupPath(uint32_t sessionId) const;
     bool writeAtomic(const JobRuntimeState& state);
     bool serialize(const JobRuntimeState& state, String& output) const;
     bool parse(const String& input, JobRuntimeState& state) const;

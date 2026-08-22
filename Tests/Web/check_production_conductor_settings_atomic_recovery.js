@@ -4,7 +4,8 @@ const storeHeader = fs.readFileSync('firmware/esp32/src/CM_WarehouseStore.h', 'u
 const productionStore = fs.readFileSync('firmware/esp32/src/CM_ConductorSettingsStore.cpp', 'utf8');
 const web = fs.readFileSync('firmware/esp32/src/CM_ConductorSettingsWeb.cpp', 'utf8');
 const integrity = fs.readFileSync('firmware/esp32/src/CM_ConductorSettingsIntegrityAudit.cpp', 'utf8');
-const legacyHeader = fs.readFileSync('firmware/esp32/src/CM_ConductorSettings.h', 'utf8');
+const legacySourcePath = 'firmware/esp32/src/CM_ConductorSettings.cpp';
+const legacyHeaderPath = 'firmware/esp32/src/CM_ConductorSettings.h';
 
 function requireText(source, text, message) {
   if (!source.includes(text)) throw new Error(message);
@@ -45,8 +46,9 @@ requireText(productionStore,
   'committed backup must be restored before considering prepared temp');
 
 requireText(integrity, 'LegacySettingsPath = "/data/settings/conductor-calculator.ndjson"',
-  'integrity audit must keep legacy store explicitly non-authoritative');
-requireText(legacyHeader, '/data/settings/conductor-calculator.ndjson',
-  'legacy store identity changed unexpectedly; review cleanup classification');
+  'integrity audit must keep legacy persisted artefacts explicitly non-authoritative');
+if (fs.existsSync(legacySourcePath) || fs.existsSync(legacyHeaderPath)) {
+  throw new Error('legacy ConductorSettingsStore source returned; production owner must remain WarehouseStore');
+}
 
 console.log('Production conductor settings atomic recovery contracts OK');

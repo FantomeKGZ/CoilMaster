@@ -96,24 +96,26 @@ for (const text of [
 for (const text of [
   'state.executionState == JobExecutionState::WaitingDelivery ||',
   'state.executionState == JobExecutionState::WaitingPhysicalStart;',
-  'state.lastRunId != 0UL || state.completedRuns != 0U',
+  'if (!waitingOnly || state.lastRunId != 0UL || state.completedRuns != 0U)\n        return true;',
   'state.deliveryState = JobDeliveryState::Cancelled;',
   'state.executionState = JobExecutionState::ClosedAfterReview;'
 ]) {
   requireText(remoteCancelStatePath, remoteCancelState, text,
-    'persisted remote-cancel no-run safety contract missing: ' + text);
+    'persisted remote-cancel safety/no-op contract missing: ' + text);
 }
 
-// A late duplicate CANCELLED/ALL_CLEAR after an already completed or explicitly
-// closed job is stale transport evidence. It must be a no-op, not a storage
-// failure, and must never rewrite completed run evidence as cancellation.
+// Late CANCELLED/ALL_CLEAR for completed/closed or run/fault evidence is stale
+// transport evidence. It must be a no-op, not a storage failure, and must never
+// rewrite physical run evidence as cancellation. The unchanged unsafe state then
+// remains under manual review in processJobCancel().
 for (const text of [
   'state.executionState == JobExecutionState::ProgramCompleted ||',
   'state.executionState == JobExecutionState::ClosedAfterReview)',
+  'Recovery\n    // remains fail-closed because the unchanged state still requires explicit',
   'return true;'
 ]) {
   requireText(remoteCancelStatePath, remoteCancelState, text,
-    'stale cancel terminal-state no-op contract missing: ' + text);
+    'stale/run-evidence cancel no-op contract missing: ' + text);
 }
 
 // TIMED_OUT is ambiguous because Arduino may have accepted the JOB while every
@@ -203,4 +205,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, recovery-only zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');
+console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, recovery-only zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale/run-evidence cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');

@@ -24,12 +24,12 @@ CoilMaster/
 │  ├─ Protocol/                  host protocol/integration tests
 │  ├─ CMP1Text/                  shared text-CRC tests
 │  └─ Web/                       browser/static contract audits
-├─ Engineering/Hardware/         hardware reference material
 ├─ docs/
+│  ├─ 01_SYSTEM_ARCHITECTURE.md  current architectural summary
+│  ├─ HARDWARE_REFERENCE/        operator hardware reference material
 │  ├─ AI_AGENT/                  fast maintenance map for agents
 │  └─ PROJECT_HANDOFF/           release/project history and checkpoints
-├─ platformio.ini                authoritative production build boundaries
-└─ ARCHITECTURE.md               concise architectural summary
+└─ platformio.ini                authoritative production build boundaries
 ```
 
 `platformio.ini` is authoritative for what is actually compiled.

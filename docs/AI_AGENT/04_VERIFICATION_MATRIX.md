@@ -4,19 +4,19 @@ This document answers: **what must be verified after a specific class of change.
 
 Do not claim a workflow is green until its actual run has completed successfully. A Git commit is not a build result.
 
-## 1. Current known automated baseline
+## 1. Current known automated/operator baseline
 
-Latest operator-confirmed branch baseline at the time of this update:
+Latest operator-confirmed implementation baseline:
 
 ```text
-3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
-Record calculator standard alternatives feature
+e16a7daeae8962e4eb6b457661970f873faf8a87
+Align final acceptance exact spool contract
 USER CONFIRMED GREEN
 ```
 
-Commits after that SHA require a later explicit operator confirmation or exact matching workflow result. Older named workflow runs remain historical evidence only.
+Documentation-only commits after that SHA do not establish a newer firmware GREEN baseline. Later implementation changes require a later explicit operator confirmation or exact matching workflow result. Older named workflow runs remain historical evidence only.
 
-Current active project status is selected by checkpoint 63 plus active queue 06, not an older recovery checkpoint.
+Current active transition/status is selected by handoff 67 + active queue 06; checkpoint 63 is the completed full-audit evidence, not the active backlog.
 
 ## 2. Available automated gates
 
@@ -77,7 +77,7 @@ It includes host protocol/state-machine tests plus configured `Tests/Web/*.js` c
 | UART/CMP1 wire contract | **Yes** | **Yes** | **Yes** | **Yes**, targeted cross-board regression |
 | Physical START / SSR / Hall / machine state | **Yes** | If peer/service changed | Relevant audits | **Mandatory targeted hardware test** |
 | Workshop persisted schema | No | **Yes** | **Yes** | Persistence/reboot when semantics changed |
-| Warehouse/material writeoff | No | **Yes** | **Yes** | Targeted exact-run/writeoff test when production logic changed |
+| Warehouse/material writeoff | No | **Yes** | **Yes** | Targeted exact-run/exact-spool writeoff test when production logic changed |
 | Backup/restore/apply | No | **Yes** | **Yes** | Targeted safe restore/reboot gate |
 | Network/FTP | No | **Yes** | Relevant Web contracts | Targeted device/network test |
 | Build/workflow config | Affected build | Affected build | Affected workflow | No unless binary/behavior changes |
@@ -94,7 +94,7 @@ Examples:
 - changing Arduino START/SSR state logic -> recheck physical START/safe SSR;
 - changing CMP1 framing/cancel/ACK behavior -> recheck ESP32<->Arduino communication;
 - changing restore apply -> recheck the relevant restore safety gate;
-- changing persisted writeoff semantics -> recheck exact-run manual writeoff behavior.
+- changing persisted writeoff semantics -> recheck exact-run/exact-spool manual writeoff behavior.
 
 ## 5. Safety-contract verification
 
@@ -106,12 +106,12 @@ no automatic START between repeats
 Arduino owns SSR
 no automatic resume after reboot
 RUN_COMPLETED does not auto-writeoff
-manual writeoff requires exact source_session_id + source_run_id
-spool_id optional only for approved KG_FIRST unallocated/manual path
-exact spool provenance preserved whenever a spool is used
+current linked-production manual writeoff requires exact source_session_id + source_run_id + immutable spool_id
+historical UNALLOCATED KG_FIRST is read/audit/recovery compatibility only
+no post-run downgrade from exact spool to UNALLOCATED
 operator-only transactional restore
 persisted stale restore evidence blocks operations
-no automatic production-data cleanup
+no automatic production-data cleanup or truncation
 ```
 
 Primary automated guards include:
@@ -179,6 +179,16 @@ For atomic replacement, rename alone is not commit proof. Validate prepared temp
 
 Do not automatically truncate/delete corrupted production evidence as a convenience recovery mechanism.
 
+Current winding-job crash-residue classification is intentionally state-dependent:
+
+```text
+JobStateStore .tmp/.bak       KEEP fail-closed replacement evidence
+JobSpoolSelectionStore temp  KEEP bounded pre-UART recovery of one fully valid temp when final is absent
+JobSnapshotStore .json.tmp   REVIEW/fail-closed; it occurs before durable state and must not be auto-deleted/promoted ad hoc
+```
+
+Do not force these stores into one recovery policy merely for symmetry; preserve the transaction boundary each file represents.
+
 ## 9. UI verification
 
 Check both:
@@ -189,7 +199,7 @@ firmware/esp32/web/mobile/
 firmware/esp32/web/shared/
 ```
 
-UI must not hide server errors, invent authoritative totals, imply physical motion from queued state, silently downgrade corruption, or offer automatic destructive cleanup/restore.
+UI must not hide server errors, invent authoritative totals, imply physical motion from queued state, silently downgrade corruption, offer post-run unallocated fallback for an exact-spool session, or offer automatic destructive cleanup/restore.
 
 For dynamic HTML, verify operator/server-controlled strings are escaped or inserted through `textContent`. For JSON assembled manually in C++, verify complete JSON string escaping, including control bytes.
 
@@ -217,17 +227,17 @@ Current authoritative project status is selected by:
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-Older numbered checkpoints are historical evidence, not the current active-work baseline.
+Use current source plus relevant current thematic checkpoints for detail. Older numbered checkpoints are historical evidence, not the current active-work baseline.
 
-If production firmware/web behavior changes, the affected scope becomes a new candidate until relevant automated and hardware gates pass.
+If production firmware/web behavior changes after the current GREEN baseline, the affected scope becomes a new candidate until relevant automated and hardware gates pass.
 
 ## 13. Post-audit cleanup verification
 
-Cleanup starts only after the full audit and final cross-layer recheck.
+The full audit A..E is complete and final controlled cleanup is active.
 
 Before deleting/merging a candidate, prove:
 
@@ -243,6 +253,8 @@ AI/docs routing references
 
 Classify each candidate DELETE/MERGE/KEEP/REVIEW. After cleanup, run every applicable gate for the files actually removed/merged and compare the resulting tree against the pre-cleanup inventory.
 
+Empty code-search results never substitute for direct owner/build proof.
+
 ## 14. Before saying "done"
 
 ```text
@@ -256,6 +268,7 @@ Classify each candidate DELETE/MERGE/KEEP/REVIEW. After cleanup, run every appli
 [ ] applicable automated gate actually passed or is explicitly NOT VERIFIED
 [ ] hardware regression passed if required
 [ ] AI docs updated if topology/contract location changed
+[ ] handoff 67 + active queue 06 remain synchronized when status changes
 [ ] old historical checkpoint was not accidentally treated as active work
 [ ] cleanup deletion was dependency-proven if this was cleanup work
 ```

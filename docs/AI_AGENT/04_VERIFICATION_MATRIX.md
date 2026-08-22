@@ -6,15 +6,17 @@ Do not claim a workflow is green until its actual run has completed successfully
 
 ## 1. Current known automated baseline
 
-Production firmware baseline:
+Latest operator-confirmed branch baseline at the time of this update:
 
 ```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-CMP Protocol Tests #2175 — GREEN
-ESP32 Build #1241 — GREEN
+3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
+Record calculator standard alternatives feature
+USER CONFIRMED GREEN
 ```
 
-After the documentation cleanup through `a1260921`, the user explicitly confirmed that the visible workflows were all green, including the current Arduino Uno build gate. Later commits that only add/route static regression tests or documentation do not change the production firmware binary; their affected CMP/Web workflow still requires its own result.
+Commits after that SHA require a later explicit operator confirmation or exact matching workflow result. Older named workflow runs remain historical evidence only.
+
+Current active project status is selected by checkpoint 63 plus active queue 06, not an older recovery checkpoint.
 
 ## 2. Available automated gates
 
@@ -33,6 +35,8 @@ Arduino/*.cpp
 firmware/arduino/src/main.cpp
 ```
 
+The Arduino transport also consumes `Shared/CMP1Text/CM_Cmp1Crc.h`, so `Shared/**` must trigger this build.
+
 ### ESP32 Build
 
 ```text
@@ -46,6 +50,8 @@ Production source filter:
 firmware/esp32/src/*.cpp
 ```
 
+`Shared/**`, `platformio.ini` and `scripts/platformio_build_id.py` are also compile-relevant and must trigger the ESP32 build.
+
 ### CMP Protocol Tests + Web/release audits
 
 Workflow:
@@ -54,7 +60,9 @@ Workflow:
 .github/workflows/cmp-protocol-tests.yml
 ```
 
-It includes host protocol/state-machine tests plus the configured `Tests/Web/*.js` contract audits. The workflow is intentionally configured so later audits still run after an earlier audit failure; any failed audit still fails the job.
+It includes host protocol/state-machine tests plus configured `Tests/Web/*.js` contract audits. The workflow intentionally lets later audits run with `if: always()` after an earlier failure so one run exposes multiple failures; any failed step still fails the job.
+
+`Tests/Web/check_ci_trigger_contracts.js` protects critical workflow path coverage.
 
 ## 3. Verification matrix
 
@@ -62,9 +70,10 @@ It includes host protocol/state-machine tests plus the configured `Tests/Web/*.j
 |---|---:|---:|---:|---:|
 | Docs only | No | No | Usually no | No |
 | `Tests/*` only | No unless source coupled | No unless source coupled | Yes for affected tests | No |
-| Desktop/mobile/shared web only | No | Workflow may run because it watches `firmware/esp32/**` | Yes | Only if device behavior needs proof |
+| Desktop/mobile/shared web only | No | Workflow may run because it watches `firmware/esp32/**` | **Yes** | Only if device behavior needs proof |
 | ESP32 C++ service/API/storage | No | **Yes** | Usually **Yes** | Targeted when runtime/persistence/hardware behavior changed |
 | Arduino `Core/` or `Arduino/` | **Yes** | No unless protocol peer changed | Usually **Yes** | Targeted for machine/input/output behavior |
+| `Shared/**` production protocol/CRC | **Yes** | **Yes** when ESP32 consumes it | **Yes** | Targeted if wire behavior changed |
 | UART/CMP1 wire contract | **Yes** | **Yes** | **Yes** | **Yes**, targeted cross-board regression |
 | Physical START / SSR / Hall / machine state | **Yes** | If peer/service changed | Relevant audits | **Mandatory targeted hardware test** |
 | Workshop persisted schema | No | **Yes** | **Yes** | Persistence/reboot when semantics changed |
@@ -72,6 +81,7 @@ It includes host protocol/state-machine tests plus the configured `Tests/Web/*.j
 | Backup/restore/apply | No | **Yes** | **Yes** | Targeted safe restore/reboot gate |
 | Network/FTP | No | **Yes** | Relevant Web contracts | Targeted device/network test |
 | Build/workflow config | Affected build | Affected build | Affected workflow | No unless binary/behavior changes |
+| Post-audit cleanup/deletion | According to affected dependency graph | According to affected dependency graph | **Yes** for affected contracts | Only when production/hardware behavior changed |
 
 ## 4. Hardware gates are change-scoped
 
@@ -109,10 +119,16 @@ Primary automated guards include:
 ```text
 Tests/Web/check_release_contracts.js
 Tests/Web/check_job_cancel_recovery_contracts.js
+Tests/Web/check_restore_mutation_interlock.js
+Tests/Web/check_job_state_atomic_replace.js
+Tests/Web/check_job_preparation_transaction.js
+Tests/Web/check_warehouse_spool_atomic_recovery.js
+Tests/Web/check_material_ledger_atomic_recovery.js
 Tests/Web/check_final_acceptance_contracts.js
 Tests/Web/check_kg_first_material_contracts.js
 Tests/Web/check_writeoff_fault_contracts.js
 Tests/Web/check_hall_calibration_contracts.js
+Tests/Web/check_ci_trigger_contracts.js
 ```
 
 Use the exact current workflow/script names from `.github/workflows/cmp-protocol-tests.yml` if they change.
@@ -127,20 +143,7 @@ The dedicated static guard is:
 Tests/Web/check_job_cancel_recovery_contracts.js
 ```
 
-It protects both transport and persisted recovery semantics:
-
-```text
-JOB may have reached Arduino -> remote JOB_CANCEL handshake
-already-clear -> idempotent success
-active physical run cannot be cleared
-D -> * -> # -> D fallback emits CRC-protected ALL_CLEAR only when safe
-ALL_CLEAR never means RUN_COMPLETED
-positive cancel -> closeAfterRemoteCancel only with zero run evidence
-persisted cancel -> restoreLatestJobState re-evaluation before new job
-reboot does not auto-start or auto-complete
-```
-
-A docs-only or unrelated change must not reopen this hardware block automatically.
+It protects transport and persisted recovery semantics, including lost-ACK timeout reconciliation and zero-id ALL_CLEAR isolation. A docs-only or unrelated change must not reopen this hardware block automatically.
 
 ## 7. Protocol verification
 
@@ -172,6 +175,10 @@ backup inclusion
 restore-plan/rollback/apply coverage
 ```
 
+For atomic replacement, rename alone is not commit proof. Validate prepared temp before promotion, validate authoritative main after promotion, and keep/restore the last valid backup until the new main is proven readable and structurally valid.
+
+Do not automatically truncate/delete corrupted production evidence as a convenience recovery mechanism.
+
 ## 9. UI verification
 
 Check both:
@@ -179,9 +186,14 @@ Check both:
 ```text
 firmware/esp32/web/desktop/
 firmware/esp32/web/mobile/
+firmware/esp32/web/shared/
 ```
 
 UI must not hide server errors, invent authoritative totals, imply physical motion from queued state, silently downgrade corruption, or offer automatic destructive cleanup/restore.
+
+For dynamic HTML, verify operator/server-controlled strings are escaped or inserted through `textContent`. For JSON assembled manually in C++, verify complete JSON string escaping, including control bytes.
+
+Current calculator contract includes one semicolon-separated source-wire field (1..5 wires), separate warehouse recommendations and read-only standard-reference alternatives.
 
 ## 10. Backup/restore verification levels
 
@@ -195,7 +207,7 @@ UI must not hide server errors, invent authoritative totals, imply physical moti
 NOT VERIFIED       result unavailable/not run
 FAILED             named gate ran and failed
 SUCCESS / GREEN    named workflow/test completed successfully
-USER CONFIRMED     user explicitly verified real-device behavior
+USER CONFIRMED     user explicitly confirmed visible workflow/hardware state
 APPROVED           architecture/contract decision accepted
 ```
 
@@ -205,14 +217,33 @@ Current authoritative project status is selected by:
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-Older release checkpoint 38 and earlier numbered checkpoints are historical evidence, not the current active-work baseline.
+Older numbered checkpoints are historical evidence, not the current active-work baseline.
 
 If production firmware/web behavior changes, the affected scope becomes a new candidate until relevant automated and hardware gates pass.
 
-## 13. Before saying "done"
+## 13. Post-audit cleanup verification
+
+Cleanup starts only after the full audit and final cross-layer recheck.
+
+Before deleting/merging a candidate, prove:
+
+```text
+C++ include/call-site ownership
+PlatformIO build_src_filter impact
+workflow and test references
+static web/script injection and imports
+runtime microSD/data-path compatibility
+migration/history requirements
+AI/docs routing references
+```
+
+Classify each candidate DELETE/MERGE/KEEP/REVIEW. After cleanup, run every applicable gate for the files actually removed/merged and compare the resulting tree against the pre-cleanup inventory.
+
+## 14. Before saying "done"
 
 ```text
 [ ] current target files fetched before edit
@@ -226,4 +257,5 @@ If production firmware/web behavior changes, the affected scope becomes a new ca
 [ ] hardware regression passed if required
 [ ] AI docs updated if topology/contract location changed
 [ ] old historical checkpoint was not accidentally treated as active work
+[ ] cleanup deletion was dependency-proven if this was cleanup work
 ```

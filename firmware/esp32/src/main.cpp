@@ -468,6 +468,8 @@ void handleEvent(const CM::RemoteWindingEvent& event)
             receiver.sendNack(event.runId, "STATE_WRITE_FAILED");
             return;
         }
+        lastJobResult = CM::JobDeliveryResult::Accepted;
+        receiver.clearRecoveryJobId(activeJobId);
         activeSessionId = event.sessionId;
         lastRunId = event.runId;
         if (event.type == CM::RemoteEventType::RunCompleted)

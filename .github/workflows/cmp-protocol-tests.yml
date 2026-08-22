@@ -74,6 +74,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_restore_mutation_interlock.js
 
+      - name: Audit job state atomic replacement contracts
+        if: always()
+        run: node Tests/Web/check_job_state_atomic_replace.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

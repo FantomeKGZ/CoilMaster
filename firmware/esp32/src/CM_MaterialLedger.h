@@ -134,6 +134,7 @@ private:
     bool ensureDirectories();
     bool recoverMaterialFileSwap();
     bool replaceMaterialsFileFromTemp();
+    bool validateMaterialsFile(const char* path) const;
     bool recoverPendingUsage();
     bool recoverPendingAdjustment();
     bool writePendingUsage(uint32_t usageId,

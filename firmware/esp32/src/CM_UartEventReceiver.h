@@ -122,6 +122,14 @@ public:
     bool takeJobCancel(JobCancelEvent& event);
     bool jobCancelPending() const;
     void rememberJobId(uint32_t jobId);
+    void clearRecoveryJobId(uint32_t jobId)
+    {
+        if (jobId != 0UL && m_hasRecoveryJobId && m_recoveryJobId == jobId)
+        {
+            m_recoveryJobId = 0UL;
+            m_hasRecoveryJobId = false;
+        }
+    }
 
     bool requestHallSettings();
     bool setHallSettings(uint16_t threshold,

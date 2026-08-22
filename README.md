@@ -18,8 +18,8 @@ docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/AI_AGENT/
 ```
 
-Старые numbered checkpoints в `docs/PROJECT_HANDOFF/` и capitalized `Docs/`
-являются историческим evidence, а не активной очередью разработки.
+Старые numbered checkpoints в `docs/PROJECT_HANDOFF/` являются историческим
+evidence, а не активной очередью разработки.
 
 ## Текущая фаза
 
@@ -58,7 +58,9 @@ firmware/esp32/src/CM_UartEventReceiver.*
 Shared/CMP1Text/CM_Cmp1Crc.h
 ```
 
-`Shared/Protocol/` — ранний binary host-test protocol, не production wire layer.
+`Shared/Protocol/` — binary host-test protocol, не production wire layer. Его
+назначение и формат теперь документированы рядом с кодом в
+`Shared/Protocol/README.md`.
 
 ## Material/writeoff semantics
 
@@ -85,10 +87,9 @@ firmware/arduino/src/       production Arduino entrypoint
 firmware/esp32/src/         production ESP32 firmware
 firmware/esp32/web/         desktop/mobile/shared web assets
 Shared/CMP1Text/            production shared CMP1 CRC
-Shared/Protocol/            binary host-test protocol
+Shared/Protocol/            binary host-test protocol + local README
 Tests/                      protocol + web/safety regression tests
 docs/AI_AGENT/              AI maintenance/navigation documentation
 docs/PROJECT_HANDOFF/       current state + historical checkpoints
 docs/HARDWARE_REFERENCE/    hardware operator references
-Docs/                       legacy foundation documentation under cleanup review
 ```

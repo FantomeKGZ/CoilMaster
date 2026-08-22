@@ -166,8 +166,6 @@ void WarehouseWeb::handleConfirmWriteOff()
     uint32_t before = 0UL;
     uint32_t after = 0UL;
     uint32_t consumedGrams = 0UL;
-    uint32_t diameter = 0UL;
-    String wireType;
 
     if (!parseUnsignedArg(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
     {
@@ -185,28 +183,11 @@ void WarehouseWeb::handleConfirmWriteOff()
                           "{\"error\":\"invalid_quantity_kg\",\"write_performed\":false}");
             return;
         }
-        if (m_server.hasArg("spool_id") && m_server.arg("spool_id").length() > 0U &&
-            !parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId))
+        if (!parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId))
         {
             m_server.send(400, "application/json; charset=utf-8",
-                          "{\"error\":\"invalid_spool_id\",\"write_performed\":false}");
+                          "{\"error\":\"spool_id_required_for_kg_first\",\"write_performed\":false}");
             return;
-        }
-        if (spoolId == 0UL)
-        {
-            if (!parseUnsignedArg(m_server, "diameter_hundredths_mm", 1UL, 0xFFFFUL, diameter))
-            {
-                m_server.send(400, "application/json; charset=utf-8",
-                              "{\"error\":\"diameter_required_for_unallocated\",\"write_performed\":false}");
-                return;
-            }
-            wireType = m_server.arg("wire_type");
-            if (wireType != "CU" && wireType != "AL")
-            {
-                m_server.send(400, "application/json; charset=utf-8",
-                              "{\"error\":\"wire_type_required_for_unallocated\",\"write_performed\":false}");
-                return;
-            }
         }
     }
     else if (!parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId) ||
@@ -317,7 +298,7 @@ void WarehouseWeb::handleConfirmWriteOff()
                       "{\"error\":\"source_session_spool_selection_not_found\",\"write_performed\":false}");
         return;
     }
-    if (selection.repairId != repairId || (spoolId != 0UL && selection.spoolId != spoolId))
+    if (selection.repairId != repairId || selection.spoolId != spoolId)
     {
         m_server.send(409, "application/json; charset=utf-8",
                       "{\"error\":\"source_session_spool_mismatch\",\"write_performed\":false}");
@@ -379,9 +360,7 @@ void WarehouseWeb::handleConfirmWriteOff()
         operation.repairId = repairId;
         operation.sourceSessionId = sourceSessionId;
         operation.sourceRunId = sourceRunId;
-        operation.diameterHundredthsMm = static_cast<uint16_t>(diameter);
         operation.consumedGrams = consumedGrams;
-        operation.wireType = wireType;
         operation.timestamp = timestamp;
         operation.comment = m_server.arg("comment");
         if (!m_store.confirmKgFirstWriteOff(operation, result))
@@ -428,9 +407,8 @@ void WarehouseWeb::handleConfirmWriteOff()
     response.reserve(620U);
     response = F("{\"confirmed\":true,\"movement_id\":"); response += result.movementId;
     response += F(",\"writeoff_mode\":\""); response += kgFirst ? F("KG_FIRST") : F("LEGACY_SPOOL"); response += '"';
-    response += F(",\"stock_mode\":\""); response += kgFirst ? (spoolId != 0UL ? F("SPOOL") : F("UNALLOCATED")) : F("SPOOL"); response += '"';
-    response += F(",\"spool_id\":");
-    if (spoolId != 0UL) response += spoolId; else response += F("null");
+    response += F(",\"stock_mode\":\"SPOOL\"");
+    response += F(",\"spool_id\":"); response += spoolId;
     response += F(",\"repair_id\":"); response += repairId;
     response += F(",\"source_session_id\":"); response += sourceSessionId;
     response += F(",\"source_run_id\":"); response += sourceRunId;

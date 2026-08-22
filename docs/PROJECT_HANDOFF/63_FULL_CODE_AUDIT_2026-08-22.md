@@ -31,13 +31,7 @@ Current UART audit implementation checkpoint:
 docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
 ```
 
-Current implementation HEAD recorded there:
-
-```text
-bf3ac8c18a3d8b484eaf755452965b670973f627
-```
-
-Exact current CI for that code block: **NOT VERIFIED**.
+Exact current audit-head CI remains **NOT VERIFIED** until matching workflow runs are inspected.
 
 ## Audit scope
 
@@ -109,23 +103,77 @@ Receiver ordering barriers now force pending JOB/CANCEL control results to be dr
 
 A narrow retry-safe state transition now reconciles only exact `TIMED_OUT + WAITING_DELIVERY + zero-run` with a later CRC-valid `RUN_STARTED` for the same immutable session. No physical action is introduced. RAM status and recovery-only ALL_CLEAR identity are normalized after committed RUN evidence.
 
-Full details and current hardware smoke requirements:
+Full UART details:
 
 ```text
 docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
 ```
 
+### B-001 — P1 — backup activity guard could promote unknown runtime to Safe — FIXED / exact-current verification pending
+
+Before the fix, `BackupActivityGuard::check()` continued into persisted ESP32 job-state validation when `runtimeCheck()` returned `Unavailable`. If no active persisted job was found, the guard could return `Safe` even though transient RAM-only activity such as local Arduino winding/control state was not provable.
+
+Fix:
+
+```text
+5c06538a4781f57a83a1884827b3bc5a3033ef03
+Fail closed when backup runtime state unavailable
+
+6528257227d1d6eec7a8e1d8fe5fab7433f0f577
+Guard unavailable backup runtime fail-closed
+```
+
+Current rule:
+
+```text
+runtime Busy        -> Busy
+runtime Unavailable -> Unavailable
+runtime Safe        -> then persisted state/snapshot/spool identity is also checked
+```
+
+Persisted files are now an additional safety check, never a substitute for live runtime proof.
+
+Regression protection is in `Tests/Web/check_final_acceptance_contracts.js`.
+
+### B-002 — P1 — restore/apply lacks a global production-mutation interlock — OPEN
+
+Concrete cross-layer race:
+
+- restore/apply checks `BackupActivityGuard::check()` when the operator starts the operation;
+- `RemoteBackupWeb::update()` later continues production-file apply/copy/verification across many loop iterations;
+- `webServer.handleClient()` runs before `remoteBackupWeb.update()`;
+- ordinary production mutation endpoints, including new JOB creation and other data writes, do not share an explicit `restore mutation active` lock;
+- apply-loop itself does not re-check full activity before every production-file mutation chunk.
+
+Therefore an HTTP mutation or newly observed physical/local activity can begin after restore start while working data is being replaced.
+
+Do **not** close this with a JOB-only patch. Required fix must be cross-layer and fail-closed:
+
+1. expose one authoritative production-data mutation lock/state for restore apply + rollback;
+2. block normal production mutation endpoints while that lock is active;
+3. re-check runtime activity during apply before continuing production-file mutations;
+4. if runtime ceases to be proven Safe after apply has started, stop forward apply and enter existing rollback path;
+5. keep GET/status/read-only endpoints available;
+6. preserve operator-only APPLY confirmation and no-auto-resume semantics.
+
+This remains the first open P1 in section B.
+
+### B-003 — P2 — network profile API conflates storage failures with client validation — UNDER REVIEW
+
+`CM_NetworkWeb.cpp` currently returns `400` for some `NetworkProfileStore` unavailable/write/remove failures. This makes microSD/storage faults indistinguishable from invalid request data and can cause UI to prompt the operator to edit valid input instead of reporting device/storage failure.
+
+Next step: split request validation from store readiness/write outcomes while preserving the existing profile schema and AP recovery behavior.
+
 ## Current active target
 
-Targeted UART/desync implementation review is complete enough to advance. Do not return to generic JOB cancel/recovery without a concrete regression.
+Continue section B in this order:
 
-Continue with section B:
-
-1. ESP32 runtime/API lifecycle transitions and HTTP/error semantics;
-2. persistence/atomic-write/integrity ownership and partial-failure paths;
-3. network/AP/STA/FTP/RTC/SD fail-closed behavior;
-4. backup/restore/activity guard consistency;
-5. growing-log and duplicate-scan/resource hotspots only where evidence exists.
+1. B-002 global restore/apply production-mutation interlock design/implementation;
+2. B-003 network HTTP/storage error semantics;
+3. persistence/atomic-write/integrity partial-failure paths;
+4. network/AP/STA/FTP/RTC/SD fail-closed behavior;
+5. remaining backup/restore/activity-guard consistency;
+6. resource/NDJSON hotspots only where evidence exists.
 
 Then continue sections C, D, E and final cross-layer recheck.
 
@@ -181,6 +229,9 @@ Phase 9 implementation: COMPLETE (checkpoint 64)
 Arduino findings A-001..A-003: FIXED / exact-current verification pending
 Targeted UART findings A-004..A-007: FIXED / exact-current verification pending
 Targeted UART repo review: COMPLETE -> hardware gate retained
+ESP32 B-001: FIXED / exact-current verification pending
+ESP32 B-002: OPEN P1 / CURRENT HIGH PRIORITY
+ESP32 B-003: UNDER REVIEW P2
 ESP32 runtime/API/persistence/integrity/network/backup audit: IN PROGRESS / CURRENT
 Web audit: PENDING
 Tests/CI audit: PENDING

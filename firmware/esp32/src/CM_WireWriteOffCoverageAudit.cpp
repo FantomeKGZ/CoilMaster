@@ -217,7 +217,12 @@ bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
         if (record.mode == WarehouseWriteOffMode::LegacySpool)
         {
             if (!record.hasSpoolId || record.spoolId != target.spoolId) return false;
-            matches = !record.hasSourceRunId || record.sourceRunId == target.runId;
+            // Historic session-level CONFIRMED records remain readable, but
+            // they cannot prove which physical run consumed the material. Do
+            // not let one ambiguous legacy record cover every run in a repeat
+            // session; finalization must remain tied to exact source_run_id.
+            if (!record.hasSourceRunId) return false;
+            matches = record.sourceRunId == target.runId;
         }
         else
         {

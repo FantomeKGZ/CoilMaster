@@ -74,7 +74,23 @@ No obsolete caller/test was removed merely to make CI pass; the production opera
 - `CM_WarehousePrice.cpp` — **KEEP**. It owns fail-closed warehouse price lookup.
 - `CM_MaterialLedgerRepairReference.cpp` — **KEEP**. Material usage mutation validates the exact repair before writeoff.
 - `CM_JobSpoolSelectionLookup.cpp` — **KEEP**. `WarehouseStore::confirmSpoolWriteOff()` and `confirmKgFirstWriteOff()` use `JobSpoolSelectionStore::loadReadOnly()` as exact source-session / repair / spool provenance gate before manual writeoff.
-- `CM_WarehouseWriteOffLookup.cpp` — **KEEP** as a file because exact-run `confirmedWriteOffForSourceRun()` is an active duplicate-protection gate. The older session-only lookup remains **REVIEW** until complete caller proof is available; an empty GitHub code search is not sufficient evidence for deletion.
+- `CM_WarehouseWriteOffLookup.cpp` — **KEEP** as the owner of exact-run duplicate protection through `confirmedWriteOffForSourceRun()`.
+- obsolete `confirmedWriteOffForSourceSession()` — **DELETE completed** after full owner/API/test proof. Current write paths require exact `source_session_id + source_run_id`; `CM_WarehouseWriteOff.cpp` and `CM_WarehouseWriteOffWeb.cpp` use exact-run duplicate checks, reboot recovery parses the durable transaction itself, and `CM_WireWriteOffCoverageAudit` performs separate batched exact-run coverage for finalization. No production compatibility owner requires a session-only duplicate gate.
+
+Exact-run-only cleanup commits:
+
+```text
+f7e75e2da82ca711b0085d38781354321b2b2311
+  Remove obsolete session-only writeoff lookup API
+
+89cdcae838335100fd24367cb45598a8fa0b9763
+  Keep writeoff duplicate lookup exact-run only
+
+42f75126b6c1549c9cd76607f72f28e25bed0bdb
+  Protect exact-run-only writeoff duplicate lookup
+```
+
+`Tests/Web/check_writeoff_fault_contracts.js` now explicitly rejects reintroduction of `confirmedWriteOffForSourceSession()` and requires the public/store lookup to retain both exact source session and exact source run identity.
 
 ## Safety invariants preserved
 
@@ -90,7 +106,7 @@ No obsolete caller/test was removed merely to make CI pass; the production opera
 
 ## Verification state
 
-**GREEN / corrective recovery verified.**
+**GREEN / job-dismiss corrective recovery verified.**
 
 Operator-provided GitHub Actions evidence confirms after restoration:
 
@@ -98,6 +114,8 @@ Operator-provided GitHub Actions evidence confirms after restoration:
 - `dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b` — `CMP Protocol Tests` GREEN;
 - `dfa4c601124dce1ad6728f93358ccdeb0e2946d3` — `CMP Protocol Tests` GREEN.
 
-Therefore the failed runs listed above are retained only as regression history. The restored terminal-only dismiss owner is the current accepted production state.
+Therefore the failed dismiss-removal runs listed above are retained only as regression history. The restored terminal-only dismiss owner is the accepted production state.
 
-Cleanup rule reinforced by this incident: before deleting recovery/job-state APIs, verify not only direct C++ search results but also HTTP endpoint registration/inline lambdas and static regression-contract consumers. Empty indexed search is never sufficient proof.
+**Exact-run-only writeoff lookup cleanup is not yet recorded GREEN.** Fresh `ESP32 Build` + `CMP Protocol Tests` are required for the chain beginning at `f7e75e2d...` through `42f75126...` before its verification state is closed.
+
+Cleanup rule reinforced by the dismiss incident: before deleting recovery/job-state APIs, verify not only direct C++ search results but also HTTP endpoint registration/inline lambdas and static regression-contract consumers. Empty indexed search is never sufficient proof.

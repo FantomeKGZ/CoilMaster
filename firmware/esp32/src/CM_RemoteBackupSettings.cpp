@@ -351,14 +351,23 @@ bool RemoteBackupSettingsStore::recoverFileSwap()
     const bool tempValid = tempExists && loadFromPath(TempPath, tempSettings);
     const bool backupValid = backupExists && loadFromPath(BackupPath, backupSettings);
     if (mainExists && !m_storage.remove(SettingsPath)) return false;
-    if (tempValid)
+
+    // Backup is the last committed configuration. If both a verified temp and
+    // backup exist after the main file disappeared, power may have failed after
+    // SettingsPath -> BackupPath but before TempPath -> SettingsPath. Restoring
+    // temp in that state would silently commit credentials/schedule that save()
+    // never completed. Prefer committed backup and discard prepared temp.
+    if (backupExists)
     {
-        if (!m_storage.rename(TempPath, SettingsPath)) return false;
-        if (backupExists && !m_storage.remove(BackupPath)) return false;
-        return true;
+        if (!backupValid) return false;
+        if (tempExists && !m_storage.remove(TempPath)) return false;
+        return m_storage.rename(BackupPath, SettingsPath);
     }
+
+    // With no backup there is no previous committed settings file, so a fully
+    // verified temp is an interrupted first write and can be promoted safely.
+    if (tempValid) return m_storage.rename(TempPath, SettingsPath);
     if (tempExists && !m_storage.remove(TempPath)) return false;
-    if (backupValid) return m_storage.rename(BackupPath, SettingsPath);
     return false;
 }
 

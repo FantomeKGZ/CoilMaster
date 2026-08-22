@@ -65,6 +65,7 @@ private:
     bool ensureDirectories();
     bool recoverSpoolFileSwap();
     bool replaceSpoolsFileFromTemp();
+    bool validateSpoolsFile(const char* path) const;
     bool recoverPendingWriteOff();
     bool recoverConversionSettingsFileSwap() const;
     bool loadConversionSettingsFromPath(const char* path,ConversionSettings& settings) const;

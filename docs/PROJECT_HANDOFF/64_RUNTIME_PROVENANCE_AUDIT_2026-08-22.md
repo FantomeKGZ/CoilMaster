@@ -137,6 +137,37 @@ e4101b05c1fffea8c9ed22342c5ac746e4c6d1f3
 
 `Tests/Web/check_kg_first_material_contracts.js` now protects the exact-run legacy coverage rule. `RepairFinalizationGuard` already maps coverage integrity failure to `WireWriteOffIntegrityFailed`, so ambiguous evidence blocks finalization instead of being treated as covered.
 
+## Production write-off UI aligned with immutable spool provenance
+
+After the backend provenance fix, the production write-off controller still offered `Без привязки к бухте` as a fallback when the immutable selected spool was no longer ACTIVE. That choice could no longer commit safely and contradicted the current linked-job preparation model.
+
+UI/controller fixes:
+
+```text
+a9960fd7a685b15f250f441f51f8f02ed4ab463d
+  Align writeoff UI with immutable spool provenance
+
+30bb618776ed7e9fedaad11409d20f90cbb7060c
+  Align KG-first UI contract with exact spool
+
+76bee056d989d99bff2c6152b9a486e6a9fdadcb
+  Hide obsolete unallocated writeoff choice
+
+77b107df943dd9f90cb10b25209f7e21da2ee3ed
+  Hide obsolete unallocated writeoff choice
+```
+
+For new production write-offs the controller now:
+
+- loads the exact immutable session selection;
+- requires the same selected spool to still be available as an ACTIVE material spool;
+- always sends that exact `spool_id`;
+- blocks submission if the selected spool is unavailable instead of changing provenance after `RUN_COMPLETED`.
+
+Desktop and mobile static forms now show only the immutable source-session spool mode. Historical `UNALLOCATED` KG_FIRST records remain readable/renderable in history and recovery; this UI change does not rewrite old evidence.
+
+A future real unallocated production workflow, if needed, must be modeled as an immutable material selection **before** the UART boundary. It must not be recreated as a post-run fallback that discards an already selected spool id.
+
 ## Transaction residue policy reviewed
 
 `JobStateStore` deliberately fails closed when `.tmp` or `.bak` transaction residue exists. Its existing regression contract requires authoritative state rotation and commit ordering to remain `target -> backup`, verified temp -> target, committed target verification, then backup cleanup; it explicitly forbids erasing interrupted transaction residue as a shortcut.
@@ -147,6 +178,7 @@ e4101b05c1fffea8c9ed22342c5ac746e4c6d1f3
 
 Continue with:
 
-1. exact run/material costing and closure provenance after the coverage fix;
-2. remaining snapshot/state/selection crash-residue consistency review;
-3. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.
+1. server-side write-off API semantics now that new production unallocated fallback is disabled in UI/store;
+2. exact run/material costing and closure provenance after the coverage fix;
+3. remaining snapshot/state/selection crash-residue consistency review;
+4. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.

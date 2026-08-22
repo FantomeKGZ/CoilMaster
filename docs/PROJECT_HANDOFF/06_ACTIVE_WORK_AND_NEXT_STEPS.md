@@ -120,13 +120,24 @@ PROJECT.manifest
   current source/boundary manifest
 ```
 
-## Current REVIEW candidates
+## DELETE-ready candidate — waiting for fresh CI gate
 
 ```text
 firmware/esp32/src/CM_WarehouseSpoolList.cpp
-  old non-paginated appendActiveSpoolsJson(); current /api/warehouse/spools uses
-  appendActiveSpoolsPageJson(). Do not delete until a direct second call-site check and compile gate.
+WarehouseStore::appendActiveSpoolsJson()
 ```
+
+Dependency audit completed on current `cmp-protocol-v1` state:
+
+- `CM_WarehouseSpoolList.cpp` contains only the old non-paginated `appendActiveSpoolsJson()` implementation;
+- current `/api/warehouse/spools` owner is `CM_WarehouseSpoolWeb.cpp` and calls only `appendActiveSpoolsPageJson()`;
+- the paginated backend is owned by `CM_WarehouseSpoolMaterialList.cpp` and remains KEEP;
+- `platformio.ini` compiles all `firmware/esp32/src/*.cpp`, so the old file is still compiled even though it has no production runtime caller;
+- `CM_WarehouseStore.h` still contains the obsolete public declaration and must be cleaned in the same deletion batch;
+- no runtime path, persistence format, operator workflow or safety contract depends on the old non-paginated API;
+- empty GitHub code-search alone is not used as deletion proof; the classification is based on direct owner/header/build checks.
+
+Classification: **DELETE-ready**, but deletion remains blocked until a fresh applicable CI result or explicit operator GREEN for the current pre-deletion cleanup batch. When the gate is available, delete the `.cpp`, remove the declaration from `CM_WarehouseStore.h`, add/update regression coverage, then run ESP32 Build + CMP Protocol/Web audits.
 
 ## Calculator — current production contract
 
@@ -144,11 +155,12 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. obtain a fresh GREEN for the current source-deletion/restoration + Web-helper cleanup batch before further uncertain C++ deletion;
-2. continue ESP32/Arduino owner inventory, using direct owner/call-site proof rather than empty code-search results;
-3. check remaining Web assets for direct links/runtime injection and remove only dependency-closed dead assets;
-4. final root/tree/docs reference sweep;
-5. final applicable CI + hardware smoke remains separate.
+1. obtain a fresh GREEN for the current source-deletion/restoration + Web-helper cleanup batch;
+2. immediately remove DELETE-ready `CM_WarehouseSpoolList.cpp` + obsolete `appendActiveSpoolsJson()` declaration and protect the removal with regression coverage;
+3. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+4. check remaining Web assets for direct links/runtime injection and remove only dependency-closed dead assets;
+5. final root/tree/docs reference sweep;
+6. final applicable CI + hardware smoke remains separate.
 
 ## External hardware verification gate
 

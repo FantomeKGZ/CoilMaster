@@ -7,7 +7,7 @@ on:
       - cmp-protocol-v1
   pull_request:
     paths:
-      - "Shared/Protocol/**"
+      - "Shared/**"
       - "Tests/Protocol/**"
       - "Tests/Web/**"
       - "Arduino/**"

@@ -127,6 +127,40 @@ bool parseCanonicalUint32Value(const String& source, uint32_t& value)
     return true;
 }
 
+String jsonEscaped(const String& value)
+{
+    static const char Hex[] = "0123456789abcdef";
+    String result;
+    result.reserve(value.length() + 8U);
+    for (size_t index = 0U; index < value.length(); ++index)
+    {
+        const uint8_t byte = static_cast<uint8_t>(value[index]);
+        switch (byte)
+        {
+            case '"': result += F("\\\""); break;
+            case '\\': result += F("\\\\"); break;
+            case '\b': result += F("\\b"); break;
+            case '\f': result += F("\\f"); break;
+            case '\n': result += F("\\n"); break;
+            case '\r': result += F("\\r"); break;
+            case '\t': result += F("\\t"); break;
+            default:
+                if (byte < 0x20U)
+                {
+                    result += F("\\u00");
+                    result += Hex[(byte >> 4U) & 0x0FU];
+                    result += Hex[byte & 0x0FU];
+                }
+                else
+                {
+                    result += static_cast<char>(byte);
+                }
+                break;
+        }
+    }
+    return result;
+}
+
 const char* wifiModeName(wifi_mode_t mode)
 {
     switch (mode)
@@ -243,9 +277,9 @@ void StaticSiteServer::begin(const char* webRoot)
         String response = F("{\"mode\":\"");
         response += wifiModeName(mode);
         response += F("\",\"network_state\":\"");
-        response += m_networkManager.stateName();
+        response += jsonEscaped(m_networkManager.stateName());
         response += F("\",\"network_last_result\":\"");
-        response += m_networkManager.lastResult();
+        response += jsonEscaped(m_networkManager.lastResult());
         response += F("\",\"active_profile_id\":");
         if (m_networkManager.activeProfileId() != 0U)
             response += m_networkManager.activeProfileId();
@@ -255,13 +289,13 @@ void StaticSiteServer::begin(const char* webRoot)
         response += F(",\"ap_active\":");
         response += (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) ? F("true") : F("false");
         response += F(",\"ap_ssid\":\"");
-        response += WiFi.softAPSSID();
+        response += jsonEscaped(WiFi.softAPSSID());
         response += F("\",\"ap_ip\":\"");
         response += WiFi.softAPIP().toString();
         response += F("\",\"sta_connected\":");
         response += WiFi.status() == WL_CONNECTED ? F("true") : F("false");
         response += F(",\"sta_ssid\":\"");
-        if (WiFi.status() == WL_CONNECTED) response += WiFi.SSID();
+        if (WiFi.status() == WL_CONNECTED) response += jsonEscaped(WiFi.SSID());
         response += F("\",\"sta_ip\":\"");
         if (WiFi.status() == WL_CONNECTED) response += WiFi.localIP().toString();
         response += F("\",\"sta_rssi\":");
@@ -275,9 +309,9 @@ void StaticSiteServer::begin(const char* webRoot)
         response += F(",\"mdns_supported\":true,\"mdns_active\":");
         response += m_mdnsActive ? F("true") : F("false");
         response += F(",\"local_hostname\":\"");
-        response += m_localHostname;
+        response += jsonEscaped(m_localHostname);
         response += F("\",\"local_url\":\"http://");
-        response += m_localHostname;
+        response += jsonEscaped(m_localHostname);
         response += F("/\"");
         response += F("}");
         m_server.send(200, "application/json; charset=utf-8", response);

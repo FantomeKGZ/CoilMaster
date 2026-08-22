@@ -7,17 +7,17 @@
 
 ## Verification baseline
 
-Последний явно подтверждённый пользователем GREEN state:
+Последний явно подтверждённый пользователем GREEN state перед текущим cleanup batch:
 
 ```text
-51ea46c1823a451e7f80ecd188daf896aafc752d
-Fix production conductor cleanup contract
+a29e2ab9639181550ba2beccf812320a552eb8c8
+Remove superseded CMP core dependency package
 USER CONFIRMED GREEN
 ```
 
-Run `32561236301` относится к старому SHA `68446e95...` и имел единственную ошибку: production conductor regression-test пытался открыть уже удалённый legacy `CM_ConductorSettings.h`. Это исправлено в `51ea46c1...`; новый run после исправления пользователь подтвердил GREEN.
+Commits после `a29e2ab9...` не считаются GREEN автоматически и требуют нового exact workflow result или явного подтверждения пользователя.
 
-Любые commits после `51ea46c1...` требуют нового подтверждения или exact workflow result. Старый красный run не является текущей регрессией.
+Старый run `32561236301` полностью разобран: единственной ошибкой был regression-test, который пытался открыть уже удалённый legacy `CM_ConductorSettings.h`; второй скрытой ошибки не было. Исправление — `51ea46c1823a451e7f80ecd188daf896aafc752d`, после него пользователь подтвердил GREEN.
 
 ## Full-code audit status
 
@@ -33,28 +33,7 @@ E docs/AI routing consistency                            COMPLETE
 
 Authoritative detail: `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`.
 
-## Закрытые findings — не возвращать без concrete regression
-
-```text
-A-001..A-007 JOB/UART admission/parser/correlation/recovery/ordering
-B-001 backup runtime Unavailable -> fail closed
-B-002 global restore/apply production-mutation interlock
-B-003 network API HTTP/storage semantics
-B-004 recoverable JobStateStore atomic replacement
-B-005 provenance-safe linked JOB preparation transaction
-B-006 committed-first NetworkProfileStore recovery
-B-007 committed-first RemoteBackupSettingsStore recovery
-B-009 production /data/settings/conductor.json atomic transaction
-B-010 verified warehouse spool swap / rollback
-B-011 verified material ledger swap / rollback
-C-001 strict network JSON string escaping
-```
-
-Legacy B-008 `CM_ConductorSettingsStore` implementation has now been removed during cleanup; production settings remain owned by `WarehouseStore` through `/data/settings/conductor.json`.
-
 ## Current active phase — controlled cleanup
-
-Full audit is complete. Active work is repository cleanup/de-duplication with dependency proof before deletion:
 
 ```text
 DELETE  proven unused and unreferenced by production/build/tests/docs/runtime
@@ -63,57 +42,109 @@ KEEP    active production/build/test/docs/history/operator dependency
 REVIEW  uncertain dependency; do not delete
 ```
 
-### Cleanup completed after audit
+Не удалять файл только из-за имени `Legacy`: migration/recovery compatibility может быть active production contract.
 
-Removed:
+## Cleanup completed
+
+Удалены доказанные legacy/generated/duplicate artifacts:
 
 ```text
-firmware/esp32/src/CM_ConductorSettings.cpp
-firmware/esp32/src/CM_ConductorSettings.h
-Tests/Web/check_conductor_settings_atomic_recovery.js
-its obsolete CMP Protocol Tests workflow step
-.github/workflows/README.md
-.github/ISSUE_TEMPLATE/README.md
-LICENSE                              empty placeholder
-CONTINUE_CMP_PROTOCOL_V1.md          stale checkpoint-61 continuation entrypoint
+legacy CM_ConductorSettings.* implementation + obsolete source-contract
+empty .github placeholder README files
+empty LICENSE placeholder
+CONTINUE_CMP_PROTOCOL_V1.md
+REGISTER.md
+CHANGELOG.md
+TASKBOOK.md
+BUILD_INFO.md
+old root ARCHITECTURE.md after merge into docs/01_SYSTEM_ARCHITECTURE.md
+capitalized Docs/ legacy documentation
+tracked generated build/ output; build/ added to .gitignore
+old Arduino CM_Buzzer.* and CM_BuzzerController.*
+old Arduino CM_StartButton.*
+Engineering/ legacy documentation layer
+Tests/README.md Build-002A documentation artifact
+old untyped warehouse wire catalogue API/CM_WarehouseWireCatalogue.cpp
 ```
 
-Production conductor regression-test was updated after the legacy source deletion so it checks the authoritative owner and asserts that legacy source files do not return.
+Полезная binary host-test CMP документация из старого `Docs/` сохранена рядом с owner в `Shared/Protocol/README.md`.
 
-Root `README.md` and `AGENTS.md` have been rerouted from stale audit/checkpoint instructions into the cleanup phase.
+`data/motor_catalog/` проверен: это реальный reference catalogue, не runtime мусор — KEEP.
 
-### Current cleanup candidates
+`scripts/` и `tools/` проверены: build-id generator и motor-reference build/check utilities активны — KEEP.
+
+## Cleanup correction — active legacy spool migration KEEP
+
+Во время source cleanup `CM_WarehouseLegacySpoolMaterial.cpp` был ошибочно классифицирован как unused из-за ненадёжного GitHub code index. Прямой owner-check показал, что `CM_WarehouseSpoolWeb.cpp` регистрирует:
+
+```text
+POST /api/warehouse/spools/material
+```
+
+и вызывает `WarehouseStore::assignLegacySpoolMaterial()` для безопасного назначения `CU/AL` старой ACTIVE катушке без `wire_type`.
+
+Поэтому API и implementation восстановлены из exact previous blob:
+
+```text
+d334dcc09c96afdee707b94ffe52611069be0ec3  restore public API
+75a34f1c23c30fdf0606b9577ea6eec549bcf210  restore implementation
+```
+
+Classification: **KEEP**. В дальнейшем пустой GitHub code-search не считать достаточным доказательством отсутствия call-site.
+
+## Confirmed KEEP source clusters
+
+```text
+CM_WarehouseMaterialCatalogue.cpp
+  material-specific CU/AL catalogue used by ConductorCalculatorWeb
+
+CM_WarehouseSpoolMaterialList.cpp
+  paginated material-filtered /api/warehouse/spools backend
+
+CM_MaterialHistory.cpp + CM_MaterialUsageHistory.cpp
+  separate active adjustments and usage journals
+
+CM_JobDisplayRecovery.*
+  active immutable-snapshot display recovery; no UART/SSR side effects
+
+PROJECT.manifest
+  current source/boundary manifest
+```
+
+## Current REVIEW candidates
 
 ```text
 firmware/esp32/web/shared/calculator-multisource.js
-  proven runtime-dead with the new single-line sourceWires UI,
-  but CM_StaticSiteServer still injects it; remove injection and asset together.
+  old helper is runtime-dead for new sourceWires UI, but CM_StaticSiteServer still injects it;
+  remove injection + asset together only.
 
-Docs/
-  capitalized legacy foundation documentation; classify file-by-file before deletion.
-
-BUILD_INFO.md
-  useful build reference but partially overlaps current handoff; REVIEW.
-
-PROJECT.manifest
-  current source/boundary manifest; KEEP.
+firmware/esp32/src/CM_WarehouseSpoolList.cpp
+  old non-paginated appendActiveSpoolsJson(); current /api/warehouse/spools uses
+  appendActiveSpoolsPageJson(). Do not delete until a direct second call-site check and compile gate.
 ```
-
-Do not delete by filename resemblance alone. Capitalized `Docs/`, `Shared/Protocol/`, `Arduino/`, `Core/` and other older-looking directories may still be build/test/history dependencies.
 
 ## Calculator — current production contract
 
 ```text
 source input: one line, up to 5 wires, e.g. 0,51;0,71;0,95
-warehouse recommendations: based on current warehouse catalogue
+warehouse recommendations: current warehouse catalogue
 standard recommendations: read-only IEC 60317 R20 project catalogue
 ```
 
-Current diameter model is `diameterHundredthsMm` (0.01 mm precision). The IEC R20 reference is adapted to this precision; moving to 0.001 mm requires an explicit data/model migration.
+Current diameter model is `diameterHundredthsMm` (0.01 mm precision). IEC R20 values are adapted to this precision; moving to 0.001 mm requires an explicit data/model migration.
 
 ## Persistence resilience item that is NOT cleanup
 
-Direct append tail resilience for new spool/material catalogue records remains a non-blocking P2 design item. Do not auto-truncate malformed/torn production NDJSON and do not treat it as cleanup; automatic deletion of production evidence is forbidden.
+Direct append tail resilience for new spool/material catalogue records remains a non-blocking P2 design item. Do not auto-truncate malformed/torn production NDJSON; automatic deletion of production evidence is forbidden.
+
+## Next cleanup sequence
+
+1. obtain a fresh GREEN for the current source-deletion/restoration batch before further uncertain C++ deletion;
+2. remove dead `calculator-multisource.js` injection + asset as one dependency-closed change when a safe exact-file edit path is available;
+3. continue ESP32/Arduino owner inventory, using direct owner/call-site proof rather than empty code-search results;
+4. check remaining Web assets for direct links/runtime injection and remove only dependency-closed dead assets;
+5. final root/tree/docs reference sweep;
+6. final applicable CI + hardware smoke remains separate.
 
 ## External hardware verification gate
 
@@ -150,14 +181,6 @@ Never change during cleanup:
 - exact spool provenance when spool is used;
 - backup/restore explicit, operator-only, transactional/fail-closed;
 - no automatic production-data deletion.
-
-## Next cleanup sequence
-
-1. remove dead `calculator-multisource.js` injection + asset as one dependency-closed change;
-2. classify `Docs/` against current lowercase `docs/` and references; delete only proven superseded files;
-3. audit root transition files (`BUILD_INFO.md`, `REGISTER.md`, `CHANGELOG.md`, `ARCHITECTURE.md`) for duplication/current references;
-4. scan remaining source/test files for owners compiled but never instantiated or tests no longer wired to CI;
-5. after each meaningful deletion batch, run applicable CI; do not continue a broad destructive batch through a new red result.
 
 ## Read order
 

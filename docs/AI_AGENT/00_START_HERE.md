@@ -4,28 +4,30 @@ Purpose: let a new AI/coding agent understand the current project without scanni
 
 ## 1. Current status
 
-Authoritative current active documents:
+Authoritative current transition/active documents:
 
 ```text
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
 
-Latest operator-confirmed green baseline recorded by the active handoff:
+Latest operator-confirmed GREEN implementation baseline:
 
 ```text
-a29e2ab9639181550ba2beccf812320a552eb8c8
-Remove superseded CMP core dependency package
+e16a7daeae8962e4eb6b457661970f873faf8a87
+Align final acceptance exact spool contract
 USER CONFIRMED GREEN
 ```
 
-Commits after that SHA require their own workflow result or a later explicit operator confirmation. Older verified workflow run IDs remain historical evidence, not the current implementation baseline.
+Documentation-only commits after that SHA do not create a new firmware GREEN baseline. Later implementation changes require their own workflow result or later explicit operator confirmation.
 
-The targeted ESP32<->Arduino hardware smoke remains an external verification gate for when the physical stand is available. It is not inferred from CI.
+The targeted ESP32<->Arduino hardware smoke remains a separate external verification gate for when the physical stand is needed. It is not inferred from CI and is not counted as software cleanup debt.
 
-The full `cmp-protocol-v1` audit sections A..E are complete. The current software phase is controlled repository cleanup/de-duplication. Confirmed defects are fixed as they are found; completed historical features are not reopened merely because cleanup is in progress.
+The full `cmp-protocol-v1` audit sections A..E are complete. The current software phase is the final controlled repository cleanup/zero-debt sweep. The active handoff estimates that cleanup at about 92% complete; use `06_ACTIVE_WORK_AND_NEXT_STEPS.md` for the current remaining queue rather than copying the percentage forward blindly after new changes.
 
-Cleanup/de-duplication is allowed only after direct dependency proof. Every candidate must be classified `DELETE`, `MERGE`, `KEEP` or `REVIEW`; uncertain dependencies stay in place. The active cleanup queue and gates live in `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Cleanup/de-duplication is allowed only after direct dependency proof. Every candidate must be classified `DELETE`, `MERGE`, `KEEP` or `REVIEW`; uncertain dependencies stay in place.
 
 ## 2. Source precedence
 
@@ -34,11 +36,13 @@ When information conflicts, use this order:
 1. current code in `cmp-protocol-v1`;
 2. actual build/test/hardware result;
 3. `docs/PROJECT_HANDOFF/00_READ_FIRST.md`;
-4. `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`;
+4. `docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md`;
 5. `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`;
-6. `docs/AI_AGENT/` navigation docs;
-7. thematic docs;
-8. older numbered handoff checkpoints.
+6. relevant current thematic checkpoint such as `64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md`;
+7. `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`;
+8. `docs/AI_AGENT/` navigation docs;
+9. thematic docs;
+10. older numbered handoff checkpoints.
 
 `main` is not an implementation source.
 
@@ -60,15 +64,15 @@ When information conflicts, use this order:
 
 Production flow:
 client -> motor -> OPEN repair -> costing -> linked winding
--> immutable job snapshot/material selection -> UART
+-> immutable job snapshot + exact spool selection -> UART
 -> physical START -> RUN_STARTED/RUN_COMPLETED
--> manual exact-run material writeoff
+-> manual exact-run exact-spool material writeoff
 -> finalization -> CLOSED -> reports -> backup
 ```
 
 The ESP32 may prepare/deliver a job, but it does not physically start the machine and does not directly own SSR.
 
-For new KG-first material consumption, exact `source_session_id + source_run_id` provenance is mandatory. `spool_id` may be absent only in the approved unallocated/manual KG-first path; exact spool provenance remains mandatory whenever a spool is used.
+For current linked production KG-first consumption, exact `source_session_id + source_run_id + immutable spool_id` provenance is mandatory. Historical `UNALLOCATED` KG_FIRST records remain readable/auditable/recoverable as compatibility evidence only; they do not permit a new linked production writeoff to omit an already selected spool. If a true unallocated production workflow is ever required, its material provenance must become immutable before the UART boundary.
 
 ## 4. Where to go next
 
@@ -84,11 +88,11 @@ Open `03_ADD_MODULE_PLAYBOOK.md`.
 ### Need build/test/hardware routing?
 Open `04_VERIFICATION_MATRIX.md`.
 
-### Need active work?
+### Need active work / continuation in a new chat?
 Open:
 
 ```text
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
@@ -148,7 +152,7 @@ The old parallel `CM_ConductorSettings.*` persistence implementation has already
 
 ## 6. Current work order
 
-The repo-level audit is complete. Continue controlled cleanup unless a concrete higher-severity defect redirects the work:
+The repo-level audit is complete. Continue the final controlled cleanup unless a concrete higher-severity defect redirects the work:
 
 ```text
 A. Arduino safety/realtime/UART/resources                  COMPLETE
@@ -156,8 +160,8 @@ B. ESP32 runtime/API/persistence/integrity/network/backup COMPLETE
 C. desktop/mobile/shared Web parity/error/security        COMPLETE
 D. tests/CI/build filters/path triggers                   COMPLETE
 E. docs/AI routing consistency                            COMPLETE
-F. controlled cleanup/de-duplication                      ACTIVE
-G. final applicable CI + separate hardware smoke          PENDING
+F. controlled cleanup/de-duplication                      ACTIVE (~92% at current handoff)
+G. separate final hardware smoke when source-level work requires it
 ```
 
 Severity:
@@ -174,7 +178,7 @@ Do not manufacture findings from style preferences or speculative redesigns.
 ## 7. Change procedure
 
 1. Confirm branch `cmp-protocol-v1` and current HEAD.
-2. Read `00_READ_FIRST.md` + checkpoint 63 + active queue 06.
+2. Read `00_READ_FIRST.md` + handoff 67 + active queue 06.
 3. Use `02_CHANGE_ROUTER.md` to find the smallest relevant file set.
 4. Fetch every existing target file immediately before editing and keep its current blob SHA.
 5. Inspect owner + contract + persistence + UI/API + tests before changing behavior.
@@ -182,7 +186,7 @@ Do not manufacture findings from style preferences or speculative redesigns.
 7. Add/update tests that protect the changed contract.
 8. Run the relevant verification from `04_VERIFICATION_MATRIX.md`.
 9. Update AI map/router only if topology/ownership/contract location changed.
-10. Update current handoff state when project status materially changed.
+10. Keep `06_ACTIVE_WORK_AND_NEXT_STEPS.md` and `67_NEXT_CHAT_HANDOFF_2026-08-22.md` synchronized when status materially changes.
 
 For cleanup, never delete merely because a file looks old. First prove includes/imports, PlatformIO ownership, workflow/test references, runtime file paths, web injection/references and docs/AI routing. Classify each candidate DELETE/MERGE/KEEP/REVIEW. Empty GitHub code search is supporting evidence only, never sufficient proof by itself.
 
@@ -196,13 +200,14 @@ Do not implement convenience shortcuts that create:
 - automatic resume after reboot;
 - automatic material deduction from `RUN_COMPLETED`;
 - material writeoff without exact source session/run provenance;
-- loss of exact spool provenance when a spool is used;
+- loss or omission of the immutable exact spool provenance for a current linked production run;
+- post-run downgrade of an exact-spool session into `UNALLOCATED`;
 - automatic restore/apply after reboot;
 - bypass of persisted restore stale evidence;
-- automatic deletion of production data when storage fills.
+- automatic deletion/truncation of production data when storage fills.
 
 These are safety contracts, not implementation details.
 
 ## 9. External hardware gate
 
-When hardware is available, perform the targeted two-board smoke defined by checkpoint 63/65. Hardware GREEN must never be inferred from CI.
+When hardware is needed, perform the targeted two-board smoke defined by the active handoff/checkpoints. Hardware GREEN must never be inferred from CI. Do not request broad runtime logs while the remaining issue can still be resolved from source/tree evidence.

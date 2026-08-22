@@ -228,7 +228,7 @@ for (const text of [
 }
 
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
-  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'Без привязки к бухте', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
+  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
     requireText(relative, source, text, 'kg-first writeoff UI missing: ' + text);
   }
   for (const forbidden of ['id="before"', 'id="after"', 'Вес до работы', 'Вес после работы']) {
@@ -240,15 +240,24 @@ for (const text of [
   "quantity_kg:quantity.kg",
   "source_session_id:sourceSessionId",
   "source_run_id:sourceRunId",
+  "if(!activeSpool)throw new Error('immutable_spool_not_active')",
+  "String(activeSpool.spool_id)!==String(selection.spool_id)",
   "body.set('spool_id',String(activeSpool.spool_id))",
-  "body.set('diameter_hundredths_mm',String(d))",
-  "body.set('wire_type',wire)",
   "item.spool_id===null||item.spool_id===undefined?'без бухты'",
   "item.writeoff_mode==='KG_FIRST'",
   "event.event!=='RUN_COMPLETED'",
-  "found.material_class==='CU'||found.material_class==='AL'"
+  "found.material_class==='CU'||found.material_class==='AL'",
+  "менять provenance после RUN_COMPLETED нельзя"
 ]) {
   requireText(controllerPath, controller, text, 'kg-first UI controller contract missing: ' + text);
+}
+for (const forbidden of [
+  "body.set('diameter_hundredths_mm'",
+  "body.set('wire_type'",
+  'Используйте списание без привязки',
+  '<option value="UNALLOCATED">'
+]) {
+  if (controller.includes(forbidden)) failures.push(controllerPath + ': production UI must not downgrade immutable spool provenance: ' + forbidden);
 }
 
 for (const forbidden of ['automaticWriteOff(', 'autoWriteOff(', 'writeOffOnRunCompleted(']) {
@@ -262,4 +271,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization with exact-run legacy handling, desktop/mobile manual UI, exact source-run and immutable-spool provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization with exact-run legacy handling, manual immutable-spool production UI with historical unallocated rendering, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');

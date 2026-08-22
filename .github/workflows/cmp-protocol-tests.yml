@@ -46,6 +46,10 @@ jobs:
         if: always()
         run: node Tests/Protocol/check_arduino_entrypoint_cleanup.js
 
+      - name: Audit Arduino LCD layout contracts
+        if: always()
+        run: node Tests/Protocol/check_arduino_lcd_contracts.js
+
       - name: Audit web JavaScript and navigation
         if: always()
         run: node Tests/Web/check_web_assets.js

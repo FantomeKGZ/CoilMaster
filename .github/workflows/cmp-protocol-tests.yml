@@ -50,6 +50,10 @@ jobs:
         if: always()
         run: node Tests/Protocol/check_arduino_lcd_contracts.js
 
+      - name: Audit late RUN_STARTED recovery contracts
+        if: always()
+        run: node Tests/Protocol/check_job_state_late_run_recovery_contract.js
+
       - name: Audit web JavaScript and navigation
         if: always()
         run: node Tests/Web/check_web_assets.js

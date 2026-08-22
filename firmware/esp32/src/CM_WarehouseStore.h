@@ -60,10 +60,14 @@ private:
     static constexpr const char* PricePath="/data/warehouse/price.ndjson";
     static constexpr const char* RepairsPath="/data/workshop/repairs.ndjson";
     static constexpr const char* ConversionSettingsPath="/data/settings/conductor.json";
+    static constexpr const char* ConversionSettingsTempPath="/data/settings/conductor.tmp";
+    static constexpr const char* ConversionSettingsBackupPath="/data/settings/conductor.bak";
     bool ensureDirectories();
     bool recoverSpoolFileSwap();
     bool replaceSpoolsFileFromTemp();
     bool recoverPendingWriteOff();
+    bool recoverConversionSettingsFileSwap() const;
+    bool loadConversionSettingsFromPath(const char* path,ConversionSettings& settings) const;
     void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
     bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);

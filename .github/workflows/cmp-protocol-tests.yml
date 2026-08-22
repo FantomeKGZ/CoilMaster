@@ -94,6 +94,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_conductor_settings_atomic_recovery.js
 
+      - name: Audit production conductor settings atomic recovery contracts
+        if: always()
+        run: node Tests/Web/check_production_conductor_settings_atomic_recovery.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

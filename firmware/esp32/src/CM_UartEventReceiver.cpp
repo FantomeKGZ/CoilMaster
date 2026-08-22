@@ -348,7 +348,7 @@ bool UartEventReceiver::takeHallCalibrationState(
 bool UartEventReceiver::takeHallCalibrationResult(
     HallCalibrationRemoteResult& result)
 {
-    return m_hardwareControl.takeResult(result);
+    return m_hardwareControl.takeHallCalibrationResult(result);
 }
 
 bool UartEventReceiver::takeHardwareControlReply(HardwareControlReply& reply)

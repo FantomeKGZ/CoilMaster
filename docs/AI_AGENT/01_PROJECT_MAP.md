@@ -8,7 +8,7 @@ This document answers: **what exists, who owns it, where it lives, and where a c
 CoilMaster/
 ├─ Core/                         Arduino realtime/domain state logic
 ├─ Arduino/                      Arduino hardware adapters + CMP1 transport
-│  └─ Config/                    Arduino pins/features/version
+│  └─ Config/                    Arduino pins/features
 ├─ firmware/
 │  ├─ arduino/src/main.cpp       production Arduino composition root
 │  └─ esp32/
@@ -88,7 +88,7 @@ Arduino/CM_DebouncedButton.*
 Arduino/CM_HallTurnSource.*
 Arduino/CM_SsrController.*
 Arduino/CM_Lcd1602View.*
-Arduino/CM_Buzzer*.h/.cpp
+Arduino/CM_BuzzerService.*
 Arduino/CM_UartEventTransport.*
 ```
 
@@ -154,11 +154,11 @@ This owns static `/web` serving and some HTTP helper modules such as winding his
 | UART/job delivery | `CM_UartEventReceiver.*`, `main.cpp` | CMP1 job delivery, ACK/NACK/event handling |
 | Winding journal | `CM_WindingJournal.*`, `CM_WindingJournalQuery*`, `CM_WindingJournalWeb.*` | persisted RUN_STARTED/RUN_COMPLETED history and validation |
 | Job identity/state | `CM_PersistentIdAllocator.*`, `CM_JobSnapshotStore.*`, `CM_JobStateStore.*` | immutable identity/snapshot/state persistence |
-| Exact spool selection | `CM_JobSpoolSelectionStore.*`, `CM_JobSpoolSelectionWeb.*` | exact spool bound to winding session |
+| Exact spool selection | `CM_JobSpoolSelectionStore.*`, `CM_JobSpoolSelectionWeb.*` | exact immutable spool bound to current linked winding session before UART |
 | Job linkage | `CM_JobLinkageRequest.*`, `CM_JobLinkageResolver.*` | repair/motor/spool linkage before winding |
 | Recovery | `CM_JobRecovery.*`, `CM_JobDisplayRecovery.*` | post-reboot state evaluation; no auto-resume |
 | Workshop registry | `CM_RepairRegistry.*`, `CM_RepairRegistryWeb.*`, `CM_MotorSimilarityWeb.*` | clients, motors, repairs, lookup/import/similarity |
-| Warehouse | `CM_Warehouse*.h/.cpp` | wire spools, pricing, movements, exact-run writeoff |
+| Warehouse | `CM_Warehouse*.h/.cpp` | wire spools, pricing, movements, exact-run exact-spool current writeoff; historical unallocated read/recovery compatibility |
 | Materials | `CM_Material*.h/.cpp` | auxiliary materials, usage, adjustments, historical line cost |
 | Costing/pricing | `CM_RepairCosting*.h/.cpp`, `CM_RepairPricing*.h/.cpp` | repair cost/final pricing and persisted historical values |
 | Backup/integrity | `CM_Backup*.h/.cpp`, `CM_RemoteBackup*.h/.cpp`, persistence integrity audit classes | read-only audit, remote backup, staged restore, rollback, transactional apply |

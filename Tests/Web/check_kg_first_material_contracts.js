@@ -83,6 +83,7 @@ for (const text of [
   'bool WarehouseStore::confirmKgFirstWriteOff',
   'WindingSessionCompletionAudit::check',
   'alreadyConfirmed',
+  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
   'operation.consumedGrams >= identity.currentWeightGrams',
   'appendKgFirstWriteOffRecord',
   'writeoff_mode',
@@ -259,4 +260,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization, desktop/mobile manual UI, optional immutable spool, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization, desktop/mobile manual UI, exact source-run and immutable-spool provenance, and no automatic RUN_COMPLETED deduction.');

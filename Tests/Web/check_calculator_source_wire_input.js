@@ -29,6 +29,18 @@ for (const file of files) {
   if (!text.includes('Можно закупить')) fail('non-stock standard option label is missing');
 }
 
+const staticSitePath = 'firmware/esp32/src/CM_StaticSiteServer.cpp';
+const staticSite = fs.readFileSync(staticSitePath, 'utf8');
+const legacyHelperPath = 'firmware/esp32/web/shared/calculator-multisource.js';
+if (staticSite.includes('calculator-multisource.js')) {
+  console.error(`${staticSitePath}: obsolete calculator helper injection must not return`);
+  process.exitCode = 1;
+}
+if (fs.existsSync(legacyHelperPath)) {
+  console.error(`${legacyHelperPath}: obsolete pre-sourceWires helper must remain removed`);
+  process.exitCode = 1;
+}
+
 const apiPath = 'firmware/esp32/src/CM_ConductorCalculatorWeb.cpp';
 const api = fs.readFileSync(apiPath, 'utf8');
 const cataloguePath = 'firmware/esp32/src/CM_StandardWireCatalogue.cpp';
@@ -74,5 +86,5 @@ for (const forbidden of ['SD.', 'FILE_WRITE', 'FILE_APPEND', 'addSpool(', 'setWa
 }
 
 if (!process.exitCode) {
-  console.log('Calculator contracts OK: semicolon source wires, warehouse recommendations, and read-only IEC standard alternatives');
+  console.log('Calculator contracts OK: sourceWires UI, no legacy helper injection, warehouse recommendations, and read-only IEC standard alternatives');
 }

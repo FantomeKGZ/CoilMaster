@@ -111,12 +111,19 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
         {
             m_line[m_length] = '\0';
             bool eventReady = false;
+            bool orderingBarrier = false;
             if (m_length > 0U)
             {
                 if (strncmp(m_line, "CMP1|JOB_ACK|", 13U) == 0)
+                {
                     processJobAck(m_line);
+                    orderingBarrier = true;
+                }
                 else if (strncmp(m_line, "CMP1|JOB_CANCEL_ACK|", 20U) == 0)
+                {
                     processCancelAck(m_line);
+                    orderingBarrier = true;
+                }
                 else if (m_hardwareControl.processLine(m_line, millis()))
                 {
                     // Service frame consumed; never reinterpret it as winding evidence.
@@ -126,6 +133,10 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
             }
             m_length = 0U;
             if (eventReady) return true;
+            // Do not consume a later RUN frame in the same poll call after a
+            // JOB/CANCEL reply. main.cpp persists that control result after poll()
+            // returns, preserving wire order before any physical run evidence.
+            if (orderingBarrier) return false;
             continue;
         }
         if (m_length + 1U >= MaxLineLength)

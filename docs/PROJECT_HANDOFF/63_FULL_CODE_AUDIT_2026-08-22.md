@@ -18,7 +18,7 @@ The operator explicitly reported **all visible workflows green** when branch HEA
 Advance ESP32 persistence audit queue
 ```
 
-Treat that exact state as **USER CONFIRMED GREEN**. B-005 commits created after it remain **exact-current verification pending** until matching workflow results are inspected or explicitly confirmed.
+Treat that exact state as **USER CONFIRMED GREEN**. B-005/B-007/B-008 commits created after it remain **exact-current verification pending** until matching workflow results are inspected or explicitly confirmed.
 
 ## Audit scope
 
@@ -87,51 +87,67 @@ Interrupted `.bak/.tmp` evidence is preserved/fails closed instead of silently l
 
 ### B-005 — P2 — linked JOB preparation partial transaction — FIXED / exact-current verification pending
 
-Old order could leave immutable snapshot + exact spool selection without runtime state if the later state write failed. Blind cleanup was rejected because an ambiguous state write result must never delete provenance.
-
-Implemented a durable pre-UART transaction boundary:
+Implemented durable pre-UART boundary:
 
 ```text
-65a8e982c85fbacbb0c430f20b664d9796848423  Define local job preparation state
-dde7b1338a320f9af53ce55baaa0c7ffbebeb500  Allow safe local preparation rollover
-5894da84e0c0133f54a2499fda81f1614f4a8013  Treat local preparation as inactive recovery
-c5ac8c84618495e27c828cc5b7ec8e5b8c3a0d4e  Recognize safe local job preparation
-be8a31d0f1a4ba8a16bb8dd1f40e4a80e59f9463  Commit job preparation before spool selection
-a1da06c4d2c5a9c148a3d1c4669c6d87f4be8744  Guard job preparation transaction boundary
-bdfee58d83b6d18663dfbf9db88604a952bee34a  Run job preparation transaction audit
-```
-
-Authoritative order is now:
-
-```text
-allocate IDs
-immutable snapshot
+snapshot
 CREATED + WAITING_DELIVERY + zero-run runtime state
 exact spool selection when linked
 DELIVERING runtime state
 UART queueJob
 ```
 
-`JobStateStore::isLocalPreparation()` is the shared predicate for exactly:
+`JobStateStore::isLocalPreparation()` is true only for exact CREATED/WAITING_DELIVERY/zero-run state. It may remain as immutable audit evidence and be superseded by a higher-ID job, but never auto-queues/resumes. DELIVERING/TIMED_OUT/accepted/running/fault remain fail-closed.
+
+Commits:
 
 ```text
-delivery = CREATED
-execution = WAITING_DELIVERY
-last_run_id = 0
-completed_runs = 0
+65a8e982c85fbacbb0c430f20b664d9796848423
+dde7b1338a320f9af53ce55baaa0c7ffbebeb500
+5894da84e0c0133f54a2499fda81f1614f4a8013
+c5ac8c84618495e27c828cc5b7ec8e5b8c3a0d4e
+be8a31d0f1a4ba8a16bb8dd1f40e4a80e59f9463
+a1da06c4d2c5a9c148a3d1c4669c6d87f4be8744
+bdfee58d83b6d18663dfbf9db88604a952bee34a
 ```
-
-This state is proven not to have crossed the UART boundary because `main.cpp` commits it before exact spool selection and promotes it to `DELIVERING` before `queueJob()`. It may remain as immutable audit evidence and be superseded by a higher-ID job; it never auto-queues or auto-resumes.
-
-`DELIVERING`, `TIMED_OUT`, accepted/waiting, running and fault states retain fail-closed/manual-review semantics.
-
-For a linked local preparation that stopped before spool selection, `BackupActivityGuard` may consider the machine physically Safe when the live runtime probe is Safe; missing spool provenance in that specific pre-UART state is not promoted into a delivered job. Invalid or mismatched persisted identity still returns Unavailable.
 
 Regression: `Tests/Web/check_job_preparation_transaction.js`.
 
 ### B-006 — P2 — network profile recovery could promote uncommitted temp over committed backup — FIXED
 
 Recovery now prefers valid committed main, otherwise valid backup, and promotes temp only when no backup exists (interrupted first write). Invalid evidence fails closed. Regression: `Tests/Web/check_network_profile_atomic_recovery.js`.
+
+### B-007 — P2 — remote backup settings recovery could promote uncommitted temp — FIXED / exact-current verification pending
+
+`RemoteBackupSettingsStore::recoverFileSwap()` had the same crash window as network profiles: after `SettingsPath -> BackupPath`, a brownout before `TempPath -> SettingsPath` left valid temp + backup, and recovery preferred temp. This could silently apply FTP credentials, target directory, retention or schedule that `save()` never completed.
+
+Implemented committed-first recovery:
+
+```text
+9a724ecf276b534bcfb79a41206d56fd86fb602e  Recover committed backup settings first
+fb9752b7a3b4bfd237cd881dbff24df3c94a7791  Guard committed backup settings recovery
+b4c939c3ff713266437e320d58a4b0d35c983304  Run backup settings atomic recovery audit
+```
+
+Rule: valid main wins; without valid main, existing valid backup wins and prepared temp is discarded; temp promotion is allowed only when no backup exists, i.e. interrupted first write. Invalid backup evidence fails closed.
+
+Regression: `Tests/Web/check_remote_backup_settings_atomic_recovery.js`.
+
+### B-008 — P2 — conductor settings recovery could promote uncommitted temp — FIXED / exact-current verification pending
+
+`ConductorSettingsStore::recoverFileSwap()` had the same unsafe temp-first recovery. A brownout could therefore make uncommitted Al/Cu conversion ratios, deviation limits or maximum strand count authoritative after reboot.
+
+Implemented:
+
+```text
+95d8025f439312ec02aa757bdeb5203be090c5f9  Recover committed conductor settings first
+77c9d466ee3749030322294d36e9f7e6abd8bac9  Guard committed conductor settings recovery
+cd543399070974795857bff49eeabea8c02a87eb  Run conductor settings atomic recovery audit
+```
+
+Recovery semantics now match network/backup settings: committed backup wins over prepared temp; temp promotion is first-write only; invalid backup evidence fails closed.
+
+Regression: `Tests/Web/check_conductor_settings_atomic_recovery.js`.
 
 ## Reviewed without a new production-data defect in this pass
 
@@ -145,15 +161,15 @@ Recovery now prefers valid committed main, otherwise valid backup, and promotes 
 
 ## Current active target
 
-B-005 is closed at implementation/source-contract level. Continue section B only for concrete findings:
+The known temp-vs-backup recovery defects in network profiles, remote backup settings and conductor settings are now committed-first. Continue section B only for concrete findings:
 
-1. remaining backup/restore/activity-guard consistency;
-2. remaining mutable persistence stores for destructive swap/ambiguous recovery;
+1. remaining mutable single-file stores for destructive swap/ambiguous recovery;
+2. remaining backup/restore/activity-guard consistency;
 3. resource/NDJSON hotspots only where evidence exists.
 
-If no concrete section-B defect remains, advance to section C desktop/mobile Web/API/error/security parity, then D tests/CI and E documentation/AI routing.
+If no concrete section-B defect remains, advance immediately to section C desktop/mobile Web/API/error/security parity, then D tests/CI and E docs/AI routing.
 
-Do not reopen B-001..B-006 without a concrete regression.
+Do not reopen B-001..B-008 without a concrete regression.
 
 ## External hardware verification gate
 
@@ -170,12 +186,12 @@ late zero-id ALL_CLEAR must not cancel fresh job
 lost JOB_ACK -> TIMED_OUT/manual review -> late RUN_STARTED reconciliation
 reboot waiting/running -> no auto resume
 
-B-005 preparation boundary smoke when practical:
+B-005 preparation boundary:
 failed linked preparation before DELIVERING -> no JOB appears on Arduino
 next higher-ID job may be created after reboot
 DELIVERING/reboot still requires manual review
 
-restore interlock smoke:
+restore interlock:
 GET status remains available during APPLY
 POST/DELETE API mutation -> 409 restore_mutation_active
 APPLIED requires reboot before mutations resume
@@ -207,9 +223,9 @@ no automatic production-data cleanup
 Phase 9 implementation: COMPLETE (checkpoint 64)
 Arduino findings A-001..A-007: FIXED
 Targeted UART repo review: COMPLETE -> hardware gate retained
-ESP32 B-001..B-006: FIXED at repo/source-contract level
-B-005 exact-current CI: NOT VERIFIED in chat
-ESP32 remaining backup/persistence/resource audit: CURRENT
+ESP32 B-001..B-008: FIXED at repo/source-contract level
+Current post-1bff989 candidate CI: NOT VERIFIED in chat
+ESP32 remaining persistence/backup/resource audit: CURRENT
 Web audit: NEXT after section B concrete findings exhausted
 Tests/CI audit: PENDING
 Documentation/AI consistency audit: PENDING

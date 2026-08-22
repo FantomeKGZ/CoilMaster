@@ -28,12 +28,34 @@ bool parseBoolean(const String& source, bool& value)
 
 String escaped(const String& value)
 {
+    static const char Hex[] = "0123456789abcdef";
     String result;
     result.reserve(value.length() + 8U);
     for (size_t i = 0U; i < value.length(); ++i)
     {
-        if (value[i] == '"' || value[i] == '\\') result += '\\';
-        result += value[i];
+        const uint8_t byte = static_cast<uint8_t>(value[i]);
+        switch (byte)
+        {
+            case '"': result += F("\\\""); break;
+            case '\\': result += F("\\\\"); break;
+            case '\b': result += F("\\b"); break;
+            case '\f': result += F("\\f"); break;
+            case '\n': result += F("\\n"); break;
+            case '\r': result += F("\\r"); break;
+            case '\t': result += F("\\t"); break;
+            default:
+                if (byte < 0x20U)
+                {
+                    result += F("\\u00");
+                    result += Hex[(byte >> 4U) & 0x0FU];
+                    result += Hex[byte & 0x0FU];
+                }
+                else
+                {
+                    result += static_cast<char>(byte);
+                }
+                break;
+        }
     }
     return result;
 }

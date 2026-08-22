@@ -4,25 +4,28 @@ Purpose: let a new AI/coding agent understand the current project without scanni
 
 ## 1. Current status
 
-Authoritative current active checkpoint:
+Authoritative current active documents:
 
 ```text
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-Current verified repo-level baseline entering the audit:
+Latest operator-confirmed green baseline at the time of this guide update:
 
 ```text
-ESP32 production C++: 5fa6bcea812c33f0b2dc8e13baae476221839b3a
-ESP32 Build #1245 — GREEN — run 32515224487
-CMP Protocol Tests #2210 — GREEN — run 32515361340
+3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
+Record calculator standard alternatives feature
+USER CONFIRMED GREEN
 ```
 
-Checkpoint 62 is verified baseline/evidence. The update/hardening plan is closed at repo level.
+Commits after that SHA require their own workflow result or a later explicit operator confirmation. Older verified workflow run IDs remain historical evidence, not the current implementation baseline.
 
-The remaining targeted ESP32<->Arduino hardware smoke is an external verification gate for when the physical stand is available. It is not the current software backlog.
+The targeted ESP32<->Arduino hardware smoke remains an external verification gate for when the physical stand is available. It is not the current software backlog.
 
-The current active phase is a full audit of the `cmp-protocol-v1` codebase. Confirmed defects are fixed as they are found; completed historical features are not reopened merely because they are being audited.
+The current software phase is a full audit of the `cmp-protocol-v1` codebase. Confirmed defects are fixed as they are found; completed historical features are not reopened merely because they are being audited.
+
+After sections A..E and the final cross-layer recheck are complete, the user has explicitly approved a separate repository cleanup/de-duplication phase. Cleanup starts only after dependency inventory proves each deletion/merge safe.
 
 ## 2. Source precedence
 
@@ -132,6 +135,16 @@ Shared/CMP1Text/CM_Cmp1Crc.h
 
 Do not substitute `Shared/Protocol/`; it is the older binary host-test protocol.
 
+Production conductor-calculator settings currently belong to:
+
+```text
+CM_ConductorSettingsWeb.*
+WarehouseStore::loadConversionSettings / setConversionSettings
+/data/settings/conductor.json
+```
+
+The parallel legacy `CM_ConductorSettings.*` persistence implementation is not the production owner and is a post-audit cleanup candidate pending dependency proof.
+
 ## 6. Current audit order
 
 Audit in this order unless a concrete higher-severity defect redirects the work:
@@ -139,10 +152,11 @@ Audit in this order unless a concrete higher-severity defect redirects the work:
 ```text
 A. Arduino safety/realtime/UART/resources
 B. ESP32 runtime/API/persistence/integrity/network/backup
-C. desktop/mobile web parity/error/security
+C. desktop/mobile/shared Web parity/error/security
 D. tests/CI/build filters/path triggers
 E. docs/AI routing consistency
 F. final cross-layer recheck + applicable CI
+G. post-audit repository cleanup/de-duplication
 ```
 
 Severity:
@@ -159,7 +173,7 @@ Do not manufacture findings from style preferences or speculative redesigns.
 ## 7. Change procedure
 
 1. Confirm branch `cmp-protocol-v1` and current HEAD.
-2. Read `00_READ_FIRST.md` + checkpoint 63.
+2. Read `00_READ_FIRST.md` + checkpoint 63 + active queue 06.
 3. Use `02_CHANGE_ROUTER.md` to find the smallest relevant file set.
 4. Fetch every existing target file immediately before editing and keep its current blob SHA.
 5. Inspect owner + contract + persistence + UI/API + tests before changing behavior.
@@ -168,6 +182,8 @@ Do not manufacture findings from style preferences or speculative redesigns.
 8. Run the relevant verification from `04_VERIFICATION_MATRIX.md`.
 9. Update AI map/router only if topology/ownership/contract location changed.
 10. Update current handoff state only when project status materially changed.
+
+For cleanup, never delete merely because a file looks old. First prove includes/imports, PlatformIO ownership, workflow/test references, runtime file paths, web injection/references and docs/AI routing. Classify each candidate DELETE/MERGE/KEEP/REVIEW.
 
 ## 8. Safety stop signs
 
@@ -188,4 +204,4 @@ These are safety contracts, not implementation details.
 
 ## 9. External hardware gate
 
-When hardware is available, perform the targeted checkpoint-62 two-board smoke defined in checkpoint 63. Hardware GREEN must never be inferred from CI.
+When hardware is available, perform the targeted two-board smoke defined by checkpoint 63/65. Hardware GREEN must never be inferred from CI.

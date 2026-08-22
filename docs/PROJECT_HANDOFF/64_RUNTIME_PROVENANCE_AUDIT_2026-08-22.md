@@ -81,9 +81,7 @@ acbe9cc195eb79b7efa131cb6c23c1325e86f14a
   Guard KG-first exact spool provenance
 ```
 
-`Tests/Web/check_kg_first_material_contracts.js` now requires the exact-spool guard.
-
-Important compatibility note: the movement schema and recovery code still understand historical `UNALLOCATED` KG_FIRST records. The current linked production preparation path, however, always has an immutable exact spool, so new write-offs for those sessions must not downgrade provenance to unallocated.
+Historical `UNALLOCATED` KG_FIRST records remain readable by the movement codec/history/recovery. The current linked production preparation path, however, always has an immutable exact spool, so new write-offs for those sessions must not downgrade provenance to unallocated.
 
 ## Linked session selection integrity defect — fixed
 
@@ -102,7 +100,7 @@ Fix:
   Require linked spool selection after preparation
 ```
 
-`CM_WindingSessionPersistenceIntegrityAudit.cpp` now requires a valid exact selection for every linked state that is no longer `JobStateStore::isLocalPreparation(state)`. The selection must match exact `session_id`, `job_id`, `repair_id`, and `motor_id`. Local-only `CREATED + WAITING_DELIVERY + zero-run` preparation may still legitimately have no selection because the UART boundary has not been crossed.
+`CM_WindingSessionPersistenceIntegrityAudit.cpp` now requires a valid exact selection for every linked state that is no longer `JobStateStore::isLocalPreparation(state)`. The selection must match exact `session_id`, `job_id`, `repair_id`, and `motor_id`.
 
 Regression:
 
@@ -110,8 +108,6 @@ Regression:
 a19390ba977047421c4016c1a8369d2f6a07ecdb
   Guard linked selection persistence integrity
 ```
-
-`Tests/Web/check_job_preparation_transaction.js` now protects both the transaction ordering and the mandatory post-preparation linked-selection evidence.
 
 Startup runtime already has a separate fail-closed linked-selection check after immutable display recovery. If the selection store is unavailable or the recovered selection does not match exact job/session/repair/motor identity, new job creation remains blocked.
 
@@ -135,11 +131,11 @@ e4101b05c1fffea8c9ed22342c5ac746e4c6d1f3
   Guard exact-run finalization coverage
 ```
 
-`Tests/Web/check_kg_first_material_contracts.js` now protects the exact-run legacy coverage rule. `RepairFinalizationGuard` already maps coverage integrity failure to `WireWriteOffIntegrityFailed`, so ambiguous evidence blocks finalization instead of being treated as covered.
+`RepairFinalizationGuard` maps coverage integrity failure to `WireWriteOffIntegrityFailed`, so ambiguous evidence blocks finalization instead of being treated as covered.
 
 ## Production write-off UI aligned with immutable spool provenance
 
-After the backend provenance fix, the production write-off controller still offered `Без привязки к бухте` as a fallback when the immutable selected spool was no longer ACTIVE. That choice could no longer commit safely and contradicted the current linked-job preparation model.
+After the backend provenance fix, the production write-off controller still offered `Без привязки к бухте` as a fallback when the immutable selected spool was no longer ACTIVE. That choice contradicted the current linked-job preparation model.
 
 UI/controller fixes:
 
@@ -157,16 +153,78 @@ a9960fd7a685b15f250f441f51f8f02ed4ab463d
   Hide obsolete unallocated writeoff choice
 ```
 
-For new production write-offs the controller now:
+For new production write-offs the controller now loads the exact immutable session selection, requires the same selected spool to remain an ACTIVE material spool, always sends that exact `spool_id`, and blocks submission if it is unavailable instead of changing provenance after `RUN_COMPLETED`.
 
-- loads the exact immutable session selection;
-- requires the same selected spool to still be available as an ACTIVE material spool;
-- always sends that exact `spool_id`;
-- blocks submission if the selected spool is unavailable instead of changing provenance after `RUN_COMPLETED`.
-
-Desktop and mobile static forms now show only the immutable source-session spool mode. Historical `UNALLOCATED` KG_FIRST records remain readable/renderable in history and recovery; this UI change does not rewrite old evidence.
+Desktop and mobile static forms show only the immutable source-session spool mode. Historical `UNALLOCATED` KG_FIRST records remain renderable in history.
 
 A future real unallocated production workflow, if needed, must be modeled as an immutable material selection **before** the UART boundary. It must not be recreated as a post-run fallback that discards an already selected spool id.
+
+## KG_FIRST HTTP semantics aligned with exact spool — fixed
+
+After the store/UI fixes, the POST handler still exposed the old unallocated request shape: missing `spool_id` was accepted at parsing time and replaced by caller-supplied `diameter_hundredths_mm + wire_type`, while the immutable selection comparison was conditional on a non-zero spool id.
+
+Fix:
+
+```text
+d4bb341e2646c78fb6dc9dd70a1899889fa0378e
+  Require exact spool in KG-first API
+```
+
+For the current `POST /api/warehouse/write-offs` KG_FIRST path:
+
+- `quantity_kg` remains the operator-entered exact quantity;
+- `spool_id` is mandatory and non-zero;
+- missing/invalid spool returns `spool_id_required_for_kg_first`;
+- `selection.spoolId` must equal the supplied spool unconditionally;
+- caller-supplied material/diameter no longer substitutes for the immutable spool;
+- successful current POST responses always report `stock_mode: SPOOL` with the exact spool id.
+
+Regression:
+
+```text
+90318b818ee0b2b749bc7023468c5ebf75cfabbc
+  Guard exact spool KG-first HTTP semantics
+```
+
+Read-only history, movement codec, recovery and backup persistence still retain historical dual-schema compatibility for old `UNALLOCATED` records. New POST creation no longer produces them.
+
+## Missing selection could bypass closure coverage — fixed
+
+A second finalization gap was found after tightening cross-store persistence. `WireWriteOffCoverageAudit` previously skipped a `RUN_COMPLETED` record when the whole spool-selection directory was missing or when the exact session selection file could not be found. Skipping the run meant it never became a coverage target, so the repair could potentially be reported as `Covered` despite lost immutable material provenance.
+
+Fix:
+
+```text
+96d848a685c2ecc4cecc5a881af1e5d1f89180fb
+  Fail closure on missing spool selection evidence
+```
+
+For any completed run examined by the repair finalization audit:
+
+- missing spool-selection catalog is now `IntegrityFailed`;
+- missing exact session selection is now `IntegrityFailed`;
+- malformed/mismatched selection remains `IntegrityFailed`;
+- the run can no longer disappear from the coverage target set.
+
+Regression:
+
+```text
+475f2d54bf2a9b8893dd676eb7a878e00ef2a3e3
+  Guard closure against missing spool selection
+```
+
+This complements the deep persistence audit: backup integrity and repair closure now both fail closed when post-preparation immutable spool-selection evidence is lost.
+
+## Historical write-off compatibility rechecked
+
+`CM_WarehouseWriteOffHistory.cpp` still serializes historical `SPOOL`, `LEGACY_SPOOL`, and `UNALLOCATED` confirmed records read-only, including nullable `spool_id` and nullable legacy `source_run_id` where applicable.
+
+`CM_WarehousePersistenceIntegrityAudit.cpp` resolves a spool reference only when `record.hasSpoolId`. Historical unallocated records therefore remain valid backup evidence without inventing a spool, while every existing repair reference is still required to resolve exactly once.
+
+The migration rule is therefore asymmetric by design:
+
+- old evidence remains readable/auditable;
+- new production mutations are exact-spool only.
 
 ## Transaction residue policy reviewed
 
@@ -178,7 +236,6 @@ A future real unallocated production workflow, if needed, must be modeled as an 
 
 Continue with:
 
-1. server-side write-off API semantics now that new production unallocated fallback is disabled in UI/store;
-2. exact run/material costing and closure provenance after the coverage fix;
-3. remaining snapshot/state/selection crash-residue consistency review;
-4. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.
+1. exact run/material costing and closure provenance after the new selection-coverage guard;
+2. remaining snapshot/state/selection crash-residue consistency review;
+3. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.

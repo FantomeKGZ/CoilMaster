@@ -106,6 +106,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_warehouse_spool_atomic_recovery.js
 
+      - name: Audit material ledger atomic recovery contracts
+        if: always()
+        run: node Tests/Web/check_material_ledger_atomic_recovery.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

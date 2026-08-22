@@ -70,6 +70,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_job_cancel_recovery_contracts.js
 
+      - name: Audit restore mutation interlock contracts
+        if: always()
+        run: node Tests/Web/check_restore_mutation_interlock.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

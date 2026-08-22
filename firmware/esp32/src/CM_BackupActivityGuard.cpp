@@ -35,12 +35,16 @@ BackupActivityCheck BackupActivityGuard::runtimeCheck()
 BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
 {
     const BackupActivityCheck runtime = runtimeCheck();
-    if (runtime == BackupActivityCheck::Busy)
-        return BackupActivityCheck::Busy;
-    // Even a runtime Safe result is not enough for export. Revalidate the
-    // persisted latest state/snapshot identity below so a damaged linked
-    // recovery cannot be exported merely because the machine is idle.
+    // Persisted ESP32 job files cannot prove transient runtime inactivity: local
+    // Arduino winding, an in-flight control event, or a runtime/storage fault may
+    // exist only in RAM. Therefore Unavailable must never be promoted to Safe by
+    // the persisted scan below. Runtime Safe is a prerequisite, not a hint.
+    if (runtime != BackupActivityCheck::Safe)
+        return runtime;
 
+    // Runtime Safe alone is still insufficient. Revalidate the persisted latest
+    // state/snapshot identity so damaged or ambiguous recovery state also fails
+    // closed before backup/restore/FTP/settings operations proceed.
     if (!directoryReady(storage, "/data") ||
         !directoryReady(storage, "/data/winding-jobs") ||
         !directoryReady(storage, "/data/winding-jobs/state"))
@@ -59,8 +63,7 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
     if (!states.loadLatest(latest, found))
         return BackupActivityCheck::Unavailable;
     if (!found)
-        return runtime == BackupActivityCheck::Unavailable
-            ? BackupActivityCheck::Safe : runtime;
+        return BackupActivityCheck::Safe;
 
     // Fail closed on every persisted state where physical inactivity cannot be
     // proven. TIMED_OUT is ambiguous because Arduino may have accepted the JOB

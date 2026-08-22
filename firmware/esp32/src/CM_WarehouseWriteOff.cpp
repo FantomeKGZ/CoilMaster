@@ -154,7 +154,10 @@ bool WarehouseStore::confirmKgFirstWriteOff(const KgFirstWriteOff& operation,
         return false;
     }
 
-    if (operation.spoolId != 0UL && selection.spoolId != operation.spoolId)
+    // Current production linked jobs always persist an exact immutable spool
+    // before DELIVERING. KG_FIRST must retain that provenance instead of
+    // allowing a request to hide the selected spool by omitting spool_id.
+    if (operation.spoolId == 0UL || selection.spoolId != operation.spoolId)
         return false;
 
     if (WindingSessionCompletionAudit::check(m_storage,

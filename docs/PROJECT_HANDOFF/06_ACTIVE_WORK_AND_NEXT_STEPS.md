@@ -69,6 +69,8 @@ firmware/esp32/web/shared/calculator-multisource.js
   + its obsolete CM_StaticSiteServer calculator injection
 ```
 
+Final docs sweep also removed stale navigation references left behind by that cleanup: `docs/AI_AGENT/01_PROJECT_MAP.md` now points to `docs/01_SYSTEM_ARCHITECTURE.md` and `docs/HARDWARE_REFERENCE/` instead of the already removed root `ARCHITECTURE.md` and `Engineering/Hardware/`. Commit: `0649fa769aafb836522127b483e14c998a28cf59`.
+
 Calculator helper cleanup is regression-protected by `Tests/Web/check_calculator_source_wire_input.js`: the old helper file and StaticSiteServer injection must remain absent while the `sourceWires` UI remains authoritative.
 
 Полезная binary host-test CMP документация из старого `Docs/` сохранена рядом с owner в `Shared/Protocol/README.md`.

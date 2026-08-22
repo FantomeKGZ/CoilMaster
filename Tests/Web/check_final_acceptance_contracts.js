@@ -22,6 +22,7 @@ const lookupPath = 'firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp';
 const warehousePath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const backupPath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
+const backupGuardPath = 'firmware/esp32/src/CM_BackupActivityGuard.cpp';
 const backupExportPath = 'firmware/esp32/src/CM_BackupExportWeb.cpp';
 const sessionAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
 const sessionAuditHeaderPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h';
@@ -36,6 +37,7 @@ const lookup = read(lookupPath);
 const warehouse = read(warehousePath);
 const writeOff = read(writeOffPath);
 const backup = read(backupPath);
+const backupGuard = read(backupGuardPath);
 const backupExport = read(backupExportPath);
 const sessionAudit = read(sessionAuditPath);
 const sessionAuditHeader = read(sessionAuditHeaderPath);
@@ -103,6 +105,21 @@ requireText(backupPath, backup, 'WAITING_RESTORE_CLEANUP',
   'post-reboot restore cleanup wait-state missing');
 requireText(backupPath, backup, 'auto_resume=0',
   'restore result no longer explicitly prohibits auto-resume');
+
+// Persisted files are an additional safety check, never a substitute for live
+// runtime activity. An unavailable runtime probe must remain Unavailable so a
+// restore/FTP/settings operation cannot be enabled from stale terminal job files.
+for (const text of [
+  'const BackupActivityCheck runtime = runtimeCheck();',
+  'if (runtime != BackupActivityCheck::Safe)\n        return runtime;',
+  'if (!found)\n        return BackupActivityCheck::Safe;'
+]) {
+  requireText(backupGuardPath, backupGuard, text,
+    'backup activity runtime fail-closed contract missing: ' + text);
+}
+if (backupGuard.includes('runtime == BackupActivityCheck::Unavailable\n            ? BackupActivityCheck::Safe')) {
+  failures.push(backupGuardPath + ': unavailable runtime must never be promoted to Safe');
+}
 
 // Session persistence must perform one authoritative read-only canonical preflight
 // before any store begin() that could recover a temp file. It exposes failure type
@@ -195,4 +212,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, backup inspection/session preflight, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, fail-closed live backup activity, backup inspection/session preflight, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');

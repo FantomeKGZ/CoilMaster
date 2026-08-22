@@ -20,13 +20,13 @@ Align final acceptance exact spool contract
 USER CONFIRMED GREEN
 ```
 
-Documentation commits after that confirmation are not independent firmware GREEN evidence and must not be described as such.
+Documentation-only commits after that confirmation are not independent firmware GREEN evidence and must not be described as such.
 
 ## Current cleanup progress
 
-Estimated controlled code/docs/tree cleanup completion: **~92%**.
+Estimated controlled code/docs/tree cleanup completion: **~94%**.
 
-Estimated cleanup remaining: **~8%**.
+Estimated cleanup remaining: **~6%**.
 
 This is a cleanup estimate, not total product release readiness. Physical hardware smoke/rescue-restore proof is a separate gate.
 
@@ -34,9 +34,7 @@ This is a cleanup estimate, not total product release readiness. Physical hardwa
 
 - full audit A–E: Arduino, ESP32, Web, tests/CI, docs/AI routing;
 - major legacy/generated/duplicate tree cleanup;
-- obsolete Arduino parallel entrypoint cleanup;
-- obsolete Arduino buzzer/start-button implementation cleanup;
-- stale Arduino version header cleanup;
+- obsolete Arduino parallel entrypoint, buzzer/start-button code and stale version header cleanup;
 - obsolete conductor settings implementation cleanup;
 - obsolete warehouse wire catalogue and old non-paginated spool-list cleanup;
 - obsolete Web calculator helper/injection cleanup;
@@ -49,7 +47,19 @@ This is a cleanup estimate, not total product release readiness. Physical hardwa
 - linked spool-selection persistence/closure hardening;
 - current KG_FIRST store + HTTP + desktop/mobile UI aligned to exact immutable spool;
 - historical unallocated writeoff compatibility retained read-only/recovery-side;
-- top-level final acceptance contract aligned with current exact-spool production rule.
+- top-level final acceptance contract aligned with current exact-spool production rule;
+- snapshot/state/selection crash-residue policy reviewed and classified by transaction boundary;
+- AI maintenance entrypoint, change router and verification matrix aligned with current GREEN/exact-spool model.
+
+Recent documentation cleanup commits after the GREEN implementation baseline:
+
+```text
+fa2e14c5...  Align AI start guide with exact spool baseline
+e2860fa6...  Align AI change router with exact spool flow
+50ab5705...  Align verification matrix with current GREEN baseline
+```
+
+These are documentation commits only; they do not supersede `e16a7dae...` as firmware GREEN evidence.
 
 Authoritative runtime/provenance detail:
 
@@ -70,7 +80,7 @@ client
 -> UART JOB
 -> physical START
 -> RUN_STARTED / RUN_COMPLETED
--> explicit manual exact-run wire writeoff
+-> explicit manual exact-run exact-spool wire writeoff
 -> costing / finalization preflight
 -> CLOSED
 -> reports
@@ -91,6 +101,27 @@ Historical `UNALLOCATED` KG_FIRST records remain readable/auditable/recoverable 
 
 If a true unallocated production workflow is ever required, it must create immutable material provenance before the UART boundary. Do not add a post-run fallback that drops `spool_id` after `RUN_COMPLETED`.
 
+## Crash-residue classification — reviewed
+
+Do not reopen this as generic "make all stores identical" cleanup.
+
+```text
+JobStateStore .tmp/.bak
+  KEEP fail-closed
+  replacement may involve an older authoritative runtime state, so residue is ambiguous
+
+JobSpoolSelectionStore .json.tmp
+  KEEP bounded recovery
+  selection is written after durable CREATED state but before DELIVERING/UART;
+  begin() accepts only one fully valid temp, requires final to be absent and only renames temp -> final
+
+JobSnapshotStore .json.tmp
+  REVIEW / fail-closed resilience
+  snapshot temp exists before durable state; do not auto-delete or auto-promote it ad hoc
+```
+
+The policies differ because the files represent different transaction boundaries, not because cleanup is incomplete.
+
 ## Safety invariants — do not weaken
 
 - no automatic physical START;
@@ -101,13 +132,13 @@ If a true unallocated production workflow is ever required, it must create immut
 - lost ACK/timeout alone never proves Arduino idle;
 - final repeat cannot automatically reopen;
 - `RUN_COMPLETED` never automatically deducts material;
-- writeoff remains explicit/manual and exact-run;
+- writeoff remains explicit/manual and exact-run/exact-spool for current linked production;
 - cancellation must not erase immutable run/history evidence;
 - restore is explicit/operator-only and fail-closed;
 - reboot never auto-continues restore/apply;
 - no automatic production-data deletion or automatic NDJSON truncation.
 
-## Remaining cleanup — continue directly
+## Remaining cleanup — continue directly (~6%)
 
 ### 1. Final ESP32/Arduino owner inventory
 
@@ -119,27 +150,21 @@ DELETE / MERGE / KEEP / REVIEW
 
 Do not use empty GitHub code-search as sole deletion proof. Inspect build ownership, direct call-sites, API route ownership, persistence/recovery dependencies, tests, and operator workflow.
 
-### 2. Snapshot/state/selection crash residue consistency
+### 2. Remaining stale contracts/docs sweep
 
-Current known state:
+AI entrypoint/router/verification matrix are now aligned. Continue checking remaining thematic docs/tests for statements that imply **new production** KG_FIRST may omit `spool_id` or choose a post-run `UNALLOCATED` fallback. Historical schema/recovery references to old unallocated records are valid and should remain.
 
-- `JobStateStore` intentionally fails closed on `.tmp/.bak` residue;
-- its contract protects atomic rotate/commit/verify/cleanup ordering;
-- `JobSnapshotStore` orphan `.json.tmp` is currently REVIEW/resilience, not a proven safety defect because snapshot creation is before CREATED state/UART;
-- do not introduce ad-hoc automatic deletion;
-- compare snapshot/state/selection policy coherently before changing recovery behavior.
+### 3. Final zero-debt tree pass
 
-### 3. Stale contract/docs sweep
+Check top-level tree, production source directories, tests, scripts/tools, docs references and Web shared assets. Preserve known KEEP clusters unless new direct proof shows otherwise.
 
-Search for stale statements that imply **new production** KG_FIRST may omit `spool_id` or choose post-run `UNALLOCATED` fallback. Historical schema/recovery references to old unallocated records are valid and should remain.
+### 4. Final handoff consolidation
 
-### 4. Final zero-debt tree pass
-
-Check top-level tree, production source directories, tests, scripts/tools, docs references, and Web shared assets. Preserve known KEEP clusters unless new direct proof shows otherwise.
+Keep this file and `06_ACTIVE_WORK_AND_NEXT_STEPS.md` synchronized. Do not restart completed audit/provenance/residue review in the next chat unless current source gives a concrete inconsistency.
 
 ### 5. Hardware/runtime logs only when needed
 
-Do not ask the user for broad logs during source cleanup. When a remaining issue is hardware-only, request the exact Serial interval needed, for example from before JOB send through ACK/READY, physical START and RUN_STARTED/RUN_COMPLETED, or the specific cancel/reboot sequence under review.
+Do not ask the user for broad logs during source cleanup. When a remaining issue is hardware-only, request the exact Serial interval needed.
 
 ## Known KEEP clusters
 

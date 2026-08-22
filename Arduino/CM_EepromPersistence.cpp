@@ -99,20 +99,52 @@ bool EepromPersistence::addPendingCompleted(const WindingEvent& event)
 bool EepromPersistence::addPendingCompleted(const WindingEvent& event,
                                             const WindingJob& job)
 {
-    if (!addPendingCompleted(event)) return false;
+    if (event.type != WindingEventType::RunCompleted ||
+        event.sessionId == 0UL || event.runId == 0UL)
+    {
+        return false;
+    }
+
+    uint8_t existingIndex = PendingCapacity;
+    for (uint8_t index = 0U; index < m_state.count; ++index)
+    {
+        if (m_state.pending[index].runId != event.runId) continue;
+        existingIndex = index;
+        break;
+    }
 
     StoredMetadataState metadata;
     if (!loadMetadata(metadata) || !metadataValid(metadata))
         resetMetadata(metadata);
 
-    for (uint8_t index = 0U; index < m_state.count; ++index)
+    if (existingIndex < m_state.count)
     {
-        if (m_state.pending[index].runId != event.runId) continue;
-        if (!storeMetadata(metadata, index, job)) return false;
+        if (!storeMetadata(metadata, existingIndex, job)) return false;
         persistMetadata(metadata);
         return true;
     }
-    return false;
+
+    if (m_state.count >= PendingCapacity) return false;
+
+    const uint8_t index = m_state.count;
+    StoredEvent& target = m_state.pending[index];
+    target.sessionId = event.sessionId;
+    target.runId = event.runId;
+    target.completedRuns = event.completedRuns;
+    ++m_state.count;
+
+    metadata.count = m_state.count;
+    memset(&metadata.pending[index], 0, sizeof(StoredJobMetadata));
+    metadata.pending[index].runId = event.runId;
+
+    // Preserve the completed event even if job metadata is unexpectedly invalid:
+    // run delivery evidence is safety-critical, while the metadata sidecar is
+    // additive. This matches the previous fail-safe behavior without writing the
+    // sidecar twice for the normal valid-job path.
+    const bool metadataStored = storeMetadata(metadata, index, job);
+    persist();
+    persistMetadata(metadata);
+    return metadataStored;
 }
 
 bool EepromPersistence::removePendingCompleted(uint32_t runId)

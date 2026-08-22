@@ -285,6 +285,30 @@ bool WindingSessionPersistenceIntegrityAudit::check(
                 return failAudit(metrics, validatedMetrics,
                                  WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
+
+            // A linked job may legitimately be interrupted before exact spool
+            // selection while it is still local-only CREATED preparation. Once
+            // it leaves that boundary, the immutable spool selection was already
+            // required before DELIVERING/UART and therefore becomes mandatory
+            // persistence evidence for this exact session.
+            if (snapshot.linkage.linked && !JobStateStore::isLocalPreparation(state))
+            {
+                JobSpoolSelection selection;
+                bool selectionFound = false;
+                if (!hasSelections ||
+                    !selections.load(sessionId, selection, selectionFound) ||
+                    !selectionFound || !selection.isValid() ||
+                    selection.sessionId != sessionId ||
+                    selection.jobId != state.jobId ||
+                    selection.repairId != snapshot.linkage.repairId ||
+                    selection.motorId != snapshot.linkage.motorId)
+                {
+                    directory.close();
+                    return failAudit(metrics, validatedMetrics,
+                                     WindingSessionPersistenceAuditFailure::ContentInvalid);
+                }
+            }
+
             if (validatedMetrics.stateFileCount == 0xFFFFFFFFUL)
             {
                 directory.close();

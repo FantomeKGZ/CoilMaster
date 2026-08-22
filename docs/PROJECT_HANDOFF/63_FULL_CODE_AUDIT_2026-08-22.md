@@ -1,21 +1,13 @@
 # Checkpoint 63 — Full code audit phase
 
-Date: 2026-08-22
+Date: 2026-08-22  
 Branch: `cmp-protocol-v1`
 
 ## Purpose
 
-Checkpoint 62 established the repo-level safety/integrity baseline that existed when this audit began.
+This checkpoint owns the active full-code audit. Phase 9 Web implementation is complete in checkpoint 64. The targeted JOB/UART desync review has now produced concrete fixes and is summarized in checkpoint 65.
 
-The audit was temporarily paused to finish the remaining Phase 9 work from the approved 2026-08-20 UI/hardware/job-lifecycle plan. That implementation is now closed by:
-
-```text
-docs/PROJECT_HANDOFF/64_PHASE9_SHARED_WEB_SHELL_AND_SEARCH_2026-08-22.md
-```
-
-Current Phase 9/newer HEAD CI is still `NOT VERIFIED` until an exact Actions run with matching `head_sha` is inspected. This does not reopen Phase 9 implementation as active backlog.
-
-The active repo-level phase is again a full audit of the current `cmp-protocol-v1` codebase for defects, weak contracts, unsafe state transitions, persistence inconsistencies, resource risks, stale/dead implementation, and missing regression coverage.
+Historical checkpoints are evidence, not an automatic task queue.
 
 ## Verified baseline entering the audit
 
@@ -31,102 +23,58 @@ run 32515361340
 head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
 ```
 
-These older successful runs do not prove the newer Phase 9/current HEAD green. Do not claim physical hardware acceptance from CI.
+These runs do not prove newer audit commits green.
 
-## External verification gate retained
-
-When the hardware stand is available, run targeted two-board smoke:
+Current UART audit implementation checkpoint:
 
 ```text
-ESP32 JOB -> Arduino READY
-physical START only
-RUN_STARTED
-RUN_COMPLETED
-event ACK/replay
-final repeat remains terminal
-no automatic wire/material writeoff
-
-no-run JOB -> cancel
-ALREADY_CLEAR
-physical D -> * -> # -> D -> ALL_CLEAR when safe
-lost JOB_ACK / timeout -> manual review
-late ALL_CLEAR after completed job -> no persisted corruption/storage fault
+docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
 ```
 
-This gate is retained but does not block repo-level review.
-
-## Targeted desync/recovery review retained after Phase 9
-
-In addition to the normal audit sequence, explicitly review the cross-board scenario that motivated the temporary recovery investigation:
+Current implementation HEAD recorded there:
 
 ```text
-ESP32 believes a JOB was sent/pending
-Arduino does not visibly hold the expected JOB
-operator tries to cancel/clear
-both boards must converge without inventing RUN completion or corrupting persisted state
+bf3ac8c18a3d8b484eaf755452965b670973f627
 ```
 
-Trace current transitions for:
+Exact current CI for that code block: **NOT VERIFIED**.
 
-```text
-JOB / JOB_ACK
-JOB_CANCEL / JOB_CANCEL_ACK
-ALREADY_CLEAR
-ALL_CLEAR
-timeout / retry
-late ACK / late ALL_CLEAR
-ESP32 reboot
-Arduino reboot
-replay
-persisted ESP32 job state
-```
+## Audit scope
 
-The generic cancel/recovery feature already exists; this is a targeted defect audit, not an instruction to reimplement it. Change code only if a concrete inconsistent/fail-open transition is proven.
-
-## Full audit scope
-
-### A. Arduino safety and realtime machine ownership
+### A. Arduino safety and realtime ownership
 
 Review `Core/`, `Arduino/`, `firmware/arduino/src/` for physical START/SSR/Hall ownership, repeat/run identity, remote JOB lifecycle, UART validation/retry/replay, RAM/Flash/stack, blocking paths and reboot/fault behavior.
 
-### B. ESP32 runtime, persistence and APIs
+### B. ESP32 runtime, persistence and APIs — CURRENT
 
-Review all `firmware/esp32/src/*.cpp` and headers for lifecycle/state consistency, persistence identities, workshop/warehouse/writeoff/costing, backup/restore, network/FTP/RTC/SD failures, API semantics, bounds/overflow, atomic writes, NDJSON cost and duplicate ownership.
+Review `firmware/esp32/src/` for lifecycle/state consistency, persistence identities, workshop/warehouse/writeoff/costing, backup/restore, network/FTP/RTC/SD failure semantics, API bounds/overflow, atomic writes, NDJSON cost and duplicate ownership.
 
-### C. Desktop/mobile web
+### C. Desktop/mobile Web
 
-Review `firmware/esp32/web/desktop/`, `mobile/`, shared assets for API parity, error handling, unsafe optimistic state, paging/bounds, provenance, confirmations, semantic divergence and injection/escaping risks.
+Review desktop/mobile/shared assets for API parity, error handling, unsafe optimistic state, paging/bounds, provenance, confirmations, semantic divergence and injection/escaping risks.
 
 ### D. Tests and CI
 
-Review `Tests/`, `.github/workflows/`, `platformio.ini` and build scripts for actual production coverage, stale/false-positive assertions, fail-open steps, source-filter omissions and workflow trigger gaps.
+Review `Tests/`, workflows, `platformio.ini` and build scripts for real production coverage, stale/false-positive assertions, fail-open steps, source-filter omissions and trigger gaps.
 
 ### E. Documentation/AI routing
 
-Review authoritative entrypoints for current-code accuracy, safety ownership, verified baseline and stale-task routing. Historical checkpoints remain history.
+Review authoritative entrypoints for current-code accuracy and stale-task routing.
 
-## Audit severity
+## Severity
 
 ```text
 P0 — immediate physical/data safety risk or destructive corruption path
 P1 — serious functional/state/persistence bug likely to affect production
-P2 — real robustness/performance/maintainability weakness with concrete failure mode
-P3 — cleanup/dead code/documentation/test-quality issue with low runtime risk
+P2 — concrete robustness/performance/maintainability weakness
+P3 — low-risk cleanup/dead code/docs/test-quality issue
 ```
 
-Do not label style preferences or speculative redesigns as defects.
+Do not label speculative redesign or style preference as a defect.
 
-## Findings
+## Findings status
 
-### A-001 — P1 — remote JOB could overwrite non-idle Arduino state — FIXED, CI PENDING
-
-Observed in `Core/CM_StateMachine.cpp` before fix:
-
-- `loadRemoteJob()` rejected only `Winding`, `Paused` and `ManualRun`;
-- a new remote JOB could therefore replace local `EnterTurns`, `CoilComplete`, `JobComplete`, `Fault`, or another accepted `Ready` job;
-- `session_id == 0` was silently replaced with an Arduino-local allocated session id even though remote provenance must stay exact across boards.
-
-This could lose a partially executed/local program or break ESP32<->Arduino job/session identity without physically starting the motor by itself.
+### A-001 — P1 — remote JOB could overwrite non-idle Arduino state — FIXED / exact-current verification pending
 
 Fix:
 
@@ -135,105 +83,80 @@ Fix:
 Harden Arduino remote job admission
 ```
 
-New rules:
+Remote job/session IDs must remain non-zero and exact; only truly empty HOME may accept a new identity; exact zero-run lost-ACK duplicate is idempotent.
 
-- remote `job_id` and `session_id` must both be non-zero;
-- a new remote JOB is accepted only from truly empty `EnterCoilCount` HOME state;
-- an exact duplicate of the already accepted zero-run remote `Ready` job is idempotently accepted for lost-ACK retry;
-- any different JOB cannot overwrite local entry, partial run, completed job, fault, or accepted remote identity.
+### A-002 — P2 — permissive Arduino JOB parsing — FIXED / exact-current verification pending
 
-Regression coverage:
+Strict full-token bounded decimal parsing and exact `STARTING` / `WORKING` validation are implemented. Regression coverage is present in Protocol CI.
 
-```text
-a95a73ac86aab061475f3f2cf88d8bbd6b3de837
-Guard remote job admission boundaries
-Tests/Protocol/test_repeat_target.cpp
-```
+### A-003 — P2 — permissive ACK/NACK and JOB_CANCEL IDs — FIXED / exact-current verification pending
 
-Required verification after this production Arduino change remains separate from older green evidence:
+Inbound Arduino correlation IDs now require complete canonical decimal tokens; numeric prefixes/trailing garbage cannot acknowledge/cancel a different event.
 
-```text
-Arduino Uno Build — NOT VERIFIED here
-CMP Protocol Tests for exact change/head — NOT VERIFIED here
-hardware remote JOB smoke — external gate
-```
+### A-004 — P1 — stale zero-id ALL_CLEAR could correlate to a fresh JOB — FIXED / exact-current verification pending
 
-### A-002 — P2 — production JOB parser accepted non-canonical tokens — FIXED, CI PENDING
+Zero-id `ALL_CLEAR` now correlates only to explicit pending cancel or a dedicated persisted-recovery identity. Fresh `queueJob()` and successful physical RUN evidence disarm that recovery identity.
 
-Before the fix, `Arduino/CM_UartEventTransport.cpp::parseRemoteJob()` used permissive `strtoul(..., nullptr, 10)` for `job_id`, `session_id`, coil count and turn values, while any non-`STARTING` type token became `WORKING`.
+### A-005 — P1 — stale cancel against run/fault evidence could falsely mark storage failed — FIXED / exact-current verification pending
 
-A CRC-valid but malformed JOB could therefore be interpreted rather than rejected fail-closed.
+`closeAfterRemoteCancel()` now treats unsafe run/fault evidence as unchanged no-op, preserving manual review and storage availability. Only zero-run waiting state is rewritten as cancelled.
 
-Fix commits:
+### A-006 — P1 — control reply/timeout could be persisted after following RUN evidence — FIXED / exact-current verification pending
+
+Receiver ordering barriers now force pending JOB/CANCEL control results to be drained/persisted before a later physical RUN frame is parsed.
+
+### A-007 — P1 — lost JOB_ACK timeout plus real RUN_STARTED was unrecoverable — FIXED / exact-current verification pending
+
+A narrow retry-safe state transition now reconciles only exact `TIMED_OUT + WAITING_DELIVERY + zero-run` with a later CRC-valid `RUN_STARTED` for the same immutable session. No physical action is introduced. RAM status and recovery-only ALL_CLEAR identity are normalized after committed RUN evidence.
+
+Full details and current hardware smoke requirements:
 
 ```text
-baa028cf7bc72a5d7b0e523cc33013cb4050e677
-Reject non-canonical Arduino JOB frames
-
-699116497c3614bc2a8fc621bc326d686d98f221
-Fix bounded canonical integer parsing
+docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
 ```
 
-Current wire rules:
+## Current active target
 
-- unsigned decimal tokens are full-token digits only;
-- signs, whitespace, suffixes and leading-zero non-canonical forms are rejected;
-- per-field upper bounds and uint32 overflow are checked before assignment/narrowing;
-- remote `job_id` and `session_id` must be non-zero at the wire boundary;
-- repeat target, coil count and every turns token use the same bounded canonical parser;
-- only exact `STARTING` and `WORKING` type tokens are accepted;
-- CRC/capability handling and normal CMP1 JOB layout are unchanged.
+Targeted UART/desync implementation review is complete enough to advance. Do not return to generic JOB cancel/recovery without a concrete regression.
 
-Compatibility check against current ESP32 sender:
+Continue with section B:
 
-`CM_UartEventReceiver.cpp::writeJobFrame()` emits `%lu/%u`, exact `STARTING`/`WORKING`, `R%u` and `C`; therefore current normal ESP32 frames remain canonical under the stricter Arduino parser.
+1. ESP32 runtime/API lifecycle transitions and HTTP/error semantics;
+2. persistence/atomic-write/integrity ownership and partial-failure paths;
+3. network/AP/STA/FTP/RTC/SD fail-closed behavior;
+4. backup/restore/activity guard consistency;
+5. growing-log and duplicate-scan/resource hotspots only where evidence exists.
 
-Regression guard:
+Then continue sections C, D, E and final cross-layer recheck.
+
+## External hardware verification gate
+
+Still required when the stand is available:
 
 ```text
-583d9275519058029ff9477ffb1b2ec894ae9fa6
-Guard strict Arduino JOB parsing
-Tests/Protocol/check_arduino_job_parser_contracts.js
+normal JOB -> Arduino READY
+physical START only
+RUN_STARTED -> RUN_COMPLETED
+repeat > 1 -> physical START each run
+no automatic material writeoff
 
-7d4a5cadda6dd3971a182d9fb20fced48accfb01
-Run Arduino JOB parser audit in CI
-.github/workflows/cmp-protocol-tests.yml
+zero-run cancel
+ALREADY_CLEAR
+safe physical ALL_CLEAR
+late zero-id ALL_CLEAR must not cancel a fresh job
+lost JOB_ACK -> TIMED_OUT/manual review -> late RUN_STARTED reconciliation
+reboot in waiting/running states -> no auto resume
 ```
-
-Current verification:
-
-```text
-repo implementation: FIXED
-source regression guard: PRESENT
-current exact CMP Protocol Tests run: NOT VERIFIED
-current exact Arduino Uno Build: NOT VERIFIED
-```
-
-Do not promote this to CI-verified until exact matching workflow results are inspected.
-
-## Current targeted review — UART desync/recovery
-
-With A-002 fixed at repo level, continue immediately through current inbound/outbound UART correlation and persisted state:
-
-1. strict/canonical validation of ACK/NACK and JOB_CANCEL paths;
-2. JOB retry -> cancel handoff after possible lost JOB_ACK;
-3. `ALREADY_CLEAR` and physical `ALL_CLEAR` correlation;
-4. late ACK / late ALL_CLEAR after state transitions;
-5. ESP32 and Arduino reboot behavior;
-6. persisted ESP32 job-state transition consistency.
-
-Record new findings as A-003/B-* depending on ownership/severity; do not reimplement generic cancellation unless a concrete defect is proven.
 
 ## Execution rules
 
 For every existing file changed:
 
-1. fetch current content from `cmp-protocol-v1`;
-2. use current blob SHA;
-3. make the smallest safe fix;
-4. add/extend regression coverage where practical;
-5. update this checkpoint/current-state docs only after code meaning changes;
-6. never claim GREEN until the named workflow actually passes.
+1. fetch current `cmp-protocol-v1` content and blob SHA;
+2. make the smallest safe fix;
+3. add/extend regression coverage where practical;
+4. update current docs after semantics change;
+5. never claim GREEN until the named workflow passes on the exact SHA.
 
 Safety invariants remain unchanged:
 
@@ -254,18 +177,14 @@ no automatic production-data cleanup
 ## Audit status
 
 ```text
-Approved plan Phase 9 implementation: COMPLETE (checkpoint 64)
-Current newer HEAD CI: NOT VERIFIED
-Phase A inventory / cross-cutting ownership: IN PROGRESS
-Arduino audit: IN PROGRESS
-  A-001 FIXED / exact-current verification pending
-  A-002 FIXED / CI PENDING
-Targeted JOB/JOB_CANCEL/ALL_CLEAR desync audit: IN PROGRESS / CURRENT TARGET
-ESP32 audit: PENDING
+Phase 9 implementation: COMPLETE (checkpoint 64)
+Arduino findings A-001..A-003: FIXED / exact-current verification pending
+Targeted UART findings A-004..A-007: FIXED / exact-current verification pending
+Targeted UART repo review: COMPLETE -> hardware gate retained
+ESP32 runtime/API/persistence/integrity/network/backup audit: IN PROGRESS / CURRENT
 Web audit: PENDING
 Tests/CI audit: PENDING
 Documentation/AI consistency audit: PENDING
 Final repo-wide recheck: PENDING
+Current newer HEAD CI: NOT VERIFIED
 ```
-
-Completed findings must not remain in `06_ACTIVE_WORK_AND_NEXT_STEPS.md` as future work.

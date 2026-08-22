@@ -37,6 +37,30 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
     if (runtime.jobId != snapshot.jobId || runtime.sessionId != snapshot.sessionId)
         return JournalSaveResult::InvalidTransition;
 
+    // A CRC-valid RUN_STARTED for the exact immutable session is stronger
+    // evidence than a prior delivery timeout: Arduino did receive the JOB and a
+    // physical START occurred. Reconcile only the narrow zero-run timeout state
+    // before appending the event so runtime state and NDJSON cannot diverge.
+    if (event.type == RemoteEventType::RunStarted &&
+        runtime.deliveryState == JobDeliveryState::TimedOut)
+    {
+        if (runtime.executionState != JobExecutionState::WaitingDelivery ||
+            runtime.lastRunId != 0UL || runtime.completedRuns != 0U ||
+            event.runId == 0UL || event.completedRuns != 0U)
+        {
+            return JournalSaveResult::InvalidTransition;
+        }
+        if (!states.confirmStartedAfterDeliveryTimeout(event.sessionId,
+                                                       event.runId,
+                                                       millis()))
+        {
+            return JournalSaveResult::StorageUnavailable;
+        }
+        runtime.deliveryState = JobDeliveryState::Accepted;
+        runtime.executionState = JobExecutionState::Running;
+        runtime.lastRunId = event.runId;
+    }
+
     if (event.type == RemoteEventType::RunStarted &&
         (runtime.executionState == JobExecutionState::ProgramCompleted ||
          runtime.completedRuns >= snapshot.repeatTarget))

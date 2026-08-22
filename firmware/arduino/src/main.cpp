@@ -28,19 +28,50 @@
 #include "../../../Arduino/CM_SsrController.h"
 #include "../../../Arduino/CM_UartEventTransport.h"
 
+#if !CM_FEATURE_DIAGNOSTICS
+namespace
+{
+class NullDiagnosticSerial
+{
+public:
+    void begin(unsigned long) {}
+    void flush() {}
+    void println() {}
+
+    template <typename T>
+    void print(const T&) {}
+
+    template <typename T, typename U>
+    void print(const T&, const U&) {}
+
+    template <typename T>
+    void println(const T&) {}
+};
+
+NullDiagnosticSerial diagnosticSerial;
+}
+#define Serial diagnosticSerial
+#endif
+
 #if defined(__AVR__)
+#if CM_FEATURE_DIAGNOSTICS
 uint8_t cmResetFlags __attribute__((section(".noinit")));
+#endif
 
 void cmCaptureResetFlags() __attribute__((naked, section(".init3")));
 void cmCaptureResetFlags()
 {
+#if CM_FEATURE_DIAGNOSTICS
     cmResetFlags = MCUSR;
+#endif
     MCUSR = 0U;
     wdt_disable();
 }
 
+#if CM_FEATURE_DIAGNOSTICS
 extern char __heap_start;
 extern char* __brkval;
+#endif
 #endif
 
 namespace
@@ -91,18 +122,19 @@ CM::HardwareSettingsController hardwareSettingsController(hardwareSettingsStore,
                                                           machine);
 CM::HallTelemetryService hallTelemetry(hall);
 CM::HallCalibrationService hallCalibration(hall);
-CM::HallCalibrationResult lastHallCalibrationResult;
-bool hasHallCalibrationResult = false;
 CM::HallCalibrationState previousHallCalibrationState =
     CM::HallCalibrationState::Idle;
 
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
+#if CM_FEATURE_DIAGNOSTICS
 uint32_t lastAliveReportMs = 0UL;
+#endif
 uint32_t lastHallTelemetrySendMs = 0UL;
 uint8_t emergencyClearSequenceIndex = 0U;
 uint32_t emergencyClearLastKeyMs = 0UL;
 
+#if CM_FEATURE_DIAGNOSTICS
 int freeSramBytes()
 {
 #if defined(__AVR__)
@@ -116,6 +148,7 @@ int freeSramBytes()
     return -1;
 #endif
 }
+#endif
 
 void printResetCause()
 {
@@ -334,6 +367,8 @@ void processKeypad()
     Serial.print(static_cast<unsigned int>(machine.state()));
     Serial.print(F(" handled="));
     Serial.println(handled ? F("1") : F("0"));
+#else
+    (void)handled;
 #endif
 #endif
 }
@@ -525,8 +560,6 @@ void processHallCalibrationCommands(uint32_t nowMs)
                 {
                     hallTelemetry.setEnabled(false, nowMs);
                     hallCalibration.reset();
-                    lastHallCalibrationResult = CM::HallCalibrationResult();
-                    hasHallCalibrationResult = false;
                     hallCalibration.arm(nowMs);
                     previousHallCalibrationState = hallCalibration.state();
                 }
@@ -546,14 +579,16 @@ void processHallCalibrationCommands(uint32_t nowMs)
                 break;
 
             case CM::HallCalibrationCommand::Get:
+            {
                 espTransport.sendHallCalibrationState(
                     hallCalibration.state(),
                     hallCalibration.baselineReady(),
                     hallCalibration.motorPermit());
-                if (hasHallCalibrationResult)
-                    espTransport.sendHallCalibrationResult(
-                        lastHallCalibrationResult);
+                CM::HallCalibrationResult result;
+                if (hallCalibration.latestResult(result))
+                    espTransport.sendHallCalibrationResult(result);
                 break;
+            }
 
             case CM::HallCalibrationCommand::None:
             default:
@@ -788,11 +823,7 @@ void processHallCalibration(uint32_t nowMs)
 
     CM::HallCalibrationResult result;
     if (hallCalibration.takeResult(result))
-    {
-        lastHallCalibrationResult = result;
-        hasHallCalibrationResult = true;
-        espTransport.sendHallCalibrationResult(lastHallCalibrationResult);
-    }
+        espTransport.sendHallCalibrationResult(result);
 
     if (hallCalibration.state() != previousHallCalibrationState)
     {

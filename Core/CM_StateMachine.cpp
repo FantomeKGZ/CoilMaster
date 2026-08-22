@@ -251,10 +251,14 @@ bool StateMachine::toggleManual()
         return true;
     }
 
+    // JOB_COMPLETE owns a completed run identity until the next explicit repeat
+    // START or (for a final remote repeat) its exact delivery ACK. Entering manual
+    // mode from this state used to collapse it back to READY on exit, making the
+    // final ACK impossible to apply. The JobComplete UI does not advertise manual
+    // mode, so keep that boundary closed.
     if (m_state == MachineState::Ready ||
         m_state == MachineState::EnterCoilCount ||
-        m_state == MachineState::EnterTurns ||
-        m_state == MachineState::JobComplete)
+        m_state == MachineState::EnterTurns)
     {
         m_state = MachineState::ManualRun;
         return true;

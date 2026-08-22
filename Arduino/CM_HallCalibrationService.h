@@ -54,6 +54,12 @@ public:
     bool motorPermit() const;
     bool baselineReady() const;
     bool takeResult(HallCalibrationResult& result);
+    bool latestResult(HallCalibrationResult& result) const
+    {
+        if (m_state != HallCalibrationState::Completed) return false;
+        result = m_result;
+        return true;
+    }
 
 private:
     static constexpr uint16_t SampleIntervalMs = 10U;

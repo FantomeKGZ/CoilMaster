@@ -5,160 +5,172 @@ Branch: `cmp-protocol-v1`
 
 ## Purpose
 
-This checkpoint owns the active full-code audit. Phase 9 Web implementation is complete in checkpoint 64. The targeted JOB/UART desync review is summarized in checkpoint 65. ESP32 build-identity CI recovery is recorded in checkpoint 66.
+This checkpoint owns the full-code audit. Phase 9 Web implementation is complete in checkpoint 64. Targeted JOB/UART review is summarized in checkpoint 65. ESP32 build-identity CI recovery is recorded in checkpoint 66.
 
 Historical checkpoints are evidence, not an automatic task queue.
 
-After the audit is complete, the next explicitly approved phase is a repository cleanup: remove only proven-unused folders/files, duplicated implementations, stale transition artifacts and dead code after dependency/build/test evidence shows they are not part of production or required history/tooling.
-
 ## Verification baseline
 
-The operator explicitly reported **all visible workflows green** for branch HEAD:
+Last operator-confirmed GREEN state:
 
 ```text
-ef095a5eb05ae5f886020510ef11324d0f4882ad
-Advance persistence audit past settings recovery
+3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
+Record calculator standard alternatives feature
+USER CONFIRMED GREEN
 ```
 
-Treat that exact state as **USER CONFIRMED GREEN**. Any commit after this SHA requires a new exact-current verification or explicit operator confirmation.
+Commits after this SHA are **NOT VERIFIED** until an applicable exact-current workflow result or explicit operator confirmation is available. Empty GitHub combined-status output is not proof of GREEN.
 
-## Audit scope
-
-### A. Arduino safety and realtime ownership
-
-Review `Core/`, `Arduino/`, `firmware/arduino/src/` for physical START/SSR/Hall ownership, repeat/run identity, remote JOB lifecycle, UART validation/retry/replay, RAM/Flash/stack, blocking paths and reboot/fault behavior.
-
-### B. ESP32 runtime, persistence and APIs — CURRENT
-
-Review `firmware/esp32/src/` for lifecycle/state consistency, persistence identities, workshop/warehouse/writeoff/costing, backup/restore, network/FTP/RTC/SD failure semantics, API bounds/overflow, atomic writes, NDJSON cost and duplicate ownership.
-
-### C. Desktop/mobile Web
-
-Review desktop/mobile/shared assets for API parity, error handling, unsafe optimistic state, paging/bounds, provenance, confirmations, semantic divergence and injection/escaping risks.
-
-### D. Tests and CI
-
-Review `Tests/`, workflows, `platformio.ini` and build scripts for real production coverage, stale/false-positive assertions, fail-open steps, source-filter omissions and trigger gaps.
-
-### E. Documentation/AI routing
-
-Review authoritative entrypoints for current-code accuracy and stale-task routing.
-
-### F. Post-audit repository cleanup — AFTER A..E only
-
-Build a dependency inventory before deleting anything. Classify candidates as:
+## Audit scope and status
 
 ```text
-DELETE       proven unused and unreferenced by production/build/tests/docs/runtime assets
-MERGE        duplicate implementations with one authoritative owner
-KEEP         active source/tooling/history required by build, tests, docs or operation
-REVIEW       uncertain dependency; do not delete until proven safe
+A. Arduino safety/realtime/UART/resources                  COMPLETE
+B. ESP32 runtime/API/persistence/integrity/network/backup COMPLETE
+C. Desktop/mobile/shared Web parity/error/security        COMPLETE
+D. Tests/CI/build filters/triggers                         COMPLETE
+E. Documentation/AI routing consistency                   COMPLETE
+F. Final applicable CI gate                               PENDING
+G. Post-audit repository cleanup                          APPROVED / waits for F
 ```
-
-Cleanup must not change safety behavior, persistence schema/provenance, required migration/history evidence or hardware ownership. Run applicable CI after cleanup and compare the final tree against the pre-cleanup baseline.
-
-Initial inventory already exposes obvious low-risk candidates such as one-byte placeholder README files, but nothing is deleted until this phase begins.
 
 ## Severity
 
 ```text
-P0 — immediate physical/data safety risk or destructive corruption path
-P1 — serious functional/state/persistence bug likely to affect production
-P2 — concrete robustness/performance/maintainability weakness
-P3 — low-risk cleanup/dead code/docs/test-quality issue
+P0 immediate physical/data safety risk or destructive corruption path
+P1 serious functional/state/persistence defect likely to affect production
+P2 concrete robustness/performance/maintainability weakness
+P3 low-risk cleanup/dead code/docs/test-quality issue
 ```
 
-Do not label speculative redesign or style preference as a defect.
-
-## Findings status
+## Findings closed in this audit
 
 ### A-001..A-007 — FIXED
 
-Remote JOB admission/parser/correlation, zero-id ALL_CLEAR recovery identity, stale-cancel handling, control/RUN ordering and late RUN after lost JOB_ACK have been hardened. Full UART evidence is in checkpoint 65. No physical START or SSR authority moved to ESP32/Web.
+Remote JOB admission/parser/correlation, zero-id ALL_CLEAR recovery identity, stale cancel handling, control/RUN ordering and late RUN after lost JOB_ACK were hardened. No physical START or SSR authority moved to ESP32/Web.
 
-### B-001 — P1 — backup activity guard could promote unknown runtime to Safe — FIXED
+### B-001 — P1 — backup activity guard unknown runtime — FIXED
 
-`BackupActivityGuard::check()` requires runtime `Safe` before persisted identity checks. Runtime `Busy` stays Busy and runtime `Unavailable` stays Unavailable.
+Runtime must be proven `Safe`; `Busy` and `Unavailable` remain fail-closed.
 
-### B-002 — P1 — restore/apply lacked a global production-mutation interlock — FIXED
+### B-002 — P1 — restore/apply production mutation race — FIXED
 
-One process-wide restore lock blocks non-GET `/api/*` with `409 restore_mutation_active` during APPLY/rollback. GET/status remain available. Forward apply rechecks live activity and enters rollback on loss of proven Safe. APPLIED/FAILED remain locked until reboot/cleanup. Operator-only APPLY, no-auto-resume, physical START and SSR ownership remain unchanged.
+One process-wide restore mutation interlock blocks non-GET `/api/*` while APPLY/rollback is active. Forward apply rechecks live activity and enters rollback if Safe can no longer be proven. GET/status remain available. Operator-only apply/no-auto-resume remain unchanged.
 
-### B-003 — P2 — network profile API conflated storage failures with client validation — FIXED
+### B-003 — P2 — network API HTTP/storage semantics — FIXED
 
-Network API distinguishes 400 validation, 404 absent profile, 409 capacity/conflict, 500 persistence/reload failure and 503 unavailable store/manager.
+400 validation, 404 absent profile, 409 conflict/capacity, 500 persistence failure and 503 unavailable store/manager are separated.
 
-### B-004 — P1 — JobStateStore deleted authoritative state before replacement commit — FIXED
+### B-004 — P1 — JobStateStore destructive replacement boundary — FIXED
 
-Current transaction is:
+Authoritative replacement is temp-write/verify -> main to `.bak` -> temp to main -> verify committed main -> delete `.bak`. Interrupted evidence fails closed.
 
-```text
-write + verify temp
-old target -> .bak
-verified temp -> target
-verify committed target
-remove .bak only after verification
-```
-
-Interrupted `.bak/.tmp` evidence is preserved/fails closed instead of silently losing RUN/manual-review state. Regression: `Tests/Web/check_job_state_atomic_replace.js`.
-
-### B-005 — P2 — linked JOB preparation partial transaction — FIXED / USER CONFIRMED GREEN at ef095a5e
-
-Authoritative order:
+### B-005 — P2 — linked JOB preparation partial transaction — FIXED
 
 ```text
 snapshot
-CREATED + WAITING_DELIVERY + zero-run runtime state
-exact spool selection when linked
-DELIVERING runtime state
-UART queueJob
+-> CREATED + WAITING_DELIVERY + zero-run state
+-> exact spool selection when linked
+-> DELIVERING state
+-> UART queueJob
 ```
 
-`JobStateStore::isLocalPreparation()` is true only for exact CREATED/WAITING_DELIVERY/zero-run state. It may remain as immutable audit evidence and be superseded by a higher-ID job, but never auto-queues/resumes. DELIVERING/TIMED_OUT/accepted/running/fault remain fail-closed.
+No automatic queue/resume was introduced.
 
-Regression: `Tests/Web/check_job_preparation_transaction.js`.
+### B-006 — P2 — NetworkProfileStore recovery ambiguity — FIXED
 
-### B-006 — P2 — network profile recovery could promote uncommitted temp over committed backup — FIXED
+Committed main wins; valid backup restores committed state; temp is promoted only for an interrupted first write with no backup.
 
-Recovery prefers valid committed main, otherwise valid backup, and promotes temp only when no backup exists (interrupted first write). Invalid evidence fails closed. Regression: `Tests/Web/check_network_profile_atomic_recovery.js`.
+### B-007 — P2 — RemoteBackupSettings recovery ambiguity — FIXED
 
-### B-007 — P2 — remote backup settings recovery could promote uncommitted temp — FIXED / USER CONFIRMED GREEN at ef095a5e
+Uncommitted prepared settings cannot become authoritative after reboot.
 
-Committed-first recovery prevents a brownout from silently applying FTP credentials, target directory, retention or schedule that `save()` never completed.
+### B-008 — P2 — legacy ConductorSettings recovery ambiguity — FIXED
 
-Regression: `Tests/Web/check_remote_backup_settings_atomic_recovery.js`.
+Legacy store also follows committed-first fail-closed recovery.
 
-### B-008 — P2 — conductor settings recovery could promote uncommitted temp — FIXED / USER CONFIRMED GREEN at ef095a5e
+### B-009 — P2 — production conductor settings atomic transaction — FIXED
 
-Committed-first recovery prevents an interrupted write from making uncommitted Al/Cu conversion ratios, deviation limits or maximum strand count authoritative after reboot.
+Authoritative production calculator settings remain owned by `WarehouseStore` / `CM_ConductorSettingsWeb` at `/data/settings/conductor.json`; write/recovery path is atomic and regression-protected. Legacy `CM_ConductorSettings.*` is not the production owner.
 
-Regression: `Tests/Web/check_conductor_settings_atomic_recovery.js`.
+### B-010 — P1/P2 — warehouse spool swap commit proof — FIXED
 
-## Reviewed without a new production-data defect in this pass
+Prepared temp and committed main are parser-validated. `.bak` is deleted only after promoted main validates; malformed promoted main rolls back to last valid backup.
 
-- `PersistentIdAllocator`: verified temp, backup high-water and fail-closed interrupted transaction handling already present.
-- `JobSnapshotStore`: immutable create-only final path; no destructive replace of an existing snapshot.
-- `JobSpoolSelectionStore`: immutable create-only selection, bounded parse and exact session identity.
-- `RepairRegistry`: append-only NDJSON; malformed/partial tail poisons readiness instead of deleting older records.
-- `NetworkManager`: AP recovery is started before profile loading.
-- `RtcClock`: NTP writes require live runtime Safe and are verified after DS3231 write.
-- `WebRecoveryFtpServer`: scoped to `/web`, rechecks live activity and does not write production `/data`.
+### B-011 — P1/P2 — material ledger swap commit proof — FIXED
 
-## Current active target
+Material ledger now has the same verified commit/rollback boundary. Dedicated regression: `Tests/Web/check_material_ledger_atomic_recovery.js`.
 
-Continue section B only for concrete findings:
+### C-001 — P2 — network JSON string escaping — FIXED
 
-1. remaining mutable single-file stores for destructive swap/ambiguous recovery;
-2. remaining backup/restore/activity-guard consistency;
-3. resource/NDJSON hotspots only where evidence exists.
+`CM_NetworkWeb.cpp` and `/api/system/network` now escape quotes, backslashes, standard JSON control characters and remaining `0x00..0x1f` bytes. Runtime network status applies escaping to state/result, AP/STA SSID and hostname fields. Regression: `Tests/Web/check_network_json_escaping.js`.
 
-Then complete C Web, D tests/CI and E docs/AI routing. Only after A..E are complete move to F cleanup/de-duplication.
+## Reviewed without a new blocking defect
 
-Do not reopen B-001..B-008 without a concrete regression.
+- `PersistentIdAllocator` temp/high-water/backup recovery.
+- immutable `JobSnapshotStore` and `JobSpoolSelectionStore` create paths.
+- `RepairRegistry` append-only fail-closed malformed-tail behavior.
+- `NetworkManager` AP recovery sequencing.
+- `RtcClock` safe-idle NTP write + verify.
+- `WebRecoveryFtpServer` `/web`-only scope and activity gating.
+- shared app shell, Wi-Fi UI, Arduino archive, winding-history spool metadata, pricing-history and writeoff HTML rendering: inspected dynamic values are escaped or use `textContent`.
+- `motor-reference.yml`: checkout/build/push pinned to `cmp-protocol-v1`; `main` is not an implementation source.
+
+## Residual non-blocking findings / cleanup candidates
+
+### Append-only catalogue tail resilience — P2
+
+`WarehouseStore::addSpool()` and `MaterialLedger::addMaterial()` append directly to authoritative NDJSON. A torn tail correctly fails closed, but can make the catalogue unavailable until operator recovery. Do **not** auto-truncate production evidence. Any future improvement must be an explicit transactional append design.
+
+### Repository cleanup candidates — P3 / REVIEW until dependency proof
+
+```text
+firmware/esp32/src/CM_ConductorSettings.h/.cpp
+firmware/esp32/web/shared/calculator-multisource.js
+.github/workflows/README.md
+.github/ISSUE_TEMPLATE/README.md
+```
+
+The calculator helper is still injected by `CM_StaticSiteServer`, but the current calculator no longer exposes the legacy `#diameter/#strands` controls, so the helper returns immediately. Remove only in cleanup after reference/dependency proof.
+
+## Tests/CI audit results
+
+Added/strengthened:
+
+```text
+Tests/Web/check_material_ledger_atomic_recovery.js
+Tests/Web/check_ci_trigger_contracts.js
+Tests/Web/check_network_json_escaping.js
+```
+
+Trigger gaps fixed:
+
+```text
+Arduino Uno Build: Shared/** changes trigger UNO compile
+CMP Protocol Tests PR: Shared/** changes trigger contracts
+```
+
+This protects the real dependency from Arduino transport to `Shared/CMP1Text/CM_Cmp1Crc.h`.
+
+## Docs/AI routing audit results
+
+Authoritative AI docs now route to checkpoint 63 + `06_ACTIVE_WORK_AND_NEXT_STEPS.md`, not checkpoint 61/62 as active work. Current conductor calculator settings ownership is documented as `WarehouseStore` + `CM_ConductorSettingsWeb`; legacy parallel persistence must not become authoritative again.
+
+## Final gate before cleanup
+
+Applicable automated verification is required for the current post-`3ebc942f...` code set. At checkpoint update time current HEAD status from the connector is not available as a completed GREEN result, therefore the state is **NOT VERIFIED**.
+
+After GREEN/explicit confirmation, begin the separately approved cleanup phase with a repo-wide dependency inventory and classify every candidate as:
+
+```text
+DELETE proven unused
+MERGE duplicate implementation with one authoritative owner
+KEEP active production/build/test/docs/history dependency
+REVIEW uncertain; do not delete
+```
 
 ## External hardware verification gate
 
-Still required when the stand is available:
+Still required when the physical stand is available:
 
 ```text
 normal JOB -> Arduino READY
@@ -170,23 +182,12 @@ zero-run cancel / ALREADY_CLEAR / safe physical ALL_CLEAR
 late zero-id ALL_CLEAR must not cancel fresh job
 lost JOB_ACK -> TIMED_OUT/manual review -> late RUN_STARTED reconciliation
 reboot waiting/running -> no auto resume
-
-B-005 preparation boundary:
-failed linked preparation before DELIVERING -> no JOB appears on Arduino
-next higher-ID job may be created after reboot
-DELIVERING/reboot still requires manual review
-
-restore interlock:
-GET status remains available during APPLY
-POST/DELETE API mutation -> 409 restore_mutation_active
-APPLIED requires reboot before mutations resume
+restore interlock GET remains available; mutations blocked during APPLY
 ```
 
-## Execution rules / safety boundary
+Hardware GREEN is never inferred from CI.
 
-For every existing file changed: fetch current full `cmp-protocol-v1` content + blob SHA, make smallest safe fix, add regression coverage where practical, update current docs, and never claim exact-current GREEN without matching evidence or explicit operator confirmation.
-
-Safety invariants remain unchanged:
+## Safety boundary
 
 ```text
 physical START only
@@ -195,25 +196,9 @@ no auto-resume after reboot
 Arduino owns SSR
 ESP32/Web never directly drive SSR
 RUN_COMPLETED never auto-writes off material
-manual writeoff uses exact source_session_id + source_run_id
-spool_id optional only for approved KG_FIRST unallocated/manual path
-exact spool provenance retained when a spool is used
+manual writeoff exact source_session_id + source_run_id
+spool_id optional only approved KG_FIRST unallocated/manual path
+exact spool provenance retained when spool is used
 backup restore operator-only, transactional and fail-closed
 no automatic production-data cleanup
-```
-
-## Audit status
-
-```text
-Phase 9 implementation: COMPLETE (checkpoint 64)
-Arduino findings A-001..A-007: FIXED
-Targeted UART repo review: COMPLETE -> hardware gate retained
-ESP32 B-001..B-008: FIXED at repo/source-contract level
-HEAD ef095a5e: USER CONFIRMED GREEN
-ESP32 remaining persistence/backup/resource audit: CURRENT
-Web audit: NEXT after section B concrete findings exhausted
-Tests/CI audit: PENDING
-Documentation/AI consistency audit: PENDING
-Final repo-wide recheck: PENDING
-Post-audit cleanup/de-duplication: APPROVED / PENDING audit completion
 ```

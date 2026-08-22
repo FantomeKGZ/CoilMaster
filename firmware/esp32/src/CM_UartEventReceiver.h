@@ -186,6 +186,8 @@ private:
     uint8_t m_jobSendAttempts;
     uint32_t m_lastQueuedJobId;
     bool m_hasLastQueuedJobId;
+    uint32_t m_recoveryJobId;
+    bool m_hasRecoveryJobId;
     JobDeliveryEvent m_jobDelivery;
     bool m_hasJobDelivery;
 

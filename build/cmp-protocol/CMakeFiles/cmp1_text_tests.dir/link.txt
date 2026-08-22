@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/cmp1_text_tests.dir/link.d CMakeFiles/cmp1_text_tests.dir/home/runner/work/CoilMaster/CoilMaster/Tests/CMP1Text/test_main.cpp.o -o cmp1_text_tests

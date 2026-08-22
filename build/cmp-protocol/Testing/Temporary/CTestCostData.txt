@@ -1,3 +1,0 @@
-cmp_protocol_tests 1 0.0010965
-cmp1_text_tests 1 0.00192503
----

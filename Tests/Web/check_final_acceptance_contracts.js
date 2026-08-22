@@ -27,6 +27,7 @@ const backupExportPath = 'firmware/esp32/src/CM_BackupExportWeb.cpp';
 const sessionAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
 const sessionAuditHeaderPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h';
 const staticSitePath = 'firmware/esp32/src/CM_StaticSiteServer.cpp';
+const networkWebPath = 'firmware/esp32/src/CM_NetworkWeb.cpp';
 const storagePath = 'firmware/esp32/src/CM_StorageDiagnosticsWeb.cpp';
 const releaseAuditPath = 'Tests/Web/check_release_contracts.js';
 const webAuditPath = 'Tests/Web/check_web_assets.js';
@@ -42,6 +43,7 @@ const backupExport = read(backupExportPath);
 const sessionAudit = read(sessionAuditPath);
 const sessionAuditHeader = read(sessionAuditHeaderPath);
 const staticSite = read(staticSitePath);
+const networkWeb = read(networkWebPath);
 const storage = read(storagePath);
 const releaseAudit = read(releaseAuditPath);
 const webAudit = read(webAuditPath);
@@ -80,6 +82,23 @@ requireText(mainPath, main,
   'no-auto-queue/resume/writeoff status contract missing');
 requireText(staticSitePath, staticSite, 'm_server.on("/api/system/network", HTTP_GET',
   'network status route missing');
+
+// Network profile API must distinguish bad operator input from device/storage
+// failures, so a healthy request is never reported as a 400 when microSD fails.
+for (const text of [
+  '"{\\"error\\":\\"network_profiles_unavailable\\"}"',
+  '"{\\"error\\":\\"network_profile_not_found\\"}"',
+  '"{\\"error\\":\\"network_profile_capacity_reached\\"}"',
+  '"{\\"error\\":\\"network_profile_persistence_failed\\"}"',
+  '"{\\"error\\":\\"network_profile_delete_persistence_failed\\"}"',
+  '"{\\"error\\":\\"network_manager_reload_failed\\"}"'
+]) {
+  requireText(networkWebPath, networkWeb, text,
+    'network API error-semantics contract missing: ' + text);
+}
+requireText(networkWebPath, networkWeb,
+  'm_server.send(m_store.ready() ? 500 : 503,',
+  'network persistence failures must distinguish store unavailable from write failure');
 
 // microSD capacity remains operator-visible and strictly read-only.
 requireText(storagePath, storage, 'm_server.on("/api/system/storage", HTTP_GET',
@@ -212,4 +231,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, fail-closed live backup activity, backup inspection/session preflight, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded/exact workshop reads, warehouse and linked spool identity, diagnostics/storage/network/time, network error semantics, fail-closed live backup activity, backup inspection/session preflight, fail-closed restore, manual exact-run kg-first/legacy writeoff, and desktop/mobile acceptance UI.');

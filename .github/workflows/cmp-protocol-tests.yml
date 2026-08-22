@@ -42,6 +42,10 @@ jobs:
         if: always()
         run: node Tests/Protocol/check_arduino_job_parser_contracts.js
 
+      - name: Audit authoritative Arduino entrypoint
+        if: always()
+        run: node Tests/Protocol/check_arduino_entrypoint_cleanup.js
+
       - name: Audit web JavaScript and navigation
         if: always()
         run: node Tests/Web/check_web_assets.js

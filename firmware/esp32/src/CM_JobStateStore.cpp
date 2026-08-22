@@ -56,8 +56,11 @@ bool JobStateStore::create(uint32_t jobId,
     }
     if (found)
     {
-        // TIMED_OUT is deliberately not terminal: all JOB_ACK frames may have
-        // been lost after Arduino accepted the job, so operator review is needed.
+        // CREATED with zero run evidence is a durable local preparation marker:
+        // main.cpp persists it before exact spool selection and before changing
+        // delivery to DELIVERING. Therefore it cannot have reached Arduino and
+        // may be superseded by a new, higher immutable session after a local
+        // preparation failure. DELIVERING/TIMED_OUT remain fail-closed.
         const bool terminalDelivery =
             latest.deliveryState == JobDeliveryState::Rejected ||
             latest.deliveryState == JobDeliveryState::Cancelled;
@@ -65,7 +68,8 @@ bool JobStateStore::create(uint32_t jobId,
             latest.executionState == JobExecutionState::ProgramCompleted ||
             latest.executionState == JobExecutionState::ClosedAfterReview;
         if (latest.sessionId >= sessionId || latest.jobId >= jobId ||
-            (!terminalDelivery && !terminalExecution))
+            (!terminalDelivery && !terminalExecution &&
+             !isLocalPreparation(latest)))
         {
             return false;
         }
@@ -171,6 +175,13 @@ bool JobStateStore::loadLatest(JobRuntimeState& state, bool& found) const
     return true;
 }
 
+bool JobStateStore::isLocalPreparation(const JobRuntimeState& state)
+{
+    return state.deliveryState == JobDeliveryState::Created &&
+           state.executionState == JobExecutionState::WaitingDelivery &&
+           state.lastRunId == 0UL && state.completedRuns == 0U;
+}
+
 bool JobStateStore::updateDelivery(uint32_t sessionId,
                                    JobDeliveryState deliveryState,
                                    uint32_t nowMs)
@@ -207,35 +218,22 @@ bool JobStateStore::updateExecution(uint32_t sessionId,
 
     if (executionState == JobExecutionState::Running)
     {
-        // CMP v1 deliberately sends completed_runs=0 on RUN_STARTED. The
-        // cumulative count remains in persisted state until RUN_COMPLETED
-        // proves exactly one additional completed run.
         if (state.deliveryState != JobDeliveryState::Accepted ||
             runId == 0UL || completedRuns != 0U)
         {
             return false;
         }
-
-        // A repeated RUN_STARTED frame for the same run is idempotent. This is
-        // required when Arduino retries because the previous ACK was lost.
         if (state.executionState == JobExecutionState::Running &&
             runId == state.lastRunId)
         {
             return true;
         }
-
-        if (runId <= state.lastRunId)
-        {
-            return false;
-        }
+        if (runId <= state.lastRunId) return false;
         state.lastRunId = runId;
     }
     else if (executionState == JobExecutionState::WaitingPhysicalStart ||
              executionState == JobExecutionState::ProgramCompleted)
     {
-        // A RUN_COMPLETED proves exactly one new physical repetition. For an
-        // intermediate repetition we persist WaitingPhysicalStart; only the
-        // final target repetition is persisted as ProgramCompleted.
         if (runId == 0UL || runId != state.lastRunId ||
             completedRuns == 0U ||
             state.completedRuns == 0xFFFFU ||
@@ -256,9 +254,7 @@ bool JobStateStore::closeAfterManualReview(uint32_t sessionId,
 {
     JobRuntimeState state;
     if (!load(sessionId, state)) return false;
-
-    if (state.executionState == JobExecutionState::ClosedAfterReview)
-        return true;
+    if (state.executionState == JobExecutionState::ClosedAfterReview) return true;
 
     const bool reviewRequired =
         state.executionState == JobExecutionState::Running ||
@@ -276,14 +272,9 @@ bool JobStateStore::closeAfterManualReview(uint32_t sessionId,
 
 bool JobStateStore::ensureDirectories()
 {
-    if (!m_fileSystem.exists("/data") && !m_fileSystem.mkdir("/data"))
-        return false;
-    if (!m_fileSystem.exists(RootDirectory) &&
-        !m_fileSystem.mkdir(RootDirectory))
-        return false;
-    if (!m_fileSystem.exists(StateDirectory) &&
-        !m_fileSystem.mkdir(StateDirectory))
-        return false;
+    if (!m_fileSystem.exists("/data") && !m_fileSystem.mkdir("/data")) return false;
+    if (!m_fileSystem.exists(RootDirectory) && !m_fileSystem.mkdir(RootDirectory)) return false;
+    if (!m_fileSystem.exists(StateDirectory) && !m_fileSystem.mkdir(StateDirectory)) return false;
     return true;
 }
 
@@ -304,18 +295,13 @@ String JobStateStore::backupPath(uint32_t sessionId) const
 
 bool JobStateStore::writeAtomic(const JobRuntimeState& state)
 {
-    if (!isReady() || state.jobId == 0UL || state.sessionId == 0UL)
-        return false;
+    if (!isReady() || state.jobId == 0UL || state.sessionId == 0UL) return false;
 
     String output;
     if (!serialize(state, output)) return false;
-
     const String target = statePath(state.sessionId);
     const String temp = tempPath(state.sessionId);
     const String backup = backupPath(state.sessionId);
-
-    // A previous interrupted transaction is evidence, not garbage. Never erase
-    // it automatically while live runtime state may depend on the older record.
     if (m_fileSystem.exists(temp) || m_fileSystem.exists(backup)) return false;
 
     File file = m_fileSystem.open(temp, FILE_WRITE);
@@ -357,22 +343,15 @@ bool JobStateStore::writeAtomic(const JobRuntimeState& state)
         m_fileSystem.remove(temp);
         return false;
     }
-
     if (!m_fileSystem.rename(temp, target))
     {
-        // The candidate was never committed. Restore the previously authoritative
-        // record when possible; otherwise preserve .bak/.tmp evidence so reboot
-        // recovery fails closed instead of silently losing RUN/manual-review state.
         bool rollbackRestored = !hadTarget || m_fileSystem.exists(target);
         if (hadTarget && !rollbackRestored && m_fileSystem.exists(backup))
             rollbackRestored = m_fileSystem.rename(backup, target);
-        if (rollbackRestored && m_fileSystem.exists(temp))
-            m_fileSystem.remove(temp);
+        if (rollbackRestored && m_fileSystem.exists(temp)) m_fileSystem.remove(temp);
         return false;
     }
 
-    // Verify the committed pathname, not only the temporary file. This catches
-    // media/rename anomalies before the old authoritative record is discarded.
     JobRuntimeState committed;
     if (!load(state.sessionId, committed) ||
         committed.jobId != state.jobId ||
@@ -383,16 +362,12 @@ bool JobStateStore::writeAtomic(const JobRuntimeState& state)
         committed.completedRuns != state.completedRuns ||
         committed.updatedUptimeMs != state.updatedUptimeMs)
     {
-        // Do not delete the backup on a failed commit verification. The presence
-        // of .bak makes the strict directory scan fail closed after reboot.
         return false;
     }
 
     if (hadTarget && m_fileSystem.exists(backup) &&
         !m_fileSystem.remove(backup))
     {
-        // New target is valid, but stale backup cleanup failed. Keep readiness
-        // fail-closed for subsequent writes/scans rather than hiding the residue.
         m_ready = false;
         return false;
     }
@@ -410,12 +385,9 @@ bool JobStateStore::serialize(const JobRuntimeState& state,
     output += deliveryName(state.deliveryState);
     output += F("\",\"execution_state\":\"");
     output += executionName(state.executionState);
-    output += F("\",\"last_run_id\":");
-    output += state.lastRunId;
-    output += F(",\"completed_runs\":");
-    output += state.completedRuns;
-    output += F(",\"updated_uptime_ms\":");
-    output += state.updatedUptimeMs;
+    output += F("\",\"last_run_id\":"); output += state.lastRunId;
+    output += F(",\"completed_runs\":"); output += state.completedRuns;
+    output += F(",\"updated_uptime_ms\":"); output += state.updatedUptimeMs;
     output += F("}\n");
     return output.length() < 320U;
 }
@@ -424,33 +396,24 @@ bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
 {
     state = JobRuntimeState();
     if (!input.startsWith(F("{\"schema_version\":1,")) ||
-        !input.endsWith(F("}\n")) || input.length() >= 320U)
-    {
-        return false;
-    }
+        !input.endsWith(F("}\n")) || input.length() >= 320U) return false;
 
     uint32_t schemaVersion = 0UL;
     uint32_t completedRuns = 0UL;
     String delivery;
     String execution;
-    if (!findUnsigned(input, "schema_version", schemaVersion) ||
-        schemaVersion != 1UL ||
+    if (!findUnsigned(input, "schema_version", schemaVersion) || schemaVersion != 1UL ||
         !findUnsigned(input, "job_id", state.jobId) || state.jobId == 0UL ||
         !findUnsigned(input, "session_id", state.sessionId) || state.sessionId == 0UL ||
         !findString(input, "delivery_state", delivery) ||
         !findString(input, "execution_state", execution) ||
         !findUnsigned(input, "last_run_id", state.lastRunId) ||
-        !findUnsigned(input, "completed_runs", completedRuns) ||
-        completedRuns > 0xFFFFUL ||
+        !findUnsigned(input, "completed_runs", completedRuns) || completedRuns > 0xFFFFUL ||
         !findUnsigned(input, "updated_uptime_ms", state.updatedUptimeMs) ||
         !parseDelivery(delivery, state.deliveryState) ||
-        !parseExecution(execution, state.executionState))
-    {
-        return false;
-    }
+        !parseExecution(execution, state.executionState)) return false;
 
     state.completedRuns = static_cast<uint16_t>(completedRuns);
-
     if (state.executionState == JobExecutionState::WaitingDelivery)
     {
         const bool deliveryConsistent =
@@ -459,8 +422,7 @@ bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
             state.deliveryState == JobDeliveryState::Rejected ||
             state.deliveryState == JobDeliveryState::TimedOut ||
             state.deliveryState == JobDeliveryState::Cancelled;
-        return deliveryConsistent && state.lastRunId == 0UL &&
-               state.completedRuns == 0U;
+        return deliveryConsistent && state.lastRunId == 0UL && state.completedRuns == 0U;
     }
     if (state.executionState == JobExecutionState::WaitingPhysicalStart)
     {
@@ -470,19 +432,11 @@ bool JobStateStore::parse(const String& input, JobRuntimeState& state) const
         return initialWait || repeatWait;
     }
     if (state.executionState == JobExecutionState::Running)
-    {
-        return state.deliveryState == JobDeliveryState::Accepted &&
-               state.lastRunId != 0UL;
-    }
+        return state.deliveryState == JobDeliveryState::Accepted && state.lastRunId != 0UL;
     if (state.executionState == JobExecutionState::ProgramCompleted)
-    {
         return state.deliveryState == JobDeliveryState::Accepted &&
                state.lastRunId != 0UL && state.completedRuns != 0U;
-    }
-    if (state.executionState == JobExecutionState::ClosedAfterReview)
-    {
-        return true;
-    }
+    if (state.executionState == JobExecutionState::ClosedAfterReview) return true;
     return state.executionState == JobExecutionState::Fault;
 }
 
@@ -547,14 +501,10 @@ bool JobStateStore::findUnsigned(const String& input,
     value = 0UL;
     const String marker = String("\"") + key + F("\":");
     const int position = input.indexOf(marker);
-    if (position < 0 || input.indexOf(marker, position + marker.length()) >= 0)
-        return false;
-
+    if (position < 0 || input.indexOf(marker, position + marker.length()) >= 0) return false;
     int cursor = position + marker.length();
     if (cursor >= input.length() || !isDigit(input[cursor])) return false;
-    if (input[cursor] == '0' && cursor + 1 < input.length() &&
-        isDigit(input[cursor + 1])) return false;
-
+    if (input[cursor] == '0' && cursor + 1 < input.length() && isDigit(input[cursor + 1])) return false;
     uint32_t parsed = 0UL;
     while (cursor < input.length() && isDigit(input[cursor]))
     {
@@ -563,13 +513,7 @@ bool JobStateStore::findUnsigned(const String& input,
         parsed = parsed * 10UL + digit;
         ++cursor;
     }
-
-    if (cursor >= input.length() ||
-        (input[cursor] != ',' && input[cursor] != '}'))
-    {
-        return false;
-    }
-
+    if (cursor >= input.length() || (input[cursor] != ',' && input[cursor] != '}')) return false;
     value = parsed;
     return true;
 }
@@ -581,19 +525,15 @@ bool JobStateStore::findString(const String& input,
     value = String();
     const String marker = String("\"") + key + F("\":\"");
     const int position = input.indexOf(marker);
-    if (position < 0 || input.indexOf(marker, position + marker.length()) >= 0)
-        return false;
-
+    if (position < 0 || input.indexOf(marker, position + marker.length()) >= 0) return false;
     int cursor = position + marker.length();
     while (cursor < input.length())
     {
         const char ch = input[cursor++];
         if (ch == '"')
-        {
             return cursor < input.length() &&
                    (input[cursor] == ',' || input[cursor] == '}') &&
                    value.length() > 0U;
-        }
         if (ch == '\\' || static_cast<uint8_t>(ch) < 0x20U) return false;
         value += ch;
     }
@@ -604,8 +544,7 @@ bool JobStateStore::validTransition(JobDeliveryState from,
                                     JobDeliveryState to)
 {
     if (from == to) return true;
-    if (from == JobDeliveryState::Created)
-        return to == JobDeliveryState::Delivering;
+    if (from == JobDeliveryState::Created) return to == JobDeliveryState::Delivering;
     if (from == JobDeliveryState::Delivering)
         return to == JobDeliveryState::Accepted ||
                to == JobDeliveryState::Rejected ||

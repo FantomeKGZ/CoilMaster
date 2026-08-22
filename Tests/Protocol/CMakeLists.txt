@@ -23,6 +23,11 @@ add_executable(repeat_target_state_machine_tests
     ../../Core/CM_StateMachine.cpp
 )
 
+add_executable(return_home_guard_tests
+    test_return_home_guard.cpp
+    ../../Core/CM_StateMachine.cpp
+)
+
 target_include_directories(cmp_protocol_tests PRIVATE
     ../../Shared/Protocol
 )
@@ -32,6 +37,10 @@ target_include_directories(cmp1_text_tests PRIVATE
 )
 
 target_include_directories(repeat_target_state_machine_tests PRIVATE
+    ../../Core
+)
+
+target_include_directories(return_home_guard_tests PRIVATE
     ../../Core
 )
 
@@ -54,9 +63,16 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wpedantic
         -Werror
     )
+    target_compile_options(return_home_guard_tests PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Werror
+    )
 endif()
 
 enable_testing()
 add_test(NAME cmp_protocol_tests COMMAND cmp_protocol_tests)
 add_test(NAME cmp1_text_tests COMMAND cmp1_text_tests)
 add_test(NAME repeat_target_state_machine_tests COMMAND repeat_target_state_machine_tests)
+add_test(NAME return_home_guard_tests COMMAND return_home_guard_tests)

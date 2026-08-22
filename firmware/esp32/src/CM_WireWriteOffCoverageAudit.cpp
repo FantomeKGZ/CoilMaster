@@ -350,13 +350,19 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
                 !findUnsigned(record, "run_id", runId) || runId == 0UL)
                 return WireWriteOffCoverageCheck::IntegrityFailed;
 
-            if (selectionCatalog == ReadOnlyCatalogCheck::Missing) continue;
+            // A completed linked production run cannot be finalized without
+            // its immutable spool-selection evidence. Missing the whole
+            // catalogue or the exact session selection is data loss, not an
+            // excuse to omit this run from coverage targets.
+            if (selectionCatalog == ReadOnlyCatalogCheck::Missing)
+                return WireWriteOffCoverageCheck::IntegrityFailed;
 
             SelectionIdentity selection;
             bool selectionFound = false;
             if (!loadSelectionReadOnly(storage, sessionId, selection, selectionFound))
                 return WireWriteOffCoverageCheck::IntegrityFailed;
-            if (!selectionFound) continue;
+            if (!selectionFound)
+                return WireWriteOffCoverageCheck::IntegrityFailed;
             if (selection.repairId != repairId || targetCount >= CoverageBatchSize)
                 return WireWriteOffCoverageCheck::IntegrityFailed;
 

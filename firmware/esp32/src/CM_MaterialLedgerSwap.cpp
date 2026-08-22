@@ -1,7 +1,63 @@
 #include "CM_MaterialLedger.h"
 
+#include "CM_FlatJsonObjectValidator.h"
+
 namespace CM
 {
+bool MaterialLedger::validateMaterialsFile(const char* path) const
+{
+    if (path == nullptr || !m_storage.exists(path)) return false;
+    File file = m_storage.open(path, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint32_t previousId = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        if (!FlatJsonObjectValidator::valid(line))
+        {
+            file.close();
+            return false;
+        }
+
+        uint32_t materialId = 0UL;
+        uint32_t stock = 0UL;
+        uint32_t price = 0UL;
+        String name, unit, currency, status;
+        if (!findUnsigned(line, "material_id", materialId) || materialId == 0UL ||
+            materialId <= previousId ||
+            !findString(line, "name", name) || name.length() == 0U ||
+            !findString(line, "unit", unit) || unit.length() == 0U ||
+            !findUnsigned(line, "stock_quantity_milli", stock) ||
+            !findUnsigned(line, "price_per_unit_minor", price) || price == 0UL ||
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "status", status) || status.length() == 0U)
+        {
+            file.close();
+            return false;
+        }
+        previousId = materialId;
+
+        if (line.indexOf(F("\"comment\":")) >= 0)
+        {
+            String comment;
+            if (!findString(line, "comment", comment))
+            {
+                file.close();
+                return false;
+            }
+        }
+    }
+
+    file.close();
+    return true;
+}
+
 bool MaterialLedger::recoverMaterialFileSwap()
 {
     const bool hasMain = m_storage.exists(MaterialsPath);
@@ -10,9 +66,12 @@ bool MaterialLedger::recoverMaterialFileSwap()
 
     if (hasBackup)
     {
+        if (!validateMaterialsFile(MaterialsBackupPath)) return false;
+
         if (!hasMain)
         {
             if (!m_storage.rename(MaterialsBackupPath, MaterialsPath)) return false;
+            if (!validateMaterialsFile(MaterialsPath)) return false;
             if (hasTemp && !m_storage.remove(MaterialsTempPath)) return false;
             return true;
         }
@@ -23,30 +82,37 @@ bool MaterialLedger::recoverMaterialFileSwap()
             return false;
         }
 
-        // main + backup means the replacement reached the committed state and
-        // only backup cleanup was interrupted.
-        return m_storage.remove(MaterialsBackupPath);
+        if (validateMaterialsFile(MaterialsPath))
+            return m_storage.remove(MaterialsBackupPath);
+
+        // Rename completion alone is not commit proof. Restore the last validated
+        // material ledger when the promoted main is malformed or unreadable.
+        if (!m_storage.remove(MaterialsPath) ||
+            !m_storage.rename(MaterialsBackupPath, MaterialsPath) ||
+            !validateMaterialsFile(MaterialsPath))
+        {
+            return false;
+        }
+        return true;
     }
 
     if (hasTemp)
     {
-        if (!hasMain)
-        {
-            // Without main or backup the temp file has no trustworthy predecessor.
-            return false;
-        }
-        // The new file was prepared but the swap never started.
+        if (!hasMain || !validateMaterialsFile(MaterialsPath)) return false;
+        // Prepared temp never became authoritative; keep committed main.
         return m_storage.remove(MaterialsTempPath);
     }
 
-    return true;
+    return !hasMain || validateMaterialsFile(MaterialsPath);
 }
 
 bool MaterialLedger::replaceMaterialsFileFromTemp()
 {
     if (!m_storage.exists(MaterialsPath) ||
         !m_storage.exists(MaterialsTempPath) ||
-        m_storage.exists(MaterialsBackupPath))
+        m_storage.exists(MaterialsBackupPath) ||
+        !validateMaterialsFile(MaterialsPath) ||
+        !validateMaterialsFile(MaterialsTempPath))
     {
         return false;
     }
@@ -57,17 +123,29 @@ bool MaterialLedger::replaceMaterialsFileFromTemp()
     {
         if (!m_storage.rename(MaterialsBackupPath, MaterialsPath))
         {
-            // The on-disk state is now ambiguous. Leave pending transaction
-            // markers intact and require startup recovery/manual inspection.
             m_ready = false;
         }
         return false;
     }
 
-    // The new main file is already committed. Failure to remove the backup is
-    // recoverable on the next boot, so do not report the data mutation as failed.
-    if (m_storage.exists(MaterialsBackupPath))
-        m_storage.remove(MaterialsBackupPath);
+    if (!validateMaterialsFile(MaterialsPath))
+    {
+        bool restored = false;
+        if (m_storage.remove(MaterialsPath) &&
+            m_storage.rename(MaterialsBackupPath, MaterialsPath))
+        {
+            restored = validateMaterialsFile(MaterialsPath);
+        }
+        if (!restored) m_ready = false;
+        return false;
+    }
+
+    if (m_storage.exists(MaterialsBackupPath) &&
+        !m_storage.remove(MaterialsBackupPath))
+    {
+        m_ready = false;
+        return false;
+    }
 
     return true;
 }

@@ -21,6 +21,52 @@ void StateMachine::resetToHome()
     m_hasPendingEvent = false;
 }
 
+bool StateMachine::returnHome()
+{
+    // The ordinary keypad menu/reset action must never become an alternate
+    // cancellation channel for a job owned by ESP32. Remote READY jobs are
+    // cleared only through the explicit JOB_CANCEL protocol, and completed
+    // remote jobs remain until exact RUN_COMPLETED delivery acknowledgement.
+    if (m_job.source == JobSource::Esp32Web && m_job.isValid())
+        return false;
+
+    switch (m_state)
+    {
+        case MachineState::EnterCoilCount:
+        case MachineState::EnterTurns:
+            resetToHome();
+            return true;
+
+        case MachineState::Ready:
+            // READY is also used between coils of the same active run. Only a
+            // never-started local job may be abandoned from this state.
+            if (m_job.currentRunId != 0UL || m_job.completedRuns != 0U)
+                return false;
+            resetToHome();
+            return true;
+
+        case MachineState::JobComplete:
+            // Local completed-run delivery is persisted independently by the
+            // Arduino entrypoint, so returning to the menu does not erase the
+            // delivery evidence. Remote completion is rejected above.
+            resetToHome();
+            return true;
+
+        case MachineState::Fault:
+            // Preserve the existing local operator fault-reset behavior. Remote
+            // jobs are rejected above and therefore cannot be silently erased.
+            resetToHome();
+            return true;
+
+        case MachineState::Winding:
+        case MachineState::Paused:
+        case MachineState::ManualRun:
+        case MachineState::CoilComplete:
+        default:
+            return false;
+    }
+}
+
 MachineState StateMachine::state() const
 {
     return m_state;

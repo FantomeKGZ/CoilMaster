@@ -16,6 +16,42 @@ Advance persistence audit past settings recovery
 
 Это **USER CONFIRMED GREEN** для B-005/B-007/B-008 и всего предыдущего текущего набора. Любые commits после этого SHA требуют нового подтверждения.
 
+## Завершённое улучшение калькулятора после baseline — CI pending
+
+По предложению пользователя калькулятор проводника расширен без изменения математического ядра:
+
+```text
+source input:
+одна строка до 5 проводов
+пример: 0,51;0,71;0,95
+каждое значение = одна исходная жила
+
+output block 1:
+По складу — диаметры, уже известные warehouse catalogue
+
+output block 2:
+Стандартные варианты — read-only IEC 60317 reference catalogue,
+включая диаметры, которых никогда не было на складе
+```
+
+Backend `/api/calculator/conductor` теперь возвращает одновременно:
+
+```text
+recommendations
+standard_recommendations
+standard_catalogue_basis = IEC_60317_R20_PROJECT_0_01_MM
+standard_catalogue_diameter_count
+warehouse_available
+```
+
+Пустой warehouse catalogue больше не отключает стандартные рекомендации.
+
+Текущая модель диаметра CoilMaster остаётся `diameterHundredthsMm`, то есть точность **0,01 мм**. Стандартный справочник явно ограничен этой точностью; переход на 0,001 мм не делать скрытно и не смешивать с текущим UI improvement.
+
+Reference catalogue read-only: не создаёт spool, не изменяет warehouse и не участвует в writeoff/provenance.
+
+После этих commits нужен новый applicable CI; до него статус — **NOT VERIFIED**.
+
 ## Закрыто в full-code audit — не возвращать без concrete regression
 
 ```text

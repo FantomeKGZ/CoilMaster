@@ -4,7 +4,7 @@ Use this document when the task is known but the implementation location is not.
 
 For every route below, fetch the listed files from `cmp-protocol-v1` immediately before editing. The list is a starting set, not permission to ignore current call sites.
 
-Do not use historical handoff `next` sections to choose work. Current active work is selected by `docs/PROJECT_HANDOFF/00_READ_FIRST.md`, checkpoint `61`, a concrete current failure or the user's explicit request.
+Do not use historical handoff `next` sections to choose work. Current active work is selected by `docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md`, `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`, a concrete current failure or the user's explicit request.
 
 ## 1. Physical START, SSR, Hall, keypad, LCD or buzzer
 
@@ -162,19 +162,45 @@ Rules:
 
 Also inspect warehouse persistence/movement integrity and backup coverage.
 
-## 9. Auxiliary materials / material usage
+## 9. Conductor calculator / Al-Cu conversion settings / standard wire alternatives
+
+Open first:
+
+```text
+CM_ConductorCalculator.*
+CM_ConductorCalculatorWeb.*
+CM_ConductorSettingsWeb.*
+CM_ConductorSettingsStore.cpp
+CM_WarehouseStore.*
+CM_StandardWireCatalogue.*
+firmware/esp32/web/desktop/calculator.html
+firmware/esp32/web/mobile/calculator.html
+Tests/Web/check_calculator_source_wire_input.js
+```
+
+Authoritative production settings are persisted by `WarehouseStore::loadConversionSettings()` / `setConversionSettings()` at:
+
+```text
+/data/settings/conductor.json
+```
+
+Do not make the parallel legacy `CM_ConductorSettings.*` persistence class a second production owner. It is a post-audit cleanup candidate pending dependency proof.
+
+Current calculator accepts 1..5 source wires from one semicolon-separated UI field and maps each entered diameter to one source component. Warehouse recommendations and read-only standard-reference recommendations are separate. The standard catalogue must never create stock/spools or imply that a purchase already occurred.
+
+## 10. Auxiliary materials / material usage
 
 Open `firmware/esp32/src/CM_Material*.h/.cpp`, then costing/pricing integration and `CM_MaterialPersistenceIntegrityAudit.*`.
 
 Validate material identity, repair identity, quantity/stock rules, currency policy, persisted cost snapshot and pending/recovery semantics.
 
-## 10. Costing, finalization or pricing
+## 11. Costing, finalization or pricing
 
 Open `CM_RepairCosting*` and `CM_RepairPricing*`, then warehouse/material persisted snapshots, finalization preflight and both UIs.
 
 Historical cost must remain based on persisted operation snapshots, not current prices.
 
-## 11. Persistent data on microSD
+## 12. Persistent data on microSD
 
 Open writer + authoritative reader, then applicable validator, domain integrity audit, backup/export, restore plan/rollback/apply and final-acceptance tests.
 
@@ -182,7 +208,7 @@ Before adding a path answer: exact `/data/...` location, atomic/pending strategy
 
 A production data file unknown to backup/integrity logic is incomplete integration.
 
-## 12. Backup/export/remote backup/restore
+## 13. Backup/export/remote backup/restore
 
 Open:
 
@@ -202,19 +228,19 @@ Preserve safe-idle gating, strict source validation, rollback snapshot, explicit
 
 `WindingSessionPersistenceIntegrityAudit` owns authoritative read-only session preflight; do not reintroduce a duplicate backup manifest full scan.
 
-## 13. Network, Wi-Fi, AP/STA, mDNS or diagnostics
+## 14. Network, Wi-Fi, AP/STA, mDNS or diagnostics
 
 Open `CM_NetworkProfileStore.*`, `CM_NetworkManager.*`, `CM_NetworkWeb.*`, `main.cpp`, `CM_StaticSiteServer.*` and relevant diagnostics modules.
 
-Network behavior must remain bounded/non-blocking enough not to interfere with core service operation. Keep IP fallback; do not assume `coil.local` is always available.
+Network behavior must remain bounded/non-blocking enough not to interfere with core service operation. Keep IP fallback; do not assume `coil.local` is always available. JSON responses that contain SSID/operator-controlled strings must use complete JSON escaping, including control bytes.
 
-## 14. Incoming `/web` recovery FTP
+## 15. Incoming `/web` recovery FTP
 
 Open `CM_WebRecoveryFtpServer.*`, `CM_StaticSiteServer.*`, `main.cpp`.
 
 Recovery FTP is `/web` only, not `/data`, and remains distinct from outbound remote backup.
 
-## 15. ESP32 hardware module
+## 16. ESP32 hardware module
 
 Open `firmware/esp32/src/main.cpp`, hardware docs and `03_ADD_MODULE_PLAYBOOK.md`.
 
@@ -228,19 +254,19 @@ GPIO21/22 RTC I2C
 
 Define power, logic voltage, bus ownership, startup failure behavior and diagnostics.
 
-## 16. Arduino hardware module
+## 17. Arduino hardware module
 
 Open `Arduino/Config/CM_Pins.h`, `firmware/arduino/src/main.cpp`, `Core/`, `Arduino/`, `platformio.ini`.
 
 Uno SRAM/Flash budgets matter. Do not bypass the state machine or steal START/SSR/Hall/UART pins.
 
-## 17. Motor import format
+## 18. Motor import format
 
 Open `docs/MOTOR_IMPORT_FORMAT.md`, registry/similarity Web modules, both import pages and Web audits.
 
 Keep preview-before-write, strict documented fields, provenance, duplicate detection, one-record append semantics and reboot persistence.
 
-## 18. Storage-capacity behavior
+## 19. Storage-capacity behavior
 
 Read-only diagnostics live in `CM_StorageDiagnosticsWeb.*` and settings diagnostics JS.
 
@@ -250,7 +276,7 @@ automatic_cleanup_allowed = false
 
 Low-space conditions must not trigger automatic deletion of production records.
 
-## 19. Tests or CI only
+## 20. Tests or CI only
 
 Open `.github/workflows/*.yml`, `Tests/Protocol/`, `Tests/CMP1Text/`, `Tests/Web/`.
 
@@ -258,7 +284,27 @@ Test/docs-only commits do not automatically invalidate closed hardware gates. Do
 
 The CMP Protocol workflow intentionally continues later Web/safety audits after an earlier audit failure so one run exposes all failing contracts; any failed audit must still fail the job.
 
-## 20. Search order when the router is not enough
+Shared production code (`Shared/**`) must trigger all applicable Arduino/ESP32/protocol gates. `Tests/Web/check_ci_trigger_contracts.js` protects the critical trigger coverage.
+
+## 21. Post-audit cleanup / dead code / duplicate files
+
+Only start after sections A..E and final cross-layer recheck are complete.
+
+For each candidate prove:
+
+```text
+C++ includes/call sites
+PlatformIO build_src_filter ownership
+workflow/test references
+runtime HTTP/static injection
+web imports/script loaders
+runtime microSD path compatibility
+AI/docs routing/history requirements
+```
+
+Then classify `DELETE`, `MERGE`, `KEEP` or `REVIEW`. Never remove production data automatically. Known candidates may be documented during audit, but deletion waits for the cleanup phase.
+
+## 22. Search order when the router is not enough
 
 ```text
 1. Search exact API route / class / data path / protocol token.

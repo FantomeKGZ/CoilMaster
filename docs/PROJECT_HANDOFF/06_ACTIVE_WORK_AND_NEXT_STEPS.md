@@ -7,9 +7,14 @@
 
 ## Verification baseline
 
-Последние старые connector-verified gates остаются в checkpoint 63/66. После CI-recovery пользователь явно сообщил: **«Все зелёное»**. Это **USER CONFIRMED GREEN** для состояния ветки непосредственно перед текущими B-002+ commits, но не доказательство для более новых SHA.
+Пользователь явно сообщил **«Все зелёное»** для состояния ветки:
 
-Текущий post-persistence candidate: **NOT VERIFIED in chat**.
+```text
+1bff98965c8608a66d269f51966a22fbd907047f
+Advance ESP32 persistence audit queue
+```
+
+Это **USER CONFIRMED GREEN**. B-005 commits после этого SHA пока **NOT VERIFIED in chat**.
 
 ## Закрыто в full-code audit — не возвращать без concrete regression
 
@@ -19,48 +24,45 @@ B-001 backup runtime Unavailable -> fail closed
 B-002 global restore/apply production-mutation interlock
 B-003 network API validation/storage HTTP semantics
 B-004 recoverable JobStateStore atomic replacement
+B-005 provenance-safe linked JOB preparation transaction
 B-006 committed-first NetworkProfileStore recovery
 ```
 
-Подробные причины/commits/tests находятся в:
+B-005 теперь использует строгую границу:
+
+```text
+snapshot
+-> CREATED + WAITING_DELIVERY + zero-run state
+-> exact spool selection
+-> DELIVERING state
+-> UART queueJob
+```
+
+Только `CREATED + WAITING_DELIVERY + last_run_id=0 + completed_runs=0` считается локальной preparation, которая ещё не могла попасть на Arduino. Она может остаться как immutable audit evidence и быть superseded более высоким ID без auto queue/resume. `DELIVERING`, `TIMED_OUT`, accepted/running/fault остаются fail-closed.
+
+Подробности/commits/tests:
 
 ```text
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
-docs/PROJECT_HANDOFF/66_ESP32_BUILD_ID_CI_RECOVERY_2026-08-22.md
+Tests/Web/check_job_preparation_transaction.js
 ```
 
-## Current open finding — B-005 P2
+## Current active queue
 
-Linked JOB preparation сейчас идёт:
-
-```text
-allocate IDs
-snapshot
-exact spool selection
-runtime state
-UART queue
-```
-
-Если exact spool selection записан, а runtime-state commit затем падает, может остаться orphan selection. Deep session audit такой selection без state отвергает. Простое удаление snapshot/selection на любой state error запрещено: state write может вернуть failure после фактического появления committed target, и тогда cleanup уничтожит provenance.
-
-Следующий coding target: решить B-005 только через provenance-safe transaction semantics — explicit preparation/commit marker либо точную post-failure проверку state identity + narrowly scoped cleanup для доказанно uncommitted preparation.
-
-## После B-005
-
-Продолжить section B:
+Продолжить section B только по concrete evidence:
 
 1. remaining backup/restore/activity-guard consistency;
 2. remaining mutable persistence stores на destructive swap / ambiguous recovery;
-3. resource/NDJSON hotspots только по evidence.
+3. resource/NDJSON hotspots только если есть измеримая/конкретная проблема.
 
-Если concrete section-B defects закончились — перейти к:
+Если новых concrete section-B defects нет — сразу перейти к:
 
 4. desktop/mobile Web/API/error/security parity;
 5. tests/CI/build-filter/false-positive audit;
 6. docs/AI routing consistency;
 7. final cross-layer recheck + exact applicable CI.
 
-## Уже просмотрено без нового production-data defect в текущем pass
+## Уже просмотрено без нового production-data defect
 
 - PersistentIdAllocator transaction/high-water recovery;
 - immutable JobSnapshotStore create path;
@@ -86,8 +88,13 @@ late zero-id ALL_CLEAR must not cancel fresh job
 lost JOB_ACK -> timeout/manual review -> late RUN_STARTED reconciliation
 reboot waiting/running -> no auto resume
 
+B-005 preparation:
+failed linked preparation before DELIVERING -> no JOB on Arduino
+next higher-ID job allowed after reboot
+DELIVERING/reboot -> manual review remains required
+
 restore interlock:
-GET status remains available during APPLY
+GET status available during APPLY
 POST/DELETE /api/* -> 409 restore_mutation_active
 APPLIED -> reboot required before mutations resume
 ```

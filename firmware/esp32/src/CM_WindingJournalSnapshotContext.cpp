@@ -39,26 +39,20 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
 
     // A CRC-valid RUN_STARTED for the exact immutable session is stronger
     // evidence than a prior delivery timeout: Arduino did receive the JOB and a
-    // physical START occurred. Reconcile only the narrow zero-run timeout state
-    // before appending the event so runtime state and NDJSON cannot diverge.
-    if (event.type == RemoteEventType::RunStarted &&
-        runtime.deliveryState == JobDeliveryState::TimedOut)
+    // physical START occurred. Validate that narrow zero-run timeout state now,
+    // but persist the runtime reconciliation only after the event is Saved or
+    // Duplicate. That preserves the journal-first retry pattern: if state write
+    // fails, Arduino retries, the journal returns Duplicate, and state recovery
+    // can be attempted again without inventing a second physical event.
+    const bool recoverTimedOutStart =
+        event.type == RemoteEventType::RunStarted &&
+        runtime.deliveryState == JobDeliveryState::TimedOut;
+    if (recoverTimedOutStart &&
+        (runtime.executionState != JobExecutionState::WaitingDelivery ||
+         runtime.lastRunId != 0UL || runtime.completedRuns != 0U ||
+         event.runId == 0UL || event.completedRuns != 0U))
     {
-        if (runtime.executionState != JobExecutionState::WaitingDelivery ||
-            runtime.lastRunId != 0UL || runtime.completedRuns != 0U ||
-            event.runId == 0UL || event.completedRuns != 0U)
-        {
-            return JournalSaveResult::InvalidTransition;
-        }
-        if (!states.confirmStartedAfterDeliveryTimeout(event.sessionId,
-                                                       event.runId,
-                                                       millis()))
-        {
-            return JournalSaveResult::StorageUnavailable;
-        }
-        runtime.deliveryState = JobDeliveryState::Accepted;
-        runtime.executionState = JobExecutionState::Running;
-        runtime.lastRunId = event.runId;
+        return JournalSaveResult::InvalidTransition;
     }
 
     if (event.type == RemoteEventType::RunStarted &&
@@ -81,6 +75,16 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event)
     if (!context.isValid())
         return JournalSaveResult::InvalidTransition;
 
-    return save(event, context);
+    const JournalSaveResult result = save(event, context);
+    if ((result == JournalSaveResult::Saved ||
+         result == JournalSaveResult::Duplicate) &&
+        recoverTimedOutStart &&
+        !states.confirmStartedAfterDeliveryTimeout(event.sessionId,
+                                                   event.runId,
+                                                   millis()))
+    {
+        return JournalSaveResult::StorageUnavailable;
+    }
+    return result;
 }
 }

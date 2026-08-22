@@ -210,11 +210,23 @@ bool JobStateStore::updateExecution(uint32_t sessionId,
                                     uint32_t nowMs)
 {
     JobRuntimeState state;
-    if (!load(sessionId, state) ||
-        !validTransition(state.executionState, executionState))
+    if (!load(sessionId, state)) return false;
+
+    // A valid RUN_STARTED is stronger evidence than a lost JOB_ACK. Route only
+    // the narrow no-run TIMED_OUT state through the dedicated reconciliation
+    // path before normal execution-transition validation rejects WAITING_DELIVERY
+    // -> RUNNING. This records evidence only; it never queues or starts hardware.
+    if (executionState == JobExecutionState::Running &&
+        state.deliveryState == JobDeliveryState::TimedOut &&
+        state.executionState == JobExecutionState::WaitingDelivery &&
+        state.lastRunId == 0UL && state.completedRuns == 0U)
     {
-        return false;
+        if (runId == 0UL || completedRuns != 0U) return false;
+        return confirmStartedAfterDeliveryTimeout(sessionId, runId, nowMs);
     }
+
+    if (!validTransition(state.executionState, executionState))
+        return false;
 
     if (executionState == JobExecutionState::Running)
     {

@@ -15,6 +15,7 @@ public:
     StateMachine();
 
     void resetToHome();
+    bool returnHome();
 
     MachineState state() const;
     const WindingJob& job() const;

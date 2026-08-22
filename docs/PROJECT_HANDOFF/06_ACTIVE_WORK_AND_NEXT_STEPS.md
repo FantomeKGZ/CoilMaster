@@ -149,6 +149,22 @@ standard recommendations: read-only IEC 60317 R20 project catalogue
 
 Current diameter model is `diameterHundredthsMm` (0.01 mm precision). IEC R20 values are adapted to this precision; moving to 0.001 mm requires an explicit data/model migration.
 
+## Web asset cleanup audit
+
+Current direct loader/owner audit confirms the remaining `firmware/esp32/web/shared/` feature modules are active rather than orphaned cleanup candidates:
+
+- `app-shell.js`, `backup-remote-upload.js`, `costing-pricing-history.js`, `settings-time-status.js` and `settings-system-diagnostics.js` are injected by `CM_StaticSiteServer.cpp` for their matching UI routes;
+- `arduino-windings-archive.js`, `backup-restore-stale-guard.js`, `settings-wifi.js`, `settings-hall-calibration.js`, `settings-remote-backup.js`, `winding-history-spools.js` and `writeoff-spool-suggestion.js` have direct current page owners;
+- therefore an absent literal `<script>` reference in a page is not sufficient deletion proof because runtime injection is part of the production loader contract.
+
+Classification for the audited shared feature modules: **KEEP**.
+
+`firmware/esp32/web/reference/motor-reference.json` is the deployed generated motor reference dataset and remains **KEEP**.
+
+`firmware/esp32/web/sites/reference/{desktop,mobile}/` is an intentional microSD reference-site shell. It is currently mostly a placeholder, but `docs/07_WEB_PORTAL.md` explicitly retains the architecture for additional sites on microSD with separate desktop/mobile variants. Classification: **KEEP / intentional placeholder**, not cleanup trash. Do not delete merely because current root/desktop navigation does not expose a direct link.
+
+No additional dependency-closed Web asset was proven safe to delete in this pass.
+
 ## Persistence resilience item that is NOT cleanup
 
 Direct append tail resilience for new spool/material catalogue records remains a non-blocking P2 design item. Do not auto-truncate malformed/torn production NDJSON; automatic deletion of production evidence is forbidden.
@@ -158,7 +174,7 @@ Direct append tail resilience for new spool/material catalogue records remains a
 1. obtain a fresh GREEN for the current source-deletion/restoration + Web-helper cleanup batch;
 2. immediately remove DELETE-ready `CM_WarehouseSpoolList.cpp` + obsolete `appendActiveSpoolsJson()` declaration and protect the removal with regression coverage;
 3. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
-4. check remaining Web assets for direct links/runtime injection and remove only dependency-closed dead assets;
+4. Web shared/reference/sites owner audit is complete for the current tree; revisit only if the tree changes or a new candidate appears;
 5. final root/tree/docs reference sweep;
 6. final applicable CI + hardware smoke remains separate.
 

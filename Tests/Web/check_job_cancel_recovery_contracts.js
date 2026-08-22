@@ -50,18 +50,25 @@ for (const text of [
 }
 
 // A physical Arduino fallback publishes a CRC-protected job_id=0 ALL_CLEAR.
-// ESP32 must correlate that proof to the current/recovered job and route it
-// through the normal cancellation event, never as winding completion evidence.
+// Because that proof carries no job identity, it may resolve an explicit pending
+// cancel or a recovered/remembered job only while no new live JOB is pending.
+// A stale ALL_CLEAR must never be guessed to belong to a newly queued JOB.
 for (const text of [
   'if (jobId == 0UL)',
   'strcmp(detail, "ALL_CLEAR") != 0',
-  'm_hasPendingCancel\n            ? m_cancelJobId',
+  'if (m_hasPendingJob && !m_hasPendingCancel) return false;',
+  'const uint32_t clearedJobId = m_hasPendingCancel',
+  '? m_cancelJobId',
+  ': (m_hasLastQueuedJobId ? m_lastQueuedJobId : 0UL);',
   'publishJobCancel(JobCancelResult::Cancelled,',
   '"ALL_CLEAR"'
 ]) {
   requireText(espTransportPath, espTransport, text,
-    'ESP32 ALL_CLEAR recovery contract missing: ' + text);
+    'ESP32 ALL_CLEAR recovery/correlation contract missing: ' + text);
 }
+requireAbsent(espTransportPath, espTransport,
+  'm_hasPendingJob ? m_pendingJob.jobId : m_lastQueuedJobId',
+  'zero-id ALL_CLEAR must never infer the identity of a new pending JOB');
 
 // A positive cancel acknowledgement must close persisted state only through the
 // dedicated no-run transition, then re-evaluate recovery before a new job can be
@@ -185,4 +192,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe physical ALL_CLEAR, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');
+console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');

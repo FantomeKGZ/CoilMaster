@@ -97,6 +97,27 @@ void testRemoteCompletionWaitsForExactAck()
           "exact completion ACK returns home");
 }
 
+void testCompletedStateCannotFallIntoManualMode()
+{
+    CM::StateMachine machine;
+    const CM::WindingJob remote = makeRemote(50UL, 60UL, 1U);
+    check(machine.loadRemoteJob(remote), "manual-guard remote job accepted");
+    check(machine.startOrResume(), "manual-guard remote job starts");
+
+    CM::WindingEvent event;
+    check(machine.takeEvent(event), "manual-guard RUN_STARTED consumed");
+    const uint32_t runId = machine.job().currentRunId;
+    check(machine.registerTurn(), "manual-guard remote run completes");
+    check(machine.state() == CM::MachineState::JobComplete,
+          "manual-guard run reaches JOB_COMPLETE");
+    check(!machine.toggleManual(),
+          "JOB_COMPLETE rejects manual-mode transition");
+    check(machine.state() == CM::MachineState::JobComplete,
+          "rejected manual-mode transition preserves JOB_COMPLETE");
+    check(machine.acknowledgeDeliveredRun(runId),
+          "exact ACK remains applicable after rejected manual request");
+}
+
 void testSafeLocalMenuTransitionsRemainAvailable()
 {
     {
@@ -137,6 +158,7 @@ int main()
     testRemoteReadyCannotBeSilentlyCleared();
     testActiveRunCannotBeSilentlyCleared();
     testRemoteCompletionWaitsForExactAck();
+    testCompletedStateCannotFallIntoManualMode();
     testSafeLocalMenuTransitionsRemainAvailable();
 
     if (g_failures == 0)

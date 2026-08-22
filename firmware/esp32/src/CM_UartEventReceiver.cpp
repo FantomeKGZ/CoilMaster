@@ -103,6 +103,11 @@ void UartEventReceiver::begin(uint32_t baud, int8_t rxPin, int8_t txPin)
 
 bool UartEventReceiver::poll(RemoteWindingEvent& event)
 {
+    // update() and reply parsing can publish control events before main.cpp has
+    // persisted them. Do not consume a later physical RUN frame until those
+    // delivery/cancel events have been drained by the main loop.
+    if (m_hasJobDelivery || m_hasJobCancel) return false;
+
     while (m_serial.available() > 0)
     {
         const char value = static_cast<char>(m_serial.read());

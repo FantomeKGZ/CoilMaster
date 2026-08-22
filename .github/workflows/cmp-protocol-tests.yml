@@ -86,6 +86,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_job_preparation_transaction.js
 
+      - name: Audit remote backup settings atomic recovery contracts
+        if: always()
+        run: node Tests/Web/check_remote_backup_settings_atomic_recovery.js
+
       - name: Audit final acceptance contracts
         if: always()
         run: node Tests/Web/check_final_acceptance_contracts.js

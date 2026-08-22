@@ -49,26 +49,36 @@ for (const text of [
     'lost-ACK ghost-job cancellation contract missing: ' + text);
 }
 
-// A physical Arduino fallback publishes a CRC-protected job_id=0 ALL_CLEAR.
-// Because that proof carries no job identity, it may resolve an explicit pending
-// cancel or a recovered/remembered job only while no new live JOB is pending.
-// A stale ALL_CLEAR must never be guessed to belong to a newly queued JOB.
+// A physical Arduino fallback may publish a CRC-protected job_id=0 ALL_CLEAR.
+// Zero has no job identity, so it may resolve only an explicit pending cancel or
+// an identity explicitly remembered during persisted reboot recovery. queueJob()
+// must clear that recovery fallback before any fresh JOB is sent, including the
+// period after the fresh JOB_ACK has already arrived.
 for (const text of [
+  'm_recoveryJobId(0UL), m_hasRecoveryJobId(false)',
+  'm_recoveryJobId = 0UL;\n    m_hasRecoveryJobId = false;\n    return true;',
+  'm_recoveryJobId = jobId;\n    m_hasRecoveryJobId = true;',
   'if (jobId == 0UL)',
   'strcmp(detail, "ALL_CLEAR") != 0',
-  'if (m_hasPendingJob && !m_hasPendingCancel) return false;',
   'const uint32_t clearedJobId = m_hasPendingCancel',
   '? m_cancelJobId',
-  ': (m_hasLastQueuedJobId ? m_lastQueuedJobId : 0UL);',
+  ': (m_hasRecoveryJobId ? m_recoveryJobId : 0UL);',
   'publishJobCancel(JobCancelResult::Cancelled,',
   '"ALL_CLEAR"'
 ]) {
   requireText(espTransportPath, espTransport, text,
-    'ESP32 ALL_CLEAR recovery/correlation contract missing: ' + text);
+    'ESP32 recovery-only ALL_CLEAR correlation contract missing: ' + text);
 }
-requireAbsent(espTransportPath, espTransport,
+for (const forbidden of [
   'm_hasPendingJob ? m_pendingJob.jobId : m_lastQueuedJobId',
-  'zero-id ALL_CLEAR must never infer the identity of a new pending JOB');
+  'm_hasLastQueuedJobId ? m_lastQueuedJobId : 0UL'
+]) {
+  requireAbsent(espTransportPath, espTransport, forbidden,
+    'zero-id ALL_CLEAR must never infer identity from a fresh/last queued JOB: ' + forbidden);
+}
+requireText(espMainPath, espMain,
+  'receiver.rememberJobId(activeJobId);',
+  'persisted recovery must explicitly arm the zero-id ALL_CLEAR fallback identity');
 
 // A positive cancel acknowledgement must close persisted state only through the
 // dedicated no-run transition, then re-evaluate recovery before a new job can be
@@ -170,7 +180,8 @@ for (const text of [
 
 // The local emergency sequence can clear only a no-run READY remote job. It
 // must reject an active physical run and emit ALL_CLEAR only after Arduino has
-// proved that it holds no remote job.
+// proved that it holds no remote job. The current physical fallback still emits
+// zero-id, which is now deliberately accepted only for explicit/recovered ESP32 state.
 for (const text of [
   "static const char Sequence[] = {'D', '*', '#', 'D'};",
   'machine.state() == CM::MachineState::Ready &&',
@@ -192,4 +203,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, safe zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');
+console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, recovery-only zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale terminal cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');

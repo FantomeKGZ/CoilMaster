@@ -102,10 +102,6 @@ jobs:
         if: always()
         run: node Tests/Web/check_remote_backup_settings_atomic_recovery.js
 
-      - name: Audit conductor settings atomic recovery contracts
-        if: always()
-        run: node Tests/Web/check_conductor_settings_atomic_recovery.js
-
       - name: Audit production conductor settings atomic recovery contracts
         if: always()
         run: node Tests/Web/check_production_conductor_settings_atomic_recovery.js

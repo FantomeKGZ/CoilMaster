@@ -555,17 +555,19 @@ bool UartEventReceiver::processCancelAck(char* line)
 
     // Physical Arduino fallback: D * # D sends a CRC-protected ALL_CLEAR with
     // job_id=0 after Arduino has proved that no ESP32 job is physically active.
-    // Correlate it to the currently pending/recovered ESP32 job and publish the
-    // normal cancellation event so persistence follows the same audited path.
+    // A zero-id proof has no identity of its own: never let a late ALL_CLEAR
+    // cancel a newly queued live JOB. It may resolve an explicit pending cancel,
+    // or the remembered/recovered job only while no new JOB is pending.
     if (jobId == 0UL)
     {
         if (strcmp(status, "CANCELLED") != 0 || detail == nullptr ||
-            strcmp(detail, "ALL_CLEAR") != 0 || !m_hasLastQueuedJobId)
+            strcmp(detail, "ALL_CLEAR") != 0)
             return false;
+        if (m_hasPendingJob && !m_hasPendingCancel) return false;
 
         const uint32_t clearedJobId = m_hasPendingCancel
             ? m_cancelJobId
-            : (m_hasPendingJob ? m_pendingJob.jobId : m_lastQueuedJobId);
+            : (m_hasLastQueuedJobId ? m_lastQueuedJobId : 0UL);
         if (clearedJobId == 0UL) return false;
 
         m_pendingJob = OutgoingWindingJob();

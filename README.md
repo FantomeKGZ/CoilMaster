@@ -13,14 +13,30 @@ CoilMaster — локальная система управления намот
 ```text
 AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/61_CURRENT_RECOVERY_AND_DOCS_BASELINE_2026-08-21.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/AI_AGENT/
 ```
 
 Старые numbered checkpoints в `docs/PROJECT_HANDOFF/` и capitalized `Docs/`
-сохраняются как историческое evidence. Их старые `next`/`pending` разделы не
-являются текущей очередью разработки.
+являются историческим evidence, а не активной очередью разработки.
+
+## Текущая фаза
+
+Полный repo-level аудит A–E завершён. После подтверждённого GREEN начата
+контролируемая cleanup/de-duplication phase: файл удаляется только после
+проверки production/build/test/docs/runtime зависимостей.
+
+Последний подтверждённый пользователем GREEN baseline перед очередным cleanup
+набором:
+
+```text
+51ea46c1823a451e7f80ecd188daf896aafc752d
+Fix production conductor cleanup contract
+USER CONFIRMED GREEN
+```
+
+Commits после этого SHA не считаются GREEN автоматически.
 
 ## Контроллеры
 
@@ -44,13 +60,9 @@ Shared/CMP1Text/CM_Cmp1Crc.h
 
 `Shared/Protocol/` — ранний binary host-test protocol, не production wire layer.
 
-JOB cancel/recovery уже реализован: safe no-run cancellation, idempotent
-`ALREADY_CLEAR`, physical `D -> * -> # -> D` fallback with `ALL_CLEAR`, без
-remote/automatic START и без synthetic `RUN_COMPLETED`.
-
 ## Material/writeoff semantics
 
-Для нового KG_FIRST consumption authoritative quantity — `quantity_kg`.
+Для KG_FIRST consumption authoritative quantity — `quantity_kg`.
 Exact `source_session_id + source_run_id` provenance обязательны. `spool_id`
 может отсутствовать только в утверждённом unallocated/manual KG_FIRST path;
 если spool используется, его exact provenance сохраняется.
@@ -62,16 +74,7 @@ pio run -e uno
 pio run -e esp32
 ```
 
-Текущий подтверждённый production baseline:
-
-```text
-e35c4bfe0cef3c2342ad6b27e43cc931fe14dd00
-CMP Protocol Tests #2175 — GREEN
-ESP32 Build #1241 — GREEN
-```
-
-Arduino Uno Build current HEAD и current-head hardware acceptance являются
-отдельными verification gates.
+Hardware acceptance остаётся отдельным verification gate и не выводится из CI.
 
 ## Актуальная структура
 
@@ -82,10 +85,10 @@ firmware/arduino/src/       production Arduino entrypoint
 firmware/esp32/src/         production ESP32 firmware
 firmware/esp32/web/         desktop/mobile/shared web assets
 Shared/CMP1Text/            production shared CMP1 CRC
-Shared/Protocol/            legacy binary host-test protocol
+Shared/Protocol/            binary host-test protocol
 Tests/                      protocol + web/safety regression tests
 docs/AI_AGENT/              AI maintenance/navigation documentation
 docs/PROJECT_HANDOFF/       current state + historical checkpoints
 docs/HARDWARE_REFERENCE/    hardware operator references
-Docs/                       legacy foundation documentation
+Docs/                       legacy foundation documentation under cleanup review
 ```

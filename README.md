@@ -31,8 +31,8 @@ evidence, а не активной очередью разработки.
 набором:
 
 ```text
-51ea46c1823a451e7f80ecd188daf896aafc752d
-Fix production conductor cleanup contract
+a29e2ab9639181550ba2beccf812320a552eb8c8
+Remove superseded CMP core dependency package
 USER CONFIRMED GREEN
 ```
 
@@ -45,7 +45,7 @@ Commits после этого SHA не считаются GREEN автомати
 - ESP32 обслуживает Wi-Fi, HTTP/FTP, microSD, RTC, workshop registry,
   warehouse/materials/costing, backup/restore и доставку JOB Arduino.
 
-ESP32/Web не управляют SSR напрямую. После reboot нет automatic resume.
+ESP32/Web не управляет SSR напрямую. После reboot нет automatic resume.
 `RUN_COMPLETED` не списывает материал автоматически.
 
 ## Production UART

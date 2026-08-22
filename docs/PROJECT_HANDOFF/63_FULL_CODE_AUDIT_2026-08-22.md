@@ -11,9 +11,14 @@ Historical checkpoints are evidence, not an automatic task queue.
 
 ## Verification baseline
 
-The operator explicitly reported **all visible workflows green** immediately before the B-002 implementation in this continuation. Treat that as **USER CONFIRMED GREEN** for the then-current branch state only; it does not prove commits created after that statement.
+The operator explicitly reported **all visible workflows green** when branch HEAD was:
 
-All B-002 and later implementation/test commits below therefore remain **exact-current verification pending** until matching current workflow results are inspected or explicitly confirmed.
+```text
+1bff98965c8608a66d269f51966a22fbd907047f
+Advance ESP32 persistence audit queue
+```
+
+Treat that exact state as **USER CONFIRMED GREEN**. B-005 commits created after it remain **exact-current verification pending** until matching workflow results are inspected or explicitly confirmed.
 
 ## Audit scope
 
@@ -56,142 +61,99 @@ Remote JOB admission/parser/correlation, zero-id ALL_CLEAR recovery identity, st
 
 ### B-001 — P1 — backup activity guard could promote unknown runtime to Safe — FIXED
 
-`BackupActivityGuard::check()` now requires runtime `Safe` before persisted state/snapshot/spool checks. Runtime `Busy` remains Busy and runtime `Unavailable` remains Unavailable. Regression protection remains in `Tests/Web/check_final_acceptance_contracts.js`.
+`BackupActivityGuard::check()` requires runtime `Safe` before persisted identity checks. Runtime `Busy` stays Busy and runtime `Unavailable` stays Unavailable.
 
-### B-002 — P1 — restore/apply lacked a global production-mutation interlock — FIXED / exact-current verification pending
+### B-002 — P1 — restore/apply lacked a global production-mutation interlock — FIXED
 
-Implemented:
+One process-wide restore lock blocks non-GET `/api/*` with `409 restore_mutation_active` during APPLY/rollback. GET/status remain available. Forward apply rechecks live activity and enters rollback on loss of proven Safe. APPLIED/FAILED remain locked until reboot/cleanup. Operator-only APPLY, no-auto-resume, physical START and SSR ownership remain unchanged.
 
-```text
-29ef6600c4b9c078826abbbc49c398a4326a9560  Add restore production mutation interlock
-1c1272ec90092767c8909632af79a099539e553a  Interlock restore production mutations
-b8f7bb93a9b5861bc584a648b1605b05bce5776f  Guard restore production mutation interlock
-c953665077c810455ccbf31d6ea260a8aaed2e3c  Run restore mutation interlock audit
-```
+### B-003 — P2 — network profile API conflated storage failures with client validation — FIXED
 
-Current contract:
+Network API distinguishes 400 validation, 404 absent profile, 409 capacity/conflict, 500 persistence/reload failure and 503 unavailable store/manager.
 
-- one process-wide restore production-mutation lock;
-- first WebServer handler blocks every non-GET `/api/*` with `409 restore_mutation_active` while APPLY/rollback owns the lock;
-- GET/status/read-only routes remain available;
-- forward apply still rechecks live `BackupActivityGuard` during entry/copy/verification and enters existing rollback on loss of proven Safe;
-- APPLIED/FAILED remain locked until reboot/cleanup because RAM stores still represent pre-restore files;
-- RolledBack/Idle release the lock;
-- operator-only `confirmed=APPLY`, `auto_resume=0`, physical START and SSR ownership unchanged.
+### B-004 — P1 — JobStateStore deleted authoritative state before replacement commit — FIXED
 
-### B-003 — P2 — network profile API conflated storage failures with client validation — FIXED / exact-current verification pending
-
-Implemented:
+Current transaction is:
 
 ```text
-1048dd922d059b3f8ec0f31fafc3bd24795688af
-5c05ad2f636ff5548ca80317010346dd66ad1af5
-```
-
-Current semantics distinguish 400 validation, 404 absent profile, 409 capacity/conflict, 500 persistence/reload failure and 503 unavailable store/manager.
-
-### B-004 — P1 — JobStateStore deleted the authoritative state before replacement commit — FIXED / exact-current verification pending
-
-Previous `writeAtomic()` sequence was effectively:
-
-```text
-write+verify temp
-remove session-N.json
-rename temp -> session-N.json
-```
-
-A brownout/rename failure between delete and rename could destroy the only persisted delivery/RUN/manual-review state.
-
-Implemented:
-
-```text
-02914c2cf68e18497d5fe4f8a4e0a076ad11a7de  Preserve job state across atomic replace
-876e8a24903cc6d4e7b75f712054ff39f01df396  Make job state replacement recoverable
-8f5482889e9de48f2ea59689541484a2683a43d8  Guard recoverable job state replacement
-e27ad41d365b7c4f7efc1266b8f2f484a76945de  Run job state atomic replacement audit
-```
-
-Current transaction order:
-
-```text
-write + parse/identity verify temp
+write + verify temp
 old target -> .bak
 verified temp -> target
-re-read + verify committed target
-remove .bak only after committed verification
+verify committed target
+remove .bak only after verification
 ```
 
-If rename/cleanup fails, old state is restored where possible; otherwise `.bak/.tmp` evidence is preserved and the strict state-directory scan fails closed. The code no longer deletes the only authoritative runtime-state before committing its replacement.
+Interrupted `.bak/.tmp` evidence is preserved/fails closed instead of silently losing RUN/manual-review state. Regression: `Tests/Web/check_job_state_atomic_replace.js`.
 
-Regression: `Tests/Web/check_job_state_atomic_replace.js`.
+### B-005 — P2 — linked JOB preparation partial transaction — FIXED / exact-current verification pending
 
-### B-005 — P2 — linked JOB preparation can leave an orphan spool-selection if runtime-state commit fails — OPEN / design needed
+Old order could leave immutable snapshot + exact spool selection without runtime state if the later state write failed. Blind cleanup was rejected because an ambiguous state write result must never delete provenance.
 
-Current linked JOB preparation order is:
+Implemented a durable pre-UART transaction boundary:
+
+```text
+65a8e982c85fbacbb0c430f20b664d9796848423  Define local job preparation state
+dde7b1338a320f9af53ce55baaa0c7ffbebeb500  Allow safe local preparation rollover
+5894da84e0c0133f54a2499fda81f1614f4a8013  Treat local preparation as inactive recovery
+c5ac8c84618495e27c828cc5b7ec8e5b8c3a0d4e  Recognize safe local job preparation
+be8a31d0f1a4ba8a16bb8dd1f40e4a80e59f9463  Commit job preparation before spool selection
+a1da06c4d2c5a9c148a3d1c4669c6d87f4be8744  Guard job preparation transaction boundary
+bdfee58d83b6d18663dfbf9db88604a952bee34a  Run job preparation transaction audit
+```
+
+Authoritative order is now:
 
 ```text
 allocate IDs
-create immutable snapshot
-create immutable exact spool selection
-create/update runtime state
-queue UART JOB
+immutable snapshot
+CREATED + WAITING_DELIVERY + zero-run runtime state
+exact spool selection when linked
+DELIVERING runtime state
+UART queueJob
 ```
 
-If spool selection succeeds but runtime-state creation fails, UART JOB is not queued, but snapshot + selection can remain. Deep session audit rejects a selection without matching runtime state. Blind cleanup is **not** safe: a state write can report failure after a target file has actually appeared, so deleting immutable provenance on the error return could destroy valid evidence.
-
-Do not fix this by simply deleting snapshot/selection on any state error. Required solution must distinguish an uncommitted preparation from a committed state, for example through an explicit preparation/commit marker or an exact post-failure state identity check with narrowly scoped uncommitted cleanup.
-
-### B-006 — P2 — network profile recovery could promote an uncommitted temp over the last committed backup — FIXED / exact-current verification pending
-
-In `NetworkProfileStore::recoverFileSwap()`, the crash state after:
+`JobStateStore::isLocalPreparation()` is the shared predicate for exactly:
 
 ```text
-ProfilesPath -> BackupPath
-# power loss before TempPath -> ProfilesPath
+delivery = CREATED
+execution = WAITING_DELIVERY
+last_run_id = 0
+completed_runs = 0
 ```
 
-contains valid temp + valid backup but no valid main. The old code preferred temp, making a prepared but not committed network edit authoritative after reboot.
+This state is proven not to have crossed the UART boundary because `main.cpp` commits it before exact spool selection and promotes it to `DELIVERING` before `queueJob()`. It may remain as immutable audit evidence and be superseded by a higher-ID job; it never auto-queues or auto-resumes.
 
-Implemented:
+`DELIVERING`, `TIMED_OUT`, accepted/waiting, running and fault states retain fail-closed/manual-review semantics.
 
-```text
-2ab7536db3d2cd6516df7b2cb4688658615110a3  Recover committed network profile state first
-9a86b21148a88658b3300d40183384fbc1f15050  Guard committed network profile recovery
-e8cdcea4cddf5ce5977229835e31a616695ba51d  Run network profile atomic recovery audit
-```
+For a linked local preparation that stopped before spool selection, `BackupActivityGuard` may consider the machine physically Safe when the live runtime probe is Safe; missing spool provenance in that specific pre-UART state is not promoted into a delivered job. Invalid or mismatched persisted identity still returns Unavailable.
 
-Current recovery order:
+Regression: `Tests/Web/check_job_preparation_transaction.js`.
 
-```text
-valid main -> keep main and clean stale residues
-no valid main + valid backup -> restore backup and discard prepared temp
-invalid backup evidence -> fail closed
-no backup + valid temp -> allow temp promotion only as interrupted first write
-otherwise -> fail closed
-```
+### B-006 — P2 — network profile recovery could promote uncommitted temp over committed backup — FIXED
+
+Recovery now prefers valid committed main, otherwise valid backup, and promotes temp only when no backup exists (interrupted first write). Invalid evidence fails closed. Regression: `Tests/Web/check_network_profile_atomic_recovery.js`.
 
 ## Reviewed without a new production-data defect in this pass
 
 - `PersistentIdAllocator`: verified temp, backup high-water and fail-closed interrupted transaction handling already present.
 - `JobSnapshotStore`: immutable create-only final path; no destructive replace of an existing snapshot.
-- `JobSpoolSelectionStore`: immutable create-only selection, bounded parse and exact session identity; begin only promotes a single fully valid temp when final is absent.
-- `RepairRegistry`: append-only NDJSON; partial append poisons readiness and reboot integrity audit detects malformed tail without deleting older records.
-- `NetworkManager`: AP recovery is started before profile loading; profile-store failure does not remove the AP recovery surface.
+- `JobSpoolSelectionStore`: immutable create-only selection, bounded parse and exact session identity.
+- `RepairRegistry`: append-only NDJSON; malformed/partial tail poisons readiness instead of deleting older records.
+- `NetworkManager`: AP recovery is started before profile loading.
 - `RtcClock`: NTP writes require live runtime Safe and are verified after DS3231 write.
-- `WebRecoveryFtpServer`: FTP is scoped to `/web`, rechecks live activity during operation and stops on Busy/Unavailable; it does not write production `/data`.
+- `WebRecoveryFtpServer`: scoped to `/web`, rechecks live activity and does not write production `/data`.
 
 ## Current active target
 
-Continue section B in this order:
+B-005 is closed at implementation/source-contract level. Continue section B only for concrete findings:
 
-1. resolve B-005 only with a provenance-safe transaction design;
-2. remaining backup/restore/activity-guard consistency;
-3. remaining mutable persistence stores for destructive swap/partial-failure behavior;
-4. resource/NDJSON hotspots only where evidence exists.
+1. remaining backup/restore/activity-guard consistency;
+2. remaining mutable persistence stores for destructive swap/ambiguous recovery;
+3. resource/NDJSON hotspots only where evidence exists.
 
-If no further concrete section-B defect remains, advance to section C desktop/mobile Web/API parity.
+If no concrete section-B defect remains, advance to section C desktop/mobile Web/API/error/security parity, then D tests/CI and E documentation/AI routing.
 
-Do not reopen B-001..B-004 or B-006 without a concrete regression.
+Do not reopen B-001..B-006 without a concrete regression.
 
 ## External hardware verification gate
 
@@ -207,6 +169,11 @@ zero-run cancel / ALREADY_CLEAR / safe physical ALL_CLEAR
 late zero-id ALL_CLEAR must not cancel fresh job
 lost JOB_ACK -> TIMED_OUT/manual review -> late RUN_STARTED reconciliation
 reboot waiting/running -> no auto resume
+
+B-005 preparation boundary smoke when practical:
+failed linked preparation before DELIVERING -> no JOB appears on Arduino
+next higher-ID job may be created after reboot
+DELIVERING/reboot still requires manual review
 
 restore interlock smoke:
 GET status remains available during APPLY
@@ -240,17 +207,11 @@ no automatic production-data cleanup
 Phase 9 implementation: COMPLETE (checkpoint 64)
 Arduino findings A-001..A-007: FIXED
 Targeted UART repo review: COMPLETE -> hardware gate retained
-ESP32 B-001: FIXED
-ESP32 B-002: FIXED / exact-current verification pending
-ESP32 B-003: FIXED / exact-current verification pending
-ESP32 B-004: FIXED / exact-current verification pending
-ESP32 B-005: OPEN P2 / CURRENT TRANSACTION DESIGN
-ESP32 B-006: FIXED / exact-current verification pending
-ESP32 persistence/atomic/integrity audit: IN PROGRESS
-Remaining backup/restore review: CURRENT AFTER B-005
-Web audit: PENDING
+ESP32 B-001..B-006: FIXED at repo/source-contract level
+B-005 exact-current CI: NOT VERIFIED in chat
+ESP32 remaining backup/persistence/resource audit: CURRENT
+Web audit: NEXT after section B concrete findings exhausted
 Tests/CI audit: PENDING
 Documentation/AI consistency audit: PENDING
 Final repo-wide recheck: PENDING
-Current post-B-006 candidate CI: NOT VERIFIED in chat
 ```

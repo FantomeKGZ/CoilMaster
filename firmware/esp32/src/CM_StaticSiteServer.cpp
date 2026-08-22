@@ -85,11 +85,6 @@ const char UiVersionSwitchScript[] PROGMEM = R"HTML(
     helper.src='/shared/backup-remote-upload.js';
     document.body.appendChild(helper);
   }
-  if(rest==='/calculator.html'){
-    const helper=document.createElement('script');
-    helper.src='/shared/calculator-multisource.js';
-    document.body.appendChild(helper);
-  }
   if(rest==='/costing.html'){
     const helper=document.createElement('script');
     helper.src='/shared/costing-pricing-history.js';

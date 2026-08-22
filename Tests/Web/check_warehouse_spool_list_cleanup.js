@@ -41,8 +41,8 @@ for (const required of [
   'm_server.on("/api/warehouse/spools", HTTP_GET',
   'm_store.appendActiveSpoolsPageJson(',
   'invalid_paging_parameters',
-  '\"has_more\"',
-  '\"next_cursor\"',
+  'has_more',
+  'next_cursor',
 ]) {
   if (!web.includes(required)) failures.push(`${webPath}: spool endpoint must remain on paginated backend: ${required}`);
 }

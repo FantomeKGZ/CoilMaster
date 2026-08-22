@@ -1,63 +1,91 @@
-# Job-state dismiss cleanup — 2026-08-22
+# Job-state dismiss cleanup correction — 2026-08-22
 
 Ветка: `cmp-protocol-v1`
 
-## Classification
+## Final classification
 
-`firmware/esp32/src/CM_JobStateDismiss.cpp` — **DELETE**.
+`firmware/esp32/src/CM_JobStateDismiss.cpp` — **KEEP**.
 
-Удалённый метод:
+Метод:
 
 ```cpp
 JobStateStore::dismissInactive(uint32_t sessionId, uint32_t nowMs)
 ```
 
-## Dependency proof
+Предыдущая DELETE-классификация была ошибочной и отменена после фактического CI/caller proof.
 
-Перед удалением были проверены текущие owner-ы job-state/recovery:
+## Direct dependency proof
 
-- `CM_JobRecovery.cpp` — reboot recovery остаётся fail-closed; `ClosedAfterReview` не восстанавливается как активное задание и auto-queue/auto-resume запрещены;
-- `CM_JobStateRemoteCancel.cpp` — положительно подтверждённый Arduino cancel продолжает закрываться отдельным `closeAfterRemoteCancel()`;
-- `CM_JobStateLateRunRecovery.cpp` — lost-JOB_ACK reconciliation остаётся отдельным узким `confirmStartedAfterDeliveryTimeout()`;
-- `CM_JobStateStore.h` — manual-review closure остаётся через `closeAfterManualReview()`;
-- current repository search по точному `dismissInactive(` не нашёл caller-ов. Пустой search не использовался как единственное доказательство: решение основано на прямом owner/API inspection выше.
+`CM_StaticSiteServer.cpp` содержит operator-only endpoint `/api/recovery/acknowledge-and-restart`, который после повторной проверки persisted job identity и immutable snapshot вызывает:
 
-`dismissInactive()` не владел hardware action, UART delivery, SSR, START, run evidence, material writeoff или recovery safety. Он был отдельным неиспользуемым convenience API, переводившим уже terminal/completed runtime state в `ClosedAfterReview`.
+```cpp
+states.dismissInactive(sessionId, millis())
+```
 
-## Changes
+Для linked job этот endpoint предварительно отказывает с `linked_job_cannot_be_dismissed_here`.
+
+`dismissInactive()` имеет отдельную safety-семантику и не должен заменяться `closeAfterManualReview()`:
+
+- допускает только proven-terminal delivery `Rejected` / `Cancelled` либо `ProgramCompleted`;
+- `TimedOut` намеренно исключён: потерянный JOB_ACK не доказывает, что Arduino idle;
+- Running/Fault/ambiguous states не скрываются этим API;
+- immutable snapshot/history не удаляются;
+- метод не отправляет UART, не запускает двигатель и не управляет SSR.
+
+`Tests/Web/check_job_cancel_recovery_contracts.js` также содержит явный контракт на этот узкий terminal-only dismiss и отдельно проверяет отсутствие `TimedOut` в разрешённом наборе.
+
+## Regression runs
+
+Четыре Actions-run показали две связанные ошибки после неправильного удаления API:
+
+| Run | Commit | Failed gate | Root cause |
+| --- | --- | --- | --- |
+| `32578987033` | `778bc9f23e70631580c54273e16d11e218295f25` | ESP32 build | declaration `dismissInactive()` removed while implementation and caller still existed; compiler: no declaration matches |
+| `32579000940` | `39142bd9834e26e349faf0ff4b2a6cb3076777f0` | ESP32 build | implementation also removed but `CM_StaticSiteServer.cpp` still called it; compiler: `JobStateStore` has no member `dismissInactive` |
+| `32579052498` | `c1884d61e2eafbde4375d0e6d36d39dcc4bf6c4c` | host-tests | `check_job_cancel_recovery_contracts.js` still read the required `CM_JobStateDismiss.cpp`; ENOENT |
+| `32579088543` | `5f70c834b2a508d600403049fbc81dfe31e83038` | host-tests | same ENOENT regression contract failure |
+
+The Node 20 deprecation notices in these logs are warnings and are not the cause of failure.
+
+## Corrective commits
 
 ```text
-778bc9f23e70631580c54273e16d11e218295f25
-  Remove unused job-state dismiss API
-  - removed public declaration from CM_JobStateStore.h
+606816eac8e421ccbf52863ac8217698dcebf288
+  Restore proven-inactive job dismiss API
+  - restored public declaration in CM_JobStateStore.h
+  - documented the narrow terminal-only semantics
 
-39142bd9834e26e349faf0ff4b2a6cb3076777f0
-  Remove unused job-state dismiss implementation
-  - removed CM_JobStateDismiss.cpp
+dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b
+  Restore proven-inactive job dismiss implementation
+  - restored CM_JobStateDismiss.cpp
+  - preserved explicit TIMED_OUT exclusion and fail-closed behavior
 ```
+
+No obsolete caller/test was removed merely to make CI pass; the production operator endpoint and its safety regression contract remain intact.
 
 ## Adjacent owner sweep
 
-The nearby validation split was also checked instead of being removed by similarity alone:
-
-- `CM_WarehouseRepairValidation.cpp` — **KEEP**. `WarehouseStore::repairExists(...)` is used by the manual warehouse writeoff path to validate the exact repair reference before mutation.
-- `CM_RepairCostingValidation.cpp` — **KEEP**. `RepairCostingWeb` directly calls `m_costing.repairExists(...)` for `/api/repairs/costing` and `/api/repairs/pricing-history` before reading or exposing costing/history data.
-- These implementations intentionally belong to different storage/service owners. Their similar validation loops are not sufficient evidence for deletion or premature cross-owner merge.
-- `CM_WarehousePrice.cpp` — **KEEP**. It owns fail-closed warehouse price lookup used by current warehouse/material costing behavior.
+- `CM_WarehouseRepairValidation.cpp` — **KEEP**. `WarehouseStore::repairExists(...)` is used by manual warehouse writeoff validation.
+- `CM_RepairCostingValidation.cpp` — **KEEP**. `RepairCostingWeb` calls its repair validation for costing/history APIs.
+- `CM_WarehousePrice.cpp` — **KEEP**. It owns fail-closed warehouse price lookup.
+- `CM_MaterialLedgerRepairReference.cpp` — **KEEP**. Material usage mutation validates the exact repair before writeoff.
+- `CM_JobSpoolSelectionLookup.cpp` — **KEEP**. `WarehouseStore::confirmSpoolWriteOff()` and `confirmKgFirstWriteOff()` use `JobSpoolSelectionStore::loadReadOnly()` as exact source-session / repair / spool provenance gate before manual writeoff.
+- `CM_WarehouseWriteOffLookup.cpp` — **KEEP** as a file because exact-run `confirmedWriteOffForSourceRun()` is an active duplicate-protection gate. The older session-only lookup remains **REVIEW** until complete caller proof is available; an empty GitHub code search is not sufficient evidence for deletion.
 
 ## Safety invariants preserved
 
 - no automatic physical START;
+- no automatic START between repeat cycles;
 - no auto-resume after reboot;
-- ESP32/Web still do not directly control SSR;
-- lost ACK/timeout still does not prove Arduino idle;
-- manual review closure remains explicit;
-- remote cancel closure still requires positive Arduino cancellation acknowledgement;
-- immutable snapshot/run/history evidence is not deleted;
-- `RUN_COMPLETED` still does not automatically deduct wire/material.
+- ESP32/Web do not directly control SSR;
+- lost ACK/timeout does not prove Arduino idle;
+- final repeat cannot reopen automatically;
+- `RUN_COMPLETED` does not automatically deduct wire/material;
+- manual writeoff remains tied to exact `source_session_id + source_run_id` and exact spool provenance when allocated;
+- immutable run/snapshot/history evidence is preserved.
 
 ## Verification state
 
-At the time of this checkpoint, no fresh successful CI/status check for commit `39142bd9834e26e349faf0ff4b2a6cb3076777f0` was available through the connector. Therefore this cleanup is **not recorded as GREEN yet**.
+The four runs above are failed regression evidence, not GREEN evidence.
 
-Next verification gate: fresh applicable ESP32 build + protocol/static contracts, or explicit operator-confirmed GREEN evidence.
+After corrective commit `dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b`, wait for fresh applicable ESP32 build + host/static contracts (or explicit operator-confirmed GREEN) before recording the correction as GREEN.

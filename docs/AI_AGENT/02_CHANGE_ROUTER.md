@@ -18,7 +18,7 @@ Arduino/CM_SsrController.*
 Arduino/CM_HallTurnSource.*
 Arduino/CM_DebouncedButton.*
 Arduino/CM_Lcd1602View.*
-Arduino/CM_Buzzer*.h/.cpp
+Arduino/CM_BuzzerService.*
 ```
 
 Safety impact:
@@ -184,7 +184,7 @@ Authoritative production settings are persisted by `WarehouseStore::loadConversi
 /data/settings/conductor.json
 ```
 
-Do not make the parallel legacy `CM_ConductorSettings.*` persistence class a second production owner. It is a post-audit cleanup candidate pending dependency proof.
+The old parallel `CM_ConductorSettings.*` persistence class was removed during controlled cleanup. Do not reintroduce it as a second production owner. Current production ownership remains `CM_ConductorSettingsWeb.*`, `CM_ConductorSettingsStore.cpp` and the `WarehouseStore` conversion-settings API.
 
 Current calculator accepts 1..5 source wires from one semicolon-separated UI field and maps each entered diameter to one source component. Warehouse recommendations and read-only standard-reference recommendations are separate. The standard catalogue must never create stock/spools or imply that a purchase already occurred.
 
@@ -286,9 +286,9 @@ The CMP Protocol workflow intentionally continues later Web/safety audits after 
 
 Shared production code (`Shared/**`) must trigger all applicable Arduino/ESP32/protocol gates. `Tests/Web/check_ci_trigger_contracts.js` protects the critical trigger coverage.
 
-## 21. Post-audit cleanup / dead code / duplicate files
+## 21. Controlled cleanup / dead code / duplicate files
 
-Only start after sections A..E and final cross-layer recheck are complete.
+The full audit sections A..E and final repo-level cross-layer review are complete; controlled cleanup is the current active phase. Use `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md` as the authoritative queue and verification gate.
 
 For each candidate prove:
 
@@ -302,7 +302,7 @@ runtime microSD path compatibility
 AI/docs routing/history requirements
 ```
 
-Then classify `DELETE`, `MERGE`, `KEEP` or `REVIEW`. Never remove production data automatically. Known candidates may be documented during audit, but deletion waits for the cleanup phase.
+Then classify `DELETE`, `MERGE`, `KEEP` or `REVIEW`. Never remove production data automatically. Empty GitHub code search is supporting evidence only and is never sufficient deletion proof by itself; direct owner/header/build checks are required.
 
 ## 22. Search order when the router is not enough
 

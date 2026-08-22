@@ -93,7 +93,25 @@ fcc0617d435249b3031728913cdc259a682d6dd9
 
 The regression contract requires the old `.cpp` and API declaration to remain absent while `/api/warehouse/spools` remains bound to the paginated/material-aware backend with cursor/limit/has_more/next_cursor semantics.
 
-Status: **DELETE completed; post-deletion ESP32 Build + CMP Protocol Tests pending exact result.**
+Two post-cleanup `CMP Protocol Tests` runs failed only in the newly added static contract test:
+
+```text
+32572726225  commit fcc0617...  FAILED step: Audit warehouse spool list cleanup contract
+32572752127  commit cac3915...  FAILED step: Audit warehouse spool list cleanup contract
+```
+
+In both runs, CMake build + all 3 host tests passed, and every other Web/safety contract step passed. The failing test incorrectly searched C++ JSON string fields `has_more` / `next_cursor` using quote escaping that did not match the literal source representation. Production `/api/warehouse/spools` already contained both fields and still used `appendActiveSpoolsPageJson()`.
+
+Fix:
+
+```text
+7f93db3c330e6f16cd91702df0faa532dc478355
+Fix warehouse spool cleanup regression literals
+```
+
+The test now checks the stable field tokens `has_more` and `next_cursor` without depending on C++ string-literal escaping. No production firmware/API rollback was made.
+
+Status: **DELETE completed; regression-test defect fixed; fresh CMP Protocol Tests + ESP32 Build on/after `7f93db3...` still required before declaring this cleanup GREEN.**
 
 ### Documentation routing cleanup
 
@@ -178,7 +196,7 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. verify exact post-deletion result for `ESP32 Build` and `CMP Protocol Tests` on the latest warehouse spool-list cleanup chain;
+1. verify fresh `CMP Protocol Tests` and `ESP32 Build` on/after `7f93db3...`;
 2. if GREEN, continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
 3. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
 4. continue final root/tree/docs reference sweep as the tree changes;

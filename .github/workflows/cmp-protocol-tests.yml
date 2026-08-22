@@ -46,6 +46,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_shared_app_shell_contracts.js
 
+      - name: Audit calculator source wire input
+        if: always()
+        run: node Tests/Web/check_calculator_source_wire_input.js
+
       - name: Audit repeat target UI contracts
         if: always()
         run: node Tests/Web/check_repeat_target_ui.js

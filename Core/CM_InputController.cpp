@@ -38,7 +38,9 @@ bool InputController::handleEvent(const KeyEvent& event)
             return m_stateMachine.toggleManual();
 
         case InputAction::ReturnHome:
-            resetToHome();
+            if (!m_stateMachine.returnHome()) return false;
+            m_numberInput.clear();
+            m_editingCoilIndex = 0U;
             return true;
 
         case InputAction::None:

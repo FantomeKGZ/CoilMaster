@@ -43,14 +43,27 @@ bool findBoolean(const String& line,
     found = true;
     return true;
 }
+
+bool sameSettings(const ConversionSettings& left,
+                  const ConversionSettings& right)
+{
+    return left.aluminiumToCopperPermille == right.aluminiumToCopperPermille &&
+           left.copperToAluminiumPermille == right.copperToAluminiumPermille &&
+           left.allowedDeviationPermille == right.allowedDeviationPermille &&
+           left.maxTargetStrands == right.maxTargetStrands &&
+           left.allowMixedDiameters == right.allowMixedDiameters;
+}
 }
 
 bool WarehouseStore::setConversionSettings(const ConversionSettings& settings)
 {
-    if (!m_ready || settings.aluminiumToCopperPermille == 0U ||
-        settings.copperToAluminiumPermille == 0U ||
-        settings.allowedDeviationPermille == 0U ||
-        settings.maxTargetStrands == 0U)
+    if (!m_ready || settings.aluminiumToCopperPermille < 100U ||
+        settings.aluminiumToCopperPermille > 3000U ||
+        settings.copperToAluminiumPermille < 100U ||
+        settings.copperToAluminiumPermille > 3000U ||
+        settings.allowedDeviationPermille < 1U ||
+        settings.allowedDeviationPermille > 500U ||
+        settings.maxTargetStrands < 1U || settings.maxTargetStrands > 8U)
     {
         return false;
     }
@@ -59,8 +72,14 @@ bool WarehouseStore::setConversionSettings(const ConversionSettings& settings)
     {
         return false;
     }
+    if (!recoverConversionSettingsFileSwap()) return false;
+    if (m_storage.exists(ConversionSettingsTempPath) &&
+        !m_storage.remove(ConversionSettingsTempPath))
+    {
+        return false;
+    }
 
-    File file = m_storage.open(ConversionSettingsPath, FILE_WRITE);
+    File file = m_storage.open(ConversionSettingsTempPath, FILE_WRITE);
     if (!file) return false;
 
     String line;
@@ -80,18 +99,120 @@ bool WarehouseStore::setConversionSettings(const ConversionSettings& settings)
     const size_t written = file.print(line);
     file.flush();
     file.close();
-    return written == line.length();
+    if (written != line.length())
+    {
+        m_storage.remove(ConversionSettingsTempPath);
+        return false;
+    }
+
+    ConversionSettings verified;
+    if (!loadConversionSettingsFromPath(ConversionSettingsTempPath, verified) ||
+        !sameSettings(verified, settings))
+    {
+        m_storage.remove(ConversionSettingsTempPath);
+        return false;
+    }
+
+    if (m_storage.exists(ConversionSettingsBackupPath) &&
+        !m_storage.remove(ConversionSettingsBackupPath))
+    {
+        m_storage.remove(ConversionSettingsTempPath);
+        return false;
+    }
+    const bool hadMain = m_storage.exists(ConversionSettingsPath);
+    if (hadMain &&
+        !m_storage.rename(ConversionSettingsPath, ConversionSettingsBackupPath))
+    {
+        m_storage.remove(ConversionSettingsTempPath);
+        return false;
+    }
+    if (!m_storage.rename(ConversionSettingsTempPath, ConversionSettingsPath))
+    {
+        if (hadMain && !m_storage.exists(ConversionSettingsPath) &&
+            m_storage.exists(ConversionSettingsBackupPath))
+        {
+            m_storage.rename(ConversionSettingsBackupPath, ConversionSettingsPath);
+        }
+        return false;
+    }
+
+    ConversionSettings committed;
+    if (!loadConversionSettingsFromPath(ConversionSettingsPath, committed) ||
+        !sameSettings(committed, settings))
+    {
+        return false;
+    }
+    if (hadMain && m_storage.exists(ConversionSettingsBackupPath) &&
+        !m_storage.remove(ConversionSettingsBackupPath))
+    {
+        m_ready = false;
+        return false;
+    }
+    return true;
 }
 
 bool WarehouseStore::loadConversionSettings(ConversionSettings& settings) const
 {
     settings = ConversionSettings();
-    if (!m_ready || !m_storage.exists(ConversionSettingsPath))
+    if (!m_ready || !recoverConversionSettingsFileSwap() ||
+        !m_storage.exists(ConversionSettingsPath))
     {
         return false;
     }
+    return loadConversionSettingsFromPath(ConversionSettingsPath, settings);
+}
 
-    File file = m_storage.open(ConversionSettingsPath, FILE_READ);
+bool WarehouseStore::recoverConversionSettingsFileSwap() const
+{
+    const bool mainExists = m_storage.exists(ConversionSettingsPath);
+    const bool tempExists = m_storage.exists(ConversionSettingsTempPath);
+    const bool backupExists = m_storage.exists(ConversionSettingsBackupPath);
+    if (!tempExists && !backupExists) return true;
+
+    ConversionSettings mainSettings;
+    if (mainExists &&
+        loadConversionSettingsFromPath(ConversionSettingsPath, mainSettings))
+    {
+        if (tempExists && !m_storage.remove(ConversionSettingsTempPath)) return false;
+        if (backupExists && !m_storage.remove(ConversionSettingsBackupPath)) return false;
+        return true;
+    }
+
+    ConversionSettings backupSettings;
+    const bool backupValid = backupExists &&
+        loadConversionSettingsFromPath(ConversionSettingsBackupPath, backupSettings);
+    ConversionSettings tempSettings;
+    const bool tempValid = tempExists &&
+        loadConversionSettingsFromPath(ConversionSettingsTempPath, tempSettings);
+
+    if (mainExists && !m_storage.remove(ConversionSettingsPath)) return false;
+
+    // A backup proves there was a previously committed main. Prefer it over the
+    // prepared temp because power may have failed after main -> backup but before
+    // temp -> main. Never finish that uncommitted edit automatically after reboot.
+    if (backupExists)
+    {
+        if (!backupValid) return false;
+        if (tempExists && !m_storage.remove(ConversionSettingsTempPath)) return false;
+        return m_storage.rename(ConversionSettingsBackupPath,
+                                ConversionSettingsPath);
+    }
+
+    // With no backup, a valid temp can only be an interrupted first write.
+    if (tempValid)
+        return m_storage.rename(ConversionSettingsTempPath, ConversionSettingsPath);
+    if (tempExists && !m_storage.remove(ConversionSettingsTempPath)) return false;
+    return !mainExists;
+}
+
+bool WarehouseStore::loadConversionSettingsFromPath(
+    const char* path,
+    ConversionSettings& settings) const
+{
+    settings = ConversionSettings();
+    if (path == nullptr || !m_storage.exists(path)) return false;
+
+    File file = m_storage.open(path, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
@@ -99,10 +220,11 @@ bool WarehouseStore::loadConversionSettings(ConversionSettings& settings) const
     }
     const String line = file.readStringUntil('\n');
     const String extra = file.readStringUntil('\n');
+    const bool terminated = !file.available();
     file.close();
-    if (!FlatJsonObjectValidator::valid(line) || extra.length() != 0U)
+    if (!terminated || extra.length() != 0U ||
+        !FlatJsonObjectValidator::valid(line))
     {
-        settings = ConversionSettings();
         return false;
     }
 

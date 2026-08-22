@@ -5,33 +5,15 @@ Branch: `cmp-protocol-v1`
 
 ## Purpose
 
-This checkpoint owns the active full-code audit. Phase 9 Web implementation is complete in checkpoint 64. The targeted JOB/UART desync review has now produced concrete fixes and is summarized in checkpoint 65.
+This checkpoint owns the active full-code audit. Phase 9 Web implementation is complete in checkpoint 64. The targeted JOB/UART desync review is summarized in checkpoint 65. ESP32 build-identity CI recovery is recorded in checkpoint 66.
 
 Historical checkpoints are evidence, not an automatic task queue.
 
-## Verified baseline entering the audit
+## Verification baseline
 
-Previously verified automated gates:
+The operator explicitly reported **all visible workflows green** immediately before the B-002 implementation in this continuation. Treat that as **USER CONFIRMED GREEN** for the then-current branch state only; it does not prove commits created after that statement.
 
-```text
-ESP32 Build #1245 — GREEN
-run 32515224487
-head_sha 5fa6bcea812c33f0b2dc8e13baae476221839b3a
-
-CMP Protocol Tests #2210 — GREEN
-run 32515361340
-head_sha ba3ac4bb69a038a0d7ea2d2dabedbd5f63569133
-```
-
-These runs do not prove newer audit commits green.
-
-Current UART audit implementation checkpoint:
-
-```text
-docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
-```
-
-Exact current audit-head CI remains **NOT VERIFIED** until matching workflow runs are inspected.
+Current B-002 implementation/test commits therefore remain **exact-current verification pending** until a matching ESP32 Build and CMP Protocol Tests result is inspected or explicitly confirmed.
 
 ## Audit scope
 
@@ -68,40 +50,33 @@ Do not label speculative redesign or style preference as a defect.
 
 ## Findings status
 
-### A-001 — P1 — remote JOB could overwrite non-idle Arduino state — FIXED / exact-current verification pending
+### A-001 — P1 — remote JOB could overwrite non-idle Arduino state — FIXED
 
-Fix:
+Remote job/session IDs remain non-zero and exact; only truly empty HOME may accept a new identity; exact zero-run lost-ACK duplicate is idempotent.
 
-```text
-20f422dd8170139ed7caac6159edb23fe7775103
-Harden Arduino remote job admission
-```
-
-Remote job/session IDs must remain non-zero and exact; only truly empty HOME may accept a new identity; exact zero-run lost-ACK duplicate is idempotent.
-
-### A-002 — P2 — permissive Arduino JOB parsing — FIXED / exact-current verification pending
+### A-002 — P2 — permissive Arduino JOB parsing — FIXED
 
 Strict full-token bounded decimal parsing and exact `STARTING` / `WORKING` validation are implemented. Regression coverage is present in Protocol CI.
 
-### A-003 — P2 — permissive ACK/NACK and JOB_CANCEL IDs — FIXED / exact-current verification pending
+### A-003 — P2 — permissive ACK/NACK and JOB_CANCEL IDs — FIXED
 
-Inbound Arduino correlation IDs now require complete canonical decimal tokens; numeric prefixes/trailing garbage cannot acknowledge/cancel a different event.
+Inbound Arduino correlation IDs require complete canonical decimal tokens; numeric prefixes/trailing garbage cannot acknowledge/cancel a different event.
 
-### A-004 — P1 — stale zero-id ALL_CLEAR could correlate to a fresh JOB — FIXED / exact-current verification pending
+### A-004 — P1 — stale zero-id ALL_CLEAR could correlate to a fresh JOB — FIXED
 
-Zero-id `ALL_CLEAR` now correlates only to explicit pending cancel or a dedicated persisted-recovery identity. Fresh `queueJob()` and successful physical RUN evidence disarm that recovery identity.
+Zero-id `ALL_CLEAR` correlates only to explicit pending cancel or a dedicated persisted-recovery identity. Fresh `queueJob()` and successful physical RUN evidence disarm that recovery identity.
 
-### A-005 — P1 — stale cancel against run/fault evidence could falsely mark storage failed — FIXED / exact-current verification pending
+### A-005 — P1 — stale cancel against run/fault evidence could falsely mark storage failed — FIXED
 
-`closeAfterRemoteCancel()` now treats unsafe run/fault evidence as unchanged no-op, preserving manual review and storage availability. Only zero-run waiting state is rewritten as cancelled.
+`closeAfterRemoteCancel()` treats unsafe run/fault evidence as unchanged no-op, preserving manual review and storage availability. Only zero-run waiting state is rewritten as cancelled.
 
-### A-006 — P1 — control reply/timeout could be persisted after following RUN evidence — FIXED / exact-current verification pending
+### A-006 — P1 — control reply/timeout could be persisted after following RUN evidence — FIXED
 
-Receiver ordering barriers now force pending JOB/CANCEL control results to be drained/persisted before a later physical RUN frame is parsed.
+Receiver ordering barriers force pending JOB/CANCEL control results to be drained/persisted before a later physical RUN frame is parsed.
 
-### A-007 — P1 — lost JOB_ACK timeout plus real RUN_STARTED was unrecoverable — FIXED / exact-current verification pending
+### A-007 — P1 — lost JOB_ACK timeout plus real RUN_STARTED was unrecoverable — FIXED
 
-A narrow retry-safe state transition now reconciles only exact `TIMED_OUT + WAITING_DELIVERY + zero-run` with a later CRC-valid `RUN_STARTED` for the same immutable session. No physical action is introduced. RAM status and recovery-only ALL_CLEAR identity are normalized after committed RUN evidence.
+A narrow retry-safe state transition reconciles only exact `TIMED_OUT + WAITING_DELIVERY + zero-run` with a later CRC-valid `RUN_STARTED` for the same immutable session. No physical action is introduced. RAM status and recovery-only ALL_CLEAR identity are normalized after committed RUN evidence.
 
 Full UART details:
 
@@ -109,71 +84,83 @@ Full UART details:
 docs/PROJECT_HANDOFF/65_UART_DESYNC_AND_TIMEOUT_RECOVERY_AUDIT_2026-08-22.md
 ```
 
-### B-001 — P1 — backup activity guard could promote unknown runtime to Safe — FIXED / exact-current verification pending
+### B-001 — P1 — backup activity guard could promote unknown runtime to Safe — FIXED
 
-Before the fix, `BackupActivityGuard::check()` continued into persisted ESP32 job-state validation when `runtimeCheck()` returned `Unavailable`. If no active persisted job was found, the guard could return `Safe` even though transient RAM-only activity such as local Arduino winding/control state was not provable.
+`BackupActivityGuard::check()` now requires runtime `Safe` before persisted state/snapshot/spool checks. Runtime `Busy` remains Busy and runtime `Unavailable` remains Unavailable; persisted files can no longer promote an unknown live state to Safe.
 
-Fix:
+Regression protection remains in `Tests/Web/check_final_acceptance_contracts.js`.
 
-```text
-5c06538a4781f57a83a1884827b3bc5a3033ef03
-Fail closed when backup runtime state unavailable
+### B-002 — P1 — restore/apply lacked a global production-mutation interlock — FIXED / exact-current verification pending
 
-6528257227d1d6eec7a8e1d8fe5fab7433f0f577
-Guard unavailable backup runtime fail-closed
-```
+Concrete race was that restore apply spans many loop iterations while ordinary HTTP mutation routes were still dispatchable before the next restore update.
 
-Current rule:
+Implemented cross-layer fix:
 
 ```text
-runtime Busy        -> Busy
-runtime Unavailable -> Unavailable
-runtime Safe        -> then persisted state/snapshot/spool identity is also checked
+29ef6600c4b9c078826abbbc49c398a4326a9560
+Add restore production mutation interlock
+
+1c1272ec90092767c8909632af79a099539e553a
+Interlock restore production mutations
+
+b8f7bb93a9b5861bc584a648b1605b05bce5776f
+Guard restore production mutation interlock
+
+c953665077c810455ccbf31d6ea260a8aaed2e3c
+Run restore mutation interlock audit
 ```
 
-Persisted files are now an additional safety check, never a substitute for live runtime proof.
+Current contract:
 
-Regression protection is in `Tests/Web/check_final_acceptance_contracts.js`.
+1. `CM_ProductionMutationInterlock.h` owns one process-wide restore production-mutation lock.
+2. `ProductionMutationInterlockHandler` is registered during global `RemoteBackupWeb` construction, before `configureWebServer()` later registers application routes.
+3. While the lock is active, every non-GET `/api/*` request is intercepted with HTTP `409` and `restore_mutation_active`; GET/status/read-only routes remain dispatchable.
+4. `RemoteBackupWeb::ApplyStageState` acquires/retains the lock for forward APPLY, COPY, VERIFY, rollback states, APPLIED and FAILED.
+5. `RolledBack` and explicit `Idle` cleanup release it.
+6. APPLIED deliberately stays locked until reboot because in-memory stores were loaded from pre-restore production files; allowing writes before reboot would reintroduce stale-RAM corruption risk.
+7. FAILED also stays fail-closed until reboot/cleanup.
+8. Existing restore owner already calls `BackupActivityGuard::check()` in forward apply entry/copy/verification paths. Losing proven Safe stops the forward step and `update()` enters the existing rollback path.
+9. Operator-only exact `confirmed=APPLY`, `auto_resume=0`, physical START ownership and SSR ownership are unchanged.
 
-### B-002 — P1 — restore/apply lacks a global production-mutation interlock — OPEN
+Regression guard:
 
-Concrete cross-layer race:
+```text
+Tests/Web/check_restore_mutation_interlock.js
+```
 
-- restore/apply checks `BackupActivityGuard::check()` when the operator starts the operation;
-- `RemoteBackupWeb::update()` later continues production-file apply/copy/verification across many loop iterations;
-- `webServer.handleClient()` runs before `remoteBackupWeb.update()`;
-- ordinary production mutation endpoints, including new JOB creation and other data writes, do not share an explicit `restore mutation active` lock;
-- apply-loop itself does not re-check full activity before every production-file mutation chunk.
+The handler signature is intentionally compatible with the project's pinned Arduino-ESP32 `2.0.17` `RequestHandler` API (`HTTPMethod, String`).
 
-Therefore an HTTP mutation or newly observed physical/local activity can begin after restore start while working data is being replaced.
+### B-003 — P2 — network profile API conflated storage failures with client validation — FIXED / exact-current verification pending
 
-Do **not** close this with a JOB-only patch. Required fix must be cross-layer and fail-closed:
+Implemented before B-002 completion:
 
-1. expose one authoritative production-data mutation lock/state for restore apply + rollback;
-2. block normal production mutation endpoints while that lock is active;
-3. re-check runtime activity during apply before continuing production-file mutations;
-4. if runtime ceases to be proven Safe after apply has started, stop forward apply and enter existing rollback path;
-5. keep GET/status/read-only endpoints available;
-6. preserve operator-only APPLY confirmation and no-auto-resume semantics.
+```text
+1048dd922d059b3f8ec0f31fafc3bd24795688af
+5c05ad2f636ff5548ca80317010346dd66ad1af5
+```
 
-This remains the first open P1 in section B.
+Current Network API semantics distinguish:
 
-### B-003 — P2 — network profile API conflates storage failures with client validation — UNDER REVIEW
+```text
+400 invalid/missing operator input
+404 requested profile absent
+409 profile capacity/conflict
+500 persistence/write/remove/reload failure with ready storage
+503 profile store/manager unavailable
+```
 
-`CM_NetworkWeb.cpp` currently returns `400` for some `NetworkProfileStore` unavailable/write/remove failures. This makes microSD/storage faults indistinguishable from invalid request data and can cause UI to prompt the operator to edit valid input instead of reporting device/storage failure.
-
-Next step: split request validation from store readiness/write outcomes while preserving the existing profile schema and AP recovery behavior.
+AP recovery behavior and profile schema remain unchanged.
 
 ## Current active target
 
-Continue section B in this order:
+Continue section B with the first still-open review block:
 
-1. B-002 global restore/apply production-mutation interlock design/implementation;
-2. B-003 network HTTP/storage error semantics;
-3. persistence/atomic-write/integrity partial-failure paths;
-4. network/AP/STA/FTP/RTC/SD fail-closed behavior;
-5. remaining backup/restore/activity-guard consistency;
-6. resource/NDJSON hotspots only where evidence exists.
+1. persistence/atomic-write/integrity partial-failure paths;
+2. network/AP/STA/FTP/RTC/SD fail-closed behavior;
+3. remaining backup/restore/activity-guard consistency;
+4. resource/NDJSON hotspots only where evidence exists.
+
+Do not reopen B-001, B-002 or B-003 without a concrete regression.
 
 Then continue sections C, D, E and final cross-layer recheck.
 
@@ -194,6 +181,11 @@ safe physical ALL_CLEAR
 late zero-id ALL_CLEAR must not cancel a fresh job
 lost JOB_ACK -> TIMED_OUT/manual review -> late RUN_STARTED reconciliation
 reboot in waiting/running states -> no auto resume
+
+restore apply interlock smoke when practical:
+GET status remains available during APPLY
+POST/DELETE API mutation receives 409 restore_mutation_active
+APPLIED requires reboot before mutations resume
 ```
 
 ## Execution rules
@@ -204,7 +196,7 @@ For every existing file changed:
 2. make the smallest safe fix;
 3. add/extend regression coverage where practical;
 4. update current docs after semantics change;
-5. never claim GREEN until the named workflow passes on the exact SHA.
+5. never claim GREEN until the named workflow passes on the exact candidate or the operator explicitly confirms that state.
 
 Safety invariants remain unchanged:
 
@@ -226,16 +218,17 @@ no automatic production-data cleanup
 
 ```text
 Phase 9 implementation: COMPLETE (checkpoint 64)
-Arduino findings A-001..A-003: FIXED / exact-current verification pending
-Targeted UART findings A-004..A-007: FIXED / exact-current verification pending
+Arduino findings A-001..A-007: FIXED
 Targeted UART repo review: COMPLETE -> hardware gate retained
-ESP32 B-001: FIXED / exact-current verification pending
-ESP32 B-002: OPEN P1 / CURRENT HIGH PRIORITY
-ESP32 B-003: UNDER REVIEW P2
-ESP32 runtime/API/persistence/integrity/network/backup audit: IN PROGRESS / CURRENT
+ESP32 B-001: FIXED
+ESP32 B-002: FIXED / exact-current verification pending
+ESP32 B-003: FIXED / exact-current verification pending
+ESP32 persistence/atomic/integrity audit: CURRENT
+ESP32 network/FTP/RTC/SD review: PENDING
+Remaining backup/restore review: PENDING
 Web audit: PENDING
 Tests/CI audit: PENDING
 Documentation/AI consistency audit: PENDING
 Final repo-wide recheck: PENDING
-Current newer HEAD CI: NOT VERIFIED
+Current post-B-002 candidate CI: NOT VERIFIED in chat
 ```

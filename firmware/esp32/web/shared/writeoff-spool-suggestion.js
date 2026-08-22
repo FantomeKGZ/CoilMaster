@@ -41,7 +41,7 @@ function setLifecycle(text,ok){
 }
 function setFormEnabled(enabled){
     writable=enabled;
-    ['quantityKg','allocationMode','wireType','diameterMm','comment','submitButton'].forEach(id=>{const el=$(id);if(el)el.disabled=!enabled});
+    ['quantityKg','comment','submitButton'].forEach(id=>{const el=$(id);if(el)el.disabled=!enabled});
     refreshAllocationControls();
 }
 function canonicalKg(input){
@@ -54,13 +54,6 @@ function canonicalKg(input){
     if(!Number.isSafeInteger(grams)||grams<=0||grams>0xFFFFFFFF)return null;
     fraction=fraction.replace(/0+$/,'');
     return{kg:fraction?whole+'.'+fraction:whole,grams};
-}
-function hundredthsMm(input){
-    const raw=String(input??'').trim().replace(',','.');
-    if(!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(raw))return null;
-    const parts=raw.split('.');
-    const value=Number(parts[0])*100+Number(((parts[1]||'')+'00').slice(0,2));
-    return Number.isSafeInteger(value)&&value>0&&value<=0xFFFF?value:null;
 }
 
 async function jsonFetch(url,options){
@@ -180,22 +173,22 @@ async function findActiveSpool(spoolId){
 }
 
 function refreshAllocationControls(){
-    const mode=$('allocationMode')?$('allocationMode').value:'UNALLOCATED';
-    const spoolMode=mode==='SPOOL';
     const unallocated=$('unallocatedFields');
-    if(unallocated)unallocated.hidden=spoolMode;
-    if($('wireType'))$('wireType').disabled=!writable||spoolMode;
-    if($('diameterMm'))$('diameterMm').disabled=!writable||spoolMode;
+    if(unallocated)unallocated.hidden=true;
+    if($('wireType'))$('wireType').disabled=true;
+    if($('diameterMm'))$('diameterMm').disabled=true;
+    if($('allocationMode')){
+        $('allocationMode').innerHTML=activeSpool?'<option value="SPOOL">Списать с immutable бухты №'+esc(activeSpool.spool_id)+'</option>':'<option value="SPOOL">Immutable бухта недоступна</option>';
+        $('allocationMode').value='SPOOL';
+        $('allocationMode').disabled=true;
+    }
     if($('allocationInfo')){
-        if(spoolMode&&activeSpool){
+        if(activeSpool){
             $('allocationInfo').className='info';
             $('allocationInfo').textContent='Будет уменьшен остаток immutable бухты №'+activeSpool.spool_id+': '+materialLabel(activeSpool.material_class)+' · '+diameterLabel(activeSpool.diameter_hundredths_mm)+' · '+kgFromGrams(activeSpool.current_weight_g)+'.';
-        }else if(spoolMode){
-            $('allocationInfo').className='warning';
-            $('allocationInfo').textContent='Immutable бухта сейчас недоступна среди активных. Выберите «Без привязки к бухте».';
         }else{
-            $('allocationInfo').className='info';
-            $('allocationInfo').textContent='Расход будет записан для exact завершённого прохода без изменения остатка конкретной бухты.';
+            $('allocationInfo').className='warning';
+            $('allocationInfo').textContent='Immutable бухта source session недоступна среди активных. Списание заблокировано: менять provenance после RUN_COMPLETED нельзя.';
         }
     }
 }
@@ -210,6 +203,7 @@ async function prepareNextRun(){
         if(!pending){
             if($('provenance')){$('provenance').className='info';$('provenance').textContent='Все RUN_COMPLETED этого ремонта уже покрыты ручными списаниями.'}
             if($('submitButton'))$('submitButton').disabled=true;
+            refreshAllocationControls();
             return;
         }
         sourceSessionId=pending.sessionId;
@@ -217,19 +211,18 @@ async function prepareNextRun(){
         selection=await loadSelection(sourceSessionId);
         if(!selection)throw new Error('spool_selection_missing');
         activeSpool=await findActiveSpool(selection.spool_id);
+        if(!activeSpool)throw new Error('immutable_spool_not_active');
+        if(String(activeSpool.spool_id)!==String(selection.spool_id))throw new Error('immutable_spool_identity_mismatch');
         if($('provenance')){
             $('provenance').className='info';
             $('provenance').textContent='Сессия №'+sourceSessionId+' · проход №'+sourceRunId+' · immutable бухта №'+selection.spool_id+'. Списание выполняется только вручную.';
-        }
-        if($('allocationMode')){
-            $('allocationMode').innerHTML='<option value="UNALLOCATED">Без привязки к бухте</option>'+(activeSpool?'<option value="SPOOL">Списать с бухты №'+esc(activeSpool.spool_id)+'</option>':'');
-            $('allocationMode').value=activeSpool?'SPOOL':'UNALLOCATED';
         }
         if(selection.wire_type&&$('wireType'))$('wireType').value=selection.wire_type;
         if(selection.diameter_hundredths_mm&&$('diameterMm'))$('diameterMm').value=(Number(selection.diameter_hundredths_mm)/100).toFixed(2).replace('.',',');
         if($('submitButton'))$('submitButton').disabled=!writable;
         refreshAllocationControls();
     }catch(error){
+        refreshAllocationControls();
         if($('provenance')){$('provenance').className='warning';$('provenance').textContent='Списание заблокировано: '+error.message+'. Проверьте историю намотки и immutable данные.'}
         if($('submitButton'))$('submitButton').disabled=true;
     }
@@ -278,34 +271,23 @@ async function loadHistory(cursor=historyCursor,reset=false){
     }
 }
 
-if($('allocationMode'))$('allocationMode').addEventListener('change',refreshAllocationControls);
 if($('historyPrev'))$('historyPrev').onclick=()=>{if(!historyStack.length)return;const cursor=historyStack.pop();historyPage=Math.max(1,historyPage-1);loadHistory(cursor,false)};
 if($('historyNext'))$('historyNext').onclick=()=>{if(!historyHasMore)return;historyStack.push(historyCursor);historyPage+=1;loadHistory(historyNextCursor,false)};
 if($('form'))$('form').onsubmit=async event=>{
     event.preventDefault();
     if(!writable){setResult('Ремонт закрыт или его состояние не подтверждено. Списание запрещено.','warning');return}
     if(!validId(sourceSessionId)||!validId(sourceRunId)||!selection){setResult('Не найден exact завершённый проход для списания.','bad');return}
+    if(!activeSpool||String(activeSpool.spool_id)!==String(selection.spool_id)){setResult('Immutable бухта source session недоступна. Списание заблокировано.','bad');return}
     const quantity=canonicalKg($('quantityKg')&&$('quantityKg').value);
     if(!quantity){setResult('Введите количество в кг, до 3 знаков после запятой, например 1,250.','bad');return}
-    const mode=$('allocationMode')?$('allocationMode').value:'UNALLOCATED';
+    if(quantity.grams>=Number(activeSpool.current_weight_g)){setResult('Количество должно быть меньше текущего остатка бухты '+kgFromGrams(activeSpool.current_weight_g)+'.','bad');return}
     const body=new URLSearchParams({writeoff_mode:'KG_FIRST',repair_id:repairId,quantity_kg:quantity.kg,source_session_id:sourceSessionId,source_run_id:sourceRunId,timestamp:new Date().toISOString(),comment:$('comment')?$('comment').value:''});
-    if(mode==='SPOOL'){
-        if(!activeSpool||String(activeSpool.spool_id)!==String(selection.spool_id)){setResult('Immutable бухта недоступна. Используйте списание без привязки.','bad');return}
-        if(quantity.grams>=Number(activeSpool.current_weight_g)){setResult('Количество должно быть меньше текущего остатка бухты '+kgFromGrams(activeSpool.current_weight_g)+'.','bad');return}
-        body.set('spool_id',String(activeSpool.spool_id));
-    }else{
-        const d=hundredthsMm($('diameterMm')&&$('diameterMm').value);
-        const wire=$('wireType')?$('wireType').value:'';
-        if(!d){setResult('Для списания без бухты укажите диаметр провода.','bad');return}
-        if(wire!=='CU'&&wire!=='AL'){setResult('Для списания без бухты выберите медь или алюминий.','bad');return}
-        body.set('diameter_hundredths_mm',String(d));
-        body.set('wire_type',wire);
-    }
+    body.set('spool_id',String(activeSpool.spool_id));
     if($('submitButton'))$('submitButton').disabled=true;
     setResult('Сохранение…','muted');
     try{
         const data=await jsonFetch('/api/warehouse/write-offs',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-        const where=data.stock_mode==='SPOOL'&&data.spool_id?(' · бухта №'+data.spool_id):' · без привязки к бухте';
+        const where=data.spool_id?(' · бухта №'+data.spool_id):'';
         setResult('Списано '+kgFromGrams(data.consumed_g)+' на '+money(data.consumed_value_minor||0,data.currency||'KGS')+where+'.','ok');
         if($('quantityKg'))$('quantityKg').value='';
         if($('comment'))$('comment').value='';
@@ -314,7 +296,7 @@ if($('form'))$('form').onsubmit=async event=>{
     }catch(error){
         setResult('Ошибка: '+error.message,'bad');
     }finally{
-        if($('submitButton'))$('submitButton').disabled=!writable||!validId(sourceSessionId)||!validId(sourceRunId);
+        if($('submitButton'))$('submitButton').disabled=!writable||!validId(sourceSessionId)||!validId(sourceRunId)||!activeSpool;
     }
 };
 

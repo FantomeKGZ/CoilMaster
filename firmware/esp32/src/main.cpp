@@ -1012,6 +1012,17 @@ void handleCreateJob()
         return;
     }
 
+    // CREATED is the durable local-preparation boundary. It is committed before
+    // exact spool selection and before DELIVERING, so a failure below this point
+    // cannot have queued the job to Arduino. The immutable snapshot/state remain
+    // as audit evidence and a higher-ID job may safely supersede them.
+    if (!jobStates.create(job.jobId, job.sessionId, createdMs))
+    {
+        jobStateStoreReady = false;
+        webServer.send(503, "application/json", "{\"error\":\"job_state_persistence_failed\"}");
+        return;
+    }
+
     CM::JobSpoolSelection persistedSpoolSelection;
     if (linkage.linked)
     {
@@ -1036,8 +1047,9 @@ void handleCreateJob()
         }
     }
 
-    if (!jobStates.create(job.jobId, job.sessionId, createdMs) ||
-        !jobStates.updateDelivery(job.sessionId,
+    // DELIVERING is the first persisted state that may cross the UART boundary.
+    // Never call queueJob() unless this transition is durably committed first.
+    if (!jobStates.updateDelivery(job.sessionId,
                                   CM::JobDeliveryState::Delivering,
                                   millis()))
     {

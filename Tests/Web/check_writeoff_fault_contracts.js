@@ -10,17 +10,24 @@ function read(relative) {
 function requireText(relative, source, text, description) {
   if (!source.includes(text)) failures.push(relative + ': ' + description);
 }
+function requireAbsent(relative, source, text, description) {
+  if (source.includes(text)) failures.push(relative + ': ' + description);
+}
 
 const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const storePath = 'firmware/esp32/src/CM_WarehouseStore.cpp';
+const storeHeaderPath = 'firmware/esp32/src/CM_WarehouseStore.h';
 const writeoffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const writeoffStorePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
+const writeoffLookupPath = 'firmware/esp32/src/CM_WarehouseWriteOffLookup.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
 
 const recovery = read(recoveryPath);
 const store = read(storePath);
+const storeHeader = read(storeHeaderPath);
 const writeoff = read(writeoffPath);
 const writeoffStore = read(writeoffStorePath);
+const writeoffLookup = read(writeoffLookupPath);
 const controller = read(controllerPath);
 
 // Startup must resolve an interrupted stock-file swap before examining a pending
@@ -73,6 +80,27 @@ for (const text of [
 ]) {
   requireText(writeoffPath, writeoff, text, 'write-off HTTP fault guard missing: ' + text);
 }
+
+// Duplicate protection is exact-run only. A session can legitimately contain
+// multiple completed runs, each requiring its own explicit manual write-off.
+for (const source of [
+  [storeHeaderPath, storeHeader],
+  [writeoffLookupPath, writeoffLookup]
+]) {
+  requireAbsent(source[0], source[1], 'confirmedWriteOffForSourceSession',
+    'obsolete session-only duplicate lookup must stay removed');
+}
+for (const text of [
+  'confirmedWriteOffForSourceRun(uint32_t sourceSessionId',
+  'sourceRunId == 0UL',
+  'currentSessionId == sourceSessionId && currentRunId == sourceRunId'
+]) {
+  requireText(writeoffLookupPath, writeoffLookup, text,
+    'exact-run duplicate lookup contract missing: ' + text);
+}
+requireText(storeHeaderPath, storeHeader,
+  'confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;',
+  'public duplicate lookup must require source_session_id + source_run_id');
 
 // Every JSON error emitted from the POST handler must explicitly state that no
 // write was performed. GET history errors are outside this contract.
@@ -136,4 +164,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: explicit write_performed:false failures, fail-closed storage/repair/run guards, exact-run duplicate protection, deterministic reboot recovery, and no automatic deduction.');
+console.log('Write-off fault contracts OK: explicit write_performed:false failures, fail-closed storage/repair/run guards, exact-run-only duplicate protection, deterministic reboot recovery, and no automatic deduction.');

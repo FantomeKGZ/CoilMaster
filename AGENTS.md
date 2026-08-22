@@ -23,54 +23,38 @@ This file is the mandatory starting point for any AI/coding agent changing CoilM
 8. `docs/AI_AGENT/04_VERIFICATION_MATRIX.md`
 9. Only then open the exact production files needed for the task.
 
-Checkpoint 62 is the current verified repo-level baseline. Older numbered handoff checkpoints are historical evidence, not an active task queue. Do not resume work merely because an old checkpoint says `next`.
+Older numbered handoff checkpoints are historical evidence, not an active task queue. Do not resume work merely because an old checkpoint says `next`.
 
 ## Current active phase
 
-The repo-level update/hardening plan through checkpoint 62 is closed. The remaining targeted ESP32<->Arduino hardware smoke is an external verification gate for when the physical stand is available; it is not the current software backlog.
-
-Active repo-level work is now:
+The full repo-level code audit A–E is complete. Active repo-level work is now:
 
 ```text
-FULL CODE AUDIT of cmp-protocol-v1
+CONTROLLED REPOSITORY CLEANUP / DE-DUPLICATION
 ```
 
-Audit checkpoint:
+Every cleanup candidate must be classified before deletion:
 
 ```text
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+DELETE  proven unused and unreferenced by production/build/tests/docs/runtime
+MERGE   duplicate implementation; retain one authoritative owner
+KEEP    active production/build/test/docs/history/operator dependency
+REVIEW  uncertain dependency; do not delete
 ```
 
-Audit order:
-
-```text
-Arduino safety/realtime/UART/resources
-ESP32 runtime/API/persistence/integrity/network/backup
-desktop/mobile web parity/error/security
-tests/CI/build filters/path triggers
-docs/AI consistency
-final cross-layer recheck + applicable CI
-```
-
-Confirmed defects are fixed as they are found. Do not reopen completed features without evidence and do not create findings from style preferences or speculative redesigns.
+Do not mix speculative redesign with cleanup. Do not delete production data or historical evidence automatically.
 
 ## Current verified repo baseline
 
-Production ESP32 C++:
+Latest user-confirmed GREEN baseline before the next cleanup batch:
 
 ```text
-5fa6bcea812c33f0b2dc8e13baae476221839b3a
-Validate session state against repeat target
+51ea46c1823a451e7f80ecd188daf896aafc752d
+Fix production conductor cleanup contract
+USER CONFIRMED GREEN
 ```
 
-Verified automated gates:
-
-```text
-ESP32 Build #1245 — GREEN — run 32515224487
-CMP Protocol Tests #2210 — GREEN — run 32515361340
-```
-
-These results do not imply current hardware acceptance.
+Commits after this SHA require a fresh exact result or explicit user confirmation before being described as GREEN.
 
 ## Non-negotiable safety invariants
 
@@ -181,7 +165,9 @@ When a production capability is added, moved or materially changes state:
 
 - update the relevant `docs/AI_AGENT/` map/router entry;
 - update the thematic project doc when a public/data/protocol contract changes;
-- update `00_READ_FIRST.md` and the current checkpoint only when project status materially changes;
+- update `00_READ_FIRST.md` and the current active queue when project status materially changes;
 - keep older numbered checkpoints historical; do not rewrite them into an active queue.
+
+During cleanup, update documentation that points to deleted files or stale owners in the same cleanup batch.
 
 The goal is that the next agent starts from the current code/status without repository-wide archaeology or stale chat history.

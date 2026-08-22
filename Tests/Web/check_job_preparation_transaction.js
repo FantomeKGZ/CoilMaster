@@ -13,12 +13,14 @@ const stateHeaderPath = 'firmware/esp32/src/CM_JobStateStore.h';
 const statePath = 'firmware/esp32/src/CM_JobStateStore.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_JobRecovery.cpp';
 const guardPath = 'firmware/esp32/src/CM_BackupActivityGuard.cpp';
+const persistenceAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
 
 const main = read(mainPath);
 const stateHeader = read(stateHeaderPath);
 const state = read(statePath);
 const recovery = read(recoveryPath);
 const guard = read(guardPath);
+const persistenceAudit = read(persistenceAuditPath);
 
 requireText(stateHeaderPath, stateHeader,
   'static bool isLocalPreparation(const JobRuntimeState& state);',
@@ -41,6 +43,20 @@ requireText(recoveryPath, recovery,
 requireText(guardPath, guard,
   'const bool localPreparation = JobStateStore::isLocalPreparation(latest);',
   'backup activity guard must use the same local preparation predicate');
+
+for (const text of [
+  'snapshot.linkage.linked && !JobStateStore::isLocalPreparation(state)',
+  '!hasSelections',
+  '!selections.load(sessionId, selection, selectionFound)',
+  '!selectionFound || !selection.isValid()',
+  'selection.sessionId != sessionId',
+  'selection.jobId != state.jobId',
+  'selection.repairId != snapshot.linkage.repairId',
+  'selection.motorId != snapshot.linkage.motorId'
+]) {
+  requireText(persistenceAuditPath, persistenceAudit, text,
+    'linked post-preparation selection integrity guard missing: ' + text);
+}
 
 const snapshotPos = main.indexOf('jobSnapshots.create(job, linkage, createdMs)');
 const stateCreatePos = main.indexOf('jobStates.create(job.jobId, job.sessionId, createdMs)');
@@ -74,4 +90,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('JOB preparation transaction contracts OK: snapshot -> CREATED -> exact spool -> DELIVERING -> UART queue, with safe local-preparation recovery only before the UART boundary.');
+console.log('JOB preparation transaction contracts OK: snapshot -> CREATED -> exact spool -> DELIVERING -> UART queue, safe local-preparation recovery only before the UART boundary, and mandatory linked spool-selection integrity afterwards.');

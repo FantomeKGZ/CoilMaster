@@ -113,11 +113,40 @@ a19390ba977047421c4016c1a8369d2f6a07ecdb
 
 `Tests/Web/check_job_preparation_transaction.js` now protects both the transaction ordering and the mandatory post-preparation linked-selection evidence.
 
+Startup runtime already has a separate fail-closed linked-selection check after immutable display recovery. If the selection store is unavailable or the recovered selection does not match exact job/session/repair/motor identity, new job creation remains blocked.
+
+## Exact-run finalization coverage defect — fixed
+
+Historic legacy spool records are intentionally still readable without `source_run_id`, because old transaction recovery may have only session-level provenance. The finalization coverage audit previously treated such a `CONFIRMED` record as matching every completed run in the same session. In a repeat job, one ambiguous historic write-off could therefore make multiple `RUN_COMPLETED` records appear covered.
+
+Fix:
+
+```text
+cc131a9fea585f9c1ffff003478bcd66666076a5
+  Reject ambiguous legacy writeoff coverage
+```
+
+`CM_WireWriteOffCoverageAudit.cpp` now requires `source_run_id` before a legacy confirmed record can satisfy a concrete coverage target and then requires exact `source_run_id == run_id`. Ambiguous historic records remain readable but cannot be used as proof for `CLOSED`.
+
+Regression:
+
+```text
+e4101b05c1fffea8c9ed22342c5ac746e4c6d1f3
+  Guard exact-run finalization coverage
+```
+
+`Tests/Web/check_kg_first_material_contracts.js` now protects the exact-run legacy coverage rule. `RepairFinalizationGuard` already maps coverage integrity failure to `WireWriteOffIntegrityFailed`, so ambiguous evidence blocks finalization instead of being treated as covered.
+
+## Transaction residue policy reviewed
+
+`JobStateStore` deliberately fails closed when `.tmp` or `.bak` transaction residue exists. Its existing regression contract requires authoritative state rotation and commit ordering to remain `target -> backup`, verified temp -> target, committed target verification, then backup cleanup; it explicitly forbids erasing interrupted transaction residue as a shortcut.
+
+`JobSnapshotStore` orphan `.json.tmp` behavior remains a resilience REVIEW item rather than a current safety defect: snapshot creation occurs before CREATED state and before the UART boundary, so such residue cannot itself start or resume hardware. Any recovery policy should be designed consistently with the deliberate state-store transaction semantics rather than adding ad-hoc automatic deletion.
+
 ## Current next review
 
 Continue with:
 
-1. job recovery after reboot across snapshot + state + selection, including missing-selection fail-closed behavior;
-2. `CM_JobSnapshotStore.*` orphan temp behavior and whether a safe local-preparation recovery should be added;
-3. exact run/material finalization coverage;
-4. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.
+1. exact run/material costing and closure provenance after the coverage fix;
+2. remaining snapshot/state/selection crash-residue consistency review;
+3. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.

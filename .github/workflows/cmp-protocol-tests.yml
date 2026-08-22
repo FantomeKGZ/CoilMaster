@@ -110,6 +110,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_warehouse_spool_atomic_recovery.js
 
+      - name: Audit warehouse spool list cleanup contract
+        if: always()
+        run: node Tests/Web/check_warehouse_spool_list_cleanup.js
+
       - name: Audit active legacy spool material migration contracts
         if: always()
         run: node Tests/Web/check_warehouse_legacy_spool_material_contract.js

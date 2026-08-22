@@ -42,7 +42,6 @@ public:
     bool loadWarehousePrice(WarehousePrice& price,bool& configured) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;
-    bool appendActiveSpoolsJson(String& json,uint16_t diameterHundredthsMm,uint16_t& appendedCount) const;
     bool appendActiveSpoolsPageJson(String& json,uint16_t diameterHundredthsMm,const char* materialFilter,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore) const;
     bool appendMaterialSummaryJson(String& json,const char* monthPrefix) const;
     bool loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;

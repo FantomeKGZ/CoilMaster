@@ -68,15 +68,19 @@ for (const text of [
 for (const text of [
   'm_server.arg("writeoff_mode") == "KG_FIRST"',
   'KgQuantity::parseGrams(m_server.arg("quantity_kg"), consumedGrams)',
-  'm_server.hasArg("spool_id")',
-  'diameter_required_for_unallocated',
-  'wire_type_required_for_unallocated',
+  'parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId)',
+  'spool_id_required_for_kg_first',
+  'selection.repairId != repairId || selection.spoolId != spoolId',
   'confirmKgFirstWriteOff(operation, result)',
   'source_session_id',
   'source_run_id',
-  'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)'
+  'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)',
+  'response += F(",\\\"stock_mode\\\":\\\"SPOOL\\\"")'
 ]) {
-  requireText(writeOffPath, writeOff, text, 'active kg-first API guard missing: ' + text);
+  requireText(writeOffPath, writeOff, text, 'active exact-spool kg-first API guard missing: ' + text);
+}
+for (const forbidden of ['diameter_required_for_unallocated', 'wire_type_required_for_unallocated', '(spoolId != 0UL && selection.spoolId != spoolId)']) {
+  if (writeOff.includes(forbidden)) failures.push(writeOffPath + ': new POST path still exposes legacy unallocated fallback: ' + forbidden);
 }
 
 for (const text of [
@@ -181,10 +185,9 @@ if (movementAudit.includes('candidate.movementId == record.movementId')) {
   failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
 }
 
-// Deep backup warehouse persistence must understand the same dual movement
-// schema as runtime. UNALLOCATED records have no spool reference; spool-backed
-// and legacy records keep exact-one spool provenance. References are resolved in
-// bounded batches instead of rescanning spool/repair ledgers for every line.
+// Deep backup warehouse persistence must understand historical dual movement
+// schema even though the current POST path is exact-spool only. References are
+// resolved in bounded batches instead of rescanning spool/repair ledgers per line.
 for (const text of [
   '#include "CM_WarehouseWriteOffRecord.h"',
   'constexpr uint8_t ReferenceBatchSize = 32U;',
@@ -228,11 +231,11 @@ for (const text of [
 }
 
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
-  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
+  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'value="SPOOL"', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
     requireText(relative, source, text, 'kg-first writeoff UI missing: ' + text);
   }
-  for (const forbidden of ['id="before"', 'id="after"', 'Вес до работы', 'Вес после работы']) {
-    if (source.includes(forbidden)) failures.push(relative + ': legacy before/after operator UI returned: ' + forbidden);
+  for (const forbidden of ['id="before"', 'id="after"', 'Вес до работы', 'Вес после работы', 'value="UNALLOCATED"']) {
+    if (source.includes(forbidden)) failures.push(relative + ': production form exposes obsolete writeoff control: ' + forbidden);
   }
 }
 for (const text of [
@@ -271,4 +274,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, dual journal schema, batched runtime and backup warehouse scans, single-pass audited wire costing totals, two-pass winding completion evidence, recovery/finalization with exact-run legacy handling, manual immutable-spool production UI with historical unallocated rendering, exact source-run provenance, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, historical dual journal compatibility, exact-spool current POST/UI, batched runtime and backup scans, audited costing, exact-run finalization, historical unallocated rendering/recovery, and no automatic RUN_COMPLETED deduction.');

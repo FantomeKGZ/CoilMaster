@@ -88,6 +88,7 @@ UartEventReceiver::UartEventReceiver(HardwareSerial& serial)
       m_hasPendingJob(false), m_waitingJobAck(false),
       m_lastJobSendMs(0UL), m_jobSendAttempts(0U),
       m_lastQueuedJobId(0UL), m_hasLastQueuedJobId(false),
+      m_recoveryJobId(0UL), m_hasRecoveryJobId(false),
       m_jobDelivery(), m_hasJobDelivery(false),
       m_cancelJobId(0UL), m_hasPendingCancel(false),
       m_lastCancelSendMs(0UL), m_cancelSendAttempts(0U),
@@ -194,6 +195,10 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
     m_jobSendAttempts = 0U;
     m_lastQueuedJobId = job.jobId;
     m_hasLastQueuedJobId = true;
+    // A fresh JOB supersedes any zero-id ALL_CLEAR fallback remembered during
+    // reboot recovery. Identity-less evidence must never attach to a new job.
+    m_recoveryJobId = 0UL;
+    m_hasRecoveryJobId = false;
     return true;
 }
 
@@ -343,7 +348,7 @@ bool UartEventReceiver::takeHallCalibrationState(
 bool UartEventReceiver::takeHallCalibrationResult(
     HallCalibrationRemoteResult& result)
 {
-    return m_hardwareControl.takeHallCalibrationResult(result);
+    return m_hardwareControl.takeResult(result);
 }
 
 bool UartEventReceiver::takeHardwareControlReply(HardwareControlReply& reply)
@@ -359,6 +364,8 @@ void UartEventReceiver::rememberJobId(uint32_t jobId)
         m_lastQueuedJobId = jobId;
         m_hasLastQueuedJobId = true;
     }
+    m_recoveryJobId = jobId;
+    m_hasRecoveryJobId = true;
 }
 
 void UartEventReceiver::sendAck(uint32_t runId, const char* status)
@@ -553,21 +560,21 @@ bool UartEventReceiver::processCancelAck(char* line)
     uint32_t jobId = 0UL;
     if (!parseDecimal32(jobText, jobId)) return false;
 
-    // Physical Arduino fallback: D * # D sends a CRC-protected ALL_CLEAR with
-    // job_id=0 after Arduino has proved that no ESP32 job is physically active.
-    // A zero-id proof has no identity of its own: never let a late ALL_CLEAR
-    // cancel a newly queued live JOB. It may resolve an explicit pending cancel,
-    // or the remembered/recovered job only while no new JOB is pending.
+    // Physical Arduino fallback may send job_id=0 after proving that it holds
+    // no ESP32 remote job. Zero carries no identity, so correlate it only to an
+    // explicit pending cancel or to a job identity explicitly remembered during
+    // reboot recovery. queueJob() clears that recovery identity before any fresh
+    // job can be sent, preventing stale ALL_CLEAR from cancelling a new job even
+    // after its JOB_ACK has already arrived.
     if (jobId == 0UL)
     {
         if (strcmp(status, "CANCELLED") != 0 || detail == nullptr ||
             strcmp(detail, "ALL_CLEAR") != 0)
             return false;
-        if (m_hasPendingJob && !m_hasPendingCancel) return false;
 
         const uint32_t clearedJobId = m_hasPendingCancel
             ? m_cancelJobId
-            : (m_hasLastQueuedJobId ? m_lastQueuedJobId : 0UL);
+            : (m_hasRecoveryJobId ? m_recoveryJobId : 0UL);
         if (clearedJobId == 0UL) return false;
 
         m_pendingJob = OutgoingWindingJob();
@@ -579,6 +586,8 @@ bool UartEventReceiver::processCancelAck(char* line)
         m_cancelJobId = 0UL;
         m_lastCancelSendMs = 0UL;
         m_cancelSendAttempts = 0U;
+        m_recoveryJobId = 0UL;
+        m_hasRecoveryJobId = false;
         publishJobCancel(JobCancelResult::Cancelled,
                          clearedJobId,
                          0U,
@@ -607,6 +616,11 @@ bool UartEventReceiver::processCancelAck(char* line)
     m_hasPendingCancel = false;
     m_cancelJobId = 0UL;
     m_cancelSendAttempts = 0U;
+    if (m_hasRecoveryJobId && jobId == m_recoveryJobId)
+    {
+        m_recoveryJobId = 0UL;
+        m_hasRecoveryJobId = false;
+    }
     return true;
 }
 

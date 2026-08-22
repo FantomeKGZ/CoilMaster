@@ -85,12 +85,39 @@ acbe9cc195eb79b7efa131cb6c23c1325e86f14a
 
 Important compatibility note: the movement schema and recovery code still understand historical `UNALLOCATED` KG_FIRST records. The current linked production preparation path, however, always has an immutable exact spool, so new write-offs for those sessions must not downgrade provenance to unallocated.
 
+## Linked session selection integrity defect — fixed
+
+The deep winding-session persistence audit previously validated only the forward direction: every existing spool-selection file had to match a linked snapshot/state. It did not require the reverse direction, so deleting the immutable selection file from an already-delivered/running/completed linked session could leave the remaining snapshot/state looking valid to that audit.
+
+A missing selection is legitimate only during the local preparation crash window, because the authoritative preparation order is:
+
+```text
+snapshot -> CREATED state -> exact spool selection -> DELIVERING -> UART queue
+```
+
+Fix:
+
+```text
+02f6e9d432696430f68a9dc4cd1dabe0d4319399
+  Require linked spool selection after preparation
+```
+
+`CM_WindingSessionPersistenceIntegrityAudit.cpp` now requires a valid exact selection for every linked state that is no longer `JobStateStore::isLocalPreparation(state)`. The selection must match exact `session_id`, `job_id`, `repair_id`, and `motor_id`. Local-only `CREATED + WAITING_DELIVERY + zero-run` preparation may still legitimately have no selection because the UART boundary has not been crossed.
+
+Regression:
+
+```text
+a19390ba977047421c4016c1a8369d2f6a07ecdb
+  Guard linked selection persistence integrity
+```
+
+`Tests/Web/check_job_preparation_transaction.js` now protects both the transaction ordering and the mandatory post-preparation linked-selection evidence.
+
 ## Current next review
 
 Continue with:
 
-1. `CM_JobSnapshotStore.*` temp/orphan recovery and immutable identity behavior;
-2. `CM_JobSpoolSelectionStore.*` recovery/identity behavior;
-3. job recovery after reboot across snapshot + state + selection;
-4. exact run/material finalization coverage;
-5. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.
+1. job recovery after reboot across snapshot + state + selection, including missing-selection fail-closed behavior;
+2. `CM_JobSnapshotStore.*` orphan temp behavior and whether a safe local-preparation recovery should be added;
+3. exact run/material finalization coverage;
+4. fresh applicable ESP32 Build + CMP Protocol Tests before declaring this post-GREEN batch verified.

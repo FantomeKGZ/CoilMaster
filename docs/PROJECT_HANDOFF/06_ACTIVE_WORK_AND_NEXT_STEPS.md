@@ -65,7 +65,11 @@ old Arduino CM_StartButton.*
 Engineering/ legacy documentation layer
 Tests/README.md Build-002A documentation artifact
 old untyped warehouse wire catalogue API/CM_WarehouseWireCatalogue.cpp
+firmware/esp32/web/shared/calculator-multisource.js
+  + its obsolete CM_StaticSiteServer calculator injection
 ```
+
+Calculator helper cleanup is regression-protected by `Tests/Web/check_calculator_source_wire_input.js`: the old helper file and StaticSiteServer injection must remain absent while the `sourceWires` UI remains authoritative.
 
 Полезная binary host-test CMP документация из старого `Docs/` сохранена рядом с owner в `Shared/Protocol/README.md`.
 
@@ -92,6 +96,8 @@ d334dcc09c96afdee707b94ffe52611069be0ec3  restore public API
 
 Classification: **KEEP**. В дальнейшем пустой GitHub code-search не считать достаточным доказательством отсутствия call-site.
 
+Этот dependency теперь защищён отдельным `Tests/Web/check_warehouse_legacy_spool_material_contract.js` и workflow step: endpoint, public method, ACTIVE/unknown-material guard и atomic `replaceSpoolsFileFromTemp()` должны оставаться согласованными.
+
 ## Confirmed KEEP source clusters
 
 ```text
@@ -100,6 +106,9 @@ CM_WarehouseMaterialCatalogue.cpp
 
 CM_WarehouseSpoolMaterialList.cpp
   paginated material-filtered /api/warehouse/spools backend
+
+CM_WarehouseLegacySpoolMaterial.cpp
+  active old-data migration endpoint; not dead code
 
 CM_MaterialHistory.cpp + CM_MaterialUsageHistory.cpp
   separate active adjustments and usage journals
@@ -114,10 +123,6 @@ PROJECT.manifest
 ## Current REVIEW candidates
 
 ```text
-firmware/esp32/web/shared/calculator-multisource.js
-  old helper is runtime-dead for new sourceWires UI, but CM_StaticSiteServer still injects it;
-  remove injection + asset together only.
-
 firmware/esp32/src/CM_WarehouseSpoolList.cpp
   old non-paginated appendActiveSpoolsJson(); current /api/warehouse/spools uses
   appendActiveSpoolsPageJson(). Do not delete until a direct second call-site check and compile gate.
@@ -139,12 +144,11 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. obtain a fresh GREEN for the current source-deletion/restoration batch before further uncertain C++ deletion;
-2. remove dead `calculator-multisource.js` injection + asset as one dependency-closed change when a safe exact-file edit path is available;
-3. continue ESP32/Arduino owner inventory, using direct owner/call-site proof rather than empty code-search results;
-4. check remaining Web assets for direct links/runtime injection and remove only dependency-closed dead assets;
-5. final root/tree/docs reference sweep;
-6. final applicable CI + hardware smoke remains separate.
+1. obtain a fresh GREEN for the current source-deletion/restoration + Web-helper cleanup batch before further uncertain C++ deletion;
+2. continue ESP32/Arduino owner inventory, using direct owner/call-site proof rather than empty code-search results;
+3. check remaining Web assets for direct links/runtime injection and remove only dependency-closed dead assets;
+4. final root/tree/docs reference sweep;
+5. final applicable CI + hardware smoke remains separate.
 
 ## External hardware verification gate
 

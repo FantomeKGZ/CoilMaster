@@ -54,9 +54,11 @@ public:
     bool motorPermit() const;
     bool baselineReady() const;
     bool takeResult(HallCalibrationResult& result);
-    const HallCalibrationResult* latestResult() const
+    bool latestResult(HallCalibrationResult& result) const
     {
-        return m_state == HallCalibrationState::Completed ? &m_result : nullptr;
+        if (m_state != HallCalibrationState::Completed) return false;
+        result = m_result;
+        return true;
     }
 
 private:

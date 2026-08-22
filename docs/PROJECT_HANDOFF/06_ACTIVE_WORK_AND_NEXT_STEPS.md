@@ -15,7 +15,25 @@ Remove superseded CMP core dependency package
 USER CONFIRMED GREEN
 ```
 
-22 августа пользователь предоставил screenshot со свежими GREEN `CMP Protocol Tests` для cleanup/documentation chain вплоть до commit `af43457...` (`Record AI routing cleanup completion`). Это сняло pre-deletion gate для уже dependency-proven warehouse spool-list cleanup. Эти GREEN не считаются ESP32 Build и не заменяют post-deletion firmware build verification.
+22 августа пользователь предоставил screenshot со свежими GREEN `CMP Protocol Tests` для cleanup/documentation chain вплоть до commit `af43457...` (`Record AI routing cleanup completion`). Это сняло pre-deletion gate для уже dependency-proven warehouse spool-list cleanup.
+
+После удаления old spool-list backend пользователь предоставил новый screenshot, который подтверждает:
+
+```text
+ESP32 Build GREEN
+  commit 5d5d7937a16288f534e3b42047359cc8b65db386
+  Remove obsolete spool list API declaration
+
+CMP Protocol Tests GREEN
+  commit 7f93db3c330e6f16cd91702df0faa532dc478355
+  Fix warehouse spool cleanup regression literals
+
+CMP Protocol Tests GREEN
+  commit 60457072e9ecbf74b7386e4800dcca9c37b65541
+  Record spool cleanup CI regression fix
+```
+
+Так как `5d5d793...` идёт после удаления `CM_WarehouseSpoolList.cpp` (`e24e1dc...`) и obsolete declaration, этот ESP32 Build является применимым post-deletion firmware build gate. Свежие GREEN `7f93db3...` и `6045707...` подтверждают исправленный regression contract. Warehouse spool-list cleanup теперь CI-verified; hardware proof для этого dead-code deletion не требуется.
 
 Старый run `32561236301` полностью разобран: единственной ошибкой был regression-test, который пытался открыть уже удалённый legacy `CM_ConductorSettings.h`; второй скрытой ошибки не было. Исправление — `51ea46c1823a451e7f80ecd188daf896aafc752d`, после него пользователь подтвердил GREEN.
 
@@ -71,11 +89,11 @@ firmware/esp32/src/CM_WarehouseSpoolList.cpp
   + obsolete WarehouseStore::appendActiveSpoolsJson() declaration
 ```
 
-### Completed warehouse spool-list cleanup
+### Completed warehouse spool-list cleanup — CI VERIFIED
 
 The old non-paginated spool list path was dependency-audited before deletion. Direct owner inspection proved that current `/api/warehouse/spools` uses only `WarehouseStore::appendActiveSpoolsPageJson()` from `CM_WarehouseSpoolMaterialList.cpp`; no production runtime/operator/persistence contract depends on `appendActiveSpoolsJson()`.
 
-After the fresh user-provided GREEN `CMP Protocol Tests` gate:
+Cleanup chain:
 
 ```text
 e24e1dc60764798d0fa27e96561bb8bf179e3eb3
@@ -109,9 +127,17 @@ Fix:
 Fix warehouse spool cleanup regression literals
 ```
 
-The test now checks the stable field tokens `has_more` and `next_cursor` without depending on C++ string-literal escaping. No production firmware/API rollback was made.
+The test now checks stable field tokens without depending on C++ string-literal escaping. No production firmware/API rollback was made.
 
-Status: **DELETE completed; regression-test defect fixed; fresh CMP Protocol Tests + ESP32 Build on/after `7f93db3...` still required before declaring this cleanup GREEN.**
+Verified results supplied by operator:
+
+```text
+ESP32 Build GREEN       5d5d793...
+CMP Protocol Tests GREEN 7f93db3...
+CMP Protocol Tests GREEN 6045707...
+```
+
+Status: **DELETE completed and CI VERIFIED.**
 
 ### Documentation routing cleanup
 
@@ -196,9 +222,9 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. verify fresh `CMP Protocol Tests` and `ESP32 Build` on/after `7f93db3...`;
-2. if GREEN, continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
-3. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
+1. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+2. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
+3. add/update regression coverage before or with any deletion that could otherwise silently regress;
 4. continue final root/tree/docs reference sweep as the tree changes;
 5. final hardware smoke remains a separate gate and is requested only when runtime behavior needs physical proof.
 

@@ -1,13 +1,18 @@
 const fs = require('fs');
 
-const obsoleteSketch = 'Arduino/CoilMaster_Arduino.ino';
+const obsoleteArtifacts = [
+  'Arduino/CoilMaster_Arduino.ino',
+  'Arduino/Config/CM_Version.h',
+];
 const platformioPath = 'platformio.ini';
 const productionMainPath = 'firmware/arduino/src/main.cpp';
 
 const failures = [];
 
-if (fs.existsSync(obsoleteSketch)) {
-  failures.push(`${obsoleteSketch}: obsolete parallel Arduino IDE entrypoint must remain removed`);
+for (const obsoletePath of obsoleteArtifacts) {
+  if (fs.existsSync(obsoletePath)) {
+    failures.push(`${obsoletePath}: obsolete Arduino artifact must remain removed`);
+  }
 }
 
 const platformio = fs.readFileSync(platformioPath, 'utf8');
@@ -41,4 +46,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino entrypoint cleanup contract OK: obsolete .ino stays removed and PlatformIO production main remains authoritative.');
+console.log('Arduino cleanup contract OK: obsolete artifacts stay removed and PlatformIO production main remains authoritative.');

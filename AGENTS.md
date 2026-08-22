@@ -42,15 +42,15 @@ KEEP    active production/build/test/docs/history/operator dependency
 REVIEW  uncertain dependency; do not delete
 ```
 
-Do not mix speculative redesign with cleanup. Do not delete production data or historical evidence automatically.
+Do not mix speculative redesign with cleanup. Do not delete production data or historical evidence automatically. A filename containing `Legacy` is not proof of dead code: old-data migration/recovery paths may still be active production dependencies.
 
 ## Current verified repo baseline
 
-Latest user-confirmed GREEN baseline before the next cleanup batch:
+Latest user-confirmed GREEN baseline before the current cleanup batch:
 
 ```text
-51ea46c1823a451e7f80ecd188daf896aafc752d
-Fix production conductor cleanup contract
+a29e2ab9639181550ba2beccf812320a552eb8c8
+Remove superseded CMP core dependency package
 USER CONFIRMED GREEN
 ```
 

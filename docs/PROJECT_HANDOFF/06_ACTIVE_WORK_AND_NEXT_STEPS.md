@@ -15,7 +15,7 @@ Remove superseded CMP core dependency package
 USER CONFIRMED GREEN
 ```
 
-Commits после `a29e2ab9...` не считаются GREEN автоматически и требуют нового exact workflow result или явного подтверждения пользователя.
+22 августа пользователь предоставил screenshot со свежими GREEN `CMP Protocol Tests` для cleanup/documentation chain вплоть до commit `af43457...` (`Record AI routing cleanup completion`). Это сняло pre-deletion gate для уже dependency-proven warehouse spool-list cleanup. Эти GREEN не считаются ESP32 Build и не заменяют post-deletion firmware build verification.
 
 Старый run `32561236301` полностью разобран: единственной ошибкой был regression-test, который пытался открыть уже удалённый legacy `CM_ConductorSettings.h`; второй скрытой ошибки не было. Исправление — `51ea46c1823a451e7f80ecd188daf896aafc752d`, после него пользователь подтвердил GREEN.
 
@@ -42,7 +42,7 @@ KEEP    active production/build/test/docs/history/operator dependency
 REVIEW  uncertain dependency; do not delete
 ```
 
-Не удалять файл только из-за имени `Legacy`: migration/recovery compatibility может быть active production contract.
+Не удалять файл только из-за имени `Legacy`: migration/recovery compatibility может быть active production contract. Пустой GitHub code-search сам по себе не является достаточным доказательством отсутствия call-site.
 
 ## Cleanup completed
 
@@ -67,11 +67,39 @@ Tests/README.md Build-002A documentation artifact
 old untyped warehouse wire catalogue API/CM_WarehouseWireCatalogue.cpp
 firmware/esp32/web/shared/calculator-multisource.js
   + its obsolete CM_StaticSiteServer calculator injection
+firmware/esp32/src/CM_WarehouseSpoolList.cpp
+  + obsolete WarehouseStore::appendActiveSpoolsJson() declaration
 ```
 
-Final docs sweep also removed stale navigation references left behind by that cleanup: `docs/AI_AGENT/01_PROJECT_MAP.md` now points to `docs/01_SYSTEM_ARCHITECTURE.md` and `docs/HARDWARE_REFERENCE/` instead of the already removed root `ARCHITECTURE.md` and `Engineering/Hardware/`. Commit: `0649fa769aafb836522127b483e14c998a28cf59`.
+### Completed warehouse spool-list cleanup
 
-AI maintenance routing is now aligned with the active cleanup phase: `docs/AI_AGENT/00_START_HERE.md` records the current `a29e2ab9...` operator-GREEN baseline, marks audit A..E complete and no longer lists removed `CM_ConductorSettings.*` as a future candidate; `docs/AI_AGENT/02_CHANGE_ROUTER.md` routes buzzer work to `CM_BuzzerService.*`, records the removed conductor-settings duplicate, and treats controlled cleanup as the active phase. Commits: `a5d2a42a98bdda0bf0a81736b5b49d2e6c4d9ef6`, `ef2df11179b84a35108967950c39481086c581d9`.
+The old non-paginated spool list path was dependency-audited before deletion. Direct owner inspection proved that current `/api/warehouse/spools` uses only `WarehouseStore::appendActiveSpoolsPageJson()` from `CM_WarehouseSpoolMaterialList.cpp`; no production runtime/operator/persistence contract depends on `appendActiveSpoolsJson()`.
+
+After the fresh user-provided GREEN `CMP Protocol Tests` gate:
+
+```text
+e24e1dc60764798d0fa27e96561bb8bf179e3eb3
+  remove firmware/esp32/src/CM_WarehouseSpoolList.cpp
+
+5d5d7937a16288f534e3b42047359cc8b65db386
+  remove obsolete appendActiveSpoolsJson() public declaration
+
+20f76c6f3c55871911658170c17f64ba3f793924
+  add Tests/Web/check_warehouse_spool_list_cleanup.js
+
+fcc0617d435249b3031728913cdc259a682d6dd9
+  run the new cleanup contract in CMP Protocol Tests
+```
+
+The regression contract requires the old `.cpp` and API declaration to remain absent while `/api/warehouse/spools` remains bound to the paginated/material-aware backend with cursor/limit/has_more/next_cursor semantics.
+
+Status: **DELETE completed; post-deletion ESP32 Build + CMP Protocol Tests pending exact result.**
+
+### Documentation routing cleanup
+
+`docs/AI_AGENT/01_PROJECT_MAP.md` now points to `docs/01_SYSTEM_ARCHITECTURE.md` and `docs/HARDWARE_REFERENCE/` instead of removed root `ARCHITECTURE.md` and `Engineering/Hardware/`. Commit: `0649fa769aafb836522127b483e14c998a28cf59`.
+
+`docs/AI_AGENT/00_START_HERE.md` and `02_CHANGE_ROUTER.md` now reflect completed audit A..E, current controlled cleanup, `CM_BuzzerService.*`, removed duplicate conductor settings, and the direct-owner proof rule. Commits: `a5d2a42a98bdda0bf0a81736b5b49d2e6c4d9ef6`, `ef2df11179b84a35108967950c39481086c581d9`.
 
 Calculator helper cleanup is regression-protected by `Tests/Web/check_calculator_source_wire_input.js`: the old helper file and StaticSiteServer injection must remain absent while the `sourceWires` UI remains authoritative.
 
@@ -91,16 +119,16 @@ POST /api/warehouse/spools/material
 
 и вызывает `WarehouseStore::assignLegacySpoolMaterial()` для безопасного назначения `CU/AL` старой ACTIVE катушке без `wire_type`.
 
-Поэтому API и implementation восстановлены из exact previous blob:
+Поэтому API и implementation восстановлены:
 
 ```text
 d334dcc09c96afdee707b94ffe52611069be0ec3  restore public API
 75a34f1c23c30fdf0606b9577ea6eec549bcf210  restore implementation
 ```
 
-Classification: **KEEP**. В дальнейшем пустой GitHub code-search не считать достаточным доказательством отсутствия call-site.
+Classification: **KEEP**.
 
-Этот dependency теперь защищён отдельным `Tests/Web/check_warehouse_legacy_spool_material_contract.js` и workflow step: endpoint, public method, ACTIVE/unknown-material guard и atomic `replaceSpoolsFileFromTemp()` должны оставаться согласованными.
+Этот dependency защищён `Tests/Web/check_warehouse_legacy_spool_material_contract.js`: endpoint, public method, ACTIVE/unknown-material guard и atomic `replaceSpoolsFileFromTemp()` должны оставаться согласованными.
 
 ## Confirmed KEEP source clusters
 
@@ -124,25 +152,6 @@ PROJECT.manifest
   current source/boundary manifest
 ```
 
-## DELETE-ready candidate — waiting for fresh CI gate
-
-```text
-firmware/esp32/src/CM_WarehouseSpoolList.cpp
-WarehouseStore::appendActiveSpoolsJson()
-```
-
-Dependency audit completed on current `cmp-protocol-v1` state:
-
-- `CM_WarehouseSpoolList.cpp` contains only the old non-paginated `appendActiveSpoolsJson()` implementation;
-- current `/api/warehouse/spools` owner is `CM_WarehouseSpoolWeb.cpp` and calls only `appendActiveSpoolsPageJson()`;
-- the paginated backend is owned by `CM_WarehouseSpoolMaterialList.cpp` and remains KEEP;
-- `platformio.ini` compiles all `firmware/esp32/src/*.cpp`, so the old file is still compiled even though it has no production runtime caller;
-- `CM_WarehouseStore.h` still contains the obsolete public declaration and must be cleaned in the same deletion batch;
-- no runtime path, persistence format, operator workflow or safety contract depends on the old non-paginated API;
-- empty GitHub code-search alone is not used as deletion proof; the classification is based on direct owner/header/build checks.
-
-Classification: **DELETE-ready**, but deletion remains blocked until a fresh applicable CI result or explicit operator GREEN for the current pre-deletion cleanup batch. When the gate is available, delete the `.cpp`, remove the declaration from `CM_WarehouseStore.h`, add/update regression coverage, then run ESP32 Build + CMP Protocol/Web audits.
-
 ## Calculator — current production contract
 
 ```text
@@ -155,19 +164,13 @@ Current diameter model is `diameterHundredthsMm` (0.01 mm precision). IEC R20 va
 
 ## Web asset cleanup audit
 
-Current direct loader/owner audit confirms the remaining `firmware/esp32/web/shared/` feature modules are active rather than orphaned cleanup candidates:
+Current direct loader/owner audit confirms the remaining `firmware/esp32/web/shared/` feature modules are active rather than orphaned cleanup candidates. Runtime injection from `CM_StaticSiteServer.cpp` is part of the production loader contract, so absence of a literal page `<script>` reference is not deletion proof.
 
-- `app-shell.js`, `backup-remote-upload.js`, `costing-pricing-history.js`, `settings-time-status.js` and `settings-system-diagnostics.js` are injected by `CM_StaticSiteServer.cpp` for their matching UI routes;
-- `arduino-windings-archive.js`, `backup-restore-stale-guard.js`, `settings-wifi.js`, `settings-hall-calibration.js`, `settings-remote-backup.js`, `winding-history-spools.js` and `writeoff-spool-suggestion.js` have direct current page owners;
-- therefore an absent literal `<script>` reference in a page is not sufficient deletion proof because runtime injection is part of the production loader contract.
+`firmware/esp32/web/reference/motor-reference.json` remains **KEEP**.
 
-Classification for the audited shared feature modules: **KEEP**.
+`firmware/esp32/web/sites/reference/{desktop,mobile}/` remains **KEEP / intentional placeholder** under the documented multi-site microSD architecture.
 
-`firmware/esp32/web/reference/motor-reference.json` is the deployed generated motor reference dataset and remains **KEEP**.
-
-`firmware/esp32/web/sites/reference/{desktop,mobile}/` is an intentional microSD reference-site shell. It is currently mostly a placeholder, but `docs/07_WEB_PORTAL.md` explicitly retains the architecture for additional sites on microSD with separate desktop/mobile variants. Classification: **KEEP / intentional placeholder**, not cleanup trash. Do not delete merely because current root/desktop navigation does not expose a direct link.
-
-No additional dependency-closed Web asset was proven safe to delete in this pass.
+No additional dependency-closed Web asset was proven safe to delete in that pass.
 
 ## Persistence resilience item that is NOT cleanup
 
@@ -175,12 +178,11 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. obtain a fresh GREEN for the current source-deletion/restoration + Web-helper cleanup batch;
-2. immediately remove DELETE-ready `CM_WarehouseSpoolList.cpp` + obsolete `appendActiveSpoolsJson()` declaration and protect the removal with regression coverage;
-3. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
-4. Web shared/reference/sites owner audit is complete for the current tree; revisit only if the tree changes or a new candidate appears;
-5. final root/tree/docs reference sweep;
-6. final applicable CI + hardware smoke remains separate.
+1. verify exact post-deletion result for `ESP32 Build` and `CMP Protocol Tests` on the latest warehouse spool-list cleanup chain;
+2. if GREEN, continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+3. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
+4. continue final root/tree/docs reference sweep as the tree changes;
+5. final hardware smoke remains a separate gate and is requested only when runtime behavior needs physical proof.
 
 ## External hardware verification gate
 

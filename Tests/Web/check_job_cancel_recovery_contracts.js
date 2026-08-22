@@ -49,6 +49,28 @@ for (const text of [
     'lost-ACK ghost-job cancellation contract missing: ' + text);
 }
 
+// A JOB_ACK/JOB_CANCEL_ACK and a following RUN frame may already be buffered in
+// the same UART receive window. poll() must return to main.cpp after the control
+// reply so its persisted delivery/cancel state is committed before a later RUN
+// frame can be parsed and persisted.
+for (const text of [
+  'bool orderingBarrier = false;',
+  'processJobAck(m_line);\n                    orderingBarrier = true;',
+  'processCancelAck(m_line);\n                    orderingBarrier = true;',
+  'if (orderingBarrier) return false;'
+]) {
+  requireText(espTransportPath, espTransport, text,
+    'JOB/CANCEL reply ordering barrier missing: ' + text);
+}
+for (const text of [
+  'while (receiver.poll(event)) handleEvent(event);',
+  'processJobDelivery();',
+  'processJobCancel();'
+]) {
+  requireText(espMainPath, espMain, text,
+    'main loop persistence ordering contract missing: ' + text);
+}
+
 // A physical Arduino fallback may publish a CRC-protected job_id=0 ALL_CLEAR.
 // Zero has no job identity, so it may resolve only an explicit pending cancel or
 // an identity explicitly remembered during persisted reboot recovery. queueJob()
@@ -205,4 +227,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB lifecycle contracts OK: lost-ACK remote cancel, idempotent ALREADY_CLEAR, recovery-only zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale/run-evidence cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');
+console.log('JOB lifecycle contracts OK: reply-before-RUN ordering, lost-ACK remote cancel, idempotent ALREADY_CLEAR, recovery-only zero-id ALL_CLEAR correlation, active-run rejection, persisted no-run closure, stale/run-evidence cancel no-op, timeout manual-review isolation, immutable repeat-target journal/state integrity, and recovery re-evaluation.');

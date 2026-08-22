@@ -11,21 +11,21 @@ docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-Latest operator-confirmed green baseline at the time of this guide update:
+Latest operator-confirmed green baseline recorded by the active handoff:
 
 ```text
-3ebc942f1be9397af9d8ee5336c0ed78e9b13c87
-Record calculator standard alternatives feature
+a29e2ab9639181550ba2beccf812320a552eb8c8
+Remove superseded CMP core dependency package
 USER CONFIRMED GREEN
 ```
 
 Commits after that SHA require their own workflow result or a later explicit operator confirmation. Older verified workflow run IDs remain historical evidence, not the current implementation baseline.
 
-The targeted ESP32<->Arduino hardware smoke remains an external verification gate for when the physical stand is available. It is not the current software backlog.
+The targeted ESP32<->Arduino hardware smoke remains an external verification gate for when the physical stand is available. It is not inferred from CI.
 
-The current software phase is a full audit of the `cmp-protocol-v1` codebase. Confirmed defects are fixed as they are found; completed historical features are not reopened merely because they are being audited.
+The full `cmp-protocol-v1` audit sections A..E are complete. The current software phase is controlled repository cleanup/de-duplication. Confirmed defects are fixed as they are found; completed historical features are not reopened merely because cleanup is in progress.
 
-After sections A..E and the final cross-layer recheck are complete, the user has explicitly approved a separate repository cleanup/de-duplication phase. Cleanup starts only after dependency inventory proves each deletion/merge safe.
+Cleanup/de-duplication is allowed only after direct dependency proof. Every candidate must be classified `DELETE`, `MERGE`, `KEEP` or `REVIEW`; uncertain dependencies stay in place. The active cleanup queue and gates live in `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
 
 ## 2. Source precedence
 
@@ -139,24 +139,25 @@ Production conductor-calculator settings currently belong to:
 
 ```text
 CM_ConductorSettingsWeb.*
+CM_ConductorSettingsStore.cpp
 WarehouseStore::loadConversionSettings / setConversionSettings
 /data/settings/conductor.json
 ```
 
-The parallel legacy `CM_ConductorSettings.*` persistence implementation is not the production owner and is a post-audit cleanup candidate pending dependency proof.
+The old parallel `CM_ConductorSettings.*` persistence implementation has already been removed during controlled cleanup. Do not reintroduce it as a second production owner.
 
-## 6. Current audit order
+## 6. Current work order
 
-Audit in this order unless a concrete higher-severity defect redirects the work:
+The repo-level audit is complete. Continue controlled cleanup unless a concrete higher-severity defect redirects the work:
 
 ```text
-A. Arduino safety/realtime/UART/resources
-B. ESP32 runtime/API/persistence/integrity/network/backup
-C. desktop/mobile/shared Web parity/error/security
-D. tests/CI/build filters/path triggers
-E. docs/AI routing consistency
-F. final cross-layer recheck + applicable CI
-G. post-audit repository cleanup/de-duplication
+A. Arduino safety/realtime/UART/resources                  COMPLETE
+B. ESP32 runtime/API/persistence/integrity/network/backup COMPLETE
+C. desktop/mobile/shared Web parity/error/security        COMPLETE
+D. tests/CI/build filters/path triggers                   COMPLETE
+E. docs/AI routing consistency                            COMPLETE
+F. controlled cleanup/de-duplication                      ACTIVE
+G. final applicable CI + separate hardware smoke          PENDING
 ```
 
 Severity:
@@ -181,9 +182,9 @@ Do not manufacture findings from style preferences or speculative redesigns.
 7. Add/update tests that protect the changed contract.
 8. Run the relevant verification from `04_VERIFICATION_MATRIX.md`.
 9. Update AI map/router only if topology/ownership/contract location changed.
-10. Update current handoff state only when project status materially changed.
+10. Update current handoff state when project status materially changed.
 
-For cleanup, never delete merely because a file looks old. First prove includes/imports, PlatformIO ownership, workflow/test references, runtime file paths, web injection/references and docs/AI routing. Classify each candidate DELETE/MERGE/KEEP/REVIEW.
+For cleanup, never delete merely because a file looks old. First prove includes/imports, PlatformIO ownership, workflow/test references, runtime file paths, web injection/references and docs/AI routing. Classify each candidate DELETE/MERGE/KEEP/REVIEW. Empty GitHub code search is supporting evidence only, never sufficient proof by itself.
 
 ## 8. Safety stop signs
 

@@ -90,6 +90,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_network_profile_atomic_recovery.js
 
+      - name: Audit network JSON escaping contracts
+        if: always()
+        run: node Tests/Web/check_network_json_escaping.js
+
       - name: Audit job preparation transaction contracts
         if: always()
         run: node Tests/Web/check_job_preparation_transaction.js

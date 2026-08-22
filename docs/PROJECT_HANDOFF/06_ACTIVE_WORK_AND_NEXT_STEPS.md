@@ -89,7 +89,28 @@ firmware/esp32/src/CM_WarehouseSpoolList.cpp
   + obsolete WarehouseStore::appendActiveSpoolsJson() declaration
 Arduino/CoilMaster_Arduino.ino
   obsolete parallel Arduino IDE entrypoint; production owner is firmware/arduino/src/main.cpp
+Arduino/Config/CM_Version.h
+  stale 0.2.0-arduino-core-dev header with no current production owner
 ```
+
+### Arduino config cleanup — stale version header
+
+`Arduino/Config/CM_Version.h` contained only the obsolete development label `0.2.0-arduino-core-dev`. Direct owner/build inspection showed that current Arduino production composition is defined by `PROJECT.manifest`, `platformio.ini` and `firmware/arduino/src/main.cpp`; that production entrypoint does not include the version header and no current source contract consumes its version macros.
+
+Cleanup chain:
+
+```text
+8a97cf7170ce872b1c513886ff07c239e7f3c26b
+  remove Arduino/Config/CM_Version.h
+
+5e0c788fa43e51a9a6fc5d26631f03aea78e9495
+  extend Tests/Protocol/check_arduino_entrypoint_cleanup.js so both the old
+  parallel .ino and stale version header must remain absent
+```
+
+`Arduino/Config/CM_Features.h` and `CM_Pins.h` remain **KEEP**: they are current production compile-time/hardware configuration included by the authoritative Arduino entrypoint.
+
+Status: **DELETE completed; fresh applicable CI for `5e0c788...` is not yet recorded here.**
 
 ### Completed Arduino parallel-entrypoint cleanup — CI VERIFIED
 
@@ -265,6 +286,9 @@ Arduino/CM_HallCalibrationService.*
 Arduino/CM_HallTelemetry.*
   current Hall calibration/settings/telemetry stack; directly owned by UartEventTransport + production main
 
+Arduino/Config/CM_Features.h + Arduino/Config/CM_Pins.h
+  authoritative production compile-time/hardware configuration
+
 Arduino/Diagnostics/CM_Lcd1602CyrillicTest/CM_Lcd1602CyrillicTest.ino
   standalone LCD character-ROM diagnostic; no production motor/SSR/UART/START ownership
 
@@ -298,12 +322,13 @@ Direct append tail resilience for new spool/material catalogue records remains a
 
 ## Next cleanup sequence
 
-1. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
-2. audit Uno resource margin without weakening safety/features; exact post-fix bytes should be recorded if a successful build log is available;
-3. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
-4. add/update regression coverage before or with any deletion that could otherwise silently regress;
-5. continue final root/tree/docs reference sweep as the tree changes;
-6. final hardware smoke remains a separate gate and is requested only when runtime behavior needs physical proof.
+1. verify fresh applicable CI for the stale Arduino version-header cleanup (`5e0c788...` and later);
+2. continue ESP32/Arduino owner inventory using direct owner/call-site/build proof rather than empty code-search results;
+3. audit Uno resource margin without weakening safety/features; exact post-fix bytes should be recorded if a successful build log is available;
+4. identify the next candidate and classify DELETE / MERGE / KEEP / REVIEW before changing it;
+5. add/update regression coverage before or with any deletion that could otherwise silently regress;
+6. continue final root/tree/docs reference sweep as the tree changes;
+7. final hardware smoke remains a separate gate and is requested only when runtime behavior needs physical proof.
 
 ## External hardware verification gate
 

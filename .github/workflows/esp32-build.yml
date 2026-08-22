@@ -8,11 +8,15 @@ on:
       - cmp-protocol-v1
     paths:
       - "firmware/esp32/**"
+      - "Shared/**"
+      - "scripts/platformio_build_id.py"
       - "platformio.ini"
       - ".github/workflows/esp32-build.yml"
   pull_request:
     paths:
       - "firmware/esp32/**"
+      - "Shared/**"
+      - "scripts/platformio_build_id.py"
       - "platformio.ini"
       - ".github/workflows/esp32-build.yml"
 

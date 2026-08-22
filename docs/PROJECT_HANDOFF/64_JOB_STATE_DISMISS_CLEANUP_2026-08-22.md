@@ -59,6 +59,10 @@ dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b
   Restore proven-inactive job dismiss implementation
   - restored CM_JobStateDismiss.cpp
   - preserved explicit TIMED_OUT exclusion and fail-closed behavior
+
+dfa4c601124dce1ad6728f93358ccdeb0e2946d3
+  Correct job dismiss cleanup classification
+  - corrected this handoff from DELETE to KEEP
 ```
 
 No obsolete caller/test was removed merely to make CI pass; the production operator endpoint and its safety regression contract remain intact.
@@ -86,6 +90,14 @@ No obsolete caller/test was removed merely to make CI pass; the production opera
 
 ## Verification state
 
-The four runs above are failed regression evidence, not GREEN evidence.
+**GREEN / corrective recovery verified.**
 
-After corrective commit `dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b`, wait for fresh applicable ESP32 build + host/static contracts (or explicit operator-confirmed GREEN) before recording the correction as GREEN.
+Operator-provided GitHub Actions evidence confirms after restoration:
+
+- `dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b` — `ESP32 Build` GREEN;
+- `dd6e6d1fb7dda2ba7ff7b16e702776bd0fd4d37b` — `CMP Protocol Tests` GREEN;
+- `dfa4c601124dce1ad6728f93358ccdeb0e2946d3` — `CMP Protocol Tests` GREEN.
+
+Therefore the failed runs listed above are retained only as regression history. The restored terminal-only dismiss owner is the current accepted production state.
+
+Cleanup rule reinforced by this incident: before deleting recovery/job-state APIs, verify not only direct C++ search results but also HTTP endpoint registration/inline lambdas and static regression-contract consumers. Empty indexed search is never sufficient proof.

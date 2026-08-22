@@ -14,7 +14,7 @@
 Advance ESP32 persistence audit queue
 ```
 
-Это **USER CONFIRMED GREEN**. B-005 commits после этого SHA пока **NOT VERIFIED in chat**.
+Это **USER CONFIRMED GREEN**. Все commits после этого SHA пока **NOT VERIFIED in chat**.
 
 ## Закрыто в full-code audit — не возвращать без concrete regression
 
@@ -26,9 +26,20 @@ B-003 network API validation/storage HTTP semantics
 B-004 recoverable JobStateStore atomic replacement
 B-005 provenance-safe linked JOB preparation transaction
 B-006 committed-first NetworkProfileStore recovery
+B-007 committed-first RemoteBackupSettingsStore recovery
+B-008 committed-first ConductorSettingsStore recovery
 ```
 
-B-005 теперь использует строгую границу:
+Общий crash-consistency rule для mutable settings stores теперь:
+
+```text
+valid committed main -> keep main, cleanup residue
+no valid main + valid backup -> restore backup, discard prepared temp
+no backup + valid temp -> promote only as interrupted first write
+invalid backup evidence -> fail closed
+```
+
+B-005 strict pre-UART order:
 
 ```text
 snapshot
@@ -38,22 +49,21 @@ snapshot
 -> UART queueJob
 ```
 
-Только `CREATED + WAITING_DELIVERY + last_run_id=0 + completed_runs=0` считается локальной preparation, которая ещё не могла попасть на Arduino. Она может остаться как immutable audit evidence и быть superseded более высоким ID без auto queue/resume. `DELIVERING`, `TIMED_OUT`, accepted/running/fault остаются fail-closed.
+Только exact CREATED/WAITING_DELIVERY/zero-run state считается локальной preparation, не достигшей Arduino. `DELIVERING`, `TIMED_OUT`, accepted/running/fault остаются fail-closed.
 
-Подробности/commits/tests:
+Подробности:
 
 ```text
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
-Tests/Web/check_job_preparation_transaction.js
 ```
 
 ## Current active queue
 
 Продолжить section B только по concrete evidence:
 
-1. remaining backup/restore/activity-guard consistency;
-2. remaining mutable persistence stores на destructive swap / ambiguous recovery;
-3. resource/NDJSON hotspots только если есть измеримая/конкретная проблема.
+1. remaining mutable single-file stores на destructive swap / temp-vs-backup recovery;
+2. remaining backup/restore/activity-guard consistency;
+3. resource/NDJSON hotspots только при измеримой/конкретной проблеме.
 
 Если новых concrete section-B defects нет — сразу перейти к:
 

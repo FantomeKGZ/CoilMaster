@@ -10,11 +10,11 @@
 Пользователь явно сообщил **«Все зелёное»** для состояния ветки:
 
 ```text
-1bff98965c8608a66d269f51966a22fbd907047f
-Advance ESP32 persistence audit queue
+ef095a5eb05ae5f886020510ef11324d0f4882ad
+Advance persistence audit past settings recovery
 ```
 
-Это **USER CONFIRMED GREEN**. Все commits после этого SHA пока **NOT VERIFIED in chat**.
+Это **USER CONFIRMED GREEN** для B-005/B-007/B-008 и всего предыдущего текущего набора. Любые commits после этого SHA требуют нового подтверждения.
 
 ## Закрыто в full-code audit — не возвращать без concrete regression
 
@@ -30,7 +30,7 @@ B-007 committed-first RemoteBackupSettingsStore recovery
 B-008 committed-first ConductorSettingsStore recovery
 ```
 
-Общий crash-consistency rule для mutable settings stores теперь:
+Общий crash-consistency rule для mutable settings stores:
 
 ```text
 valid committed main -> keep main, cleanup residue
@@ -49,28 +49,35 @@ snapshot
 -> UART queueJob
 ```
 
-Только exact CREATED/WAITING_DELIVERY/zero-run state считается локальной preparation, не достигшей Arduino. `DELIVERING`, `TIMED_OUT`, accepted/running/fault остаются fail-closed.
+## Current active queue — сначала полный аудит
 
-Подробности:
+1. закончить ESP32 persistence/backup/activity/resource audit;
+2. полный desktop/mobile/shared Web/API/error/security parity audit;
+3. полный tests/CI/build-filter/false-positive audit;
+4. docs/AI routing consistency audit;
+5. final cross-layer recheck + applicable CI.
+
+## После завершения аудита — отдельная cleanup phase
+
+Пользователь явно одобрил очистку проекта после полного аудита. До удаления построить repo-wide dependency inventory и классифицировать каждый кандидат:
 
 ```text
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+DELETE  — доказанно не используется production/build/tests/docs/runtime
+MERGE   — дублирует другой authoritative implementation
+KEEP    — нужен production/build/tests/docs/history/operator flow
+REVIEW  — зависимость не доказана; не удалять
 ```
 
-## Current active queue
+Cleanup scope:
 
-Продолжить section B только по concrete evidence:
+- лишние/пустые папки и файлы;
+- временные файлы и переходные artifacts;
+- мёртвый код;
+- устаревшие реализации, оставшиеся после переноса между чатами/архитектурных изменений;
+- дубли классов, helpers, web assets, tests или docs;
+- пустые placeholder-файлы, если они действительно не нужны GitHub/tooling.
 
-1. remaining mutable single-file stores на destructive swap / temp-vs-backup recovery;
-2. remaining backup/restore/activity-guard consistency;
-3. resource/NDJSON hotspots только при измеримой/конкретной проблеме.
-
-Если новых concrete section-B defects нет — сразу перейти к:
-
-4. desktop/mobile Web/API/error/security parity;
-5. tests/CI/build-filter/false-positive audit;
-6. docs/AI routing consistency;
-7. final cross-layer recheck + exact applicable CI.
+Не удалять ничего только потому, что имя выглядит старым. Сначала проверять includes/imports, build manifests, workflow paths, web references, runtime file paths, docs/AI routing и tests. После cleanup — полный applicable CI и сравнение дерева до/после.
 
 ## Уже просмотрено без нового production-data defect
 

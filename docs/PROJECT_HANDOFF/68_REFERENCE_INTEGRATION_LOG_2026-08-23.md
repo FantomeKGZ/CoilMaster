@@ -807,3 +807,31 @@ docs(sd): document mode-safe legacy CSS handling
 ```
 
 Локальный end-to-end synthetic import + authoritative checker GREEN: CP1251 CSS преобразован в UTF-8, desktop/mobile CSS сохранён mode-specific, оба `url(...)` ведут на один реальный shared binary asset, source gaps = 0. Новый full Reference Actions результат для этого batch пока не объявлен GREEN.
+
+
+### Actions failures 32644626781–32644735339
+
+Проверены jobs и полные logs шести Reference runs:
+
+- `32644626781`, `32644645590`, `32644651617` — full importer/checker path достиг CSS validation и упал на отсутствующей декларации checker `CSS_URL_RE`;
+- `32644667575` — промежуточный importer commit вызвал `NameError: CSS_URL_RE` уже в synthetic import contract;
+- `32644700553` — matcher объявлен, но переэкранирован, поэтому CSS не переписывался и regression завершился `AssertionError`;
+- `32644735339` — importer contract GREEN, full source импортирован полностью (`926 + 926`, catalog `926`, shared maps `2768 + 2768`), затем checker остановился на своей отсутствующей декларации `CSS_URL_RE`.
+
+Все перечисленные runs относятся к superseded intermediate commits. Актуальные исправления:
+
+```text
+56a9037f13ebc16e781646df9cfe1ef39c2030cc
+fix(reference): declare legacy CSS URL matcher
+
+80c79ca81869c067277ab7d759a9c1687eb658df
+fix(reference): correct CSS URL matcher escaping
+
+2df1764a747bc8b05a65d073b356261c4897f865
+fix(reference): declare checker CSS URL matcher
+
+ef7798742900ee0e85035941cba15a87b4afb0f6
+test(reference): run CSS checker in import contract
+```
+
+После `2df1764a...` локальный synthetic full import + authoritative checker GREEN. Новый regression теперь вызывает `validate_legacy_stylesheets()` непосредственно в раннем import contract step, чтобы missing matcher/broken CSS URL обнаруживался до checkout/full import 1852 страниц. Новый Actions результат после `ef779874...` ещё не объявлен GREEN.

@@ -168,28 +168,46 @@ Confirmed source format/details:
 legacy HTML charset: Windows-1251
 legacy top banner/logo: div.verh -> images/verh.jpg
 sample desktop/mobile 4A.html keeps the same winding tables and internal links
+raw exported HTML count before FrontPage filtering: 1856 desktop + 1856 mobile
+raw byte-identical resource matches before FrontPage filtering: 5547 per mode
+legacy export has no index.html although many pages link to it
 ```
 
 Importer contract:
 
-- preserve HTML page content, tables, descriptions and internal links;
-- remove only the legacy top `div.verh` banner;
+- preserve real HTML page content, tables, descriptions and internal links;
+- remove only the legacy top `div.verh` banner from published pages;
 - output UTF-8 HTML;
 - keep desktop/mobile page trees separate;
 - deduplicate byte-identical assets into `/sites/reference/shared/assets/` by SHA-256;
 - keep unique assets in mode-specific `/desktop/assets/` or `/mobile/assets/`;
+- exclude Microsoft FrontPage bookkeeping trees `_vti_*` from both pages and assets;
+- route the legacy missing `index.html` home target to the CoilMaster reference shell;
 - never modify ESP32/Arduino runtime/safety logic.
 
-Latest reference fix:
+### Reference dry-build evidence
+
+Run `32627641345` on commit `9c3067888c76a9d3d9cf26e70e7f660e17d4461b` is **NOT GREEN**. Import completed, then the integrity checker failed.
+
+The failure isolated two source classes:
+
+1. Microsoft FrontPage `_vti_*` metadata was being treated as publishable HTML/assets. These are now excluded by importer commit:
 
 ```text
-0a126dfd756b592ffdbfb6760f2ba65bf9317f54
-fix(reference): resolve generated links from output root
+b071576bbe18c104eb7e71eb1ff55ee8602f2a09
+fix(reference): exclude FrontPage metadata from import
 ```
 
-The checker previously resolved `/sites/reference/...` through `output.parents[2]`, which was wrong both for the production output path and for the CI temporary output. It now maps the `/sites/reference/` prefix directly to the supplied `--output` root, so valid generated links are checked against the actual generated tree.
+2. `rs16.html` in the legacy source references `images/sovmob/rsov/036.JPG`, `037.JPG`, `038.JPG`, but those files are absent from the checked source tree. These are pre-existing legacy source gaps, not importer-created data loss. The checker now reports exact preserved source gaps as `SOURCE WARNING` while still failing on any new broken generated target:
 
-Next implementation step: obtain the actual `Reference Legacy Import Check` result for `0a126df...`. If GREEN, use the reported page/link/asset footprint as the import baseline and then commit generated reference content in bounded batches. If it fails, fix the exact reported importer/checker defect first. Do not manually rewrite hundreds of legacy pages and do not call this reference batch GREEN without a real workflow result.
+```text
+fa54b51cd9809d20ffbea694d5eec6ebab097eee
+test(reference): distinguish legacy source defects
+```
+
+Do not fabricate replacement images for missing source resources. If authentic replacements are later found, add them from a verified source and let the importer deduplicate them normally.
+
+Next implementation step: verify the new `Reference Legacy Import Check` after `fa54b51...`. If it fails, fix only the next exact reported importer/checker defect. If GREEN, record the filtered real page/asset counts and generated footprint, then proceed to publishing the generated reference in a bounded/storage-aware way. Do not call this reference batch GREEN without a real workflow result.
 
 Hardware two-board smoke remains a separate external release gate and is not part of this reference-site product task.
 

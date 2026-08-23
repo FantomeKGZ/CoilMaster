@@ -8,6 +8,7 @@
 
 ```text
 /web/
+├── web-bundle-manifest.json
 ├── index.html
 ├── mobile/
 │   └── index.html
@@ -129,6 +130,7 @@ coilmaster-web-sd-bundle-<commit-sha>
 Содержимое artifact — готовое содержимое каталога `/web` на microSD. После распаковки структура должна выглядеть как:
 
 ```text
+/web/web-bundle-manifest.json
 /web/index.html
 /web/mobile/...
 /web/desktop/...
@@ -139,6 +141,16 @@ coilmaster-web-sd-bundle-<commit-sha>
 ```
 
 Копировать нужно именно содержимое artifact как каталог `/web` карты, а не помещать дополнительный уровень `coilmaster-web` внутрь `/web`.
+
+Каждый новый artifact содержит /web/web-bundle-manifest.json с точной provenance:
+
+- coilmaster_commit — commit CoilMaster, из которого собран Web;
+- legacy_commit — commit исходного legacy-справочника;
+- workflow_run_id;
+- reference_catalog_entries;
+- generated_utc.
+
+Общий app shell читает manifest и показывает короткий SD <commit> рядом с firmware/Web version. Если установлена старая карта без manifest, интерфейс остаётся работоспособным и показывает SD web unknown; это fail-soft диагностика, а не блокировка производства.
 
 Перед использованием artifact убедиться, что соответствующий workflow завершился GREEN. CI GREEN подтверждает сборку/целостность файлов, но не заменяет физическую проверку microSD на реальном ESP32.
 

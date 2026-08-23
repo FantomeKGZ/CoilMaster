@@ -6,7 +6,7 @@ import argparse
 import hashlib
 import re
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "firmware" / "esp32" / "web" / "sites" / "reference"
@@ -36,14 +36,34 @@ def resolve_reference_url(output: Path, value: str) -> Path | None:
     parts = urlsplit(value)
     if parts.scheme or parts.netloc or not parts.path.startswith(REFERENCE_PREFIX):
         return None
-    relative = parts.path[len(REFERENCE_PREFIX):]
-    return output / relative
+    relative = unquote(parts.path[len(REFERENCE_PREFIX):]).lstrip("/")
+    candidate = (output / relative).resolve()
+    output_root = output.resolve()
+    try:
+        candidate.relative_to(output_root)
+    except ValueError:
+        return Path("/__invalid_reference_escape__")
+    if candidate.is_dir():
+        index = candidate / "index.html"
+        return index if index.exists() else candidate
+    return candidate
 
 
 def validate_pages(output: Path) -> list[str]:
     errors: list[str] = []
+    shared_css = output / "shared" / "reference.css"
+    shared_js = output / "shared" / "reference.js"
+    if not shared_css.is_file():
+        errors.append(f"shared stylesheet file missing: {shared_css}")
+    if not shared_js.is_file():
+        errors.append(f"shared script file missing: {shared_js}")
+
     for mode in ("desktop", "mobile"):
-        for page in (output / mode / "pages").rglob("*"):
+        mode_pages = output / mode / "pages"
+        if not mode_pages.is_dir():
+            errors.append(f"generated page directory missing: {mode_pages}")
+            continue
+        for page in mode_pages.rglob("*"):
             if not page.is_file() or page.suffix.lower() not in HTML_SUFFIXES:
                 continue
             try:
@@ -61,9 +81,10 @@ def validate_pages(output: Path) -> list[str]:
             if "/sites/reference/shared/reference.js" not in text:
                 errors.append(f"shared script missing: {page}")
             for match in ATTR_RE.finditer(text):
-                target = resolve_reference_url(output, match.group("value"))
+                value = match.group("value")
+                target = resolve_reference_url(output, value)
                 if target is not None and not target.exists():
-                    errors.append(f"broken reference link: {page} -> {match.group('value')}")
+                    errors.append(f"broken reference link: {page} -> {value}")
     return errors
 
 

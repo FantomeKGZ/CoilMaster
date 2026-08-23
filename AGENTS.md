@@ -35,7 +35,7 @@ The full repo-level code audit A–E is complete. Active repo-level work is now:
 FINAL CONTROLLED REPOSITORY CLEANUP / ZERO-DEBT SWEEP
 ```
 
-The current handoff estimates this software cleanup at about 94% complete. Always use the current value in `06_ACTIVE_WORK_AND_NEXT_STEPS.md` rather than copying this percentage forward after later changes.
+The current handoff estimates this software cleanup at about 96% complete. Always use the current value in `06_ACTIVE_WORK_AND_NEXT_STEPS.md` rather than copying this percentage forward after later changes.
 
 Every cleanup candidate must be classified before deletion:
 
@@ -50,15 +50,15 @@ Do not mix speculative redesign with cleanup. Do not delete production data or h
 
 ## Current verified repo baseline
 
-Latest user-confirmed implementation GREEN baseline:
+Latest user-confirmed implementation/test GREEN baseline:
 
 ```text
-e16a7daeae8962e4eb6b457661970f873faf8a87
-Align final acceptance exact spool contract
-USER CONFIRMED GREEN
+ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+Harden release safety contract against stale JSON assertions
+CMP Protocol Tests GREEN
 ```
 
-Documentation-only commits after this SHA do not establish a newer firmware GREEN baseline. Later implementation changes require a fresh exact result or explicit user confirmation before being described as GREEN.
+Confirmed Actions evidence is recorded in `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Documentation-only commits after this SHA do not establish a newer firmware GREEN baseline. Later implementation changes require a fresh exact result or explicit user confirmation before being described as GREEN.
 
 ## Non-negotiable safety invariants
 

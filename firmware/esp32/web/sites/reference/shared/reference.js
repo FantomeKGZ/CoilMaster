@@ -112,13 +112,24 @@
   function initCatalogSearch(mode){
     const input=document.querySelector('[data-reference-search]');
     const clear=document.querySelector('[data-reference-search-clear]');
+    const quick=document.querySelectorAll('[data-reference-query]');
     const results=document.querySelector('[data-reference-results]');
     const status=document.querySelector('[data-reference-search-status]');
     if(!input||!clear||!results||!status) return;
 
     if(!input.value) input.value=searchFromLocation();
     const syncClear=function(){clear.hidden=!input.value;};
+    const syncQuick=function(){
+      const current=normalizeSearch(input.value);
+      quick.forEach(function(button){
+        button.setAttribute(
+          'aria-pressed',
+          normalizeSearch(button.getAttribute('data-reference-query'))===current?'true':'false'
+        );
+      });
+    };
     syncClear();
+    syncQuick();
     status.textContent='Загрузка каталога…';
     fetch(CATALOG_URL,{cache:'no-cache'})
       .then(function(response){
@@ -133,12 +144,14 @@
           updateSearchLocation('');
           renderResults(catalog,mode,'',results,status);
           syncClear();
+          syncQuick();
           input.focus();
         };
         input.addEventListener('input',function(){
           updateSearchLocation(input.value);
           renderResults(catalog,mode,input.value,results,status);
           syncClear();
+          syncQuick();
         });
         input.addEventListener('keydown',function(event){
           if(event.key==='Escape'){
@@ -153,6 +166,16 @@
           }
         });
         clear.addEventListener('click',clearSearch);
+        quick.forEach(function(button){
+          button.addEventListener('click',function(){
+            input.value=button.getAttribute('data-reference-query')||'';
+            updateSearchLocation(input.value);
+            renderResults(catalog,mode,input.value,results,status);
+            syncClear();
+            syncQuick();
+            input.focus();
+          });
+        });
       })
       .catch(function(){
         status.textContent='Каталог поиска недоступен. Используйте быстрый переход или внутренние ссылки страниц.';

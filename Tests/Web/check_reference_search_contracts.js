@@ -68,5 +68,10 @@ if(!source.includes("event.key==='Enter'")||
    !source.includes("clear.addEventListener('click',clearSearch)")){
   throw new Error('Reference keyboard/clear search controls missing');
 }
+if(!source.includes("querySelectorAll('[data-reference-query]')")||
+   !source.includes("button.getAttribute('data-reference-query')")||
+   !source.includes("'aria-pressed'")){
+  throw new Error('Reference quick series filter behavior missing');
+}
 
 console.log('Reference catalog search contracts: OK');

@@ -597,3 +597,53 @@ test(reference): cover legacy media UX
 Это уменьшает первоначальную загрузку тяжёлых generated страниц и делает таблицы доступными для touch и keyboard navigation.
 
 Текущий combined web/reference batch ожидает фактического Actions результата; GREEN не заявлен.
+
+
+---
+
+## 2026-08-23 — report-only аудит миграционного мусора
+
+После подтверждения оператором, что все текущие commits GREEN, начат следующий блок оптимизации legacy-миграции.
+
+Добавлен отдельный read-only аудитор:
+
+```text
+39c21b75dcc6a669fbf4fb83c8d2c2e7787a1027
+feat(reference): add report-only migration audit
+```
+
+`tools/audit_legacy_winding_reference.py` формирует JSON-отчёт и ничего не удаляет. Он считает:
+
+- generated pages и legacy incoming links;
+- страницы без входящих ссылок из других legacy pages отдельно для desktop/mobile;
+- assets, на которые не ссылаются generated HTML или CSS;
+- группы byte-identical assets и потенциальную экономию;
+- группы полностью одинаковых generated HTML внутри одного UI mode.
+
+Страница без legacy incoming link не считается автоматически мусором: она остаётся доступна через полный `catalog.json` и поиск. Любое удаление допускается только после анализа отчёта.
+
+CI integration:
+
+```text
+06fc997c9932c70501decc823cfbab45fdc3fb71
+ci(reference): publish migration cleanup audit
+
+fea939e2b17cf3268292f41ee350c8fa2088c8cd
+test(reference): cover report-only migration audit
+
+4be50011a4ab85210b2225821802e8fbdcf2aa8b
+ci(reference): run migration audit contracts
+
+a50c1be52ef96e9784fcffdc29c08261a0105275
+fix(reference): correct migration audit URL matching
+```
+
+Reference workflow теперь публикует отдельный artifact:
+
+```text
+coilmaster-reference-migration-audit-<commit-sha>
+```
+
+Полный SD-ready artifact остаётся неизменным по политике сохранения контента. Новый аудит добавлен в Actions summary и запускается при изменении самого аудитора или его contract test.
+
+Синтетический contract test локально пройден: HTML/CSS references, unreferenced bytes, duplicate hashes и legacy incoming-link counts проверены. Фактические числа полного справочника будут зафиксированы только после GREEN нового Reference workflow.

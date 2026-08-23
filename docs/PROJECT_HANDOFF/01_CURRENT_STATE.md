@@ -1,6 +1,6 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-22**  
+Дата обновления: **2026-08-23**  
 Ветка: **`cmp-protocol-v1`**
 
 Этот файл описывает только **текущее** состояние. Исторические детали находятся в numbered checkpoints и не являются очередью активных работ.
@@ -159,6 +159,26 @@ Backup deep validation is read-only and fail-closed. Session persistence preflig
 
 Desktop and mobile interfaces cover the implemented workshop, motor/import, repairs, linked winding, Arduino archive, materials/warehouse, costing, reports, settings, backup/network and diagnostics flows. Growing collections use bounded/paged APIs where implemented; old checkpoints describing their migration are historical, not active work.
 
+### Winding reference product integration — active
+
+The legacy static winding reference in `FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}` is being integrated as a CoilMaster section without changing production runtime ownership.
+
+Current implementation includes:
+
+- common desktop/mobile CoilMaster-style reference shell;
+- full navigation from reference pages back to CoilMaster workshop sections;
+- phone-accessible horizontal section navigation;
+- desktop/mobile switch via the existing `cm-ui-version` preference;
+- shared reference CSS/JS;
+- dedicated legacy importer and integrity checker;
+- legacy Windows-1251 -> UTF-8 conversion;
+- removal of the old `div.verh` / `images/verh.jpg` top banner only;
+- content/table/description/internal-link preservation contract;
+- SHA-256 deduplication of byte-identical desktop/mobile assets into shared storage;
+- CI dry-build workflow for source checkout, import, integrity check and footprint reporting.
+
+Generated legacy content is not yet recorded here as verified/published; CI dry-build result and measured footprint must be checked first.
+
 ## Verification still separate
 
 Repo-level checkpoint 62 is GREEN. Hardware remains a separate gate:
@@ -168,12 +188,14 @@ two-board UART hardware smoke checkpoint 62 — NOT VERIFIED
 full hardware acceptance — only when affected scope requires it
 ```
 
+Reference-site dry-build verification is also separate from the previously verified firmware baseline; do not call it GREEN until its current Actions result is confirmed.
+
 ## Current active direction
 
-1. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
-2. fix only concrete current failures;
-3. use measured data for performance/storage changes;
-4. otherwise continue with requested product work.
+1. finish winding-reference dry-build/import verification and publish generated content in bounded form;
+2. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
+3. fix only concrete current failures;
+4. use measured data for performance/storage changes.
 
 Do **not** restart old archive/pagination/backup/KG_FIRST/JOB-cancel implementation work merely because historical checkpoints contain old `next` sections.
 

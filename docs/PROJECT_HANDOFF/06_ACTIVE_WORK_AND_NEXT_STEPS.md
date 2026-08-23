@@ -276,3 +276,8 @@ Runs `32643425748` и `32643450801` относятся к superseded regex defec
 ### Reference CSS Actions correction — current
 
 Runs `32644626781`–`32644735339` являются промежуточными failures mode-safe CSS batch. Последний run уже прошёл importer contracts и полный 926+926 import, но checker не имел `CSS_URL_RE`. Исправление `2df1764a...` добавило matcher; `ef779874...` теперь вызывает CSS checker прямо в раннем synthetic contract. Локальный full import + checker GREEN. Проверить новый Reference run после `ef779874...`; старые шесть runs не rerun.
+
+
+### Reference embedded CSS — current batch
+
+Оператор подтвердил GREEN CSS matcher/checker correction. Текущий follow-up переписывает и проверяет inline `style`, `<style>`, CSS `url(...)` и quoted `@import`. Exact repository synthetic contract GREEN. После нового Reference GREEN использовать обновлённый artifact; этот блок меняет только generated Web/reference и не затрагивает ESP32/Arduino safety/runtime.

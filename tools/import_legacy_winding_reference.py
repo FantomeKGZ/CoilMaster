@@ -276,8 +276,11 @@ def mobile_nav_links(mode: str) -> str:
     return "".join(f'<a href="{href}">{icon} {label}</a>' for icon, label, href in items)
 
 
-def shell(title: str, body: str, mode: str) -> str:
+def shell(title: str, body: str, mode: str, page_rel: str) -> str:
     other = "mobile" if mode == "desktop" else "desktop"
+    other_page = html.escape(
+        f"/sites/reference/{other}/pages/{page_rel}", quote=True
+    )
     other_label = "📱 Мобильная версия" if other == "mobile" else "🖥 Версия для ПК"
     other_short = "📱" if other == "mobile" else "🖥"
     return f'''<!doctype html>
@@ -294,9 +297,9 @@ def shell(title: str, body: str, mode: str) -> str:
 <h1>CoilMaster</h1>
 {nav_links(mode)}
 <a class="active" href="/sites/reference/{mode}/">📚 Справочник обмотчика</a>
-<div class="cm-reference-switch"><a href="/sites/reference/{other}/" data-reference-mode="{other}">{other_label}</a></div>
+<div class="cm-reference-switch"><a href="{other_page}" data-reference-mode="{other}">{other_label}</a></div>
 </aside>
-<header class="cm-reference-mobile-header"><a href="/{mode}/">←</a><b>Справочник обмотчика</b><a href="/sites/reference/{other}/" data-reference-mode="{other}">{other_short}</a></header>
+<header class="cm-reference-mobile-header"><a href="/{mode}/">←</a><b>Справочник обмотчика</b><a href="{other_page}" data-reference-mode="{other}">{other_short}</a></header>
 <nav class="cm-reference-mobile-nav" aria-label="Разделы CoilMaster">{mobile_nav_links(mode)}<a class="active" href="/sites/reference/{mode}/">📚 Справочник</a></nav>
 <main class="cm-reference-main cm-reference-content">
 <div class="cm-reference-page-toolbar">
@@ -341,7 +344,7 @@ def convert_pages(
         body = rewrite_links(body, rel, source.mode, source.root, shared_for_mode)
         target = output / source.mode / "pages" / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(shell(title, body, source.mode), encoding="utf-8", newline="\n")
+        target.write_text(shell(title, body, source.mode, rel), encoding="utf-8", newline="\n")
         catalog.append({"path": rel, "title": title})
     return catalog
 

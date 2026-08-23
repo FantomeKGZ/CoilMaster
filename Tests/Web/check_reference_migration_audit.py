@@ -29,7 +29,8 @@ def main() -> None:
             output / "desktop/pages/a.html",
             '<a href="/sites/reference/desktop/pages/b.html">B</a>'
             '<img src="/sites/reference/shared/assets/used.bin">'
-            '<link rel="stylesheet" href="/sites/reference/desktop/assets/legacy.css">',
+            '<link rel="stylesheet" href="/sites/reference/desktop/assets/legacy.css">'
+            '<video poster="/sites/reference/shared/assets/poster.bin"></video>',
         )
         write(output / "desktop/pages/b.html", "<p>B</p>")
         write(output / "mobile/pages/a.html", "<p>A mobile</p>")
@@ -45,6 +46,7 @@ def main() -> None:
         write(output / "shared/assets/unused.bin", b"unused")
         write(output / "shared/assets/cp.bin", b"cp1251")
         write(output / "shared/assets/win.bin", b"windows")
+        write(output / "shared/assets/poster.bin", b"poster")
         write(
             output / "desktop/assets/legacy.css",
             ('@font-face{src:url("../../shared/assets/cp.bin")}'
@@ -64,6 +66,7 @@ def main() -> None:
         assert data["generated_pages"] == 4
         assert data["unreferenced_assets"]["count"] == 4
         assert data["unreferenced_assets"]["bytes"] == 18
+        assert "shared/assets/poster.bin" not in data["unreferenced_assets"]["paths"]
         assert data["unreferenced_assets"]["by_extension"] == {
             ".bin": {"count": 3, "bytes": 14},
             ".dat": {"count": 1, "bytes": 4},

@@ -10,8 +10,8 @@ FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 * gives desktop/mobile the same CoilMaster shell and shared stylesheet/JS;
 * rewrites internal links so each UI mode stays inside its own page tree;
 * normalizes legacy Windows path casing to the real source-file spelling;
-* stores byte-identical desktop/mobile assets once in ``shared/assets``;
-* keeps mode-specific assets below ``desktop/assets`` or ``mobile/assets``;
+* stores every repeated byte-identical asset with the same suffix once in ``shared/assets``;
+* keeps assets that occur only once below ``desktop/assets`` or ``mobile/assets``;
 * generates one shared searchable catalog for all real legacy pages;
 * excludes Microsoft FrontPage ``_vti_*`` metadata from the published site.
 
@@ -96,25 +96,27 @@ def collect_assets(source: ModeSource) -> dict[str, Path]:
 
 
 def shared_asset_map(desktop: ModeSource, mobile: ModeSource) -> tuple[dict[str, str], dict[str, str]]:
-    desktop_assets = collect_assets(desktop)
-    mobile_assets = collect_assets(mobile)
-    mobile_by_hash: dict[str, list[str]] = {}
-    for rel, path in mobile_assets.items():
-        mobile_by_hash.setdefault(asset_hash(path), []).append(rel)
+    assets_by_mode = {
+        "desktop": collect_assets(desktop),
+        "mobile": collect_assets(mobile),
+    }
+    groups: dict[tuple[str, str], list[tuple[str, str]]] = {}
+    for mode, assets in assets_by_mode.items():
+        for rel, path in assets.items():
+            key = (asset_hash(path), path.suffix.lower())
+            groups.setdefault(key, []).append((mode, rel))
 
-    desktop_shared: dict[str, str] = {}
-    mobile_shared: dict[str, str] = {}
-    for rel, path in desktop_assets.items():
-        digest = asset_hash(path)
-        matches = mobile_by_hash.get(digest, [])
-        if not matches:
+    shared_by_mode: dict[str, dict[str, str]] = {
+        "desktop": {},
+        "mobile": {},
+    }
+    for (digest, suffix), entries in groups.items():
+        if len(entries) < 2:
             continue
-        canonical_name = Path(rel).name
-        target = f"{digest[:16]}-{canonical_name}"
-        desktop_shared[rel] = target
-        for mobile_rel in matches:
-            mobile_shared[mobile_rel] = target
-    return desktop_shared, mobile_shared
+        target = f"{digest}{suffix}"
+        for mode, rel in entries:
+            shared_by_mode[mode][rel] = target
+    return shared_by_mode["desktop"], shared_by_mode["mobile"]
 
 
 def clean_output(output: Path) -> None:

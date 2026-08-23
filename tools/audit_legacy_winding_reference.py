@@ -80,14 +80,19 @@ def audit(output: Path) -> dict[str, object]:
     for page in all_html:
         text = page.read_text(encoding="utf-8")
         source_mode = page.relative_to(output).parts[0]
+        source_url = "sites/reference/" + page.relative_to(output).as_posix()
         for match in ATTR_RE.finditer(text):
             target = reference_path(match.group("value"))
             if target is None:
                 continue
             referenced_files.add(target)
             prefix = f"sites/reference/{source_mode}/pages/"
-            if page in generated_html and target.startswith(prefix):
+            if page in generated_html and target.startswith(prefix) and target != source_url:
                 incoming[target] += 1
+        for match in CSS_URL_RE.finditer(text):
+            target = reference_path(match.group("value"))
+            if target is not None:
+                referenced_files.add(target)
     for stylesheet in reference_styles:
         text = stylesheet.read_text(encoding="utf-8")
         for match in CSS_URL_RE.finditer(text):

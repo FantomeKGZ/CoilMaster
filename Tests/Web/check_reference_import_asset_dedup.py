@@ -48,13 +48,16 @@ def main() -> None:
             '<link rel="stylesheet" href="styles/site.css">'
             '<div style="background:url(images/a.bin)"></div>'
             '<style>.inline{background:url("images/a.bin")}</style>'
+            '<table background="images/a.bin"></table>'
+            '<video poster="images/a.bin"></video>'
             '</body></html>',
         )
         write(
             mobile / "page.html",
             '<html><title>M</title><body><img src="images/b.bin">'
             '<link rel="stylesheet" href="styles/site.css">'
-            '<div style="background:url(images/b.bin)"></div></body></html>',
+            '<div style="background:url(images/b.bin)"></div>'
+            '<table background="images/b.bin"></table></body></html>',
         )
         write(desktop / "images/a.bin", b"same")
         write(desktop / "images/alias.bin", b"same")
@@ -96,8 +99,8 @@ def main() -> None:
         shared_url = f"/sites/reference/shared/assets/{shared[0].name}"
         desktop_html = (output / "desktop/pages/page.html").read_text(encoding="utf-8")
         mobile_html = (output / "mobile/pages/page.html").read_text(encoding="utf-8")
-        assert desktop_html.count(shared_url) == 4
-        assert mobile_html.count(shared_url) == 2
+        assert desktop_html.count(shared_url) == 6
+        assert mobile_html.count(shared_url) == 3
         desktop_css = (output / "desktop/assets/styles/site.css").read_text(encoding="utf-8")
         mobile_css = (output / "mobile/assets/styles/site.css").read_text(encoding="utf-8")
         desktop_import = "/sites/reference/desktop/assets/styles/nested.css"

@@ -34,17 +34,27 @@ def main() -> None:
             '<html><title>D</title><body>'
             '<img src="images/a.bin"><img src="images/alias.bin">'
             '<img src="images/unique.bin"><a href="images/same.dat">data</a>'
+            '<link rel="stylesheet" href="styles/site.css">'
             '</body></html>',
         )
         write(
             mobile / "page.html",
-            '<html><title>M</title><body><img src="images/b.bin"></body></html>',
+            '<html><title>M</title><body><img src="images/b.bin">'
+            '<link rel="stylesheet" href="styles/site.css"></body></html>',
         )
         write(desktop / "images/a.bin", b"same")
         write(desktop / "images/alias.bin", b"same")
         write(mobile / "images/b.bin", b"same")
         write(desktop / "images/same.dat", b"same")
         write(desktop / "images/unique.bin", b"unique")
+        write(
+            desktop / "styles/site.css",
+            'body{background:url("../images/a.bin")}/*Стиль*/'.encode("cp1251"),
+        )
+        write(
+            mobile / "styles/site.css",
+            'body{background:url("../images/b.bin")}/*Стиль*/'.encode("cp1251"),
+        )
 
         subprocess.run(
             [
@@ -72,11 +82,16 @@ def main() -> None:
         mobile_html = (output / "mobile/pages/page.html").read_text(encoding="utf-8")
         assert desktop_html.count(shared_url) == 2
         assert shared_url in mobile_html
+        desktop_css = (output / "desktop/assets/styles/site.css").read_text(encoding="utf-8")
+        mobile_css = (output / "mobile/assets/styles/site.css").read_text(encoding="utf-8")
+        assert shared_url in desktop_css and "Стиль" in desktop_css
+        assert shared_url in mobile_css and "Стиль" in mobile_css
+        assert not list((output / "shared/assets").glob("*.css"))
 
         groups: dict[tuple[str, str], list[Path]] = defaultdict(list)
         for subtree in ("shared/assets", "desktop/assets", "mobile/assets"):
             for path in (output / subtree).rglob("*"):
-                if path.is_file():
+                if path.is_file() and path.suffix.lower() != ".css":
                     groups[(hashlib.sha256(path.read_bytes()).hexdigest(), path.suffix.lower())].append(path)
         assert all(len(paths) == 1 for paths in groups.values())
 

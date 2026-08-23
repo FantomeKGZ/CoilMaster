@@ -636,6 +636,9 @@ ci(reference): run migration audit contracts
 
 a50c1be52ef96e9784fcffdc29c08261a0105275
 fix(reference): correct migration audit URL matching
+
+2bdd4fb91a64436812fc96cd0341057852efc89c
+fix(reference): include inline asset references in audit
 ```
 
 Reference workflow теперь публикует отдельный artifact:

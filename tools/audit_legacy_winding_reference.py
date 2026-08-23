@@ -31,6 +31,16 @@ def digest(path: Path) -> str:
     return value.hexdigest()
 
 
+def decode_legacy_stylesheet(path: Path) -> str:
+    data = path.read_bytes()
+    for encoding in ("utf-8-sig", "cp1251"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    raise AssertionError("cp1251 decodes every byte sequence")
+
+
 def reference_path(value: str) -> str | None:
     parts = urlsplit(value)
     if parts.scheme or parts.netloc or not parts.path.startswith(REFERENCE_PREFIX):
@@ -94,7 +104,7 @@ def audit(output: Path) -> dict[str, object]:
             if target is not None:
                 referenced_files.add(target)
     for stylesheet in reference_styles:
-        text = stylesheet.read_text(encoding="utf-8")
+        text = decode_legacy_stylesheet(stylesheet)
         for match in CSS_URL_RE.finditer(text):
             target = reference_path(match.group("value"))
             if target is not None:

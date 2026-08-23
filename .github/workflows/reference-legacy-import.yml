@@ -149,6 +149,8 @@ jobs:
           print("### Report-only migration audit")
           print()
           print(f"- Unreferenced assets: {unused['count']} ({unused['bytes']} bytes)")
+          for suffix, item in unused.get("by_extension", {}).items():
+              print(f"  - {suffix}: {item['count']} files, {item['bytes']} bytes")
           print(f"- Duplicate asset groups: {duplicates['count']} ({duplicates['potential_savings_bytes']} potential bytes)")
           print(f"- Content-identical page groups within one mode: {identical['count']}")
           for mode, item in report["pages_without_legacy_incoming_links"].items():

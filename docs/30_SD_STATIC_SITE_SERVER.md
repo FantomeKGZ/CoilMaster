@@ -110,14 +110,15 @@ webServer.onNotFound([]()
 .github/workflows/reference-legacy-import.yml
 ```
 
-checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile reference, дедуплицирует все повторяющиеся byte-identical ресурсы с одинаковым расширением в `sites/reference/shared/assets/`, запускает integrity checker и формирует полный SD-ready `/web` каталог.
+checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile reference, дедуплицирует все повторяющиеся byte-identical non-CSS ресурсы с одинаковым расширением в `sites/reference/shared/assets/`, запускает integrity checker и формирует полный SD-ready `/web` каталог.
 
 Это позволяет:
 
 - не дублировать тысячи generated-файлов в истории CoilMaster;
 - не увеличивать размер firmware flash — справочник обслуживается с microSD;
 - получать один проверенный комплект, в котором основной CoilMaster Web и справочник имеют согласованные версии;
-- сохранять общий CSS/JS и повторяющиеся byte-identical ресурсы справочника только в одном экземпляре, даже если legacy-файлы имели разные имена или повторялись внутри одного UI mode.
+- сохранять общий shell CSS/JS и повторяющиеся byte-identical non-CSS ресурсы справочника только в одном экземпляре, даже если legacy-файлы имели разные имена или повторялись внутри одного UI mode;
+- сохранять legacy CSS mode-specific, конвертировать его в UTF-8 и переписывать каждый локальный `url(...)` на фактический shared/mode asset, чтобы перенос ресурса не ломал относительные ссылки.
 
 ## Готовый artifact для microSD
 

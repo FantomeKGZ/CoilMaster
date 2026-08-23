@@ -28,11 +28,11 @@ Verified Actions:
 
 Run `32616937088` passed configure/build, all 4 host C++ tests and all Web/Protocol contracts including `Audit release safety contracts`.
 
-Later cleanup commits, including the warehouse bootstrap correction below, do not establish a newer firmware GREEN baseline automatically. Do not claim a newer GREEN baseline until an applicable successful Actions run is observed.
+Later cleanup commits, including the warehouse bootstrap correction below, do not establish a newer firmware GREEN baseline automatically. Direct workflow lookup returned 0 runs for `06a752663504d58ca6908414f8aa8786007c6877` and HEAD `5e704cade4977a2707609be8a35ee8f49f1a8afa`; do not claim a newer GREEN baseline until an applicable successful Actions run is observed.
 
 ## Cleanup progress
 
-Controlled code/docs/tree cleanup remains conservatively **~96% complete / ~4% remaining** until the final owner sweep and cleanup-complete checkpoint are closed.
+Controlled code/docs/tree cleanup is now conservatively **~98% complete / ~2% remaining** after resolving the remaining named split-owner/crash-residue REVIEW items. The remaining work is final consolidation, CI evidence for the latest implementation correction, and the cleanup-complete checkpoint.
 
 Hardware E2E is a separate release gate and is not included in this percentage.
 
@@ -82,6 +82,8 @@ The current build-included owner sweep has now directly reviewed the following g
 - `WindingJournalQuery.cpp` + `CM_WindingJournalQueryValidation.cpp` -> `KEEP`: pagination/history and authoritative full-file schema validation share the same private validators intentionally;
 - `CM_WindingJournalTransitionAudit.cpp` -> `KEEP`: validates event ordering/state transitions, not merely record schema;
 - `CM_WindingJournalSnapshotContext.cpp` -> `KEEP`: immutable snapshot/runtime context boundary and late timeout reconciliation after journal persistence;
+- `RepairCosting` + `CM_RepairCostingValidation.cpp` -> `KEEP`: aggregation/pricing and authoritative repair-reference validation are separate responsibilities;
+- `AutonomousWindingArchive` core/assign/integrity/page -> `KEEP`: append/replay, checked assignment, whole-archive integrity and bounded task paging are separate responsibilities;
 - `CM_WarehouseLegacySpoolMaterial.cpp` -> `KEEP`: live production migration endpoint for old spools without `wire_type`, not dead legacy source;
 - `Core/` current tree remains compact with concrete input/state/UI/turn-source owners and no named Legacy/Compat/Old parallel owner;
 - `Arduino/` current tree remains in the previously audited service/protocol structure; no new deletion candidate was identified in the tree-level pass.
@@ -107,6 +109,22 @@ fix(esp32): remove duplicate warehouse web bootstrap
 `CM_WarehouseSpoolWeb.cpp` now owns only its spool-list/material-assignment/material-summary route registration. `WarehouseWeb::begin()` remains the owner of the common warehouse/write-off service bootstrap. No safety boundary or physical-control behavior was changed.
 
 This commit is **not yet claimed CI GREEN** in this handoff.
+
+### JobSnapshot crash-residue REVIEW resolved
+
+`JobSnapshotStore .json.tmp` is now classified `KEEP` as non-authoritative preparation crash evidence.
+
+The durable order is:
+
+```text
+persistent job/session ID allocation
+-> JobSnapshot temp write + verify
+-> rename to final immutable snapshot + verify
+-> JobState CREATED
+-> exact spool selection / DELIVERING / UART boundary later
+```
+
+Therefore a crash residue `.json.tmp` cannot become an authoritative job: no `JobState CREATED` exists for it, the already allocated session ID is not reused, and there is no auto-promote/auto-resume/auto-delete behavior. A later higher-ID job may safely supersede it. This is intentionally different from the spool-selection `.tmp` recovery boundary.
 
 ### High-level docs / AI routing
 
@@ -151,13 +169,11 @@ Earlier active handoff record for this pass:
 Record final workflow and thematic cleanup sweep
 ```
 
-## Remaining cleanup sequence (~4%)
+## Remaining cleanup sequence (~2%)
 
-1. finish the remaining build-included ESP32 split-owner groups not yet directly closed in the final sweep;
-2. verify the new warehouse bootstrap correction with applicable CI/Actions evidence when available;
-3. touch lower-risk thematic docs only when current source proves a concrete stale contract;
-4. produce final `DELETE / MERGE / KEEP / REVIEW` consolidation and cleanup-complete checkpoint;
-5. synchronize `06`, this file and entrypoints at completion.
+1. produce final consolidated `DELETE / MERGE / KEEP / REVIEW` checkpoint from the completed audits and final owner sweep;
+2. verify the warehouse bootstrap correction with applicable CI/Actions evidence when a run exists;
+3. synchronize `06`, this file and mandatory entrypoints at cleanup-complete.
 
 Do not restart completed `scripts/tools/Web/shared/data/tests/workflow` passes without concrete contrary evidence.
 
@@ -166,10 +182,10 @@ Do not restart completed `scripts/tools/Web/shared/data/tests/workflow` passes w
 ```text
 JobStateStore .tmp/.bak        KEEP fail-closed
 JobSpoolSelection .json.tmp    KEEP bounded recovery before UART
-JobSnapshot .json.tmp          REVIEW / fail-closed resilience
+JobSnapshot .json.tmp          KEEP non-authoritative preparation evidence; no auto-promote/resume/delete
 ```
 
-Do not unify these merely for symmetry.
+Do not unify these merely for symmetry; their durable transaction boundaries differ.
 
 ## Important KEEP examples
 

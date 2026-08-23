@@ -12,10 +12,14 @@ const sections=[
  ['📊','Двигатели','motors.html'],['🔌','Arduino','arduino-windings.html'],
  ['🧮','Калькулятор','calculator.html'],['📦','Склад','warehouse.html'],
  ['💰','Калькуляция','costing.html'],['📈','Отчёты','reports.html'],
- ['💾','Backup','backup.html'],['⚙️','Настройки','settings.html']
+ ['💾','Backup','backup.html'],['⚙️','Настройки','settings.html'],
+ ['📚','Справочник',`/sites/reference/${uiMode}/`]
 ];
 
-function sectionHref(file){return file?`/${uiMode}/${file}`:`/${uiMode}/`}
+function sectionHref(file){
+ if(file&&file.startsWith('/'))return file;
+ return file?`/${uiMode}/${file}`:`/${uiMode}/`;
+}
 function sectionActive(file){
  const pathname=location.pathname;
  if(!file)return pathname===`/${uiMode}/`||pathname===`/${uiMode}/index.html`;

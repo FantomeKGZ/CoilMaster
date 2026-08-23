@@ -10,7 +10,8 @@ FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 * gives desktop/mobile the same CoilMaster shell and shared stylesheet/JS;
 * rewrites internal links so each UI mode stays inside its own page tree;
 * stores byte-identical desktop/mobile assets once in ``shared/assets``;
-* keeps mode-specific assets below ``desktop/assets`` or ``mobile/assets``.
+* keeps mode-specific assets below ``desktop/assets`` or ``mobile/assets``;
+* excludes Microsoft FrontPage ``_vti_*`` metadata from the published site.
 
 It intentionally does not modify ESP32/Arduino runtime code.
 """
@@ -58,6 +59,15 @@ def rel_posix(path: Path, root: Path) -> str:
     return path.relative_to(root).as_posix()
 
 
+def is_frontpage_metadata(path: Path, root: Path) -> bool:
+    """Return True for Microsoft FrontPage bookkeeping trees, never site content."""
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        return False
+    return any(part.lower().startswith("_vti_") for part in parts)
+
+
 def asset_hash(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -69,7 +79,11 @@ def asset_hash(path: Path) -> str:
 def collect_assets(source: ModeSource) -> dict[str, Path]:
     assets: dict[str, Path] = {}
     for path in source.root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() in HTML_SUFFIXES:
+        if (
+            not path.is_file()
+            or path.suffix.lower() in HTML_SUFFIXES
+            or is_frontpage_metadata(path, source.root)
+        ):
             continue
         rel = rel_posix(path, source.root)
         if rel.lower() in SKIP_ASSETS:
@@ -260,7 +274,11 @@ def shell(title: str, body: str, mode: str) -> str:
 def convert_pages(source: ModeSource, output: Path, shared_for_mode: dict[str, str]) -> int:
     count = 0
     for path in sorted(source.root.rglob("*")):
-        if not path.is_file() or path.suffix.lower() not in HTML_SUFFIXES:
+        if (
+            not path.is_file()
+            or path.suffix.lower() not in HTML_SUFFIXES
+            or is_frontpage_metadata(path, source.root)
+        ):
             continue
         rel = rel_posix(path, source.root)
         raw = decode_legacy(path)
@@ -280,14 +298,18 @@ def write_entry_link(output: Path, mode: str, source: ModeSource) -> None:
     if not entry.exists():
         return
     # The source export has no index.html. Use the legacy 4A table as a stable
-    # first material when present; otherwise fall back to the first HTML file.
+    # first material when present; otherwise fall back to the first real HTML file.
     preferred = source.root / "4A.html"
     if preferred.exists():
         first_rel = "4A.html"
     else:
         candidates = sorted(
             path for path in source.root.rglob("*")
-            if path.is_file() and path.suffix.lower() in HTML_SUFFIXES
+            if (
+                path.is_file()
+                and path.suffix.lower() in HTML_SUFFIXES
+                and not is_frontpage_metadata(path, source.root)
+            )
         )
         if not candidates:
             return

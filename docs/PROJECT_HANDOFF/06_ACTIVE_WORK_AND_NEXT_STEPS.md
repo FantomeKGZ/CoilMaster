@@ -25,11 +25,11 @@ CMP Protocol Tests GREEN
 
 Run `32616937088` прошёл CMake configure/build, все 4 host C++ tests и весь Web/Protocol contract suite, включая `Audit release safety contracts`.
 
-Более поздние documentation/workflow-cleanup commits не устанавливают новый firmware GREEN baseline автоматически. Для workflow batch после `ad17bb7...` connector не дал подтверждённый push-run result, поэтому GREEN не заявляется.
+Более поздние cleanup commits не устанавливают новый firmware GREEN baseline автоматически. Для `06a752663504d58ca6908414f8aa8786007c6877` и текущего HEAD `5e704cade4977a2707609be8a35ee8f49f1a8afa` connector вернул 0 связанных workflow runs, поэтому GREEN для них не заявляется.
 
 ## Cleanup status
 
-Full audit A–E завершён. Controlled cleanup консервативно остаётся **~96% complete / ~4% remaining** до финального software cleanup checkpoint. Hardware smoke/recovery verification — отдельный release gate и в эти 4% не входит.
+Full audit A–E завершён. После финального split-owner/crash-residue sweep controlled cleanup консервативно находится на **~98% complete / ~2% remaining** до software cleanup checkpoint. Hardware smoke/recovery verification — отдельный release gate и в эти 2% не входит.
 
 ## Уже закрыто
 
@@ -49,6 +49,33 @@ Full audit A–E завершён. Controlled cleanup консервативно
 - historical `UNALLOCATED` remains read/audit/recovery compatibility evidence only;
 - snapshot/state/selection crash-residue policies reviewed by transaction boundary;
 - release safety regression corrected and CI-verified GREEN at `ad17bb7...`.
+
+### Latest final owner sweep
+
+Direct build-included review closed these split-owner groups as `KEEP`:
+
+- `RepairRegistry` core/lookup/page/search/similarity: distinct declared create/read/paging/search/similarity responsibilities;
+- `WindingJournalQuery` + `WindingJournalQueryValidation`: paging/history vs authoritative full-file schema validation;
+- `WindingJournalTransitionAudit`: event ordering/state-transition audit, not duplicate schema validation;
+- `WindingJournalSnapshotContext`: immutable snapshot/runtime context boundary and late timeout reconciliation after persisted journal evidence;
+- `RepairCosting` + `RepairCostingValidation`: cost aggregation/pricing vs authoritative repair-reference validation;
+- `AutonomousWindingArchive` core/assign/integrity/page: append/replay, checked assignment, whole-archive integrity and bounded task paging are separate owners;
+- `CM_WarehouseLegacySpoolMaterial.cpp`: live migration endpoint for historical spools missing `wire_type`, not dead legacy code;
+- current `Core/` tree remains compact with concrete input/state/UI/turn-source owners and no parallel `Legacy/Compat/Old` owner;
+- current `Arduino/` tree remains in the previously audited protocol/service structure with no new deletion candidate found in the final tree-level pass.
+
+### Warehouse duplicate bootstrap defect fixed
+
+`main.cpp` intentionally calls both `warehouseWeb.begin()` and `warehouseWeb.beginSpoolList()`. Before the correction, `beginSpoolList()` duplicated `beginWriteOff()` and recreated/registered conductor/settings/material and repair/similarity Web services already owned elsewhere, allowing duplicate HTTP route registration.
+
+Fixed in:
+
+```text
+06a752663504d58ca6908414f8aa8786007c6877
+fix(esp32): remove duplicate warehouse web bootstrap
+```
+
+`CM_WarehouseSpoolWeb.cpp` now registers only `/api/warehouse/spools`, `/api/warehouse/spools/material` and `/api/warehouse/material-summary`. Common warehouse/write-off services remain owned by `WarehouseWeb::begin()`. No physical-control or safety boundary changed.
 
 ### Root / AI / docs cleanup
 
@@ -100,19 +127,20 @@ d0beb03e...  ESP32 Build -> push only cmp-protocol-v1
 
 Current direct fetch confirms both workflows contain only `cmp-protocol-v1` under push branches and the regression explicitly forbids `- main`.
 
-CI status for this workflow-cleanup batch is **not yet claimed GREEN** because no applicable push-run result has been retrieved.
+CI status for the later cleanup batch is **not yet claimed GREEN** because no applicable run has been retrieved for current HEAD.
 
 ### Resolved split-owner / lookup REVIEW
 
 - `CM_AutonomousWindingArchiveAssign.cpp` -> `KEEP`: split implementation of methods declared by `CM_AutonomousWindingArchive.h`;
 - `CM_JobSpoolSelectionLookup.cpp` -> `KEEP`: split implementation of declared `loadReadOnly/load`, preserving fail-closed `.tmp` evidence handling;
-- `CM_WarehouseWriteOffLookup.cpp` -> final `KEEP`: current header exposes only `confirmedWriteOffForSourceRun(source_session_id, source_run_id, found)`; current implementation validates `WarehouseMovementIntegrityAudit` first and resolves exact-run duplicate protection. The old session-only `confirmedWriteOffForSourceSession()` API is no longer present, so the former REVIEW item is closed.
+- `CM_WarehouseWriteOffLookup.cpp` -> final `KEEP`: current header exposes only exact-run `confirmedWriteOffForSourceRun(source_session_id, source_run_id, found)`; current implementation validates `WarehouseMovementIntegrityAudit` first and resolves exact-run duplicate protection. The old session-only `confirmedWriteOffForSourceSession()` API is no longer present;
+- `JobSnapshotStore .json.tmp` -> final `KEEP`: persistent ID allocation occurs before snapshot creation; authoritative `JobState CREATED` occurs only after successful final snapshot rename/verification. A crash-residue `.tmp` therefore cannot become an authoritative job, is never auto-promoted/resumed/deleted, and its already-consumed session ID is not reused. Higher-ID jobs may safely supersede this non-authoritative preparation evidence.
 
-## Remaining ~4%
+## Remaining ~2%
 
-1. final owner-by-owner sweep of remaining build-included ESP32/Arduino/Core split implementations beyond already reviewed examples;
-2. final lower-risk thematic stale-contract sweep only where current source gives concrete contrary evidence;
-3. final consolidation: classify any remaining candidates `DELETE / MERGE / KEEP / REVIEW`, create cleanup-complete checkpoint, and synchronize handoff/entrypoints.
+1. final consolidation of the already audited build-included owners into `DELETE / MERGE / KEEP / REVIEW`, with no deletion based only on search/name;
+2. verify the warehouse bootstrap correction with applicable CI/Actions evidence when such a run exists;
+3. create the software cleanup-complete checkpoint and synchronize `06`, `67` and mandatory entrypoints.
 
 Do not restart completed `scripts/tools/Web/shared/data/tests/workflow` passes without concrete contrary evidence.
 
@@ -136,7 +164,7 @@ JobSpoolSelectionStore .json.tmp
   KEEP bounded recovery before UART boundary
 
 JobSnapshotStore .json.tmp
-  REVIEW / fail-closed resilience
+  KEEP non-authoritative preparation crash evidence; no auto-promote/resume/delete
 ```
 
 Do not force these stores into one recovery policy; their durable transaction boundaries differ.

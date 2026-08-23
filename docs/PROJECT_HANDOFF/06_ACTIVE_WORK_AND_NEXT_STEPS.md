@@ -43,7 +43,7 @@ Release contract теперь проверяет фактическую моде
 
 ## Cleanup status
 
-Full audit A–E завершён. Controlled cleanup оценивается примерно в **96%**, осталось около **4%**. Hardware smoke/recovery verification — отдельный release gate и в эти 4% не входит.
+Full audit A–E завершён. Controlled cleanup по-прежнему консервативно оценивается примерно в **96%**, осталось около **4%** до финального software cleanup checkpoint. Hardware smoke/recovery verification — отдельный release gate и в эти 4% не входит.
 
 ### Уже завершено
 
@@ -67,15 +67,27 @@ Full audit A–E завершён. Controlled cleanup оценивается п�
 - current-tree filename sweep at tree `44b31b7515cee140f0202f75b41ecd4be0b377d1`: Arduino/Core have no parallel `Legacy/Migration/Compat/Deprecated/Old` owners; `firmware/esp32/src` has no `Migration/Compat/Deprecated/Old` filenames and its only `Legacy` filename is `CM_WarehouseLegacySpoolMaterial.cpp`, already proven as a live route-owned migration API and classified `KEEP`;
 - `docs/AI_AGENT/01_PROJECT_MAP.md` current Arduino map already points to `CM_BuzzerService.*`; no stale `CM_Buzzer*` owner correction is required there;
 - mandatory entrypoint stale-contract sweep completed: `/AGENTS.md` (`903cb7dd...`), root `README.md` (`058eabc9...`), `00_READ_FIRST.md` (`d655e113...`) and `docs/AI_AGENT/00_START_HERE.md` (`e7a12104...`) were synchronized from old 92/94% and old `a29e2ab/e16a7d` baselines to current 96% / verified `ad17bb7...`; root README was also tightened from optional-spool wording to current exact immutable spool semantics;
-- `PROJECT.manifest`, `docs/AI_AGENT/01_PROJECT_MAP.md` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were directly re-read and classified `KEEP` with no correction required.
+- `PROJECT.manifest`, `docs/AI_AGENT/01_PROJECT_MAP.md` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were directly re-read and classified `KEEP` with no correction required;
+- `scripts/` contains only `platformio_build_id.py`, directly owned by ESP32 `extra_scripts` in `platformio.ini` -> `KEEP`;
+- `tools/build_motor_reference.py` + `tools/check_motor_reference.py` are directly owned by `.github/workflows/motor-reference.yml`; generator/checker are read-only-reference scoped and never promote `coil_program` into production -> `KEEP`;
+- Web tree zero-debt filename/owner pass found no `old/legacy/copy/tmp` artifacts in current desktop/mobile/shared trees; `web/reference/motor-reference.json` is the generated read-only dataset consumed by `winding-reference.html`, while `web/sites/reference/{desktop,mobile}` is a separate runtime-owned UI selected by explicit `CM_StaticSiteServer` routes -> both `KEEP`;
+- current root `web/index.html` is the active desktop/mobile selector -> `KEEP`;
+- current thematic stale-contract cleanup completed for five high-risk docs:
+  - `67ad0f553121d4e5edcaf46ba7774bfe938c8f91` — `docs/13_WAREHOUSE.md`: replaced obsolete generic stock/admin-overdraw model with current exact-run/exact-spool fail-closed writeoff transaction;
+  - `b54a801c98b311f6bf3d5b7c5f8fa174c129f94b` — `docs/16_WINDING_SESSION_WORKFLOW.md`: removed obsolete “UART is next stage” statement and documented current CMP1/reboot/timeout/manual-writeoff boundaries;
+  - `4004063d36ea6a9a31fb709e84167b19f0c07ab1` — `docs/08_API.md`: removed fictitious mandatory `/api/v1`, stale generic jobs API and Web SSR-test promise; replaced with current source-owned route/error/safety contract;
+  - `a4253d1e76cb9b8e2fb4a2d6ad83f346b3d478a5` — `docs/15_BUILD_AND_TEST.md`: removed deleted `Arduino/CoilMaster_Arduino.ino` build source, corrected buzzer to A3, documented current production entrypoint/UART pins and hardware gates;
+  - `4e1a0b74dfcffe3195b90c6e7784a7b0350dbda8` — `docs/07_WEB_PORTAL.md`: removed direct Web SSR diagnostic claim and aligned portal/static/reference/exact-spool semantics with current ownership.
 
 ## Remaining ~4%
 
 1. final owner-by-owner sweep of build-included ESP32/Arduino/Core files beyond filename heuristics;
-2. remaining non-entrypoint thematic stale-contract/docs sweep;
-3. final root/tree/Web/shared/scripts/tools zero-debt pass;
-4. explicit final classification of remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;
+2. remaining lower-risk thematic docs/tests stale-contract sweep;
+3. final root/data/tests/workflow tree pass for generated/duplicate/orphan artifacts not already covered;
+4. explicit final classification of any remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;
 5. final handoff consolidation and cleanup-complete checkpoint.
+
+The `scripts/tools/Web/shared` zero-debt layer is now source-owner reviewed; do not restart it without concrete contrary evidence.
 
 ## Current production material rule
 
@@ -138,6 +150,8 @@ PROJECT.manifest
 data/motor_catalog/
 scripts/
 tools/
+firmware/esp32/web/reference/
+firmware/esp32/web/sites/reference/
 ```
 
 Important lesson: empty GitHub code-search is never sufficient deletion proof. `CM_WarehouseLegacySpoolMaterial.cpp` was once wrongly classified from an empty search and had to be restored after direct route-owner inspection.

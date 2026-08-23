@@ -175,6 +175,10 @@ def validate_entry_pages(output: Path) -> list[str]:
     required = (
         'data-reference-search',
         'data-reference-search-clear',
+        'data-reference-query="4А"',
+        'data-reference-query="АИР"',
+        'data-reference-query="АО2"',
+        'data-reference-query="5А"',
         'role="status"',
         'aria-live="polite"',
         'role="list"',

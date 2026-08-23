@@ -256,3 +256,8 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ### Reference audit CI correction — 2026-08-23
 
 Runs `32643425748` и `32643450801` относятся к superseded regex defect. Runs `32643491396` и `32643578042` дошли до полного reference build и выявили CP1251 legacy stylesheet в report-only scan. Исправление `d7de6693...` добавляет UTF-8/CP1251 decode только для legacy CSS audit; generated HTML UTF-8 gate не ослаблен. Regression `3603b7a2...` воспроизводит CP1251 CSS. Локальный contract test GREEN; дождаться нового Reference run и затем снять реальные audit counts/artifact.
+
+
+### Reference audit URL accuracy — current batch
+
+Оператор подтвердил GREEN CP1251 correction batch. Текущий follow-up делает cleanup report точнее: учитывает absolute/relative/Windows-style asset URLs и группирует unreferenced candidates по расширению и bytes. Политика остаётся report-only; удалений из generated reference и SD bundle нет. После GREEN workflow использовать новый audit artifact для KEEP/REMOVE классификации по типам файлов.

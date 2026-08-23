@@ -48,7 +48,7 @@ def main() -> None:
         write(
             output / "desktop/assets/legacy.css",
             ('@font-face{src:url("../../shared/assets/cp.bin")}'
-             r'.win{background:url("..\\..\\shared\\assets\\win.bin")}/*М*/').encode("cp1251"),
+             '.win{background:url("..\\..\\shared\\assets\\win.bin")}/*М*/').encode("cp1251"),
         )
         write(output / "desktop/assets/duplicate.bin", b"same")
         write(output / "mobile/assets/duplicate-copy.bin", b"same")

@@ -674,3 +674,32 @@ test(reference): cover Windows-1251 stylesheet audit
 Audit CSS reader теперь использует контролируемый decode `utf-8-sig -> cp1251`. Требование UTF-8 для generated HTML не ослаблено: его раньше аудитора проверяет authoritative reference checker.
 
 Contract test дополнен реальным CP1251 stylesheet с кириллическим байтом и asset URL. Локально compile + synthetic contract test GREEN. Новый Actions результат после `3603b7a2...` ещё не зафиксирован как GREEN.
+
+
+### Operator GREEN и точность cleanup-кандидатов
+
+Оператор 2026-08-23 явно подтвердил: Actions после CP1251 CSS correction GREEN. Исправления `d7de6693...` + regression `3603b7a2...` приняты как текущая verified GREEN baseline.
+
+Следующий report-only batch повышает точность, но не удаляет контент:
+
+```text
+8e42b306c8e791d0de30026d76d14c11136ae890
+fix(reference): resolve relative legacy asset URLs
+
+c0ba06776415e765d0f88b2036fd9fdbaae95454
+fix(reference): normalize single Windows path separators
+
+a751d23bdbbe1e5468d752298d705e69a57c9188
+test(reference): cover relative legacy asset URLs
+
+f33726909432658cccaf4f51bfa5bf2a6c12e635
+feat(reference): classify unused assets in audit
+
+a46e78056e34139ace22ff869a26ba1da893ca7e
+test(reference): cover unused asset classification
+
+f29d573c0c693991516729a163c74c9ddee15ad3
+ci(reference): summarize unused asset types
+```
+
+Аудитор теперь разрешает absolute, POSIX-relative и Windows-backslash URLs относительно реального HTML/CSS файла. Это уменьшает ложные `unreferenced` результаты. Неиспользуемые assets дополнительно группируются по расширению с count/bytes в JSON artifact и Actions summary. Synthetic regression локально GREEN; новый Actions batch пока не перенесён в verified baseline.

@@ -9,6 +9,10 @@ function requireText(source, needle, message) {
   if (!source.includes(needle)) throw new Error(message);
 }
 
+function forbidText(source, needle, message) {
+  if (source.includes(needle)) throw new Error(message);
+}
+
 requireText(transport, '../Shared/CMP1Text/CM_Cmp1Crc.h',
   'Arduino transport no longer exposes the shared CRC dependency expected by this audit');
 
@@ -21,6 +25,14 @@ for (const [name, source] of [
     `${name} must run when shared protocol/CRC code changes`);
   requireText(source, 'cmp-protocol-v1',
     `${name} must include the cmp-protocol-v1 source-of-truth branch`);
+}
+
+for (const [name, source] of [
+  ['Arduino Uno Build', arduino],
+  ['ESP32 Build', esp32],
+]) {
+  forbidText(source, '      - main\n',
+    `${name} must not treat main as a push source branch`);
 }
 
 requireText(arduino, '- "Arduino/**"',
@@ -52,4 +64,4 @@ for (const path of [
     `CMP Protocol Tests pull-request trigger missing ${path}`);
 }
 
-console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates.');
+console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, and main is not a build push source.');

@@ -273,6 +273,44 @@ def validate_pages(
     return errors, sorted(warnings)
 
 
+def validate_legacy_stylesheets(output: Path) -> list[str]:
+    errors: list[str] = []
+    available_urls = available_reference_urls(output)
+    shared_assets = output / "shared" / "assets"
+    if shared_assets.exists():
+        for path in shared_assets.rglob("*.css"):
+            if path.is_file():
+                errors.append(f"legacy stylesheet must remain mode-specific: {path}")
+
+    for mode in ("desktop", "mobile"):
+        asset_root = output / mode / "assets"
+        if not asset_root.exists():
+            continue
+        for path in asset_root.rglob("*.css"):
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                errors.append(f"legacy stylesheet not utf-8: {path}: {exc}")
+                continue
+            for match in CSS_URL_RE.finditer(text):
+                value = match.group("value").strip()
+                parts = urlsplit(value)
+                if (
+                    parts.scheme
+                    or parts.netloc
+                    or value.startswith(("#", "//", "data:"))
+                ):
+                    continue
+                target = normalized_reference_url(value)
+                if target is None:
+                    errors.append(f"legacy stylesheet local URL not rewritten: {path} -> {value}")
+                elif target not in available_urls:
+                    errors.append(f"broken legacy stylesheet URL: {path} -> {value}")
+    return errors
+
+
 def duplicate_assets(output: Path) -> list[str]:
     groups: dict[tuple[str, str], list[Path]] = {}
     for subtree in (
@@ -283,7 +321,7 @@ def duplicate_assets(output: Path) -> list[str]:
         if not subtree.exists():
             continue
         for path in subtree.rglob("*"):
-            if path.is_file():
+            if path.is_file() and path.suffix.lower() != ".css":
                 groups.setdefault((digest(path), path.suffix.lower()), []).append(path)
 
     errors: list[str] = []
@@ -335,6 +373,7 @@ def main() -> None:
     page_errors, warnings = validate_pages(output, sources)
     errors.extend(page_errors)
     errors.extend(frontpage_output_leaks(output))
+    errors.extend(validate_legacy_stylesheets(output))
     errors.extend(duplicate_assets(output))
 
     for warning in warnings:

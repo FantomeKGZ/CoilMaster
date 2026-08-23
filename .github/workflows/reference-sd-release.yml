@@ -63,16 +63,21 @@ jobs:
             echo "source_run_id must be numeric" >&2
             exit 1
           }
-          [[ "$release_tag" != *
+          [[ ! "$release_tag" =~ [[:cntrl:]] && ! "$release_title" =~ [[:cntrl:]] ]] || {
+            echo "release request values must not contain control characters" >&2
+            exit 1
+          }
+          echo "source_run_id=$source_run_id" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
+
+      - name: Validate GREEN source run
         id: source
         shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ steps.request.outputs.source_run_id }}
         run: |
           set -euo pipefail
-          if [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo "source_run_id must be numeric" >&2
-            exit 1
-          fi
-
           run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
           conclusion="$(jq -r '.conclusion' <<<"$run_json")"
           status="$(jq -r '.status' <<<"$run_json")"
@@ -109,6 +114,8 @@ jobs:
 
       - name: Download exact SD bundle artifact
         shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ steps.request.outputs.source_run_id }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/source-web"
@@ -128,6 +135,7 @@ jobs:
         shell: bash
         env:
           SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
+          SOURCE_RUN_ID: ${{ steps.request.outputs.source_run_id }}
         run: |
           set -euo pipefail
           python3 - "$RUNNER_TEMP/source-web/web-bundle-manifest.json" <<'PY'
@@ -200,18 +208,19 @@ jobs:
       - name: Write release notes
         shell: bash
         env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
           ARCHIVE_SHA: ${{ steps.package.outputs.archive_sha }}
         run: |
           python3 - "$RUNNER_TEMP/source-web/web-bundle-manifest.json" "$RUNNER_TEMP/release-notes.md" <<'PY'
           import json
           import os
           import sys
+          import textwrap
 
           manifest = json.load(open(sys.argv[1], encoding="utf-8"))
           reference = manifest["reference"]
           payload = manifest["web_payload"]
-          notes = f"""# CoilMaster permanent SD web bundle
+          notes = f"""\
+          # CoilMaster permanent SD web bundle
 
           Source Reference workflow run: {manifest['workflow_run_id']}
           CoilMaster commit: `{manifest['coilmaster_commit']}`
@@ -229,393 +238,7 @@ jobs:
           Extract the ZIP and copy its `web/` directory to the root of the microSD card.
           The release is permanent until an operator explicitly deletes the GitHub Release.
           """
-          open(sys.argv[2], "w", encoding="utf-8", newline="\n").write(notes)
-          PY
-
-      - name: Publish immutable GitHub Release
-        shell: bash
-        env:
-          RELEASE_TAG: ${{ steps.package.outputs.release_tag }}
-          RELEASE_TITLE: ${{ steps.package.outputs.release_title }}
-          ARCHIVE: ${{ steps.package.outputs.archive }}
-          CHECKSUM: ${{ steps.package.outputs.checksum }}
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "release tag already exists; refusing to overwrite immutable release: $RELEASE_TAG" >&2
-            exit 1
-          fi
-          gh release create "$RELEASE_TAG" \
-            "$ARCHIVE" \
-            "$CHECKSUM" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$SOURCE_HEAD_SHA" \
-            --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
-\n'* && "$release_title" != *
-        id: source
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo "source_run_id must be numeric" >&2
-            exit 1
-          fi
-
-          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
-          conclusion="$(jq -r '.conclusion' <<<"$run_json")"
-          status="$(jq -r '.status' <<<"$run_json")"
-          workflow_path="$(jq -r '.path' <<<"$run_json")"
-          head_branch="$(jq -r '.head_branch' <<<"$run_json")"
-          head_sha="$(jq -r '.head_sha' <<<"$run_json")"
-          head_repository="$(jq -r '.head_repository.full_name' <<<"$run_json")"
-
-          [[ "$status" == "completed" && "$conclusion" == "success" ]] || {
-            echo "source run is not completed GREEN" >&2
-            exit 1
-          }
-          [[ "$workflow_path" == ".github/workflows/reference-legacy-import.yml" ]] || {
-            echo "source run is not Reference Legacy Import Check: $workflow_path" >&2
-            exit 1
-          }
-          [[ "$head_branch" == "cmp-protocol-v1" ]] || {
-            echo "source run is not from cmp-protocol-v1: $head_branch" >&2
-            exit 1
-          }
-          [[ "$head_repository" == "$GITHUB_REPOSITORY" ]] || {
-            echo "source run belongs to another repository: $head_repository" >&2
-            exit 1
-          }
-          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || {
-            echo "invalid source head SHA" >&2
-            exit 1
-          }
-
-          artifact_name="coilmaster-web-sd-bundle-$head_sha"
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
-          echo "Validated GREEN source run $SOURCE_RUN_ID at $head_sha"
-
-      - name: Download exact SD bundle artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/source-web"
-          gh run download "$SOURCE_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "${{ steps.source.outputs.artifact_name }}" \
-            --dir "$RUNNER_TEMP/source-web"
-          test -f "$RUNNER_TEMP/source-web/web-bundle-manifest.json"
-
-      - name: Checkout exact source commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.source.outputs.head_sha }}
-          persist-credentials: false
-
-      - name: Verify provenance, payload hash and offline closure
-        shell: bash
-        env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          python3 - "$RUNNER_TEMP/source-web/web-bundle-manifest.json" <<'PY'
-          import json
-          import os
-          import sys
-
-          manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-          if manifest.get("schema_version") != 2:
-              raise SystemExit("release requires web bundle manifest schema v2")
-          if manifest.get("coilmaster_commit") != os.environ["SOURCE_HEAD_SHA"]:
-              raise SystemExit("manifest CoilMaster commit does not match source run")
-          if manifest.get("workflow_run_id") != int(os.environ["SOURCE_RUN_ID"]):
-              raise SystemExit("manifest workflow run ID does not match source run")
-          if manifest.get("coilmaster_branch") != "cmp-protocol-v1":
-              raise SystemExit("manifest branch is not cmp-protocol-v1")
-          print("release provenance: OK")
-          PY
-
-          python3 tools/build_web_bundle_manifest.py \
-            --web-bundle "$RUNNER_TEMP/source-web" \
-            --verify
-          python3 tools/check_web_bundle_offline.py \
-            --web-bundle "$RUNNER_TEMP/source-web"
-
-      - name: Package immutable release assets
-        id: package
-        shell: bash
-        env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          short_sha="${SOURCE_HEAD_SHA:0:12}"
-          release_tag="$REQUESTED_TAG"
-          if [[ -z "$release_tag" ]]; then
-            release_tag="coilmaster-web-sd-$SOURCE_HEAD_SHA"
-          fi
-          if [[ ! "$release_tag" =~ ^[A-Za-z0-9._-]+$ ]]; then
-            echo "release_tag may contain only A-Z, a-z, 0-9, dot, underscore and dash" >&2
-            exit 1
-          fi
-
-          release_title="$REQUESTED_TITLE"
-          if [[ -z "$release_title" ]]; then
-            release_title="CoilMaster Web SD $short_sha"
-          fi
-
-          package_root="$RUNNER_TEMP/release-package"
-          archive="$RUNNER_TEMP/coilmaster-web-sd-$SOURCE_HEAD_SHA.zip"
-          mkdir -p "$package_root/web"
-          cp -a "$RUNNER_TEMP/source-web/." "$package_root/web/"
-          (
-            cd "$package_root"
-            zip -q -r -9 "$archive" web
-          )
-          (
-            cd "$RUNNER_TEMP"
-            sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256"
-          )
-
-          archive_sha="$(cut -d' ' -f1 "$archive.sha256")"
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
-          echo "archive_sha=$archive_sha" >> "$GITHUB_OUTPUT"
-          echo "checksum=$archive.sha256" >> "$GITHUB_OUTPUT"
-
-      - name: Write release notes
-        shell: bash
-        env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-          ARCHIVE_SHA: ${{ steps.package.outputs.archive_sha }}
-        run: |
-          python3 - "$RUNNER_TEMP/source-web/web-bundle-manifest.json" "$RUNNER_TEMP/release-notes.md" <<'PY'
-          import json
-          import os
-          import sys
-
-          manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-          reference = manifest["reference"]
-          payload = manifest["web_payload"]
-          notes = f"""# CoilMaster permanent SD web bundle
-
-          Source Reference workflow run: {manifest['workflow_run_id']}
-          CoilMaster commit: `{manifest['coilmaster_commit']}`
-          Legacy reference commit: `{manifest['legacy_commit']}`
-
-          - Reference catalog entries: {reference['catalog_entries']}
-          - Reference files: {reference['files']}
-          - Reference bytes: {reference['bytes']}
-          - Reference HTML: {reference['html_files']}
-          - /web payload files: {payload['files']}
-          - /web payload bytes: {payload['bytes']}
-          - /web payload SHA-256: `{payload['sha256']}`
-          - Release ZIP SHA-256: `{os.environ['ARCHIVE_SHA']}`
-
-          Extract the ZIP and copy its `web/` directory to the root of the microSD card.
-          The release is permanent until an operator explicitly deletes the GitHub Release.
-          """
-          open(sys.argv[2], "w", encoding="utf-8", newline="\n").write(notes)
-          PY
-
-      - name: Publish immutable GitHub Release
-        shell: bash
-        env:
-          RELEASE_TAG: ${{ steps.package.outputs.release_tag }}
-          RELEASE_TITLE: ${{ steps.package.outputs.release_title }}
-          ARCHIVE: ${{ steps.package.outputs.archive }}
-          CHECKSUM: ${{ steps.package.outputs.checksum }}
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "release tag already exists; refusing to overwrite immutable release: $RELEASE_TAG" >&2
-            exit 1
-          fi
-          gh release create "$RELEASE_TAG" \
-            "$ARCHIVE" \
-            "$CHECKSUM" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$SOURCE_HEAD_SHA" \
-            --title "$RELEASE_TITLE" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
-\n'* ]] || {
-            echo "release request values must be single-line" >&2
-            exit 1
-          }
-          echo "source_run_id=$source_run_id" >> "$GITHUB_OUTPUT"
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
-
-      - name: Validate GREEN source run
-        id: source
-        shell: bash
-        env:
-          SOURCE_RUN_ID: ${{ steps.request.outputs.source_run_id }}
-        run: |
-          set -euo pipefail
-          if [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]; then
-            echo "source_run_id must be numeric" >&2
-            exit 1
-          fi
-
-          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
-          conclusion="$(jq -r '.conclusion' <<<"$run_json")"
-          status="$(jq -r '.status' <<<"$run_json")"
-          workflow_path="$(jq -r '.path' <<<"$run_json")"
-          head_branch="$(jq -r '.head_branch' <<<"$run_json")"
-          head_sha="$(jq -r '.head_sha' <<<"$run_json")"
-          head_repository="$(jq -r '.head_repository.full_name' <<<"$run_json")"
-
-          [[ "$status" == "completed" && "$conclusion" == "success" ]] || {
-            echo "source run is not completed GREEN" >&2
-            exit 1
-          }
-          [[ "$workflow_path" == ".github/workflows/reference-legacy-import.yml" ]] || {
-            echo "source run is not Reference Legacy Import Check: $workflow_path" >&2
-            exit 1
-          }
-          [[ "$head_branch" == "cmp-protocol-v1" ]] || {
-            echo "source run is not from cmp-protocol-v1: $head_branch" >&2
-            exit 1
-          }
-          [[ "$head_repository" == "$GITHUB_REPOSITORY" ]] || {
-            echo "source run belongs to another repository: $head_repository" >&2
-            exit 1
-          }
-          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]] || {
-            echo "invalid source head SHA" >&2
-            exit 1
-          }
-
-          artifact_name="coilmaster-web-sd-bundle-$head_sha"
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
-          echo "Validated GREEN source run $SOURCE_RUN_ID at $head_sha"
-
-      - name: Download exact SD bundle artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/source-web"
-          gh run download "$SOURCE_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "${{ steps.source.outputs.artifact_name }}" \
-            --dir "$RUNNER_TEMP/source-web"
-          test -f "$RUNNER_TEMP/source-web/web-bundle-manifest.json"
-
-      - name: Checkout exact source commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ steps.source.outputs.head_sha }}
-          persist-credentials: false
-
-      - name: Verify provenance, payload hash and offline closure
-        shell: bash
-        env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          python3 - "$RUNNER_TEMP/source-web/web-bundle-manifest.json" <<'PY'
-          import json
-          import os
-          import sys
-
-          manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-          if manifest.get("schema_version") != 2:
-              raise SystemExit("release requires web bundle manifest schema v2")
-          if manifest.get("coilmaster_commit") != os.environ["SOURCE_HEAD_SHA"]:
-              raise SystemExit("manifest CoilMaster commit does not match source run")
-          if manifest.get("workflow_run_id") != int(os.environ["SOURCE_RUN_ID"]):
-              raise SystemExit("manifest workflow run ID does not match source run")
-          if manifest.get("coilmaster_branch") != "cmp-protocol-v1":
-              raise SystemExit("manifest branch is not cmp-protocol-v1")
-          print("release provenance: OK")
-          PY
-
-          python3 tools/build_web_bundle_manifest.py \
-            --web-bundle "$RUNNER_TEMP/source-web" \
-            --verify
-          python3 tools/check_web_bundle_offline.py \
-            --web-bundle "$RUNNER_TEMP/source-web"
-
-      - name: Package immutable release assets
-        id: package
-        shell: bash
-        env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          short_sha="${SOURCE_HEAD_SHA:0:12}"
-          release_tag="$REQUESTED_TAG"
-          if [[ -z "$release_tag" ]]; then
-            release_tag="coilmaster-web-sd-$SOURCE_HEAD_SHA"
-          fi
-          if [[ ! "$release_tag" =~ ^[A-Za-z0-9._-]+$ ]]; then
-            echo "release_tag may contain only A-Z, a-z, 0-9, dot, underscore and dash" >&2
-            exit 1
-          fi
-
-          release_title="$REQUESTED_TITLE"
-          if [[ -z "$release_title" ]]; then
-            release_title="CoilMaster Web SD $short_sha"
-          fi
-
-          package_root="$RUNNER_TEMP/release-package"
-          archive="$RUNNER_TEMP/coilmaster-web-sd-$SOURCE_HEAD_SHA.zip"
-          mkdir -p "$package_root/web"
-          cp -a "$RUNNER_TEMP/source-web/." "$package_root/web/"
-          (
-            cd "$package_root"
-            zip -q -r -9 "$archive" web
-          )
-          (
-            cd "$RUNNER_TEMP"
-            sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256"
-          )
-
-          archive_sha="$(cut -d' ' -f1 "$archive.sha256")"
-          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
-          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
-          echo "archive_sha=$archive_sha" >> "$GITHUB_OUTPUT"
-          echo "checksum=$archive.sha256" >> "$GITHUB_OUTPUT"
-
-      - name: Write release notes
-        shell: bash
-        env:
-          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
-          ARCHIVE_SHA: ${{ steps.package.outputs.archive_sha }}
-        run: |
-          python3 - "$RUNNER_TEMP/source-web/web-bundle-manifest.json" "$RUNNER_TEMP/release-notes.md" <<'PY'
-          import json
-          import os
-          import sys
-
-          manifest = json.load(open(sys.argv[1], encoding="utf-8"))
-          reference = manifest["reference"]
-          payload = manifest["web_payload"]
-          notes = f"""# CoilMaster permanent SD web bundle
-
-          Source Reference workflow run: {manifest['workflow_run_id']}
-          CoilMaster commit: `{manifest['coilmaster_commit']}`
-          Legacy reference commit: `{manifest['legacy_commit']}`
-
-          - Reference catalog entries: {reference['catalog_entries']}
-          - Reference files: {reference['files']}
-          - Reference bytes: {reference['bytes']}
-          - Reference HTML: {reference['html_files']}
-          - /web payload files: {payload['files']}
-          - /web payload bytes: {payload['bytes']}
-          - /web payload SHA-256: `{payload['sha256']}`
-          - Release ZIP SHA-256: `{os.environ['ARCHIVE_SHA']}`
-
-          Extract the ZIP and copy its `web/` directory to the root of the microSD card.
-          The release is permanent until an operator explicitly deletes the GitHub Release.
-          """
-          open(sys.argv[2], "w", encoding="utf-8", newline="\n").write(notes)
+          open(sys.argv[2], "w", encoding="utf-8", newline="\n").write(textwrap.dedent(notes))
           PY
 
       - name: Publish immutable GitHub Release

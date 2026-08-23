@@ -289,7 +289,13 @@ Runs `32644626781`–`32644735339` являются промежуточными
 
 ### Reference full content fidelity — current
 
-Оператор подтвердил GREEN legacy media-attribute batch. Commits `e89813f2...` и `fe2aeed1...` добавляют обязательное сравнение normalized visible text и structural counts (`table/tr/th/td/img/a`) для каждой source/generated desktop/mobile страницы. Exact synthetic regression локально GREEN; полный Reference workflow на 926 + 926 страницах ещё должен подтвердить новый gate.
+Оператор подтвердил GREEN legacy media-attribute batch. Commits `e89813f2...` и `fe2aeed1...` добавляют обязательное сравнение normalized visible text и structural counts (`table/tr/th/td/img/a`) для каждой source/generated desktop/mobile страницы. Exact synthetic regression локально GREEN; оператор подтвердил GREEN полного Reference workflow на 926 + 926 страницах.
 
-Оценка готовности reference-сайта: перенос содержимого 100%, общая готовность 94%; после GREEN полного fidelity workflow — около 96%. После него: снять размер/число файлов нового artifact, выполнить representative UX/offline checks и physical microSD/ESP32 smoke свежего bundle. Report-only audit по-прежнему ничего автоматически не удаляет.
+Оценка готовности reference-сайта: перенос содержимого 100%, общая готовность около 96%. После него: снять размер/число файлов нового artifact, выполнить representative UX/offline checks и physical microSD/ESP32 smoke свежего bundle. Report-only audit по-прежнему ничего автоматически не удаляет.
+
+### Reference exact SD manifest — current
+
+Content-fidelity batch подтверждён GREEN оператором. Текущий follow-up добавляет `tools/build_web_bundle_manifest.py`, regression `Tests/Web/check_web_bundle_manifest.py` и manifest schema v2 с exact counts/bytes и payload-tree SHA-256. Workflow создаёт и немедленно verify-ит manifest до публикации artifact. Локальный positive/tamper contract GREEN; новый Actions batch ещё не объявлен GREEN.
+
+После GREEN перенести exact metrics/hash из workflow summary в integration log, затем выполнить representative desktop/mobile UX и physical microSD/ESP32 smoke свежего artifact. Автоматическое удаление audit candidates по-прежнему запрещено.
 

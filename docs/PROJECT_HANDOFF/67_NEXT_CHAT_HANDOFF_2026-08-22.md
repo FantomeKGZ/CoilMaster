@@ -1,4 +1,4 @@
-# Next chat handoff — CoilMaster cleanup — 2026-08-22
+# Next chat handoff — CoilMaster cleanup — 2026-08-23
 
 ## Source of truth
 
@@ -20,13 +20,56 @@ Align final acceptance exact spool contract
 USER CONFIRMED GREEN
 ```
 
-Documentation-only commits after that confirmation are not independent firmware GREEN evidence and must not be described as such.
+Later commits include documentation cleanup and one regression-test correction. Do not call those later commits CI GREEN until fresh Actions evidence is available.
+
+## Current CI issue/fix
+
+The user supplied 17 failed Actions runs:
+
+```text
+32585065786 32585109948 32585215490 32585252831 32585283088
+32585353529 32588852728 32588893427 32588921793 32589153377
+32589190184 32589218091 32589251728 32589275453 32589344988
+32589369003 32589399093
+```
+
+They are not evidence of 17 separate runtime defects. Inspected jobs/logs show the persistent failure is the same stale test:
+
+```text
+Audit release safety contracts
+Tests/Web/check_release_contracts.js
+```
+
+The test still expected the previous optional-spool expression:
+
+```text
+selection.repairId != repairId || (spoolId != 0UL && selection.spoolId != spoolId)
+```
+
+while current production correctly requires exact immutable spool identity:
+
+```text
+selection.repairId != repairId || selection.spoolId != spoolId
+```
+
+The earliest inspected run `32585065786` also contained stale KG_FIRST assertions for unallocated/spool-optional behavior. Later inspected runs show `Audit kg-first material contracts` GREEN, so that older mismatch was already resolved.
+
+Regression fix committed:
+
+```text
+9fc671121f86b5b25f06e5c59adcd8a9e3d7f154
+Align release safety contract with exact spool provenance
+```
+
+The release test now explicitly requires `spool_id_required_for_kg_first` plus mandatory exact selection-spool equality.
+
+**Next action:** inspect fresh Actions on/after `9fc6711...`. If red, fetch exact first failed step/log; do not roll production back to the old optional-spool behavior.
 
 ## Current cleanup progress
 
-Estimated controlled code/docs/tree cleanup completion: **~94%**.
+Estimated controlled code/docs/tree cleanup completion: **~95%**.
 
-Estimated cleanup remaining: **~6%**.
+Estimated cleanup remaining: **~5%**.
 
 This is a cleanup estimate, not total product release readiness. Physical hardware smoke/rescue-restore proof is a separate gate.
 
@@ -47,19 +90,9 @@ This is a cleanup estimate, not total product release readiness. Physical hardwa
 - linked spool-selection persistence/closure hardening;
 - current KG_FIRST store + HTTP + desktop/mobile UI aligned to exact immutable spool;
 - historical unallocated writeoff compatibility retained read-only/recovery-side;
-- top-level final acceptance contract aligned with current exact-spool production rule;
 - snapshot/state/selection crash-residue policy reviewed and classified by transaction boundary;
-- AI maintenance entrypoint, change router and verification matrix aligned with current GREEN/exact-spool model.
-
-Recent documentation cleanup commits after the GREEN implementation baseline:
-
-```text
-fa2e14c5...  Align AI start guide with exact spool baseline
-e2860fa6...  Align AI change router with exact spool flow
-50ab5705...  Align verification matrix with current GREEN baseline
-```
-
-These are documentation commits only; they do not supersede `e16a7dae...` as firmware GREEN evidence.
+- top-level/AI maintenance routing aligned with exact-spool model;
+- repeated stale release-safety regression identified and corrected at `9fc6711...`.
 
 Authoritative runtime/provenance detail:
 
@@ -138,9 +171,13 @@ The policies differ because the files represent different transaction boundaries
 - reboot never auto-continues restore/apply;
 - no automatic production-data deletion or automatic NDJSON truncation.
 
-## Remaining cleanup — continue directly (~6%)
+## Remaining cleanup — continue directly (~5%)
 
-### 1. Final ESP32/Arduino owner inventory
+### 1. Verify fresh post-fix CI
+
+Check fresh Actions on/after `9fc6711...`. Record exact workflow/run result. If failure remains, inspect first failed step/log before editing.
+
+### 2. Final ESP32/Arduino owner inventory
 
 Continue owner-by-owner over build-included source. For each suspicious duplicate/stale file classify:
 
@@ -150,19 +187,19 @@ DELETE / MERGE / KEEP / REVIEW
 
 Do not use empty GitHub code-search as sole deletion proof. Inspect build ownership, direct call-sites, API route ownership, persistence/recovery dependencies, tests, and operator workflow.
 
-### 2. Remaining stale contracts/docs sweep
+### 3. Remaining stale contracts/docs sweep
 
-AI entrypoint/router/verification matrix are now aligned. Continue checking remaining thematic docs/tests for statements that imply **new production** KG_FIRST may omit `spool_id` or choose a post-run `UNALLOCATED` fallback. Historical schema/recovery references to old unallocated records are valid and should remain.
+Continue checking thematic docs/tests for statements that imply **new production** KG_FIRST may omit `spool_id` or choose a post-run `UNALLOCATED` fallback. Historical schema/recovery references to old unallocated records are valid and should remain.
 
-### 3. Final zero-debt tree pass
+### 4. Final zero-debt tree pass
 
 Check top-level tree, production source directories, tests, scripts/tools, docs references and Web shared assets. Preserve known KEEP clusters unless new direct proof shows otherwise.
 
-### 4. Final handoff consolidation
+### 5. Final handoff consolidation
 
 Keep this file and `06_ACTIVE_WORK_AND_NEXT_STEPS.md` synchronized. Do not restart completed audit/provenance/residue review in the next chat unless current source gives a concrete inconsistency.
 
-### 5. Hardware/runtime logs only when needed
+### 6. Hardware/runtime logs only when needed
 
 Do not ask the user for broad logs during source cleanup. When a remaining issue is hardware-only, request the exact Serial interval needed.
 

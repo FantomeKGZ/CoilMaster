@@ -103,7 +103,7 @@ Known fixed functions:
 ```text
 D2–D9   keypad
 D10     physical START
-D11     buzzer
+A3      buzzer
 D12     SSR
 A0      Hall
 A1      Arduino TX → ESP32 RX

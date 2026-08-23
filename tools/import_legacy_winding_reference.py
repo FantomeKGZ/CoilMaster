@@ -2,7 +2,7 @@
 """Import the legacy winding reference into the CoilMaster static-site layout.
 
 The source is the old Windows-1251 HTML reference stored in
-FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}.  This importer:
+FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 
 * preserves page bodies, tables, descriptions, images and internal HTML links;
 * removes only the legacy top banner/logo block (``div.verh``);
@@ -32,10 +32,8 @@ HTML_SUFFIXES = {".html", ".htm"}
 SKIP_ASSETS = {"images/verh.jpg"}
 
 BODY_RE = re.compile(r"<body\b[^>]*>(?P<body>.*)</body\s*>", re.I | re.S)
-HEAD_RE = re.compile(r"<head\b[^>]*>(?P<head>.*)</head\s*>", re.I | re.S)
 TITLE_RE = re.compile(r"<title\b[^>]*>(?P<title>.*?)</title\s*>", re.I | re.S)
 VERH_RE = re.compile(r"<div\b[^>]*class=[\"'][^\"']*\bverh\b[^\"']*[\"'][^>]*>.*?</div\s*>", re.I | re.S)
-LEGACY_CSS_RE = re.compile(r"<link\b[^>]*href=[\"']documents/style\.css[\"'][^>]*>", re.I)
 CHARSET_META_RE = re.compile(r"<meta\b[^>]*(?:charset\s*=|http-equiv=[\"']Content-Type[\"'])[^>]*>", re.I)
 ATTR_RE = re.compile(r"(?P<prefix>\b(?:href|src)\s*=\s*)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)", re.I)
 
@@ -150,7 +148,14 @@ def rewrite_url(value: str, current_rel: str, mode: str, shared_for_mode: dict[s
     resolved = resolve_rel(current_rel, decoded_path)
     suffix = Path(resolved).suffix.lower()
     if suffix in HTML_SUFFIXES:
-        new_path = f"/sites/reference/{mode}/pages/{resolved}"
+        # The exported legacy bundle references index.html from almost every page,
+        # but that file is absent from the source export. Route those legacy
+        # "home" links to the CoilMaster reference entry page instead of
+        # preserving a known-broken target.
+        if resolved.lower() == "index.html":
+            new_path = f"/sites/reference/{mode}/"
+        else:
+            new_path = f"/sites/reference/{mode}/pages/{resolved}"
     else:
         shared_name = shared_for_mode.get(resolved)
         if shared_name:
@@ -179,7 +184,6 @@ def extract_body(source: str) -> str:
     body_match = BODY_RE.search(source)
     body = body_match.group("body") if body_match else source
     body = VERH_RE.sub("", body)
-    body = LEGACY_CSS_RE.sub("", body)
     return body.strip()
 
 
@@ -271,18 +275,31 @@ def convert_pages(source: ModeSource, output: Path, shared_for_mode: dict[str, s
     return count
 
 
-def write_entry_redirect(output: Path, mode: str, source: ModeSource) -> None:
-    legacy_index = source.root / "index.html"
-    if not legacy_index.exists():
-        return
+def write_entry_link(output: Path, mode: str, source: ModeSource) -> None:
     entry = output / mode / "index.html"
-    current = entry.read_text(encoding="utf-8") if entry.exists() else ""
-    marker = '<a class="cm-reference-link" href="/sites/reference/{mode}/pages/index.html">'.format(mode=mode)
+    if not entry.exists():
+        return
+    # The source export has no index.html. Use the legacy 4A table as a stable
+    # first material when present; otherwise fall back to the first HTML file.
+    preferred = source.root / "4A.html"
+    if preferred.exists():
+        first_rel = "4A.html"
+    else:
+        candidates = sorted(
+            path for path in source.root.rglob("*")
+            if path.is_file() and path.suffix.lower() in HTML_SUFFIXES
+        )
+        if not candidates:
+            return
+        first_rel = rel_posix(candidates[0], source.root)
+    current = entry.read_text(encoding="utf-8")
+    href = f"/sites/reference/{mode}/pages/{first_rel}"
+    marker = f'<a class="cm-reference-link" href="{href}">'
     if marker in current:
         return
     card = (
         '<section class="cm-reference-card"><h3>Материалы справочника</h3>'
-        f'<a class="cm-reference-link" href="/sites/reference/{mode}/pages/index.html">Открыть полный справочник →</a></section>'
+        f'<a class="cm-reference-link" href="{href}">Открыть справочник →</a></section>'
     )
     if "</main>" in current:
         current = current.replace("</main>", card + "\n</main>", 1)
@@ -312,8 +329,8 @@ def main() -> None:
     copy_assets(mobile, output, mobile_shared)
     desktop_pages = convert_pages(desktop, output, desktop_shared)
     mobile_pages = convert_pages(mobile, output, mobile_shared)
-    write_entry_redirect(output, "desktop", desktop)
-    write_entry_redirect(output, "mobile", mobile)
+    write_entry_link(output, "desktop", desktop)
+    write_entry_link(output, "mobile", mobile)
 
     print(f"desktop pages: {desktop_pages}")
     print(f"mobile pages: {mobile_pages}")

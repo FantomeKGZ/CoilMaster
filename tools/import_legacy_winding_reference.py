@@ -11,7 +11,7 @@ FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 * rewrites internal links so each UI mode stays inside its own page tree;
 * normalizes legacy Windows path casing to the real source-file spelling;
 * stores every repeated byte-identical non-CSS asset with the same suffix once in ``shared/assets``;
-* keeps legacy CSS mode-specific, converts it to UTF-8 and rewrites ``url(...)`` targets;
+* keeps legacy CSS mode-specific, converts it to UTF-8 and rewrites ``url(...)``/``@import`` targets;
 * keeps assets that occur only once below ``desktop/assets`` or ``mobile/assets``;
 * generates one shared searchable catalog for all real legacy pages;
 * excludes Microsoft FrontPage ``_vti_*`` metadata from the published site.
@@ -43,6 +43,10 @@ CHARSET_META_RE = re.compile(r"<meta\b[^>]*(?:charset\s*=|http-equiv=[\"']Conten
 ATTR_RE = re.compile(r"(?P<prefix>\b(?:href|src)\s*=\s*)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)", re.I)
 CSS_URL_RE = re.compile(
     r"(?P<prefix>\burl\(\s*)(?P<quote>[\"']?)(?P<value>.*?)(?P=quote)(?P<suffix>\s*\))",
+    re.I,
+)
+CSS_IMPORT_RE = re.compile(
+    r"(?P<prefix>@import\s+)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
     re.I,
 )
 
@@ -266,7 +270,22 @@ def rewrite_css_urls(
             f"{match.group('quote')}{match.group('suffix')}"
         )
 
-    return CSS_URL_RE.sub(replace, stylesheet)
+    rewritten = CSS_URL_RE.sub(replace, stylesheet)
+
+    def replace_import(match: re.Match[str]) -> str:
+        rewritten_url = rewrite_url(
+            match.group("value"),
+            current_rel,
+            mode,
+            source_root,
+            shared_for_mode,
+        )
+        return (
+            f"{match.group('prefix')}{match.group('quote')}{rewritten_url}"
+            f"{match.group('quote')}"
+        )
+
+    return CSS_IMPORT_RE.sub(replace_import, rewritten)
 
 
 def extract_title(source: str) -> str:
@@ -385,6 +404,7 @@ def convert_pages(
         body = extract_body(raw)
         body = CHARSET_META_RE.sub("", body)
         body = rewrite_links(body, rel, source.mode, source.root, shared_for_mode)
+        body = rewrite_css_urls(body, rel, source.mode, source.root, shared_for_mode)
         target = output / source.mode / "pages" / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(shell(title, body, source.mode, rel), encoding="utf-8", newline="\n")

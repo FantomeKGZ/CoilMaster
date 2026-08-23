@@ -182,6 +182,30 @@
       });
   }
 
+  function initBundleProvenance(){
+    const host=document.querySelector('.cm-reference-top')||
+      document.querySelector('.cm-reference-page-toolbar');
+    if(!host) return;
+    const node=document.createElement('span');
+    node.className='cm-reference-bundle';
+    node.textContent='SD web unknown';
+    host.appendChild(node);
+    fetch('/web-bundle-manifest.json',{cache:'no-store'})
+      .then(function(response){
+        if(!response.ok) throw new Error('bundle_manifest_http_'+response.status);
+        return response.json();
+      })
+      .then(function(bundle){
+        const commit=String(bundle.coilmaster_commit||'');
+        if(bundle.schema_version!==1||!(/^[0-9a-f]{40}$/i.test(commit))) return;
+        node.textContent='SD '+commit.slice(0,8);
+        node.title='Web bundle '+commit+
+          ' · legacy '+String(bundle.legacy_commit||'unknown')+
+          ' · '+String(bundle.generated_utc||'unknown');
+      })
+      .catch(function(){});
+  }
+
   window.CMReferenceSearch={
     normalizeSearch:normalizeSearch,
     rankCatalog:rankCatalog
@@ -193,6 +217,7 @@
     normalizeModeLinks(document);
     wrapTables(document.querySelector('.cm-reference-content')||document);
     initCatalogSearch(mode);
+    initBundleProvenance();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();

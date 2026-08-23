@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-22**  
+Дата обновления: **2026-08-23**  
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
@@ -25,15 +25,15 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 ## Current verification baseline
 
-Последний явно подтверждённый пользователем implementation GREEN state:
+Последний подтверждённый implementation/test GREEN baseline:
 
 ```text
-e16a7daeae8962e4eb6b457661970f873faf8a87
-Align final acceptance exact spool contract
-USER CONFIRMED GREEN
+ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+Harden release safety contract against stale JSON assertions
+CMP Protocol Tests GREEN
 ```
 
-Более поздние documentation-only commits не создают новый firmware GREEN baseline. Более поздние implementation changes требуют нового applicable workflow result или явного подтверждения пользователя.
+Точные Actions evidence записаны в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Более поздние documentation-only commits не создают новый firmware GREEN baseline. Более поздние implementation changes требуют нового applicable workflow result или явного подтверждения пользователя.
 
 ## Current active phase
 
@@ -60,7 +60,7 @@ docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-На момент этого обновления cleanup оценивается примерно в **94% complete / 6% remaining**. Не переносить этот процент механически после новых изменений.
+На момент этого обновления cleanup оценивается примерно в **96% complete / 4% remaining**. Не переносить этот процент механически после новых изменений.
 
 ## Safety invariants
 

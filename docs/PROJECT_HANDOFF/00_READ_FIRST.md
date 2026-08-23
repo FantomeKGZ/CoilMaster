@@ -33,7 +33,7 @@ Harden release safety contract against stale JSON assertions
 CMP Protocol Tests GREEN
 ```
 
-Точные Actions evidence записаны в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Более поздние documentation-only commits не создают новый firmware GREEN baseline. Более поздние implementation changes требуют нового applicable workflow result или явного подтверждения пользователя.
+Точные Actions evidence записаны в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Более поздние documentation-only commits не создают новый firmware GREEN baseline. Implementation fix `06a752663504d58ca6908414f8aa8786007c6877` требует нового applicable workflow result или явного подтверждения пользователя; пока GREEN для него не заявлен.
 
 ## Current active phase
 
@@ -60,7 +60,7 @@ docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-На момент этого обновления cleanup оценивается примерно в **96% complete / 4% remaining**. Не переносить этот процент механически после новых изменений.
+На момент этого обновления cleanup оценивается примерно в **98% complete / 2% remaining**. Named split-owner и crash-residue REVIEW items закрыты; остаток — финальная сводная классификация, CI evidence для последнего implementation fix и cleanup-complete checkpoint. Не переносить этот процент механически после новых изменений.
 
 ## Safety invariants
 
@@ -116,8 +116,10 @@ JobSpoolSelectionStore .json.tmp
   KEEP bounded recovery of one fully valid pre-UART selection temp when final is absent
 
 JobSnapshotStore .json.tmp
-  REVIEW / fail-closed resilience; before durable state, no ad-hoc auto-delete/promote
+  KEEP non-authoritative preparation crash evidence; no auto-promote/resume/delete
 ```
+
+For `JobSnapshotStore`, persistent job/session ID allocation happens before snapshot creation, while authoritative `JobState CREATED` is committed only after successful final snapshot rename/verification. A leftover snapshot `.tmp` therefore cannot become an authoritative job and its session ID is not reused.
 
 The policies differ because their durable transaction boundaries differ.
 
@@ -137,4 +139,4 @@ DELETE / MERGE / KEEP / REVIEW
 
 Inspect build inclusion, direct call-sites, HTTP/static ownership, persistence/recovery, tests, operator workflow and docs routing. A filename containing `Legacy`, `Old` or similar is never deletion proof.
 
-Current remaining work is primarily final owner inventory, stale thematic contract/docs sweep, final tree/Web/shared/scripts/tools zero-debt pass and handoff consolidation. Do not restart completed A–E audit or provenance/residue review without a concrete current-source inconsistency.
+Current remaining work is final consolidation of already audited owners, CI evidence for the latest warehouse bootstrap implementation correction when available, and cleanup-complete handoff synchronization. Do not restart completed A–E audit or provenance/residue review without a concrete current-source inconsistency.

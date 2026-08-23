@@ -8,7 +8,7 @@ on:
     paths:
       - tools/import_legacy_winding_reference.py
       - tools/check_legacy_winding_reference.py
-      - firmware/esp32/web/sites/reference/**
+      - firmware/esp32/web/**
       - .github/workflows/reference-legacy-import.yml
 
 permissions:

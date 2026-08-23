@@ -706,3 +706,55 @@ test(reference): exercise single runtime backslashes
 ```
 
 Аудитор теперь разрешает absolute, POSIX-relative и Windows-backslash URLs относительно реального HTML/CSS файла. Это уменьшает ложные `unreferenced` результаты. Неиспользуемые assets дополнительно группируются по расширению с count/bytes в JSON artifact и Actions summary. Synthetic regression локально GREEN; новый Actions batch пока не перенесён в verified baseline.
+
+
+---
+
+## 2026-08-23 — глобальная content-addressed дедупликация assets
+
+Оператор явно подтвердил GREEN предыдущего URL-accuracy/audit-classification batch до начала этого изменения.
+
+Проверка importer показала ограничение старой схемы: ресурс становился shared только при совпадении desktop/mobile, а shared filename включал legacy basename. Поэтому одинаковые байты с разными именами либо повтор внутри одного mode могли физически сохраняться больше одного раза.
+
+Новая схема группирует все assets по:
+
+```text
+SHA-256 bytes + lowercase suffix
+```
+
+Если группа содержит два и более файла, все исходные ссылки переписываются на единственный content-addressed target:
+
+```text
+/sites/reference/shared/assets/<full-sha256><suffix>
+```
+
+Одинаковые байты с разными расширениями намеренно не объединяются, чтобы сохранить корректное MIME-разрешение static server.
+
+Commits:
+
+```text
+70134c05b81476cf435c034f31fa3b5350838abe
+perf(reference): deduplicate all repeated assets
+
+9d615beec8ad3732d6f00479dbf7ec630e32fd19
+test(reference): require global asset deduplication
+
+c6d9879aaa3914a2c6b139423e8ff9a936d6c74b
+test(reference): cover global content-addressed dedup
+
+2cae0ebdf6a6dc59f5373f2608db4b72d4e86b92
+ci(reference): run global asset dedup contracts
+
+7ac48473de54167b3a5ddbd85be16755c41522f7
+fix(reference): keep cross-suffix assets distinct
+
+cc09993f8bfdf561357467166032efe5e5d22be7
+test(reference): preserve identical cross-suffix assets
+
+ab75e081cdd1ca3a1597b8ed5a6224ea22aef8d2
+docs(sd): document global reference asset dedup
+```
+
+Checker теперь ищет duplicate `SHA-256 + suffix` во всех shared/desktop/mobile asset trees, а не только совпадения между mode-specific desktop/mobile. Synthetic importer regression проверяет разные legacy-имена, повтор внутри desktop, совпадение desktop/mobile, переписанные URLs, mode-unique файл и одинаковые bytes с другим suffix.
+
+Generated pages, catalog coverage и safety/runtime не изменяются. Новый full Reference Actions результат для этого batch ещё не объявлен GREEN.

@@ -42,10 +42,28 @@ def css_values(text: str):
 
 
 def srcset_values(value: str):
-    for candidate in value.split(","):
-        url = candidate.strip().split(None, 1)[0] if candidate.strip() else ""
-        if url:
-            yield url
+    """Parse srcset candidates without splitting the comma inside data URLs."""
+    index = 0
+    length = len(value)
+    while index < length:
+        while index < length and (value[index].isspace() or value[index] == ","):
+            index += 1
+        if index >= length:
+            break
+        start = index
+        if value[index:].casefold().startswith("data:"):
+            while index < length and not value[index].isspace():
+                index += 1
+        else:
+            while index < length and not value[index].isspace() and value[index] != ",":
+                index += 1
+        candidate = value[start:index]
+        if candidate:
+            yield candidate
+        while index < length and value[index] != ",":
+            index += 1
+        if index < length:
+            index += 1
 
 
 class ResourceParser(HTMLParser):

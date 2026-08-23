@@ -210,6 +210,13 @@ def validate_pages(
                 errors.append(f"shared stylesheet missing: {page}")
             if "/sites/reference/shared/reference.js" not in text:
                 errors.append(f"shared script missing: {page}")
+            if 'class="cm-reference-page-toolbar"' not in text:
+                errors.append(f"generated page top navigation missing: {page}")
+            if 'class="cm-reference-page-footer"' not in text:
+                errors.append(f"generated page bottom navigation missing: {page}")
+            mode_home = f'href="/sites/reference/{mode}/"'
+            if mode_home not in text:
+                errors.append(f"generated page reference-home target missing: {page}")
             for match in ATTR_RE.finditer(text):
                 value = match.group("value")
                 target = normalized_reference_url(value)

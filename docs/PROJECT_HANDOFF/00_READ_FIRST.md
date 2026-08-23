@@ -11,6 +11,7 @@
 this file
 docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/68_REFERENCE_INTEGRATION_LOG_2026-08-23.md
 docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/AI_AGENT/00_START_HERE.md
@@ -44,6 +45,16 @@ fix(esp32): remove duplicate warehouse web bootstrap
 Более поздние checkpoint commits — documentation/status synchronization.
 
 ## Current active phase
+
+Software cleanup закрыт. Текущая активная продуктовая работа — интеграция legacy-справочника обмотчика из `FantomeKGZ/motor-winding-reference` с единым desktop/mobile дизайном CoilMaster, общими ресурсами и сохранением таблиц/изображений/описаний.
+
+Подробный хронологический журнал этой работы:
+
+```text
+docs/PROJECT_HANDOFF/68_REFERENCE_INTEGRATION_LOG_2026-08-23.md
+```
+
+Его обновлять после каждого завершённого блока вместе с обычным handoff current-state.
 
 Full code audit A..E завершён:
 
@@ -131,4 +142,4 @@ Do not ask for broad Serial logs. Ask for an exact capture window only when a co
 
 ## Next work rule
 
-Software cleanup is closed. Continue from a concrete product/runtime goal, hardware verification result, bug, feature, or documentation contract change. Do not restart completed audit/provenance/crash-residue work without new evidence.
+Software cleanup is closed. Continue from the active winding-reference integration log or another concrete product/runtime goal, hardware verification result, bug, feature, or documentation contract change. Do not restart completed audit/provenance/crash-residue work without new evidence.

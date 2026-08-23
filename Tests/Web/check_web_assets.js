@@ -23,6 +23,21 @@ for (const file of files) {
   }
 }
 
+function staticTargetExists(target) {
+  let decoded;
+  try {
+    decoded = decodeURIComponent(target);
+  } catch (_) {
+    decoded = target;
+  }
+  const relative = decoded.replace(/^\/+/, '');
+  const candidate = path.resolve(root, relative);
+  const rootPrefix = root.endsWith(path.sep) ? root : root + path.sep;
+  if (candidate !== root && !candidate.startsWith(rootPrefix)) return false;
+  if (fs.existsSync(candidate)) return true;
+  return fs.existsSync(path.join(candidate, 'index.html'));
+}
+
 const failures = [];
 for (const entry of fs.readdirSync(path.join(root, 'shared'))) {
   if (!entry.endsWith('.js')) continue;
@@ -57,7 +72,7 @@ for (const file of files) {
     if (!href.startsWith('/') || href.startsWith('/api/') ||
         href.startsWith('//') || href.includes("'+")) continue;
     const target = href.split('#')[0].split('?')[0];
-    if (target === '/' || routes.has(target)) continue;
+    if (target === '/' || routes.has(target) || staticTargetExists(target)) continue;
     failures.push(relative + ': missing internal link target ' + href);
   }
 }
@@ -225,7 +240,7 @@ const applyStatusStart = remoteBackupWeb.indexOf(
   'void RemoteBackupWeb::handleApplyStatus()');
 const applyStatusEnd = remoteBackupWeb.indexOf(
   'bool RemoteBackupWeb::validateInspectionManifest', applyStatusStart);
-const applyStatusSource = applyStatusStart >= 0 && applyStatusEnd > applyStatusStart
+const applyStatusSource = applyStatusStart >= 0 && applyActiveEnd > applyStatusStart
   ? remoteBackupWeb.slice(applyStatusStart, applyStatusEnd) : '';
 if (!applyStatusSource.includes('state = "STALE"') ||
     !applyStatusSource.includes('response += runtimeApplyActive ? F("true") : F("false")')) {
@@ -252,4 +267,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links, desktop navigation icons, motor-import validation, microSD diagnostics, and restore stale-lock contracts OK.');
+console.log('Checked ' + files.length + ' HTML files and injected UI scripts: JavaScript, duplicate ids, internal links/assets, desktop navigation icons, motor-import validation, microSD diagnostics, and restore stale-lock contracts OK.');

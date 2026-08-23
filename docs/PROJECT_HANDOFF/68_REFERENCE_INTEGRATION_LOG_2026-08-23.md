@@ -251,9 +251,98 @@ docs(reference): document SD-ready web artifact
 
 На момент записи этого пункта новый workflow после `46500480...` ещё не объявлен GREEN в этом журнале. GREEN будет записан только после фактического результата Actions или явного подтверждения оператора.
 
+---
+
+## 2026-08-23 — полноценная главная и поиск по 926 страницам
+
+Выявлено, что repository entry pages `desktop/index.html` и `mobile/index.html` всё ещё содержали временный текст о подготовке переноса, а importer давал только один прямой стартовый переход на `4A.html`. Поскольку legacy export не содержит своего `index.html`, такой вход не обеспечивал удобное обнаружение всех 926 страниц.
+
+### Общий searchable catalog
+
+Commit:
+
+```text
+590bd50c9ce4041f7cdb1915312a9837e70dd405
+feat(reference): generate shared page catalog
+```
+
+Importer теперь генерирует:
+
+```text
+/sites/reference/shared/catalog.json
+```
+
+Каталог строится из всех реальных HTML после `_vti_*` фильтрации и содержит:
+
+- canonical relative path;
+- декодированный русский title;
+- наличие страницы в desktop;
+- наличие страницы в mobile.
+
+Один общий JSON используется обеими версиями и не дублирует сами страницы.
+
+### Проверка каталога
+
+Commit:
+
+```text
+3b17ddb4bfff773672ca02ee16452ae6bdece5cb
+test(reference): validate shared page catalog
+```
+
+Integrity checker теперь отклоняет build, если:
+
+- `catalog.json` отсутствует или невалиден;
+- есть duplicate path;
+- title пустой;
+- desktop/mobile availability расходится с source;
+- catalog target отсутствует в generated pages;
+- catalog не покрывает полный union реальных source HTML.
+
+### Shared search UI
+
+Commits:
+
+```text
+61fe5f8f9d935d1f4b653e6e708af8a37ed81f65
+feat(reference): add shared catalog search
+
+c1ae359f7eb4eeffd0c9cfdb76ab91e2012d0a14
+style(reference): add catalog search layout
+```
+
+`reference.js` загружает один `catalog.json`, ищет по русскому title + filename и открывает найденную страницу в текущем `desktop` или `mobile` режиме. Ограничение отрисовки — первые 60 совпадений, при этом пользователю показывается полное число найденных записей.
+
+### Новые entry pages
+
+Commits:
+
+```text
+67bbaaafd754d45e922eb3b22d285695824318d4
+feat(reference): make desktop landing searchable
+
+873f67eb1ae7005f2e3b8020d86ada382da87411
+feat(reference): make mobile landing searchable
+```
+
+Обе главные страницы теперь имеют одинаковую структуру:
+
+- общий CoilMaster navigation shell;
+- поиск по всему каталогу;
+- статус количества найденных страниц;
+- результаты поиска;
+- быстрый переход на таблицу серии 4А;
+- ручной переключатель desktop/mobile.
+
+Временный текст «подготавливается перенос» удалён.
+
+### CI status этого блока
+
+На момент этой записи новые reference workflows после catalog/search commits ещё не занесены как GREEN. Не считать catalog/search batch подтверждённым до фактического Actions результата или явного подтверждения оператора.
+
 ## Следующий непосредственный шаг
 
-1. Проверить `Reference Legacy Import Check` после `46500480...` и наличие artifact `coilmaster-web-sd-bundle-*`.
-2. Зафиксировать фактический полный размер `/web`, reference size и file counts из успешного workflow.
-3. После GREEN перейти к UX-аудиту generated страниц: стартовая страница, внутреннее меню/поиск legacy-справочника, таблицы и адаптивность на mobile/desktop.
-4. Затем подготовить точную процедуру физического обновления `/web` на microSD и короткий smoke-test на ESP32 без затрагивания производственных safety-инвариантов.
+1. Проверить последний `Reference Legacy Import Check` после `873f67e...`.
+2. При GREEN зафиксировать artifact, фактический reference size, полный `/web` size, file counts и catalog entries.
+3. Затем провести следующий UX-аудит generated legacy pages: ширина таблиц, картинки, верх/низ страницы, переход «на главную» и удобство поиска с нескольких типичных запросов.
+4. После repo-reviewable UX закрытия перейти к физическому обновлению `/web` на microSD и короткому ESP32 smoke-test.

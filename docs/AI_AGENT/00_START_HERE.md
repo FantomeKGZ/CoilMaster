@@ -13,19 +13,19 @@ docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 ```
 
-Latest operator-confirmed GREEN implementation baseline:
+Latest operator-confirmed implementation/test GREEN baseline:
 
 ```text
-e16a7daeae8962e4eb6b457661970f873faf8a87
-Align final acceptance exact spool contract
-USER CONFIRMED GREEN
+ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+Harden release safety contract against stale JSON assertions
+CMP Protocol Tests GREEN
 ```
 
-Documentation-only commits after that SHA do not create a new firmware GREEN baseline. Later implementation changes require their own workflow result or later explicit operator confirmation.
+Exact Actions evidence is recorded in `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Documentation-only commits after that SHA do not create a new firmware GREEN baseline. Later implementation changes require their own workflow result or later explicit operator confirmation.
 
 The targeted ESP32<->Arduino hardware smoke remains a separate external verification gate for when the physical stand is needed. It is not inferred from CI and is not counted as software cleanup debt.
 
-The full `cmp-protocol-v1` audit sections A..E are complete. The current software phase is the final controlled repository cleanup/zero-debt sweep. The active handoff estimates that cleanup at about 92% complete; use `06_ACTIVE_WORK_AND_NEXT_STEPS.md` for the current remaining queue rather than copying the percentage forward blindly after new changes.
+The full `cmp-protocol-v1` audit sections A..E are complete. The current software phase is the final controlled repository cleanup/zero-debt sweep. The active handoff estimates that cleanup at about 96% complete; use `06_ACTIVE_WORK_AND_NEXT_STEPS.md` for the current remaining queue rather than copying the percentage forward blindly after new changes.
 
 Cleanup/de-duplication is allowed only after direct dependency proof. Every candidate must be classified `DELETE`, `MERGE`, `KEEP` or `REVIEW`; uncertain dependencies stay in place.
 
@@ -160,7 +160,7 @@ B. ESP32 runtime/API/persistence/integrity/network/backup COMPLETE
 C. desktop/mobile/shared Web parity/error/security        COMPLETE
 D. tests/CI/build filters/path triggers                   COMPLETE
 E. docs/AI routing consistency                            COMPLETE
-F. controlled cleanup/de-duplication                      ACTIVE (~92% at current handoff)
+F. controlled cleanup/de-duplication                      ACTIVE (~96% at current handoff)
 G. separate final hardware smoke when source-level work requires it
 ```
 

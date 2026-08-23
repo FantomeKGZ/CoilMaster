@@ -425,6 +425,45 @@ def validate_legacy_stylesheets(output: Path) -> list[str]:
     return errors
 
 
+
+def validate_shared_ux_runtime(output: Path) -> list[str]:
+    """Require the runtime that makes every preserved legacy table/image usable."""
+    errors: list[str] = []
+    shared = output / "shared"
+    contracts = {
+        shared / "reference.js": (
+            "root.querySelectorAll('table')",
+            "wrap.className='cm-reference-table-scroll'",
+            "wrap.tabIndex=0",
+            "wrap.setAttribute('role','region')",
+            "wrap.setAttribute('aria-label','Прокручиваемая таблица')",
+            "root.querySelectorAll('img')",
+            "image.loading='lazy'",
+            "image.decoding='async'",
+            "image.alt='Иллюстрация: '+name",
+            "wrapTables(content)",
+            "enhanceImages(content)",
+        ),
+        shared / "reference.css": (
+            ".cm-reference-content img{max-width:100%;height:auto}",
+            ".cm-reference-table-scroll{",
+            "overflow-x:auto",
+            "-webkit-overflow-scrolling:touch",
+            ".cm-reference-table-scroll:focus{",
+        ),
+    }
+    for path, required in contracts.items():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            errors.append(f"shared UX runtime unreadable: {path}: {exc}")
+            continue
+        for token in required:
+            if token not in text:
+                errors.append(f"shared UX runtime contract missing {token!r}: {path}")
+    return errors
+
+
 def duplicate_assets(output: Path) -> list[str]:
     groups: dict[tuple[str, str], list[Path]] = {}
     for subtree in (
@@ -489,6 +528,7 @@ def main() -> None:
     errors.extend(page_errors)
     errors.extend(frontpage_output_leaks(output))
     errors.extend(validate_legacy_stylesheets(output))
+    errors.extend(validate_shared_ux_runtime(output))
     errors.extend(duplicate_assets(output))
 
     for warning in warnings:

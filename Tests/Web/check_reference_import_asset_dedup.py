@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import subprocess
 import sys
@@ -12,6 +13,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 IMPORTER = ROOT / "tools" / "import_legacy_winding_reference.py"
+CHECKER = ROOT / "tools" / "check_legacy_winding_reference.py"
+
+
+def load_checker():
+    spec = importlib.util.spec_from_file_location("reference_checker_contract", CHECKER)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load reference checker: {CHECKER}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def write(path: Path, value: str | bytes) -> None:
@@ -87,6 +98,8 @@ def main() -> None:
         assert shared_url in desktop_css and "Стиль" in desktop_css
         assert shared_url in mobile_css and "Стиль" in mobile_css
         assert not list((output / "shared/assets").glob("*.css"))
+        checker = load_checker()
+        assert checker.validate_legacy_stylesheets(output) == []
 
         groups: dict[tuple[str, str], list[Path]] = defaultdict(list)
         for subtree in ("shared/assets", "desktop/assets", "mobile/assets"):

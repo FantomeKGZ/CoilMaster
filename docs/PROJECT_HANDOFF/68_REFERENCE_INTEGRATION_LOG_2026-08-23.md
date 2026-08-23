@@ -1012,3 +1012,32 @@ test(ci): follow authoritative SD manifest builder
 
 Новый контракт проверяет builder path, exact CoilMaster SHA, exact legacy SHA, exact web-bundle path, обязательный `--verify`, workflow path filters и сохранение provenance внутри builder. Exact `check_ci_trigger_contracts.js` локально GREEN. Пять старых runs superseded; новый Actions run ещё не объявлен GREEN.
 
+---
+
+## 2026-08-23 — complete table/image UX gate
+
+Оператор подтвердил GREEN трёх новых тестов после CI provenance correction. Manifest v2 batch принят как repo-level GREEN.
+
+Следующий UX gate связывает сохранённую content-fidelity структуру всех 1852 страниц с обязательным shared runtime:
+
+- каждая legacy-таблица оборачивается в горизонтально прокручиваемый region;
+- region доступен с клавиатуры через `tabIndex=0`, `role=region` и русскую `aria-label`;
+- каждая картинка получает `loading=lazy`, `decoding=async` и fallback alt;
+- CSS обязан сохранять responsive images, touch scrolling и видимый focus;
+- checker отклоняет отсутствие любого из этих runtime/CSS contracts.
+
+Commits:
+
+```text
+006e97a8e27dc50ad07e82a9f851b97ad7de3ea0
+test(reference): require table and image UX runtime
+
+a3cc1a61c57f526316295d22cfd9b6b745f0ac1a
+test(reference): cover table and image UX regression
+
+85e605141e52e5b0316b332e8f379a0101b10bd2
+test(reference): build UX fixture from real shell
+```
+
+Synthetic test теперь воспроизводит production order: сначала committed reference shell, затем legacy import. Exact importer + checker regression локально GREEN, включая отрицательную подмену lazy-loading contract. Новый полный Actions batch ещё не объявлен GREEN.
+

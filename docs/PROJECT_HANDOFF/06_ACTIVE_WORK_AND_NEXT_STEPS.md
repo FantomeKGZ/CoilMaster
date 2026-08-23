@@ -251,3 +251,8 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 - summary counts для unreferenced assets, byte-identical assets, identical pages и страниц без legacy incoming links.
 
 Политика fail-safe: аудит ничего не удаляет и не меняет в SD bundle. Страницы без legacy incoming links остаются searchable через полный каталог. Проверить новый Reference workflow; после GREEN перенести реальные counts/bytes из audit artifact в integration log и только затем классифицировать кандидатов как KEEP или безопасный служебный мусор.
+
+
+### Reference audit CI correction — 2026-08-23
+
+Runs `32643425748` и `32643450801` относятся к superseded regex defect. Runs `32643491396` и `32643578042` дошли до полного reference build и выявили CP1251 legacy stylesheet в report-only scan. Исправление `d7de6693...` добавляет UTF-8/CP1251 decode только для legacy CSS audit; generated HTML UTF-8 gate не ослаблен. Regression `3603b7a2...` воспроизводит CP1251 CSS. Локальный contract test GREEN; дождаться нового Reference run и затем снять реальные audit counts/artifact.

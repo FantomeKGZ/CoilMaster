@@ -4,6 +4,7 @@ const arduino = fs.readFileSync('.github/workflows/arduino-uno-build.yml', 'utf8
 const esp32 = fs.readFileSync('.github/workflows/esp32-build.yml', 'utf8');
 const protocol = fs.readFileSync('.github/workflows/cmp-protocol-tests.yml', 'utf8');
 const reference = fs.readFileSync('.github/workflows/reference-legacy-import.yml', 'utf8');
+const manifestBuilder = fs.readFileSync('tools/build_web_bundle_manifest.py', 'utf8');
 const transport = fs.readFileSync('Arduino/CM_UartEventTransport.cpp', 'utf8');
 
 function requireText(source, needle, message) {
@@ -56,10 +57,24 @@ requireText(reference, '- firmware/esp32/web/**',
   'Reference SD bundle must rebuild for every committed web change');
 requireText(reference, 'web-bundle-manifest.json',
   'Reference SD bundle must include deployment provenance');
-requireText(reference, '"coilmaster_commit": os.environ["GITHUB_SHA"]',
+requireText(reference, 'tools/build_web_bundle_manifest.py',
+  'Reference workflow must use the authoritative SD manifest builder');
+requireText(reference, '--coilmaster-commit "$GITHUB_SHA"',
   'Reference SD manifest must bind to the exact CoilMaster commit');
-requireText(reference, '"legacy_commit": os.environ["LEGACY_SHA"]',
+requireText(reference, '--legacy-commit "$legacy_sha"',
   'Reference SD manifest must bind to the exact legacy source commit');
+requireText(reference, '--web-bundle "$web_bundle"',
+  'Reference SD manifest must cover the exact published web bundle');
+requireText(reference, '--verify',
+  'Reference workflow must verify the completed SD manifest before upload');
+requireText(reference, '- tools/build_web_bundle_manifest.py',
+  'Reference workflow must rebuild when the manifest builder changes');
+requireText(reference, '- Tests/Web/check_web_bundle_manifest.py',
+  'Reference workflow must rebuild when the manifest regression changes');
+requireText(manifestBuilder, '"coilmaster_commit": args.coilmaster_commit',
+  'Manifest builder must persist exact CoilMaster provenance');
+requireText(manifestBuilder, '"legacy_commit": args.legacy_commit',
+  'Manifest builder must persist exact legacy-source provenance');
 
 for (const path of [
   '- "Tests/Protocol/**"',

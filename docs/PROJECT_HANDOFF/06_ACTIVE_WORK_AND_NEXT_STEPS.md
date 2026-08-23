@@ -286,3 +286,10 @@ Runs `32644626781`–`32644735339` являются промежуточными
 ### Reference legacy media attributes — current
 
 Оператор подтвердил GREEN embedded CSS/import batch. Текущий follow-up добавляет `background` и `poster` в importer/checker/audit resource contract вместе с `href/src`. Exact importer/checker/audit tests GREEN. Legacy code search не выявил `srcset`, поэтому отдельный parser не добавлен без source evidence. Проверить новый Reference workflow; runtime/safety не затронуты.
+
+### Reference full content fidelity — current
+
+Оператор подтвердил GREEN legacy media-attribute batch. Commits `e89813f2...` и `fe2aeed1...` добавляют обязательное сравнение normalized visible text и structural counts (`table/tr/th/td/img/a`) для каждой source/generated desktop/mobile страницы. Exact synthetic regression локально GREEN; полный Reference workflow на 926 + 926 страницах ещё должен подтвердить новый gate.
+
+Оценка готовности reference-сайта: перенос содержимого 100%, общая готовность 94%; после GREEN полного fidelity workflow — около 96%. После него: снять размер/число файлов нового artifact, выполнить representative UX/offline checks и physical microSD/ESP32 smoke свежего bundle. Report-only audit по-прежнему ничего автоматически не удаляет.
+

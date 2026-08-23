@@ -16,10 +16,17 @@
 └── sites/
     └── reference/
         ├── mobile/
-        │   └── index.html
+        │   ├── index.html
+        │   ├── pages/
+        │   └── assets/
         ├── desktop/
-        │   └── index.html
-        └── common/          # необязательный резервный вариант
+        │   ├── index.html
+        │   ├── pages/
+        │   └── assets/
+        └── shared/
+            ├── reference.css
+            ├── reference.js
+            └── assets/
 ```
 
 ## Основные маршруты
@@ -45,8 +52,8 @@ cm-ui-version = mobile | desktop
 
 Если запрошенного файла нет:
 
-1. проверяется папка `common`;
-2. затем проверяется альтернативная версия интерфейса;
+1. проверяется общий reference-контент;
+2. затем проверяется альтернативная версия интерфейса там, где это разрешено текущим серверным контрактом;
 3. если файл не найден, сервер возвращает управление обычному обработчику 404.
 
 ## Безопасность путей
@@ -94,6 +101,49 @@ webServer.onNotFound([]()
 
 Маршруты API необходимо регистрировать до `onNotFound()`.
 
-## Размещение файлов на карте
+## Справочник обмотчика и размер репозитория
 
-На первом этапе файлы из репозитория `firmware/esp32/web/` копируются в `/web/` microSD вручную или скриптом подготовки карты. В дальнейшем загрузка и обновление сайтов будут доступны через защищённый сервисный интерфейс и FTP.
+Полный legacy-справочник содержит сотни HTML-страниц и тысячи изображений. Generated-файлы не хранятся постоянно в git-ветке CoilMaster. Вместо этого workflow
+
+```text
+.github/workflows/reference-legacy-import.yml
+```
+
+checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile reference, дедуплицирует одинаковые ресурсы в `sites/reference/shared/assets/`, запускает integrity checker и формирует полный SD-ready `/web` каталог.
+
+Это позволяет:
+
+- не дублировать тысячи generated-файлов в истории CoilMaster;
+- не увеличивать размер firmware flash — справочник обслуживается с microSD;
+- получать один проверенный комплект, в котором основной CoilMaster Web и справочник имеют согласованные версии;
+- сохранять общий CSS/JS и byte-identical изображения справочника только в одном экземпляре.
+
+## Готовый artifact для microSD
+
+Успешный `Reference Legacy Import Check` загружает artifact вида:
+
+```text
+coilmaster-web-sd-bundle-<commit-sha>
+```
+
+Содержимое artifact — готовое содержимое каталога `/web` на microSD. После распаковки структура должна выглядеть как:
+
+```text
+/web/index.html
+/web/mobile/...
+/web/desktop/...
+/web/shared/...
+/web/sites/reference/mobile/...
+/web/sites/reference/desktop/...
+/web/sites/reference/shared/...
+```
+
+Копировать нужно именно содержимое artifact как каталог `/web` карты, а не помещать дополнительный уровень `coilmaster-web` внутрь `/web`.
+
+Перед использованием artifact убедиться, что соответствующий workflow завершился GREEN. CI GREEN подтверждает сборку/целостность файлов, но не заменяет физическую проверку microSD на реальном ESP32.
+
+## Ручное размещение
+
+Без artifact исходные файлы `firmware/esp32/web/` можно копировать в `/web/` microSD вручную. Однако такой способ не содержит полного generated legacy-reference, если импортёр отдельно не запускался. Для полного справочника предпочтителен SD-ready artifact workflow.
+
+В дальнейшем обновление сайтов также может выполняться через предусмотренный сервисный/FTP путь; это не меняет production safety boundary и не даёт Web прямого управления SSR.

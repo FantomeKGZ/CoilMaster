@@ -29,6 +29,9 @@ def write(path: Path, value: str | bytes) -> None:
 
 def main() -> None:
     checker = load_checker()
+    assert list(checker.srcset_values(
+        "data:image/png;base64,AAAA 1x, /assets/photo-2x.jpg 2x"
+    )) == ["data:image/png;base64,AAAA", "/assets/photo-2x.jpg"]
     with tempfile.TemporaryDirectory() as temp:
         web = Path(temp) / "web"
         write(
@@ -39,6 +42,7 @@ def main() -> None:
 </head><body background="/assets/bg.png">
 <a href="https://example.com/manual">Allowed navigation</a>
 <img src="/assets/photo.jpg" srcset="/assets/photo.jpg 1x, /assets/photo-2x.jpg 2x">
+<img src="/assets/photo.jpg" srcset="data:image/png;base64,AAAA 1x">
 <script src="/assets/app.js"></script>
 <div style="background:url('/assets/bg.png')"></div>
 <style>.logo{background:url("/assets/icon.svg")}</style>

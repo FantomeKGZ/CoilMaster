@@ -273,22 +273,26 @@ def validate_pages(
     return errors, sorted(warnings)
 
 
-def duplicate_mode_assets(output: Path) -> list[str]:
-    desktop = output / "desktop" / "assets"
-    mobile = output / "mobile" / "assets"
-    if not desktop.exists() or not mobile.exists():
-        return []
-    desktop_hashes: dict[str, Path] = {}
-    for path in desktop.rglob("*"):
-        if path.is_file():
-            desktop_hashes[digest(path)] = path
-    errors: list[str] = []
-    for path in mobile.rglob("*"):
-        if not path.is_file():
+def duplicate_assets(output: Path) -> list[str]:
+    groups: dict[tuple[str, str], list[Path]] = {}
+    for subtree in (
+        output / "shared" / "assets",
+        output / "desktop" / "assets",
+        output / "mobile" / "assets",
+    ):
+        if not subtree.exists():
             continue
-        other = desktop_hashes.get(digest(path))
-        if other is not None:
-            errors.append(f"duplicate asset should be shared: {other} == {path}")
+        for path in subtree.rglob("*"):
+            if path.is_file():
+                groups.setdefault((digest(path), path.suffix.lower()), []).append(path)
+
+    errors: list[str] = []
+    for paths in groups.values():
+        if len(paths) > 1:
+            errors.append(
+                "byte-identical assets with the same suffix should be shared once: "
+                + " == ".join(str(path) for path in paths)
+            )
     return errors
 
 
@@ -331,7 +335,7 @@ def main() -> None:
     page_errors, warnings = validate_pages(output, sources)
     errors.extend(page_errors)
     errors.extend(frontpage_output_leaks(output))
-    errors.extend(duplicate_mode_assets(output))
+    errors.extend(duplicate_assets(output))
 
     for warning in warnings:
         print(f"SOURCE WARNING: {warning}")

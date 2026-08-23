@@ -72,12 +72,12 @@ for (const file of walkText(esp32SourceRoot, new Set(['.cpp', '.h']))) {
 
 // Recovery remains operator-controlled: no automatic queue/resume/writeoff after reboot.
 requireText(esp32Path, esp32,
-  '\\"automatic_queue_allowed\\":false,\\"automatic_resume_allowed\\":false,\\"automatic_wire_writeoff_allowed\\":false',
+  '\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false,\"automatic_wire_writeoff_allowed\":false',
   'fail-closed automatic recovery/writeoff status contract missing');
 
 // Wire writeoff is always manual and tied to exact completed source-run provenance.
-// Legacy mode keeps exact selected-spool matching; KG_FIRST may intentionally omit
-// spool_id while still requiring the exact repair/session/run and duplicate guard.
+// Both current KG_FIRST and legacy weight-before/after paths require the exact immutable
+// selected spool; historical unallocated data remains read/recovery compatibility only.
 for (const field of ['spool_id', 'source_session_id', 'source_run_id', 'writeoff_mode']) {
   requireText(writeOffPath, writeOff, '"' + field + '"',
     'required manual writeoff field ' + field + ' missing');
@@ -86,8 +86,11 @@ requireText(writeOffPath, writeOff,
   'const bool kgFirst = hasMode && m_server.arg("writeoff_mode") == "KG_FIRST";',
   'explicit kg-first manual writeoff mode missing');
 requireText(writeOffPath, writeOff,
-  'selection.repairId != repairId || (spoolId != 0UL && selection.spoolId != spoolId)',
-  'writeoff no longer preserves repair linkage and exact spool match when spool_id is supplied');
+  'spool_id_required_for_kg_first',
+  'kg-first writeoff no longer requires an exact spool_id');
+requireText(writeOffPath, writeOff,
+  'selection.repairId != repairId || selection.spoolId != spoolId',
+  'writeoff no longer preserves repair linkage and mandatory exact spool match');
 requireText(writeOffPath, writeOff,
   'WindingSessionCompletionAudit::check(m_store.storage(), sourceSessionId, sourceRunId)',
   'writeoff no longer verifies the exact source run completion');
@@ -101,7 +104,7 @@ requireText(writeOffPath, writeOff,
   'operation.sourceRunId = sourceRunId;',
   'writeoff operation lost source_run_id binding');
 requireText(writeOffPath, writeOff,
-  '\\"automatic_wire_writeoff_allowed\\":false',
+  '\"automatic_wire_writeoff_allowed\":false',
   'manual writeoff response no longer explicitly prohibits automatic deduction');
 
 // Restore apply remains explicit, transactional and fail-closed across reboot evidence.
@@ -137,4 +140,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Release safety contracts OK: physical START, Arduino SSR authority, Hall calibration permit, no auto-resume/writeoff, exact source-run manual writeoff provenance with legacy-spool/KG_FIRST semantics, transactional restore lock, and motor-import audits.');
+console.log('Release safety contracts OK: physical START, Arduino SSR authority, Hall calibration permit, no auto-resume/writeoff, mandatory exact-spool and exact source-run manual writeoff provenance, transactional restore lock, and motor-import audits.');

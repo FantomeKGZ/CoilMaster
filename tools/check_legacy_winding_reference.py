@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -109,6 +110,63 @@ def is_preexisting_source_gap(
     else:
         return False
     return relative.casefold() not in source_files
+
+
+def validate_catalog(output: Path, sources: dict[str, Path]) -> list[str]:
+    errors: list[str] = []
+    path = output / "shared" / "catalog.json"
+    if not path.is_file():
+        return [f"shared catalog missing: {path}"]
+    try:
+        catalog = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [f"invalid shared catalog: {path}: {exc}"]
+    if not isinstance(catalog, list):
+        return [f"shared catalog must be a list: {path}"]
+
+    expected_paths = {
+        mode: {
+            p.relative_to(root).as_posix().casefold()
+            for p in root.rglob("*")
+            if p.is_file()
+            and p.suffix.lower() in HTML_SUFFIXES
+            and not is_frontpage_metadata(p, root)
+        }
+        for mode, root in sources.items()
+    }
+    seen: set[str] = set()
+    for index, entry in enumerate(catalog):
+        if not isinstance(entry, dict):
+            errors.append(f"catalog entry {index} is not an object")
+            continue
+        rel = entry.get("path")
+        title = entry.get("title")
+        if not isinstance(rel, str) or not rel:
+            errors.append(f"catalog entry {index} has invalid path")
+            continue
+        key = rel.casefold()
+        if key in seen:
+            errors.append(f"duplicate catalog path: {rel}")
+        seen.add(key)
+        if not isinstance(title, str) or not title.strip():
+            errors.append(f"catalog entry {rel} has empty title")
+        desktop = entry.get("desktop") is True
+        mobile = entry.get("mobile") is True
+        if desktop != (key in expected_paths["desktop"]):
+            errors.append(f"catalog desktop availability mismatch: {rel}")
+        if mobile != (key in expected_paths["mobile"]):
+            errors.append(f"catalog mobile availability mismatch: {rel}")
+        if desktop and not (output / "desktop" / "pages" / rel).is_file():
+            errors.append(f"catalog desktop target missing: {rel}")
+        if mobile and not (output / "mobile" / "pages" / rel).is_file():
+            errors.append(f"catalog mobile target missing: {rel}")
+
+    expected_union = expected_paths["desktop"] | expected_paths["mobile"]
+    if seen != expected_union:
+        errors.append(
+            f"catalog coverage mismatch: expected={len(expected_union)}, catalog={len(seen)}"
+        )
+    return errors
 
 
 def validate_pages(
@@ -217,6 +275,7 @@ def main() -> None:
         if source_count != output_count:
             errors.append(f"{mode} page count mismatch: source={source_count}, generated={output_count}")
 
+    errors.extend(validate_catalog(output, sources))
     page_errors, warnings = validate_pages(output, sources)
     errors.extend(page_errors)
     errors.extend(frontpage_output_leaks(output))
@@ -234,6 +293,7 @@ def main() -> None:
 
     print(f"desktop pages: {generated_page_count(output, 'desktop')}")
     print(f"mobile pages: {generated_page_count(output, 'mobile')}")
+    print(f"catalog entries: {len(json.loads((output / 'shared' / 'catalog.json').read_text(encoding='utf-8')))}")
     print(f"pre-existing source gaps: {len(warnings)}")
     print("legacy winding reference check: OK")
 

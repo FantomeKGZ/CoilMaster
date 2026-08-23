@@ -66,7 +66,7 @@ def resolved_reference_path(value: str, source: Path, output: Path) -> str | Non
     parts = urlsplit(value)
     if parts.scheme or parts.netloc or not parts.path or parts.path.startswith("/"):
         return None
-    relative = unquote(parts.path).replace("\\\\", "/")
+    relative = unquote(parts.path).replace("\\", "/")
     candidate = (source.parent / relative).resolve()
     try:
         output_relative = candidate.relative_to(output.resolve())

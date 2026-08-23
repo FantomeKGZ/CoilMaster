@@ -10,6 +10,7 @@ on:
       - tools/check_legacy_winding_reference.py
       - tools/audit_legacy_winding_reference.py
       - Tests/Web/check_reference_migration_audit.py
+      - Tests/Web/check_reference_import_asset_dedup.py
       - firmware/esp32/web/**
       - .github/workflows/reference-legacy-import.yml
 
@@ -27,6 +28,9 @@ jobs:
 
       - name: Check migration audit contracts
         run: python3 coilmaster/Tests/Web/check_reference_migration_audit.py
+
+      - name: Check import asset dedup contracts
+        run: python3 coilmaster/Tests/Web/check_reference_import_asset_dedup.py
 
       - name: Checkout legacy reference source
         uses: actions/checkout@v4

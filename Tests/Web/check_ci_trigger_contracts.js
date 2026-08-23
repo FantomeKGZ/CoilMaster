@@ -3,6 +3,7 @@ const fs = require('fs');
 const arduino = fs.readFileSync('.github/workflows/arduino-uno-build.yml', 'utf8');
 const esp32 = fs.readFileSync('.github/workflows/esp32-build.yml', 'utf8');
 const protocol = fs.readFileSync('.github/workflows/cmp-protocol-tests.yml', 'utf8');
+const reference = fs.readFileSync('.github/workflows/reference-legacy-import.yml', 'utf8');
 const transport = fs.readFileSync('Arduino/CM_UartEventTransport.cpp', 'utf8');
 
 function requireText(source, needle, message) {
@@ -50,6 +51,15 @@ requireText(esp32, '- "scripts/platformio_build_id.py"',
   'ESP32 build must run when build-identity generation changes');
 requireText(esp32, 'pio run -e esp32',
   'ESP32 workflow must compile the production ESP32 PlatformIO environment');
+
+requireText(reference, '- firmware/esp32/web/**',
+  'Reference SD bundle must rebuild for every committed web change');
+requireText(reference, 'web-bundle-manifest.json',
+  'Reference SD bundle must include deployment provenance');
+requireText(reference, '"coilmaster_commit": os.environ["GITHUB_SHA"]',
+  'Reference SD manifest must bind to the exact CoilMaster commit');
+requireText(reference, '"legacy_commit": os.environ["LEGACY_SHA"]',
+  'Reference SD manifest must bind to the exact legacy source commit');
 
 for (const path of [
   '- "Tests/Protocol/**"',

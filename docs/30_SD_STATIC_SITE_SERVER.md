@@ -118,7 +118,7 @@ checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile 
 - не увеличивать размер firmware flash — справочник обслуживается с microSD;
 - получать один проверенный комплект, в котором основной CoilMaster Web и справочник имеют согласованные версии;
 - сохранять общий shell CSS/JS и повторяющиеся byte-identical non-CSS ресурсы справочника только в одном экземпляре, даже если legacy-файлы имели разные имена или повторялись внутри одного UI mode;
-- сохранять legacy CSS mode-specific, конвертировать его в UTF-8 и переписывать каждый локальный `url(...)` на фактический shared/mode asset, чтобы перенос ресурса не ломал относительные ссылки.
+- сохранять legacy CSS mode-specific, конвертировать его в UTF-8 и переписывать каждый локальный `url(...)` и quoted `@import` на фактический shared/mode asset; это применяется также к inline `style` и блокам `<style>` generated HTML, чтобы перенос ресурса не ломал относительные ссылки.
 
 ## Готовый artifact для microSD
 

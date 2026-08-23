@@ -173,19 +173,87 @@ CMP Protocol Tests run 32639455684: GREEN
 
 Оператор после commit `072fd3870...` отдельно сообщил: **все текущие Actions зелёные**.
 
-Следовательно текущий reference migration baseline принимается как GREEN по operator confirmation.
+Следовательно reference migration baseline до SD-bundle шага принимается как GREEN по operator confirmation.
+
+---
+
+## 2026-08-23 — storage-aware публикация через microSD artifact
+
+Проверена текущая архитектура `CM_StaticSiteServer` и документация SD static-site server. Справочник обслуживается непосредственно с microSD из:
+
+```text
+/web/sites/reference/
+```
+
+Поэтому принято решение **не коммитить 926 + 926 generated HTML и тысячи generated assets в историю CoilMaster**. Это не требуется для firmware flash и только раздувало бы репозиторий.
+
+### Изменение workflow
+
+Commit:
+
+```text
+46500480b19ca2e2f2cb5277f0e14db1f35d7735
+ci(reference): publish SD-ready web bundle
+```
+
+`.github/workflows/reference-legacy-import.yml` теперь:
+
+1. checkout-ит CoilMaster;
+2. checkout-ит `FantomeKGZ/motor-winding-reference`;
+3. копирует текущий `firmware/esp32/web/` в временный полный web-bundle;
+4. генерирует legacy reference прямо в `web/sites/reference/`;
+5. запускает integrity checker;
+6. считает footprint самого reference и полного `/web`;
+7. загружает artifact:
+
+```text
+coilmaster-web-sd-bundle-<commit-sha>
+```
+
+Artifact является готовым содержимым каталога `/web` microSD.
+
+Также path-filter workflow теперь включает:
+
+```text
+firmware/esp32/web/sites/reference/**
+```
+
+поэтому изменения оболочки/стилей справочника автоматически запускают полный reference build.
+
+### Документация SD deployment
+
+Commit:
+
+```text
+d8661903b0732d0aa6d0e60b1a4c3ccc04a4e226
+docs(reference): document SD-ready web artifact
+```
+
+Обновлён `docs/30_SD_STATIC_SITE_SERVER.md`:
+
+- зафиксирована фактическая структура `mobile/pages`, `desktop/pages`, mode-specific assets и `shared/assets`;
+- описан SD-ready artifact;
+- указано, что содержимое artifact копируется как `/web` на microSD;
+- отдельно указано, что CI GREEN не заменяет физическую проверку карты на ESP32.
+
+### Причина выбранной схемы
+
+Преимущества:
+
+- CoilMaster git остаётся компактным;
+- full reference не занимает flash ESP32;
+- основной Web и справочник собираются одним согласованным bundle;
+- одинаковые картинки desktop/mobile физически хранятся один раз;
+- generated content воспроизводим из source + importer;
+- checker остаётся обязательным gate перед публикацией artifact.
+
+### CI status этого блока
+
+На момент записи этого пункта новый workflow после `46500480...` ещё не объявлен GREEN в этом журнале. GREEN будет записан только после фактического результата Actions или явного подтверждения оператора.
 
 ## Следующий непосредственный шаг
 
-Перейти от dry-build pipeline к публикации/интеграции generated reference content в storage-aware форме, сохраняя:
-
-- 926 desktop страниц;
-- 926 mobile страниц;
-- 2769 общих ресурсов;
-- общую навигацию CoilMaster;
-- отсутствие верхнего legacy banner;
-- case-safe ссылки;
-- отсутствие `_vti_*`;
-- отсутствие потерь таблиц/описаний/изображений.
-
-Перед массовым добавлением generated content сначала определить фактический generated footprint и способ хранения, чтобы не раздувать firmware/repository без необходимости.
+1. Проверить `Reference Legacy Import Check` после `46500480...` и наличие artifact `coilmaster-web-sd-bundle-*`.
+2. Зафиксировать фактический полный размер `/web`, reference size и file counts из успешного workflow.
+3. После GREEN перейти к UX-аудиту generated страниц: стартовая страница, внутреннее меню/поиск legacy-справочника, таблицы и адаптивность на mobile/desktop.
+4. Затем подготовить точную процедуру физического обновления `/web` на microSD и короткий smoke-test на ESP32 без затрагивания производственных safety-инвариантов.

@@ -44,7 +44,7 @@ client
 → physical START
 → RUN_STARTED
 → RUN_COMPLETED
-→ manual exact-run wire writeoff
+→ manual exact-run exact-spool wire writeoff
 → costing
 → finalization preflight
 → CLOSED
@@ -109,31 +109,32 @@ ESP32:
 
 ## Hall hardware-control lane
 
-Для настройки Hall добавлен отдельный `CM_HardwareControlClient`, но физический UART остаётся общим с winding protocol.
+Для настройки Hall используется отдельный `CM_HardwareControlClient`, а физический UART остаётся общим с winding protocol.
 
 Архитектурные правила:
 
-- `CM_UartEventReceiver` остаётся единственным reader байтов UART;
-- `CFG_STATE`, `CFG_ACK/NACK` и `HALL_STATE` делегируются в hardware-control client до winding parser;
-- JOB/JOB_CANCEL и Hall control не передаются одновременно: используется одна взаимно исключающая control lane;
+- `CM_UartEventReceiver` остается единственным reader байтов UART;
+- Hall/config frames делегируются в hardware-control client до winding parser;
+- JOB/JOB_CANCEL и Hall control используют одну взаимно исключающую control lane;
 - один hardware request активен за раз;
-- retry interval — 1 s, максимум 3 send attempts;
-- отсутствие ответа завершается явным `TimedOut`, а не положительным предположением;
-- settings/telemetry state сохраняют ESP32 `receivedAtMs`, чтобы HTTP/UI могли различать fresh и stale данные;
-- hardware-control кадры не выполняют physical START и не управляют SSR.
+- retry bounded; отсутствие ответа завершается явным `TimedOut`, а не положительным предположением;
+- settings/telemetry state сохраняют ESP32 `receivedAtMs`, чтобы HTTP/UI различали fresh/stale данные;
+- hardware-control frames не выполняют physical START и не управляют SSR.
 
-Verified ESP32 Hall UART lane:
+Current HTTP/Web owner уже реализован:
 
 ```text
-bfc819b1fb4caa955313634180afee7917537760
-chore: finalize verified ESP32 Hall control lane
+firmware/esp32/src/CM_HardwareControlWeb.h/.cpp
+firmware/esp32/web/desktop/settings-hall.html
+firmware/esp32/web/mobile/settings-hall.html
+firmware/esp32/web/shared/settings-hall-calibration.js
 ```
 
-Для этого batch подтверждены `pio run -e esp32`, `pio run -e uno` и web contract checks.
+Current route family включает Hall state/settings, telemetry и calibration (`refresh/arm/abort`). `calibration/arm` означает только подготовку Arduino calibration state; фактическое движение по-прежнему требует physical START на Arduino.
 
-Случайно попавшие после verifier generated `.pio/` artifacts удалены из source-of-truth коммитом `bd458b18e227cde03a08a8b25e3114870a4f6385`; `.gitignore` теперь запрещает `.pio/`.
+Web direct SSR test/control API отсутствует и не должен добавляться как shortcut.
 
-HTTP Hall API и web Equipment UI являются следующим блоком и в данном документированном состоянии ещё не считаются завершёнными.
+Targeted safety contracts находятся в `Tests/Web/check_hall_calibration_contracts.js` и related protocol/build gates.
 
 ## Wire writeoff
 
@@ -145,6 +146,10 @@ source_session_id
 source_run_id
 ```
 
+Для current linked production `spool_id` обязан совпадать с immutable pre-UART spool selection; historical `UNALLOCATED` evidence не создает optional-spool fallback.
+
 ## Хранилище
 
 Рабочие данные на microSD должны сохранять fail-closed semantics. Для критических persisted transitions используются валидируемые записи и recovery/audit механизмы. Backup restore остается operator-only, transactional и без auto-resume после reboot.
+
+Различные job temp/residue stores имеют разные transaction boundaries; их нельзя автоматически унифицировать одной cleanup/recovery политикой.

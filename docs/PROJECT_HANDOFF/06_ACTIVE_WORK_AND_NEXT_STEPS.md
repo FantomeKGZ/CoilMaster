@@ -271,3 +271,8 @@ Runs `32643425748` и `32643450801` относятся к superseded regex defec
 ### Reference legacy CSS correctness — current batch
 
 Оператор подтвердил GREEN global asset dedup. Текущий follow-up закрывает CSS relative-path boundary: legacy CSS остаётся mode-specific, преобразуется CP1251/UTF-8 -> UTF-8, а локальные `url(...)` переписываются на существующие generated assets. Checker запрещает broken/non-rewritten CSS URLs и CSS внутри content-addressed shared asset tree. Локальный synthetic import + checker GREEN; проверить новый full Reference workflow и затем использовать новый SD artifact.
+
+
+### Reference CSS Actions correction — current
+
+Runs `32644626781`–`32644735339` являются промежуточными failures mode-safe CSS batch. Последний run уже прошёл importer contracts и полный 926+926 import, но checker не имел `CSS_URL_RE`. Исправление `2df1764a...` добавило matcher; `ef779874...` теперь вызывает CSS checker прямо в раннем synthetic contract. Локальный full import + checker GREEN. Проверить новый Reference run после `ef779874...`; старые шесть runs не rerun.

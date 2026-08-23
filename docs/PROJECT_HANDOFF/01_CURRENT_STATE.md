@@ -208,15 +208,14 @@ Current estimate:
 
 ```text
 content migration:                       100%
-migration automation/integrity:          98% after full fidelity workflow GREEN
-UX and offline SD bundle:                92%
-overall readiness now:                   94%
-after full fidelity workflow GREEN:      about 96%
+migration automation/integrity:          98%
+UX and offline SD bundle:                94%
+overall readiness now:                   about 96%
 ```
 
-Commits `e89813f2...` and `fe2aeed1...` add complete source/generated visible-text and structural-count comparison for every page. The exact synthetic contract is locally GREEN; the new full 926 + 926 page Actions result is still pending and is not yet claimed as GREEN.
+Commits `e89813f2...` and `fe2aeed1...` add complete source/generated visible-text and structural-count comparison for every page. The operator confirmed the full 926 + 926 page Actions batch GREEN.
 
-Remaining reference-site release gates are measured metrics from the latest artifact, representative UX/offline verification and physical microSD/ESP32 smoke of that fresh bundle. The separate two-board UART hardware checkpoint is not included in this reference-site percentage.
+Current follow-up adds manifest schema v2 with exact counts/bytes and a verifiable SHA-256 of the complete `/web` payload. Remaining reference-site release gates are GREEN of that new workflow, representative UX/offline verification and physical microSD/ESP32 smoke of the fresh bundle. The separate two-board UART hardware checkpoint is not included in this reference-site percentage.
 
 ## Verification still separate
 

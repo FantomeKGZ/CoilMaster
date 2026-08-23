@@ -981,3 +981,34 @@ docs(sd): document verifiable bundle manifest
 
 Exact local contract GREEN, включая отрицательную проверку tampered payload. Новый полный Actions batch ещё не объявлен GREEN. После GREEN снять exact counts/hash из workflow summary и выполнить physical smoke свежего SD artifact.
 
+---
+
+## 2026-08-23 — CI provenance contract correction
+
+Runs:
+
+```text
+32645799868
+32645815018
+32645826246
+32645835821
+32645845923
+```
+
+имеют одну причину. Production host build, CTest и остальные audit steps GREEN; падал только `Audit CI trigger coverage` с сообщением:
+
+```text
+Reference SD manifest must bind to the exact CoilMaster commit
+```
+
+Старый JavaScript-контракт искал удалённый inline Python literal. После выделения authoritative manifest builder привязка к commit не исчезла: workflow передаёт `--coilmaster-commit "$GITHUB_SHA"`, а builder сохраняет значение в `coilmaster_commit`.
+
+Исправление:
+
+```text
+797e68ae3ee58f64849eb5510a8af7eab2be2f21
+test(ci): follow authoritative SD manifest builder
+```
+
+Новый контракт проверяет builder path, exact CoilMaster SHA, exact legacy SHA, exact web-bundle path, обязательный `--verify`, workflow path filters и сохранение provenance внутри builder. Exact `check_ci_trigger_contracts.js` локально GREEN. Пять старых runs superseded; новый Actions run ещё не объявлен GREEN.
+

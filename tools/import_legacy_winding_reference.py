@@ -41,6 +41,10 @@ TITLE_RE = re.compile(r"<title\b[^>]*>(?P<title>.*?)</title\s*>", re.I | re.S)
 VERH_RE = re.compile(r"<div\b[^>]*class=[\"'][^\"']*\bverh\b[^\"']*[\"'][^>]*>.*?</div\s*>", re.I | re.S)
 CHARSET_META_RE = re.compile(r"<meta\b[^>]*(?:charset\s*=|http-equiv=[\"']Content-Type[\"'])[^>]*>", re.I)
 ATTR_RE = re.compile(r"(?P<prefix>\b(?:href|src)\s*=\s*)(?P<quote>[\"'])(?P<value>.*?)(?P=quote)", re.I)
+CSS_URL_RE = re.compile(
+    r"(?P<prefix>\\burl\\(\\s*)(?P<quote>[\"']?)(?P<value>.*?)(?P=quote)(?P<suffix>\\s*\\))",
+    re.I,
+)
 
 
 @dataclass(frozen=True)

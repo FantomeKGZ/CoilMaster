@@ -44,9 +44,11 @@ def main() -> None:
         write(output / "shared/assets/css.bin", b"css")
         write(output / "shared/assets/unused.bin", b"unused")
         write(output / "shared/assets/cp.bin", b"cp1251")
+        write(output / "shared/assets/win.bin", b"windows")
         write(
             output / "desktop/assets/legacy.css",
-            '@font-face{src:url("/sites/reference/shared/assets/cp.bin")}/*М*/'.encode("cp1251"),
+            ('@font-face{src:url("../../shared/assets/cp.bin")}'
+             '.win{background:url("..\\\\..\\\\shared\\\\assets\\\\win.bin")}/*М*/').encode("cp1251"),
         )
         write(output / "desktop/assets/duplicate.bin", b"same")
         write(output / "mobile/assets/duplicate-copy.bin", b"same")

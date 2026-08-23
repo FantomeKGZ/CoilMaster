@@ -413,3 +413,41 @@ Reference workflow подтверждён GREEN. После исправлени
 2. С резервной копией текущего каталога заменить содержимое `/web` на microSD.
 3. Выполнить короткий ESP32 smoke-test: главные desktop/mobile, поиск, типичные таблицы, изображения и переходы.
 4. Hardware GREEN не выводить из CI; записать только после фактической проверки на ESP32.
+
+---
+
+## 2026-08-23 — physical web smoke GREEN и двусторонняя навигация
+
+Оператор после обновления microSD явно подтвердил: **ошибок нет**. Физический smoke справочника на ESP32 принимается GREEN для проверенного bundle:
+
+```text
+coilmaster-web-sd-bundle-cea85a09dd4208bf88545284ae80a12edce22681
+```
+
+Подтверждены без ошибок основные desktop/mobile entry pages, поиск, generated страницы, таблицы, изображения и переходы. Это подтверждение относится к web/reference smoke; оно не заменяет отдельный двухплатный UART/repeat/cancel hardware gate.
+
+После physical smoke найден и исправлен следующий repo-level UX-разрыв:
+
+```text
+327786a0372cb9dfc53126651f642ad71a7702b2
+fix(web): restore anchor link audit
+
+24822ededb3d7f079441bf7e55dc7e9ef40963fd
+feat(web): link reference from shared shell
+
+9033fbef1623c91282481ccca103914e516eb2b1
+test(web): require reference shell entry
+
+e955850bb65fbdd0a9881d0e1566b3d2404b852d
+ci(reference): rebuild bundle for all web changes
+```
+
+Основной shared app shell теперь показывает «📚 Справочник» и ведёт в desktop/mobile reference согласно текущему UI mode. Общий anchor audit снова реально разбирает теги ссылок, а regression test требует новый вход.
+
+Reference workflow path-filter расширен с одного reference subtree до полного firmware/esp32/web subtree. Любое изменение основного Web теперь пересобирает согласованный SD-ready bundle, а не оставляет artifact со старой версией остальных страниц.
+
+### Следующий непосредственный шаг
+
+1. Проверить новые CMP Protocol Tests и Reference Legacy Import Check после e955850b.
+2. При GREEN использовать новый artifact для следующего обновления microSD; ранее проверенный artifact остаётся фактически hardware-verified baseline.
+3. После обновления проверить новый пункт «📚 Справочник» с одной desktop и одной mobile основной страницы.

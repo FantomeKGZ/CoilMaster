@@ -1071,5 +1071,15 @@ ci(web): require complete offline bundle
 docs(sd): document offline dependency gate
 ```
 
-Positive/remote/missing-resource contracts локально GREEN. Новый full workflow ещё не объявлен GREEN; его результат покажет реальные unresolved dependencies всего SD bundle, если они остались.
+Дополнительное defensive исправление:
+
+```text
+458d99cd51501865bee56f110f3e6bf939a9df7e
+fix(web): parse offline srcset data URLs safely
+
+27fa3471364ff37fe48b878735419689d51c737e
+test(web): cover data URL srcset parsing
+```
+
+`srcset` parser не делит embedded `data:` URL по внутренней запятой и продолжает проверять следующие candidates. Positive/remote/missing/data-srcset contracts локально GREEN. Новый full workflow ещё не объявлен GREEN; его результат покажет реальные unresolved dependencies всего SD bundle, если они остались.
 

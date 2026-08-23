@@ -19,7 +19,14 @@ DEFAULT_OUTPUT = ROOT / "firmware" / "esp32" / "web" / "sites" / "reference"
 HTML_SUFFIXES = {".html", ".htm"}
 ATTR_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"'](?P<value>.*?)[\"']", re.I)
 CSS_URL_RE = re.compile(r"\burl\(\s*[\"']?(?P<value>[^\"')]+)", re.I)
+CSS_IMPORT_RE = re.compile(r"@import\s+[\"'](?P<value>.*?)[\"']", re.I)
 REFERENCE_PREFIX = "/sites/reference/"
+
+
+def css_reference_values(text: str):
+    for pattern in (CSS_URL_RE, CSS_IMPORT_RE):
+        for match in pattern.finditer(text):
+            yield match.group("value").strip()
 
 
 def digest(path: Path) -> str:
@@ -271,6 +278,23 @@ def validate_pages(
                     warnings.add(f"{mode}: source file missing for preserved link {target}")
                 else:
                     errors.append(f"broken reference link: {page} -> {value}")
+            for value in css_reference_values(text):
+                parts = urlsplit(value)
+                if (
+                    parts.scheme
+                    or parts.netloc
+                    or value.startswith(("#", "//", "data:"))
+                ):
+                    continue
+                target = normalized_reference_url(value)
+                if target is None:
+                    errors.append(f"generated page CSS URL not rewritten: {page} -> {value}")
+                elif target in available_urls:
+                    continue
+                elif is_preexisting_source_gap(target, mode, source_indexes[mode]):
+                    warnings.add(f"{mode}: source file missing for preserved CSS link {target}")
+                else:
+                    errors.append(f"broken generated page CSS URL: {page} -> {value}")
     return errors, sorted(warnings)
 
 
@@ -295,8 +319,7 @@ def validate_legacy_stylesheets(output: Path) -> list[str]:
             except UnicodeDecodeError as exc:
                 errors.append(f"legacy stylesheet not utf-8: {path}: {exc}")
                 continue
-            for match in CSS_URL_RE.finditer(text):
-                value = match.group("value").strip()
+            for value in css_reference_values(text):
                 parts = urlsplit(value)
                 if (
                     parts.scheme

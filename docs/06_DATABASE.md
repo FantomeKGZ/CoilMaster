@@ -1,373 +1,367 @@
-# CoilMaster — модель данных
+# CoilMaster — current persisted data model
 
-## Иерархия
+## 1. Что это за модель
 
-Карточка двигателя является общей технологической карточкой и не принадлежит одному клиенту.
-Клиент и двигатель связываются только через конкретный ремонт.
+CoilMaster сейчас не использует SQL/relational database как authoritative runtime store. Production state хранится на microSD под `/data` через domain-owned JSON/NDJSON/files.
+
+Поэтому этот документ описывает **logical identities, ownership и persistence contracts**, а не fictitious SQL schema. При расхождении authoritative являются current `cmp-protocol-v1` source + integrity/backup tests.
+
+Основное правило:
+
+```text
+one domain owner -> explicit persisted files -> validator/audit -> backup/restore coverage
+```
+
+Нельзя добавлять production file/field, не проверив reader, validation, compatibility, integrity, backup и restore.
+
+## 2. High-level business graph
 
 ```text
 Client
-  └── Repair
-       ├── Motor
-       ├── WindingProgram
-       │    └── WindingSession
-       │         └── WindingRun
-       ├── RepairMaterialUsage
-       ├── Attachments
-       └── Notes
-
-Motor
-  └── Repair[]
-       └── Client
-
-WarehouseItem
-  └── StockMovement
-       └── RepairMaterialUsage
+  -> Repair
+      -> Motor
+      -> linked Winding Job/Session
+          -> immutable Snapshot
+          -> exact immutable Spool Selection
+          -> Winding Run evidence
+              -> explicit Manual Material Writeoff
+      -> auxiliary Material Usage
+      -> Costing / Pricing evidence
+      -> CLOSED lifecycle evidence
 ```
 
-Связь клиентов и двигателей фактически является связью «многие ко многим» через `Repair`:
+Motor является технологической сущностью; связь с конкретным клиентом/работой проходит через repair/business records, а не через прямое physical-movement ownership.
 
-- один клиент может приносить разные двигатели;
-- одинаковую модель двигателя могут приносить разные клиенты;
-- один клиент может повторно приносить двигатель той же модели;
-- карточка двигателя не дублируется для каждого клиента.
+## 3. Workshop registry
 
-## Client
-
-### Обязательные поля
-
-- `client_id` — внутренний неизменяемый идентификатор;
-- имя клиента или название организации;
-- основной номер телефона.
-
-Телефон является главным пользовательским идентификатором для быстрого поиска, но не заменяет внутренний `client_id`, поскольку номер может измениться, использоваться семьёй или организацией либо быть введён с ошибкой.
-
-### Поля телефона
-
-- `phone_original` — номер в том виде, как его ввёл оператор;
-- `phone_normalized` — очищенный номер для поиска и сравнения;
-- дополнительный телефон — необязательно;
-- WhatsApp — необязательно.
-
-Примеры номеров, которые должны распознаваться как один номер после нормализации:
+Owner family:
 
 ```text
-+996 555 123 456
-0555 123 456
-555123456
+CM_RepairRegistry.*
+CM_RepairRegistryWeb.*
+CM_RepairLifecycle.h
+CM_WorkshopPersistenceIntegrityAudit.*
 ```
 
-Поиск клиента поддерживает:
-
-- полное имя;
-- полный номер телефона;
-- нормализованный номер;
-- последние цифры номера, например `3456`.
-
-При создании клиента система предупреждает о совпадении номера, но не запрещает создание, поскольку один телефон может использоваться несколькими людьми.
-
-### Необязательные поля
-
-- организация;
-- адрес;
-- примечания;
-- дата создания и изменения;
-- статус: активный/архивный.
-
-## Motor
-
-### Обязательные поля
-
-Карточка двигателя должна создаваться быстро. Обязательны только:
-
-- `motor_id`;
-- название двигателя;
-- хотя бы одна программа катушек.
-
-### Необязательные поля
-
-- модель, производитель и серийный номер;
-- тип двигателя: однофазный, трёхфазный или другой;
-- мощность, напряжение, ток и обороты;
-- количество пазов;
-- тип укладки: однослойная, двухслойная или другой вариант;
-- фотографии, схемы и примечания;
-- технологические версии карточки.
-
-В `Motor` не хранится `client_id` владельца. Клиенты, приносившие двигатели этой модели, отображаются через связанные записи `Repair`.
-
-В карточке двигателя WEB показывает:
-
-- список ремонтов;
-- ссылки на профили клиентов;
-- число ремонтов у каждого клиента;
-- дату последнего применения карточки;
-- фактические программы и материалы конкретного ремонта.
-
-Для трёхфазного двигателя фазы A/B/C отдельно не создаются. Если одинаковая программа выполняется несколько раз, используется одна программа катушек и несколько отдельных фактических запусков.
-
-### Масса обмотки двигателя
-
-Масса задаётся для конкретной программы или позиции ремонта как:
-
-- масса одной одинаковой обмотки;
-- количество одинаковых обмоток;
-- рассчитанная общая масса;
-- единица отображения: граммы или килограммы;
-- признак `measured` или `estimated`;
-- дата измерения;
-- комментарий.
-
-Пример:
+Known runtime root:
 
 ```text
-Масса одной обмотки: 0,840 кг
-Количество: 6 шт.
-Итого: 6 × 0,840 = 5,040 кг
+/data/workshop/
 ```
 
-В базе масса хранится в целых граммах:
+Workshop domain хранит client/motor/repair records и lifecycle evidence.
+
+Текущий repair lifecycle для production completion не использует старую enum-модель `ACCEPTED/IN_PROGRESS/READY/ISSUED/ARCHIVED`. `CM_RepairLifecycle` считает repair OPEN, пока для exact `repair_id` нет валидной unique `CLOSED` записи в:
 
 ```text
-unit_weight_g = 840
-quantity = 6
-total_weight_g = 5040
+/data/workshop/repair-status.ndjson
 ```
 
-`total_weight_g` пересчитывается системой как `unit_weight_g × quantity`. При фактическом взвешивании оператор может отдельно указать `actual_total_weight_g`; именно фактическое значение используется для окончательного складского списания.
+Durable CLOSED evidence содержит exact `repair_id`, status `CLOSED` и `closed_at`.
 
-## Repair
+## 4. Winding identities
 
-`Repair` является основной рабочей сущностью, связывающей клиента, общую карточку двигателя, фактические намотки и расход материалов.
-
-Поля:
-
-- `repair_id`;
-- `client_id`;
-- `motor_id`;
-- дата приёма;
-- плановая дата завершения — необязательно;
-- дата завершения;
-- дата выдачи;
-- описание неисправности;
-- выполненные работы;
-- статус: `ACCEPTED`, `IN_PROGRESS`, `READY`, `ISSUED`, `ARCHIVED`, `CANCELLED`;
-- мастер и примечания;
-- стоимость работы;
-- стоимость материалов;
-- итоговая стоимость.
-
-Один клиент может иметь много ремонтов. Одна карточка двигателя также может участвовать во множестве ремонтов разных клиентов.
-
-## WindingProgram
-
-Программа описывает, что нужно намотать, но не подтверждает факт выполнения.
-
-Примеры:
-
-- рабочая: `140/100/80/40`;
-- пусковая: `90/70/50`;
-- трёхфазная программа: `20/20/20/20/20/20`, выполняемая несколько раз.
-
-Поля:
-
-- `program_id`;
-- `repair_id` или `motor_id`, если программа уже привязана;
-- необязательная роль: `WORKING`, `STARTING`, `OTHER`;
-- последовательность витков;
-- рекомендуемое или заданное число повторов;
-- порядок выполнения внутри пакета двигателя;
-- диаметр провода;
-- число жил, по умолчанию `1`;
-- материал и марка провода;
-- масса одной одинаковой обмотки `unit_weight_g`;
-- количество одинаковых обмоток `quantity`;
-- расчётная общая масса `total_weight_g`;
-- фактическая общая масса `actual_total_weight_g` — необязательно;
-- тип укладки;
-- комментарий;
-- версия технологической карточки.
-
-Роль программы, тип двигателя, провод и остальные технологические параметры необязательны. Обязательна только последовательность катушек.
-
-## WindingSession
-
-Сеанс объединяет повторные выполнения одной активной программы без повторной отправки из WEB.
-
-Поля:
-
-- `session_id`;
-- `program_id` или встроенная копия программы для локального ввода;
-- источник: Arduino или WEB;
-- дата и время открытия;
-- дата и время закрытия;
-- режим повторов: один раз, заданное количество или до команды оператора;
-- запланированное число повторов;
-- фактически завершённое число повторов;
-- статус: `OPEN`, `COMPLETED`, `CANCELLED`, `INTERRUPTED`;
-- связь с пакетом двигателя, если он используется.
-
-После полного выполнения программы Arduino предлагает:
-
-- `A` или внешняя START — повторить ту же программу;
-- `B` — завершить сеанс и вернуться в меню.
-
-## WindingRun
-
-Каждое полное фактическое выполнение программы сохраняется отдельно и не перезаписывается.
-
-Поля:
-
-- `run_id`;
-- `session_id`;
-- дата и время RTC;
-- последовательность заданных витков;
-- последовательность фактических витков;
-- статус каждой катушки;
-- итоговый статус;
-- связь с `program_id`, `repair_id` и `motor_id`, если операция классифицирована;
-- флаг синхронизации;
-- идентификатор подтверждения ESP32.
-
-Повторная передача того же `run_id` не должна создавать дубликат.
-
-## Привязка не классифицированных запусков
-
-Локально введённые на Arduino операции сначала могут сохраняться без двигателя и ремонта.
-
-В WEB пользователь:
-
-1. выбирает одну или несколько записей;
-2. создаёт или выбирает карточку двигателя;
-3. создаёт или выбирает клиента;
-4. создаёт ремонт, связывающий клиента и двигатель;
-5. создаёт программы катушек из выбранных запусков;
-6. при необходимости отмечает программу как рабочую или пусковую;
-7. задаёт провод, число жил, массу одной обмотки, количество и другие необязательные параметры.
-
-Исходные `WindingRun` остаются отдельными. Их объединение означает только создание связей с одной программой и ремонтом.
-
-## WarehouseItem
-
-Складская позиция провода.
-
-Поля:
-
-- `item_id`;
-- категория: `WIRE`;
-- марка провода;
-- материал: медь или алюминий;
-- диаметр;
-- число жил по умолчанию;
-- производитель и поставщик;
-- текущий остаток в граммах;
-- минимальный остаток в граммах;
-- цена закупки за килограмм;
-- средневзвешенная цена за килограмм;
-- место хранения;
-- номер партии;
-- дата поступления;
-- комментарий;
-- статус: активный/архивный.
-
-## StockMovement
-
-Каждое изменение остатка хранится отдельной неизменяемой записью.
-
-Типы движения:
-
-- `RECEIPT` — приход;
-- `WRITE_OFF` — списание на ремонт;
-- `ADJUSTMENT_PLUS` — корректировка вверх;
-- `ADJUSTMENT_MINUS` — корректировка вниз;
-- `RETURN` — возврат материала;
-- `INVENTORY` — результат инвентаризации.
-
-Поля:
-
-- `movement_id`;
-- `item_id`;
-- дата и время RTC;
-- масса в граммах;
-- цена за килограмм на момент операции;
-- итоговая стоимость движения;
-- связанный `repair_id`;
-- связанный `program_id`;
-- пользователь или источник операции;
-- причина и комментарий.
-
-## RepairMaterialUsage
-
-Связывает ремонт с фактически использованным проводом.
-
-Поля:
-
-- `usage_id`;
-- `repair_id`;
-- `program_id`;
-- `item_id`;
-- роль программы, если указана;
-- масса одной обмотки в граммах;
-- количество одинаковых обмоток;
-- расчётная общая масса;
-- фактическая масса списания в граммах;
-- цена за килограмм на момент списания;
-- рассчитанная стоимость;
-- число жил;
-- диаметр;
-- дата списания;
-- статус подтверждения.
-
-Стоимость рассчитывается по фактической массе:
+Ключевые IDs:
 
 ```text
-стоимость = фактическая_масса_грамм × цена_за_кг / 1000
+job_id
+session_id
+run_id
+repair_id
+motor_id
 ```
 
-Все денежные значения хранятся в минимальных денежных единицах без использования `float`.
+Responsibilities:
 
-## Агрегация и статистика
+- `job_id` — persisted remote job identity;
+- `session_id` — identity linked winding session/job persistence;
+- `run_id` — отдельный физический execution attempt;
+- `repair_id` / `motor_id` — business linkage.
 
-ESP32 может показывать одинаковые завершённые программы за выбранный период как одну строку:
+Повтор полного winding program создает новый `run_id`; authoritative RUN records не сливаются физически ради UI aggregation.
+
+## 5. Winding journal
+
+Owner family:
 
 ```text
-140/100/80/40 — выполнено 2 раза сегодня
-20/20/20/20/20/20 — выполнено 3 раза сегодня
+CM_WindingJournal.*
+CM_WindingJournalQuery*
+CM_WindingJournalWeb.*
+CM_WindingPersistenceIntegrityAudit.*
 ```
 
-Исходные `WindingRun` не объединяются физически.
-
-Главная статистика рассчитывается по фактическим запускам:
-
-- количество клиентов;
-- количество двигателей;
-- количество ремонтов;
-- количество завершённых запусков сегодня, за месяц и всего;
-- число фактически намотанных витков сегодня, за месяц и всего;
-- количество не привязанных запусков;
-- количество рабочих и пусковых программ, если их роли указаны;
-- расчётная и фактическая масса использованного провода;
-- стоимость списанных материалов.
-
-Отменённые и незавершённые операции не входят в сумму выполненных витков и фактический расход.
-
-## Хранение
-
-Рекомендуемая структура microSD:
+Known event log:
 
 ```text
-/data/clients/
-/data/motors/
-/data/repairs/
-/data/winding-programs/
-/data/winding-sessions/
-/data/winding-runs/
-/data/warehouse/items/
-/data/warehouse/movements/
-/data/warehouse/usage/
-/data/indexes/
-/backups/
-/logs/
+/data/winding-runs/events.ndjson
 ```
 
-Для первой версии допускаются версионированные JSON/NDJSON-файлы с индексами. Запись выполняется через временный файл и безопасную замену. Формат каждой сущности содержит `schema_version`.
+Фактический run evidence приходит от Arduino:
+
+```text
+RUN_STARTED(session_id, run_id, ...)
+RUN_COMPLETED(session_id, run_id, ...)
+```
+
+Duplicate/retry одного exact event/run не должен создавать второй фактический run.
+
+`RUN_COMPLETED` является execution evidence, но **не warehouse mutation**.
+
+## 6. Linked job persistence
+
+Runtime root:
+
+```text
+/data/winding-jobs/
+```
+
+Main owners:
+
+```text
+CM_PersistentIdAllocator.*
+CM_JobSnapshotStore.*
+CM_JobStateStore.*
+CM_JobSpoolSelectionStore.*
+CM_JobRecovery.*
+CM_JobDisplayRecovery.*
+CM_WindingSessionPersistenceIntegrityAudit.*
+```
+
+### Snapshot
+
+Immutable job/business parameters, сохраненные до physical execution boundary.
+
+### State
+
+Operational job lifecycle/delivery/recovery evidence. State mutation не имеет права удалять immutable run/snapshot/material provenance.
+
+### Exact spool selection
+
+Current linked production требует immutable selection до UART delivery. `JobSpoolSelection` valid only when all critical identities/material fields nonzero/valid, включая:
+
+```text
+job_id
+session_id
+repair_id
+motor_id
+spool_id
+diameterHundredthsMm
+weightAtSelectionGrams
+wireType = CU|AL
+```
+
+`spool_id == 0` не является valid current linked selection.
+
+## 7. Crash-residue boundaries
+
+Не все `.tmp/.bak` одинаковы:
+
+```text
+JobStateStore .tmp/.bak
+  fail-closed replacement/recovery evidence
+
+JobSpoolSelectionStore .json.tmp
+  bounded pre-UART recovery policy
+
+JobSnapshotStore .json.tmp
+  fail-closed / REVIEW resilience boundary
+```
+
+Cleanup не должен автоматически удалять/promote residue только ради единообразия.
+
+## 8. Warehouse wire model
+
+Authoritative wire inventory — spool-based warehouse, а не старый generic `WarehouseItem/item_id` draft.
+
+Owner family:
+
+```text
+CM_WarehouseStore.*
+CM_WarehouseSpoolWeb.cpp
+CM_WarehouseWriteOff*.cpp
+CM_WarehousePersistenceIntegrityAudit.*
+```
+
+Physical wire spool имеет exact immutable `spool_id`; authoritative identity включает material (`CU`/`AL`), diameter и current mass.
+
+`CM_WarehouseLegacySpoolMaterial.cpp` — live migration owner для старых ACTIVE spools без `wire_type`, поэтому остается `KEEP`.
+
+## 9. Manual wire writeoff
+
+Current linked production writeoff требует exact provenance:
+
+```text
+repair_id
+source_session_id
+source_run_id
+exact immutable spool_id
+```
+
+До confirmed mutation WarehouseStore fail-closed проверяет:
+
+- store ready;
+- repair exists and remains OPEN;
+- immutable selection exists for exact session;
+- selection repair/spool match request;
+- exact source run is COMPLETED;
+- no previous confirmed writeoff for that source run;
+- spool identity/stock/price are valid.
+
+Transaction shape:
+
+```text
+PENDING movement
+-> spool mutation
+-> CONFIRMED movement
+```
+
+Rollback-success path записывает `ABORTED`; ambiguous mutation переводит store в not-ready/fail-closed until reconciliation.
+
+Historical `UNALLOCATED` KG_FIRST records остаются read/audit/recovery compatibility evidence only. Current linked KG_FIRST requires exact selected `spool_id`.
+
+## 10. Materials domain
+
+Auxiliary materials are a separate persisted domain, not aliases of wire spools.
+
+Owners:
+
+```text
+CM_Material*.h/.cpp
+CM_MaterialPersistenceIntegrityAudit.*
+```
+
+Known root:
+
+```text
+/data/materials/
+```
+
+Usage/history/adjustments должны сохранять historical cost/evidence и не переписывать прошлое при изменении current catalogue price.
+
+## 11. Costing / pricing
+
+Owners:
+
+```text
+CM_RepairCosting*.h/.cpp
+CM_RepairPricing*.h/.cpp
+```
+
+Costing/finalization строятся из persisted authoritative repair, exact run/writeoff/material and pricing evidence. UI-derived totals не являются единственным source of truth.
+
+Repair не должен закрываться, если finalization preflight не подтверждает required exact persisted evidence.
+
+## 12. Autonomous/local winding archive
+
+Owners:
+
+```text
+CM_AutonomousWindingArchive.h/.cpp
+CM_AutonomousWindingArchiveAssign.cpp
+CM_AutonomousWindingArchivePage.cpp
+CM_AutonomousWindingArchiveIntegrity.cpp
+CM_AutonomousWindingWeb.*
+```
+
+Known root:
+
+```text
+/data/autonomous-windings/
+```
+
+Local program events могут существовать до business assignment. Assignment создает linkage; исходный execution evidence остается append-only и не переписывается.
+
+Split `.cpp` implementations реализуют методы одного `AutonomousWindingArchive` owner и не являются orphan duplicates.
+
+## 13. Network/settings persisted state
+
+Examples:
+
+```text
+CM_NetworkProfileStore.*
+CM_RemoteBackupSettings.*
+CM_ConductorSettingsStore.cpp
+```
+
+Mutable single-file settings используют bounded atomic-replacement/recovery semantics. Corrupt/torn persisted settings должны fail-closed или recover only по owner-defined validated policy.
+
+## 14. Backup / restore coverage
+
+Production persisted domains должны входить в whitelist/integrity/restore policy через owners:
+
+```text
+CM_BackupBusinessDataIntegrityAudit.*
+CM_WorkshopPersistenceIntegrityAudit.*
+CM_WarehousePersistenceIntegrityAudit.*
+CM_MaterialPersistenceIntegrityAudit.*
+CM_WindingPersistenceIntegrityAudit.*
+CM_WindingSessionPersistenceIntegrityAudit.*
+CM_ConductorSettingsIntegrityAudit.*
+```
+
+Restore rules:
+
+- explicit operator action only;
+- strict preflight;
+- transactional apply/rollback;
+- persisted stale evidence blocks unsafe continuation;
+- reboot never auto-continues restore/apply;
+- no automatic production-data deletion/truncation under storage pressure.
+
+## 15. Reference motor catalogue is not production database
+
+Repository source data:
+
+```text
+data/motor_catalog/**/*.source.json
+```
+
+is transformed by:
+
+```text
+tools/build_motor_reference.py
+```
+
+into read-only Web reference dataset:
+
+```text
+firmware/esp32/web/reference/motor-reference.json
+```
+
+Reference records are explicitly reference-only and must not silently become executable `coil_program`/working motor records.
+
+## 16. Web/API representation
+
+Web pages are consumers of authoritative ESP32 stores. They do not own persisted truth.
+
+When changing a persisted contract, review together:
+
+```text
+STORE/WRITER
+-> authoritative READER
+-> integrity AUDIT
+-> backup/restore whitelist
+-> *Web.cpp API
+-> desktop/mobile/shared UI
+-> Tests/Web regression
+```
+
+## 17. Data-change checklist
+
+Before adding/changing persisted data:
+
+1. exact owner identified;
+2. stable identity/provenance defined;
+3. writer validates all mandatory fields;
+4. authoritative reader rejects malformed/ambiguous state;
+5. old valid records remain intentionally readable or have explicit migration;
+6. integrity audit covers syntax + cross-reference semantics;
+7. backup/export includes the path;
+8. restore validates and rolls back transactionally;
+9. no automatic deletion/truncation shortcut;
+10. API/UI preserve the same semantics;
+11. targeted regression test exists;
+12. hardware verification added only if behavior truly crosses physical boundary.
+
+This checklist is the current “database schema discipline” for CoilMaster.

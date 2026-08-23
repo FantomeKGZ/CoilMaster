@@ -58,6 +58,23 @@ def reference_path(value: str) -> str | None:
     return "/".join(segments)
 
 
+def resolved_reference_path(value: str, source: Path, output: Path) -> str | None:
+    absolute = reference_path(value)
+    if absolute is not None:
+        return absolute
+
+    parts = urlsplit(value)
+    if parts.scheme or parts.netloc or not parts.path or parts.path.startswith("/"):
+        return None
+    relative = unquote(parts.path).replace("\\\\", "/")
+    candidate = (source.parent / relative).resolve()
+    try:
+        output_relative = candidate.relative_to(output.resolve())
+    except ValueError:
+        return None
+    return "sites/reference/" + output_relative.as_posix()
+
+
 def files_below(root: Path) -> list[Path]:
     return sorted(path for path in root.rglob("*") if path.is_file()) if root.exists() else []
 
@@ -92,7 +109,7 @@ def audit(output: Path) -> dict[str, object]:
         source_mode = page.relative_to(output).parts[0]
         source_url = "sites/reference/" + page.relative_to(output).as_posix()
         for match in ATTR_RE.finditer(text):
-            target = reference_path(match.group("value"))
+            target = resolved_reference_path(match.group("value"), page, output)
             if target is None:
                 continue
             referenced_files.add(target)
@@ -100,13 +117,13 @@ def audit(output: Path) -> dict[str, object]:
             if page in generated_html and target.startswith(prefix) and target != source_url:
                 incoming[target] += 1
         for match in CSS_URL_RE.finditer(text):
-            target = reference_path(match.group("value"))
+            target = resolved_reference_path(match.group("value"), page, output)
             if target is not None:
                 referenced_files.add(target)
     for stylesheet in reference_styles:
         text = decode_legacy_stylesheet(stylesheet)
         for match in CSS_URL_RE.finditer(text):
-            target = reference_path(match.group("value"))
+            target = resolved_reference_path(match.group("value"), stylesheet, output)
             if target is not None:
                 referenced_files.add(target)
 

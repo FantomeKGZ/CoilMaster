@@ -35,7 +35,7 @@ The full repo-level code audit A–E is complete. Active repo-level work is now:
 FINAL CONTROLLED REPOSITORY CLEANUP / ZERO-DEBT SWEEP
 ```
 
-The current handoff estimates this software cleanup at about 96% complete. Always use the current value in `06_ACTIVE_WORK_AND_NEXT_STEPS.md` rather than copying this percentage forward after later changes.
+The current handoff estimates this software cleanup at about **98% complete / 2% remaining**. Named split-owner and crash-residue REVIEW items have been resolved; the remaining work is final classification/checkpoint consolidation plus applicable CI evidence for the latest implementation correction. Always use the current value in `06_ACTIVE_WORK_AND_NEXT_STEPS.md` rather than copying this percentage forward after later changes.
 
 Every cleanup candidate must be classified before deletion:
 
@@ -50,7 +50,7 @@ Do not mix speculative redesign with cleanup. Do not delete production data or h
 
 ## Current verified repo baseline
 
-Latest user-confirmed implementation/test GREEN baseline:
+Latest confirmed implementation/test GREEN baseline:
 
 ```text
 ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
@@ -58,7 +58,7 @@ Harden release safety contract against stale JSON assertions
 CMP Protocol Tests GREEN
 ```
 
-Confirmed Actions evidence is recorded in `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Documentation-only commits after this SHA do not establish a newer firmware GREEN baseline. Later implementation changes require a fresh exact result or explicit user confirmation before being described as GREEN.
+Confirmed Actions evidence is recorded in `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Later implementation change `06a752663504d58ca6908414f8aa8786007c6877` (`fix(esp32): remove duplicate warehouse web bootstrap`) requires a fresh applicable result or explicit user confirmation before being described as GREEN.
 
 ## Non-negotiable safety invariants
 
@@ -166,8 +166,10 @@ JobSpoolSelectionStore .json.tmp
   KEEP bounded recovery of one fully valid pre-UART selection temp when final is absent
 
 JobSnapshotStore .json.tmp
-  REVIEW / fail-closed resilience; occurs before durable state and must not be auto-deleted/promoted ad hoc
+  KEEP non-authoritative preparation crash evidence; no auto-promote/resume/delete
 ```
+
+For `JobSnapshotStore`, persistent job/session ID allocation occurs before snapshot creation, while authoritative `JobState CREATED` is committed only after successful final snapshot rename/verification. A leftover `.json.tmp` therefore cannot become an authoritative job and its session ID is not reused.
 
 The different policies reflect different durable transaction boundaries.
 

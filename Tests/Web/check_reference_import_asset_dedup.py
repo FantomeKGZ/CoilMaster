@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 IMPORTER = ROOT / "tools" / "import_legacy_winding_reference.py"
 CHECKER = ROOT / "tools" / "check_legacy_winding_reference.py"
+REFERENCE_SHELL = ROOT / "firmware" / "esp32" / "web" / "sites" / "reference"
 
 
 def load_checker():
@@ -39,6 +41,7 @@ def main() -> None:
         desktop = base / "desktop"
         mobile = base / "mobile"
         output = base / "reference"
+        shutil.copytree(REFERENCE_SHELL, output)
 
         write(
             desktop / "page.html",

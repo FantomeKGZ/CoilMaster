@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
       - cmp-protocol-v1
     paths:
       - "firmware/arduino/**"

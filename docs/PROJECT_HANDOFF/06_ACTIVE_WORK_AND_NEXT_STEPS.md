@@ -299,3 +299,7 @@ Content-fidelity batch подтверждён GREEN оператором. Тек
 
 После GREEN перенести exact metrics/hash из workflow summary в integration log, затем выполнить representative desktop/mobile UX и physical microSD/ESP32 smoke свежего artifact. Автоматическое удаление audit candidates по-прежнему запрещено.
 
+### Reference manifest CI correction — current
+
+Runs `32645799868`, `32645815018`, `32645826246`, `32645835821`, `32645845923` упали только на stale `Audit CI trigger coverage`: он искал прежний inline manifest literal после выделения authoritative Python builder. Commit `797e68ae...` проверяет актуальную цепочку workflow arguments + builder provenance + `--verify`. Exact CI-trigger contract локально GREEN; остальные steps указанных runs, включая host build/CTest, были GREEN. Старые runs superseded; проверить новый CMP run.
+

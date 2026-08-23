@@ -239,3 +239,15 @@ docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
+
+
+### Reference migration cleanup audit — current batch
+
+Текущая GREEN baseline подтверждена оператором 2026-08-23. Следующий implementation batch добавляет только report-only анализ generated reference:
+
+- `tools/audit_legacy_winding_reference.py`;
+- contract test `Tests/Web/check_reference_migration_audit.py`;
+- отдельный Actions artifact `coilmaster-reference-migration-audit-<commit-sha>`;
+- summary counts для unreferenced assets, byte-identical assets, identical pages и страниц без legacy incoming links.
+
+Политика fail-safe: аудит ничего не удаляет и не меняет в SD bundle. Страницы без legacy incoming links остаются searchable через полный каталог. Проверить новый Reference workflow; после GREEN перенести реальные counts/bytes из audit artifact в integration log и только затем классифицировать кандидатов как KEEP или безопасный служебный мусор.

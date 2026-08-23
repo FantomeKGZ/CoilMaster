@@ -303,3 +303,7 @@ Content-fidelity batch подтверждён GREEN оператором. Тек
 
 Runs `32645799868`, `32645815018`, `32645826246`, `32645835821`, `32645845923` упали только на stale `Audit CI trigger coverage`: он искал прежний inline manifest literal после выделения authoritative Python builder. Commit `797e68ae...` проверяет актуальную цепочку workflow arguments + builder provenance + `--verify`. Exact CI-trigger contract локально GREEN; остальные steps указанных runs, включая host build/CTest, были GREEN. Старые runs superseded; проверить новый CMP run.
 
+### Reference complete table/image UX — current
+
+Оператор подтвердил GREEN трёх тестов после manifest CI correction. Текущий batch требует shared runtime/CSS accessibility и performance contracts для всех сохранённых legacy tables/images: horizontal touch/keyboard scrolling, focus region, lazy/async images и fallback alt. Synthetic fixture теперь сначала копирует реальный committed shell, как production workflow. Exact positive/tamper regression локально GREEN; проверить новый Reference workflow. Runtime ESP32/Arduino и safety boundary не затронуты.
+

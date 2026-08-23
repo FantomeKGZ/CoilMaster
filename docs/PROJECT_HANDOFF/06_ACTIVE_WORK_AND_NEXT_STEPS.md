@@ -61,11 +61,13 @@ Full audit A–E завершён. Controlled cleanup оценивается п�
 - historical `UNALLOCATED` remains read/audit/recovery compatibility only;
 - snapshot/state/selection crash-residue policy reviewed by transaction boundary;
 - top-level and AI routing aligned with current exact-spool model;
-- stale release-safety regression corrected and CI-verified GREEN at `ad17bb7...`.
+- stale release-safety regression corrected and CI-verified GREEN at `ad17bb7...`;
+- current-tree filename sweep at tree `44b31b7515cee140f0202f75b41ecd4be0b377d1`: Arduino/Core have no parallel `Legacy/Migration/Compat/Deprecated/Old` owners; `firmware/esp32/src` has no `Migration/Compat/Deprecated/Old` filenames and its only `Legacy` filename is `CM_WarehouseLegacySpoolMaterial.cpp`, already proven as a live route-owned migration API and classified `KEEP`;
+- `docs/AI_AGENT/01_PROJECT_MAP.md` current Arduino map already points to `CM_BuzzerService.*`; no stale `CM_Buzzer*` owner correction is required there.
 
 ## Remaining ~4%
 
-1. final owner-by-owner sweep of build-included ESP32/Arduino/Core files;
+1. final owner-by-owner sweep of build-included ESP32/Arduino/Core files beyond filename heuristics;
 2. remaining thematic stale-contract/docs sweep;
 3. final root/tree/Web/shared/scripts/tools zero-debt pass;
 4. explicit final classification of remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;

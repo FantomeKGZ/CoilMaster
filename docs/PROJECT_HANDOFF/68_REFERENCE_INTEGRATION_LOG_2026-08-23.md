@@ -868,3 +868,44 @@ docs(sd): document embedded CSS rewriting
 ```
 
 Exact repository contract test локально GREEN: desktop inline `url` (style attribute + style block), mobile inline `url`, CP1251 main CSS, nested `@import`, nested CSS asset URL, shared binary dedup и checker validation пройдены. Новый Actions batch ещё не объявлен GREEN.
+
+
+---
+
+## 2026-08-23 — legacy media attributes
+
+Оператор подтвердил GREEN embedded CSS/import batch.
+
+Проведён аудит legacy HTML resource attributes. Importer/checker/auditor ранее обрабатывали `href/src`, но старый FrontPage HTML также может использовать `background` на body/table/cell и `poster` на media.
+
+Добавлено единое покрытие:
+
+```text
+href | src | poster | background
+```
+
+Commits:
+
+```text
+b9784321a912fe19547122ddb406281ba6d951fd
+fix(reference): rewrite legacy media attributes
+
+1f8f8363c7f4955cafd5ecfe735fce049bfdaaf0
+test(reference): validate legacy media attributes
+
+fa4c7c3fdb2a14097349bda5248e28d40e0a3789
+fix(reference): audit legacy media attributes
+
+60149a5ba6b8d3624d790e57b08d48d5b08e38ec
+test(reference): cover background and poster attributes
+
+203057ef0c6faefacd93f82742ea8c602832fdb9
+test(reference): cover media attribute audit
+
+2b30eaa88bc970d58e97c10b2307666a166ed3d1
+docs(sd): document legacy media attribute rewrite
+```
+
+Exact importer + checker + audit contract tests локально GREEN. Referenced `poster` asset не попадает в unreferenced candidates, а background/poster URLs переписываются на единственный shared target.
+
+Code search в legacy repository не обнаружил `srcset=` или `poster=`; `poster` сохранён как недорогой defensive contract, а отдельный srcset parser без фактического source usage не добавлялся. Новый full Actions batch ещё не объявлен GREEN.

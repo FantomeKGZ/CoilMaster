@@ -336,13 +336,80 @@ feat(reference): make mobile landing searchable
 
 Временный текст «подготавливается перенос» удалён.
 
-### CI status этого блока
+### Подтверждённый SD bundle и UX-навигация
 
-На момент этой записи новые reference workflows после catalog/search commits ещё не занесены как GREEN. Не считать catalog/search batch подтверждённым до фактического Actions результата или явного подтверждения оператора.
+Reference workflow:
+
+```text
+Reference Legacy Import Check run 32641366079 — GREEN
+head_sha cea85a09dd4208bf88545284ae80a12edce22681
+```
+
+Фактический результат runner-а:
+
+```text
+desktop generated pages: 926
+mobile generated pages: 926
+catalog entries: 926
+pre-existing source gaps: 0
+reference footprint: 329M
+full /web footprint: 331M
+reference files: 4626
+reference HTML files: 1854
+shared assets: 2769
+desktop unique assets: 0
+mobile unique assets: 0
+full /web files: 4693
+```
+
+Создан artifact:
+
+```text
+coilmaster-web-sd-bundle-cea85a09dd4208bf88545284ae80a12edce22681
+artifact id: 9493687862
+archive size: 266893049 bytes
+digest: sha256:f161c871a39dfaa4ecbbd8d4e1971e464bba392d7260585d29d8161a93cacf1d
+expires: 2026-09-06
+```
+
+Artifact содержит готовое содержимое каталога `/web` для microSD.
+
+UX-аудит generated shell также закрыт repo-reviewable изменениями:
+
+```text
+e1437c45288916e17e8ead7870a8950710022849
+feat(reference): add generated page navigation
+
+229d26cddc6345a6e9c60f0fa68de6f455a924c2
+style(reference): improve legacy page navigation
+
+cea85a09dd4208bf88545284ae80a12edce22681
+test(reference): require generated page navigation
+```
+
+На каждой generated desktop/mobile странице теперь есть верхний и нижний переход к общей странице поиска, переход наверх, адаптивные изображения и горизонтальная прокрутка широких таблиц. Integrity checker требует эту навигацию на всех generated страницах.
+
+### Связанный CMP CI
+
+Runs `32640743878` и `32640777993` выявили, что общий repository navigation audit не различал committed и generated reference targets. Контракт разделён commit-ом:
+
+```text
+116a65a6a9ca0d7a3e9454169ccd6418be358908
+test(web): recognize generated reference links
+```
+
+Run `32641366058` затем выявил только синтаксическую ошибку переэкранированного JavaScript regex. Исправление:
+
+```text
+e5fc99e6f03c68e3e313fa5cc151a5ade0af74a4
+fix(web): correct generated reference regex
+```
+
+Reference workflow подтверждён GREEN. Новый CMP run после `e5fc99e6...` ещё должен быть проверен отдельно; до этого CMP batch не объявлять GREEN.
 
 ## Следующий непосредственный шаг
 
-1. Проверить последний `Reference Legacy Import Check` после `873f67e...`.
-2. При GREEN зафиксировать artifact, фактический reference size, полный `/web` size, file counts и catalog entries.
-3. Затем провести следующий UX-аудит generated legacy pages: ширина таблиц, картинки, верх/низ страницы, переход «на главную» и удобство поиска с нескольких типичных запросов.
-4. После repo-reviewable UX закрытия перейти к физическому обновлению `/web` на microSD и короткому ESP32 smoke-test.
+1. Проверить новый `CMP Protocol Tests` после `e5fc99e6...`.
+2. После CMP GREEN считать repo-level reference integration готовой к физическому развёртыванию.
+3. Скачать подтверждённый artifact до истечения срока хранения, заменить содержимое `/web` на microSD и выполнить короткий ESP32 smoke-test: главные desktop/mobile, поиск, типичные таблицы, изображения и переходы.
+4. Hardware GREEN не выводить из CI; записать только после фактической проверки на ESP32.

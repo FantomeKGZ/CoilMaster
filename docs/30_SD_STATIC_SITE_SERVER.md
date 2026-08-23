@@ -171,6 +171,15 @@ python3 tools/build_web_bundle_manifest.py --web-bundle /path/to/web --verify
 
 Общий app shell читает manifest и показывает короткий SD <commit> рядом с firmware/Web version. Если установлена старая карта без manifest, интерфейс остаётся работоспособным и показывает SD web unknown; это fail-soft диагностика, а не блокировка производства.
 
+Перед публикацией artifact workflow запускает `tools/check_web_bundle_offline.py` по всему готовому каталогу `/web`. Он разрешает обычные внешние navigation links, но отклоняет внешние или отсутствующие runtime dependencies: scripts, stylesheets, fonts, images, media, CSS `url(...)` / `@import`, inline styles и `srcset`. Динамические ESP32 API routes `/api/*` не считаются static-файлами.
+
+Ручная проверка распакованного bundle:
+
+```bash
+python3 tools/check_web_bundle_offline.py --web-bundle /path/to/web
+python3 tools/build_web_bundle_manifest.py --web-bundle /path/to/web --verify
+```
+
 Перед использованием artifact убедиться, что соответствующий workflow завершился GREEN. CI GREEN подтверждает сборку/целостность файлов, но не заменяет физическую проверку microSD на реальном ESP32.
 
 ## Ручное размещение

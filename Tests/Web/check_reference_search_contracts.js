@@ -63,5 +63,10 @@ if(!source.includes('history.replaceState')||
    !source.includes("new URLSearchParams(location.search).get('q')")){
   throw new Error('Reference search query URL persistence missing');
 }
+if(!source.includes("event.key==='Enter'")||
+   !source.includes("event.key==='Escape'")||
+   !source.includes("clear.addEventListener('click',clearSearch)")){
+  throw new Error('Reference keyboard/clear search controls missing');
+}
 
 console.log('Reference catalog search contracts: OK');

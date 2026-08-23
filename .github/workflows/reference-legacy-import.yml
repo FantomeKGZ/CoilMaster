@@ -52,6 +52,41 @@ jobs:
             --mobile-source "$mobile_src" \
             --output "$output"
 
+          export WEB_BUNDLE="$web_bundle"
+          export REFERENCE_OUTPUT="$output"
+          export LEGACY_SHA="$(git -C "$GITHUB_WORKSPACE/legacy" rev-parse HEAD)"
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          output = Path(os.environ["REFERENCE_OUTPUT"])
+          catalog = json.loads(
+              (output / "shared" / "catalog.json").read_text(encoding="utf-8")
+          )
+          manifest = {
+              "schema_version": 1,
+              "coilmaster_commit": os.environ["GITHUB_SHA"],
+              "coilmaster_branch": os.environ["GITHUB_REF_NAME"],
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "legacy_repository": "FantomeKGZ/motor-winding-reference",
+              "legacy_commit": os.environ["LEGACY_SHA"],
+              "reference_catalog_entries": len(catalog),
+              "generated_utc": datetime.now(timezone.utc)
+                  .replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+          }
+          target = Path(os.environ["WEB_BUNDLE"]) / "web-bundle-manifest.json"
+          target.write_text(
+              json.dumps(manifest, ensure_ascii=False, separators=(",", ":")),
+              encoding="utf-8",
+              newline="\n",
+          )
+          if manifest["reference_catalog_entries"] != 926:
+              raise SystemExit("unexpected reference catalog size in web manifest")
+          print(f"web bundle manifest: {target}")
+          PY
+
       - name: Report generated footprint
         shell: bash
         run: |
@@ -69,6 +104,8 @@ jobs:
           echo "Desktop unique assets: $(find "$output/desktop/assets" -type f 2>/dev/null | wc -l)"
           echo "Mobile unique assets: $(find "$output/mobile/assets" -type f 2>/dev/null | wc -l)"
           echo "Full /web files: $(find "$web_bundle" -type f | wc -l)"
+          echo "Web bundle manifest:"
+          cat "$web_bundle/web-bundle-manifest.json"
 
           {
             echo "## Legacy reference SD bundle"

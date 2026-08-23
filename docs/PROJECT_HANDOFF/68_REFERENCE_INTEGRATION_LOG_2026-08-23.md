@@ -948,3 +948,36 @@ UX и offline SD bundle:                   92%
 
 Оставшийся release scope: снять метрики нового artifact, проверить representative tables/images/transitions на последнем bundle и выполнить physical microSD/ESP32 smoke именно свежего artifact. Отдельный ESP32<->Arduino UART hardware gate не входит в процент готовности reference-сайта.
 
+---
+
+## 2026-08-23 — verifiable SD bundle manifest v2
+
+Оператор подтвердил GREEN полного content-fidelity batch. Поэтому перенос содержимого 926 desktop + 926 mobile страниц считается repo-level подтверждённым, а текущая оценка общей готовности reference-сайта повышена до **96%**.
+
+Следующий batch заменяет непроверяемые приблизительные footprint-данные на manifest schema v2:
+
+- exact reference catalog/file/byte/HTML/asset counts;
+- exact `/web` payload file/byte counts;
+- SHA-256 всего payload tree с учётом relative path, размера и SHA-256 каждого файла;
+- manifest исключён из payload hash/counts во избежание самоссылки;
+- verifier обнаруживает изменение, удаление и добавление любого payload-файла;
+- workflow выполняет contract test, создаёт manifest, сразу проверяет его и выводит exact summary до upload artifact.
+
+Commits:
+
+```text
+9d33fd7f3d7a9c29a2f4a71c93a5b0b23b2acbad
+feat(web): add verifiable SD bundle manifest
+
+16fc54da9261e6aeeb9a73a8c9c07eb56494dca5
+test(web): cover SD bundle manifest integrity
+
+d2283c46dfb4540dd2614be5b518f83e3fb25d5b
+ci(web): verify exact SD bundle manifest
+
+ecec4215225ffc7f0a57a5783e87b3615e347f93
+docs(sd): document verifiable bundle manifest
+```
+
+Exact local contract GREEN, включая отрицательную проверку tampered payload. Новый полный Actions batch ещё не объявлен GREEN. После GREEN снять exact counts/hash из workflow summary и выполнить physical smoke свежего SD artifact.
+

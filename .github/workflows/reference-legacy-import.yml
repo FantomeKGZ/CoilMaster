@@ -12,7 +12,9 @@ on:
       - Tests/Web/check_reference_migration_audit.py
       - Tests/Web/check_reference_import_asset_dedup.py
       - Tests/Web/check_web_bundle_manifest.py
+      - Tests/Web/check_web_bundle_offline.py
       - tools/build_web_bundle_manifest.py
+      - tools/check_web_bundle_offline.py
       - firmware/esp32/web/**
       - .github/workflows/reference-legacy-import.yml
 
@@ -36,6 +38,9 @@ jobs:
 
       - name: Check SD bundle manifest contracts
         run: python3 coilmaster/Tests/Web/check_web_bundle_manifest.py
+
+      - name: Check offline bundle dependency contracts
+        run: python3 coilmaster/Tests/Web/check_web_bundle_offline.py
 
       - name: Checkout legacy reference source
         uses: actions/checkout@v4
@@ -69,6 +74,9 @@ jobs:
           python3 "$GITHUB_WORKSPACE/coilmaster/tools/audit_legacy_winding_reference.py" \
             --output "$output" \
             --report "$RUNNER_TEMP/reference-migration-audit.json"
+
+          python3 "$GITHUB_WORKSPACE/coilmaster/tools/check_web_bundle_offline.py" \
+            --web-bundle "$web_bundle"
 
           legacy_sha="$(git -C "$GITHUB_WORKSPACE/legacy" rev-parse HEAD)"
           python3 "$GITHUB_WORKSPACE/coilmaster/tools/build_web_bundle_manifest.py" \

@@ -240,7 +240,7 @@ const applyStatusStart = remoteBackupWeb.indexOf(
   'void RemoteBackupWeb::handleApplyStatus()');
 const applyStatusEnd = remoteBackupWeb.indexOf(
   'bool RemoteBackupWeb::validateInspectionManifest', applyStatusStart);
-const applyStatusSource = applyStatusStart >= 0 && applyActiveEnd > applyStatusStart
+const applyStatusSource = applyStatusStart >= 0 && applyStatusEnd > applyStatusStart
   ? remoteBackupWeb.slice(applyStatusStart, applyStatusEnd) : '';
 if (!applyStatusSource.includes('state = "STALE"') ||
     !applyStatusSource.includes('response += runtimeApplyActive ? F("true") : F("false")')) {

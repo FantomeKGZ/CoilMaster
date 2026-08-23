@@ -201,16 +201,26 @@ async function syncClock(node){
 }
 
 async function loadVersion(node){
- let firmware='FW unknown',web=WEB_VERSION;
+ let firmware='FW unknown',web=WEB_VERSION,sdWeb='SD web unknown';
+ const details=[];
  try{
   const build=await fetchJson('/api/system/build');
   const sha=String(build.firmware_git_sha||'unknown');
   const branch=String(build.firmware_git_branch||'');
   firmware=`FW ${sha}${branch&&branch!=='unknown'?' · '+branch:''}`;
   web=String(build.web_contract_version||WEB_VERSION);
-  node.title=build.firmware_build_utc&&build.firmware_build_utc!=='unknown'?`Firmware built ${build.firmware_build_utc}`:'Firmware build time unavailable';
+  details.push(build.firmware_build_utc&&build.firmware_build_utc!=='unknown'?`Firmware built ${build.firmware_build_utc}`:'Firmware build time unavailable');
  }catch(_){}
- node.textContent=`${firmware} · Web ${web}`;
+ try{
+  const bundle=await fetchJson('/web-bundle-manifest.json');
+  const commit=String(bundle.coilmaster_commit||'unknown');
+  if(bundle.schema_version===1&&/^[0-9a-f]{40}$/i.test(commit)){
+   sdWeb=`SD ${commit.slice(0,8)}`;
+   details.push(`SD web built ${bundle.generated_utc||'unknown'} · legacy ${String(bundle.legacy_commit||'unknown').slice(0,8)}`);
+  }
+ }catch(_){}
+ node.title=details.join(' | ');
+ node.textContent=`${firmware} · Web ${web} · ${sdWeb}`;
 }
 
 function applyIncomingSearch(){

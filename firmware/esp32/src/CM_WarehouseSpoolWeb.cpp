@@ -1,11 +1,4 @@
 #include "CM_WarehouseWeb.h"
-#include "CM_ConductorCalculatorWeb.h"
-#include "CM_ConductorSettingsWeb.h"
-#include "CM_MaterialLedger.h"
-#include "CM_MaterialLedgerWeb.h"
-#include "CM_RepairRegistry.h"
-#include "CM_RepairRegistryWeb.h"
-#include "CM_MotorSimilarityWeb.h"
 
 namespace CM
 {
@@ -16,23 +9,6 @@ void WarehouseWeb::beginSpoolList()
                 [this]() { handleAssignLegacySpoolMaterial(); });
     m_server.on("/api/warehouse/material-summary", HTTP_GET,
                 [this]() { handleMaterialSummary(); });
-    beginWriteOff();
-
-    static ConductorCalculatorWeb calculatorWeb(m_server, m_store);
-    static ConductorSettingsWeb conductorSettingsWeb(m_server, m_store);
-    static MaterialLedger materialLedger(m_store.storage());
-    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
-    static RepairRegistry repairRegistry(m_store.storage());
-    static RepairRegistryWeb repairRegistryWeb(m_server, repairRegistry);
-    static MotorSimilarityWeb motorSimilarityWeb(m_server, repairRegistry);
-
-    calculatorWeb.begin();
-    conductorSettingsWeb.begin();
-    materialLedger.begin();
-    materialLedgerWeb.begin();
-    repairRegistry.begin();
-    repairRegistryWeb.begin();
-    motorSimilarityWeb.begin();
 }
 
 void WarehouseWeb::handleAssignLegacySpoolMaterial()

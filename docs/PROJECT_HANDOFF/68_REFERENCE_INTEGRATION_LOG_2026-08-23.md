@@ -465,3 +465,32 @@ test(reference): require same-page mode switch
 1. Проверить новый Reference Legacy Import Check после 41717ae7.
 2. При GREEN скачать новый согласованный SD artifact.
 3. После обновления microSD проверить вход «📚 Справочник» из основного сайта и переключение desktop/mobile внутри одной найденной таблицы.
+
+---
+
+## 2026-08-23 — улучшение релевантности поиска
+
+Search UX расширен без изменения generated catalog format:
+
+```text
+fff7e338c9a4d7516eb09458ae5e7c5c74eda2c3
+feat(reference): improve catalog search relevance
+
+62667b66dd575b6cb89a28d057bb9244a9bf2749
+test(reference): cover catalog search relevance
+
+7c595062c2303f57307330041e9f49a31f6fe040
+ci(reference): run catalog search contracts
+```
+
+Теперь поиск:
+
+- разбивает запрос на несколько слов и требует совпадение каждого слова независимо от порядка;
+- ищет одновременно по title и legacy filename/path;
+- ставит точные и начальные совпадения выше частичных;
+- сохраняет запрос в URL-параметре q, поэтому результат можно повторно открыть и восстановить;
+- сохраняет desktop/mobile availability filter.
+
+Добавлен исполняемый Node regression test для нормализации, multi-token ranking, Latin legacy path и mode filtering. Он включён отдельным шагом в CMP Protocol Tests.
+
+Следующий шаг: проверить CMP и Reference workflows после 7c595062, затем включить этот поиск в новый SD artifact.

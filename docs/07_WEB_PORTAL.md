@@ -1,202 +1,162 @@
-# CoilMaster — WEB‑портал
+# CoilMaster — Web portal current structure
 
-## Стартовый портал
+## 1. Web root и выбор интерфейса
 
-При открытии ESP32 корневой `/web/index.html` предлагает выбрать основной интерфейс CoilMaster:
-
-- `/desktop/` — версия для ПК;
-- `/mobile/` — мобильная версия.
-
-Выбор сохраняется локально в браузере и может быть изменён вручную. ESP32 обслуживает статические файлы из `/web`; динамические функции доступны только через контролируемые HTTP API.
-
-Текущая production-структура web-root:
+ESP32 обслуживает static assets из `/web`. Корневой `firmware/esp32/web/index.html` предлагает/запоминает вариант интерфейса:
 
 ```text
-/web/
+/desktop/
+/mobile/
+```
+
+Production web tree:
+
+```text
+firmware/esp32/web/
 ├── index.html
-├── desktop/                 основной CoilMaster UI для ПК
-├── mobile/                  основной мобильный CoilMaster UI
-├── shared/                  общие feature-модули JavaScript
-├── reference/               generated/read-only reference datasets
+├── desktop/
+├── mobile/
+├── shared/
+├── reference/
+│   └── motor-reference.json
 └── sites/
     └── reference/
-        ├── desktop/         отдельный справочный microSD-site
+        ├── desktop/
         └── mobile/
 ```
 
-Архитектура сохраняет возможность размещать дополнительные сайты и справочные материалы на microSD. Для самостоятельного сайта предпочтительны отдельные `desktop` и `mobile` варианты. Текущий `sites/reference/` является намеренно сохранённой оболочкой справочного сайта; отсутствие наполнения отдельных разделов не означает, что каталог можно удалять как cleanup-мусор.
+`reference/motor-reference.json` — generated read-only data index. `sites/reference/` — отдельный runtime-owned reference UI; `CM_StaticSiteServer` маршрутизирует `/sites/reference[/]` к desktop/mobile variant. Эти каталоги не являются cleanup-дубликатами друг друга.
 
-## Навигация CoilMaster
+## 2. Static/runtime ownership
 
-### Главная
-
-Показывает:
-
-- состояние Arduino, UART, microSD и RTC;
-- текущий режим станка;
-- активную программу и открытый сеанс;
-- последние выполненные операции;
-- количество клиентов, двигателей и незавершенных ремонтов;
-- намотки и фактические витки за сегодня, месяц и всё время;
-- число не привязанных запусков;
-- предупреждения и ошибки;
-- быстрые переходы.
-
-### Намотка
-
-Показывает в реальном времени:
-
-- Session ID и Run ID;
-- источник программы;
-- необязательную роль: рабочая, пусковая или другая;
-- последовательность катушек;
-- текущую катушку и витки;
-- количество завершённых повторов в текущем сеансе;
-- SSR, паузу, ручной режим;
-- связь с Arduino;
-- подтверждения сохранения каждого завершённого запуска.
-
-Позволяет подготовить программу и передать Arduino. Удаленный запуск SSR запрещен: запуск подтверждается клавишей `A` или внешней кнопкой START.
-
-После полного выполнения программы Arduino сохраняет её активной и предлагает:
-
-- `A` или внешняя START — повторить ту же программу;
-- `B` — завершить сеанс и вернуться в меню.
-
-Каждый повтор сохраняется отдельной записью. WEB может показывать их одной сгруппированной строкой, не удаляя исходные записи.
-
-### История
-
-Поддерживает:
-
-- группировку по дню;
-- агрегацию одинаковых последовательностей;
-- отображение `140/100/80/40 — 2 раза сегодня`;
-- просмотр каждого исходного запуска;
-- создание программы из выбранных запусков;
-- привязку к клиенту, двигателю и ремонту;
-- фильтры по дате, статусу, роли и источнику;
-- отдельный раздел не привязанных запусков.
-
-#### Привязка запусков
-
-Пользователь выбирает записи и нажимает `Привязать к двигателю`.
-
-Далее он может:
-
-1. выбрать существующий двигатель или создать новый;
-2. ввести обязательное название;
-3. выбрать тип двигателя, если это требуется;
-4. объединить выбранные записи в одну или несколько программ катушек;
-5. при необходимости указать, какая программа рабочая, а какая пусковая;
-6. дополнительно указать провод, число жил, массу, укладку и комментарии.
-
-Исходные записи не изменяются и не удаляются.
-
-### База двигателей
-
-Список, поиск и карточки двигателей.
-
-#### Обязательные данные карточки
-
-- название двигателя;
-- хотя бы одна программа катушек.
-
-#### Необязательные данные
-
-- однофазный, трёхфазный или другой тип;
-- модель и производитель;
-- паспортные параметры;
-- количество пазов;
-- роль программы: рабочая, пусковая или другая;
-- диаметр провода;
-- число жил, по умолчанию `1`;
-- масса провода;
-- тип укладки;
-- схемы, фотографии и заметки;
-- ремонты и журнал изменений.
-
-Для трёхфазного двигателя фазы A/B/C в интерфейсе не создаются. Одинаковая программа выполняется нужное число раз, а каждый проход учитывается отдельно.
-
-#### Пример карточки
+Основные owners:
 
 ```text
-Название: Двигатель насоса
-Тип: трёхфазный (необязательно)
-
-Программа 1:
-20 / 20 / 20 / 20 / 20 / 20
-Повторы: 3
-Провод: 0.80 мм, 2 жилы
+firmware/esp32/src/CM_StaticSiteServer.*
+firmware/esp32/web/desktop/
+firmware/esp32/web/mobile/
+firmware/esp32/web/shared/
+Tests/Web/
 ```
 
-### Отправка программы и пакета двигателя
+Static page не имеет права напрямую обращаться к GPIO, SSR, UART object или production-файлам microSD. Все dynamic operations идут через controlled ESP32 HTTP API.
 
-Из карточки можно отправить:
+## 3. Desktop/mobile parity
 
-- одну выбранную программу;
-- пакет из нескольких программ.
+Desktop и mobile — два presentation variants одного production flow. Они могут отличаться layout/navigation, но должны совпадать по data/safety semantics.
 
-Для однофазного двигателя пакет может содержать рабочую и пусковую программы. Перед отправкой WEB спрашивает, с какой начать:
+При изменении operator-facing capability проверяются:
 
 ```text
-Начать с:
-- рабочей;
-- пусковой;
-- по порядку карточки.
+firmware/esp32/web/desktop/<page>
+firmware/esp32/web/mobile/<page>
+firmware/esp32/web/shared/<feature>.js   если применимо
+Tests/Web/                               соответствующий contract audit
 ```
 
-После завершения первой программы оператор может запросить следующую программу пакета, но запуск выполняется только физической кнопкой или клавишей `A`.
+Нельзя исправлять только одну variant, если действие доступно в обеих.
 
-Для трёхфазного двигателя обычно отправляется одна программа с нужным количеством повторов или режимом `повторять до завершения оператором`.
+## 4. Shared JavaScript
 
-### Клиенты
+`firmware/esp32/web/shared/` содержит реальные feature owners, а не автоматически удаляемые helpers. Current tree включает app-shell, backup, Hall/settings, history, costing и writeoff helpers.
 
-Содержит:
+Удаление shared file допустимо только после проверки:
 
-- карточки клиентов;
-- контакты и примечания;
-- список двигателей клиента;
-- историю ремонтов и заказов;
-- поиск по имени, телефону и организации.
+- static HTML references;
+- dynamic injection из `CM_StaticSiteServer`;
+- `app-shell.js`/других shared loaders;
+- desktop/mobile consumers;
+- Web contract tests.
 
-### Ремонт
+Именно по этому правилу старый calculator helper был удален ранее, а текущие shared modules остаются `KEEP`.
 
-Страница объединяет клиента, двигатель и фактические операции.
+## 5. Winding/job UI boundary
 
-Пользователь может:
+Web может подготовить linked winding job и доставить data на ESP32/Arduino pipeline. Current production flow до UART:
 
-- создать ремонт;
-- добавить программы катушек;
-- при необходимости отметить рабочую и пусковую;
-- указать число повторов;
-- связать уже выполненные операции;
-- указать провод, число жил, массу и схему;
-- завершить или архивировать ремонт.
+```text
+client -> motor -> OPEN repair -> linked winding
+-> immutable job/session identity
+-> immutable snapshot
+-> exact immutable spool selection
+-> UART JOB
+```
 
-### Настройки и сервис
+Web/UI не может считать job creation/delivery физическим запуском.
 
-- калибровка SS49E;
-- просмотр `analogRead(A0)`;
-- настройка порога и гистерезиса;
-- диагностика LCD1602, клавиатуры, SSR, зуммера, UART и RTC;
-- резервное копирование и восстановление;
-- управление сайтами на microSD;
-- состояние памяти и журнал ошибок.
+Physical winding START остается local/physical Arduino action. ESP32/Web никогда напрямую не управляют SSR.
 
-## Общие требования UX
+## 6. Run/history presentation
 
-- крупные элементы управления на мобильной версии;
-- отсутствие горизонтальной прокрутки на телефоне;
-- минимум обязательных полей;
-- число жил по умолчанию равно `1`;
-- роли рабочая/пусковая не навязываются трёхфазным двигателям;
-- подтверждение опасных и необратимых действий;
-- цвет не является единственным обозначением статуса;
-- все операции записи показывают успешный результат или ошибку;
-- страница сохраняет введенные данные при кратковременном разрыве связи;
-- мониторинг не блокирует работу Arduino.
+Authoritative фактические события сохраняются run-level:
 
-## API
+```text
+RUN_STARTED(session_id, run_id, ...)
+RUN_COMPLETED(session_id, run_id, ...)
+```
 
-Все сайты используют единый контролируемый API ESP32. Статические страницы не имеют прямого доступа к GPIO, UART или файлам базы.
+UI может группировать/агрегировать одинаковые программы для удобства, но исходные run evidence не объединяются физически и не удаляются.
+
+Lost ACK/timeout не дает UI права показывать Arduino как гарантированно idle или инициировать автоматический новый run.
+
+## 7. Material/writeoff UI
+
+После `RUN_COMPLETED` Web может предложить operator manual writeoff, но stock не меняется автоматически.
+
+Для current linked production writeoff обязан сохранить:
+
+```text
+source_session_id + source_run_id + exact immutable spool_id
+```
+
+Desktop/mobile writeoff UI не могут превращать historical `UNALLOCATED` evidence в новый optional-spool production path.
+
+## 8. Motors / repairs / costing
+
+Web portal предоставляет текущие страницы для clients, motors, repairs, winding jobs/history, warehouse/materials, costing/pricing, reports и settings. Exact field set/validation определяется текущими API/store owners и matching Web contract tests, а не старой aspirational формой в документации.
+
+Motor reference (`winding-reference.html`) читает только `/reference/motor-reference.json`; этот reference index имеет `reference_only` semantics, не создает рабочий motor record и не содержит `coil_program` для станка.
+
+## 9. Settings / hardware service UI
+
+Current hardware-control Web owner — `CM_HardwareControlWeb.*`. Он предоставляет bounded Hall settings/telemetry/calibration operations через Arduino CMP1 boundary.
+
+Web может:
+
+- читать Hall settings/state;
+- запросить refresh;
+- изменить разрешенные Hall settings через validated control path;
+- читать/start/stop telemetry;
+- arm/refresh/abort Hall calibration.
+
+Web **не имеет direct SSR test/control API**. Calibration arm не запускает двигатель: состояние ожидает physical START на Arduino.
+
+Не документировать browser-controlled SSR как service feature.
+
+## 10. Backup/recovery/settings
+
+Web предоставляет operator-facing backup/restore/network/settings workflows через соответствующие ESP32 owners. Для них сохраняются общие правила:
+
+- restore explicit/operator-only;
+- apply transactional/fail-closed;
+- persisted stale evidence блокирует небезопасное продолжение;
+- reboot не auto-continues restore/apply;
+- low storage не запускает автоматическое удаление production data.
+
+## 11. UX safety rules
+
+- destructive/irreversible действия требуют явного operator intent;
+- UI не показывает physical result до подтвержденного hardware/persisted evidence;
+- write mutation показывает success/error из authoritative API result;
+- color не является единственным обозначением критического состояния;
+- monitoring не должен превращаться в movement authority;
+- reconnect/reload не запускает winding заново;
+- desktop/mobile должны сохранять одинаковую safety semantics.
+
+## 12. API
+
+Current API routing документирован в `docs/08_API.md` и определяется текущими `*Web.cpp` owners. Нет обязательного общего `/api/v1/` prefix и нет generic Web access к GPIO/UART/filesystem.
+
+## 13. Verification
+
+Web change требует соответствующего `Tests/Web/` audit. C++ static/API changes требуют ESP32 Build; CMP/hardware semantics additionally требуют protocol/Arduino gates. Hardware GREEN никогда не выводится только из Web/CI tests.

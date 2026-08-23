@@ -1083,3 +1083,41 @@ test(web): cover data URL srcset parsing
 
 `srcset` parser не делит embedded `data:` URL по внутренней запятой и продолжает проверять следующие candidates. Positive/remote/missing/data-srcset contracts локально GREEN. Новый full workflow ещё не объявлен GREEN; его результат покажет реальные unresolved dependencies всего SD bundle, если они остались.
 
+---
+
+## 2026-08-23 — risk-based physical smoke plan
+
+Оператор подтвердил GREEN полного offline dependency batch. Текущая software/site готовность повышена примерно до **98%**; оставшийся основной gate — physical microSD/ESP32 проверка свежего artifact.
+
+Чтобы physical smoke не состоял из случайных страниц, workflow теперь генерирует bounded план до пяти страниц:
+
+- известная серия 4А;
+- страница с максимальным количеством таблиц;
+- страница с максимальным количеством изображений;
+- страница с максимальным объёмом видимого текста;
+- страница с наиболее глубоким legacy path;
+- если критерии совпадают, список дополняется risk-ranked страницами.
+
+Для каждой страницы публикуются percent-encoded desktop/mobile URLs, причины выбора и реальные metrics по обоим режимам. Checklist требует поиск/повторное открытие, same-page mode switch, touch/keyboard table scrolling, offline images и видимый SD commit.
+
+Commits:
+
+```text
+18829671b8f38d3a63fff3aff4e67f3ab8ebc61f
+feat(reference): generate risk-based smoke plan
+
+974519e462471e1fe841db05d6c9a15c8ff842ba
+test(reference): cover risk-based smoke plan
+
+1c372017d667b0958c17371426d8f4af77b38ef1
+ci(reference): publish risk-based smoke plan
+```
+
+Artifact:
+
+```text
+coilmaster-reference-smoke-plan-<commit-sha>
+```
+
+Exact positive/missing-target smoke-plan contract локально GREEN. Новый workflow batch ещё не объявлен GREEN.
+

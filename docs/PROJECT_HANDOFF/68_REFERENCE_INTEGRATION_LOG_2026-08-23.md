@@ -700,6 +700,9 @@ test(reference): cover unused asset classification
 
 f29d573c0c693991516729a163c74c9ddee15ad3
 ci(reference): summarize unused asset types
+
+6e87c5f914ab8f584b63e30db5d9500bee7e1f1b
+test(reference): exercise single runtime backslashes
 ```
 
 Аудитор теперь разрешает absolute, POSIX-relative и Windows-backslash URLs относительно реального HTML/CSS файла. Это уменьшает ложные `unreferenced` результаты. Неиспользуемые assets дополнительно группируются по расширению с count/bytes в JSON artifact и Actions summary. Synthetic regression локально GREEN; новый Actions batch пока не перенесён в verified baseline.

@@ -1,78 +1,100 @@
 # CoilMaster — дорожная карта
 
-## v0.1 — Архитектура и спецификация
+## Статус
 
-- зафиксировать аппаратную схему;
-- утвердить модель данных;
-- описать WEB‑портал;
-- описать состояния Arduino;
-- определить API и прикладные CMP‑команды.
+Исторические этапы архитектуры, Arduino Core, CMP1 integration, ESP32 persistence/API, desktop/mobile Web, warehouse/materials/costing, backup/restore и controlled cleanup в основном уже реализованы в `cmp-protocol-v1`.
 
-## v0.2 — Arduino Core
+Этот файл больше не является списком незавершённых v0.x задач. Активная очередь и verified GREEN baseline всегда берутся из:
 
-- числовой ввод без `String`;
-- обработка клавиш `A/B/C/D/*/#`;
-- LCD1602;
-- машина состояний;
-- Hall, SSR, зуммер и внешняя кнопка;
-- автономное выполнение задания;
-- модульные тесты логики на ПК.
+```text
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+```
 
-## v0.3 — Интеграция Arduino ↔ ESP32
+## Завершённые software blocks
 
-- команды заданий;
-- подтверждение приема;
-- телеметрия;
-- подтверждение каждой катушки;
-- восстановление после разрыва связи;
-- защита от дубликатов по Job ID.
+- Arduino realtime state machine, Hall, physical START, SSR, keypad/LCD/buzzer;
+- production CMP1 UART JOB/ACK/cancel/run-event transport;
+- lost-ACK/timeout and no-run recovery semantics;
+- ESP32 microSD/RTC/network/Web/API orchestration;
+- clients/motors/repairs and motor import/reference workflows;
+- immutable winding job snapshot/state/exact spool selection;
+- winding journal and autonomous local winding archive;
+- wire spool warehouse, auxiliary materials, pricing/costing and manual exact-run writeoff;
+- repair finalization preflight and persisted CLOSED evidence;
+- desktop/mobile/shared Web UI and reference site;
+- deep persistence/integrity audit, backup/export/restore/rollback safety;
+- CI build/test routing and extensive source/static contract regression suite;
+- full repo audit A–E and controlled zero-debt cleanup.
 
-## v0.4 — ESP32 Storage и API
+## Current release path
 
-- microSD;
-- RTC;
-- сущности клиентов, двигателей, ремонтов и намоток;
-- безопасная запись;
-- поиск и индексы;
-- резервные копии;
-- REST/API слой.
+### 1. Finish controlled repository cleanup
 
-## v0.5 — WEB‑портал
+For every remaining candidate:
 
-- портал выбора сайтов;
-- Desktop/Mobile версии;
-- Home;
-- мониторинг;
-- история и агрегация;
-- клиенты;
-- двигатели;
-- ремонты;
-- настройки и сервис.
+```text
+DELETE / MERGE / KEEP / REVIEW
+```
 
-## v0.6 — Диагностика
+Deletion requires direct owner/build/runtime/test/docs proof. Empty code search alone is never sufficient.
 
-- Hall calibration;
-- тесты LCD, клавиатуры, SSR и зуммера;
-- UART и RTC;
-- журналы ошибок;
-- контроль ресурсов ESP32.
+Remaining work is limited to final owner-by-owner and stale-contract checks plus handoff consolidation. Do not reopen already completed architecture/provenance/residue audits without current-source evidence.
 
-## v0.7 — Интеграционное тестирование
+### 2. Keep applicable CI GREEN
 
-- длительные тесты UART;
-- отключение Wi‑Fi;
-- извлечение microSD;
-- внезапное отключение питания;
-- восстановление незавершенных заданий;
-- проверка баз данных и резервных копий.
+Relevant gates include:
 
-## v1.0 — Стабильный выпуск
+```text
+Arduino Uno Build
+ESP32 Build
+CMP Protocol Tests
+Motor reference index
+```
 
-Критерии:
+A workflow is GREEN only after an actual successful run; documentation-only or unobserved commits do not establish a new firmware GREEN baseline automatically.
 
-- станок работает автономно;
-- задания передаются в обе стороны;
-- все завершения подтверждаются;
-- история не теряется;
-- резервное восстановление проверено;
-- документация соответствует реализации.
+### 3. Targeted two-board hardware acceptance
+
+Final physical release confidence remains separate from software cleanup. Required smoke should cover the currently relevant physical boundaries, including where applicable:
+
+- ESP32 -> Arduino JOB delivery and `JOB_ACK`;
+- physical START only on Arduino;
+- `RUN_STARTED` / `RUN_COMPLETED` propagation and event ACK/retry;
+- repeat behavior with no automatic physical START;
+- no-run cancel / lost-ACK recovery / `ALL_CLEAR`;
+- ESP32 reboot with persisted uncertainty and no auto-resume;
+- Hall calibration/telemetry safety;
+- manual exact-run exact-spool writeoff after confirmed completed run;
+- backup/restore recovery scenarios only on safe/disposable test media where destructive fault injection is required.
+
+Runtime/Serial capture is requested only for an unresolved hardware-only question, not as a routine source-cleanup step.
+
+## Stable safety acceptance criteria
+
+The project must never regress these invariants:
+
+- no automatic physical START;
+- no automatic START between repeat runs;
+- Arduino owns SSR;
+- ESP32/Web never directly control SSR;
+- no automatic winding resume after reboot;
+- lost ACK/timeout does not prove Arduino idle;
+- final repeat cannot reopen automatically;
+- `RUN_COMPLETED` never performs automatic wire/material writeoff;
+- current linked writeoff requires exact `source_session_id + source_run_id + immutable spool_id`;
+- cancellation does not erase immutable run/history evidence;
+- restore is explicit/operator-only, transactional and fail-closed;
+- reboot does not auto-continue restore/apply;
+- production data/evidence is never automatically deleted or truncated as a space/recovery shortcut.
+
+## Completion definition
+
+Software cleanup can be marked complete when:
+
+1. remaining owners are classified and no proven duplicate/orphan implementation remains;
+2. current high-level/AI/handoff docs match production source paths/contracts;
+3. build/test workflow routing matches `cmp-protocol-v1` source ownership;
+4. applicable source/static regressions pass;
+5. the final cleanup checkpoint records any intentional `REVIEW` items rather than hiding uncertainty.
+
+Hardware acceptance remains an explicit subsequent/parallel release gate and is never inferred from CI.

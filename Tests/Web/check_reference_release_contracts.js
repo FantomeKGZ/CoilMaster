@@ -10,8 +10,13 @@ function forbidText(needle, message) {
   if (workflow.includes(needle)) throw new Error(message);
 }
 
-requireText('workflow_dispatch:', 'SD release must remain explicit manual action');
-forbidText('\n  push:', 'SD release must never publish automatically on push');
+requireText('workflow_dispatch:', 'SD release must support explicit manual dispatch');
+requireText('push:', 'SD release must support an auditable request commit on the source branch');
+requireText('- cmp-protocol-v1', 'Release-request push must be limited to the source-of-truth branch');
+requireText('- .github/release/reference-sd-request.json',
+  'Release-request push must be limited to the single explicit request file');
+requireText("jq -r '.source_run_id'", 'Push publication must read an explicit source run ID');
+requireText('GITHUB_EVENT_NAME', 'Workflow must distinguish dispatch from request commits');
 forbidText('\n  schedule:', 'SD release must never publish on a schedule');
 requireText('actions: read', 'SD release needs bounded Actions artifact read permission');
 requireText('contents: write', 'SD release needs contents permission to create a GitHub Release');

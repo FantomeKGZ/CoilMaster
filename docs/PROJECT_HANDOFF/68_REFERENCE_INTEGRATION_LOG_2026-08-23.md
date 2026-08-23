@@ -909,3 +909,42 @@ docs(sd): document legacy media attribute rewrite
 Exact importer + checker + audit contract tests локально GREEN. Referenced `poster` asset не попадает в unreferenced candidates, а background/poster URLs переписываются на единственный shared target.
 
 Code search в legacy repository не обнаружил `srcset=` или `poster=`; `poster` сохранён как недорогой defensive contract, а отдельный srcset parser без фактического source usage не добавлялся. Новый full Actions batch ещё не объявлен GREEN.
+
+---
+
+## 2026-08-23 — full content fidelity gate
+
+Оператор подтвердил GREEN предыдущего batch с legacy media attributes.
+
+Добавлена проверка полноты переноса содержимого для всех generated desktop/mobile страниц:
+
+- source и generated HTML декодируются по тем же UTF-8/Windows-1251 правилам, что importer;
+- из сравнения исключаются только служебные `script/style`, comments, shell и удаляемый legacy top banner;
+- normalized visible text source должен полностью совпадать с generated page;
+- дополнительно сравниваются structural counts: `table`, `tr`, `th`, `td`, `img`, `a`;
+- CSS/URL rewrite не создаёт ложных несовпадений, потому что невидимое содержимое стилей не считается пользовательским текстом.
+
+Commits:
+
+```text
+e89813f2feb2ad73f47aff6a6ae68f2b7dc41c1a
+test(reference): validate full content fidelity
+
+fe2aeed161b30886f3057df8cab24bda7d5ef932
+test(reference): cover content fidelity regression
+```
+
+Exact synthetic importer/checker contract локально GREEN, включая отрицательный regression с подменой видимого текста. Новый полный workflow должен проверить этот контракт на реальных 926 desktop + 926 mobile страницах; до фактического результата он не записывается как CI GREEN.
+
+Текущая оценка готовности:
+
+```text
+перенос контента:                         100%
+автоматизация/целостность миграции:       98% после GREEN полного fidelity run
+UX и offline SD bundle:                   92%
+общая готовность сейчас:                  94%
+общая готовность после GREEN fidelity:    около 96%
+```
+
+Оставшийся release scope: снять метрики нового artifact, проверить representative tables/images/transitions на последнем bundle и выполнить physical microSD/ESP32 smoke именно свежего artifact. Отдельный ESP32<->Arduino UART hardware gate не входит в процент готовности reference-сайта.
+

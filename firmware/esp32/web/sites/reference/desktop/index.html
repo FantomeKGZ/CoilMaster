@@ -31,15 +31,16 @@
 <main class="cm-reference-main cm-reference-content">
 <div class="cm-reference-top"><div><h2>Справочник обмотчика</h2><span class="cm-reference-muted">Версия для ПК</span></div></div>
 <section class="cm-reference-card">
-<h3>Исходный справочник</h3>
-<p class="cm-reference-muted">Подготавливается перенос материалов из motor-winding-reference без потери таблиц, схем, изображений и описаний. Верхний логотип исходного сайта в новой версии использоваться не будет.</p>
+<h3>Поиск по справочнику</h3>
+<p class="cm-reference-muted">Поиск работает по названиям всех сохранённых страниц и именам файлов. Можно вводить серию, марку двигателя или часть названия.</p>
+<input class="cm-reference-search" type="search" autocomplete="off" placeholder="Например: 4А, АИР, 1500..." aria-label="Поиск по справочнику" data-reference-search>
+<p class="cm-reference-search-status" data-reference-search-status>Загрузка каталога…</p>
+<div class="cm-reference-search-results" data-reference-results></div>
 </section>
-<div class="cm-reference-grid">
-<section class="cm-reference-card"><h3>Таблицы и данные двигателей</h3><p class="cm-reference-muted">Табличные данные будут сохранены с горизонтальной прокруткой для широких таблиц.</p></section>
-<section class="cm-reference-card"><h3>Схемы и изображения</h3><p class="cm-reference-muted">Общие изображения desktop/mobile будут вынесены в единый shared-каталог, уникальные останутся в своей версии.</p></section>
-<section class="cm-reference-card"><h3>Описания</h3><p class="cm-reference-muted">Текстовые пояснения и внутренние переходы сохраняются при импорте.</p></section>
-<section class="cm-reference-card"><h3>Версия интерфейса</h3><p class="cm-reference-muted">Переключение ПК ↔ мобильная использует тот же ключ <code>cm-ui-version</code>, что основной CoilMaster.</p></section>
-</div>
+<section class="cm-reference-card cm-reference-direct-card">
+<h3>Быстрый переход</h3>
+<a class="cm-reference-link" data-reference-direct href="/sites/reference/desktop/pages/4A.html">Открыть таблицу серии 4А →</a>
+</section>
 </main>
 </div>
 <script src="/sites/reference/shared/reference.js"></script>

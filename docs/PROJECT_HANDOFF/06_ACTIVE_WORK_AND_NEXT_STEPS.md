@@ -23,75 +23,102 @@ CMP Protocol Tests GREEN
 32616987523  GREEN
 ```
 
-В run `32616937088` прошли CMake configure/build, все 4 host C++ tests и весь Web/Protocol contract suite, включая ранее падавший `Audit release safety contracts`.
+Run `32616937088` прошёл CMake configure/build, все 4 host C++ tests и весь Web/Protocol contract suite, включая `Audit release safety contracts`.
 
-Documentation-only cleanup commits after this baseline do not establish a newer firmware GREEN baseline.
-
-## Закрытый CI incident — release safety regression
-
-Предыдущая серия RED была вызвана stale `Tests/Web/check_release_contracts.js`, а не production runtime. Последовательно были закрыты два устаревших ожидания:
-
-```text
-9fc671121f86b5b25f06e5c59adcd8a9e3d7f154
-  optional-spool assertion -> mandatory exact-spool assertion
-
-ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
-  presentation-only automatic_* JSON assertions -> semantic safety guards
-```
-
-Release contract теперь проверяет фактическую модель: no auto queue/resume on recovery, timeout -> manual review, absence of forbidden auto-start/auto-resume/auto-writeoff calls, exact immutable spool + exact session/run manual writeoff.
+Более поздние documentation/workflow-cleanup commits не устанавливают новый firmware GREEN baseline автоматически. Для workflow batch после `ad17bb7...` connector не дал подтверждённый push-run result, поэтому GREEN не заявляется.
 
 ## Cleanup status
 
-Full audit A–E завершён. Controlled cleanup по-прежнему консервативно оценивается примерно в **96%**, осталось около **4%** до финального software cleanup checkpoint. Hardware smoke/recovery verification — отдельный release gate и в эти 4% не входит.
+Full audit A–E завершён. Controlled cleanup консервативно остаётся **~96% complete / ~4% remaining** до финального software cleanup checkpoint. Hardware smoke/recovery verification — отдельный release gate и в эти 4% не входит.
 
-### Уже завершено
+## Уже закрыто
 
-- major duplicate/legacy/generated root/docs cleanup;
-- obsolete Arduino parallel entrypoint, buzzer/start-button code, stale version header removed;
-- obsolete conductor settings implementation removed;
-- generated `build/` removed/ignored;
-- old warehouse wire catalogue and non-paginated spool list removed;
-- obsolete Web calculator helper/injection removed;
-- active migration/recovery modules classified/protected as KEEP;
-- Arduino/Core state-machine audit and regressions;
-- UART lost-ACK/timeout/late-RUN_STARTED review;
-- exact run/session/spool provenance hardening;
-- exact-run finalization coverage;
-- immutable selection required by deep integrity and closure;
-- KG_FIRST current store/API/UI requires exact immutable `spool_id`;
-- historical `UNALLOCATED` remains read/audit/recovery compatibility only;
-- snapshot/state/selection crash-residue policy reviewed by transaction boundary;
-- top-level and AI routing aligned with current exact-spool model;
-- stale release-safety regression corrected and CI-verified GREEN at `ad17bb7...`;
-- current-tree filename sweep at tree `44b31b7515cee140f0202f75b41ecd4be0b377d1`: Arduino/Core have no parallel `Legacy/Migration/Compat/Deprecated/Old` owners; `firmware/esp32/src` has no `Migration/Compat/Deprecated/Old` filenames and its only `Legacy` filename is `CM_WarehouseLegacySpoolMaterial.cpp`, already proven as a live route-owned migration API and classified `KEEP`;
-- `docs/AI_AGENT/01_PROJECT_MAP.md` current Arduino map already points to `CM_BuzzerService.*`; no stale `CM_Buzzer*` owner correction is required there;
-- mandatory entrypoint stale-contract sweep completed: `/AGENTS.md` (`903cb7dd...`), root `README.md` (`058eabc9...`), `00_READ_FIRST.md` (`d655e113...`) and `docs/AI_AGENT/00_START_HERE.md` (`e7a12104...`) were synchronized from old 92/94% and old `a29e2ab/e16a7d` baselines to current 96% / verified `ad17bb7...`; root README was also tightened from optional-spool wording to current exact immutable spool semantics;
-- `PROJECT.manifest`, `docs/AI_AGENT/01_PROJECT_MAP.md` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were directly re-read and classified `KEEP` with no correction required;
-- `scripts/` contains only `platformio_build_id.py`, directly owned by ESP32 `extra_scripts` in `platformio.ini` -> `KEEP`;
-- `tools/build_motor_reference.py` + `tools/check_motor_reference.py` are directly owned by `.github/workflows/motor-reference.yml`; generator/checker are read-only-reference scoped and never promote `coil_program` into production -> `KEEP`;
-- Web tree zero-debt filename/owner pass found no `old/legacy/copy/tmp` artifacts in current desktop/mobile/shared trees; `web/reference/motor-reference.json` is the generated read-only dataset consumed by `winding-reference.html`, while `web/sites/reference/{desktop,mobile}` is a separate runtime-owned UI selected by explicit `CM_StaticSiteServer` routes -> both `KEEP`;
-- current root `web/index.html` is the active desktop/mobile selector -> `KEEP`;
-- current thematic stale-contract cleanup completed for five high-risk docs:
-  - `67ad0f553121d4e5edcaf46ba7774bfe938c8f91` — `docs/13_WAREHOUSE.md`: replaced obsolete generic stock/admin-overdraw model with current exact-run/exact-spool fail-closed writeoff transaction;
-  - `b54a801c98b311f6bf3d5b7c5f8fa174c129f94b` — `docs/16_WINDING_SESSION_WORKFLOW.md`: removed obsolete “UART is next stage” statement and documented current CMP1/reboot/timeout/manual-writeoff boundaries;
-  - `4004063d36ea6a9a31fb709e84167b19f0c07ab1` — `docs/08_API.md`: removed fictitious mandatory `/api/v1`, stale generic jobs API and Web SSR-test promise; replaced with current source-owned route/error/safety contract;
-  - `a4253d1e76cb9b8e2fb4a2d6ad83f346b3d478a5` — `docs/15_BUILD_AND_TEST.md`: removed deleted `Arduino/CoilMaster_Arduino.ino` build source, corrected buzzer to A3, documented current production entrypoint/UART pins and hardware gates;
-  - `4e1a0b74dfcffe3195b90c6e7784a7b0350dbda8` — `docs/07_WEB_PORTAL.md`: removed direct Web SSR diagnostic claim and aligned portal/static/reference/exact-spool semantics with current ownership.
+### Production/safety/provenance
+
+- obsolete Arduino parallel `.ino`, old buzzer/start-button owners and stale `CM_Version.h` removed;
+- obsolete conductor settings persistence owner removed;
+- generated `build/` removed and `.pio/`, `build/` ignored;
+- old warehouse wire catalogue/non-paginated spool list removed;
+- obsolete calculator helper/static injection removed;
+- active migration/recovery owners classified/protected as `KEEP`;
+- Arduino/Core state-machine audit and regressions complete;
+- UART lost-ACK/timeout/late-`RUN_STARTED` semantics reviewed/hardened;
+- exact session/run/spool provenance hardened;
+- exact-run finalization coverage and immutable selection required;
+- current KG_FIRST store/API/UI requires exact immutable `spool_id`;
+- historical `UNALLOCATED` remains read/audit/recovery compatibility evidence only;
+- snapshot/state/selection crash-residue policies reviewed by transaction boundary;
+- release safety regression corrected and CI-verified GREEN at `ad17bb7...`.
+
+### Root / AI / docs cleanup
+
+Mandatory entrypoints and high-risk thematic docs were aligned to current code/contracts:
+
+```text
+903cb7dd...  /AGENTS.md current baseline/progress
+058eabc9...  root README exact-spool/current baseline
+ d655e113... docs/PROJECT_HANDOFF/00_READ_FIRST.md
+ e7a12104... docs/AI_AGENT/00_START_HERE.md
+67ad0f55...  docs/13_WAREHOUSE.md
+b54a801c...  docs/16_WINDING_SESSION_WORKFLOW.md
+4004063d...  docs/08_API.md
+a4253d1e...  docs/15_BUILD_AND_TEST.md
+4e1a0b74...  docs/07_WEB_PORTAL.md
+4593103f...  docs/04_ESP32_CORE.md
+0b4a5f3f...  docs/01_SYSTEM_ARCHITECTURE.md
+8a7c57bd...  docs/AI_AGENT/01_PROJECT_MAP.md buzzer pin A3
+ d9bb59ce... docs/06_DATABASE.md current persistence ownership map
+2cb4b3c2...  docs/00_PROJECT_VISION.md current two-controller/data model
+95399017...  docs/12_ROADMAP.md current release gates rather than stale v0.x backlog
+4ef8c5a1...  docs/14_DEVELOPMENT_ARCHITECTURE.md current source tree; removed references to deleted .ino/CM_Version/CHANGELOG
+```
+
+`docs/03_ARDUINO_CORE.md`, `docs/05_CMP_APPLICATION_PROTOCOL.md`, `docs/10_DIAGNOSTICS.md`, `PROJECT.manifest` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were directly re-read and remain `KEEP` without required correction in this pass.
+
+### Tree / Web / tools / tests
+
+- current-tree named compatibility sweep: no parallel Arduino/Core `Legacy/Migration/Compat/Deprecated/Old` owners; ESP32 only `Legacy` filename is proven live `CM_WarehouseLegacySpoolMaterial.cpp` -> `KEEP`;
+- `scripts/platformio_build_id.py` directly owned by ESP32 `extra_scripts` -> `KEEP`;
+- `tools/build_motor_reference.py` + `tools/check_motor_reference.py` directly owned by `motor-reference.yml` -> `KEEP`;
+- `web/reference/motor-reference.json` is generated read-only reference data consumed by winding-reference UI -> `KEEP`;
+- `web/sites/reference/{desktop,mobile}` is directly owned by `CM_StaticSiteServer` `/sites/reference` routing -> `KEEP`;
+- root `web/index.html` is active desktop/mobile selector -> `KEEP`;
+- desktop/mobile/shared trees contain no obvious `old/legacy/copy/tmp` artifacts;
+- all 26 `Tests/Web/*.js` are explicitly executed by `cmp-protocol-tests.yml`; no orphan Web contract tests found;
+- `Tests/Protocol/CMakeLists.txt` builds/registers all four host C++ targets, including CMP1Text; no orphan host test source found;
+- `data/` is source/reference motor catalogue data, not a tracked runtime dump -> `KEEP`.
+
+### Workflow cleanup
+
+The two production build workflows no longer treat `main` as a push source branch:
+
+```text
+d007a42b...  Arduino Uno Build -> push only cmp-protocol-v1
+d0beb03e...  ESP32 Build -> push only cmp-protocol-v1
+88273be5...  CI trigger regression forbids reintroducing main and still requires cmp-protocol-v1/shared production coverage
+```
+
+Current direct fetch confirms both workflows contain only `cmp-protocol-v1` under push branches and the regression explicitly forbids `- main`.
+
+CI status for this workflow-cleanup batch is **not yet claimed GREEN** because no applicable push-run result has been retrieved.
+
+### Resolved split-owner / lookup REVIEW
+
+- `CM_AutonomousWindingArchiveAssign.cpp` -> `KEEP`: split implementation of methods declared by `CM_AutonomousWindingArchive.h`;
+- `CM_JobSpoolSelectionLookup.cpp` -> `KEEP`: split implementation of declared `loadReadOnly/load`, preserving fail-closed `.tmp` evidence handling;
+- `CM_WarehouseWriteOffLookup.cpp` -> final `KEEP`: current header exposes only `confirmedWriteOffForSourceRun(source_session_id, source_run_id, found)`; current implementation validates `WarehouseMovementIntegrityAudit` first and resolves exact-run duplicate protection. The old session-only `confirmedWriteOffForSourceSession()` API is no longer present, so the former REVIEW item is closed.
 
 ## Remaining ~4%
 
-1. final owner-by-owner sweep of build-included ESP32/Arduino/Core files beyond filename heuristics;
-2. remaining lower-risk thematic docs/tests stale-contract sweep;
-3. final root/data/tests/workflow tree pass for generated/duplicate/orphan artifacts not already covered;
-4. explicit final classification of any remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;
-5. final handoff consolidation and cleanup-complete checkpoint.
+1. final owner-by-owner sweep of remaining build-included ESP32/Arduino/Core split implementations beyond already reviewed examples;
+2. final lower-risk thematic stale-contract sweep only where current source gives concrete contrary evidence;
+3. final consolidation: classify any remaining candidates `DELETE / MERGE / KEEP / REVIEW`, create cleanup-complete checkpoint, and synchronize handoff/entrypoints.
 
-The `scripts/tools/Web/shared` zero-debt layer is now source-owner reviewed; do not restart it without concrete contrary evidence.
+Do not restart completed `scripts/tools/Web/shared/data/tests/workflow` passes without concrete contrary evidence.
 
 ## Current production material rule
 
-For new linked production manual writeoff:
+For every new linked-production manual wire writeoff:
 
 ```text
 source_session_id + source_run_id + exact immutable spool_id
@@ -112,7 +139,7 @@ JobSnapshotStore .json.tmp
   REVIEW / fail-closed resilience
 ```
 
-Do not force these stores into one recovery policy; their transaction boundaries differ.
+Do not force these stores into one recovery policy; their durable transaction boundaries differ.
 
 ## Safety boundary — never weaken
 
@@ -136,9 +163,12 @@ Do not force these stores into one recovery policy; their transaction boundaries
 CM_WarehouseMaterialCatalogue.cpp
 CM_WarehouseSpoolMaterialList.cpp
 CM_WarehouseLegacySpoolMaterial.cpp
+CM_WarehouseWriteOffLookup.cpp
 CM_MaterialHistory.cpp
 CM_MaterialUsageHistory.cpp
 CM_JobDisplayRecovery.*
+CM_JobSpoolSelectionLookup.cpp
+CM_AutonomousWindingArchiveAssign.cpp
 Arduino/CM_HallCalibrationProtocol.*
 Arduino/CM_HardwareControlProtocol.*
 Arduino/CM_HallCalibrationService.*
@@ -154,7 +184,7 @@ firmware/esp32/web/reference/
 firmware/esp32/web/sites/reference/
 ```
 
-Important lesson: empty GitHub code-search is never sufficient deletion proof. `CM_WarehouseLegacySpoolMaterial.cpp` was once wrongly classified from an empty search and had to be restored after direct route-owner inspection.
+Important lesson: empty GitHub code-search is never sufficient deletion proof. Direct owner/header/build/runtime/test checks are required.
 
 ## Read order for next chat
 

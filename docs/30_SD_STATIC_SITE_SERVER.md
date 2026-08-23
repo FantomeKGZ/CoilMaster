@@ -110,14 +110,14 @@ webServer.onNotFound([]()
 .github/workflows/reference-legacy-import.yml
 ```
 
-checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile reference, дедуплицирует одинаковые ресурсы в `sites/reference/shared/assets/`, запускает integrity checker и формирует полный SD-ready `/web` каталог.
+checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile reference, дедуплицирует все повторяющиеся byte-identical ресурсы с одинаковым расширением в `sites/reference/shared/assets/`, запускает integrity checker и формирует полный SD-ready `/web` каталог.
 
 Это позволяет:
 
 - не дублировать тысячи generated-файлов в истории CoilMaster;
 - не увеличивать размер firmware flash — справочник обслуживается с microSD;
 - получать один проверенный комплект, в котором основной CoilMaster Web и справочник имеют согласованные версии;
-- сохранять общий CSS/JS и byte-identical изображения справочника только в одном экземпляре.
+- сохранять общий CSS/JS и повторяющиеся byte-identical ресурсы справочника только в одном экземпляре, даже если legacy-файлы имели разные имена или повторялись внутри одного UI mode.
 
 ## Готовый artifact для microSD
 
@@ -126,6 +126,14 @@ checkout-ит `FantomeKGZ/motor-winding-reference`, строит desktop/mobile 
 ```text
 coilmaster-web-sd-bundle-<commit-sha>
 ```
+
+Тот же GREEN workflow публикует отдельный report-only artifact:
+
+```text
+coilmaster-reference-migration-audit-<commit-sha>
+```
+
+Он содержит JSON со страницами без legacy incoming links, неиспользуемыми assets, группировкой по расширению/count/bytes и оставшимися byte-identical группами. Audit artifact не является содержимым microSD и сам ничего не удаляет.
 
 Содержимое artifact — готовое содержимое каталога `/web` на microSD. После распаковки структура должна выглядеть как:
 

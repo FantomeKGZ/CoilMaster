@@ -217,6 +217,14 @@ def validate_pages(
             mode_home = f'href="/sites/reference/{mode}/"'
             if mode_home not in text:
                 errors.append(f"generated page reference-home target missing: {page}")
+            other_mode = "mobile" if mode == "desktop" else "desktop"
+            relative_page = page.relative_to(mode_pages).as_posix()
+            expected_switch = (
+                f'href="/sites/reference/{other_mode}/pages/{relative_page}" '
+                f'data-reference-mode="{other_mode}"'
+            )
+            if expected_switch not in text:
+                errors.append(f"generated page same-page mode switch missing: {page}")
             for match in ATTR_RE.finditer(text):
                 value = match.group("value")
                 target = normalized_reference_url(value)

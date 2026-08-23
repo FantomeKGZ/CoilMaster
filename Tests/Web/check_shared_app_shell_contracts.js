@@ -38,6 +38,7 @@ for(const text of [
 forbidText(buildIdentity,'env.Append(CPPDEFINES=','Build identity strings must not use fragile CPPDEFINES quoting');
 
 requireText(shell,'cm-shell-nav','Shared shell must provide one navigation layer');
+requireText(shell,"['📚','Справочник',`/sites/reference/${uiMode}/`]",'Shared shell must link the current UI mode to the winding reference');
 requireText(shell,'aria-current="page"','Shared navigation must expose the active section');
 requireText(shell,'cm-shell-breadcrumbs','Shared shell must provide breadcrumbs');
 requireText(shell,'cm-recent-items-v1','Shared shell must retain bounded recent items');

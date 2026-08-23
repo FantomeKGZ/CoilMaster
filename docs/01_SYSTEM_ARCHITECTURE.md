@@ -36,23 +36,25 @@ ESP32 отвечает за:
 
 ```text
 client -> motor -> OPEN repair -> costing -> linked winding
--> immutable snapshot (+ exact spool selection when a spool is used)
+-> immutable snapshot + exact immutable spool selection
 -> local CREATED preparation -> DELIVERING -> UART
 -> Arduino READY -> physical START
 -> RUN_STARTED -> RUN_COMPLETED
--> manual exact-run material writeoff
+-> manual exact-run exact-spool material writeoff
 -> costing/finalization preflight -> CLOSED -> reports -> backup
 ```
 
 `RUN_COMPLETED` никогда сам по себе не списывает провод.
 
-Manual writeoff всегда привязан к exact:
+Для текущего linked production manual writeoff всегда привязан к exact:
 
 ```text
-source_session_id + source_run_id
+source_session_id + source_run_id + immutable spool_id
 ```
 
-`spool_id` обязателен, если используется конкретная катушка. В утверждённом KG_FIRST unallocated/manual path `spool_id` может отсутствовать; если spool использовался, его provenance сохраняется точно.
+`spool_id` фиксируется до UART boundary в immutable job material selection и не может быть скрыт/опущен после завершения run.
+
+Исторические `UNALLOCATED` KG_FIRST records остаются read/audit/recovery compatibility evidence only. Они не создают новый post-run optional-spool path. Если в будущем понадобится настоящий unallocated production workflow, его immutable material provenance должна быть определена до UART boundary.
 
 ## Production UART
 
@@ -81,6 +83,8 @@ Authoritative persistent data хранится на microSD под `/data`; web 
 - restore operator-only, transactional и fail-closed;
 - reboot не продолжает restore/apply автоматически;
 - production HTTP mutations блокируются на время restore apply/rollback interlock.
+
+Different job residue stores intentionally have different transaction-boundary policies; cleanup не должен унифицировать `.tmp/.bak` поведение механически.
 
 ## Network/recovery
 
@@ -112,6 +116,8 @@ Web assets:
 firmware/esp32/web/
 ```
 
+Push build workflows в source-of-truth ветке должны использовать `cmp-protocol-v1`; `main` не является implementation source branch.
+
 ## Hardware interfaces
 
 Точные wiring/pin данные должны браться из `docs/HARDWARE_REFERENCE/` и текущего firmware config, а не из старых architecture drafts.
@@ -124,6 +130,7 @@ CI/build не заменяет targeted two-board hardware smoke. Hardware GREEN
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```

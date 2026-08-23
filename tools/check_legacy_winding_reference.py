@@ -169,6 +169,38 @@ def validate_catalog(output: Path, sources: dict[str, Path]) -> list[str]:
     return errors
 
 
+def validate_entry_pages(output: Path) -> list[str]:
+    errors: list[str] = []
+    available_urls = available_reference_urls(output)
+    required = (
+        'data-reference-search',
+        'data-reference-search-clear',
+        'role="status"',
+        'aria-live="polite"',
+        'role="list"',
+        'data-reference-results',
+    )
+    for mode in ("desktop", "mobile"):
+        entry = output / mode / "index.html"
+        if not entry.is_file():
+            errors.append(f"reference entry page missing: {entry}")
+            continue
+        try:
+            text = entry.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            errors.append(f"reference entry page not utf-8: {entry}: {exc}")
+            continue
+        for token in required:
+            if token not in text:
+                errors.append(f"reference entry search contract missing {token}: {entry}")
+        for match in ATTR_RE.finditer(text):
+            value = match.group("value")
+            target = normalized_reference_url(value)
+            if target is not None and target not in available_urls:
+                errors.append(f"broken reference entry link: {entry} -> {value}")
+    return errors
+
+
 def validate_pages(
     output: Path,
     sources: dict[str, Path],
@@ -291,6 +323,7 @@ def main() -> None:
             errors.append(f"{mode} page count mismatch: source={source_count}, generated={output_count}")
 
     errors.extend(validate_catalog(output, sources))
+    errors.extend(validate_entry_pages(output))
     page_errors, warnings = validate_pages(output, sources)
     errors.extend(page_errors)
     errors.extend(frontpage_output_leaks(output))

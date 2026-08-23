@@ -281,3 +281,8 @@ Runs `32644626781`–`32644735339` являются промежуточными
 ### Reference embedded CSS — current batch
 
 Оператор подтвердил GREEN CSS matcher/checker correction. Текущий follow-up переписывает и проверяет inline `style`, `<style>`, CSS `url(...)` и quoted `@import`. Exact repository synthetic contract GREEN. После нового Reference GREEN использовать обновлённый artifact; этот блок меняет только generated Web/reference и не затрагивает ESP32/Arduino safety/runtime.
+
+
+### Reference legacy media attributes — current
+
+Оператор подтвердил GREEN embedded CSS/import batch. Текущий follow-up добавляет `background` и `poster` в importer/checker/audit resource contract вместе с `href/src`. Exact importer/checker/audit tests GREEN. Legacy code search не выявил `srcset`, поэтому отдельный parser не добавлен без source evidence. Проверить новый Reference workflow; runtime/safety не затронуты.

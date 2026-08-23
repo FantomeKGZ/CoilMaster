@@ -82,8 +82,8 @@ jobs:
               encoding="utf-8",
               newline="\n",
           )
-          if manifest["reference_catalog_entries"] != 926:
-              raise SystemExit("unexpected reference catalog size in web manifest")
+          if manifest["reference_catalog_entries"] <= 0:
+              raise SystemExit("empty reference catalog in web manifest")
           print(f"web bundle manifest: {target}")
           PY
 

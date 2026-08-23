@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "firmware" / "esp32" / "web" / "sites" / "reference"
 HTML_SUFFIXES = {".html", ".htm"}
 ATTR_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"'](?P<value>.*?)[\"']", re.I)
+REFERENCE_PREFIX = "/sites/reference/"
 
 
 def digest(path: Path) -> str:
@@ -31,16 +32,16 @@ def generated_page_count(output: Path, mode: str) -> int:
     return html_count(pages) if pages.exists() else 0
 
 
-def resolve_reference_url(web_root: Path, value: str) -> Path | None:
+def resolve_reference_url(output: Path, value: str) -> Path | None:
     parts = urlsplit(value)
-    if parts.scheme or parts.netloc or not parts.path.startswith("/sites/reference/"):
+    if parts.scheme or parts.netloc or not parts.path.startswith(REFERENCE_PREFIX):
         return None
-    return web_root / parts.path.lstrip("/")
+    relative = parts.path[len(REFERENCE_PREFIX):]
+    return output / relative
 
 
 def validate_pages(output: Path) -> list[str]:
     errors: list[str] = []
-    web_root = output.parents[2]
     for mode in ("desktop", "mobile"):
         for page in (output / mode / "pages").rglob("*"):
             if not page.is_file() or page.suffix.lower() not in HTML_SUFFIXES:
@@ -60,7 +61,7 @@ def validate_pages(output: Path) -> list[str]:
             if "/sites/reference/shared/reference.js" not in text:
                 errors.append(f"shared script missing: {page}")
             for match in ATTR_RE.finditer(text):
-                target = resolve_reference_url(web_root, match.group("value"))
+                target = resolve_reference_url(output, match.group("value"))
                 if target is not None and not target.exists():
                     errors.append(f"broken reference link: {page} -> {match.group('value')}")
     return errors

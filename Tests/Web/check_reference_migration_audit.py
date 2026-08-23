@@ -52,6 +52,7 @@ def main() -> None:
         )
         write(output / "desktop/assets/duplicate.bin", b"same")
         write(output / "mobile/assets/duplicate-copy.bin", b"same")
+        write(output / "mobile/assets/same-bytes.dat", b"same")
 
         subprocess.run(
             [sys.executable, str(AUDIT), "--output", str(output), "--report", str(report)],
@@ -61,10 +62,11 @@ def main() -> None:
 
         assert data["policy"] == "report-only; no files were removed"
         assert data["generated_pages"] == 4
-        assert data["unreferenced_assets"]["count"] == 3
-        assert data["unreferenced_assets"]["bytes"] == 14
+        assert data["unreferenced_assets"]["count"] == 4
+        assert data["unreferenced_assets"]["bytes"] == 18
         assert data["unreferenced_assets"]["by_extension"] == {
-            ".bin": {"count": 3, "bytes": 14}
+            ".bin": {"count": 3, "bytes": 14},
+            ".dat": {"count": 1, "bytes": 4},
         }
         assert data["duplicate_asset_groups"]["count"] == 1
         assert data["duplicate_asset_groups"]["potential_savings_bytes"] == 4

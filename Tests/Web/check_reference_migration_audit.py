@@ -28,7 +28,8 @@ def main() -> None:
         write(
             output / "desktop/pages/a.html",
             '<a href="/sites/reference/desktop/pages/b.html">B</a>'
-            '<img src="/sites/reference/shared/assets/used.bin">',
+            '<img src="/sites/reference/shared/assets/used.bin">'
+            '<link rel="stylesheet" href="/sites/reference/desktop/assets/legacy.css">',
         )
         write(output / "desktop/pages/b.html", "<p>B</p>")
         write(output / "mobile/pages/a.html", "<p>A mobile</p>")
@@ -42,6 +43,11 @@ def main() -> None:
         write(output / "shared/assets/used.bin", b"used")
         write(output / "shared/assets/css.bin", b"css")
         write(output / "shared/assets/unused.bin", b"unused")
+        write(output / "shared/assets/cp.bin", b"cp1251")
+        write(
+            output / "desktop/assets/legacy.css",
+            '@font-face{src:url("/sites/reference/shared/assets/cp.bin")}/*М*/'.encode("cp1251"),
+        )
         write(output / "desktop/assets/duplicate.bin", b"same")
         write(output / "mobile/assets/duplicate-copy.bin", b"same")
 

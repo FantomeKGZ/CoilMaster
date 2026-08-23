@@ -174,7 +174,10 @@ Current implementation includes:
 - legacy Windows-1251 -> UTF-8 conversion;
 - removal of the old `div.verh` / `images/verh.jpg` top banner only;
 - content/table/description/internal-link preservation contract;
-- SHA-256 deduplication of byte-identical desktop/mobile assets into shared storage;
+- global SHA-256 deduplication of repeated non-CSS assets with MIME-safe suffix separation;
+- mode-specific UTF-8 CSS with rewritten local URLs, imports and embedded styles;
+- report-only migration audit without automatic deletion;
+- full-page content fidelity gate for normalized visible text and table/link/image structure;
 - CI dry-build workflow for source checkout, import, integrity check and footprint reporting.
 
 Generated legacy content is verified and published as a bounded GitHub Actions artifact without committing 1852 generated legacy pages to Git.
@@ -198,6 +201,22 @@ artifact coilmaster-web-sd-bundle-cea85a09dd4208bf88545284ae80a12edce22681
 ```
 
 Generated pages include top/bottom return-to-search navigation, responsive images and horizontally scrollable wide tables. The operator completed the physical microSD/ESP32 web smoke on 2026-08-23 and reported no errors for the verified bundle.
+
+### Reference site readiness
+
+Current estimate:
+
+```text
+content migration:                       100%
+migration automation/integrity:          98% after full fidelity workflow GREEN
+UX and offline SD bundle:                92%
+overall readiness now:                   94%
+after full fidelity workflow GREEN:      about 96%
+```
+
+Commits `e89813f2...` and `fe2aeed1...` add complete source/generated visible-text and structural-count comparison for every page. The exact synthetic contract is locally GREEN; the new full 926 + 926 page Actions result is still pending and is not yet claimed as GREEN.
+
+Remaining reference-site release gates are measured metrics from the latest artifact, representative UX/offline verification and physical microSD/ESP32 smoke of that fresh bundle. The separate two-board UART hardware checkpoint is not included in this reference-site percentage.
 
 ## Verification still separate
 

@@ -9,6 +9,7 @@ on:
       - tools/import_legacy_winding_reference.py
       - tools/check_legacy_winding_reference.py
       - tools/audit_legacy_winding_reference.py
+      - Tests/Web/check_reference_migration_audit.py
       - firmware/esp32/web/**
       - .github/workflows/reference-legacy-import.yml
 
@@ -23,6 +24,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: coilmaster
+
+      - name: Check migration audit contracts
+        run: python3 coilmaster/Tests/Web/check_reference_migration_audit.py
 
       - name: Checkout legacy reference source
         uses: actions/checkout@v4

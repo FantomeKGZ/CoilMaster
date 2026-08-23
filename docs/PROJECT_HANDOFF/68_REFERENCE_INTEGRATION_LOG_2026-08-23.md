@@ -758,3 +758,52 @@ docs(sd): document global reference asset dedup
 Checker теперь ищет duplicate `SHA-256 + suffix` во всех shared/desktop/mobile asset trees, а не только совпадения между mode-specific desktop/mobile. Synthetic importer regression проверяет разные legacy-имена, повтор внутри desktop, совпадение desktop/mobile, переписанные URLs, mode-unique файл и одинаковые bytes с другим suffix. Локальный end-to-end synthetic import прошёл GREEN: один physical shared file обслуживает три исходных `.bin` URL, `.dat` с теми же bytes сохранён отдельно.
 
 Generated pages, catalog coverage и safety/runtime не изменяются. Новый full Reference Actions результат для этого batch ещё не объявлен GREEN.
+
+
+---
+
+## 2026-08-23 — mode-safe legacy CSS import
+
+Оператор подтвердил GREEN global content-addressed asset dedup batch.
+
+Следующий аудит выявил correctness boundary: CSS нельзя перемещать в shared как неизменяемый binary asset, потому что относительные `url(...)` разрешаются от нового местоположения и могут стать broken. Кроме того, одинаковый исходный CSS desktop/mobile после переписывания может требовать разные mode-specific targets.
+
+Реализовано:
+
+- legacy `.css` исключён из raw SHA asset dedup;
+- CSS остаётся в `desktop/assets` или `mobile/assets`;
+- Windows-1251/UTF-8 legacy CSS декодируется и записывается как UTF-8;
+- локальные `url(...)` переписываются importer-ом через тот же canonical source mapping, что и HTML `href/src`;
+- target может вести на content-addressed shared asset либо mode-specific asset;
+- checker требует UTF-8, absolute rewritten local URLs, существующий target и отсутствие legacy CSS в `shared/assets`;
+- intentional mode-specific CSS исключён из duplicate-savings отчёта.
+
+Commits:
+
+```text
+426c2a56df90721a3f215ffade4847f1e8463a6e
+fix(reference): preserve and rewrite legacy CSS assets
+
+ab5a81e209273beed84e60cd8597d960ce08e210
+test(reference): validate rewritten legacy CSS URLs
+
+9fb5ecc945ec6837e909d3b2ec6e24fe7b668dca
+fix(reference): exclude mode-specific CSS from dedup savings
+
+464527ad878ae7c9640dd1947d52f34871df820f
+test(reference): cover mode-safe legacy CSS rewriting
+
+56a9037f13ebc16e781646df9cfe1ef39c2030cc
+fix(reference): declare legacy CSS URL matcher
+
+80c79ca81869c067277ab7d759a9c1687eb658df
+fix(reference): correct CSS URL matcher escaping
+
+2df1764a747bc8b05a65d073b356261c4897f865
+fix(reference): declare checker CSS URL matcher
+
+3503493f783bb18c755469463c8c4061bceeb5f9
+docs(sd): document mode-safe legacy CSS handling
+```
+
+Локальный end-to-end synthetic import + authoritative checker GREEN: CP1251 CSS преобразован в UTF-8, desktop/mobile CSS сохранён mode-specific, оба `url(...)` ведут на один реальный shared binary asset, source gaps = 0. Новый full Reference Actions результат для этого batch пока не объявлен GREEN.

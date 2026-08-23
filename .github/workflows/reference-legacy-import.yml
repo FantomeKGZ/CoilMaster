@@ -1,0 +1,73 @@
+name: Reference Legacy Import Check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - tools/import_legacy_winding_reference.py
+      - tools/check_legacy_winding_reference.py
+      - .github/workflows/reference-legacy-import.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout CoilMaster
+        uses: actions/checkout@v4
+        with:
+          path: coilmaster
+
+      - name: Checkout legacy reference source
+        uses: actions/checkout@v4
+        with:
+          repository: FantomeKGZ/motor-winding-reference
+          ref: main
+          path: legacy
+
+      - name: Build legacy winding reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          desktop_src="$GITHUB_WORKSPACE/legacy/sourse/desktop/Справочник от 09.12.2024 HTML"
+          mobile_src="$GITHUB_WORKSPACE/legacy/sourse/mobile/Справочник от 09.12.2024 для мобильных устройств HTML"
+          output="$RUNNER_TEMP/reference-site"
+          mkdir -p "$output/desktop" "$output/mobile" "$output/shared"
+          cp -a "$GITHUB_WORKSPACE/coilmaster/firmware/esp32/web/sites/reference/desktop/index.html" "$output/desktop/index.html"
+          cp -a "$GITHUB_WORKSPACE/coilmaster/firmware/esp32/web/sites/reference/mobile/index.html" "$output/mobile/index.html"
+          cp -a "$GITHUB_WORKSPACE/coilmaster/firmware/esp32/web/sites/reference/shared/." "$output/shared/"
+          python3 "$GITHUB_WORKSPACE/coilmaster/tools/import_legacy_winding_reference.py" \
+            --desktop-source "$desktop_src" \
+            --mobile-source "$mobile_src" \
+            --output "$output"
+          python3 "$GITHUB_WORKSPACE/coilmaster/tools/check_legacy_winding_reference.py" \
+            --desktop-source "$desktop_src" \
+            --mobile-source "$mobile_src" \
+            --output "$output"
+
+      - name: Report generated footprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/reference-site"
+          echo "Generated footprint:"
+          du -sh "$output"
+          echo "Generated files: $(find "$output" -type f | wc -l)"
+          echo "Generated HTML: $(find "$output" -type f \( -iname '*.html' -o -iname '*.htm' \) | wc -l)"
+          echo "Shared assets: $(find "$output/shared/assets" -type f 2>/dev/null | wc -l)"
+          echo "Desktop unique assets: $(find "$output/desktop/assets" -type f 2>/dev/null | wc -l)"
+          echo "Mobile unique assets: $(find "$output/mobile/assets" -type f 2>/dev/null | wc -l)"
+          {
+            echo "## Legacy reference dry-build"
+            echo
+            echo "- Total size: $(du -sh "$output" | cut -f1)"
+            echo "- Files: $(find "$output" -type f | wc -l)"
+            echo "- HTML pages: $(find "$output" -type f \( -iname '*.html' -o -iname '*.htm' \) | wc -l)"
+            echo "- Shared assets: $(find "$output/shared/assets" -type f 2>/dev/null | wc -l)"
+            echo "- Desktop unique assets: $(find "$output/desktop/assets" -type f 2>/dev/null | wc -l)"
+            echo "- Mobile unique assets: $(find "$output/mobile/assets" -type f 2>/dev/null | wc -l)"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -650,3 +650,27 @@ coilmaster-reference-migration-audit-<commit-sha>
 Полный SD-ready artifact остаётся неизменным по политике сохранения контента. Новый аудит добавлен в Actions summary и запускается при изменении самого аудитора или его contract test.
 
 Синтетический contract test локально пройден: HTML/CSS references, unreferenced bytes, duplicate hashes и legacy incoming-link counts проверены. Фактические числа полного справочника будут зафиксированы только после GREEN нового Reference workflow.
+
+
+### Actions failures 32643425748–32643578042
+
+Проверены полные job logs четырёх Reference workflow runs:
+
+- `32643425748` — ранняя версия аудитора падала при compile regex: `missing ), unterminated subpattern`;
+- `32643450801` — тот же regex defect остановил contract test;
+- `32643491396` — regex и contract test уже исправлены, импорт/checker прошли, но full-tree CSS scan встретил Windows-1251 stylesheet и получил `UnicodeDecodeError: byte 0xCC`;
+- `32643578042` — подтверждение той же единственной оставшейся причины после успешного contract test и полного импорта.
+
+Последняя ошибка исправлена:
+
+```text
+d7de669309abbc42589f84f35e440b0f32fcf57f
+fix(reference): decode legacy CSS during migration audit
+
+3603b7a20b8ce05fc41c863e97934300b4b1912d
+test(reference): cover Windows-1251 stylesheet audit
+```
+
+Audit CSS reader теперь использует контролируемый decode `utf-8-sig -> cp1251`. Требование UTF-8 для generated HTML не ослаблено: его раньше аудитора проверяет authoritative reference checker.
+
+Contract test дополнен реальным CP1251 stylesheet с кириллическим байтом и asset URL. Локально compile + synthetic contract test GREEN. Новый Actions результат после `3603b7a2...` ещё не зафиксирован как GREEN.

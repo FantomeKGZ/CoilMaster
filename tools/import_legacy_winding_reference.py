@@ -299,9 +299,19 @@ def shell(title: str, body: str, mode: str) -> str:
 <header class="cm-reference-mobile-header"><a href="/{mode}/">←</a><b>Справочник обмотчика</b><a href="/sites/reference/{other}/" data-reference-mode="{other}">{other_short}</a></header>
 <nav class="cm-reference-mobile-nav" aria-label="Разделы CoilMaster">{mobile_nav_links(mode)}<a class="active" href="/sites/reference/{mode}/">📚 Справочник</a></nav>
 <main class="cm-reference-main cm-reference-content">
+<div class="cm-reference-page-toolbar">
+<div>
+<a class="cm-reference-back" href="/sites/reference/{mode}/">← К поиску по справочнику</a>
+<h2>{html.escape(title)}</h2>
+</div>
+</div>
 <section class="cm-reference-card cm-reference-legacy-page">
 {body}
 </section>
+<footer class="cm-reference-page-footer">
+<a href="/sites/reference/{mode}/">← К поиску</a>
+<a href="#">↑ Наверх</a>
+</footer>
 </main>
 </div>
 <script src="/sites/reference/shared/reference.js"></script>

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Validate a generated CoilMaster legacy winding-reference import."""
+"""Validate a generated CoilMaster legacy winding-reference import.
+
+Broken generated links remain fatal. Links whose exact target is already absent from
+the legacy source are preserved as explicit SOURCE WARNING evidence instead of being
+silently treated as generated-site defects.
+"""
 from __future__ import annotations
 
 import argparse

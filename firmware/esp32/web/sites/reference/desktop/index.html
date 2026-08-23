@@ -1,18 +1,34 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-reference-mode="desktop">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Справочник CoilMaster</title>
-<style>
-:root{--bg:#edf2f6;--panel:#142536;--card:#fff;--text:#17212b;--muted:#687580;--blue:#1769aa}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--text)}.layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:var(--panel);color:#fff;padding:22px 14px}aside h1{font-size:24px;margin:0 10px 24px}aside a{display:block;color:#d9e5ee;text-decoration:none;padding:12px 14px;border-radius:9px;margin:3px 0}aside a.active,aside a:hover{background:#24445f;color:#fff}main{padding:24px;max-width:1200px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.card{background:var(--card);border-radius:14px;padding:20px;box-shadow:0 2px 13px #17212b14}.card a{color:var(--blue);text-decoration:none;font-weight:bold}.muted{color:var(--muted)}@media(max-width:800px){.layout{grid-template-columns:1fr}aside{position:static}.grid{grid-template-columns:1fr}}
-</style>
+<title>Справочник обмотчика · CoilMaster</title>
+<link rel="stylesheet" href="/sites/reference/shared/reference.css">
 </head>
 <body>
-<div class="layout">
-<aside><h1>Справочник</h1><a href="/desktop/">← CoilMaster</a><a class="active" href="/sites/reference/desktop/">Справочные материалы</a><a href="/sites/reference/mobile/" onclick="localStorage.setItem('cm-ui-version','mobile')">📱 Мобильная версия</a></aside>
-<main><h2>Справочные материалы CoilMaster</h2><p class="muted">ПК-версия сайтов и документов, размещённых на microSD.</p><div class="grid"><section class="card"><h3>Таблицы проводов</h3><p class="muted">Диаметры, площади сечения и технологические заметки.</p><span class="muted">Материал ещё не загружен.</span></section><section class="card"><h3>Схемы укладки</h3><p class="muted">Однослойные, двухслойные и пользовательские схемы.</p><span class="muted">Материал ещё не загружен.</span></section><section class="card"><h3>Инструкции</h3><p class="muted">Эксплуатация станка, намотка и обслуживание.</p><span class="muted">Материал ещё не загружен.</span></section><section class="card"><h3>Диагностика</h3><p class="muted">Проверка Arduino, ESP32, UART, RTC, microSD и периферии.</p><span class="muted">Материал ещё не загружен.</span></section></div></main>
+<div class="cm-reference-layout">
+<aside class="cm-reference-nav">
+<h1>CoilMaster</h1>
+<a href="/desktop/">← CoilMaster</a>
+<a class="active" href="/sites/reference/desktop/">📚 Справочник обмотчика</a>
+<div class="cm-reference-switch"><a href="/sites/reference/mobile/" data-reference-mode="mobile">📱 Мобильная версия</a></div>
+</aside>
+<header class="cm-reference-mobile-header"><a href="/desktop/">←</a><b>Справочник обмотчика</b><a href="/sites/reference/mobile/" data-reference-mode="mobile">📱</a></header>
+<main class="cm-reference-main cm-reference-content">
+<div class="cm-reference-top"><div><h2>Справочник обмотчика</h2><span class="cm-reference-muted">Версия для ПК</span></div></div>
+<section class="cm-reference-card">
+<h3>Исходный справочник</h3>
+<p class="cm-reference-muted">Подготавливается перенос материалов из motor-winding-reference без потери таблиц, схем, изображений и описаний. Верхний логотип исходного сайта в новой версии использоваться не будет.</p>
+</section>
+<div class="cm-reference-grid">
+<section class="cm-reference-card"><h3>Таблицы и данные двигателей</h3><p class="cm-reference-muted">Табличные данные будут сохранены с горизонтальной прокруткой для широких таблиц.</p></section>
+<section class="cm-reference-card"><h3>Схемы и изображения</h3><p class="cm-reference-muted">Общие изображения desktop/mobile будут вынесены в единый shared-каталог, уникальные останутся в своей версии.</p></section>
+<section class="cm-reference-card"><h3>Описания</h3><p class="cm-reference-muted">Текстовые пояснения и внутренние переходы сохраняются при импорте.</p></section>
+<section class="cm-reference-card"><h3>Версия интерфейса</h3><p class="cm-reference-muted">Переключение ПК ↔ мобильная использует тот же ключ <code>cm-ui-version</code>, что основной CoilMaster.</p></section>
 </div>
-<script>localStorage.setItem('cm-ui-version','desktop');</script>
+</main>
+</div>
+<script src="/sites/reference/shared/reference.js"></script>
 </body>
 </html>

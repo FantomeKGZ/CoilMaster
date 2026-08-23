@@ -73,5 +73,10 @@ if(!source.includes("querySelectorAll('[data-reference-query]')")||
    !source.includes("'aria-pressed'")){
   throw new Error('Reference quick series filter behavior missing');
 }
+if(!source.includes("fetch('/web-bundle-manifest.json'")||
+   !source.includes("node.textContent='SD '+commit.slice(0,8)")||
+   !source.includes("node.textContent='SD web unknown'")){
+  throw new Error('Reference SD bundle provenance badge missing');
+}
 
 console.log('Reference catalog search contracts: OK');

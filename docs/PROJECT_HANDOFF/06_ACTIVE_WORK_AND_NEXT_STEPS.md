@@ -266,3 +266,8 @@ Runs `32643425748` и `32643450801` относятся к superseded regex defec
 ### Reference global asset dedup — current batch
 
 Оператор подтвердил GREEN URL-accuracy/audit-classification batch. Текущий importer follow-up дедуплицирует все повторяющиеся assets по `SHA-256 + suffix`, включая разные legacy-имена и повторы внутри одного mode. Checker требует отсутствие таких физических дублей во всём generated asset tree. Cross-suffix identical bytes сохраняются раздельно для MIME safety. Contract test подключён к Reference workflow. После GREEN снять обновлённые reference size/file counts и сравнить с verified baseline 329M / 4626 reference files.
+
+
+### Reference legacy CSS correctness — current batch
+
+Оператор подтвердил GREEN global asset dedup. Текущий follow-up закрывает CSS relative-path boundary: legacy CSS остаётся mode-specific, преобразуется CP1251/UTF-8 -> UTF-8, а локальные `url(...)` переписываются на существующие generated assets. Checker запрещает broken/non-rewritten CSS URLs и CSS внутри content-addressed shared asset tree. Локальный synthetic import + checker GREEN; проверить новый full Reference workflow и затем использовать новый SD artifact.

@@ -197,7 +197,7 @@ Measured bundle:
 artifact coilmaster-web-sd-bundle-cea85a09dd4208bf88545284ae80a12edce22681
 ```
 
-Generated pages include top/bottom return-to-search navigation, responsive images and horizontally scrollable wide tables. Physical microSD/ESP32 verification remains separate.
+Generated pages include top/bottom return-to-search navigation, responsive images and horizontally scrollable wide tables. The operator completed the physical microSD/ESP32 web smoke on 2026-08-23 and reported no errors for the verified bundle.
 
 ## Verification still separate
 
@@ -208,11 +208,11 @@ two-board UART hardware smoke checkpoint 62 — NOT VERIFIED
 full hardware acceptance — only when affected scope requires it
 ```
 
-Reference Legacy Import Check run `32641366079` is GREEN, and the operator confirmed all current Actions GREEN after the CMP regex correction. Physical microSD/ESP32 web verification remains separate and is not inferred from CI.
+Reference Legacy Import Check run `32641366079` is GREEN, the operator confirmed all current Actions GREEN after the CMP regex correction, and the physical microSD/ESP32 reference smoke completed without errors. The separate two-board UART/repeat/cancel hardware gate remains NOT VERIFIED.
 
 ## Current active direction
 
-1. deploy the confirmed reference SD artifact and perform physical ESP32 web smoke;
+1. verify and deploy the refreshed web bundle containing the shared-shell `📚 Справочник` entry, then smoke that entry on desktop/mobile;
 2. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
 3. fix only concrete current failures;
 4. use measured data for performance/storage changes.

@@ -159,7 +159,7 @@ Backup deep validation is read-only and fail-closed. Session persistence preflig
 
 Desktop and mobile interfaces cover the implemented workshop, motor/import, repairs, linked winding, Arduino archive, materials/warehouse, costing, reports, settings, backup/network and diagnostics flows. Growing collections use bounded/paged APIs where implemented; old checkpoints describing their migration are historical, not active work.
 
-### Winding reference product integration — active
+### Winding reference product integration — repo-level GREEN
 
 The legacy static winding reference in `FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}` is being integrated as a CoilMaster section without changing production runtime ownership.
 
@@ -208,11 +208,11 @@ two-board UART hardware smoke checkpoint 62 — NOT VERIFIED
 full hardware acceptance — only when affected scope requires it
 ```
 
-Reference-site dry-build verification is also separate from the previously verified firmware baseline; do not call it GREEN until its current Actions result is confirmed.
+Reference Legacy Import Check run `32641366079` is GREEN, and the operator confirmed all current Actions GREEN after the CMP regex correction. Physical microSD/ESP32 web verification remains separate and is not inferred from CI.
 
 ## Current active direction
 
-1. verify the post-fix CMP run, then deploy the confirmed reference SD artifact and perform physical ESP32 web smoke;
+1. deploy the confirmed reference SD artifact and perform physical ESP32 web smoke;
 2. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
 3. fix only concrete current failures;
 4. use measured data for performance/storage changes.

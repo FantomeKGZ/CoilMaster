@@ -208,14 +208,14 @@ Current estimate:
 
 ```text
 content migration:                       100%
-migration automation/integrity:          98%
-UX and offline SD bundle:                94%
-overall readiness now:                   about 96%
+migration automation/integrity:          99%
+UX and offline SD bundle:                98%
+overall software/site readiness now:     about 98%
 ```
 
 Commits `e89813f2...` and `fe2aeed1...` add complete source/generated visible-text and structural-count comparison for every page. The operator confirmed the full 926 + 926 page Actions batch GREEN.
 
-Current follow-up adds manifest schema v2 with exact counts/bytes and a verifiable SHA-256 of the complete `/web` payload. Remaining reference-site release gates are GREEN of that new workflow, representative UX/offline verification and physical microSD/ESP32 smoke of the fresh bundle. The separate two-board UART hardware checkpoint is not included in this reference-site percentage.
+Manifest schema v2, full content fidelity, complete table/image UX contracts and full `/web` offline dependency closure are operator-confirmed GREEN. The workflow now publishes a risk-based physical smoke plan. Remaining reference-site release gate is physical microSD/ESP32 smoke of the fresh bundle using that plan. The separate two-board UART hardware checkpoint is not included in this reference-site percentage.
 
 ## Verification still separate
 

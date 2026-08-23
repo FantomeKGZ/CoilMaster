@@ -1121,3 +1121,53 @@ coilmaster-reference-smoke-plan-<commit-sha>
 
 Exact positive/missing-target smoke-plan contract локально GREEN. Новый workflow batch ещё не объявлен GREEN.
 
+---
+
+## 2026-08-23 — verified full artifact run 32649218466
+
+Правильный workflow:
+
+```text
+Reference Legacy Import Check
+run 32649218466 — GREEN
+head_sha 1c372017d667b0958c17371426d8f4af77b38ef1
+legacy_sha d88680225277cd8b36cdaedc676c0647409cdb9b
+```
+
+Exact manifest v2:
+
+```text
+desktop generated pages: 926
+mobile generated pages: 926
+content fidelity pages: 1852
+catalog entries: 926
+reference files: 4625
+reference HTML files: 1854
+reference bytes: 333912454
+shared assets: 2766
+desktop unique assets: 1
+mobile unique assets: 1
+/web payload files excluding manifest: 4692
+/web payload bytes excluding manifest: 336122479
+/web payload SHA-256: 7a4e9717b0bfa50e2fc7e6f231c09f4574f488b7410397465ce7732ee3b8fc51
+du footprint: 329M reference / 332M full web
+offline dependency closure: 4692 files OK
+```
+
+Published artifacts:
+
+```text
+coilmaster-web-sd-bundle-1c372017d667b0958c17371426d8f4af77b38ef1
+artifact id 9495714358
+archive bytes 267303755
+archive sha256 a13eadbcb26f5ae0104fe875223c52f387446852507a8b2e0842a849ba11c71b
+
+coilmaster-reference-smoke-plan-1c372017d667b0958c17371426d8f4af77b38ef1
+artifact id 9495711615
+
+coilmaster-reference-migration-audit-1c372017d667b0958c17371426d8f4af77b38ef1
+artifact id 9495711809
+```
+
+Generated pages/assets находятся только в SD-ready artifact и намеренно не коммитятся в Git. CMP Protocol Tests run `32649261625` artifacts не создаёт и не является источником сайта.
+

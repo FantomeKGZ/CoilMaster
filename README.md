@@ -13,8 +13,9 @@ CoilMaster — локальная система управления намот
 ```text
 AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
 docs/AI_AGENT/
 ```
 
@@ -23,20 +24,21 @@ evidence, а не активной очередью разработки.
 
 ## Текущая фаза
 
-Полный repo-level аудит A–E завершён. После подтверждённого GREEN начата
-контролируемая cleanup/de-duplication phase: файл удаляется только после
-проверки production/build/test/docs/runtime зависимостей.
+Полный repo-level аудит A–E завершён. Идёт финальный controlled cleanup / zero-debt
+sweep: файл удаляется только после проверки production/build/test/docs/runtime
+зависимостей и явной классификации `DELETE / MERGE / KEEP / REVIEW`.
 
-Последний подтверждённый пользователем GREEN baseline перед очередным cleanup
-набором:
+Текущий подтверждённый implementation/test GREEN baseline:
 
 ```text
-a29e2ab9639181550ba2beccf812320a552eb8c8
-Remove superseded CMP core dependency package
-USER CONFIRMED GREEN
+ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+Harden release safety contract against stale JSON assertions
+CMP Protocol Tests GREEN
 ```
 
-Commits после этого SHA не считаются GREEN автоматически.
+Точные подтверждающие Actions runs и текущий cleanup status записаны в
+`docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Более поздние commits
+не считаются GREEN автоматически.
 
 ## Контроллеры
 
@@ -59,15 +61,23 @@ Shared/CMP1Text/CM_Cmp1Crc.h
 ```
 
 `Shared/Protocol/` — binary host-test protocol, не production wire layer. Его
-назначение и формат теперь документированы рядом с кодом в
+назначение и формат документированы рядом с кодом в
 `Shared/Protocol/README.md`.
 
 ## Material/writeoff semantics
 
-Для KG_FIRST consumption authoritative quantity — `quantity_kg`.
-Exact `source_session_id + source_run_id` provenance обязательны. `spool_id`
-может отсутствовать только в утверждённом unallocated/manual KG_FIRST path;
-если spool используется, его exact provenance сохраняется.
+Для текущего linked production manual writeoff обязательна immutable provenance:
+
+```text
+source_session_id + source_run_id + exact immutable spool_id
+```
+
+KG_FIRST consumption использует authoritative `quantity_kg`. Исторические
+`UNALLOCATED` записи остаются только immutable read/audit/recovery compatibility
+evidence и не разрешают новому linked writeoff терять уже выбранный spool.
+Если в будущем будет нужен настоящий unallocated production workflow, material
+provenance должна фиксироваться до UART boundary, а не создаваться как post-run
+fallback после `RUN_COMPLETED`.
 
 ## Сборка
 

@@ -160,9 +160,9 @@ def audit(output: Path) -> dict[str, object]:
         values["count"] += 1
         values["bytes"] += path.stat().st_size
 
-    hashes: dict[str, list[Path]] = defaultdict(list)
+    hashes: dict[tuple[str, str], list[Path]] = defaultdict(list)
     for path in asset_files:
-        hashes[digest(path)].append(path)
+        hashes[(digest(path), path.suffix.lower())].append(path)
     duplicate_groups = [paths for paths in hashes.values() if len(paths) > 1]
     duplicate_savings = sum(
         sum(path.stat().st_size for path in group) - group[0].stat().st_size

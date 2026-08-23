@@ -9,6 +9,7 @@ FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 * converts generated HTML to UTF-8;
 * gives desktop/mobile the same CoilMaster shell and shared stylesheet/JS;
 * rewrites internal links so each UI mode stays inside its own page tree;
+* normalizes legacy Windows path casing to the real source-file spelling;
 * stores byte-identical desktop/mobile assets once in ``shared/assets``;
 * keeps mode-specific assets below ``desktop/assets`` or ``mobile/assets``;
 * excludes Microsoft FrontPage ``_vti_*`` metadata from the published site.
@@ -152,7 +153,33 @@ def resolve_rel(current_rel: str, target: str) -> str:
     return normalized.lstrip("./")
 
 
-def rewrite_url(value: str, current_rel: str, mode: str, shared_for_mode: dict[str, str]) -> str:
+def canonical_source_rel(root: Path, relative: str) -> str:
+    """Resolve legacy Windows-style case-insensitive paths to real source casing."""
+    exact = root / relative
+    if exact.exists():
+        return relative
+
+    current = root
+    canonical_parts: list[str] = []
+    for part in Path(relative).parts:
+        if not current.is_dir():
+            return relative
+        wanted = part.casefold()
+        match = next((child for child in current.iterdir() if child.name.casefold() == wanted), None)
+        if match is None:
+            return relative
+        canonical_parts.append(match.name)
+        current = match
+    return "/".join(canonical_parts)
+
+
+def rewrite_url(
+    value: str,
+    current_rel: str,
+    mode: str,
+    source_root: Path,
+    shared_for_mode: dict[str, str],
+) -> str:
     if external_or_special(value):
         return value
     parts = urlsplit(value)
@@ -160,6 +187,7 @@ def rewrite_url(value: str, current_rel: str, mode: str, shared_for_mode: dict[s
         return value
     decoded_path = unquote(parts.path)
     resolved = resolve_rel(current_rel, decoded_path)
+    resolved = canonical_source_rel(source_root, resolved)
     suffix = Path(resolved).suffix.lower()
     if suffix in HTML_SUFFIXES:
         # The exported legacy bundle references index.html from almost every page,
@@ -179,10 +207,16 @@ def rewrite_url(value: str, current_rel: str, mode: str, shared_for_mode: dict[s
     return urlunsplit(("", "", new_path, parts.query, parts.fragment))
 
 
-def rewrite_links(fragment: str, current_rel: str, mode: str, shared_for_mode: dict[str, str]) -> str:
+def rewrite_links(
+    fragment: str,
+    current_rel: str,
+    mode: str,
+    source_root: Path,
+    shared_for_mode: dict[str, str],
+) -> str:
     def replace(match: re.Match[str]) -> str:
         value = match.group("value")
-        rewritten = rewrite_url(value, current_rel, mode, shared_for_mode)
+        rewritten = rewrite_url(value, current_rel, mode, source_root, shared_for_mode)
         return f"{match.group('prefix')}{match.group('quote')}{rewritten}{match.group('quote')}"
     return ATTR_RE.sub(replace, fragment)
 
@@ -285,7 +319,7 @@ def convert_pages(source: ModeSource, output: Path, shared_for_mode: dict[str, s
         title = extract_title(raw)
         body = extract_body(raw)
         body = CHARSET_META_RE.sub("", body)
-        body = rewrite_links(body, rel, source.mode, shared_for_mode)
+        body = rewrite_links(body, rel, source.mode, source.root, shared_for_mode)
         target = output / source.mode / "pages" / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(shell(title, body, source.mode), encoding="utf-8", newline="\n")

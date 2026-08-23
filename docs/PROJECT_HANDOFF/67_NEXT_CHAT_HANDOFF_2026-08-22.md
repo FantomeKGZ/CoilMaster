@@ -13,74 +13,38 @@ Before every edit/delete fetch the current file from `cmp-protocol-v1` and use i
 ## Last verified GREEN baseline
 
 ```text
-e16a7daeae8962e4eb6b457661970f873faf8a87
-Align final acceptance exact spool contract
-USER CONFIRMED GREEN
+ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+Harden release safety contract against stale JSON assertions
+CMP Protocol Tests GREEN
 ```
 
-Later commits are not CI GREEN unless separately confirmed.
+Verified Actions:
 
-## Current CI issue/fix
+```text
+32616937088  GREEN  checkout ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+32616970608  GREEN
+32616987523  GREEN
+```
 
-A long run of red `CMP Protocol Tests` was caused by stale `Tests/Web/check_release_contracts.js`, not by CMake/host build failures.
+Run `32616937088` passed configure/build, all 4 host C++ tests and all Web/Protocol contracts including `Audit release safety contracts`.
 
-First regression correction:
+## Closed CI incident
+
+The prior RED series was stale regression-test debt, not production runtime failure. Two corrections closed it:
 
 ```text
 9fc671121f86b5b25f06e5c59adcd8a9e3d7f154
-Align release safety contract with exact spool provenance
-```
+  release test updated from optional spool to mandatory exact spool
 
-Then the user supplied three fresh failed runs:
-
-```text
-32616691885
-32616733187
-32616752376
-```
-
-All three show the same pattern:
-
-```text
-Configure                GREEN
-Build                    GREEN
-4 host C++ tests         GREEN
-all other contracts      GREEN
-Audit release safety     RED
-```
-
-Exact failure:
-
-```text
-firmware/esp32/src/main.cpp:
-  fail-closed automatic recovery/writeoff status contract missing
-
-firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp:
-  manual writeoff response no longer explicitly prohibits automatic deduction
-```
-
-Root cause: the release test still required obsolete presentation-only JSON substrings after those response fields had been removed/refactored. Dedicated job-recovery/writeoff contracts remained GREEN and the production safety model had not changed.
-
-Fix committed:
-
-```text
 ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
-Harden release safety contract against stale JSON assertions
+  obsolete automatic_* JSON string checks replaced with semantic safety checks
 ```
 
-The release contract now validates real semantics instead of response wording:
-
-- `JobRecoveryInfo` starts with `mayAutoQueue=false`, `mayAutoResume=false`;
-- `JobRecovery::evaluate()` explicitly keeps both false;
-- unresolved `TIMED_OUT` goes to manual review and blocks new job creation;
-- ESP32 source tree is scanned for forbidden auto-start/auto-resume/auto-writeoff calls;
-- current manual writeoff still requires exact immutable spool + exact session/run + completed-run proof.
-
-**Next immediate action:** inspect fresh `CMP Protocol Tests` after `ad17bb7...`. Do not call current HEAD GREEN until it actually passes or the user explicitly confirms it.
+Do not reopen optional-spool or presentation-string behavior to satisfy old tests.
 
 ## Cleanup progress
 
-Controlled code/docs/tree cleanup: **~95% complete**. Remaining: **~5%**.
+Controlled code/docs/tree cleanup: **~96% complete**. Remaining: **~4%**.
 
 Hardware E2E is a separate release gate and is not included in this cleanup percentage.
 
@@ -120,14 +84,13 @@ client
 - reboot never auto-continues restore/apply;
 - no automatic production-data deletion or NDJSON truncation.
 
-## Remaining cleanup sequence
+## Remaining cleanup sequence (~4%)
 
-1. verify `CMP Protocol Tests` after `ad17bb7...`;
-2. continue final owner-by-owner ESP32/Arduino/Core sweep;
-3. finish thematic stale test/doc sweep;
-4. final root/tree/Web/shared/scripts/tools zero-debt pass;
-5. classify all remaining candidates `DELETE / MERGE / KEEP / REVIEW`;
-6. synchronize this file with `06_ACTIVE_WORK_AND_NEXT_STEPS.md` before chat transition.
+1. continue final owner-by-owner ESP32/Arduino/Core sweep;
+2. finish thematic stale test/doc sweep;
+3. final root/tree/Web/shared/scripts/tools zero-debt pass;
+4. classify all remaining candidates `DELETE / MERGE / KEEP / REVIEW`;
+5. synchronize this file with `06_ACTIVE_WORK_AND_NEXT_STEPS.md` and create final cleanup checkpoint.
 
 ## Already completed major cleanup
 
@@ -144,7 +107,8 @@ client
 - KG_FIRST current POST/store/UI requires exact immutable spool;
 - historical unallocated records remain compatible without authorizing new optional-spool writes;
 - crash-residue policies reviewed by transaction boundary;
-- top-level AI/handoff routing aligned to current exact-spool model.
+- top-level AI/handoff routing aligned to current exact-spool model;
+- release safety regression contract corrected and CI-verified GREEN.
 
 ## Crash-residue classification
 

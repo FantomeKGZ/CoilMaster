@@ -1,217 +1,216 @@
-# CoilMaster — программы, сеансы и фактические намотки
+# CoilMaster — winding session / run workflow
 
-## Цель
+## 1. Назначение
 
-Документ фиксирует поведение Arduino Uno, ESP32 и WEB при повторном выполнении одной программы катушек, отправке пакета двигателя и последующей привязке фактических запусков к карточке двигателя.
+Документ фиксирует текущую production-связь между ESP32, Arduino Uno, Web, winding persistence и manual material writeoff.
 
-## Основные сущности
-
-### WindingProgram
-
-Программа содержит последовательность катушек, например:
+Основная safety boundary:
 
 ```text
-140 / 100 / 80 / 40
+ESP32/Web подготавливают и доставляют JOB
+Arduino принимает JOB
+физический/local START запускает движение
 ```
 
-Она может быть введена на Arduino или отправлена из WEB. Программа не означает, что работа уже выполнена.
+Прием JOB, ACK, recovery или Web-действие сами по себе **никогда не являются physical START**.
+
+## 2. Основные сущности
+
+### WindingProgram / WindingJob
+
+Программа содержит последовательность катушек/целевых витков. Для remote linked production ESP32 формирует job с устойчивыми `job_id` / `session_id`, immutable snapshot и exact material selection до UART boundary.
+
+Сам факт существования или доставки job не означает, что намотка началась.
 
 ### WindingSession
 
-Сеанс начинается при загрузке программы в Arduino и заканчивается по команде оператора.
+`session_id` объединяет job/session-level immutable evidence и несколько фактических запусков одной программы там, где оператор повторяет ее вручную.
 
-Одна программа остаётся активной в течение всего сеанса и может выполняться многократно без повторного ввода и без повторной отправки из WEB.
-
-Каждый сеанс получает `session_id`. Для задания, пришедшего из WEB, ESP32 может передать собственный идентификатор. Для локально введённой программы Arduino назначает временный локальный идентификатор, который позже будет согласован с ESP32.
+Для linked production current source of truth также содержит immutable exact spool selection, относящийся к этому session.
 
 ### WindingRun
 
-Каждое полное выполнение программы — отдельный фактический запуск.
-
-Например, два выполнения одной программы создают две записи:
+Каждое фактическое выполнение программы имеет отдельный `run_id`.
 
 ```text
-RUN-1: 140/100/80/40 — COMPLETED
-RUN-2: 140/100/80/40 — COMPLETED
+RUN_STARTED(session_id, run_id, ...)
+RUN_COMPLETED(session_id, run_id, ...)
 ```
 
-Каждый проход получает отдельный `run_id`. Идентификатор не меняется между событием начала и событием завершения этого прохода.
+`run_id` сохраняется между STARTED и COMPLETED одного прохода. Повтор программы создает новый run; исторические run records не сливаются и не удаляются только ради UI-группировки.
 
-WEB может визуально сгруппировать одинаковые проходы как `выполнено 2 раза`, но исходные записи не объединяются и не удаляются.
+## 3. Current production transport
 
-## События Arduino Core
+RUN events уже передаются между Arduino и ESP32 через production text protocol `CMP1|...`; это не будущий этап.
 
-При физическом запуске первого или повторного прохода ядро формирует:
+Owners:
 
 ```text
-RUN_STARTED(session_id, run_id, completed_runs)
+Arduino/CM_UartEventTransport.h/.cpp
+firmware/esp32/src/CM_UartEventReceiver.h/.cpp
+Shared/CMP1Text/CM_Cmp1Crc.h
 ```
 
-После фактического завершения последней катушки этого прохода формируется:
+`Shared/Protocol/` — отдельный старый binary host-test protocol и не заменяет production CMP1.
+
+Arduino transport имеет bounded queue/retry/ACK-NACK handling. Повторная доставка события не должна создавать второй фактический run record на ESP32.
+
+Lost ACK / timeout не доказывает, что Arduino idle. Recovery/timeout states не дают права автоматически запускать следующую работу.
+
+## 4. Linked production preparation до UART
+
+Текущий high-level flow:
 
 ```text
-RUN_COMPLETED(session_id, run_id, completed_runs)
+client
+-> motor
+-> OPEN repair
+-> costing
+-> linked winding
+-> persistent job/session identity
+-> immutable job snapshot
+-> exact immutable spool selection
+-> UART JOB delivery
 ```
 
-Сейчас события доступны через интерфейс `StateMachine::takeEvent()`. Диагностическая прошивка выводит их в USB Serial. На следующем этапе тот же поток событий будет подключён к CMP/UART и передан ESP32.
-
-## Локальный ввод на Arduino
-
-1. Оператор вводит количество катушек.
-2. Поочерёдно вводит витки каждой катушки.
-3. Arduino передаёт программу ESP32.
-4. ESP32 сохраняет программу и подтверждает получение.
-5. Оператор нажимает `A` или внешнюю START.
-6. Arduino создаёт новый `run_id` и формирует `RUN_STARTED`.
-7. Arduino выполняет катушки по очереди.
-8. Между катушками станок останавливается и ждёт физического подтверждения.
-9. После полного выполнения Arduino формирует `RUN_COMPLETED` с тем же `run_id`.
-10. ESP32 сохраняет запуск и отвечает `RUN_SAVED_ACK`.
-11. Arduino предлагает повтор или завершение сеанса.
-
-## Звуковые сигналы
-
-Зуммер различает два события:
-
-- окончание отдельной катушки — один сигнал средней длительности;
-- окончание всей программы — три коротких сигнала.
-
-Сигналы выполняются без `delay()`, поэтому опрос клавиатуры, UART и обновление LCD продолжаются.
-
-После отдельной катушки SSR выключен, на LCD отображается ожидание продолжения, а следующая катушка запускается только по `A` или внешней START.
-
-После последней катушки программа сразу получает статус `COMPLETED`, выводится экран завершения программы и подаются три сигнала.
-
-Экран после полного выполнения:
+Перед переходом linked job к delivery должны существовать согласованные persistence evidence. Current exact spool selection содержит как минимум:
 
 ```text
-ГОТОВО: 1 РАЗ
-A=ПОВТОР B=МЕНЮ
+job_id
+session_id
+repair_id
+motor_id
+spool_id
+diameter
+wire_type
+weight_at_selection
 ```
 
-После второго выполнения:
+Historical `UNALLOCATED` movement evidence не отменяет этот current pre-UART requirement.
+
+## 5. Прием remote JOB на Arduino
+
+Arduino валидирует и принимает remote job через CMP1 transport/state ownership. Accepted/ACK означает только, что job принят/сохранен в допустимое локальное состояние.
+
+После приема Arduino показывает/удерживает программу и ждет **local physical operator input** для START.
+
+Запрещено трактовать как START:
+
+- Web POST/GET;
+- UART JOB frame;
+- ACK/NACK;
+- reconnect;
+- timeout recovery;
+- reboot;
+- repeat counter;
+- получение следующего job.
+
+## 6. Physical run
+
+При разрешенном local physical START:
+
+1. Arduino создает/активирует новый exact `run_id`.
+2. Формируется `RUN_STARTED`.
+3. Arduino realtime state machine владеет SSR и Hall counting.
+4. Между этапами/катушками сохраняется требуемая локальная operator confirmation boundary.
+5. После фактического завершения прохода формируется `RUN_COMPLETED` с тем же `run_id`.
+6. Event transport доставляет evidence ESP32 с bounded retry/ACK behavior.
+7. ESP32 сохраняет immutable winding journal evidence.
+
+ESP32/Web никогда напрямую не управляют SSR.
+
+## 7. Repeat semantics
+
+Повтор полного winding program всегда является новым физическим run и получает новый `run_id`.
+
+Никакой repeat count не разрешает automatic physical START. Между полными проходами требуется новое local operator action.
+
+Final repeat не может автоматически reopen job/session для еще одного движения.
+
+UI может показывать агрегированное `выполнено N раз`, но authoritative evidence остается run-level.
+
+## 8. Reboot / communication recovery
+
+После reboot нет automatic winding resume.
+
+При потере ACK или связи:
+
+- уже начатый физический процесс и его safety state принадлежат Arduino;
+- ESP32 не делает вывод `Arduino idle` только по timeout;
+- late valid `RUN_STARTED` / `RUN_COMPLETED` обрабатываются по recovery/state rules;
+- ambiguous state требует fail-closed/manual review, а не автоматического нового START.
+
+Recovery не должна стирать immutable run/history evidence.
+
+## 9. RUN_COMPLETED и material writeoff — разные границы
+
+`RUN_COMPLETED` означает факт завершения физического run. Он **не** списывает провод.
+
+После сохранения run evidence оператор выполняет отдельный explicit/manual writeoff. Для current linked production обязательна provenance:
 
 ```text
-ГОТОВО: 2 РАЗА
-A=ПОВТОР B=МЕНЮ
+source_session_id + source_run_id + exact immutable spool_id
 ```
 
-`A` запускает ту же программу заново и создаёт новый `run_id`. `B` закрывает сеанс и возвращает главное меню.
+Writeoff owner повторно проверяет exact run completion и immutable spool selection. Один completed run не может быть использован для двух confirmed writeoff.
 
-## Программа из карточки двигателя
+Historical `UNALLOCATED` KG_FIRST records остаются compatibility evidence только для read/audit/recovery. Они не создают post-run optional-spool fallback.
 
-WEB отправляет одну программу или пакет программ.
+## 10. Repair finalization
 
-### Одна программа
+Repair closure/finalization проверяет run/material coverage на уровне exact persisted evidence. Нельзя закрывать linked production только по неоднозначному session-level признаку, если конкретный completed run требует exact writeoff coverage.
 
-ESP32 передаёт Arduino:
-
-- идентификатор программы;
-- идентификатор сеанса;
-- последовательность катушек;
-- необязательную роль;
-- режим повторов;
-- плановое число повторов, если оно задано.
-
-Arduino показывает только краткие сведения и ждёт физического START.
-
-### Пакет однофазного двигателя
-
-Пакет может содержать рабочую и пусковую программы.
-
-Перед отправкой WEB спрашивает:
+Production tail:
 
 ```text
-С чего начать?
-- рабочая;
-- пусковая;
-- по порядку карточки.
+RUN_COMPLETED
+-> explicit manual exact-run exact-spool writeoff
+-> costing / persisted pricing evidence
+-> finalization preflight
+-> CLOSED
+-> reports
+-> backup
 ```
 
-По умолчанию карточка может хранить рабочую первой, но оператор всегда может выбрать другой стартовый элемент.
+## 11. Local program behavior
 
-После завершения активной программы Arduino может запросить следующую программу пакета. ESP32 передаёт её, но запуск снова требует `A` или внешнюю START.
+Локальная программа Arduino может существовать без linked repair/motor workflow и отправлять свои фактические run events ESP32 через текущий CMP1 transport.
 
-### Трёхфазный двигатель
+Ее наличие не ослабляет linked-production rules: если операция относится к linked production repair/job, authoritative linkage, immutable selection и exact-run writeoff requirements должны быть выполнены соответствующим production flow.
 
-Фазы A/B/C отдельно не создаются.
+## 12. Web/UI rules
 
-Обычно используется одна программа, например:
+Web может:
+
+- подготовить linked job;
+- выбрать exact spool до delivery;
+- показать state/run history;
+- инициировать безопасные data/API операции;
+- предложить оператору manual writeoff/finalization actions.
+
+Web не может:
+
+- физически запустить станок;
+- напрямую включить SSR;
+- считать timeout доказательством idle;
+- автоматически списать wire из `RUN_COMPLETED`;
+- автоматически возобновить winding после reboot;
+- скрыть выбранный exact spool при последующем linked writeoff.
+
+## 13. Authoritative owners / verification
 
 ```text
-20 / 20 / 20 / 20 / 20 / 20
+Core/CM_StateMachine.*
+Core/CM_WindingEvent.h
+Core/CM_WindingJob.h
+firmware/arduino/src/main.cpp
+Arduino/CM_UartEventTransport.*
+firmware/esp32/src/CM_UartEventReceiver.*
+firmware/esp32/src/CM_JobStateStore.*
+firmware/esp32/src/CM_JobSnapshotStore.*
+firmware/esp32/src/CM_JobSpoolSelectionStore.*
+firmware/esp32/src/CM_WindingJournal*
+firmware/esp32/src/CM_WarehouseWriteOff*
 ```
 
-Она выполняется необходимое число раз. Каждый проход сохраняется отдельно.
-
-## Карточка двигателя
-
-### Обязательные поля
-
-- название;
-- хотя бы одна программа катушек.
-
-### Необязательные поля
-
-- тип двигателя;
-- роль программы: рабочая, пусковая или другая;
-- число повторов;
-- диаметр провода;
-- число жил, по умолчанию `1`;
-- масса провода;
-- марка и материал;
-- число пазов;
-- тип укладки;
-- мощность, обороты и другие паспортные параметры;
-- схемы, фотографии и комментарии.
-
-## Привязка локальных запусков
-
-Локально введённые программы могут не иметь двигателя и клиента.
-
-В истории WEB оператор:
-
-1. выбирает фактические запуски;
-2. нажимает `Привязать к двигателю`;
-3. выбирает существующую карточку или создаёт новую;
-4. задаёт обязательное название;
-5. при необходимости выбирает тип двигателя;
-6. формирует одну или несколько программ;
-7. при необходимости отмечает рабочую и пусковую;
-8. добавляет провод и остальные необязательные данные.
-
-## Защита от дубликатов
-
-Каждый запуск получает уникальный `run_id`.
-
-Обмен:
-
-```text
-Arduino -> RUN_COMPLETED(run_id)
-ESP32   -> RUN_SAVED_ACK(run_id)
-```
-
-Если связь пропала, Arduino повторяет сообщение. ESP32 не создаёт новую запись при повторном получении того же `run_id`.
-
-## Статистика
-
-ESP32 считает:
-
-- клиентов;
-- двигатели;
-- ремонты;
-- завершённые запуски;
-- запуски сегодня и за месяц;
-- фактически намотанные витки;
-- не привязанные запуски;
-- рабочие и пусковые программы, если роли заполнены.
-
-Сумма витков строится только по завершённым фактическим запускам.
-
-## Правила безопасности
-
-- ESP32 не включает SSR напрямую.
-- Любой запуск требует физического подтверждения на Arduino.
-- Между катушками требуется `A` или внешняя START.
-- Между повторениями полной программы также требуется физическое подтверждение.
-- При потере ESP32 Arduino может завершить текущую работу автономно и синхронизировать результат позже.
+Changes touching this workflow require applicable CMP Protocol/Arduino/ESP32/Web regression gates. Hardware behavior is a separate physical acceptance gate and must never be inferred from CI alone.

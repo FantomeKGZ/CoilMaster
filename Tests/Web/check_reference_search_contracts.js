@@ -78,5 +78,17 @@ if(!source.includes("fetch('/web-bundle-manifest.json'")||
    !source.includes("node.textContent='SD web unknown'")){
   throw new Error('Reference SD bundle provenance badge missing');
 }
+for(const contract of [
+  "image.loading='lazy'",
+  "image.decoding='async'",
+  "image.alt='Иллюстрация: '+name",
+  "wrap.setAttribute('role','region')",
+  "wrap.setAttribute('aria-label','Прокручиваемая таблица')",
+  'wrap.tabIndex=0'
+]){
+  if(!source.includes(contract)){
+    throw new Error('Reference legacy media/table accessibility missing: '+contract);
+  }
+}
 
 console.log('Reference catalog search contracts: OK');

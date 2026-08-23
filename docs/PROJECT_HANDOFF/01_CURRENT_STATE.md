@@ -177,7 +177,27 @@ Current implementation includes:
 - SHA-256 deduplication of byte-identical desktop/mobile assets into shared storage;
 - CI dry-build workflow for source checkout, import, integrity check and footprint reporting.
 
-Generated legacy content is not yet recorded here as verified/published; CI dry-build result and measured footprint must be checked first.
+Generated legacy content is verified and published as a bounded GitHub Actions artifact without committing 1852 generated legacy pages to Git.
+
+Verified reference run:
+
+```text
+Reference Legacy Import Check run 32641366079 — GREEN
+head_sha cea85a09dd4208bf88545284ae80a12edce22681
+```
+
+Measured bundle:
+
+```text
+926 desktop + 926 mobile generated pages
+926 shared catalog entries
+329M reference / 331M full web bundle
+4626 reference files / 4693 full web files
+2769 shared assets / 0 desktop-mobile duplicate unique assets
+artifact coilmaster-web-sd-bundle-cea85a09dd4208bf88545284ae80a12edce22681
+```
+
+Generated pages include top/bottom return-to-search navigation, responsive images and horizontally scrollable wide tables. Physical microSD/ESP32 verification remains separate.
 
 ## Verification still separate
 
@@ -192,7 +212,7 @@ Reference-site dry-build verification is also separate from the previously verif
 
 ## Current active direction
 
-1. finish winding-reference dry-build/import verification and publish generated content in bounded form;
+1. verify the post-fix CMP run, then deploy the confirmed reference SD artifact and perform physical ESP32 web smoke;
 2. perform targeted ESP32<->Arduino UART/repeat/cancel smoke when hardware is available;
 3. fix only concrete current failures;
 4. use measured data for performance/storage changes.

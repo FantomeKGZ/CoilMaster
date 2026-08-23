@@ -153,6 +153,13 @@ def audit(output: Path) -> dict[str, object]:
         if "sites/reference/" + path.relative_to(output).as_posix() not in referenced_files
     ]
 
+    unused_types: dict[str, dict[str, int]] = {}
+    for path in unreferenced_assets:
+        kind = path.suffix.lower() or "<no extension>"
+        values = unused_types.setdefault(kind, {"count": 0, "bytes": 0})
+        values["count"] += 1
+        values["bytes"] += path.stat().st_size
+
     hashes: dict[str, list[Path]] = defaultdict(list)
     for path in asset_files:
         hashes[digest(path)].append(path)
@@ -186,6 +193,7 @@ def audit(output: Path) -> dict[str, object]:
             "count": len(unreferenced_assets),
             "bytes": sum(path.stat().st_size for path in unreferenced_assets),
             "paths": [rel(path) for path in unreferenced_assets],
+            "by_extension": dict(sorted(unused_types.items())),
         },
         "duplicate_asset_groups": {
             "count": len(duplicate_groups),

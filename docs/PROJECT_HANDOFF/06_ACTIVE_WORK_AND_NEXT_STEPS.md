@@ -159,7 +159,8 @@ Implemented on `cmp-protocol-v1`:
 - mobile horizontal navigation so section links remain reachable on phones;
 - shared `reference.css` and `reference.js`;
 - legacy importer `tools/import_legacy_winding_reference.py`;
-- integrity checker `tools/check_legacy_winding_reference.py`.
+- integrity checker `tools/check_legacy_winding_reference.py`;
+- CI dry-build workflow `.github/workflows/reference-legacy-import.yml`, which checks out the complete legacy source, imports into a temporary output tree, runs the checker and reports generated footprint.
 
 Confirmed source format/details:
 
@@ -179,7 +180,16 @@ Importer contract:
 - keep unique assets in mode-specific `/desktop/assets/` or `/mobile/assets/`;
 - never modify ESP32/Arduino runtime/safety logic.
 
-Next implementation step: run the importer against complete local source trees, inspect the generated page/link/asset counts with the checker, then commit generated reference content in bounded batches. Do not manually rewrite hundreds of legacy pages.
+Latest reference fix:
+
+```text
+0a126dfd756b592ffdbfb6760f2ba65bf9317f54
+fix(reference): resolve generated links from output root
+```
+
+The checker previously resolved `/sites/reference/...` through `output.parents[2]`, which was wrong both for the production output path and for the CI temporary output. It now maps the `/sites/reference/` prefix directly to the supplied `--output` root, so valid generated links are checked against the actual generated tree.
+
+Next implementation step: obtain the actual `Reference Legacy Import Check` result for `0a126df...`. If GREEN, use the reported page/link/asset footprint as the import baseline and then commit generated reference content in bounded batches. If it fails, fix the exact reported importer/checker defect first. Do not manually rewrite hundreds of legacy pages and do not call this reference batch GREEN without a real workflow result.
 
 Hardware two-board smoke remains a separate external release gate and is not part of this reference-site product task.
 

@@ -33,9 +33,12 @@
 <section class="cm-reference-card">
 <h3>Поиск по справочнику</h3>
 <p class="cm-reference-muted">Введите серию, марку двигателя или часть названия. Результаты открываются в мобильной версии справочника.</p>
+<div class="cm-reference-search-row">
 <input class="cm-reference-search" type="search" autocomplete="off" placeholder="Например: 4А, АИР, 1500..." aria-label="Поиск по справочнику" data-reference-search>
-<p class="cm-reference-search-status" data-reference-search-status>Загрузка каталога…</p>
-<div class="cm-reference-search-results" data-reference-results></div>
+<button class="cm-reference-search-clear" type="button" data-reference-search-clear aria-label="Очистить поиск">Очистить</button>
+</div>
+<p class="cm-reference-search-status" role="status" aria-live="polite" data-reference-search-status>Загрузка каталога…</p>
+<div class="cm-reference-search-results" role="list" aria-label="Результаты поиска" data-reference-results></div>
 </section>
 <section class="cm-reference-card cm-reference-direct-card">
 <h3>Быстрый переход</h3>

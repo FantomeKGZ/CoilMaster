@@ -152,13 +152,22 @@ coilmaster-reference-migration-audit-<commit-sha>
 
 Копировать нужно именно содержимое artifact как каталог `/web` карты, а не помещать дополнительный уровень `coilmaster-web` внутрь `/web`.
 
-Каждый новый artifact содержит /web/web-bundle-manifest.json с точной provenance:
+Каждый новый artifact содержит `/web/web-bundle-manifest.json` schema v2 с точной provenance и воспроизводимыми метриками:
 
-- coilmaster_commit — commit CoilMaster, из которого собран Web;
-- legacy_commit — commit исходного legacy-справочника;
-- workflow_run_id;
-- reference_catalog_entries;
-- generated_utc.
+- `coilmaster_commit` — commit CoilMaster, из которого собран Web;
+- `legacy_commit` — commit исходного legacy-справочника;
+- `workflow_run_id`;
+- `generated_utc`;
+- `reference` — точные catalog/file/byte/HTML/shared/desktop/mobile counts;
+- `web_payload` — точные file/byte counts и SHA-256 всего дерева `/web`.
+
+Manifest исключён из payload counts/hash, чтобы не создавать самоссылку. Hash строится по отсортированным relative paths, размеру и SHA-256 каждого payload-файла. После копирования artifact целостность каталога можно проверить командой:
+
+```bash
+python3 tools/build_web_bundle_manifest.py --web-bundle /path/to/web --verify
+```
+
+Любое изменение, отсутствие или добавление payload-файла приводит к ошибке verification.
 
 Общий app shell читает manifest и показывает короткий SD <commit> рядом с firmware/Web version. Если установлена старая карта без manifest, интерфейс остаётся работоспособным и показывает SD web unknown; это fail-soft диагностика, а не блокировка производства.
 

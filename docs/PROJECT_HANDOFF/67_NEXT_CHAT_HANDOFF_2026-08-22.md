@@ -28,11 +28,11 @@ Verified Actions:
 
 Run `32616937088` passed configure/build, all 4 host C++ tests and all Web/Protocol contracts including `Audit release safety contracts`.
 
-Later cleanup commits, including the warehouse bootstrap correction below, do not establish a newer firmware GREEN baseline automatically. Direct workflow lookup returned 0 runs for `06a752663504d58ca6908414f8aa8786007c6877` and HEAD `5e704cade4977a2707609be8a35ee8f49f1a8afa`; do not claim a newer GREEN baseline until an applicable successful Actions run is observed.
+Later cleanup commits do not establish a newer GREEN baseline automatically. The current connector cannot reliably enumerate push-triggered runs by exact SHA, so the latest implementation/test batch remains **not yet claimed GREEN** until an applicable successful run is observed.
 
 ## Cleanup progress
 
-Controlled code/docs/tree cleanup is now conservatively **~98% complete / ~2% remaining** after resolving the remaining named split-owner/crash-residue REVIEW items. The remaining work is final consolidation, CI evidence for the latest implementation correction, and the cleanup-complete checkpoint.
+Controlled source/docs/tree cleanup is now conservatively **~99% complete / ~1% remaining**. Final owner/crash-residue/source classification is complete; the remaining 1% is external CI evidence plus the final cleanup-complete verification checkpoint.
 
 Hardware E2E is a separate release gate and is not included in this percentage.
 
@@ -72,49 +72,71 @@ client
 - reboot never auto-continues restore/apply;
 - no automatic production-data deletion or NDJSON truncation.
 
-## Newly closed in the latest cleanup pass
+## Latest cleanup pass
 
-### Final split-owner sweep — current findings
+### Final split-owner sweep
 
-The current build-included owner sweep has now directly reviewed the following groups:
+Direct build-included review closed the named remaining groups as `KEEP`:
 
-- `RepairRegistry` core/lookup/page/search/similarity -> `KEEP`: separate declared responsibilities, no orphan duplicate owner found;
-- `WindingJournalQuery.cpp` + `CM_WindingJournalQueryValidation.cpp` -> `KEEP`: pagination/history and authoritative full-file schema validation share the same private validators intentionally;
-- `CM_WindingJournalTransitionAudit.cpp` -> `KEEP`: validates event ordering/state transitions, not merely record schema;
-- `CM_WindingJournalSnapshotContext.cpp` -> `KEEP`: immutable snapshot/runtime context boundary and late timeout reconciliation after journal persistence;
-- `RepairCosting` + `CM_RepairCostingValidation.cpp` -> `KEEP`: aggregation/pricing and authoritative repair-reference validation are separate responsibilities;
-- `AutonomousWindingArchive` core/assign/integrity/page -> `KEEP`: append/replay, checked assignment, whole-archive integrity and bounded task paging are separate responsibilities;
-- `CM_WarehouseLegacySpoolMaterial.cpp` -> `KEEP`: live production migration endpoint for old spools without `wire_type`, not dead legacy source;
-- `Core/` current tree remains compact with concrete input/state/UI/turn-source owners and no named Legacy/Compat/Old parallel owner;
-- `Arduino/` current tree remains in the previously audited service/protocol structure; no new deletion candidate was identified in the tree-level pass.
+- `RepairRegistry` core/lookup/page/search/similarity;
+- `WindingJournalQuery` + `WindingJournalQueryValidation`;
+- `WindingJournalTransitionAudit`;
+- `WindingJournalSnapshotContext`;
+- `RepairCosting` + `RepairCostingValidation`;
+- `AutonomousWindingArchive` core/assign/integrity/page;
+- live `CM_WarehouseLegacySpoolMaterial.cpp` migration owner;
+- current `Core/` and `Arduino/` trees with no new parallel `Legacy/Compat/Old` production owners.
+
+These are separate declared responsibilities rather than orphan duplicate implementations.
 
 ### Warehouse duplicate bootstrap defect fixed
 
-Direct bootstrap review found that `main.cpp` calls both:
+`main.cpp` intentionally calls both:
 
 ```text
 warehouseWeb.begin();
 warehouseWeb.beginSpoolList();
 ```
 
-Before the fix, both paths registered write-off services, while `beginSpoolList()` additionally recreated/registered conductor calculator/settings/material services and repair/similarity Web services already owned elsewhere. This could register the same HTTP routes more than once.
+Before the fix, `beginSpoolList()` also registered `beginWriteOff()` and recreated conductor/settings/material and repair/similarity Web services already owned elsewhere, so the same HTTP routes could be registered more than once.
 
-Fixed in:
+Implementation fix:
 
 ```text
 06a752663504d58ca6908414f8aa8786007c6877
 fix(esp32): remove duplicate warehouse web bootstrap
 ```
 
-`CM_WarehouseSpoolWeb.cpp` now owns only its spool-list/material-assignment/material-summary route registration. `WarehouseWeb::begin()` remains the owner of the common warehouse/write-off service bootstrap. No safety boundary or physical-control behavior was changed.
+Current `CM_WarehouseSpoolWeb.cpp` registers only:
 
-This commit is **not yet claimed CI GREEN** in this handoff.
+```text
+GET  /api/warehouse/spools
+POST /api/warehouse/spools/material
+GET  /api/warehouse/material-summary
+```
+
+Common warehouse/write-off/conductor/material bootstrap remains owned by `WarehouseWeb::begin()`. No physical-control or safety boundary changed.
+
+Regression protection:
+
+```text
+bd64e3cc4ba92a6624aed677d98c1620c165013e
+test(warehouse): guard against duplicate web bootstrap
+```
+
+Existing `Tests/Web/check_warehouse_spool_list_cleanup.js`, already executed by `cmp-protocol-tests.yml`, now:
+
+- rejects `beginWriteOff()` or conductor/material/repair/similarity service bootstrap inside `CM_WarehouseSpoolWeb.cpp`;
+- requires common warehouse services to remain owned by `CM_WarehouseWeb.cpp`;
+- requires both `warehouseWeb.begin()` and `warehouseWeb.beginSpoolList()` to remain explicit in `main.cpp`.
+
+The test commit is under `Tests/Web/**`; `cmp-protocol-tests.yml` has an unconditional push trigger on `cmp-protocol-v1`. A concrete successful run still must be observed before calling the latest batch GREEN.
 
 ### JobSnapshot crash-residue REVIEW resolved
 
-`JobSnapshotStore .json.tmp` is now classified `KEEP` as non-authoritative preparation crash evidence.
+`JobSnapshotStore .json.tmp` is final `KEEP` as non-authoritative preparation crash evidence.
 
-The durable order is:
+Durable order:
 
 ```text
 persistent job/session ID allocation
@@ -124,58 +146,60 @@ persistent job/session ID allocation
 -> exact spool selection / DELIVERING / UART boundary later
 ```
 
-Therefore a crash residue `.json.tmp` cannot become an authoritative job: no `JobState CREATED` exists for it, the already allocated session ID is not reused, and there is no auto-promote/auto-resume/auto-delete behavior. A later higher-ID job may safely supersede it. This is intentionally different from the spool-selection `.tmp` recovery boundary.
+A leftover `.json.tmp` therefore cannot become an authoritative job, its already allocated session ID is not reused, and it is never auto-promoted/resumed/deleted. This intentionally differs from the spool-selection `.tmp` recovery boundary.
 
-### High-level docs / AI routing
+### Final source-side classification
 
 ```text
-2cb4b3c2...  docs/00_PROJECT_VISION.md current two-controller/data model
-95399017...  docs/12_ROADMAP.md current release gates instead of stale v0.x backlog
-4ef8c5a1...  docs/14_DEVELOPMENT_ARCHITECTURE.md current source tree; no deleted .ino/CM_Version/CHANGELOG paths
-4593103f...  docs/04_ESP32_CORE.md current Hall HTTP/UI state
-0b4a5f3f...  docs/01_SYSTEM_ARCHITECTURE.md mandatory current exact spool
-8a7c57bd...  docs/AI_AGENT/01_PROJECT_MAP.md authoritative buzzer pin A3
- d9bb59ce... docs/06_DATABASE.md current persistence ownership model
+DELETE  no new candidates remain from the final owner sweep
+MERGE   no duplicate authoritative owners remain from the final owner sweep
+KEEP    reviewed live production/build/test/docs/recovery owners
+REVIEW  none remain from the named split-owner/crash-residue queue
+FIXED   warehouse duplicate Web bootstrap + regression contract
 ```
 
-Earlier in the same sweep `docs/13_WAREHOUSE.md`, `16_WINDING_SESSION_WORKFLOW.md`, `08_API.md`, `15_BUILD_AND_TEST.md`, `07_WEB_PORTAL.md` and mandatory entrypoints were also aligned to current source/safety contracts.
+Never delete based only on filename or an empty GitHub search result.
 
-`docs/03_ARDUINO_CORE.md`, `docs/05_CMP_APPLICATION_PROTOCOL.md`, `docs/10_DIAGNOSTICS.md`, `PROJECT.manifest` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were re-read and remain `KEEP`.
+### Documentation synchronization
 
-### Workflow source-branch cleanup
+Latest cleanup documentation commits in this pass include:
+
+```text
+e52d487c...  06_ACTIVE_WORK_AND_NEXT_STEPS: resolve snapshot crash evidence review
+f839dda7...  67_NEXT_CHAT_HANDOFF: close remaining snapshot review
+fb51c386...  00_READ_FIRST: sync final cleanup state
+3541c268...  AGENTS.md: sync cleanup checkpoint state
+fae79b39...  06_ACTIVE_WORK_AND_NEXT_STEPS: record final source cleanup classification
+```
+
+The mandatory entrypoints now route to the current handoff instead of stale historical backlog.
+
+## Workflow/source branch state
+
+Production build workflows use `cmp-protocol-v1` as the push source branch, not `main`:
 
 ```text
 d007a42b...  Arduino Uno Build push branch -> cmp-protocol-v1 only
 d0beb03e...  ESP32 Build push branch -> cmp-protocol-v1 only
-88273be5...  check_ci_trigger_contracts forbids returning main while requiring cmp-protocol-v1/shared production coverage
+88273be5...  CI trigger regression forbids returning main
 ```
 
-Direct current fetch confirms these source contracts. Do not call this workflow batch GREEN until an actual successful applicable run is observed.
+The last verified GREEN baseline remains `ad17bb7...` until an applicable later run is actually observed.
 
-### Tree/tests/data/owner classification
+## Tree/tests/data status
 
-- `scripts/`, `tools/`, Web shared/reference/sites and root Web selector are direct-owner reviewed `KEEP`;
-- all 26 `Tests/Web/*.js` are executed by `cmp-protocol-tests.yml`;
-- all 4 host C++ test targets are registered by `Tests/Protocol/CMakeLists.txt`, including CMP1Text;
-- `data/motor_catalog/` is source/reference data, not runtime output -> `KEEP`;
-- `CM_AutonomousWindingArchiveAssign.cpp` -> `KEEP` split implementation;
-- `CM_JobSpoolSelectionLookup.cpp` -> `KEEP` split implementation preserving fail-closed temp evidence;
-- `CM_WarehouseWriteOffLookup.cpp` -> final `KEEP`: only exact-run `confirmedWriteOffForSourceRun(session, run)` remains public/current; it validates warehouse movement integrity before duplicate lookup. The former session-only REVIEW item is no longer present.
+- `scripts/`, `tools/`, Web shared/reference/sites and root Web selector are reviewed `KEEP`;
+- Web contract tests are workflow-owned; no orphan regression test was introduced;
+- all 4 host C++ test targets are registered by `Tests/Protocol/CMakeLists.txt`;
+- `data/motor_catalog/` is source/reference data -> `KEEP`;
+- `CM_JobSpoolSelectionLookup.cpp`, `CM_AutonomousWindingArchiveAssign.cpp`, `CM_WarehouseWriteOffLookup.cpp` remain proven split-owner `KEEP`.
 
-Earlier active handoff record for this pass:
+## Remaining cleanup sequence (~1%)
 
-```text
-823b07e01d600470cb1bec5c48a7b935c12e5b5f
-Record final workflow and thematic cleanup sweep
-```
-
-## Remaining cleanup sequence (~2%)
-
-1. produce final consolidated `DELETE / MERGE / KEEP / REVIEW` checkpoint from the completed audits and final owner sweep;
-2. verify the warehouse bootstrap correction with applicable CI/Actions evidence when a run exists;
-3. synchronize `06`, this file and mandatory entrypoints at cleanup-complete.
-
-Do not restart completed `scripts/tools/Web/shared/data/tests/workflow` passes without concrete contrary evidence.
+1. obtain an applicable successful CI/Actions result for the latest implementation/test batch;
+2. record exact run/SHA as the new verified baseline;
+3. mark software cleanup checkpoint complete and synchronize the status from 99% to complete;
+4. keep hardware two-board smoke as a separate physical release gate.
 
 ## Crash-residue classification
 
@@ -214,8 +238,6 @@ firmware/esp32/web/reference/
 firmware/esp32/web/sites/reference/
 ```
 
-Never delete based only on an empty GitHub search result.
-
 ## Read first in the next chat
 
 ```text
@@ -230,4 +252,4 @@ docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-Continue directly with code/commits. Do not ask for broad hardware logs during source cleanup; request only the exact Serial interval when a remaining issue becomes hardware-only.
+Continue directly with code/commits. Do not ask for broad hardware logs during source cleanup; request only the exact Serial interval when an unresolved issue becomes hardware-only.

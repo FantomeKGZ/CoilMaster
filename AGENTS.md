@@ -27,38 +27,42 @@ This file is the mandatory starting point for any AI/coding agent changing CoilM
 
 Older numbered handoff checkpoints are historical evidence, not an active task queue. Do not resume work merely because an old checkpoint says `next`.
 
-## Current active phase
+## Current phase
 
-The full repo-level code audit A–E is complete. Active repo-level work is now:
+The full repo-level code audit A–E is complete.
 
-```text
-FINAL CONTROLLED REPOSITORY CLEANUP / ZERO-DEBT SWEEP
-```
-
-The current handoff estimates this software cleanup at about **98% complete / 2% remaining**. Named split-owner and crash-residue REVIEW items have been resolved; the remaining work is final classification/checkpoint consolidation plus applicable CI evidence for the latest implementation correction. Always use the current value in `06_ACTIVE_WORK_AND_NEXT_STEPS.md` rather than copying this percentage forward after later changes.
-
-Every cleanup candidate must be classified before deletion:
+The final controlled repository cleanup / zero-debt sweep is also complete:
 
 ```text
-DELETE  proven unused and unreferenced by production/build/tests/docs/runtime
-MERGE   duplicate implementation; retain one authoritative owner
-KEEP    active production/build/test/docs/history/operator dependency
-REVIEW  uncertain dependency; do not delete
+SOFTWARE CLEANUP COMPLETE — 100%
 ```
 
-Do not mix speculative redesign with cleanup. Do not delete production data or historical evidence automatically. A filename containing `Legacy` is not proof of dead code: old-data migration/recovery paths may still be active production dependencies. Empty GitHub code-search is supporting evidence only and is never sufficient deletion proof by itself.
-
-## Current verified repo baseline
-
-Latest confirmed implementation/test GREEN baseline:
+The latest cleanup implementation/test batch was confirmed GREEN by the operator on **2026-08-23**. The final implementation/test cleanup commit is:
 
 ```text
-ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
-Harden release safety contract against stale JSON assertions
-CMP Protocol Tests GREEN
+bd64e3cc4ba92a6624aed677d98c1620c165013e
+test(warehouse): guard against duplicate web bootstrap
 ```
 
-Confirmed Actions evidence is recorded in `docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Later implementation change `06a752663504d58ca6908414f8aa8786007c6877` (`fix(esp32): remove duplicate warehouse web bootstrap`) requires a fresh applicable result or explicit user confirmation before being described as GREEN.
+It protects:
+
+```text
+06a752663504d58ca6908414f8aa8786007c6877
+fix(esp32): remove duplicate warehouse web bootstrap
+```
+
+Do not restart broad cleanup without a concrete new inconsistency, failing test, runtime defect, or stale-contract evidence.
+
+## Final cleanup classification
+
+```text
+DELETE  no remaining proven cleanup candidates
+MERGE   no duplicate authoritative owners remain
+KEEP    reviewed live production/build/test/docs/recovery owners
+REVIEW  none remain in the named cleanup queue
+FIXED   warehouse duplicate Web bootstrap + regression contract
+CI      current Actions confirmed GREEN by operator on 2026-08-23
+```
 
 ## Non-negotiable safety invariants
 
@@ -73,7 +77,6 @@ Never weaken these contracts:
 - `RUN_COMPLETED` never performs automatic wire writeoff;
 - current linked-production manual material writeoff requires exact `source_session_id + source_run_id + immutable spool_id` provenance;
 - historical `UNALLOCATED` KG_FIRST records remain read/audit/recovery compatibility evidence only and do not authorize a new linked writeoff to omit an already selected spool;
-- a future true unallocated production workflow, if ever required, must establish immutable material provenance before the UART boundary rather than as a post-run fallback;
 - backup restore is operator-only, transactional and fail-closed;
 - reboot never auto-continues restore/apply;
 - persisted restore evidence blocks unsafe backup/restore operations until explicitly resolved;
@@ -169,8 +172,6 @@ JobSnapshotStore .json.tmp
   KEEP non-authoritative preparation crash evidence; no auto-promote/resume/delete
 ```
 
-For `JobSnapshotStore`, persistent job/session ID allocation occurs before snapshot creation, while authoritative `JobState CREATED` is committed only after successful final snapshot rename/verification. A leftover `.json.tmp` therefore cannot become an authoritative job and its session ID is not reused.
-
 The different policies reflect different durable transaction boundaries.
 
 ## Fast change rule
@@ -193,6 +194,10 @@ When a production capability is added, moved or materially changes state:
 - update `00_READ_FIRST.md` if the mandatory starting route or high-level state changes;
 - keep older numbered checkpoints historical; do not rewrite them into an active queue.
 
-During cleanup, update documentation that points to deleted files or stale owners in the same cleanup batch.
+## External hardware gate
 
-The goal is that the next agent starts from the current code/status without repository-wide archaeology or stale chat history.
+Software cleanup completion does not imply hardware release completion. Targeted two-board ESP32<->Arduino UART/repeat/cancel/reboot smoke remains the physical release gate when needed. Hardware GREEN is never inferred from CI.
+
+## Next-work rule
+
+Software cleanup is closed. Continue from a concrete product/runtime goal, hardware verification result, bug, feature, or documentation contract change. Do not reopen completed cleanup/A–E/provenance/crash-residue audits without new evidence.

@@ -31,13 +31,13 @@ function walkText(directory, extensions) {
 }
 
 const arduinoPath = 'firmware/arduino/src/main.cpp';
-const esp32Path = 'firmware/esp32/src/main.cpp';
+const recoveryPath = 'firmware/esp32/src/CM_JobRecovery.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const restorePath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
 const webAuditPath = 'Tests/Web/check_web_assets.js';
 
 const arduino = read(arduinoPath);
-const esp32 = read(esp32Path);
+const recovery = read(recoveryPath);
 const writeOff = read(writeOffPath);
 const restore = read(restorePath);
 const webAudit = read(webAuditPath);
@@ -68,12 +68,25 @@ for (const file of walkText(esp32SourceRoot, new Set(['.cpp', '.h']))) {
   const source = fs.readFileSync(file, 'utf8');
   requireAbsent(relative, source, /\bSsrController\b|\bPins::Ssr\b/,
     'direct SSR authority detected on ESP32');
+  requireAbsent(relative, source,
+    /\b(?:automaticWriteOff|autoWriteOff|writeOffOnRunCompleted|autoResume|automaticPhysicalStart)\s*\(/,
+    'forbidden automatic start/resume/writeoff action detected on ESP32');
 }
 
-// Recovery remains operator-controlled: no automatic queue/resume/writeoff after reboot.
-requireText(esp32Path, esp32,
-  '\"automatic_queue_allowed\":false,\"automatic_resume_allowed\":false,\"automatic_wire_writeoff_allowed\":false',
-  'fail-closed automatic recovery/writeoff status contract missing');
+// Recovery remains operator-controlled after reboot. Assert the actual state-machine
+// policy rather than a presentation-only JSON string that may be refactored away.
+for (const text of [
+  'mayAutoQueue(false)',
+  'mayAutoResume(false)',
+  'recovery.mayAutoQueue = false;',
+  'recovery.mayAutoResume = false;',
+  'if (state.deliveryState == JobDeliveryState::TimedOut)',
+  'recovery.disposition = JobRecoveryDisposition::ManualReviewRequired;',
+  'recovery.mayCreateNewJob = false;'
+]) {
+  requireText(recoveryPath, recovery, text,
+    'fail-closed reboot recovery policy missing: ' + text);
+}
 
 // Wire writeoff is always manual and tied to exact completed source-run provenance.
 // Both current KG_FIRST and legacy weight-before/after paths require the exact immutable
@@ -103,9 +116,6 @@ requireText(writeOffPath, writeOff,
 requireText(writeOffPath, writeOff,
   'operation.sourceRunId = sourceRunId;',
   'writeoff operation lost source_run_id binding');
-requireText(writeOffPath, writeOff,
-  '\"automatic_wire_writeoff_allowed\":false',
-  'manual writeoff response no longer explicitly prohibits automatic deduction');
 
 // Restore apply remains explicit, transactional and fail-closed across reboot evidence.
 requireText(restorePath, restore,
@@ -140,4 +150,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Release safety contracts OK: physical START, Arduino SSR authority, Hall calibration permit, no auto-resume/writeoff, mandatory exact-spool and exact source-run manual writeoff provenance, transactional restore lock, and motor-import audits.');
+console.log('Release safety contracts OK: physical START, Arduino SSR authority, Hall calibration permit, fail-closed reboot recovery, no automatic start/resume/writeoff action, mandatory exact-spool and exact source-run manual writeoff provenance, transactional restore lock, and motor-import audits.');

@@ -18,7 +18,7 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "firmware" / "esp32" / "web" / "sites" / "reference"
 HTML_SUFFIXES = {".html", ".htm"}
-ATTR_RE = re.compile(r"\b(?:href|src)\s*=\s*[\"'](?P<value>.*?)[\"']", re.I)
+ATTR_RE = re.compile(r"\b(?:href|src|poster|background)\s*=\s*[\"'](?P<value>.*?)[\"']", re.I)
 CSS_URL_RE = re.compile(r"\burl\(\s*[\"']?(?P<value>[^\"')]+)", re.I)
 REFERENCE_PREFIX = "/sites/reference/"
 

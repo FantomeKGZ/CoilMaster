@@ -307,3 +307,7 @@ Runs `32645799868`, `32645815018`, `32645826246`, `32645835821`, `32645845923` �
 
 Оператор подтвердил GREEN трёх тестов после manifest CI correction. Текущий batch требует shared runtime/CSS accessibility и performance contracts для всех сохранённых legacy tables/images: horizontal touch/keyboard scrolling, focus region, lazy/async images и fallback alt. Synthetic fixture теперь сначала копирует реальный committed shell, как production workflow. Exact positive/tamper regression локально GREEN; проверить новый Reference workflow. Runtime ESP32/Arduino и safety boundary не затронуты.
 
+### Reference full offline closure — current
+
+Текущий batch добавляет обязательный full-`/web` dependency scan до manifest/upload. Static runtime resources должны быть локальными и существовать; external navigation links и динамические `/api/*` разрешены. Checker покрывает HTML resource attributes, `srcset`, inline/style-block CSS и все CSS files. Positive/remote/missing regressions локально GREEN. Проверить новый Reference workflow; при failure исправлять конкретные unresolved bundle targets, не ослабляя offline gate автоматически.
+

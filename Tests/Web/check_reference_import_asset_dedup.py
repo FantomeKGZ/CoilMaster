@@ -114,6 +114,19 @@ def main() -> None:
         assert checker.validate_legacy_stylesheets(output) == []
         sources = {"desktop": desktop, "mobile": mobile}
         assert checker.validate_content_fidelity(output, sources) == []
+        assert checker.validate_shared_ux_runtime(output) == []
+        shared_js = output / "shared/reference.js"
+        original_js = shared_js.read_text(encoding="utf-8")
+        shared_js.write_text(
+            original_js.replace("image.loading='lazy'", "image.loading='eager'", 1),
+            encoding="utf-8",
+        )
+        assert any(
+            "image.loading='lazy'" in error
+            for error in checker.validate_shared_ux_runtime(output)
+        )
+        shared_js.write_text(original_js, encoding="utf-8")
+
         desktop_page = output / "desktop/pages/page.html"
         original_page = desktop_page.read_text(encoding="utf-8")
         desktop_page.write_text(

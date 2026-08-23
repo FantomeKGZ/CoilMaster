@@ -405,11 +405,11 @@ e5fc99e6f03c68e3e313fa5cc151a5ade0af74a4
 fix(web): correct generated reference regex
 ```
 
-Reference workflow подтверждён GREEN. Новый CMP run после `e5fc99e6...` ещё должен быть проверен отдельно; до этого CMP batch не объявлять GREEN.
+Reference workflow подтверждён GREEN. После исправления `e5fc99e6...` оператор 2026-08-23 явно подтвердил: **все текущие Actions зелёные**. Repo-level reference integration принимается GREEN по сочетанию фактического reference run и operator confirmation текущего CMP результата.
 
 ## Следующий непосредственный шаг
 
-1. Проверить новый `CMP Protocol Tests` после `e5fc99e6...`.
-2. После CMP GREEN считать repo-level reference integration готовой к физическому развёртыванию.
-3. Скачать подтверждённый artifact до истечения срока хранения, заменить содержимое `/web` на microSD и выполнить короткий ESP32 smoke-test: главные desktop/mobile, поиск, типичные таблицы, изображения и переходы.
+1. Скачать подтверждённый artifact до истечения срока хранения.
+2. С резервной копией текущего каталога заменить содержимое `/web` на microSD.
+3. Выполнить короткий ESP32 smoke-test: главные desktop/mobile, поиск, типичные таблицы, изображения и переходы.
 4. Hardware GREEN не выводить из CI; записать только после фактической проверки на ESP32.

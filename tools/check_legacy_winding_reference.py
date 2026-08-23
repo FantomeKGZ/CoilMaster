@@ -32,21 +32,37 @@ def generated_page_count(output: Path, mode: str) -> int:
     return html_count(pages) if pages.exists() else 0
 
 
-def resolve_reference_url(output: Path, value: str) -> Path | None:
+def available_reference_urls(output: Path) -> set[str]:
+    urls: set[str] = set()
+    for path in output.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(output).as_posix()
+        url = REFERENCE_PREFIX + relative
+        urls.add(url)
+        if path.name.lower() == "index.html":
+            directory = url[: -len("index.html")]
+            urls.add(directory)
+            urls.add(directory.rstrip("/"))
+    return urls
+
+
+def normalized_reference_url(value: str) -> str | None:
     parts = urlsplit(value)
     if parts.scheme or parts.netloc or not parts.path.startswith(REFERENCE_PREFIX):
         return None
-    relative = unquote(parts.path[len(REFERENCE_PREFIX):]).lstrip("/")
-    candidate = (output / relative).resolve()
-    output_root = output.resolve()
-    try:
-        candidate.relative_to(output_root)
-    except ValueError:
-        return Path("/__invalid_reference_escape__")
-    if candidate.is_dir():
-        index = candidate / "index.html"
-        return index if index.exists() else candidate
-    return candidate
+    path = unquote(parts.path)
+    segments: list[str] = []
+    for segment in path.split("/"):
+        if not segment or segment == ".":
+            continue
+        if segment == "..":
+            if not segments:
+                return "/__invalid_reference_escape__"
+            segments.pop()
+            continue
+        segments.append(segment)
+    return "/" + "/".join(segments) + ("/" if path.endswith("/") else "")
 
 
 def validate_pages(output: Path) -> list[str]:
@@ -58,6 +74,7 @@ def validate_pages(output: Path) -> list[str]:
     if not shared_js.is_file():
         errors.append(f"shared script file missing: {shared_js}")
 
+    available_urls = available_reference_urls(output)
     for mode in ("desktop", "mobile"):
         mode_pages = output / mode / "pages"
         if not mode_pages.is_dir():
@@ -82,8 +99,8 @@ def validate_pages(output: Path) -> list[str]:
                 errors.append(f"shared script missing: {page}")
             for match in ATTR_RE.finditer(text):
                 value = match.group("value")
-                target = resolve_reference_url(output, value)
-                if target is not None and not target.exists():
+                target = normalized_reference_url(value)
+                if target is not None and target not in available_urls:
                     errors.append(f"broken reference link: {page} -> {value}")
     return errors
 

@@ -147,11 +147,41 @@ Historical `UNALLOCATED` records are immutable compatibility evidence only. Neve
 - reboot never auto-continues restore/apply;
 - no automatic production-data deletion or NDJSON truncation.
 
-## Next active work
+## Active product work — winding reference integration
 
-Software cleanup is no longer the active backlog. Next work should come from a concrete product/runtime goal. For physical release confidence, the remaining external gate is targeted two-board ESP32<->Arduino smoke/recovery verification (UART job delivery, physical START ownership, repeats, cancel and reboot behavior).
+Current active product task is adaptation of the legacy winding reference from `FantomeKGZ/motor-winding-reference`, source folders `sourse/desktop` and `sourse/mobile`, into the CoilMaster static site.
 
-Do not ask for broad Serial logs unless a concrete hardware-only issue appears; request only the exact capture interval needed.
+Implemented on `cmp-protocol-v1`:
+
+- common CoilMaster visual shell for `/sites/reference/desktop/` and `/sites/reference/mobile/`;
+- common desktop/mobile version switch using `cm-ui-version`;
+- full CoilMaster navigation from the reference back to workshop sections;
+- mobile horizontal navigation so section links remain reachable on phones;
+- shared `reference.css` and `reference.js`;
+- legacy importer `tools/import_legacy_winding_reference.py`;
+- integrity checker `tools/check_legacy_winding_reference.py`.
+
+Confirmed source format/details:
+
+```text
+legacy HTML charset: Windows-1251
+legacy top banner/logo: div.verh -> images/verh.jpg
+sample desktop/mobile 4A.html keeps the same winding tables and internal links
+```
+
+Importer contract:
+
+- preserve HTML page content, tables, descriptions and internal links;
+- remove only the legacy top `div.verh` banner;
+- output UTF-8 HTML;
+- keep desktop/mobile page trees separate;
+- deduplicate byte-identical assets into `/sites/reference/shared/assets/` by SHA-256;
+- keep unique assets in mode-specific `/desktop/assets/` or `/mobile/assets/`;
+- never modify ESP32/Arduino runtime/safety logic.
+
+Next implementation step: run the importer against complete local source trees, inspect the generated page/link/asset counts with the checker, then commit generated reference content in bounded batches. Do not manually rewrite hundreds of legacy pages.
+
+Hardware two-board smoke remains a separate external release gate and is not part of this reference-site product task.
 
 ## Read order for next chat
 

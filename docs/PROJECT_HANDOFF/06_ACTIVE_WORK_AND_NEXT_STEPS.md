@@ -222,7 +222,7 @@ Generated desktop/mobile pages now include top and bottom return-to-search navig
 
 CMP runs `32640743878` and `32640777993` exposed a committed-tree audit conflict with generated direct links. Commit `116a65a6...` separated that contract. Run `32641366058` exposed a JavaScript regex escaping error, corrected by `e5fc99e6...`.
 
-After `e5fc99e6...`, the operator explicitly confirmed on 2026-08-23 that all current Actions are GREEN. Repo-level reference integration is closed GREEN. Immediate next step is operator download/copy of the confirmed artifact and physical ESP32 web smoke. Do not infer physical microSD/ESP32 success from CI.
+After `e5fc99e6...`, the operator explicitly confirmed on 2026-08-23 that all current Actions are GREEN. The operator then completed the physical ESP32 `/web` smoke and reported no errors; the verified reference bundle is hardware-smoke GREEN. A follow-up UX batch adds the missing `📚 Справочник` entry to the shared desktop/mobile app shell, restores the effective anchor-link audit and makes the SD bundle workflow rebuild for every `firmware/esp32/web/**` change. Verify current Actions after `e955850b...`, then deploy the new artifact and check the new entry from one desktop and one mobile page.
 
 Hardware two-board smoke remains a separate external release gate and is not part of this reference-site product task.
 

@@ -448,6 +448,20 @@ Reference workflow path-filter расширен с одного reference subtre
 
 ### Следующий непосредственный шаг
 
-1. Проверить новые CMP Protocol Tests и Reference Legacy Import Check после e955850b.
-2. При GREEN использовать новый artifact для следующего обновления microSD; ранее проверенный artifact остаётся фактически hardware-verified baseline.
-3. После обновления проверить новый пункт «📚 Справочник» с одной desktop и одной mobile основной страницы.
+Оператор 2026-08-23 явно подтвердил: **все текущие Actions зелёные**. Batch двустороннего входа и полного web-bundle trigger принимается repo-level GREEN.
+
+Следующий UX-разрыв: переключатель desktop/mobile на generated legacy странице возвращал на главную справочника и терял открытую таблицу. Исправлено:
+
+```text
+60ae0f54db4339a6f3f452685d369e73214ed4eb
+feat(reference): preserve page on mode switch
+
+41717ae7ca79e4376dc79c1102fa3f9688ed5d67
+test(reference): require same-page mode switch
+```
+
+Теперь обе кнопки переключения версии на каждой generated странице ведут на тот же relative page path в другой версии. Checker требует exact same-page target для всех 926 desktop и 926 mobile страниц.
+
+1. Проверить новый Reference Legacy Import Check после 41717ae7.
+2. При GREEN скачать новый согласованный SD artifact.
+3. После обновления microSD проверить вход «📚 Справочник» из основного сайта и переключение desktop/mobile внутри одной найденной таблицы.

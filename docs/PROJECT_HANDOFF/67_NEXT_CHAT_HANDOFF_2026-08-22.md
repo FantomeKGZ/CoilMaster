@@ -28,7 +28,7 @@ Verified Actions:
 
 Run `32616937088` passed configure/build, all 4 host C++ tests and all Web/Protocol contracts including `Audit release safety contracts`.
 
-Later documentation/workflow cleanup commits do not establish a newer firmware GREEN baseline automatically. The workflow-cleanup batch below has not yet been confirmed by an applicable push-run result.
+Later cleanup commits, including the warehouse bootstrap correction below, do not establish a newer firmware GREEN baseline automatically. Do not claim a newer GREEN baseline until an applicable successful Actions run is observed.
 
 ## Cleanup progress
 
@@ -74,6 +74,40 @@ client
 
 ## Newly closed in the latest cleanup pass
 
+### Final split-owner sweep — current findings
+
+The current build-included owner sweep has now directly reviewed the following groups:
+
+- `RepairRegistry` core/lookup/page/search/similarity -> `KEEP`: separate declared responsibilities, no orphan duplicate owner found;
+- `WindingJournalQuery.cpp` + `CM_WindingJournalQueryValidation.cpp` -> `KEEP`: pagination/history and authoritative full-file schema validation share the same private validators intentionally;
+- `CM_WindingJournalTransitionAudit.cpp` -> `KEEP`: validates event ordering/state transitions, not merely record schema;
+- `CM_WindingJournalSnapshotContext.cpp` -> `KEEP`: immutable snapshot/runtime context boundary and late timeout reconciliation after journal persistence;
+- `CM_WarehouseLegacySpoolMaterial.cpp` -> `KEEP`: live production migration endpoint for old spools without `wire_type`, not dead legacy source;
+- `Core/` current tree remains compact with concrete input/state/UI/turn-source owners and no named Legacy/Compat/Old parallel owner;
+- `Arduino/` current tree remains in the previously audited service/protocol structure; no new deletion candidate was identified in the tree-level pass.
+
+### Warehouse duplicate bootstrap defect fixed
+
+Direct bootstrap review found that `main.cpp` calls both:
+
+```text
+warehouseWeb.begin();
+warehouseWeb.beginSpoolList();
+```
+
+Before the fix, both paths registered write-off services, while `beginSpoolList()` additionally recreated/registered conductor calculator/settings/material services and repair/similarity Web services already owned elsewhere. This could register the same HTTP routes more than once.
+
+Fixed in:
+
+```text
+06a752663504d58ca6908414f8aa8786007c6877
+fix(esp32): remove duplicate warehouse web bootstrap
+```
+
+`CM_WarehouseSpoolWeb.cpp` now owns only its spool-list/material-assignment/material-summary route registration. `WarehouseWeb::begin()` remains the owner of the common warehouse/write-off service bootstrap. No safety boundary or physical-control behavior was changed.
+
+This commit is **not yet claimed CI GREEN** in this handoff.
+
 ### High-level docs / AI routing
 
 ```text
@@ -110,7 +144,7 @@ Direct current fetch confirms these source contracts. Do not call this workflow 
 - `CM_JobSpoolSelectionLookup.cpp` -> `KEEP` split implementation preserving fail-closed temp evidence;
 - `CM_WarehouseWriteOffLookup.cpp` -> final `KEEP`: only exact-run `confirmedWriteOffForSourceRun(session, run)` remains public/current; it validates warehouse movement integrity before duplicate lookup. The former session-only REVIEW item is no longer present.
 
-Active handoff record for this pass:
+Earlier active handoff record for this pass:
 
 ```text
 823b07e01d600470cb1bec5c48a7b935c12e5b5f
@@ -119,10 +153,11 @@ Record final workflow and thematic cleanup sweep
 
 ## Remaining cleanup sequence (~4%)
 
-1. finish owner-by-owner sweep of remaining build-included ESP32/Arduino/Core split implementations;
-2. touch lower-risk thematic docs only when current source proves a concrete stale contract;
-3. produce final `DELETE / MERGE / KEEP / REVIEW` consolidation and cleanup-complete checkpoint;
-4. synchronize `06`, this file and entrypoints at completion.
+1. finish the remaining build-included ESP32 split-owner groups not yet directly closed in the final sweep;
+2. verify the new warehouse bootstrap correction with applicable CI/Actions evidence when available;
+3. touch lower-risk thematic docs only when current source proves a concrete stale contract;
+4. produce final `DELETE / MERGE / KEEP / REVIEW` consolidation and cleanup-complete checkpoint;
+5. synchronize `06`, this file and entrypoints at completion.
 
 Do not restart completed `scripts/tools/Web/shared/data/tests/workflow` passes without concrete contrary evidence.
 

@@ -4,11 +4,16 @@ const vm = require('vm');
 
 const root = path.resolve(__dirname, '../../firmware/esp32/web');
 const files = [];
+const staticFiles = new Set();
 function walk(directory) {
   for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
     const full = path.join(directory, entry.name);
     if (entry.isDirectory()) walk(full);
-    else if (entry.isFile() && /\.html?$/i.test(entry.name)) files.push(full);
+    else if (entry.isFile()) {
+      const relative = '/' + path.relative(root, full).split(path.sep).join('/');
+      staticFiles.add(relative);
+      if (/\.html?$/i.test(entry.name)) files.push(full);
+    }
   }
 }
 walk(root);
@@ -30,12 +35,10 @@ function staticTargetExists(target) {
   } catch (_) {
     decoded = target;
   }
-  const relative = decoded.replace(/^\/+/, '');
-  const candidate = path.resolve(root, relative);
-  const rootPrefix = root.endsWith(path.sep) ? root : root + path.sep;
-  if (candidate !== root && !candidate.startsWith(rootPrefix)) return false;
-  if (fs.existsSync(candidate)) return true;
-  return fs.existsSync(path.join(candidate, 'index.html'));
+  const normalized = '/' + decoded.replace(/^\/+/, '').replace(/\\/g, '/');
+  if (staticFiles.has(normalized)) return true;
+  const indexTarget = normalized.replace(/\/$/, '') + '/index.html';
+  return staticFiles.has(indexTarget);
 }
 
 const failures = [];

@@ -755,6 +755,6 @@ ab75e081cdd1ca3a1597b8ed5a6224ea22aef8d2
 docs(sd): document global reference asset dedup
 ```
 
-Checker теперь ищет duplicate `SHA-256 + suffix` во всех shared/desktop/mobile asset trees, а не только совпадения между mode-specific desktop/mobile. Synthetic importer regression проверяет разные legacy-имена, повтор внутри desktop, совпадение desktop/mobile, переписанные URLs, mode-unique файл и одинаковые bytes с другим suffix.
+Checker теперь ищет duplicate `SHA-256 + suffix` во всех shared/desktop/mobile asset trees, а не только совпадения между mode-specific desktop/mobile. Synthetic importer regression проверяет разные legacy-имена, повтор внутри desktop, совпадение desktop/mobile, переписанные URLs, mode-unique файл и одинаковые bytes с другим suffix. Локальный end-to-end synthetic import прошёл GREEN: один physical shared file обслуживает три исходных `.bin` URL, `.dat` с теми же bytes сохранён отдельно.
 
 Generated pages, catalog coverage и safety/runtime не изменяются. Новый full Reference Actions результат для этого batch ещё не объявлен GREEN.

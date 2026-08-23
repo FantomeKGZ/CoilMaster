@@ -24,7 +24,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "firmware" / "esp32" / "web" / "sites" / "reference"
@@ -146,7 +146,8 @@ def rewrite_url(value: str, current_rel: str, mode: str, shared_for_mode: dict[s
     parts = urlsplit(value)
     if not parts.path:
         return value
-    resolved = resolve_rel(current_rel, parts.path)
+    decoded_path = unquote(parts.path)
+    resolved = resolve_rel(current_rel, decoded_path)
     suffix = Path(resolved).suffix.lower()
     if suffix in HTML_SUFFIXES:
         new_path = f"/sites/reference/{mode}/pages/{resolved}"

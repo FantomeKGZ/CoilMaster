@@ -1041,3 +1041,35 @@ test(reference): build UX fixture from real shell
 
 Synthetic test теперь воспроизводит production order: сначала committed reference shell, затем legacy import. Exact importer + checker regression локально GREEN, включая отрицательную подмену lazy-loading contract. Новый полный Actions batch ещё не объявлен GREEN.
 
+---
+
+## 2026-08-23 — complete offline dependency closure
+
+Добавлен full-bundle offline gate:
+
+- сканирует все HTML/CSS готового `/web`, а не только generated reference pages;
+- проверяет scripts, stylesheets, icons, fonts, images, media, backgrounds, `srcset`, inline/style-block CSS, `url(...)` и `@import`;
+- обычные external navigation links разрешены;
+- remote runtime resources запрещены;
+- каждый локальный runtime target должен существовать внутри bundle;
+- path escape и legacy backslash URLs отклоняются;
+- `/api/*` сохраняется как динамический ESP32 endpoint, а не ошибочно ищется на SD.
+
+Commits:
+
+```text
+f94d88c2fb8d867bf4dcfa3f753a934df6b65509
+test(web): add offline dependency closure checker
+
+41092fcd5ad0d6db664e44f417ef10f4af6f813f
+test(web): cover offline bundle dependencies
+
+866439a72436dc99339546cbe456e3e4bc4ed91a
+ci(web): require complete offline bundle
+
+9554860c8ca42652dfc991cdae2ad65ebeeb3ad3
+docs(sd): document offline dependency gate
+```
+
+Positive/remote/missing-resource contracts локально GREEN. Новый full workflow ещё не объявлен GREEN; его результат покажет реальные unresolved dependencies всего SD bundle, если они остались.
+

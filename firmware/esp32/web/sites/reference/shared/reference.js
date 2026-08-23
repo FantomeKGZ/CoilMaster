@@ -12,8 +12,26 @@
       if(table.parentElement&&table.parentElement.classList.contains('cm-reference-table-scroll')) return;
       const wrap=document.createElement('div');
       wrap.className='cm-reference-table-scroll';
+      wrap.tabIndex=0;
+      wrap.setAttribute('role','region');
+      wrap.setAttribute('aria-label','Прокручиваемая таблица');
       table.parentNode.insertBefore(wrap,table);
       wrap.appendChild(table);
+    });
+  }
+
+  function enhanceImages(root){
+    root.querySelectorAll('img').forEach(function(image){
+      image.loading='lazy';
+      image.decoding='async';
+      if(!image.hasAttribute('alt')){
+        let name='изображение';
+        try{
+          const path=new URL(image.src,location.href).pathname;
+          name=decodeURIComponent(path.split('/').pop()||name);
+        }catch(_){}
+        image.alt='Иллюстрация: '+name;
+      }
     });
   }
 
@@ -215,7 +233,9 @@
     const mode=document.documentElement.getAttribute('data-reference-mode');
     setMode(mode);
     normalizeModeLinks(document);
-    wrapTables(document.querySelector('.cm-reference-content')||document);
+    const content=document.querySelector('.cm-reference-content')||document;
+    wrapTables(content);
+    enhanceImages(content);
     initCatalogSearch(mode);
     initBundleProvenance();
   }

@@ -12,6 +12,7 @@ FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 * normalizes legacy Windows path casing to the real source-file spelling;
 * stores byte-identical desktop/mobile assets once in ``shared/assets``;
 * keeps mode-specific assets below ``desktop/assets`` or ``mobile/assets``;
+* generates one shared searchable catalog for all real legacy pages;
 * excludes Microsoft FrontPage ``_vti_*`` metadata from the published site.
 
 It intentionally does not modify ESP32/Arduino runtime code.
@@ -21,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import json
 import os
 import re
 import shutil
@@ -123,6 +125,9 @@ def clean_output(output: Path) -> None:
     shared_assets = output / "shared" / "assets"
     if shared_assets.exists():
         shutil.rmtree(shared_assets)
+    catalog = output / "shared" / "catalog.json"
+    if catalog.exists():
+        catalog.unlink()
 
 
 def copy_assets(source: ModeSource, output: Path, shared_for_mode: dict[str, str]) -> None:
@@ -305,8 +310,12 @@ def shell(title: str, body: str, mode: str) -> str:
 '''
 
 
-def convert_pages(source: ModeSource, output: Path, shared_for_mode: dict[str, str]) -> int:
-    count = 0
+def convert_pages(
+    source: ModeSource,
+    output: Path,
+    shared_for_mode: dict[str, str],
+) -> list[dict[str, str]]:
+    catalog: list[dict[str, str]] = []
     for path in sorted(source.root.rglob("*")):
         if (
             not path.is_file()
@@ -323,16 +332,51 @@ def convert_pages(source: ModeSource, output: Path, shared_for_mode: dict[str, s
         target = output / source.mode / "pages" / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(shell(title, body, source.mode), encoding="utf-8", newline="\n")
-        count += 1
-    return count
+        catalog.append({"path": rel, "title": title})
+    return catalog
+
+
+def write_catalog(
+    output: Path,
+    desktop_catalog: list[dict[str, str]],
+    mobile_catalog: list[dict[str, str]],
+) -> int:
+    desktop_by_path = {entry["path"].casefold(): entry for entry in desktop_catalog}
+    mobile_by_path = {entry["path"].casefold(): entry for entry in mobile_catalog}
+    keys = sorted(set(desktop_by_path) | set(mobile_by_path))
+    catalog: list[dict[str, object]] = []
+    for key in keys:
+        desktop_entry = desktop_by_path.get(key)
+        mobile_entry = mobile_by_path.get(key)
+        source_entry = desktop_entry or mobile_entry
+        if source_entry is None:
+            continue
+        catalog.append(
+            {
+                "path": source_entry["path"],
+                "title": source_entry["title"],
+                "desktop": desktop_entry is not None,
+                "mobile": mobile_entry is not None,
+            }
+        )
+
+    catalog.sort(key=lambda entry: (str(entry["title"]).casefold(), str(entry["path"]).casefold()))
+    target = output / "shared" / "catalog.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(catalog, ensure_ascii=False, separators=(",", ":")),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return len(catalog)
 
 
 def write_entry_link(output: Path, mode: str, source: ModeSource) -> None:
     entry = output / mode / "index.html"
     if not entry.exists():
         return
-    # The source export has no index.html. Use the legacy 4A table as a stable
-    # first material when present; otherwise fall back to the first real HTML file.
+    # Keep one stable direct link for users who want to open a known legacy table
+    # immediately. Full discovery is provided by shared/catalog.json + reference.js.
     preferred = source.root / "4A.html"
     if preferred.exists():
         first_rel = "4A.html"
@@ -350,12 +394,14 @@ def write_entry_link(output: Path, mode: str, source: ModeSource) -> None:
         first_rel = rel_posix(candidates[0], source.root)
     current = entry.read_text(encoding="utf-8")
     href = f"/sites/reference/{mode}/pages/{first_rel}"
-    marker = f'<a class="cm-reference-link" href="{href}">'
+    marker = f'data-reference-direct href="{href}"'
     if marker in current:
         return
     card = (
-        '<section class="cm-reference-card"><h3>Материалы справочника</h3>'
-        f'<a class="cm-reference-link" href="{href}">Открыть справочник →</a></section>'
+        '<section class="cm-reference-card cm-reference-direct-card">'
+        '<h3>Быстрый переход</h3>'
+        f'<a class="cm-reference-link" data-reference-direct href="{href}">Открыть таблицу серии 4А →</a>'
+        '</section>'
     )
     if "</main>" in current:
         current = current.replace("</main>", card + "\n</main>", 1)
@@ -383,13 +429,15 @@ def main() -> None:
     desktop_shared, mobile_shared = shared_asset_map(desktop, mobile)
     copy_assets(desktop, output, desktop_shared)
     copy_assets(mobile, output, mobile_shared)
-    desktop_pages = convert_pages(desktop, output, desktop_shared)
-    mobile_pages = convert_pages(mobile, output, mobile_shared)
+    desktop_catalog = convert_pages(desktop, output, desktop_shared)
+    mobile_catalog = convert_pages(mobile, output, mobile_shared)
+    catalog_entries = write_catalog(output, desktop_catalog, mobile_catalog)
     write_entry_link(output, "desktop", desktop)
     write_entry_link(output, "mobile", mobile)
 
-    print(f"desktop pages: {desktop_pages}")
-    print(f"mobile pages: {mobile_pages}")
+    print(f"desktop pages: {len(desktop_catalog)}")
+    print(f"mobile pages: {len(mobile_catalog)}")
+    print(f"catalog entries: {catalog_entries}")
     print(f"shared desktop assets: {len(desktop_shared)}")
     print(f"shared mobile assets: {len(mobile_shared)}")
     print(f"output: {output}")

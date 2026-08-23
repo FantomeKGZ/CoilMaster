@@ -13,7 +13,9 @@ on:
       - Tests/Web/check_reference_import_asset_dedup.py
       - Tests/Web/check_web_bundle_manifest.py
       - Tests/Web/check_web_bundle_offline.py
+      - Tests/Web/check_reference_smoke_plan.py
       - tools/build_web_bundle_manifest.py
+      - tools/build_reference_smoke_plan.py
       - tools/check_web_bundle_offline.py
       - firmware/esp32/web/**
       - .github/workflows/reference-legacy-import.yml
@@ -41,6 +43,9 @@ jobs:
 
       - name: Check offline bundle dependency contracts
         run: python3 coilmaster/Tests/Web/check_web_bundle_offline.py
+
+      - name: Check reference smoke plan contracts
+        run: python3 coilmaster/Tests/Web/check_reference_smoke_plan.py
 
       - name: Checkout legacy reference source
         uses: actions/checkout@v4
@@ -77,6 +82,10 @@ jobs:
 
           python3 "$GITHUB_WORKSPACE/coilmaster/tools/check_web_bundle_offline.py" \
             --web-bundle "$web_bundle"
+
+          python3 "$GITHUB_WORKSPACE/coilmaster/tools/build_reference_smoke_plan.py" \
+            --output "$output" \
+            --report "$RUNNER_TEMP/reference-smoke-plan.json"
 
           legacy_sha="$(git -C "$GITHUB_WORKSPACE/legacy" rev-parse HEAD)"
           python3 "$GITHUB_WORKSPACE/coilmaster/tools/build_web_bundle_manifest.py" \
@@ -175,6 +184,37 @@ jobs:
               print(f"- {mode} pages without legacy incoming links: {item['count']}")
           print("- Policy: report only; no generated content was removed")
           PY
+
+      - name: Add physical smoke plan summary
+        shell: bash
+        run: |
+          python3 - "$RUNNER_TEMP/reference-smoke-plan.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+
+          plan = json.load(open(sys.argv[1], encoding="utf-8"))
+          print()
+          print("### Risk-based physical smoke plan")
+          print()
+          for page in plan["pages"]:
+              reasons = ", ".join(page["reasons"])
+              print(f"- **{page['title']}** — {reasons}")
+              if "desktop_url" in page:
+                  print(f"  - desktop: `{page['desktop_url']}`")
+              if "mobile_url" in page:
+                  print(f"  - mobile: `{page['mobile_url']}`")
+          print()
+          for check in plan["checks"]:
+              print(f"- [ ] {check}")
+          PY
+
+      - name: Upload physical smoke plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: coilmaster-reference-smoke-plan-${{ github.sha }}
+          path: ${{ runner.temp }}/reference-smoke-plan.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload migration audit
         uses: actions/upload-artifact@v4

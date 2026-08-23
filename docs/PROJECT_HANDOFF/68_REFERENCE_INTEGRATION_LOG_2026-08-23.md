@@ -494,3 +494,83 @@ ci(reference): run catalog search contracts
 Добавлен исполняемый Node regression test для нормализации, multi-token ranking, Latin legacy path и mode filtering. Он включён отдельным шагом в CMP Protocol Tests.
 
 Следующий шаг: проверить CMP и Reference workflows после 7c595062, затем включить этот поиск в новый SD artifact.
+
+---
+
+## 2026-08-23 — быстрые фильтры, keyboard UX и SD provenance
+
+Search entry pages получили одинаковые desktop/mobile controls:
+
+```text
+dec392cff396f927182710f4de3dd06567810c9d
+feat(reference): add desktop search controls
+
+4330a6219e6d220aecad57b772bcb5ca922c7797
+feat(reference): add mobile search controls
+
+a77f034d8995672a82acf9caad465b2408d086d3
+feat(reference): add keyboard search controls
+
+c2540add35f403cf038b6d15ba01e49953426874
+style(reference): refine search controls
+
+c8b0e92251591022c0e790c77512d1e6c0f8a046
+test(reference): validate search entry controls
+
+01f1acf6c39d8a5eabeefe00a9123e077c8f18ff
+test(reference): cover search controls
+```
+
+Добавлены clear button, Enter для первого результата, Escape для очистки, live status и list semantics.
+
+Для быстрого старта без ручного ввода добавлены chips 4А, АИР, АО2 и 5А:
+
+```text
+ec96ecb787c6ede53f486cf0d35e0320ec1bb7a8
+67caf349e431865f92c54b91b42c4023fa222f4c
+e420afd78e2c5d17be64f95a2debc7ac716db3e6
+d2dbdc9a754a291277b042726711a54f4fead2f2
+d03de9ec5e7404a0904192c6d36d7a78ef378cd3
+17dfe1f4082e67d36bf39ef95d37eaff869d6432
+```
+
+### SD web provenance
+
+Каждый новый bundle теперь содержит web-bundle-manifest.json с exact CoilMaster commit, exact legacy source commit, workflow run, catalog count и generation time:
+
+```text
+d1deb65456dbc269063a5db210c965647320ebfb
+ci(web): add SD bundle provenance manifest
+
+d130af8e7248c4f9ed9a37bde4a1958c702650c2
+ci(web): keep manifest catalog count extensible
+
+d5f22ad695c860a786753d10a349e4af43687f6b
+feat(web): display SD bundle provenance
+
+625bd081ddcb2861b8532495cf3fa98d0697853a
+test(web): require SD bundle provenance
+
+b4079ca0e277079f662d137e978fb7d475e5791a
+test(ci): require SD bundle manifest
+
+49fb6868f6bc1a458bbb40f58c4d0893250e2785
+docs(web): document SD bundle provenance
+```
+
+Основной app shell и страницы справочника показывают SD <commit>. Старая карта без manifest остаётся работоспособной и явно показывает SD web unknown.
+
+Reference-side badge и regression protection:
+
+```text
+0227d3d72e9e21eb907e5aab453b71039a769290
+feat(reference): display SD bundle provenance
+
+c6c5fca35869b01a5fff7a99d6c808e1993d5de1
+style(reference): add SD provenance badge
+
+be79e7c831bcf34293d6d7a38c7360b10a2392b6
+test(reference): require SD provenance badge
+```
+
+Следующий шаг: проверить текущие CMP/Reference workflows и получить новый artifact с manifest. До фактического результата этот новый batch не объявлять GREEN.

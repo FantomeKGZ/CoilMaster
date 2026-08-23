@@ -185,29 +185,44 @@ Importer contract:
 - route the legacy missing `index.html` home target to the CoilMaster reference shell;
 - never modify ESP32/Arduino runtime/safety logic.
 
-### Reference dry-build evidence
+### Reference integration — verified artifact
 
-Run `32627641345` on commit `9c3067888c76a9d3d9cf26e70e7f660e17d4461b` is **NOT GREEN**. Import completed, then the integrity checker failed.
-
-The failure isolated two source classes:
-
-1. Microsoft FrontPage `_vti_*` metadata was being treated as publishable HTML/assets. These are now excluded by importer commit:
+Confirmed GitHub Actions evidence:
 
 ```text
-b071576bbe18c104eb7e71eb1ff55ee8602f2a09
-fix(reference): exclude FrontPage metadata from import
+Reference Legacy Import Check run 32641366079 — GREEN
+head_sha cea85a09dd4208bf88545284ae80a12edce22681
 ```
 
-2. `rs16.html` in the legacy source references `images/sovmob/rsov/036.JPG`, `037.JPG`, `038.JPG`, but those files are absent from the checked source tree. These are pre-existing legacy source gaps, not importer-created data loss. The checker now reports exact preserved source gaps as `SOURCE WARNING` while still failing on any new broken generated target:
+Measured output:
 
 ```text
-fa54b51cd9809d20ffbea694d5eec6ebab097eee
-test(reference): distinguish legacy source defects
+desktop pages: 926
+mobile pages: 926
+catalog entries: 926
+pre-existing source gaps: 0
+reference size: 329M
+full /web size: 331M
+reference files: 4626
+reference HTML: 1854
+shared assets: 2769
+full /web files: 4693
 ```
 
-Do not fabricate replacement images for missing source resources. If authentic replacements are later found, add them from a verified source and let the importer deduplicate them normally.
+Published artifact:
 
-Next implementation step: verify the new `Reference Legacy Import Check` after `fa54b51...`. If it fails, fix only the next exact reported importer/checker defect. If GREEN, record the filtered real page/asset counts and generated footprint, then proceed to publishing the generated reference in a bounded/storage-aware way. Do not call this reference batch GREEN without a real workflow result.
+```text
+coilmaster-web-sd-bundle-cea85a09dd4208bf88545284ae80a12edce22681
+artifact id 9493687862
+266893049 bytes
+expires 2026-09-06
+```
+
+Generated desktop/mobile pages now include top and bottom return-to-search navigation, back-to-top access, responsive images and scrollable wide tables. The reference checker requires those shell elements and validates the complete catalog/generated target set.
+
+CMP runs `32640743878` and `32640777993` exposed a committed-tree audit conflict with generated direct links. Commit `116a65a6...` separated that contract. Run `32641366058` exposed a JavaScript regex escaping error, corrected by `e5fc99e6...`.
+
+Immediate next step: verify the new CMP run after `e5fc99e6...`. After CMP GREEN, proceed to operator download/copy of the confirmed artifact and physical ESP32 web smoke. Do not infer physical microSD/ESP32 success from CI.
 
 Hardware two-board smoke remains a separate external release gate and is not part of this reference-site product task.
 

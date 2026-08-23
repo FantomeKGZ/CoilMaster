@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import html as html_module
 import json
 import re
 from pathlib import Path
@@ -21,6 +22,22 @@ ATTR_RE = re.compile(r"\b(?:href|src|poster|background)\s*=\s*[\"'](?P<value>.*?
 CSS_URL_RE = re.compile(r"\burl\(\s*[\"']?(?P<value>[^\"')]+)", re.I)
 CSS_IMPORT_RE = re.compile(r"@import\s+[\"'](?P<value>.*?)[\"']", re.I)
 REFERENCE_PREFIX = "/sites/reference/"
+BODY_RE = re.compile(r"<body\b[^>]*>(?P<body>.*)</body\s*>", re.I | re.S)
+VERH_RE = re.compile(
+    r"<div\b[^>]*class=[\"'][^\"']*\bverh\b[^\"']*[\"'][^>]*>.*?</div\s*>",
+    re.I | re.S,
+)
+CHARSET_META_RE = re.compile(
+    r"<meta\b[^>]*(?:charset\s*=|http-equiv=[\"']Content-Type[\"'])[^>]*>",
+    re.I,
+)
+LEGACY_SECTION_RE = re.compile(
+    r'<section\s+class="cm-reference-card cm-reference-legacy-page">\s*(?P<body>.*?)\s*</section\s*>',
+    re.I | re.S,
+)
+NON_VISIBLE_RE = re.compile(r"<(?:script|style)\b[^>]*>.*?</(?:script|style)\s*>", re.I | re.S)
+COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
+TAG_RE = re.compile(r"<[^>]+>", re.S)
 
 
 def css_reference_values(text: str):
@@ -118,6 +135,79 @@ def is_preexisting_source_gap(
     else:
         return False
     return relative.casefold() not in source_files
+
+
+def decode_source_html(path: Path) -> str:
+    data = path.read_bytes()
+    for encoding in ("utf-8-sig", "cp1251"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("cp1251", errors="replace")
+
+
+def source_legacy_body(path: Path) -> str:
+    source = decode_source_html(path)
+    match = BODY_RE.search(source)
+    body = match.group("body") if match else source
+    body = VERH_RE.sub("", body)
+    return CHARSET_META_RE.sub("", body).strip()
+
+
+def generated_legacy_body(path: Path) -> str | None:
+    text = path.read_text(encoding="utf-8")
+    match = LEGACY_SECTION_RE.search(text)
+    return match.group("body").strip() if match else None
+
+
+def normalized_visible_text(fragment: str) -> str:
+    visible = NON_VISIBLE_RE.sub(" ", fragment)
+    visible = COMMENT_RE.sub(" ", visible)
+    visible = TAG_RE.sub(" ", visible)
+    return " ".join(html_module.unescape(visible).replace("\xa0", " ").split())
+
+
+def structural_counts(fragment: str) -> dict[str, int]:
+    return {
+        tag: len(re.findall(rf"<{tag}\b", fragment, re.I))
+        for tag in ("table", "tr", "th", "td", "img", "a")
+    }
+
+
+def validate_content_fidelity(output: Path, sources: dict[str, Path]) -> list[str]:
+    errors: list[str] = []
+    for mode, source_root in sources.items():
+        for source_page in sorted(source_root.rglob("*")):
+            if (
+                not source_page.is_file()
+                or source_page.suffix.lower() not in HTML_SUFFIXES
+                or is_frontpage_metadata(source_page, source_root)
+            ):
+                continue
+            relative = source_page.relative_to(source_root)
+            generated_page = output / mode / "pages" / relative
+            if not generated_page.is_file():
+                continue
+            try:
+                generated_body = generated_legacy_body(generated_page)
+            except UnicodeDecodeError as exc:
+                errors.append(f"content fidelity generated page not utf-8: {generated_page}: {exc}")
+                continue
+            if generated_body is None:
+                errors.append(f"generated legacy content section missing: {generated_page}")
+                continue
+            source_body = source_legacy_body(source_page)
+            if normalized_visible_text(source_body) != normalized_visible_text(generated_body):
+                errors.append(f"visible legacy text mismatch: {mode}/{relative.as_posix()}")
+            source_counts = structural_counts(source_body)
+            generated_counts = structural_counts(generated_body)
+            if source_counts != generated_counts:
+                errors.append(
+                    f"legacy structure mismatch: {mode}/{relative.as_posix()}: "
+                    f"source={source_counts}, generated={generated_counts}"
+                )
+    return errors
 
 
 def validate_catalog(output: Path, sources: dict[str, Path]) -> list[str]:
@@ -394,6 +484,7 @@ def main() -> None:
 
     errors.extend(validate_catalog(output, sources))
     errors.extend(validate_entry_pages(output))
+    errors.extend(validate_content_fidelity(output, sources))
     page_errors, warnings = validate_pages(output, sources)
     errors.extend(page_errors)
     errors.extend(frontpage_output_leaks(output))
@@ -414,6 +505,7 @@ def main() -> None:
     print(f"mobile pages: {generated_page_count(output, 'mobile')}")
     print(f"catalog entries: {len(json.loads((output / 'shared' / 'catalog.json').read_text(encoding='utf-8')))}")
     print(f"pre-existing source gaps: {len(warnings)}")
+    print(f"content fidelity pages: {sum(generated_page_count(output, mode) for mode in sources)}")
     print("legacy winding reference check: OK")
 
 

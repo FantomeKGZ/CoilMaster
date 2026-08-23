@@ -112,6 +112,19 @@ def main() -> None:
         assert not list((output / "shared/assets").glob("*.css"))
         checker = load_checker()
         assert checker.validate_legacy_stylesheets(output) == []
+        sources = {"desktop": desktop, "mobile": mobile}
+        assert checker.validate_content_fidelity(output, sources) == []
+        desktop_page = output / "desktop/pages/page.html"
+        original_page = desktop_page.read_text(encoding="utf-8")
+        desktop_page.write_text(
+            original_page.replace(">data<", ">changed<", 1),
+            encoding="utf-8",
+        )
+        assert any(
+            "visible legacy text mismatch" in error
+            for error in checker.validate_content_fidelity(output, sources)
+        )
+        desktop_page.write_text(original_page, encoding="utf-8")
 
         groups: dict[tuple[str, str], list[Path]] = defaultdict(list)
         for subtree in ("shared/assets", "desktop/assets", "mobile/assets"):

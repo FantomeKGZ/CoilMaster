@@ -24,7 +24,56 @@
   }
 
   function normalizeSearch(value){
-    return String(value||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').trim();
+    return String(value||'')
+      .toLocaleLowerCase('ru-RU')
+      .replace(/ё/g,'е')
+      .replace(/[.,;:()/_-]+/g,' ')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+
+  function rankCatalog(catalog,mode,query){
+    const needle=normalizeSearch(query);
+    if(!needle) return [];
+    const tokens=needle.split(' ');
+
+    return catalog
+      .filter(function(entry){
+        if(entry[mode]!==true) return false;
+        const title=normalizeSearch(entry.title);
+        const path=normalizeSearch(entry.path);
+        return tokens.every(function(token){
+          return title.includes(token)||path.includes(token);
+        });
+      })
+      .map(function(entry){
+        const title=normalizeSearch(entry.title);
+        const path=normalizeSearch(entry.path);
+        let score=5;
+        if(title===needle) score=0;
+        else if(path===needle) score=1;
+        else if(title.startsWith(needle)) score=2;
+        else if(path.startsWith(needle)) score=3;
+        else if(title.includes(needle)) score=4;
+        return {entry:entry,score:score};
+      })
+      .sort(function(left,right){
+        return left.score-right.score||
+          String(left.entry.title).localeCompare(String(right.entry.title),'ru');
+      })
+      .map(function(item){return item.entry;});
+  }
+
+  function searchFromLocation(){
+    try{return new URLSearchParams(location.search).get('q')||'';}catch(_){return '';}
+  }
+
+  function updateSearchLocation(value){
+    if(!history||typeof history.replaceState!=='function') return;
+    const url=new URL(location.href);
+    const query=String(value||'').trim();
+    if(query) url.searchParams.set('q',query); else url.searchParams.delete('q');
+    history.replaceState(null,'',url.pathname+url.search+url.hash);
   }
 
   function pageHref(mode,path){
@@ -39,10 +88,7 @@
       return;
     }
 
-    const matches=catalog.filter(function(entry){
-      if(entry[mode]!==true) return false;
-      return normalizeSearch(entry.title+' '+entry.path).includes(needle);
-    });
+    const matches=rankCatalog(catalog,mode,needle);
 
     status.textContent=matches.length
       ? 'Найдено: '+matches.length+(matches.length>MAX_RESULTS?' · показаны первые '+MAX_RESULTS:'')
@@ -68,6 +114,7 @@
     const status=document.querySelector('[data-reference-search-status]');
     if(!input||!results||!status) return;
 
+    if(!input.value) input.value=searchFromLocation();
     status.textContent='Загрузка каталога…';
     fetch(CATALOG_URL,{cache:'no-cache'})
       .then(function(response){
@@ -78,6 +125,7 @@
         if(!Array.isArray(catalog)) throw new Error('catalog_format');
         renderResults(catalog,mode,input.value,results,status);
         input.addEventListener('input',function(){
+          updateSearchLocation(input.value);
           renderResults(catalog,mode,input.value,results,status);
         });
       })
@@ -85,6 +133,11 @@
         status.textContent='Каталог поиска недоступен. Используйте быстрый переход или внутренние ссылки страниц.';
       });
   }
+
+  window.CMReferenceSearch={
+    normalizeSearch:normalizeSearch,
+    rankCatalog:rankCatalog
+  };
 
   function boot(){
     const mode=document.documentElement.getAttribute('data-reference-mode');

@@ -25,6 +25,8 @@ CMP Protocol Tests GREEN
 
 В run `32616937088` прошли CMake configure/build, все 4 host C++ tests и весь Web/Protocol contract suite, включая ранее падавший `Audit release safety contracts`.
 
+Documentation-only cleanup commits after this baseline do not establish a newer firmware GREEN baseline.
+
 ## Закрытый CI incident — release safety regression
 
 Предыдущая серия RED была вызвана stale `Tests/Web/check_release_contracts.js`, а не production runtime. Последовательно были закрыты два устаревших ожидания:
@@ -63,12 +65,14 @@ Full audit A–E завершён. Controlled cleanup оценивается п�
 - top-level and AI routing aligned with current exact-spool model;
 - stale release-safety regression corrected and CI-verified GREEN at `ad17bb7...`;
 - current-tree filename sweep at tree `44b31b7515cee140f0202f75b41ecd4be0b377d1`: Arduino/Core have no parallel `Legacy/Migration/Compat/Deprecated/Old` owners; `firmware/esp32/src` has no `Migration/Compat/Deprecated/Old` filenames and its only `Legacy` filename is `CM_WarehouseLegacySpoolMaterial.cpp`, already proven as a live route-owned migration API and classified `KEEP`;
-- `docs/AI_AGENT/01_PROJECT_MAP.md` current Arduino map already points to `CM_BuzzerService.*`; no stale `CM_Buzzer*` owner correction is required there.
+- `docs/AI_AGENT/01_PROJECT_MAP.md` current Arduino map already points to `CM_BuzzerService.*`; no stale `CM_Buzzer*` owner correction is required there;
+- mandatory entrypoint stale-contract sweep completed: `/AGENTS.md` (`903cb7dd...`), root `README.md` (`058eabc9...`), `00_READ_FIRST.md` (`d655e113...`) and `docs/AI_AGENT/00_START_HERE.md` (`e7a12104...`) were synchronized from old 92/94% and old `a29e2ab/e16a7d` baselines to current 96% / verified `ad17bb7...`; root README was also tightened from optional-spool wording to current exact immutable spool semantics;
+- `PROJECT.manifest`, `docs/AI_AGENT/01_PROJECT_MAP.md` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were directly re-read and classified `KEEP` with no correction required.
 
 ## Remaining ~4%
 
 1. final owner-by-owner sweep of build-included ESP32/Arduino/Core files beyond filename heuristics;
-2. remaining thematic stale-contract/docs sweep;
+2. remaining non-entrypoint thematic stale-contract/docs sweep;
 3. final root/tree/Web/shared/scripts/tools zero-debt pass;
 4. explicit final classification of remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;
 5. final handoff consolidation and cleanup-complete checkpoint.

@@ -835,3 +835,36 @@ test(reference): run CSS checker in import contract
 ```
 
 После `2df1764a...` локальный synthetic full import + authoritative checker GREEN. Новый regression теперь вызывает `validate_legacy_stylesheets()` непосредственно в раннем import contract step, чтобы missing matcher/broken CSS URL обнаруживался до checkout/full import 1852 страниц. Новый Actions результат после `ef779874...` ещё не объявлен GREEN.
+
+
+---
+
+## 2026-08-23 — embedded CSS и nested imports
+
+Оператор подтвердил GREEN CSS matcher/checker correction batch.
+
+Расширен rewrite/check contract:
+
+- `url(...)` переписывается не только в отдельных CSS-файлах, но также в inline `style` и блоках `<style>` legacy HTML;
+- quoted `@import "..."` / `@import '...'` переписывается на absolute generated CSS target;
+- checker обходит оба вида CSS references в generated pages и mode-specific stylesheets;
+- external/data/fragment URLs сохраняются;
+- missing source target остаётся явным SOURCE WARNING, а importer-created broken/non-rewritten target — fatal error.
+
+Commits:
+
+```text
+3fb5fc5d8a02868dfe916269dd3aaf534706879a
+fix(reference): rewrite embedded CSS and imports
+
+1a44fc09520ccb7dd05102673fce0254f967e58b
+test(reference): validate embedded CSS and imports
+
+5cf33c7c8909ece2f92d64f143a6ff796ce7c451
+test(reference): cover inline CSS and imports
+
+cc23af3504a6f24088f4ea55b93644d1da776885
+docs(sd): document embedded CSS rewriting
+```
+
+Exact repository contract test локально GREEN: desktop inline `url` (style attribute + style block), mobile inline `url`, CP1251 main CSS, nested `@import`, nested CSS asset URL, shared binary dedup и checker validation пройдены. Новый Actions batch ещё не объявлен GREEN.

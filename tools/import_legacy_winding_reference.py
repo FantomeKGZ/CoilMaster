@@ -10,7 +10,8 @@ FantomeKGZ/motor-winding-reference/sourse/{desktop,mobile}. This importer:
 * gives desktop/mobile the same CoilMaster shell and shared stylesheet/JS;
 * rewrites internal links so each UI mode stays inside its own page tree;
 * normalizes legacy Windows path casing to the real source-file spelling;
-* stores every repeated byte-identical asset with the same suffix once in ``shared/assets``;
+* stores every repeated byte-identical non-CSS asset with the same suffix once in ``shared/assets``;
+* keeps legacy CSS mode-specific, converts it to UTF-8 and rewrites ``url(...)`` targets;
 * keeps assets that occur only once below ``desktop/assets`` or ``mobile/assets``;
 * generates one shared searchable catalog for all real legacy pages;
 * excludes Microsoft FrontPage ``_vti_*`` metadata from the published site.
@@ -103,6 +104,8 @@ def shared_asset_map(desktop: ModeSource, mobile: ModeSource) -> tuple[dict[str,
     groups: dict[tuple[str, str], list[tuple[str, str]]] = {}
     for mode, assets in assets_by_mode.items():
         for rel, path in assets.items():
+            if path.suffix.lower() == ".css":
+                continue
             key = (asset_hash(path), path.suffix.lower())
             groups.setdefault(key, []).append((mode, rel))
 
@@ -140,7 +143,18 @@ def copy_assets(source: ModeSource, output: Path, shared_for_mode: dict[str, str
         else:
             target = output / source.mode / "assets" / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        if not target.exists():
+        if target.exists():
+            continue
+        if path.suffix.lower() == ".css":
+            rewritten = rewrite_css_urls(
+                decode_legacy(path),
+                rel,
+                source.mode,
+                source.root,
+                shared_for_mode,
+            )
+            target.write_text(rewritten, encoding="utf-8", newline="\n")
+        else:
             shutil.copy2(path, target)
 
 
@@ -226,6 +240,29 @@ def rewrite_links(
         rewritten = rewrite_url(value, current_rel, mode, source_root, shared_for_mode)
         return f"{match.group('prefix')}{match.group('quote')}{rewritten}{match.group('quote')}"
     return ATTR_RE.sub(replace, fragment)
+
+
+def rewrite_css_urls(
+    stylesheet: str,
+    current_rel: str,
+    mode: str,
+    source_root: Path,
+    shared_for_mode: dict[str, str],
+) -> str:
+    def replace(match: re.Match[str]) -> str:
+        rewritten = rewrite_url(
+            match.group("value"),
+            current_rel,
+            mode,
+            source_root,
+            shared_for_mode,
+        )
+        return (
+            f"{match.group('prefix')}{match.group('quote')}{rewritten}"
+            f"{match.group('quote')}{match.group('suffix')}"
+        )
+
+    return CSS_URL_RE.sub(replace, stylesheet)
 
 
 def extract_title(source: str) -> str:

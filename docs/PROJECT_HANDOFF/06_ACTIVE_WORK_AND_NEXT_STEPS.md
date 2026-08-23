@@ -5,77 +5,43 @@
 
 Этот файл — единственный handoff-файл с активной очередью. Старые checkpoints — history/evidence, а не backlog.
 
-## Current verified baseline
+## Current verified GREEN baseline
 
-Последний явно подтверждённый пользователем GREEN implementation baseline:
-
-```text
-e16a7daeae8962e4eb6b457661970f873faf8a87
-Align final acceptance exact spool contract
-USER CONFIRMED GREEN
-```
-
-Более поздние implementation/test changes нельзя называть GREEN без нового CI/operator подтверждения.
-
-## Current CI incident — release safety regression contract
-
-После exact-spool hardening серия Actions run падала не на C++ build/runtime, а на stale `Tests/Web/check_release_contracts.js`.
-
-Первый слой был исправлен:
-
-```text
-9fc671121f86b5b25f06e5c59adcd8a9e3d7f154
-Align release safety contract with exact spool provenance
-```
-
-Он заменил старое optional-spool ожидание на mandatory exact-spool.
-
-Пользователь затем передал новые failed runs:
-
-```text
-32616691885
-32616733187
-32616752376
-```
-
-Во всех трёх:
-
-- CMake configure/build GREEN;
-- все 4 host C++ tests GREEN;
-- остальные Protocol/Web contracts GREEN;
-- падает только `Audit release safety contracts`.
-
-Точный failure на `9fc6711...` и последующих doc commits:
-
-```text
-firmware/esp32/src/main.cpp:
-  fail-closed automatic recovery/writeoff status contract missing
-
-firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp:
-  manual writeoff response no longer explicitly prohibits automatic deduction
-```
-
-Причина: release-test продолжал проверять удалённые presentation-only JSON strings (`automatic_*`), хотя реальные safety guards уже проверяются специализированными contracts и текущим runtime state machine.
-
-Исправление:
+Последний подтверждённый CI GREEN implementation/test baseline:
 
 ```text
 ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
 Harden release safety contract against stale JSON assertions
+CMP Protocol Tests GREEN
 ```
 
-Новый release contract теперь проверяет реальную семантику:
+Подтверждающие Actions runs:
 
-- `JobRecoveryInfo` / `JobRecovery::evaluate()` всегда держат `mayAutoQueue=false` и `mayAutoResume=false`;
-- `TIMED_OUT` требует manual review;
-- по всему `firmware/esp32/src` запрещены auto-start/auto-resume/auto-writeoff call patterns;
-- manual writeoff по-прежнему требует exact `source_session_id + source_run_id + immutable spool_id` и exact completed-run proof.
+```text
+32616937088  GREEN  checkout ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+32616970608  GREEN
+32616987523  GREEN
+```
 
-**Status:** `ad17bb7...` committed; fresh Actions evidence required before GREEN.
+В run `32616937088` прошли CMake configure/build, все 4 host C++ tests и весь Web/Protocol contract suite, включая ранее падавший `Audit release safety contracts`.
+
+## Закрытый CI incident — release safety regression
+
+Предыдущая серия RED была вызвана stale `Tests/Web/check_release_contracts.js`, а не production runtime. Последовательно были закрыты два устаревших ожидания:
+
+```text
+9fc671121f86b5b25f06e5c59adcd8a9e3d7f154
+  optional-spool assertion -> mandatory exact-spool assertion
+
+ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
+  presentation-only automatic_* JSON assertions -> semantic safety guards
+```
+
+Release contract теперь проверяет фактическую модель: no auto queue/resume on recovery, timeout -> manual review, absence of forbidden auto-start/auto-resume/auto-writeoff calls, exact immutable spool + exact session/run manual writeoff.
 
 ## Cleanup status
 
-Full audit A–E завершён. Controlled cleanup оценивается примерно в **95%**, осталось около **5%**. Hardware smoke/recovery verification — отдельный release gate и в эти 5% не входит.
+Full audit A–E завершён. Controlled cleanup оценивается примерно в **96%**, осталось около **4%**. Hardware smoke/recovery verification — отдельный release gate и в эти 4% не входит.
 
 ### Уже завершено
 
@@ -94,16 +60,16 @@ Full audit A–E завершён. Controlled cleanup оценивается п�
 - KG_FIRST current store/API/UI requires exact immutable `spool_id`;
 - historical `UNALLOCATED` remains read/audit/recovery compatibility only;
 - snapshot/state/selection crash-residue policy reviewed by transaction boundary;
-- top-level and AI routing aligned with current exact-spool model.
+- top-level and AI routing aligned with current exact-spool model;
+- stale release-safety regression corrected and CI-verified GREEN at `ad17bb7...`.
 
-## Remaining ~5%
+## Remaining ~4%
 
-1. obtain fresh `CMP Protocol Tests` evidence after `ad17bb7...`;
-2. final owner-by-owner sweep of build-included ESP32/Arduino/Core files;
-3. remaining thematic stale-contract/docs sweep;
-4. final root/tree/Web/shared/scripts/tools zero-debt pass;
-5. classify all remaining candidates `DELETE / MERGE / KEEP / REVIEW`;
-6. keep `67_NEXT_CHAT_HANDOFF_2026-08-22.md` synchronized and perform final handoff consolidation.
+1. final owner-by-owner sweep of build-included ESP32/Arduino/Core files;
+2. remaining thematic stale-contract/docs sweep;
+3. final root/tree/Web/shared/scripts/tools zero-debt pass;
+4. explicit final classification of remaining candidates as `DELETE / MERGE / KEEP / REVIEW`;
+5. final handoff consolidation and cleanup-complete checkpoint.
 
 ## Current production material rule
 

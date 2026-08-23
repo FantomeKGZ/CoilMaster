@@ -63,6 +63,9 @@ def main() -> None:
         assert data["generated_pages"] == 4
         assert data["unreferenced_assets"]["count"] == 3
         assert data["unreferenced_assets"]["bytes"] == 14
+        assert data["unreferenced_assets"]["by_extension"] == {
+            ".bin": {"count": 3, "bytes": 14}
+        }
         assert data["duplicate_asset_groups"]["count"] == 1
         assert data["duplicate_asset_groups"]["potential_savings_bytes"] == 4
         assert data["content_identical_page_groups"]["count"] == 0

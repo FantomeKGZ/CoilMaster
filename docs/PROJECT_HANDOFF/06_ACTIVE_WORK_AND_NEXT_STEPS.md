@@ -261,3 +261,8 @@ Runs `32643425748` и `32643450801` относятся к superseded regex defec
 ### Reference audit URL accuracy — current batch
 
 Оператор подтвердил GREEN CP1251 correction batch. Текущий follow-up делает cleanup report точнее: учитывает absolute/relative/Windows-style asset URLs и группирует unreferenced candidates по расширению и bytes. Политика остаётся report-only; удалений из generated reference и SD bundle нет. После GREEN workflow использовать новый audit artifact для KEEP/REMOVE классификации по типам файлов.
+
+
+### Reference global asset dedup — current batch
+
+Оператор подтвердил GREEN URL-accuracy/audit-classification batch. Текущий importer follow-up дедуплицирует все повторяющиеся assets по `SHA-256 + suffix`, включая разные legacy-имена и повторы внутри одного mode. Checker требует отсутствие таких физических дублей во всём generated asset tree. Cross-suffix identical bytes сохраняются раздельно для MIME safety. Contract test подключён к Reference workflow. После GREEN снять обновлённые reference size/file counts и сравнить с verified baseline 329M / 4626 reference files.

@@ -80,7 +80,7 @@ for (const file of files) {
     const attributes = match[1] + match[3];
     const generatedReferenceTarget =
       /\\bdata-reference-direct\\b/i.test(attributes) &&
-      /^\\/sites\\/reference\\/(desktop|mobile)\\/pages\\/[^/]+\\.html?$/i.test(target);
+      /^\/sites\/reference\/(desktop|mobile)\/pages\/[^/]+\.html?$/i.test(target);
     if (generatedReferenceTarget) continue;
 
     failures.push(relative + ': missing internal link target ' + href);

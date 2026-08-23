@@ -309,5 +309,9 @@ Runs `32645799868`, `32645815018`, `32645826246`, `32645835821`, `32645845923` �
 
 ### Reference full offline closure — current
 
-Текущий batch добавляет обязательный full-`/web` dependency scan до manifest/upload. Static runtime resources должны быть локальными и существовать; external navigation links и динамические `/api/*` разрешены. Checker покрывает HTML resource attributes, `srcset`, inline/style-block CSS и все CSS files. Positive/remote/missing regressions локально GREEN. Проверить новый Reference workflow; при failure исправлять конкретные unresolved bundle targets, не ослабляя offline gate автоматически.
+Текущий batch добавляет обязательный full-`/web` dependency scan до manifest/upload. Static runtime resources должны быть локальными и существовать; external navigation links и динамические `/api/*` разрешены. Checker покрывает HTML resource attributes, `srcset`, inline/style-block CSS и все CSS files. Positive/remote/missing regressions локально GREEN; оператор подтвердил полный batch GREEN. при failure исправлять конкретные unresolved bundle targets, не ослабляя offline gate автоматически.
+
+### Reference risk-based physical smoke — current
+
+Offline dependency closure подтверждён GREEN оператором; software/site readiness около 98%. Текущий workflow генерирует отдельный `coilmaster-reference-smoke-plan-<sha>` с 4А и наиболее рискованными страницами по tables/images/text/path depth, точными desktop/mobile URLs и bounded physical checklist. Local positive/missing-target contract GREEN. После нового Actions GREEN использовать именно этот plan и свежий SD bundle для завершающего ESP32 smoke.
 

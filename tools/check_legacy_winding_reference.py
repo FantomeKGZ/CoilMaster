@@ -23,8 +23,24 @@ def digest(path: Path) -> str:
     return h.hexdigest()
 
 
+def is_frontpage_metadata(path: Path, root: Path) -> bool:
+    try:
+        parts = path.relative_to(root).parts
+    except ValueError:
+        return False
+    return any(part.lower().startswith("_vti_") for part in parts)
+
+
 def html_count(root: Path) -> int:
-    return sum(1 for path in root.rglob("*") if path.is_file() and path.suffix.lower() in HTML_SUFFIXES)
+    return sum(
+        1
+        for path in root.rglob("*")
+        if (
+            path.is_file()
+            and path.suffix.lower() in HTML_SUFFIXES
+            and not is_frontpage_metadata(path, root)
+        )
+    )
 
 
 def generated_page_count(output: Path, mode: str) -> int:
@@ -65,8 +81,37 @@ def normalized_reference_url(value: str) -> str | None:
     return "/" + "/".join(segments) + ("/" if path.endswith("/") else "")
 
 
-def validate_pages(output: Path) -> list[str]:
+def source_file_index(root: Path) -> set[str]:
+    return {
+        path.relative_to(root).as_posix().casefold()
+        for path in root.rglob("*")
+        if path.is_file() and not is_frontpage_metadata(path, root)
+    }
+
+
+def is_preexisting_source_gap(
+    target: str,
+    mode: str,
+    source_files: set[str],
+) -> bool:
+    """True only when a missing generated URL maps to a file absent in source."""
+    asset_prefix = f"/sites/reference/{mode}/assets/"
+    page_prefix = f"/sites/reference/{mode}/pages/"
+    if target.startswith(asset_prefix):
+        relative = target[len(asset_prefix):]
+    elif target.startswith(page_prefix):
+        relative = target[len(page_prefix):]
+    else:
+        return False
+    return relative.casefold() not in source_files
+
+
+def validate_pages(
+    output: Path,
+    sources: dict[str, Path],
+) -> tuple[list[str], list[str]]:
     errors: list[str] = []
+    warnings: set[str] = set()
     shared_css = output / "shared" / "reference.css"
     shared_js = output / "shared" / "reference.js"
     if not shared_css.is_file():
@@ -75,6 +120,8 @@ def validate_pages(output: Path) -> list[str]:
         errors.append(f"shared script file missing: {shared_js}")
 
     available_urls = available_reference_urls(output)
+    source_indexes = {mode: source_file_index(root) for mode, root in sources.items()}
+
     for mode in ("desktop", "mobile"):
         mode_pages = output / mode / "pages"
         if not mode_pages.is_dir():
@@ -82,6 +129,9 @@ def validate_pages(output: Path) -> list[str]:
             continue
         for page in mode_pages.rglob("*"):
             if not page.is_file() or page.suffix.lower() not in HTML_SUFFIXES:
+                continue
+            if is_frontpage_metadata(page, mode_pages):
+                errors.append(f"FrontPage metadata leaked into generated pages: {page}")
                 continue
             try:
                 text = page.read_text(encoding="utf-8")
@@ -100,9 +150,13 @@ def validate_pages(output: Path) -> list[str]:
             for match in ATTR_RE.finditer(text):
                 value = match.group("value")
                 target = normalized_reference_url(value)
-                if target is not None and target not in available_urls:
+                if target is None or target in available_urls:
+                    continue
+                if is_preexisting_source_gap(target, mode, source_indexes[mode]):
+                    warnings.add(f"{mode}: source file missing for preserved link {target}")
+                else:
                     errors.append(f"broken reference link: {page} -> {value}")
-    return errors
+    return errors, sorted(warnings)
 
 
 def duplicate_mode_assets(output: Path) -> list[str]:
@@ -124,6 +178,18 @@ def duplicate_mode_assets(output: Path) -> list[str]:
     return errors
 
 
+def frontpage_output_leaks(output: Path) -> list[str]:
+    errors: list[str] = []
+    for mode in ("desktop", "mobile"):
+        for subtree in (output / mode / "pages", output / mode / "assets"):
+            if not subtree.exists():
+                continue
+            for path in subtree.rglob("*"):
+                if path.is_file() and is_frontpage_metadata(path, subtree):
+                    errors.append(f"FrontPage metadata leaked into output: {path}")
+    return errors
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--desktop-source", required=True, type=Path)
@@ -137,16 +203,22 @@ def main() -> None:
     output = args.output.resolve()
     desktop_source = args.desktop_source.resolve()
     mobile_source = args.mobile_source.resolve()
+    sources = {"desktop": desktop_source, "mobile": mobile_source}
 
     errors: list[str] = []
-    for mode, source in (("desktop", desktop_source), ("mobile", mobile_source)):
+    for mode, source in sources.items():
         source_count = html_count(source)
         output_count = generated_page_count(output, mode)
         if source_count != output_count:
             errors.append(f"{mode} page count mismatch: source={source_count}, generated={output_count}")
 
-    errors.extend(validate_pages(output))
+    page_errors, warnings = validate_pages(output, sources)
+    errors.extend(page_errors)
+    errors.extend(frontpage_output_leaks(output))
     errors.extend(duplicate_mode_assets(output))
+
+    for warning in warnings:
+        print(f"SOURCE WARNING: {warning}")
 
     if errors:
         for error in errors[:100]:
@@ -157,6 +229,7 @@ def main() -> None:
 
     print(f"desktop pages: {generated_page_count(output, 'desktop')}")
     print(f"mobile pages: {generated_page_count(output, 'mobile')}")
+    print(f"pre-existing source gaps: {len(warnings)}")
     print("legacy winding reference check: OK")
 
 

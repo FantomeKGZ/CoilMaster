@@ -28,6 +28,8 @@ Verified Actions:
 
 Run `32616937088` passed configure/build, all 4 host C++ tests and all Web/Protocol contracts including `Audit release safety contracts`.
 
+Documentation-only cleanup commits after this baseline do not establish a newer firmware GREEN baseline.
+
 ## Closed CI incident
 
 The prior RED series was stale regression-test debt, not production runtime failure. Two corrections closed it:
@@ -86,8 +88,8 @@ client
 
 ## Remaining cleanup sequence (~4%)
 
-1. continue final owner-by-owner ESP32/Arduino/Core sweep;
-2. finish thematic stale test/doc sweep;
+1. continue final owner-by-owner ESP32/Arduino/Core sweep beyond filename heuristics;
+2. finish non-entrypoint thematic stale test/doc sweep;
 3. final root/tree/Web/shared/scripts/tools zero-debt pass;
 4. classify all remaining candidates `DELETE / MERGE / KEEP / REVIEW`;
 5. synchronize this file with `06_ACTIVE_WORK_AND_NEXT_STEPS.md` and create final cleanup checkpoint.
@@ -108,7 +110,10 @@ client
 - historical unallocated records remain compatible without authorizing new optional-spool writes;
 - crash-residue policies reviewed by transaction boundary;
 - top-level AI/handoff routing aligned to current exact-spool model;
-- release safety regression contract corrected and CI-verified GREEN.
+- release safety regression contract corrected and CI-verified GREEN;
+- current-tree named compatibility sweep at tree `44b31b7515cee140f0202f75b41ecd4be0b377d1` found no `Migration/Compat/Deprecated/Old` ESP32 production filenames and no parallel Arduino/Core legacy owners; `CM_WarehouseLegacySpoolMaterial.cpp` remains proven `KEEP`;
+- mandatory entrypoint stale-contract cleanup synchronized `/AGENTS.md` (`903cb7dd...`), root `README.md` (`058eabc9...`), `00_READ_FIRST.md` (`d655e113...`) and `docs/AI_AGENT/00_START_HERE.md` (`e7a12104...`) to the current 96% / `ad17bb7...` state; root README now states exact immutable spool for current linked production;
+- `PROJECT.manifest`, `docs/AI_AGENT/01_PROJECT_MAP.md` and `docs/AI_AGENT/02_CHANGE_ROUTER.md` were directly re-read and remain `KEEP` without changes.
 
 ## Crash-residue classification
 

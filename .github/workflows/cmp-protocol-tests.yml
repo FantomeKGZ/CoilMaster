@@ -62,6 +62,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_shared_app_shell_contracts.js
 
+      - name: Audit reference catalog search contracts
+        if: always()
+        run: node Tests/Web/check_reference_search_contracts.js
+
       - name: Audit calculator source wire input
         if: always()
         run: node Tests/Web/check_calculator_source_wire_input.js

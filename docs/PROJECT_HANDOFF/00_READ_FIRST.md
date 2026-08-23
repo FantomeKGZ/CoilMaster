@@ -25,15 +25,23 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 ## Current verification baseline
 
-Последний подтверждённый implementation/test GREEN baseline:
+Software cleanup verification checkpoint завершён **2026-08-23**. Пользователь явно подтвердил, что все текущие GitHub Actions зелёные.
+
+Последний implementation/test cleanup commit:
 
 ```text
-ad17bb7029f9f0f694fcb275ce729d0c23c8e1dd
-Harden release safety contract against stale JSON assertions
-CMP Protocol Tests GREEN
+bd64e3cc4ba92a6624aed677d98c1620c165013e
+test(warehouse): guard against duplicate web bootstrap
 ```
 
-Точные Actions evidence записаны в `06_ACTIVE_WORK_AND_NEXT_STEPS.md`. Более поздние documentation-only commits не создают новый firmware GREEN baseline. Implementation fix `06a752663504d58ca6908414f8aa8786007c6877` требует нового applicable workflow result или явного подтверждения пользователя; пока GREEN для него не заявлен.
+Он защищает implementation fix:
+
+```text
+06a752663504d58ca6908414f8aa8786007c6877
+fix(esp32): remove duplicate warehouse web bootstrap
+```
+
+Более поздние checkpoint commits — documentation/status synchronization.
 
 ## Current active phase
 
@@ -47,20 +55,17 @@ D tests/CI/build filters/triggers                         COMPLETE
 E docs/AI routing consistency                            COMPLETE
 ```
 
-Authoritative audit checkpoint:
+Final controlled repository cleanup / zero-debt sweep также завершён:
 
 ```text
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+SOFTWARE CLEANUP COMPLETE — 100%
+DELETE  no remaining proven candidates
+MERGE   no duplicate authoritative owners remain
+REVIEW  none remain in the named cleanup queue
+CI      current Actions confirmed GREEN by operator
 ```
 
-Текущая software phase — **final controlled repository cleanup / zero-debt sweep**. Актуальная оценка и остаток всегда берутся из:
-
-```text
-docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-```
-
-На момент этого обновления cleanup оценивается примерно в **98% complete / 2% remaining**. Named split-owner и crash-residue REVIEW items закрыты; остаток — финальная сводная классификация, CI evidence для последнего implementation fix и cleanup-complete checkpoint. Не переносить этот процент механически после новых изменений.
+Не начинать broad cleanup заново без конкретного нового inconsistency, failing test, runtime defect или stale contract evidence.
 
 ## Safety invariants
 
@@ -76,7 +81,6 @@ Never weaken:
 - `RUN_COMPLETED` never performs automatic wire/material writeoff;
 - current linked-production manual writeoff requires exact `source_session_id + source_run_id + immutable spool_id`;
 - historical `UNALLOCATED` KG_FIRST remains read/audit/recovery compatibility evidence only, not permission to drop a selected spool from a new run;
-- a future true unallocated production workflow, if ever needed, must establish immutable material provenance before UART rather than as a post-run fallback;
 - operational cancellation does not erase immutable run/history evidence;
 - backup restore operator-only, transactional and fail-closed;
 - reboot never auto-continues restore/apply;
@@ -106,8 +110,6 @@ client -> motor -> OPEN repair -> costing -> linked winding
 
 ## Crash-residue policy already reviewed
 
-Do not reopen this as generic cleanup merely to make all stores look alike:
-
 ```text
 JobStateStore .tmp/.bak
   KEEP fail-closed replacement evidence
@@ -119,24 +121,14 @@ JobSnapshotStore .json.tmp
   KEEP non-authoritative preparation crash evidence; no auto-promote/resume/delete
 ```
 
-For `JobSnapshotStore`, persistent job/session ID allocation happens before snapshot creation, while authoritative `JobState CREATED` is committed only after successful final snapshot rename/verification. A leftover snapshot `.tmp` therefore cannot become an authoritative job and its session ID is not reused.
-
-The policies differ because their durable transaction boundaries differ.
+Do not reopen these merely to make stores symmetrical; their durable transaction boundaries differ.
 
 ## External hardware gate
 
-Targeted two-board ESP32<->Arduino UART/repeat/cancel/reboot smoke remains required for final physical release confidence when the stand is needed. It is separate from software cleanup completion. Hardware GREEN is never inferred from CI.
+Hardware E2E remains separate from software cleanup completion. For final physical release confidence, targeted two-board ESP32<->Arduino UART/repeat/cancel/reboot smoke should be performed when needed. Hardware GREEN is never inferred from CI.
 
-Do not ask for broad Serial logs during source cleanup. Ask for an exact capture window only when an unresolved issue becomes hardware-only.
+Do not ask for broad Serial logs. Ask for an exact capture window only when a concrete unresolved issue becomes hardware-only.
 
-## Cleanup phase rule
+## Next work rule
 
-Continue final cleanup directly. For every candidate prove dependency ownership first and classify:
-
-```text
-DELETE / MERGE / KEEP / REVIEW
-```
-
-Inspect build inclusion, direct call-sites, HTTP/static ownership, persistence/recovery, tests, operator workflow and docs routing. A filename containing `Legacy`, `Old` or similar is never deletion proof.
-
-Current remaining work is final consolidation of already audited owners, CI evidence for the latest warehouse bootstrap implementation correction when available, and cleanup-complete handoff synchronization. Do not restart completed A–E audit or provenance/residue review without a concrete current-source inconsistency.
+Software cleanup is closed. Continue from a concrete product/runtime goal, hardware verification result, bug, feature, or documentation contract change. Do not restart completed audit/provenance/crash-residue work without new evidence.

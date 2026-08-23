@@ -70,7 +70,7 @@ for (const file of files) {
     ids.add(match[1]);
   }
 
-  for (const match of html.matchAll(/<a\\b([^>]*)\\bhref="([^"]+)"([^>]*)>/gi)) {
+  for (const match of html.matchAll(/<a\b([^>]*)\bhref="([^"]+)"([^>]*)>/gi)) {
     const href = match[2];
     if (!href.startsWith('/') || href.startsWith('/api/') ||
         href.startsWith('//') || href.includes("'+")) continue;
@@ -79,7 +79,7 @@ for (const file of files) {
 
     const attributes = match[1] + match[3];
     const generatedReferenceTarget =
-      /\\bdata-reference-direct\\b/i.test(attributes) &&
+      /\bdata-reference-direct\b/i.test(attributes) &&
       /^\/sites\/reference\/(desktop|mobile)\/pages\/[^/]+\.html?$/i.test(target);
     if (generatedReferenceTarget) continue;
 

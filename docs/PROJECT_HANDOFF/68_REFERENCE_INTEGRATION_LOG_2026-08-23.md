@@ -574,3 +574,26 @@ test(reference): require SD provenance badge
 ```
 
 Следующий шаг: проверить текущие CMP/Reference workflows и получить новый artifact с manifest. До фактического результата этот новый batch не объявлять GREEN.
+
+---
+
+## 2026-08-23 — performance/accessibility legacy content
+
+Generated legacy pages получили runtime enhancement без изменения исходного содержимого:
+
+```text
+76d3ce658b0026dfbce0e300ac0d66e1ccec7a98
+perf(reference): lazy-load legacy images
+
+5f0543e26df8fcc32a6aacdce4207804699a8559
+style(reference): expose scrollable tables
+
+b129af369a7245f1ca51381092a90c0b42a31725
+test(reference): cover legacy media UX
+```
+
+Все legacy images получают lazy loading и async decoding; если source не содержит alt, используется безопасный fallback по имени файла. Широкие таблицы помещаются в focusable horizontal-scroll region с role/aria-label и видимым keyboard focus.
+
+Это уменьшает первоначальную загрузку тяжёлых generated страниц и делает таблицы доступными для touch и keyboard navigation.
+
+Текущий combined web/reference batch ожидает фактического Actions результата; GREEN не заявлен.

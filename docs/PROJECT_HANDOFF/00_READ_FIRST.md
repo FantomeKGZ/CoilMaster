@@ -9,17 +9,20 @@
 ```text
 /AGENTS.md
 this file
+docs/PROJECT_HANDOFF/73_NEXT_CHAT_TRANSFER_2026-08-24.md
+docs/PROJECT_HANDOFF/72_HALL_COMPACT_COMPLETION_ACTIVE_2026-08-24.md
+docs/PROJECT_HANDOFF/71_HALL_RAW_STREAM_MIGRATION_2026-08-24.md
+docs/PROJECT_HANDOFF/70_HALL_CALIBRATION_HISTORY_2026-08-24.md
 docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
-docs/PROJECT_HANDOFF/68_REFERENCE_INTEGRATION_LOG_2026-08-23.md
-docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/01_PROJECT_MAP.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
+
+`73_NEXT_CHAT_TRANSFER_2026-08-24.md` — текущий authoritative transfer checkpoint. Если старые numbered checkpoints противоречат `73` по текущему Hall/Uno состоянию или следующему шагу, использовать `73`.
 
 Старые numbered checkpoints — history/evidence, а не backlog. Не продолжать старую задачу только потому, что исторический checkpoint содержит `next`/`pending`.
 
@@ -27,57 +30,32 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 ## Current verification baseline
 
-Software cleanup verification checkpoint завершён **2026-08-23**. Пользователь явно подтвердил, что все текущие GitHub Actions зелёные.
-
-Последний implementation/test cleanup commit:
+Текущий Hall compact-completion software checkpoint подтверждён свежими GitHub Actions:
 
 ```text
-bd64e3cc4ba92a6624aed677d98c1620c165013e
-test(warehouse): guard against duplicate web bootstrap
+32753340348  host-tests  checkout d77a24b3437831d0a236086055a193f233e1be7e  SUCCESS
+32753408620  host-tests  checkout b07de01ee4f3b1216153036dd977fa48bc053c2f  SUCCESS
 ```
 
-Он защищает implementation fix:
+Последний run прошёл Hall calibration safety, lost-apply reconciliation, Uno parser ownership, Hall raw migration, Hall history и остальные host gates.
+
+Verified Uno compact-completion build:
 
 ```text
-06a752663504d58ca6908414f8aa8786007c6877
-fix(esp32): remove duplicate warehouse web bootstrap
+32751199627  build-uno  checkout a928a51bc77c00407b146587aaf34c1e08a19998  SUCCESS
+RAM   1213 / 2048 = 59.2%   free 835 B
+Flash 31640 / 32256 = 98.1% free 616 B
 ```
 
-Более поздние checkpoint commits — documentation/status synchronization.
+Hardware GREEN из CI не выводить.
 
 ## Current active phase
 
-Software cleanup закрыт. Текущая срочная hardware/runtime работа — восстановление стабильного минимального Arduino Uno runtime после доказанного SRAM exhaustion, возврат проверенной Keypad library и перенос расширенного Hall test/calibration analysis на ESP32 при сохранении Hall turn counting и SSR authority на Arduino. Exact plan: `docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md`.
+Software cleanup закрыт. Текущая работа — финальная software optimization минимального Arduino Uno runtime и Hall calibration split перед единственным полным hardware acceptance.
 
-Legacy winding-reference integration остаётся сохранённой продуктовой линией и продолжается после закрытия текущего Arduino hardware gate.
+Hall extended aggregation уже перенесена на ESP32; Uno сохраняет physical START, SSR authority, обычный realtime Hall turn count и local safety gates. Uno completion TX уже использует compact `CAL_DONE`; ESP32 сохраняет legacy `CAL_RESULT` receive fallback.
 
-Подробный хронологический журнал этой работы:
-
-```text
-docs/PROJECT_HANDOFF/68_REFERENCE_INTEGRATION_LOG_2026-08-23.md
-```
-
-Его обновлять после каждого завершённого блока вместе с обычным handoff current-state.
-
-Full code audit A..E завершён:
-
-```text
-A Arduino safety/realtime/UART/resources                  COMPLETE
-B ESP32 runtime/API/persistence/integrity/network/backup COMPLETE
-C desktop/mobile/shared Web parity/error/security        COMPLETE
-D tests/CI/build filters/triggers                         COMPLETE
-E docs/AI routing consistency                            COMPLETE
-```
-
-Final controlled repository cleanup / zero-debt sweep также завершён:
-
-```text
-SOFTWARE CLEANUP COMPLETE — 100%
-DELETE  no remaining proven candidates
-MERGE   no duplicate authoritative owners remain
-REVIEW  none remain in the named cleanup queue
-CI      current Actions confirmed GREEN by operator
-```
+Точный current state и следующий шаг: `docs/PROJECT_HANDOFF/73_NEXT_CHAT_TRANSFER_2026-08-24.md`.
 
 Не начинать broad cleanup заново без конкретного нового inconsistency, failing test, runtime defect или stale contract evidence.
 
@@ -104,11 +82,13 @@ Never weaken:
 
 ```text
 ESP32: service/data/UI orchestration, SD/RTC/network, registry, jobs,
-       persistence, warehouse/material/costing, backup/restore
+       persistence, warehouse/material/costing, backup/restore,
+       extended Hall calibration analysis/history
 
-CMP1 UART: JOB/control down, run/status events up
+CMP1 UART: JOB/control down, run/status/calibration events up
 
-Arduino Uno: physical START, SSR, Hall, keypad/LCD/buzzer,
+Arduino Uno: physical START, SSR, normal Hall turn count,
+             keypad/LCD/buzzer, calibration local safety gates,
              realtime winding machine and RUN event generation
 ```
 
@@ -122,27 +102,14 @@ client -> motor -> OPEN repair -> costing -> linked winding
 -> costing/finalization -> CLOSED -> reports -> backup
 ```
 
-## Crash-residue policy already reviewed
-
-```text
-JobStateStore .tmp/.bak
-  KEEP fail-closed replacement evidence
-
-JobSpoolSelectionStore .json.tmp
-  KEEP bounded recovery of one fully valid pre-UART selection temp when final is absent
-
-JobSnapshotStore .json.tmp
-  KEEP non-authoritative preparation crash evidence; no auto-promote/resume/delete
-```
-
-Do not reopen these merely to make stores symmetrical; their durable transaction boundaries differ.
-
 ## External hardware gate
 
-Hardware E2E remains separate from software cleanup completion. For final physical release confidence, targeted two-board ESP32<->Arduino UART/repeat/cancel/reboot smoke should be performed when needed. Hardware GREEN is never inferred from CI.
+По решению пользователя промежуточные hardware tests во время текущей optimization phase не запрашивать. Использовать software gates/CI/size/contracts.
 
-Do not ask for broad Serial logs. Ask for an exact capture window only when a concrete unresolved issue becomes hardware-only.
+После завершения оптимизации выполнить один полный hardware acceptance из `73_NEXT_CHAT_TRANSFER_2026-08-24.md`.
+
+Hardware GREEN никогда не выводить из CI.
 
 ## Next work rule
 
-Software cleanup is closed. Continue from the active winding-reference integration log or another concrete product/runtime goal, hardware verification result, bug, feature, or documentation contract change. Do not restart completed audit/provenance/crash-residue work without new evidence.
+Продолжать с `73_NEXT_CHAT_TRANSFER_2026-08-24.md`. Первый рекомендованный шаг — доказать точную максимальную длину оставшихся Uno Hall response frames и только после этого решать, можно ли безопасно уменьшить `HallCalibrationProtocol::MaxFrameLength = 96`.

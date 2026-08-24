@@ -166,6 +166,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_hall_apply_reconciliation.js
 
+      - name: Audit Uno Hall parser ownership
+        if: always()
+        run: node Tests/Web/check_uno_hall_parser_ownership.js
+
       - name: Audit Hall history and SD reference contracts
         if: always()
         run: node Tests/Web/check_hall_history_ui.js

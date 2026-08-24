@@ -24,3 +24,15 @@ firmware/arduino/
 4. Update include paths and PlatformIO filters in the same commit.
 5. Remove legacy files only after the new copies compile successfully.
 6. Do not enable the real SSR in simulation builds.
+
+
+## Temporary USB reset-loop diagnostic
+
+The normal `uno` environment remains the production image with verbose diagnostics disabled. For the bounded hardware investigation use:
+
+```text
+pio run -e uno_diagnostic -t upload
+pio device monitor -b 115200
+```
+
+In VS Code, select the PlatformIO environment `uno_diagnostic`, upload it to the Uno, then open Serial Monitor at `115200`. Capture from the first `CM_BOOT reset_flags=` line through the next restart. The image keeps SSR fail-safe OFF during boot and does not add automatic START or reboot resume.

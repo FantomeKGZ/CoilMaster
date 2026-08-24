@@ -410,3 +410,8 @@ cc18247c  test(arduino): protect compatible keypad scan direction
 ```
 
 Do not clear EEPROM during this transition. Pending RUN_COMPLETED evidence and identifiers remain protected. ESP32 never receives direct SSR authority.
+
+
+### Confirmed Hall calibration ownership
+
+Operator selected an autonomous split: ESP32 sends `CAL_ARM` and calculates a proposal from Arduino-provided bounded Hall data; Arduino requires local confirmation plus separate physical START, owns calibration SSR permit, validates the returned proposal and atomically persists the final CRC/versioned profile in EEPROM. ESP32 stores only a mirror/audit copy. Normal Hall counting must continue from Arduino EEPROM with ESP32 absent. UART loss aborts calibration fail-safe; reboot never resumes it. Exact handshake is authoritative in `69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md`.

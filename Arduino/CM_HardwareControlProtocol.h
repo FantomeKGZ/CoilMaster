@@ -56,10 +56,6 @@ bool formatSettingsResult(HardwareControlResult result,
 bool formatHallTelemetry(const HallTelemetrySnapshot& snapshot,
                          char* output,
                          size_t outputSize);
-
-const char* directionName(HallSignalDirection direction);
-const char* rearmStateName(HallRearmState state);
-const char* resultName(HardwareControlResult result);
 }
 
 } // namespace CM

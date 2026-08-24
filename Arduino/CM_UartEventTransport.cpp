@@ -337,6 +337,20 @@ bool UartEventTransport::sendHallCalibrationResult(
     return writeHardwareFrame(frame);
 }
 
+bool UartEventTransport::sendHallCalibrationApplied(
+    uint32_t measurementId,
+    HallCalibrationApplyResult result,
+    const HardwareSettings& settings)
+{
+    char frame[HallCalibrationProtocol::MaxFrameLength];
+    if (!HallCalibrationProtocol::formatApplied(
+            measurementId, result, settings, frame, sizeof(frame)))
+    {
+        return false;
+    }
+    return writeHardwareFrame(frame);
+}
+
 void UartEventTransport::writeJobReply(bool cancelReply,
                                        uint32_t jobId,
                                        bool successful,
@@ -531,6 +545,22 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
         return;
     }
 
+    if (strncmp(line, "CMP1|CAL_PROPOSAL|", 18U) == 0)
+    {
+        HallCalibrationProposalRequest proposal;
+        if (HallCalibrationProtocol::parseProposal(line, proposal) &&
+            !m_hasHardwareControlRequest)
+        {
+            m_hardwareControlRequest = HardwareControlRequest();
+            m_hardwareControlRequest.type =
+                HardwareControlRequestType::StageHallCalibrationProposal;
+            m_hardwareControlRequest.measurementId = proposal.measurementId;
+            m_hardwareControlRequest.settings = proposal.settings;
+            m_hasHardwareControlRequest = true;
+        }
+        return;
+    }
+
     const bool hardwareControlFrame =
         strncmp(line, "CMP1|CFG_GET|", 13U) == 0 ||
         strncmp(line, "CMP1|CFG_SET|", 13U) == 0 ||
@@ -575,8 +605,6 @@ void UartEventTransport::processReply(char* line, uint32_t nowMs)
     for (const char* value = line; *value != '\0'; ++value)
         if (*value == '|') ++separatorCount;
 
-    // Current ACK/NACK has a fourth separator followed by CRC. Keep accepting
-    // the three-separator legacy reply during staged ESP32/Arduino upgrades.
     if (separatorCount == 4U)
     {
         char* lastSeparator = strrchr(line, '|');

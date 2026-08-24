@@ -77,12 +77,15 @@ mustContain(receiverH, 'processHallCalibrationDone', 'ESP32 compact completion r
 mustContain(receiverH, 'm_compactCalibrationResult', 'ESP32 compact completion receiver state');
 mustContain(receiverH, 'm_hasCompactCalibrationResult', 'ESP32 compact completion receiver state');
 mustContain(receiverCpp, 'CMP1|CAL_SAMPLE|', 'ESP32 raw receiver');
+mustContain(receiverCpp, 'CMP1|CAL_DONE|', 'ESP32 compact completion dispatch');
+mustContain(receiverCpp, 'processHallCalibrationDone(m_line, millis())', 'ESP32 compact completion dispatch');
 mustContain(receiverCpp, 'HallCalibrationRawProtocol::parseSample', 'ESP32 raw receiver');
 mustContain(receiverCpp, 'm_hallCalibrationRaw.addBaselineSample', 'ESP32 raw receiver');
 mustContain(receiverCpp, 'm_hallCalibrationRaw.addRunSample', 'ESP32 raw receiver');
-mustContain(receiverCpp, 'result.baselineAdc = rawSummary.baselineAdc', 'ESP32 raw result ownership');
-mustContain(receiverCpp, 'result.minAdc = rawSummary.minAdc', 'ESP32 raw result ownership');
-mustContain(receiverCpp, 'result.maxAdc = rawSummary.maxAdc', 'ESP32 raw result ownership');
+mustContain(receiverCpp, 'HallCalibrationDoneProtocol::parseDone', 'ESP32 compact completion parser hook');
+mustContain(receiverCpp, 'HallCalibrationCompletionAdapter::buildFromDone', 'ESP32 compact completion result path');
+mustContain(receiverCpp, 'HallCalibrationCompletionAdapter::enrichLegacy', 'ESP32 legacy completion result path');
+mustContain(receiverCpp, 'm_hardwareControl.takeHallCalibrationResult(result)', 'ESP32 legacy completion fallback');
 
 mustContain(unoProtocolH, 'HallCalibrationSamplePhase', 'Uno raw protocol');
 mustContain(unoProtocolH, 'formatSample', 'Uno raw protocol');
@@ -116,7 +119,7 @@ mustNotContain(unoService, 'm_maxAdc', 'Uno calibration service');
 mustContain(unoServiceH, 'm_measurementId', 'Uno correlation identity');
 mustContain(unoService, 'result.measurementId = m_measurementId', 'Uno correlation identity');
 
-// Uno result storage is identity-only; legacy wire statistics are literal zeroes.
+// Uno result storage is identity-only; legacy wire statistics are literal zeroes until TX switch.
 for (const field of ['baselineAdc', 'minAdc', 'maxAdc', 'sampleCount', 'durationMs']) {
   mustNotContain(unoServiceH, field, 'Uno identity-only result');
 }

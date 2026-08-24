@@ -30,16 +30,14 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 ## Current verification baseline
 
-Текущий Hall compact-completion software checkpoint подтверждён свежими GitHub Actions:
+Последний подтверждённый Hall compact-completion host-tests baseline:
 
 ```text
 32753340348  host-tests  checkout d77a24b3437831d0a236086055a193f233e1be7e  SUCCESS
 32753408620  host-tests  checkout b07de01ee4f3b1216153036dd977fa48bc053c2f  SUCCESS
 ```
 
-Последний run прошёл Hall calibration safety, lost-apply reconciliation, Uno parser ownership, Hall raw migration, Hall history и остальные host gates.
-
-Verified Uno compact-completion build:
+Verified Uno compact-completion build baseline:
 
 ```text
 32751199627  build-uno  checkout a928a51bc77c00407b146587aaf34c1e08a19998  SUCCESS
@@ -47,13 +45,24 @@ RAM   1213 / 2048 = 59.2%   free 835 B
 Flash 31640 / 32256 = 98.1% free 616 B
 ```
 
+Новый frame-bound implementation commit:
+
+```text
+256b95754431c30b6da94bd43f399f5085e030fc
+perf(uno): tighten Hall calibration frame buffer
+```
+
+Для него fresh Actions ещё нужно фактически подтвердить перед объявлением GREEN.
+
 Hardware GREEN из CI не выводить.
 
 ## Current active phase
 
 Software cleanup закрыт. Текущая работа — финальная software optimization минимального Arduino Uno runtime и Hall calibration split перед единственным полным hardware acceptance.
 
-Hall extended aggregation уже перенесена на ESP32; Uno сохраняет physical START, SSR authority, обычный realtime Hall turn count и local safety gates. Uno completion TX уже использует compact `CAL_DONE`; ESP32 сохраняет legacy `CAL_RESULT` receive fallback.
+Hall extended aggregation уже перенесена на ESP32; Uno сохраняет physical START, SSR authority, обычный realtime Hall turn count и local safety gates. Uno completion TX использует compact `CAL_DONE`; ESP32 сохраняет legacy `CAL_RESULT` receive fallback.
+
+Точная максимальная длина оставшихся Uno Hall TX доказана. Самый длинный активный frame — `CAL_APPLIED`: **76 wire bytes**, поэтому `HallCalibrationProtocol::MaxFrameLength` безопасно уменьшен **96 -> 77** с учётом trailing NUL.
 
 Точный current state и следующий шаг: `docs/PROJECT_HANDOFF/73_NEXT_CHAT_TRANSFER_2026-08-24.md`.
 
@@ -112,4 +121,4 @@ Hardware GREEN никогда не выводить из CI.
 
 ## Next work rule
 
-Продолжать с `73_NEXT_CHAT_TRANSFER_2026-08-24.md`. Первый рекомендованный шаг — доказать точную максимальную длину оставшихся Uno Hall response frames и только после этого решать, можно ли безопасно уменьшить `HallCalibrationProtocol::MaxFrameLength = 96`.
+Продолжать с `73_NEXT_CHAT_TRANSFER_2026-08-24.md`. После подтверждения fresh software gates следующий кодовый приоритет — range validation для `CM_HardwareControlClient.cpp::processCalibrationApplied()` перед mirroring APPLIED Hall settings на ESP32.

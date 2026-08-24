@@ -135,6 +135,8 @@ const char* stateName(HallCalibrationState state)
 {
     switch (state)
     {
+        case HallCalibrationState::WaitingLocalConfirm:
+            return "WAITING_LOCAL_CONFIRM";
         case HallCalibrationState::ArmedWaitingPhysicalStart:
             return "ARMED_WAITING_START";
         case HallCalibrationState::Running:

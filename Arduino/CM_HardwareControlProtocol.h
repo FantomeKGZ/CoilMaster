@@ -16,12 +16,14 @@ enum class HardwareControlRequestType : uint8_t
     SetHallSettings,
     ResetHallSettings,
     StartHallTelemetry,
-    StopHallTelemetry
+    StopHallTelemetry,
+    StageHallCalibrationProposal
 };
 
 struct HardwareControlRequest
 {
     HardwareControlRequestType type;
+    uint32_t measurementId;
     HardwareSettings settings;
 
     HardwareControlRequest();

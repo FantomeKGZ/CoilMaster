@@ -46,8 +46,14 @@ enum class HallCalibrationSamplePhase : uint8_t
 
 namespace HallCalibrationProtocol
 {
-// Keep bounded headroom for calibration state/applied/sample frames.
-static constexpr size_t MaxFrameLength = 96U;
+// Longest active Uno Hall TX is CAL_APPLIED with uint32 measurement id,
+// PERSISTENCE_FAILED, max valid settings, FALLING, CRC and newline:
+// CMP1|CAL_APPLIED|4294967295|PERSISTENCE_FAILED|1023|512|1000|FALLING|C|FFFF\n
+// = 76 wire bytes. The formatter also needs one byte for the trailing NUL.
+static constexpr size_t MaxAppliedWireLength = 76U;
+static constexpr size_t MaxFrameLength = MaxAppliedWireLength + 1U;
+static_assert(MaxFrameLength == 77U,
+              "Hall calibration frame bound must include wire bytes plus NUL");
 
 // Thin compatibility adapters only. Parsing/CRC ownership lives in
 // HardwareControlProtocol so CAL and hardware-control frames do not carry

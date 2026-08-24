@@ -49,7 +49,7 @@ ed32e55f91b5e6bada33315c2daafab1e7cd5e6c
 test(hall): require applied range validation
 ```
 
-ESP32 authoritative settings-state validation now continues the same fail-closed rule:
+ESP32 authoritative settings-state validation:
 
 ```text
 fb547c6c3a5537d42839a6147309985ae717f4e8
@@ -57,6 +57,16 @@ fix(hall): validate settings state before mirror
 
 56268ab17c888510a9ed2b0aa7461b8ef3b250e9
 test(hall): require settings state range validation
+```
+
+ESP32 Hall telemetry semantic validation:
+
+```text
+a18158da211ab3e36fe043f80e278c252d184312
+fix(hall): validate telemetry semantics before mirror
+
+94ec3d6749debc09d5406eb49612125f060c4611
+test(hall): require telemetry semantic validation
 ```
 
 Important earlier implementation/test commits:
@@ -94,13 +104,22 @@ Fresh ESP32 applied-profile validation verification supplied by the user and che
 32760645056  host-tests   checkout a8e64695be3413081b71cf052ee361aff0669379  SUCCESS
 ```
 
+Fresh CFG_STATE validation verification supplied by the user and checked against Actions metadata:
+
+```text
+32761464209  build-esp32  checkout fb547c6c3a5537d42839a6147309985ae717f4e8  SUCCESS
+32761464222  host-tests   checkout fb547c6c3a5537d42839a6147309985ae717f4e8  SUCCESS
+32761539190  host-tests   checkout 56268ab17c888510a9ed2b0aa7461b8ef3b250e9  SUCCESS
+32761611196  host-tests   checkout 89741c5f1582c295cabcab08c06d7e91ff3c3bf7  SUCCESS
+```
+
 The host runs passed all 4 CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
 
-Therefore the `CAL_APPLIED` mirror validation block is now verified **ESP32-build GREEN + host-tests GREEN**.
+Therefore both `CAL_APPLIED` and `CFG_STATE` mirror-validation blocks are verified **ESP32-build GREEN + host-tests GREEN**.
 
 Hardware is **not** thereby declared GREEN.
 
-The newer `CFG_STATE` validation commits `fb547c6c...` / `56268ab1...` are not called GREEN until their fresh Actions complete successfully.
+The newer Hall telemetry semantic validation commits `a18158da...` / `94ec3d67...` are not called GREEN until fresh Actions complete successfully.
 
 ## Verified Uno build / memory
 
@@ -271,11 +290,11 @@ and records the proven `MaxAppliedWireLength = 76` with a compile-time `static_a
 
 Fresh build `32759806141` confirms the Uno image still fits exactly at `31640 Flash / 1213 RAM`.
 
-## ESP32 Hall profile mirror validation
+## ESP32 Hall receive validation
 
-Both ESP32 Hall settings mirror paths now reject CRC-valid but semantically invalid profiles before copying them into authoritative local state.
+Both ESP32 Hall settings mirror paths reject CRC-valid but semantically invalid profiles before copying them into local authoritative state.
 
-`processCalibrationApplied()` validates:
+`processCalibrationApplied()` and `processSettingsState()` enforce:
 
 ```text
 threshold           1..1023
@@ -284,11 +303,23 @@ releaseDebounceMs   1..1000
 direction           RISING or FALLING
 ```
 
-This path is verified by `32760501006`, `32760592287` and descendant `32760645056`.
+These paths are verified GREEN by the Actions listed above.
 
-`processSettingsState()` now applies the same numeric bounds before accepting `CFG_STATE`. This is important for normal `CFG_GET` and especially the lost-`CAL_APPLIED` reconciliation path, which must never mirror a CRC-valid but out-of-range EEPROM profile.
+`processTelemetryState()` now additionally rejects CRC-valid `HALL_STATE` telemetry unless:
 
-Regression contract `56268ab1...` locks the `CFG_STATE` checks. Its fresh CI is still pending at this checkpoint.
+```text
+rawAdc/windowMin/windowMax  0..1023
+windowMin <= rawAdc <= windowMax
+threshold                   1..1023
+hysteresis                  1..512 and < threshold
+releaseDebounceMs           1..1000
+sampleCount                 > 0
+releaseBoundary             exactly matches threshold/hysteresis/direction
+```
+
+For RISING, `releaseBoundary = threshold - hysteresis`. For FALLING, it is `min(1023, threshold + hysteresis)`, matching Uno `HallTurnSource::releaseThreshold()`.
+
+Regression contract `94ec3d67...` locks these telemetry checks. Fresh CI is pending at this checkpoint.
 
 ## Current optimization status
 
@@ -299,7 +330,8 @@ Keep:
 - legacy ESP32 `CAL_RESULT` receive fallback active;
 - Hall response buffer exact bound 77 bytes, build verified;
 - `CAL_APPLIED` range validation verified ESP32-build GREEN + host-tests GREEN;
-- `CFG_STATE` range validation implemented and contract-covered, pending fresh CI;
+- `CFG_STATE` range validation verified ESP32-build GREEN + host-tests GREEN;
+- `HALL_STATE` semantic validation implemented and contract-covered, pending fresh CI;
 - no intermediate hardware test requested during this optimization phase.
 
 Rejected experiments not to repeat:
@@ -315,8 +347,8 @@ Continue software optimization only; do not request intermediate physical hardwa
 
 Immediate next steps:
 
-1. Confirm fresh ESP32 build + host-tests for `fb547c6c...` / `56268ab1...` or a descendant.
-2. After GREEN, continue targeted Hall receive-semantic review; do not reopen broad cleanup.
+1. Confirm fresh ESP32 build + host-tests for `a18158da...` / `94ec3d67...` or a descendant.
+2. After GREEN, continue targeted Hall receive-semantic review, with legacy `CAL_RESULT` fallback as the next audit target.
 3. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
 4. Do not perform the final hardware acceptance until software optimization is finished.
 

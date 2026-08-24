@@ -81,6 +81,21 @@ mustNotContain(unoService, 'm_maxAdc', 'Uno calibration service');
 mustContain(unoServiceH, 'm_measurementId', 'Uno correlation identity');
 mustContain(unoService, 'result.measurementId = m_measurementId', 'Uno correlation identity');
 
+// Uno result storage is identity-only; legacy wire statistics are literal zeroes.
+for (const field of ['baselineAdc', 'minAdc', 'maxAdc', 'sampleCount', 'durationMs']) {
+  mustNotContain(unoServiceH, field, 'Uno identity-only result');
+}
+mustContain(
+  unoProtocolCpp,
+  'CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|%lu|C',
+  'Uno identity-only legacy result frame'
+);
+mustNotContain(unoProtocolCpp, 'result.baselineAdc', 'Uno legacy result formatter');
+mustNotContain(unoProtocolCpp, 'result.minAdc', 'Uno legacy result formatter');
+mustNotContain(unoProtocolCpp, 'result.maxAdc', 'Uno legacy result formatter');
+mustNotContain(unoProtocolCpp, 'result.sampleCount', 'Uno legacy result formatter');
+mustNotContain(unoProtocolCpp, 'result.durationMs', 'Uno legacy result formatter');
+
 mustContain(analyzerCpp, 'analyzeSummary', 'ESP32 analyzer owner');
 
 mustContain(unoMain, 'processExternalStart', 'Uno safety runtime');

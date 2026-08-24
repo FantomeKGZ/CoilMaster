@@ -140,8 +140,10 @@ mustContain(calibrationHeader, 'PeerTimeoutMs = 3000UL', 'Arduino Hall calibrati
 mustContain(calibrationHeader, 'ApplyConfirmTimeoutMs = 30000UL', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'beginApplyConfirm', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'measurementId', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'measurementIdentity(uint32_t completedAtMs)', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'm_state = HallCalibrationState::WaitingApplyConfirm', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, 'result.measurementId = measurementIdentity(result)', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'm_measurementId = measurementIdentity(nowMs)', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'result.measurementId = m_measurementId', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'nowMs - m_lastPeerContactMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, '>= PeerTimeoutMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'ApplyConfirmTimeoutMs', 'Arduino Hall calibration service');
@@ -152,7 +154,7 @@ mustContain(calibrationProtocolCpp, 'WAITING_LOCAL_CONFIRM', 'Arduino Hall calib
 mustContain(calibrationProtocolCpp, 'WAITING_APPLY_CONFIRM', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CAL_APPLIED', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, '!settings.isValid()', 'Arduino Hall calibration protocol');
-mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|%lu|C', 'Arduino Hall calibration protocol');
 
 const localConfirmBranch = arduinoMain.indexOf('HallCalibrationState::WaitingLocalConfirm');
 const firstConfirmKey = arduinoMain.indexOf("key == '#'", localConfirmBranch);

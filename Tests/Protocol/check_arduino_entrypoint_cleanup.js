@@ -42,28 +42,29 @@ for (const required of [
   }
 }
 
-
 for (const required of [
+  '#include <Keypad.h>',
+  'Keypad keypad = Keypad(makeKeymap(KeyMap), RowPins, ColPins, 4, 4);',
+  'const char key = keypad.getKey();',
+  'if (key == NO_KEY) return;',
+]) {
+  if (!productionMain.includes(required)) {
+    failures.push(`${productionMainPath}: proven Keypad runtime missing: ${required}`);
+  }
+}
+if (!platformio.includes('chris--a/Keypad @ ^3.1.1')) {
+  failures.push(`${platformioPath}: proven Keypad dependency missing`);
+}
+for (const forbidden of [
   'void beginKeypad()',
   'char scanKeypadRaw()',
   'char pollKeypad()',
-  'pgm_read_byte(&KeyMap[index])',
   'KeypadDebounceMs = 25U',
-  'pinMode(RowPins[row], INPUT_PULLUP)',
-  'pinMode(ColPins[col], OUTPUT)',
-  'digitalWrite(ColPins[col], LOW)',
-  'pinMode(ColPins[col], INPUT)'
 ]) {
-  if (!productionMain.includes(required)) {
-    failures.push(`${productionMainPath}: compact keypad scanner missing: ${required}`);
+  if (productionMain.includes(forbidden)) {
+    failures.push(`${productionMainPath}: compact keypad scanner must remain removed: ${forbidden}`);
   }
 }
-for (const forbidden of ['#include <Keypad.h>', 'Keypad keypad', 'keypad.getKey()', 'chris--a/Keypad']) {
-  if (productionMain.includes(forbidden) || platformio.includes(forbidden)) {
-    failures.push(`obsolete heap-heavy Keypad owner remains: ${forbidden}`);
-  }
-}
-
 
 for (const required of [
   'if (!metadataValidInEeprom())',
@@ -88,4 +89,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino cleanup contract OK: obsolete artifacts stay removed and PlatformIO production main remains authoritative.');
+console.log('Arduino cleanup contract OK: obsolete artifacts stay removed, proven Keypad runtime is restored, and PlatformIO production main remains authoritative.');

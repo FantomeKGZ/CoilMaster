@@ -162,6 +162,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_hall_calibration_contracts.js
 
+      - name: Audit Hall lost apply reconciliation
+        if: always()
+        run: node Tests/Web/check_hall_apply_reconciliation.js
+
       - name: Audit Hall history and SD reference contracts
         if: always()
         run: node Tests/Web/check_hall_history_ui.js

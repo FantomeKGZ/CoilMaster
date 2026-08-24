@@ -48,7 +48,11 @@ for (const required of [
   'char scanKeypadRaw()',
   'char pollKeypad()',
   'pgm_read_byte(&KeyMap[index])',
-  'KeypadDebounceMs = 25U'
+  'KeypadDebounceMs = 25U',
+  'pinMode(RowPins[row], INPUT_PULLUP)',
+  'pinMode(ColPins[col], OUTPUT)',
+  'digitalWrite(ColPins[col], LOW)',
+  'pinMode(ColPins[col], INPUT)'
 ]) {
   if (!productionMain.includes(required)) {
     failures.push(`${productionMainPath}: compact keypad scanner missing: ${required}`);

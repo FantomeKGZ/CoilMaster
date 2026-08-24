@@ -25,9 +25,9 @@ enum class HallCalibrationDirection : uint8_t
     Falling
 };
 
-// Measurement-only result owned by Uno. Recommendation fields intentionally
-// live on ESP32. measurementId binds a later proposal to this exact completed
-// measurement and is deliberately transient across reboot.
+// Uno owns only correlation identity for a completed calibration measurement.
+// Measurement statistics are collected from CAL_SAMPLE on ESP32. Legacy fields
+// remain on the wire temporarily for compatibility and are emitted as zero.
 struct HallCalibrationResult
 {
     uint32_t measurementId;
@@ -77,7 +77,7 @@ private:
     void finish(uint32_t nowMs);
     void clearMeasurements();
     bool populateResult(HallCalibrationResult& result) const;
-    uint32_t measurementIdentity(const HallCalibrationResult& result) const;
+    uint32_t measurementIdentity(uint32_t completedAtMs) const;
 
     HallTurnSource& m_hall;
     HallCalibrationState m_state;
@@ -87,12 +87,9 @@ private:
     uint32_t m_applyConfirmAtMs;
     uint32_t m_startedAtMs;
     uint32_t m_lastSampleMs;
-    uint32_t m_baselineSum;
-    uint16_t m_baselineSamples;
-    uint16_t m_minAdc;
-    uint16_t m_maxAdc;
+    uint32_t m_measurementId;
+    uint8_t m_baselineSamples;
     uint16_t m_runSamples;
-    uint32_t m_resultDurationMs;
 };
 
 } // namespace CM

@@ -98,6 +98,21 @@ if (entrypoint.indexOf('ssr.begin();') > entrypoint.indexOf('Wire.begin();')) {
   failures.push('SSR must be fail-safe before LCD checkpoint delays');
 }
 
+
+// Reset-loop localization must survive the reset and identify the last loop
+// subsystem without writing EEPROM on every pass.
+for (const [text, description] of [
+  ['MCUSR & 0x1FU', 'reserved reset bits are not masked'],
+  ['section(".noinit")', 'reset-loop evidence is not retained'],
+  ['showPreviousLoopPhase();', 'previous loop phase is not shown after LCD init'],
+  ['PREV LOOP:', 'previous-loop LCD heading missing'],
+  ['cmLastLoopPhase = 6U;', 'UART loop checkpoint missing'],
+  ['cmLastLoopPhase = 11U;', 'output loop checkpoint missing'],
+  ['cmLastLoopPhase = 13U;', 'completed-loop checkpoint missing']
+]) {
+  if (!entrypoint.includes(text)) failures.push(description + ': ' + text);
+}
+
 if (failures.length) {
   console.error(failures.map(item => sourcePath + ': ' + item).join('\n'));
   process.exit(1);

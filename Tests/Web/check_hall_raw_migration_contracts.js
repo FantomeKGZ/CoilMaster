@@ -22,6 +22,7 @@ const receiverH = read('firmware/esp32/src/CM_UartEventReceiver.h');
 const receiverCpp = read('firmware/esp32/src/CM_UartEventReceiver.cpp');
 const unoProtocolH = read('Arduino/CM_HallCalibrationProtocol.h');
 const unoProtocolCpp = read('Arduino/CM_HallCalibrationProtocol.cpp');
+const unoDoneFormatter = read('Arduino/CM_HallCalibrationDoneFormatter.cpp');
 const unoBridgeH = read('Arduino/CM_HallCalibrationRawBridge.h');
 const unoBridgeCpp = read('Arduino/CM_HallCalibrationRawBridge.cpp');
 const unoTransportH = read('Arduino/CM_UartEventTransport.h');
@@ -72,6 +73,9 @@ mustNotContain(completionAdapterCpp, 'StartOrResume', 'ESP32 completion adapter 
 mustNotContain(completionAdapterCpp, 'digitalWrite', 'ESP32 completion adapter safety');
 
 mustContain(receiverH, 'HallCalibrationRawCollector m_hallCalibrationRaw', 'ESP32 raw receiver');
+mustContain(receiverH, 'processHallCalibrationDone', 'ESP32 compact completion receiver state');
+mustContain(receiverH, 'm_compactCalibrationResult', 'ESP32 compact completion receiver state');
+mustContain(receiverH, 'm_hasCompactCalibrationResult', 'ESP32 compact completion receiver state');
 mustContain(receiverCpp, 'CMP1|CAL_SAMPLE|', 'ESP32 raw receiver');
 mustContain(receiverCpp, 'HallCalibrationRawProtocol::parseSample', 'ESP32 raw receiver');
 mustContain(receiverCpp, 'm_hallCalibrationRaw.addBaselineSample', 'ESP32 raw receiver');
@@ -82,11 +86,17 @@ mustContain(receiverCpp, 'result.maxAdc = rawSummary.maxAdc', 'ESP32 raw result 
 
 mustContain(unoProtocolH, 'HallCalibrationSamplePhase', 'Uno raw protocol');
 mustContain(unoProtocolH, 'formatSample', 'Uno raw protocol');
+mustContain(unoProtocolH, 'formatDone', 'Uno compact completion protocol');
 mustContain(unoProtocolCpp, 'CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'PSTR("BASELINE")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'PSTR("RUN")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'rawAdc > 1023U', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'appendCrc(output, outputSize, length)', 'Uno raw protocol');
+mustContain(unoDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Uno compact completion formatter');
+mustContain(unoDoneFormatter, 'result.measurementId == 0UL', 'Uno compact completion formatter');
+mustContain(unoDoneFormatter, 'Cmp1Crc::calculate', 'Uno compact completion formatter');
+mustNotContain(unoDoneFormatter, 'StartOrResume', 'Uno compact completion formatter safety');
+mustNotContain(unoDoneFormatter, 'digitalWrite', 'Uno compact completion formatter safety');
 
 mustContain(unoBridgeH, 'no START', 'Uno raw bridge safety');
 mustContain(unoBridgeCpp, 'sendHallCalibrationSample', 'Uno raw bridge');
@@ -141,6 +151,7 @@ for (const [name, text] of [
   ['completion adapter cpp', completionAdapterCpp],
   ['Uno raw protocol header', unoProtocolH],
   ['Uno raw protocol cpp', unoProtocolCpp],
+  ['Uno compact completion formatter', unoDoneFormatter],
   ['Uno raw bridge header', unoBridgeH],
   ['Uno raw bridge cpp', unoBridgeCpp]
 ]) {

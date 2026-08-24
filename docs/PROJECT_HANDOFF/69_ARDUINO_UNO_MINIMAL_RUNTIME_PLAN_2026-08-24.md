@@ -6,256 +6,232 @@
 
 ## Назначение
 
-Этот файл — быстрый handoff для аппаратного восстановления CoilMaster. Цель: оставить Arduino Uno минимальным безопасным realtime-контроллером, сохранить проверенную Keypad 3.1.1 electrical/debounce semantics и перенести расширенный Hall test/analysis на ESP32 без передачи ESP32 права управлять SSR или автоматически запускать двигатель.
+Arduino Uno остаётся минимальным authoritative realtime/safety controller. ESP32 получает расширенный Hall analysis/UI, но не получает права physical START или SSR.
 
-## Текущий verified baseline — 2026-08-24
+## Последний полностью verified software/memory baseline
 
-Последний полностью подтверждённый software/memory baseline — commit:
+Commit:
 
 ```text
 10e11bba081d06eb3b149eb9c2bd7b593faa8895
 ```
 
-GitHub Actions evidence:
+Actions:
 
 ```text
 32698376710  Arduino Uno build  SUCCESS
 32698376682  host-tests         SUCCESS
 ```
 
-Фактический Uno size:
+Размер:
 
 ```text
-RAM   1579 / 2048 = 77.1%
+RAM   1579 / 2048
 free SRAM = 469 bytes
 
-Flash 29660 / 32256 = 92.0%
+Flash 29660 / 32256
 free Flash = 2596 bytes
 ```
 
-Целевой static SRAM headroom **350–400 bytes достигнут и превышен**. Агрессивное дальнейшее урезание production Uno только ради памяти сейчас не требуется.
+Цель static SRAM headroom 350–400 bytes достигнута с запасом. В этот verified image уже входят bounded Keypad 3.1.1 semantics, bufferless PCF8574 LCD/TWI owner, compact Hall runtime, ESP32-owned recommendation math и 112-byte CMP1 RX boundary для worst-case 10-coil JOB.
 
-В verified image уже входят:
+**Важно:** цифры 469 B / 2596 B относятся к `10e11bba`. После нового Hall local-confirm/proposal/apply кода Uno размер нужно измерить новым Actions build. Не переносить эти цифры на текущий HEAD как уже подтверждённые.
 
-- bounded local Keypad owner, сохраняющий proven Keypad 3.1.1 scan/debounce semantics, но с `LIST_MAX=1` и `MAPSIZE=4`;
-- bufferless PCF8574 LCD transport через AVR hardware TWI без постоянных Wire RX/TX/TWI buffers;
-- measurement-only Hall calibration result на Uno;
-- bounded одиночная Hall telemetry sample без Uno-side aggregation window;
-- ESP32-owned Hall recommendation analysis;
-- CMP1 receive buffer 112 bytes, достаточный для worst-case допустимого 10-coil JOB;
-- EEPROM pending completed events и exact identifiers/provenance без очистки.
+## Подтверждённый промежуточный checkpoint
 
-## Текущий Hall safety batch — implementation есть, Actions ещё не подтверждены
+После исправления ESP32 Wire/LCD compatibility пользователь сообщил, что три новые CI проверки GREEN. На этой базе продолжен exact Hall apply handshake.
 
-После verified `10e11bba` реализован следующий safety block. **Не считать его GREEN, пока новый Actions build/host-tests не подтверждены.**
-
-### Локальное подтверждение на Arduino
-
-Новый обязательный порядок:
+Последний prior infrastructure fix:
 
 ```text
-ESP32 CAL_ARM
-  -> Arduino WAITING_LOCAL_CONFIRM
-  -> оператор нажимает # на Arduino
-  -> Arduino ARMED_WAITING_START
-  -> Arduino собирает baseline
-  -> отдельная физическая START
-  -> Arduino RUNNING + motorPermit
+e2f76d41165fb6a2fa9b845eaf11a4b17e23f25a
+build(esp32): expose framework Wire through LCD compat shim
 ```
 
-До локального `#` физическая START не запускает calibration и не проходит в обычный winding input.
+## Текущий Hall flow — реализован в коде, latest batch ещё требует Actions verification
 
-Любая другая клавиша вместо `#` в `WAITING_LOCAL_CONFIRM` abort-ит calibration. После локального подтверждения любое неожиданное keypad input во время активной calibration по-прежнему abort-ит процедуру.
-
-### UART-loss fail-safe
-
-ESP32 runtime, а не web page, поддерживает calibration link:
-
-```text
-CalibrationKeepAliveMs = 1000 ms
-CMP1|CAL|GET|C|CRC
-```
-
-Arduino обновляет peer-contact timestamp только при валидном parsed CAL traffic. Для активной calibration:
-
-```text
-PeerTimeoutMs = 3000 ms
-```
-
-Если CAL traffic пропадает, Arduino переводит calibration в `Aborted`; production loop затем принудительно держит SSR OFF. `motorPermit()` остаётся true только в `Running`.
-
-### Коммиты нового safety block
-
-```text
-cf5bfad1  feat(hall): require local calibration confirmation
-279bff89  feat(hall): require local calibration confirmation
-bc66dc49  feat(hall): expose local confirmation state
-f0d24d9f  feat(hall): abort calibration on UART loss
-e95567ce  feat(hall): abort calibration on UART loss
-89134ba5  feat(hall): enforce local calibration confirmation
-93c63ce8  feat(hall): keep calibration link alive from ESP32
-73acb54e  feat(hall): keep calibration link alive from ESP32
-db043264  feat(hall): expose local confirmation in web state
-f1c01c8c  feat(hall): show local confirmation step in UI
-f2b8d77e  test(hall): enforce local confirmation and UART fail-safe
-```
-
-Текущий latest implementation/test commit этого блока:
-
-```text
-f2b8d77e73881a0ec836bda6348dfc963dcb863b
-```
-
-Для него пока не объявлять build/host GREEN и не переносить verified SRAM цифру с `10e11bba` как будто она измерена после safety changes. Uno получил новый peer-contact timestamp, поэтому actual size нужно снять новым Actions build.
-
-## Политика проверки до завершения оптимизации
-
-По решению пользователя от 2026-08-24 промежуточные hardware smoke-tests откладываются до окончания software optimization/migration.
-
-До финального checkpoint выполнять:
-
-```text
-code review
-host regressions
-PlatformIO/Actions compile
-Flash/RAM size gates
-protocol/safety contracts
-```
-
-Не просить промежуточно нажимать keypad, вращать Hall, запускать двигатель или выполнять отдельные Serial smoke-tests. После завершения software блока провести один полный hardware acceptance gate.
-
-## Подтверждённая аппаратная история
-
-- LCD 1602 физически исправен: I2C scanner находил `0x27`, отдельный LCD test выводил текст.
-- Старый production показывал блоки, затем циклический `CM BOOT`.
-- USB diagnostic показал `M=0`; ELF/PlatformIO подтвердили SRAM exhaustion.
-- Исходный production baseline: RAM `1965/2048`, Flash `31300/32256`, всего 83 bytes static SRAM headroom.
-- После раннего compact keypad + streaming UART image: RAM `1770/2048`, но compact keypad физически не реагировал. Этот самописный scanner не возвращать.
-- До expanded Hall test/calibration пользователь подтверждал нормальную работу системы.
-- После возврата полной Keypad library и Hall minimization `0c146e1b`: RAM `1888/2048`, только 160 bytes free.
-- После первого TWI/Hall compaction batch: RAM `1810/2048`, 238 bytes free.
-- После bounded Keypad + bufferless LCD + corrected JOB RX: verified `10e11bba` = **469 bytes free SRAM** и **2596 bytes free Flash**.
-
-## Целевое разделение ответственности
-
-### Arduino Uno — authoritative realtime/safety owner
-
-- физический START;
-- единоличное управление SSR;
-- Hall sensor на `A0`;
-- realtime threshold/hysteresis/direction и turn counting;
-- winding state machine;
-- LCD 1602;
-- proven Keypad scan/debounce semantics;
-- buzzer;
-- минимальный CMP1 UART;
-- EEPROM runtime Hall profile;
-- EEPROM pending completed events и exact identifiers;
-- local confirmation для calibration и apply.
-
-### ESP32 — extended analysis/UI owner
-
-- extended Hall test aggregation/analysis;
-- threshold/hysteresis/direction recommendation;
-- calibration UI;
-- runtime calibration keepalive;
-- proposal creation и audit/mirror data;
-- orchestration без права START/SSR.
-
-ESP32 не управляет SSR и не создаёт automatic physical START. После сохранения Hall profile обычная намотка должна работать автономно без ESP32.
-
-## Полный целевой Hall calibration/apply handshake
+### 1. Calibration arm / motor start
 
 ```text
 ESP32 CAL_ARM
   -> Arduino WAITING_LOCAL_CONFIRM
   -> operator # on Arduino
   -> Arduino ARMED_WAITING_START
-  -> baseline sampling
+  -> bounded baseline sampling
   -> separate physical START
   -> Arduino RUNNING
-  -> bounded Hall measurement summary
-  -> ESP32 analyzes summary
-  -> ESP32 creates CAL_PROPOSAL bound to exact source measurement identity/CRC
-  -> Arduino validates proposal + identity + ranges + safe state
-  -> Arduino waits for local operator confirmation
-  -> Arduino atomically saves CRC/versioned profile to EEPROM
-  -> Arduino CAL_APPLIED with actual persisted profile + identity
-  -> ESP32 stores mirror/audit result
+  -> SSR permit только Arduino и только в RUNNING
 ```
 
 Правила:
 
-- ESP32 CAL_ARM никогда не запускает двигатель;
-- `#` и physical START — два разных локальных действия;
-- SSR включается только Arduino и только при `HallCalibrationState::Running`;
-- потеря ESP32/UART во время active calibration должна fail-close в `Aborted`/SSR OFF;
-- recommendation/proposal не применяется автоматически;
-- Arduino независимо проверяет ranges и exact proposal identity;
-- authoritative profile хранится на Arduino EEPROM;
-- ESP32 mirror не имеет права автоматически перезаписывать Arduino;
-- reboot не продолжает calibration/proposal/apply;
-- EEPROM не очищать;
-- обычный production Hall counting автономен после сохранения.
+- `CAL_ARM` никогда не запускает двигатель;
+- physical START до первого `#` блокируется;
+- любая неправильная keypad action во время calibration abort-ит flow;
+- ESP32/Web не управляют SSR.
 
-## Что уже завершено
+### 2. UART-loss fail-safe
 
-### Uno memory optimization
+ESP32 runtime посылает валидный `CMP1|CAL|GET|C|CRC` keepalive примерно раз в 1 s.
 
-**Software/memory gate GREEN на `10e11bba`.**
+Arduino:
 
-- Keypad capacity уменьшена без смены proven scan algorithm;
-- Wire/LiquidCrystal persistent buffers убраны из Uno production path;
-- LCD работает через bufferless PCF8574 owner;
-- Hall result/telemetry runtime уменьшены;
-- worst-case 10-coil JOB receive boundary исправлен;
-- 469 bytes static SRAM headroom подтверждены Actions.
+```text
+PeerTimeoutMs = 3000 ms
+```
 
-### Hall analysis migration
+При потере валидного CAL traffic active calibration/apply переводится в `Aborted`, transient proposal очищается, SSR остаётся OFF. Никакого auto-resume после reboot.
 
-- `CM_HallCalibrationAnalyzer` на ESP32 рассчитывает recommendation из summary;
-- Arduino recommendation math удалён;
-- UI показывает ESP32 recommendation;
-- bounded telemetry ownership перенесена на ESP32 side.
+### 3. Measurement identity
 
-### Hall arm/start safety
+Arduino возвращает measurement-only summary и transient non-zero `measurement_id`:
 
-Implementation completed but **pending Actions verification**:
+```text
+CMP1|CAL_RESULT|INVALID|baseline|min|max|0|0|RISING|samples|duration_ms|measurement_id|C|CRC
+```
 
-- explicit `WAITING_LOCAL_CONFIRM`;
-- local `#` confirmation;
-- separate physical START;
-- ESP32 runtime keepalive;
-- Arduino 3-second peer timeout abort;
-- host regression contract updated.
+Threshold/hysteresis/direction placeholders на Uno остаются нейтральными. Recommendation вычисляется только `CM_HallCalibrationAnalyzer` на ESP32.
 
-## Следующий active block
+`measurement_id` строится из конкретного arm/result context и не хранится как pending state в EEPROM. После reboot старый proposal нельзя продолжить.
 
-1. Получить новый Uno build + host-tests после `f2b8d77e`; записать actual RAM/Flash и не объявлять GREEN раньше результата.
-2. После GREEN завершить exact `CAL_PROPOSAL` measurement identity handshake.
-3. Proposal не должен использовать generic `CFG_SET` как автоматический shortcut.
-4. Добавить Arduino-side pending proposal owner без auto-apply и с local confirmation.
-5. Atomically persist authoritative profile через существующий settings store/CRC semantics.
-6. Добавить `CAL_APPLIED` exact identity response и ESP32 mirror/audit state.
-7. Reboot должен забывать pending proposal, но загружать последний CRC-valid applied profile.
-8. После software completion — единый hardware acceptance gate.
+### 4. Exact proposal
 
-## Финальный hardware acceptance gate
+ESP32 отправляет:
 
-Промежуточные hardware smoke-tests не выполнять. После завершения software migration проверить одним циклом:
+```text
+CMP1|CAL_PROPOSAL|measurement_id|threshold|hysteresis|release_debounce_ms|direction|C|CRC
+```
 
-1. Arduino boot/home + отсутствие reset-loop.
-2. LCD 1602.
-3. Keypad: `1`, `#`, `*`, `D`, emergency `D * # D`.
-4. Hall manual rotation test без SSR.
-5. `CAL_ARM -> # -> baseline -> physical START`.
-6. UART disconnect during active calibration -> SSR OFF / ABORTED.
-7. ESP32 analysis -> proposal -> local apply confirmation -> EEPROM persistence.
-8. Reboot -> no calibration/apply resume; saved profile loads.
-9. ESP32<->Arduino JOB receive; Arduino остаётся READY до physical START.
-10. Только physical START создаёт `RUN_STARTED` и разрешает SSR по Arduino state.
-11. Exact `RUN_COMPLETED` доставляется/retries до ACK.
-12. Material writeoff остаётся manual exact `spool_id + source_session_id + source_run_id`.
+Arduino до staging проверяет:
+
+- CRC/shape;
+- settings ranges;
+- safe machine state;
+- наличие текущего completed result;
+- exact `measurement_id` equality.
+
+Proposal переиспользует существующий bounded single-slot hardware-control request. Новая UART queue не создавалась.
+
+### 5. Local confirmation перед EEPROM
+
+После валидного proposal:
+
+```text
+Arduino WAITING_APPLY_CONFIRM
+```
+
+В этом состоянии:
+
+- settings лежат только transient RAM;
+- EEPROM ещё не изменён;
+- SSR force OFF;
+- physical START блокируется и **не** считается подтверждением;
+- только отдельный `#` на Arduino вызывает существующий `HardwareSettingsController::apply()`;
+- любая другая keypad action отменяет proposal;
+- CAL abort / UART-loss / timeout отменяют proposal без записи.
+
+### 6. Authoritative persistence / response
+
+После локального `#` Arduino использует существующий CRC/versioned `HardwareSettingsStore` как единственный authoritative EEPROM owner и отвечает:
+
+```text
+CMP1|CAL_APPLIED|measurement_id|result|threshold|hysteresis|release_debounce_ms|direction|C|CRC
+```
+
+ESP32 принимает final response только если `measurement_id` совпадает с pending proposal id.
+
+Допустимые result semantics включают:
+
+```text
+APPLIED
+BUSY
+INVALID
+IDENTITY_MISMATCH
+PERSISTENCE_FAILED
+CANCELLED
+```
+
+### 7. Web/UI apply path
+
+Calibration UI больше не использует generic `/api/hardware/hall/settings` для применения recommendation.
+
+Новый endpoint:
+
+```text
+POST /api/hardware/hall/calibration/apply
+```
+
+Browser передаёт только `release_debounce_ms`.
+
+ESP32 server сам берёт из текущего cached calibration result:
+
+- exact `measurement_id`;
+- recommended threshold;
+- recommended hysteresis;
+- recommended direction.
+
+Это не позволяет браузеру подменить recommendation в calibration apply path.
+
+UI показывает второй обязательный локальный шаг:
+
+```text
+WAITING_APPLY_CONFIRM
+-> нажать # на Arduino для EEPROM save
+```
+
+START не подтверждает сохранение.
+
+## Последние commits exact apply batch
+
+```text
+91b6b865  feat(hall): add exact calibration proposal client
+f424d1b9  feat(hall): bind proposal to measurement identity
+2b61a892  feat(hall): publish exact calibration measurement id
+4f22725c  test(hall): require exact calibration proposal identity
+d916f5c1  feat(hall): expose calibration proposal lane
+2f3f667b  feat(hall): route exact calibration proposals on Uno
+a8094872  fix(hall): keep proposal alive through local apply confirm
+ace97936  feat(hall): require local confirm before calibration EEPROM apply
+26d6d734  feat(hall): route calibration proposals through ESP32 receiver
+7943806a  feat(hall): expose exact calibration apply endpoint
+d403da97  feat(hall): stage exact calibration proposal from web
+aea6042f  feat(hall): require Arduino confirm for calibration apply
+d1acbe4b  test(hall): enforce local-confirmed exact apply path
+```
+
+Current expected HEAD at записи этого handoff:
+
+```text
+d1acbe4b14b38e4381063f9ce1beaa44005c7896
+```
+
+Всегда refetch branch HEAD перед изменением.
+
+## Verification status
+
+### GREEN / доказано
+
+- memory optimization baseline `10e11bba`;
+- 469 B free SRAM и 2596 B free Flash на этом baseline;
+- bounded Keypad owner;
+- bufferless LCD owner;
+- physical START / Arduino SSR authority invariants в prior verified tests;
+- пользователь сообщил 3 GREEN CI после `e2f76d41` infrastructure checkpoint.
+
+### UNVERIFIED после exact apply batch
+
+Нужно получить Actions именно на `d1acbe4b` или более новом descendant:
+
+1. host-tests;
+2. ESP32 PlatformIO build;
+3. Uno PlatformIO build;
+4. фактические Uno RAM/Flash после добавления transient proposal state.
+
+До этого не объявлять latest exact apply software GREEN и не утверждать, что current Uno всё ещё имеет ровно 469 B free SRAM.
+
+### Hardware
+
+По решению пользователя промежуточные hardware smoke-tests не выполнять. Hardware gate остаётся отложенным до завершения software migration.
 
 ## Safety invariants — не ослаблять
 
@@ -264,12 +240,44 @@ Implementation completed but **pending Actions verification**:
 - no auto-resume after reboot;
 - Arduino owns SSR;
 - ESP32/Web never directly control SSR;
+- calibration proposal never auto-applies;
+- EEPROM apply требует local `#` на Arduino;
+- START не подтверждает EEPROM apply;
+- lost UART during active calibration/apply => fail closed / SSR OFF;
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically writes off material;
 - manual writeoff requires exact session + run + immutable spool;
 - cancellation never deletes immutable history;
-- EEPROM pending events never clear automatically during diagnostics/migration.
+- EEPROM pending completed events не очищать автоматически.
+
+## Следующий active block
+
+1. Проверить latest Actions для `d1acbe4b` или descendant.
+2. Если compile/test failure — исправить точечно, не откатывая exact-id/local-confirm architecture.
+3. Зафиксировать новую Uno SRAM/Flash цифру.
+4. Проверить remote abort semantics в `WAITING_APPLY_CONFIRM`; local key/UART-loss cancellation уже fail-closed.
+5. Добавить ESP32 mirror/audit representation final `CAL_APPLIED` profile, если текущего web reply cache недостаточно для reboot-visible audit.
+6. Обновить `06_ACTIVE_WORK_AND_NEXT_STEPS.md` после software gate stabilization.
+7. Только после software completion провести единый hardware acceptance.
+
+## Финальный hardware acceptance gate
+
+После завершения software migration проверить одним циклом:
+
+1. Arduino boot/home без reset-loop.
+2. LCD 1602.
+3. Keypad `1`, `#`, `*`, `D`, emergency `D * # D`.
+4. Hall manual rotation без SSR.
+5. `CAL_ARM -> # -> baseline -> physical START`.
+6. UART disconnect during active calibration -> `ABORTED`, SSR OFF.
+7. ESP32 result -> exact proposal -> `WAITING_APPLY_CONFIRM` -> local `#` -> EEPROM save.
+8. START в `WAITING_APPLY_CONFIRM` ничего не сохраняет и не запускает.
+9. Reboot -> no calibration/proposal resume; последний CRC-valid applied Hall profile загружается.
+10. Remote JOB остаётся READY до physical START.
+11. Только physical START создаёт `RUN_STARTED` и разрешает SSR по Arduino state.
+12. Exact `RUN_COMPLETED` retries до ACK.
+13. Material writeoff остаётся manual exact `spool_id + source_session_id + source_run_id`.
 
 ## Порядок чтения в новом чате
 
@@ -278,13 +286,12 @@ Implementation completed but **pending Actions verification**:
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/65_ARDUINO_SOURCE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-## Инструкция для следующего чата
+## Инструкция продолжения
 
-Продолжать только из `cmp-protocol-v1`. Сначала проверить Actions для latest Hall local-confirm/UART-loss block (`f2b8d77e` или более новый head), зафиксировать build/host status и actual Uno Flash/RAM. Hardware checks до окончания software migration не запрашивать. После GREEN реализовать exact `CAL_PROPOSAL -> local apply confirmation -> CAL_APPLIED` handshake с measurement identity, не передавая ESP32 право START/SSR и не очищая EEPROM. Перед каждым update fetch актуальный файл и current blob SHA. Для нового файла сначала подтвердить отсутствие пути. Не утверждать CI/build/hardware GREEN без фактического evidence.
+Работать только из `cmp-protocol-v1`. Перед каждым update fetch актуальный файл и blob SHA. Hardware checks пока не запрашивать. Сначала получить CI/build/size evidence exact apply batch. После GREEN завершить audit/mirror и обновить `06`. Не передавать ESP32 право START/SSR, не делать auto-apply и не очищать EEPROM.

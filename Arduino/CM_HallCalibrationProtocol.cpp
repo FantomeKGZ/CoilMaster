@@ -49,15 +49,12 @@ bool verifyAndStripCrc(char* frame)
     if (frame == nullptr) return false;
     char* lastSeparator = strrchr(frame, '|');
     if (lastSeparator == nullptr) return false;
-
     uint16_t received = 0U;
     if (!parseHex16(lastSeparator + 1, received)) return false;
-
     const size_t payloadLength = static_cast<size_t>(lastSeparator - frame);
     const uint16_t calculated = Cmp1Crc::calculate(
         reinterpret_cast<const uint8_t*>(frame), payloadLength);
     if (calculated != received) return false;
-
     *lastSeparator = '\0';
     return true;
 }
@@ -65,19 +62,13 @@ bool verifyAndStripCrc(char* frame)
 bool appendCrc(char* output, size_t outputSize, int payloadLength)
 {
     if (output == nullptr || outputSize == 0U || payloadLength <= 0 ||
-        static_cast<size_t>(payloadLength) >= outputSize)
-    {
-        return false;
-    }
-
+        static_cast<size_t>(payloadLength) >= outputSize) return false;
     const uint16_t crc = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(output),
-        static_cast<size_t>(payloadLength));
+        reinterpret_cast<const uint8_t*>(output), static_cast<size_t>(payloadLength));
     const int suffixLength = snprintf(
         output + payloadLength,
         outputSize - static_cast<size_t>(payloadLength),
-        "|%04X\n",
-        static_cast<unsigned int>(crc));
+        "|%04X\n", static_cast<unsigned int>(crc));
     return suffixLength > 0 &&
            static_cast<size_t>(payloadLength + suffixLength) < outputSize;
 }
@@ -87,22 +78,16 @@ bool parseRequest(char* frame, HallCalibrationCommand& command)
 {
     command = HallCalibrationCommand::None;
     if (!verifyAndStripCrc(frame)) return false;
-
     char* save = nullptr;
     char* version = strtok_r(frame, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
     char* action = strtok_r(nullptr, "|", &save);
     char* capability = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
-
     if (version == nullptr || category == nullptr || action == nullptr ||
         capability == nullptr || extra != nullptr ||
         strcmp(version, "CMP1") != 0 || strcmp(category, "CAL") != 0 ||
-        strcmp(capability, "C") != 0)
-    {
-        return false;
-    }
-
+        strcmp(capability, "C") != 0) return false;
     if (strcmp(action, "ARM") == 0)
         command = HallCalibrationCommand::Arm;
     else if (strcmp(action, "ABORT") == 0)
@@ -111,7 +96,6 @@ bool parseRequest(char* frame, HallCalibrationCommand& command)
         command = HallCalibrationCommand::Get;
     else
         return false;
-
     return true;
 }
 
@@ -119,7 +103,6 @@ bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal)
 {
     proposal = HallCalibrationProposalRequest();
     if (!verifyAndStripCrc(frame)) return false;
-
     char* save = nullptr;
     char* version = strtok_r(frame, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
@@ -130,34 +113,24 @@ bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal)
     char* directionText = strtok_r(nullptr, "|", &save);
     char* capability = strtok_r(nullptr, "|", &save);
     char* extra = strtok_r(nullptr, "|", &save);
-
     if (version == nullptr || category == nullptr || measurementText == nullptr ||
         thresholdText == nullptr || hysteresisText == nullptr ||
-        debounceText == nullptr || directionText == nullptr ||
-        capability == nullptr || extra != nullptr ||
-        strcmp(version, "CMP1") != 0 ||
-        strcmp(category, "CAL_PROPOSAL") != 0 ||
-        strcmp(capability, "C") != 0)
-    {
+        debounceText == nullptr || directionText == nullptr || capability == nullptr ||
+        extra != nullptr || strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "CAL_PROPOSAL") != 0 || strcmp(capability, "C") != 0)
         return false;
-    }
-
     if (!parseDecimal32(measurementText, proposal.measurementId) ||
         proposal.measurementId == 0UL ||
         !parseDecimal16(thresholdText, proposal.settings.hallThreshold) ||
         !parseDecimal16(hysteresisText, proposal.settings.hallHysteresis) ||
         !parseDecimal16(debounceText, proposal.settings.hallReleaseDebounceMs))
-    {
         return false;
-    }
-
     if (strcmp(directionText, "RISING") == 0)
         proposal.settings.hallDirection = HallSignalDirection::Rising;
     else if (strcmp(directionText, "FALLING") == 0)
         proposal.settings.hallDirection = HallSignalDirection::Falling;
     else
         return false;
-
     return proposal.settings.isValid();
 }
 
@@ -168,13 +141,9 @@ bool formatState(HallCalibrationState state,
                  size_t outputSize)
 {
     if (output == nullptr || outputSize == 0U) return false;
-    const int length = snprintf(
-        output,
-        outputSize,
-        "CMP1|CAL_STATE|%s|%u|%u|C",
-        stateName(state),
-        baselineReady ? 1U : 0U,
-        motorPermit ? 1U : 0U);
+    const int length = snprintf(output, outputSize,
+        "CMP1|CAL_STATE|%s|%u|%u|C", stateName(state),
+        baselineReady ? 1U : 0U, motorPermit ? 1U : 0U);
     return appendCrc(output, outputSize, length);
 }
 
@@ -184,19 +153,16 @@ bool formatResult(const HallCalibrationResult& result,
 {
     if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
         return false;
-    // Uno sends measurement data only. Recommendation placeholders stay neutral;
-    // ESP32 recomputes threshold/hysteresis/direction and must return the exact
-    // measurementId in CAL_PROPOSAL before Arduino can stage an apply.
-    const int length = snprintf(
-        output,
-        outputSize,
-        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C",
+    // Keep the existing CAL_RESULT wire shape until ESP32 measurement-id parsing
+    // and proposal sending land atomically. The identity already exists on Uno
+    // but is not exposed by this staged frame yet.
+    const int length = snprintf(output, outputSize,
+        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|C",
         static_cast<unsigned int>(result.baselineAdc),
         static_cast<unsigned int>(result.minAdc),
         static_cast<unsigned int>(result.maxAdc),
         static_cast<unsigned int>(result.sampleCount),
-        static_cast<unsigned long>(result.durationMs),
-        static_cast<unsigned long>(result.measurementId));
+        static_cast<unsigned long>(result.durationMs));
     return appendCrc(output, outputSize, length);
 }
 
@@ -208,17 +174,13 @@ bool formatApplied(uint32_t measurementId,
 {
     if (output == nullptr || outputSize == 0U || measurementId == 0UL)
         return false;
-    const int length = snprintf(
-        output,
-        outputSize,
+    const int length = snprintf(output, outputSize,
         "CMP1|CAL_APPLIED|%lu|%s|%u|%u|%u|%s|C",
-        static_cast<unsigned long>(measurementId),
-        applyResultName(result),
+        static_cast<unsigned long>(measurementId), applyResultName(result),
         static_cast<unsigned int>(settings.hallThreshold),
         static_cast<unsigned int>(settings.hallHysteresis),
         static_cast<unsigned int>(settings.hallReleaseDebounceMs),
-        settings.hallDirection == HallSignalDirection::Falling
-            ? "FALLING" : "RISING");
+        settings.hallDirection == HallSignalDirection::Falling ? "FALLING" : "RISING");
     return appendCrc(output, outputSize, length);
 }
 
@@ -226,21 +188,14 @@ const char* stateName(HallCalibrationState state)
 {
     switch (state)
     {
-        case HallCalibrationState::WaitingLocalConfirm:
-            return "WAITING_LOCAL_CONFIRM";
-        case HallCalibrationState::ArmedWaitingPhysicalStart:
-            return "ARMED_WAITING_START";
-        case HallCalibrationState::Running:
-            return "RUNNING";
-        case HallCalibrationState::Completed:
-            return "COMPLETED";
-        case HallCalibrationState::WaitingApplyConfirm:
-            return "WAITING_APPLY_CONFIRM";
-        case HallCalibrationState::Aborted:
-            return "ABORTED";
+        case HallCalibrationState::WaitingLocalConfirm: return "WAITING_LOCAL_CONFIRM";
+        case HallCalibrationState::ArmedWaitingPhysicalStart: return "ARMED_WAITING_START";
+        case HallCalibrationState::Running: return "RUNNING";
+        case HallCalibrationState::Completed: return "COMPLETED";
+        case HallCalibrationState::WaitingApplyConfirm: return "WAITING_APPLY_CONFIRM";
+        case HallCalibrationState::Aborted: return "ABORTED";
         case HallCalibrationState::Idle:
-        default:
-            return "IDLE";
+        default: return "IDLE";
     }
 }
 
@@ -257,8 +212,7 @@ const char* applyResultName(HallCalibrationApplyResult result)
         case HallCalibrationApplyResult::Invalid: return "INVALID";
         case HallCalibrationApplyResult::IdentityMismatch: return "IDENTITY_MISMATCH";
         case HallCalibrationApplyResult::Busy: return "BUSY";
-        case HallCalibrationApplyResult::PersistenceFailed:
-            return "PERSISTENCE_FAILED";
+        case HallCalibrationApplyResult::PersistenceFailed: return "PERSISTENCE_FAILED";
         case HallCalibrationApplyResult::Cancelled: return "CANCELLED";
     }
     return "INVALID";

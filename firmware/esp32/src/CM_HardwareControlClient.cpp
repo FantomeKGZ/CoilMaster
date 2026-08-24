@@ -340,6 +340,14 @@ bool HardwareControlClient::processSettingsState(char* line, uint32_t nowMs)
         !parseDecimal16(debounceText, parsed.releaseDebounceMs))
         return true;
 
+    if (parsed.threshold == 0U || parsed.threshold > 1023U ||
+        parsed.hysteresis == 0U || parsed.hysteresis > 512U ||
+        parsed.hysteresis >= parsed.threshold ||
+        parsed.releaseDebounceMs == 0U || parsed.releaseDebounceMs > 1000U)
+    {
+        return true;
+    }
+
     if (strcmp(directionText, "RISING") == 0)
         parsed.direction = HallSignalDirectionRemote::Rising;
     else if (strcmp(directionText, "FALLING") == 0)

@@ -48,6 +48,7 @@ struct HallTelemetryState
 enum class HallCalibrationRemoteState : uint8_t
 {
     Idle = 0U,
+    WaitingLocalConfirm,
     ArmedWaitingPhysicalStart,
     Running,
     Completed,
@@ -142,11 +143,13 @@ private:
     };
 
     static constexpr uint32_t RetryIntervalMs = 1000UL;
+    static constexpr uint32_t CalibrationKeepAliveMs = 1000UL;
     static constexpr uint8_t MaxSendAttempts = 3U;
     static constexpr size_t MaxRequestPayloadLength = 96U;
 
     bool queueRequest(RequestType type, const char* payload);
     bool sendPending(uint32_t nowMs);
+    bool sendCalibrationKeepAlive(uint32_t nowMs);
     bool processSettingsState(char* line, uint32_t nowMs);
     bool processSettingsResult(char* line);
     bool processTelemetryState(char* line, uint32_t nowMs);
@@ -159,6 +162,7 @@ private:
     static bool parseDecimal32(const char* text, uint32_t& value);
     static bool parseHex16(const char* text, uint16_t& value);
     static HardwareControlReplyResult parseResultName(const char* text);
+    static bool calibrationActive(HallCalibrationRemoteState state);
 
     HardwareSerial& m_serial;
     RequestType m_requestType;
@@ -173,6 +177,7 @@ private:
     bool m_hasTelemetry;
     HallCalibrationRemoteStateSnapshot m_calibrationState;
     bool m_hasCalibrationState;
+    uint32_t m_lastCalibrationKeepAliveMs;
     HallCalibrationRemoteResult m_calibrationResult;
     bool m_hasCalibrationResult;
     HardwareControlReply m_reply;

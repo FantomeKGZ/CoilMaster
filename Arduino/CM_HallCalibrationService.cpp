@@ -24,12 +24,9 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
       m_applyConfirmAtMs(0UL),
       m_startedAtMs(0UL),
       m_lastSampleMs(0UL),
-      m_baselineSum(0UL),
+      m_measurementId(0UL),
       m_baselineSamples(0U),
-      m_minAdc(1023U),
-      m_maxAdc(0U),
-      m_runSamples(0U),
-      m_resultDurationMs(0UL)
+      m_runSamples(0U)
 {
 }
 
@@ -74,8 +71,6 @@ bool HallCalibrationService::physicalStart(uint32_t nowMs)
 
     m_startedAtMs = nowMs;
     m_lastSampleMs = nowMs;
-    m_minAdc = 1023U;
-    m_maxAdc = 0U;
     m_runSamples = 0U;
     m_hall.reset(nowMs);
     m_state = HallCalibrationState::Running;
@@ -198,20 +193,14 @@ bool HallCalibrationService::populateResult(HallCalibrationResult& result) const
 {
     if ((m_state != HallCalibrationState::Completed &&
          m_state != HallCalibrationState::WaitingApplyConfirm) ||
-        !baselineReady() || m_runSamples == 0U || m_maxAdc < m_minAdc)
+        !baselineReady() || m_runSamples == 0U || m_measurementId == 0UL)
     {
         return false;
     }
 
     result = HallCalibrationResult();
-    result.baselineAdc = static_cast<uint16_t>(
-        m_baselineSum / static_cast<uint32_t>(m_baselineSamples));
-    result.minAdc = m_minAdc;
-    result.maxAdc = m_maxAdc;
-    result.sampleCount = m_runSamples;
-    result.durationMs = m_resultDurationMs;
-    result.measurementId = measurementIdentity(result);
-    return result.measurementId != 0UL;
+    result.measurementId = m_measurementId;
+    return true;
 }
 
 bool HallCalibrationService::takeResult(HallCalibrationResult& result)
@@ -239,7 +228,6 @@ void HallCalibrationService::sampleBaseline(uint32_t nowMs)
     if (m_baselineSamples < 64U)
     {
         const uint16_t sequence = m_baselineSamples;
-        m_baselineSum += raw;
         ++m_baselineSamples;
         (void)HallCalibrationRawBridge::publish(
             HallCalibrationSamplePhase::Baseline,
@@ -261,8 +249,6 @@ void HallCalibrationService::sampleRunning(uint32_t nowMs)
     (void)m_hall.pollTurn(nowMs);
     const uint16_t raw = m_hall.rawValue();
     const uint16_t sequence = m_runSamples;
-    if (raw < m_minAdc) m_minAdc = raw;
-    if (raw > m_maxAdc) m_maxAdc = raw;
     if (m_runSamples < 0xFFFFU) ++m_runSamples;
     (void)HallCalibrationRawBridge::publish(
         HallCalibrationSamplePhase::Run,
@@ -275,25 +261,19 @@ void HallCalibrationService::sampleRunning(uint32_t nowMs)
 void HallCalibrationService::finish(uint32_t nowMs)
 {
     m_state = HallCalibrationState::Completed;
-    m_resultDurationMs = static_cast<uint32_t>(nowMs - m_startedAtMs);
-    m_resultPending = baselineReady() && m_runSamples != 0U && m_maxAdc >= m_minAdc;
+    m_measurementId = measurementIdentity(nowMs);
+    m_resultPending = baselineReady() && m_runSamples != 0U && m_measurementId != 0UL;
 }
 
-uint32_t HallCalibrationService::measurementIdentity(
-    const HallCalibrationResult& result) const
+uint32_t HallCalibrationService::measurementIdentity(uint32_t completedAtMs) const
 {
-    // Transient correlation token only: bind a proposal to this exact arm/result
-    // without carrying a heavy general-purpose hash loop in the Uno image.
-    uint32_t hash = m_armedAtMs ^ result.durationMs;
-    hash ^= static_cast<uint32_t>(result.baselineAdc) << 22U;
-    hash ^= static_cast<uint32_t>(result.minAdc) << 12U;
-    hash ^= static_cast<uint32_t>(result.maxAdc) << 2U;
-    hash ^= (static_cast<uint32_t>(result.sampleCount) << 16U) |
-            static_cast<uint32_t>(result.sampleCount);
-    hash ^= hash << 13U;
-    hash ^= hash >> 17U;
-    hash ^= hash << 5U;
-    return hash == 0UL ? 1UL : hash;
+    uint32_t token = m_armedAtMs ^ m_startedAtMs ^ completedAtMs;
+    token ^= (static_cast<uint32_t>(m_runSamples) << 16U) |
+             static_cast<uint32_t>(m_runSamples);
+    token ^= token << 13U;
+    token ^= token >> 17U;
+    token ^= token << 5U;
+    return token == 0UL ? 1UL : token;
 }
 
 void HallCalibrationService::clearMeasurements()
@@ -304,12 +284,9 @@ void HallCalibrationService::clearMeasurements()
     m_applyConfirmAtMs = 0UL;
     m_startedAtMs = 0UL;
     m_lastSampleMs = 0UL;
-    m_baselineSum = 0UL;
+    m_measurementId = 0UL;
     m_baselineSamples = 0U;
-    m_minAdc = 1023U;
-    m_maxAdc = 0U;
     m_runSamples = 0U;
-    m_resultDurationMs = 0UL;
 }
 
 } // namespace CM

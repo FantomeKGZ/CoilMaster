@@ -24,6 +24,7 @@ HardwareControlWeb::HardwareControlWeb(WebServer& server,
 
 void HardwareControlWeb::begin()
 {
+    m_calibrationHistoryReady = m_calibrationHistory.begin();
     m_server.on("/api/hardware/hall", HTTP_GET,
                 [this]() { handleState(); });
     m_server.on("/api/hardware/hall/refresh", HTTP_POST,
@@ -48,6 +49,8 @@ void HardwareControlWeb::begin()
                 [this]() { handleCalibrationAbort(); });
     m_server.on("/api/hardware/hall/calibration/apply", HTTP_POST,
                 [this]() { handleCalibrationApply(); });
+    m_server.on("/api/hardware/hall/calibration/history", HTTP_GET,
+                [this]() { handleCalibrationHistory(); });
 }
 
 void HardwareControlWeb::update(uint32_t nowMs)
@@ -91,6 +94,11 @@ void HardwareControlWeb::update(uint32_t nowMs)
             calibrationResult.recommendedThreshold = proposal.recommendedThreshold;
             calibrationResult.recommendedHysteresis = proposal.recommendedHysteresis;
             calibrationResult.direction = proposal.direction;
+            if (m_calibrationHistoryReady &&
+                !m_calibrationHistory.recordMeasurement(calibrationResult, nowMs, nullptr))
+            {
+                m_calibrationHistoryReady = false;
+            }
         }
         m_calibrationResult = calibrationResult;
         m_hasCalibrationResult = calibrationResult.valid;
@@ -101,6 +109,24 @@ void HardwareControlWeb::update(uint32_t nowMs)
     {
         m_reply = reply;
         m_hasReply = true;
+        if (m_pendingHistoryMeasurementId != 0UL && m_calibrationHistoryReady)
+        {
+            const HardwareControlReplyResult historyResult =
+                m_pendingHistoryAbort ? HardwareControlReplyResult::Cancelled
+                                      : reply.result;
+            const HallSettingsState* persisted =
+                historyResult == HardwareControlReplyResult::Applied &&
+                m_hasSettings && m_settings.valid && m_settings.fromEeprom
+                    ? &m_settings : nullptr;
+            if (!m_calibrationHistory.finalize(m_pendingHistoryMeasurementId,
+                                               historyResult,
+                                               persisted))
+            {
+                m_calibrationHistoryReady = false;
+            }
+            m_pendingHistoryMeasurementId = 0UL;
+            m_pendingHistoryAbort = false;
+        }
     }
 }
 
@@ -397,6 +423,8 @@ void HardwareControlWeb::handleCalibrationState()
     response += m_hasReply ? replyText(m_reply.result) : "NONE";
     response += F("\",\"last_reply_attempts\":");
     response += m_hasReply ? m_reply.sendAttempts : 0U;
+    response += F(",\"history_ready\":");
+    response += m_calibrationHistoryReady ? F("true") : F("false");
     response += F("}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
@@ -409,12 +437,17 @@ void HardwareControlWeb::handleCalibrationRefresh()
 void HardwareControlWeb::handleCalibrationArm()
 {
     m_hasCalibrationResult = false;
+    m_pendingHistoryMeasurementId = 0UL;
+    m_pendingHistoryAbort = false;
     queueAccepted(m_receiver.armHallCalibration(), "hall_control_busy");
 }
 
 void HardwareControlWeb::handleCalibrationAbort()
 {
-    queueAccepted(m_receiver.abortHallCalibration(), "hall_control_busy");
+    const bool accepted = m_receiver.abortHallCalibration();
+    if (accepted && m_pendingHistoryMeasurementId != 0UL)
+        m_pendingHistoryAbort = true;
+    queueAccepted(accepted, "hall_control_busy");
 }
 
 void HardwareControlWeb::handleCalibrationApply()
@@ -446,14 +479,81 @@ void HardwareControlWeb::handleCalibrationApply()
         return;
     }
 
-    queueAccepted(
-        m_receiver.proposeHallCalibration(
-            m_calibrationResult.measurementId,
-            m_calibrationResult.recommendedThreshold,
-            m_calibrationResult.recommendedHysteresis,
-            static_cast<uint16_t>(releaseDebounceMs),
-            m_calibrationResult.direction),
-        "hall_control_busy");
+    const uint32_t measurementId = m_calibrationResult.measurementId;
+    const bool accepted = m_receiver.proposeHallCalibration(
+        measurementId,
+        m_calibrationResult.recommendedThreshold,
+        m_calibrationResult.recommendedHysteresis,
+        static_cast<uint16_t>(releaseDebounceMs),
+        m_calibrationResult.direction);
+    if (accepted)
+    {
+        m_pendingHistoryMeasurementId = measurementId;
+        m_pendingHistoryAbort = false;
+    }
+    queueAccepted(accepted, "hall_control_busy");
+}
+
+void HardwareControlWeb::handleCalibrationHistory()
+{
+    if (!m_calibrationHistoryReady)
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"hall_calibration_history_unavailable\"}");
+        return;
+    }
+
+    HallCalibrationHistoryEntry entries[HallCalibrationHistoryStore::MaxEntries];
+    uint8_t count = 0U;
+    if (!m_calibrationHistory.load(entries, count))
+    {
+        m_calibrationHistoryReady = false;
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"hall_calibration_history_read_failed\"}");
+        return;
+    }
+
+    String response;
+    response.reserve(640U + static_cast<size_t>(count) * 420U);
+    response += F("{\"available\":true,\"limit\":10,\"count\":");
+    response += count;
+    response += F(",\"items\":[");
+    for (int index = static_cast<int>(count) - 1; index >= 0; --index)
+    {
+        const HallCalibrationHistoryEntry& entry = entries[index];
+        if (index != static_cast<int>(count) - 1) response += ',';
+        response += F("{\"measurement_id\":"); response += entry.measurementId;
+        response += F(",\"recorded_at_ms\":"); response += entry.recordedAtMs;
+        response += F(",\"rtc_valid\":"); response += entry.rtcValid ? F("true") : F("false");
+        response += F(",\"baseline\":"); response += entry.baselineAdc;
+        response += F(",\"min\":"); response += entry.minAdc;
+        response += F(",\"max\":"); response += entry.maxAdc;
+        response += F(",\"span\":"); response += static_cast<uint16_t>(entry.maxAdc - entry.minAdc);
+        response += F(",\"samples\":"); response += entry.sampleCount;
+        response += F(",\"duration_ms\":"); response += entry.durationMs;
+        response += F(",\"recommendation_valid\":");
+        response += entry.recommendationValid ? F("true") : F("false");
+        response += F(",\"recommended_threshold\":"); response += entry.recommendedThreshold;
+        response += F(",\"recommended_hysteresis\":"); response += entry.recommendedHysteresis;
+        response += F(",\"recommended_direction\":\"");
+        response += directionText(entry.recommendedDirection);
+        response += F("\",\"apply_result\":\""); response += replyText(entry.applyResult);
+        response += F("\",\"persisted_valid\":");
+        response += entry.persistedProfileValid ? F("true") : F("false");
+        if (entry.persistedProfileValid)
+        {
+            response += F(",\"persisted_threshold\":"); response += entry.persistedThreshold;
+            response += F(",\"persisted_hysteresis\":"); response += entry.persistedHysteresis;
+            response += F(",\"persisted_release_debounce_ms\":");
+            response += entry.persistedReleaseDebounceMs;
+            response += F(",\"persisted_direction\":\"");
+            response += directionText(entry.persistedDirection);
+            response += '"';
+        }
+        response += '}';
+    }
+    response += F("]}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 } // namespace CM

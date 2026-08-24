@@ -8,7 +8,7 @@
 
 Arduino Uno остаётся минимальным authoritative realtime/safety controller. ESP32 получает расширенный Hall analysis/UI, но не получает права physical START или SSR.
 
-## Последний полностью verified software/memory baseline
+## Последний полностью verified pre-exact-apply baseline
 
 Commit:
 
@@ -33,24 +33,11 @@ Flash 29660 / 32256
 free Flash = 2596 bytes
 ```
 
-Цель static SRAM headroom 350–400 bytes достигнута с запасом. В этот verified image уже входят bounded Keypad 3.1.1 semantics, bufferless PCF8574 LCD/TWI owner, compact Hall runtime, ESP32-owned recommendation math и 112-byte CMP1 RX boundary для worst-case 10-coil JOB.
+В этот image уже входят bounded Keypad 3.1.1 semantics, bufferless PCF8574 LCD/TWI owner, compact Hall runtime, ESP32-owned recommendation math и 112-byte CMP1 RX boundary для worst-case 10-coil JOB.
 
-**Важно:** цифры 469 B / 2596 B относятся к `10e11bba`. После нового Hall local-confirm/proposal/apply кода Uno размер нужно измерить новым Actions build. Не переносить эти цифры на текущий HEAD как уже подтверждённые.
+## Exact Hall apply — software architecture
 
-## Подтверждённый промежуточный checkpoint
-
-После исправления ESP32 Wire/LCD compatibility пользователь сообщил, что три новые CI проверки GREEN. На этой базе продолжен exact Hall apply handshake.
-
-Последний prior infrastructure fix:
-
-```text
-e2f76d41165fb6a2fa9b845eaf11a4b17e23f25a
-build(esp32): expose framework Wire through LCD compat shim
-```
-
-## Текущий Hall flow — реализован в коде, latest batch ещё требует Actions verification
-
-### 1. Calibration arm / motor start
+### Calibration / motor start
 
 ```text
 ESP32 CAL_ARM
@@ -63,175 +50,159 @@ ESP32 CAL_ARM
   -> SSR permit только Arduino и только в RUNNING
 ```
 
-Правила:
+`CAL_ARM` никогда не запускает двигатель. START до первого `#` блокируется. ESP32/Web не управляют SSR.
 
-- `CAL_ARM` никогда не запускает двигатель;
-- physical START до первого `#` блокируется;
-- любая неправильная keypad action во время calibration abort-ит flow;
-- ESP32/Web не управляют SSR.
+### UART-loss fail-safe
 
-### 2. UART-loss fail-safe
+ESP32 посылает `CAL|GET` keepalive примерно раз в 1 s. Arduino использует `PeerTimeoutMs = 3000 ms`. Потеря валидного CAL traffic во время calibration/apply приводит к abort; transient proposal удаляется, SSR остаётся OFF. Reboot ничего не продолжает автоматически.
 
-ESP32 runtime посылает валидный `CMP1|CAL|GET|C|CRC` keepalive примерно раз в 1 s.
+### Exact measurement identity
 
-Arduino:
-
-```text
-PeerTimeoutMs = 3000 ms
-```
-
-При потере валидного CAL traffic active calibration/apply переводится в `Aborted`, transient proposal очищается, SSR остаётся OFF. Никакого auto-resume после reboot.
-
-### 3. Measurement identity
-
-Arduino возвращает measurement-only summary и transient non-zero `measurement_id`:
+Arduino возвращает measurement-only result:
 
 ```text
 CMP1|CAL_RESULT|INVALID|baseline|min|max|0|0|RISING|samples|duration_ms|measurement_id|C|CRC
 ```
 
-Threshold/hysteresis/direction placeholders на Uno остаются нейтральными. Recommendation вычисляется только `CM_HallCalibrationAnalyzer` на ESP32.
+Recommendation вычисляется только ESP32. `measurement_id` transient и не записывается в EEPROM.
 
-`measurement_id` строится из конкретного arm/result context и не хранится как pending state в EEPROM. После reboot старый proposal нельзя продолжить.
+### Exact proposal / local apply
 
-### 4. Exact proposal
-
-ESP32 отправляет:
+ESP32:
 
 ```text
 CMP1|CAL_PROPOSAL|measurement_id|threshold|hysteresis|release_debounce_ms|direction|C|CRC
 ```
 
-Arduino до staging проверяет:
-
-- CRC/shape;
-- settings ranges;
-- safe machine state;
-- наличие текущего completed result;
-- exact `measurement_id` equality.
-
-Proposal переиспользует существующий bounded single-slot hardware-control request. Новая UART queue не создавалась.
-
-### 5. Local confirmation перед EEPROM
+Arduino проверяет CRC/shape, settings ranges, safe state, completed measurement и exact identity. Proposal использует существующий bounded single-slot hardware-control request.
 
 После валидного proposal:
 
 ```text
-Arduino WAITING_APPLY_CONFIRM
+WAITING_APPLY_CONFIRM
 ```
 
-В этом состоянии:
+В этом состоянии settings находятся только в RAM; SSR OFF; START блокируется; только отдельный локальный `#` вызывает `HardwareSettingsController::apply()`.
 
-- settings лежат только transient RAM;
-- EEPROM ещё не изменён;
-- SSR force OFF;
-- physical START блокируется и **не** считается подтверждением;
-- только отдельный `#` на Arduino вызывает существующий `HardwareSettingsController::apply()`;
-- любая другая keypad action отменяет proposal;
-- CAL abort / UART-loss / timeout отменяют proposal без записи.
-
-### 6. Authoritative persistence / response
-
-После локального `#` Arduino использует существующий CRC/versioned `HardwareSettingsStore` как единственный authoritative EEPROM owner и отвечает:
+После apply Arduino отвечает authoritative profile:
 
 ```text
 CMP1|CAL_APPLIED|measurement_id|result|threshold|hysteresis|release_debounce_ms|direction|C|CRC
 ```
 
-ESP32 принимает final response только если `measurement_id` совпадает с pending proposal id.
+Допустимые result semantics: `APPLIED`, `BUSY`, `INVALID`, `IDENTITY_MISMATCH`, `PERSISTENCE_FAILED`, `CANCELLED`.
 
-Допустимые result semantics включают:
+EEPROM owner остаётся существующий CRC/versioned `HardwareSettingsStore`; proposal/measurement identity в EEPROM schema отсутствуют.
 
-```text
-APPLIED
-BUSY
-INVALID
-IDENTITY_MISMATCH
-PERSISTENCE_FAILED
-CANCELLED
-```
+### Web apply
 
-### 7. Web/UI apply path
-
-Calibration UI больше не использует generic `/api/hardware/hall/settings` для применения recommendation.
-
-Новый endpoint:
+Calibration UI не использует generic `/api/hardware/hall/settings` для recommendation. Endpoint:
 
 ```text
 POST /api/hardware/hall/calibration/apply
 ```
 
-Browser передаёт только `release_debounce_ms`.
+Browser передаёт только release debounce; exact measurement id и recommendation ESP32 берёт из текущего analyzer result. EEPROM save всё равно требует отдельный `#` на Arduino.
 
-ESP32 server сам берёт из текущего cached calibration result:
+## Exact-apply size regression и recovery
 
-- exact `measurement_id`;
-- recommended threshold;
-- recommended hysteresis;
-- recommended direction.
-
-Это не позволяет браузеру подменить recommendation в calibration apply path.
-
-UI показывает второй обязательный локальный шаг:
+После добавления полного exact-id/local-confirm apply flow первый Uno size gate на commit `b2ce03c7` дошёл до линковки, но не поместился:
 
 ```text
-WAITING_APPLY_CONFIRM
--> нажать # на Arduino для EEPROM save
+Actions 32707416029  build-uno  FAILED (size)
+RAM   1757 / 2048  -> free 291 bytes
+Flash 32708 / 32256 -> overflow 452 bytes
 ```
 
-START не подтверждает сохранение.
+Функциональная compile/link логика была корректна; failure был только `checkprogsize`.
 
-## Последние commits exact apply batch
+Затем выполнен size-recovery без удаления safety-функций:
 
 ```text
-91b6b865  feat(hall): add exact calibration proposal client
-f424d1b9  feat(hall): bind proposal to measurement identity
-2b61a892  feat(hall): publish exact calibration measurement id
-4f22725c  test(hall): require exact calibration proposal identity
-d916f5c1  feat(hall): expose calibration proposal lane
-2f3f667b  feat(hall): route exact calibration proposals on Uno
-a8094872  fix(hall): keep proposal alive through local apply confirm
-ace97936  feat(hall): require local confirm before calibration EEPROM apply
-26d6d734  feat(hall): route calibration proposals through ESP32 receiver
-7943806a  feat(hall): expose exact calibration apply endpoint
-d403da97  feat(hall): stage exact calibration proposal from web
-aea6042f  feat(hall): require Arduino confirm for calibration apply
-d1acbe4b  test(hall): enforce local-confirmed exact apply path
+189990f8  remove duplicate Hall proposal parser path
+4a11a7d6  hide obsolete hardware-control name API
+913ee57e  move hardware protocol literals to AVR PROGMEM; canonical numeric parser
+ eaa1b93f test(hall): enforce single proposal parser owner
 ```
 
-Current expected HEAD at записи этого handoff:
+### Последний verified Uno size gate
+
+Actions:
 
 ```text
-d1acbe4b14b38e4381063f9ce1beaa44005c7896
+32708164073  build-uno  SUCCESS
 ```
 
-Всегда refetch branch HEAD перед изменением.
+Exact checkout:
 
-## Verification status
+```text
+913ee57e723bac0ca71bbdca7cddf9bc0ce699ed
+```
 
-### GREEN / доказано
+Размер:
 
-- memory optimization baseline `10e11bba`;
-- 469 B free SRAM и 2596 B free Flash на этом baseline;
-- bounded Keypad owner;
-- bufferless LCD owner;
-- physical START / Arduino SSR authority invariants в prior verified tests;
-- пользователь сообщил 3 GREEN CI после `e2f76d41` infrastructure checkpoint.
+```text
+RAM   1219 / 2048 = 59.5%
+free SRAM = 829 bytes
 
-### UNVERIFIED после exact apply batch
+Flash 32144 / 32256 = 99.7%
+free Flash = 112 bytes
+```
 
-Нужно получить Actions именно на `d1acbe4b` или более новом descendant:
+SRAM gate теперь имеет очень хороший запас. Flash compile GREEN, но **112 B headroom считается слишком малым для завершённого production gate**. Продолжается только Flash-size recovery без удаления exact-id/local-confirm safety semantics.
 
-1. host-tests;
-2. ESP32 PlatformIO build;
-3. Uno PlatformIO build;
-4. фактические Uno RAM/Flash после добавления transient proposal state.
+### Последний verified host gate
 
-До этого не объявлять latest exact apply software GREEN и не утверждать, что current Uno всё ещё имеет ровно 469 B free SRAM.
+Actions:
 
-### Hardware
+```text
+32708236369  host-tests  SUCCESS
+```
 
-По решению пользователя промежуточные hardware smoke-tests не выполнять. Hardware gate остаётся отложенным до завершения software migration.
+Exact checkout:
+
+```text
+eaa1b93f2fcbd0579503aeedd93a62baddc72fe7
+```
+
+Подтверждено:
+
+- 4/4 CMake tests;
+- release safety contracts;
+- physical START / Arduino SSR authority;
+- exact-id/local-confirm Hall contracts;
+- transient proposal persistence boundary;
+- single authoritative `CAL_PROPOSAL` parser owner;
+- no automatic material writeoff.
+
+Ранние runs `32708072646`, `32708120077`, `32708164026` были промежуточными stale Hall audit failures до `eaa1b93f`. `32708119989` был промежуточным compile failure на `4a11a7d6` до завершения PROGMEM helper refactor. Они не являются состоянием текущего verified checkpoint.
+
+## Current Flash recovery after verified 112 B headroom
+
+После `eaa1b93f` начат следующий безопасный подпакет:
+
+```text
+2a64c818  expose shared hardware CRC frame validator
+ a240a70c share CRC validator implementation owner
+ b168cf75 reuse hardware CRC validator for Hall CAL
+20e78589  trim stale Hall calibration protocol declarations
+```
+
+Hall `CAL ARM/ABORT/GET` больше не должен держать второй независимый `parseHex16 + CRC verify` implementation. `CAL_PROPOSAL` уже проходит через authoritative `HardwareControlProtocol::parseRequest()`.
+
+**Этот новый CRC-sharing подпакет ещё требует нового Uno build/size evidence.** Не переносить цифры 829/112 на его HEAD как уже измеренные.
+
+Если Flash headroom после него всё ещё недостаточен, следующий безопасный кандидат — перевести `CAL_STATE`, `CAL_RESULT`, `CAL_APPLIED` на уже существующий streaming `CrcFrameWriter` в `CM_UartEventTransport` и удалить buffer-format Hall response layer. Wire bytes и protocol semantics должны остаться теми же.
+
+## ESP32 mirror / compile status
+
+ESP32 `processCalibrationApplied()` уже проверяет exact pending measurement id и парсит фактически сохранённые settings, но отдельный runtime mirror update из успешного `CAL_APPLIED` ещё нужно закрыть после стабилизации Uno Flash.
+
+Свежего ESP32 PlatformIO build после полного exact-apply/size-recovery batch среди последних присланных runs **нет**. Не объявлять ESP32 compile GREEN без отдельного `build-esp32` evidence.
+
+## Hardware policy
+
+По решению пользователя промежуточные hardware smoke-tests не выполнять. Hardware gate остаётся отложенным до завершения software migration/optimization.
 
 ## Safety invariants — не ослаблять
 
@@ -253,13 +224,13 @@ d1acbe4b14b38e4381063f9ce1beaa44005c7896
 
 ## Следующий active block
 
-1. Проверить latest Actions для `d1acbe4b` или descendant.
-2. Если compile/test failure — исправить точечно, не откатывая exact-id/local-confirm architecture.
-3. Зафиксировать новую Uno SRAM/Flash цифру.
-4. Проверить remote abort semantics в `WAITING_APPLY_CONFIRM`; local key/UART-loss cancellation уже fail-closed.
-5. Добавить ESP32 mirror/audit representation final `CAL_APPLIED` profile, если текущего web reply cache недостаточно для reboot-visible audit.
+1. Получить Uno build/size после CRC-sharing batch (`20e78589` или descendant).
+2. Цель: сохранить SRAM >= 350–400 B free и вернуть практический Flash headroom существенно выше 112 B.
+3. Если Flash всё ещё близок к лимиту — streaming Hall response frames через существующий `CrcFrameWriter`, без изменения wire semantics.
+4. После стабилизации Uno size закрыть ESP32 mirror фактически сохранённого `CAL_APPLIED` profile.
+5. Получить отдельный `build-esp32` GREEN.
 6. Обновить `06_ACTIVE_WORK_AND_NEXT_STEPS.md` после software gate stabilization.
-7. Только после software completion провести единый hardware acceptance.
+7. Только затем единый hardware acceptance.
 
 ## Финальный hardware acceptance gate
 
@@ -294,4 +265,4 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 ## Инструкция продолжения
 
-Работать только из `cmp-protocol-v1`. Перед каждым update fetch актуальный файл и blob SHA. Hardware checks пока не запрашивать. Сначала получить CI/build/size evidence exact apply batch. После GREEN завершить audit/mirror и обновить `06`. Не передавать ESP32 право START/SSR, не делать auto-apply и не очищать EEPROM.
+Работать только из `cmp-protocol-v1`. Перед каждым update fetch актуальный файл и blob SHA. Hardware checks пока не запрашивать. Сначала получить новый Uno size после CRC-sharing batch; при необходимости продолжить streaming Hall frame optimization. Затем закрыть ESP32 mirror + build. Не передавать ESP32 право START/SSR, не делать auto-apply и не очищать EEPROM.

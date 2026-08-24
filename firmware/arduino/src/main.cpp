@@ -943,7 +943,11 @@ void setup()
     ssr.begin();
 #endif
 
+#if CM_FEATURE_BOOT_DIAGNOSTICS
+    cmBootSerial.begin(115200);
+#else
     Serial.begin(115200);
+#endif
     printResetCause();
     printBootStage(F("SERIAL"));
 

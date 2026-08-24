@@ -1,4 +1,5 @@
 #include "CM_HardwareControlWeb.h"
+#include "CM_HallCalibrationAnalyzer.h"
 
 namespace CM
 {
@@ -75,6 +76,20 @@ void HardwareControlWeb::update(uint32_t nowMs)
     HallCalibrationRemoteResult calibrationResult;
     while (m_receiver.takeHallCalibrationResult(calibrationResult))
     {
+        if (calibrationResult.valid)
+        {
+            const HallCalibrationProposal proposal =
+                HallCalibrationAnalyzer::analyzeSummary(
+                    calibrationResult.baselineAdc,
+                    calibrationResult.minAdc,
+                    calibrationResult.maxAdc,
+                    calibrationResult.sampleCount,
+                    calibrationResult.durationMs);
+            calibrationResult.recommendationValid = proposal.valid;
+            calibrationResult.recommendedThreshold = proposal.recommendedThreshold;
+            calibrationResult.recommendedHysteresis = proposal.recommendedHysteresis;
+            calibrationResult.direction = proposal.direction;
+        }
         m_calibrationResult = calibrationResult;
         m_hasCalibrationResult = calibrationResult.valid;
     }

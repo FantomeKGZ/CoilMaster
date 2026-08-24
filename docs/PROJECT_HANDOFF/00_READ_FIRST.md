@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-23**  
+Дата обновления: **2026-08-24**  
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
@@ -9,8 +9,9 @@
 ```text
 /AGENTS.md
 this file
-docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
+docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
 docs/PROJECT_HANDOFF/68_REFERENCE_INTEGRATION_LOG_2026-08-23.md
 docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
 docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
@@ -46,7 +47,9 @@ fix(esp32): remove duplicate warehouse web bootstrap
 
 ## Current active phase
 
-Software cleanup закрыт. Текущая активная продуктовая работа — интеграция legacy-справочника обмотчика из `FantomeKGZ/motor-winding-reference` с единым desktop/mobile дизайном CoilMaster, общими ресурсами и сохранением таблиц/изображений/описаний.
+Software cleanup закрыт. Текущая срочная hardware/runtime работа — восстановление стабильного минимального Arduino Uno runtime после доказанного SRAM exhaustion, возврат проверенной Keypad library и перенос расширенного Hall test/calibration analysis на ESP32 при сохранении Hall turn counting и SSR authority на Arduino. Exact plan: `docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md`.
+
+Legacy winding-reference integration остаётся сохранённой продуктовой линией и продолжается после закрытия текущего Arduino hardware gate.
 
 Подробный хронологический журнал этой работы:
 

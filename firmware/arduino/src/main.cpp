@@ -55,16 +55,14 @@ NullDiagnosticSerial diagnosticSerial;
 #endif
 
 #if defined(__AVR__)
-#if CM_FEATURE_DIAGNOSTICS
+// Capture reset provenance even in production builds where Serial diagnostics
+// are compiled out. The LCD boot screen is the fail-safe field diagnostic.
 uint8_t cmResetFlags __attribute__((section(".noinit")));
-#endif
 
 void cmCaptureResetFlags() __attribute__((naked, section(".init3")));
 void cmCaptureResetFlags()
 {
-#if CM_FEATURE_DIAGNOSTICS
     cmResetFlags = MCUSR;
-#endif
     MCUSR = 0U;
     wdt_disable();
 }
@@ -216,11 +214,21 @@ void showLcdBootStage(const __FlashStringHelper* stage)
 {
 #if CM_FEATURE_LCD1602
     lcd.setCursor(0U, 0U);
-    lcd.print(F("CM BOOT         "));
+    lcd.print(F("CM BOOT RST:"));
+#if defined(__AVR__)
+    if (cmResetFlags < 0x10U) lcd.print('0');
+    lcd.print(cmResetFlags, HEX);
+#else
+    lcd.print(F("--"));
+#endif
+    lcd.print(F("  "));
     lcd.setCursor(0U, 1U);
     lcd.print(F("                "));
     lcd.setCursor(0U, 1U);
     lcd.print(stage);
+    // Keep every checkpoint visible long enough to identify the last completed
+    // service during a reset loop. SSR is already initialized fail-safe OFF.
+    delay(350U);
 #else
     (void)stage;
 #endif
@@ -882,6 +890,11 @@ void updateOutputs()
 
 void setup()
 {
+#if CM_FEATURE_SSR
+    // Establish the physical safety boundary before diagnostics or services.
+    ssr.begin();
+#endif
+
     Serial.begin(115200);
     printResetCause();
     printBootStage(F("SERIAL"));
@@ -907,9 +920,8 @@ void setup()
     printBootStage(F("HW_SETTINGS"));
 
 #if CM_FEATURE_SSR
-    ssr.begin();
-    showLcdBootStage(F("SSR"));
-    printBootStage(F("SSR"));
+    showLcdBootStage(F("SSR SAFE OFF"));
+    printBootStage(F("SSR_SAFE_OFF"));
 #endif
 #if CM_FEATURE_BUZZER
     buzzer.begin();

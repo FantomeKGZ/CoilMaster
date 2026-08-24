@@ -62,4 +62,20 @@ forbidText('const uint32_t runId = strtoul(runText, nullptr, 10);',
 forbidText('const unsigned long parsed = strtoul(jobText, &end, 10);',
   'JOB_CANCEL correlation must not accept signs/whitespace/non-canonical tokens');
 
+
+requireText('class CrcFrameWriter',
+  'Arduino transport must stream CRC frames with bounded stack');
+requireText('frame.write(F("CMP1|LOCAL_EVT|"))',
+  'LOCAL_EVT provenance frame must use the streaming writer');
+requireText('frame.writeUnsigned(program.coilCount)',
+  'streamed LOCAL_EVT must retain exact coil count');
+requireText('frame.writeUnsigned(turns)',
+  'streamed LOCAL_EVT must retain every exact turn target');
+requireText('return frame.finish();',
+  'streamed frames must append their CRC suffix');
+forbidText('char frame[176]',
+  'Uno transport must not restore the 176-byte LOCAL_EVT stack frame');
+forbidText('char frame[96]',
+  'Uno transport must not restore the 96-byte EVT stack frame');
+
 console.log('Arduino JOB/ACK/cancel parser contracts: OK');

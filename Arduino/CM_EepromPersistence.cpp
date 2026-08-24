@@ -6,6 +6,9 @@
 
 namespace CM
 {
+constexpr uint16_t EepromPersistence::MetadataMagic;
+constexpr uint8_t EepromPersistence::MetadataVersion;
+
 EepromPersistence::EepromPersistence()
     : m_state()
 {

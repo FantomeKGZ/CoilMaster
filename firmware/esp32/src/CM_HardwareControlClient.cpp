@@ -60,6 +60,18 @@ HardwareControlClient::HardwareControlClient(HardwareSerial& serial)
 
 void HardwareControlClient::update(uint32_t nowMs)
 {
+    if (m_requestType == RequestType::StageCalibrationProposal &&
+        m_calibrationState.valid &&
+        m_calibrationState.state == HallCalibrationRemoteState::WaitingApplyConfirm)
+    {
+        if (static_cast<uint32_t>(nowMs - m_lastCalibrationKeepAliveMs) >=
+            CalibrationKeepAliveMs)
+        {
+            sendCalibrationKeepAlive(nowMs);
+        }
+        return;
+    }
+
     if (m_requestType != RequestType::None)
     {
         if (!m_waitingReply)

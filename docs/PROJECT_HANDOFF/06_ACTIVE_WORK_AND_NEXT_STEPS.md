@@ -329,3 +329,19 @@ Commits `14209cca...` and `9b17e036...` make production startup explicit and obs
 
 Exact LCD contract locally GREEN. Await Arduino Uno Build and physical reflash. If boot stops, the last displayed stage identifies the failing service.
 
+
+
+### Arduino reset-loop LCD diagnosis — 2026-08-24
+
+Operator isolation test (Uno + LCD only, USB power) still repeatedly showed `CM BOOT`. This excludes ESP32 and other external modules as the trigger and classifies the symptom as an Arduino software reset loop.
+
+Commit `4bcb43b6...` adds production-visible reset provenance and bounded boot checkpoints:
+
+- SSR is initialized exactly once, fail-safe OFF, before diagnostics and all checkpoint delays;
+- AVR `MCUSR` reset flags are captured even when `CM_FEATURE_DIAGNOSTICS=0`;
+- LCD row 1 shows `CM BOOT RST:xx`;
+- LCD row 2 holds each boot stage for 350 ms;
+- stages include `LCD/UART/EEPROM/SETTINGS/SSR SAFE OFF/BUZZER/START/STATE`;
+- no automatic START, resume, SSR activation or writeoff behavior was added.
+
+Regression `db158bf9...` protects reset capture, readable holds and early single-owner SSR initialization. After Arduino Build is GREEN, flash the firmware and record the exact repeating `RST:xx` value plus the last row-2 stage visible before restart. Do not infer the root cause from blinking alone.

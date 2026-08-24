@@ -242,6 +242,41 @@ START/SSR/peer-timeout/local-# / EEPROM semantics не менялись.
 
 Этот experiment **ещё не имеет verified Uno size**. Следующий `build-uno` на `4823ecdf...` или descendant сравнивать с текущим verified `31648 Flash / 1213 RAM`.
 
+## Prepared compact completion protocol — not active yet
+
+Чтобы убрать длинный identity-only legacy carrier после подтверждения backward compatibility, на ESP32 подготовлен отдельный bounded parser для:
+
+```text
+CMP1|CAL_DONE|measurement_id|C|CRC
+```
+
+Commits:
+
+```text
+7025769132fbb1e77c572e8bf81c9965c7342673  feat(hall): define compact calibration done protocol
+29c19abd3abd54b9d3660adc5cc5fa398ef45d6a  feat(hall): parse compact calibration done frames
+6918df96aa5a9d16bfc8f3686aad9e17d8718047  test(hall): lock compact calibration done parser
+```
+
+Parser rules:
+
+- exact category `CAL_DONE`;
+- exact capability `C`;
+- required CRC;
+- canonical unsigned decimal `measurement_id`;
+- `measurement_id != 0`;
+- no START/SSR/digitalWrite semantics.
+
+Важно: этот protocol **ещё не подключён к runtime**. Uno всё ещё отправляет legacy `CAL_RESULT`, а ESP32 active path всё ещё получает correlation через `HardwareControlClient::processCalibrationResult`. Не переключать Uno TX до того, как ESP32 начнёт принимать и публиковать `CAL_DONE` в тот же `HallCalibrationRemoteResult`/raw-summary flow.
+
+Следующий безопасный шаг:
+
+1. backward-compatible ESP32 runtime: принимать и `CAL_DONE`, и legacy `CAL_RESULT`;
+2. `CAL_DONE` должен создавать result только с Uno-owned `measurement_id`, после чего `UartEventReceiver` накладывает ESP32 raw summary ровно как сейчас;
+3. regression должен доказать, что оба completion frame приводят к одному result path;
+4. только затем переключить Uno `formatResult()` на `CAL_DONE`;
+5. измерить Uno Flash/RAM и при выигрыше уменьшить `MaxFrameLength`, если longest remaining response это позволяет.
+
 ## Wire contract
 
 ```text
@@ -298,4 +333,4 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
 
-Первое действие: проверить host + Uno Actions на `4823ecdf...` или descendant. Сравнение для Uno: `31648 Flash / 1213 RAM`. Если completion-tick ID уменьшил Flash и CI GREEN — оставить. Если дельта нулевая/хуже — откатить только этот experiment. Следующий архитектурный кандидат после этого — compact `CAL_DONE` completion frame с ESP32 backward-compatible приемом legacy `CAL_RESULT`, но не делать большой full-file ESP32 rewrite без атомарного patch-инструмента.
+Первое действие: проверить host + Uno Actions на `4823ecdf...` или descendant. Сравнение для Uno: `31648 Flash / 1213 RAM`. Если completion-tick ID уменьшил Flash и CI GREEN — оставить. Если дельта нулевая/хуже — откатить только этот experiment. Затем подключить prepared `CAL_DONE` parser backward-compatible на ESP32, не меняя Uno TX до regression-locked dual-frame receive path. Большой full-file ESP32 rewrite без атомарного patch-инструмента не делать.

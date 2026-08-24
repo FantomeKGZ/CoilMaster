@@ -17,17 +17,6 @@ enum class HallCalibrationCommand : uint8_t
     Get
 };
 
-struct HallCalibrationProposalRequest
-{
-    uint32_t measurementId;
-    HardwareSettings settings;
-
-    HallCalibrationProposalRequest()
-        : measurementId(0UL), settings()
-    {
-    }
-};
-
 enum class HallCalibrationApplyResult : uint8_t
 {
     Applied = 0U,
@@ -43,9 +32,6 @@ namespace HallCalibrationProtocol
 // Longest current response is CAL_RESULT at 85 bytes including CRC/newline.
 // Keep bounded headroom without spending 176 bytes of Uno stack per send.
 static constexpr size_t MaxFrameLength = 96U;
-
-bool parseRequest(char* frame, HallCalibrationCommand& command);
-bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal);
 
 bool formatState(HallCalibrationState state,
                  bool baselineReady,

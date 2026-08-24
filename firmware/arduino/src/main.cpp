@@ -58,11 +58,16 @@ NullDiagnosticSerial diagnosticSerial;
 // Capture reset provenance even in production builds where Serial diagnostics
 // are compiled out. The LCD boot screen is the fail-safe field diagnostic.
 uint8_t cmResetFlags __attribute__((section(".noinit")));
+volatile uint8_t cmLastLoopPhase __attribute__((section(".noinit")));
+volatile uint8_t cmLoopPhaseMagic __attribute__((section(".noinit")));
 
 void cmCaptureResetFlags() __attribute__((naked, section(".init3")));
 void cmCaptureResetFlags()
 {
-    cmResetFlags = MCUSR;
+    // MCUSR only defines the low five reset-source bits on supported AVR
+    // targets. Mask reserved bits so LCD evidence cannot report values such as
+    // F4/FC that have no reset-source meaning.
+    cmResetFlags = static_cast<uint8_t>(MCUSR & 0x1FU);
     MCUSR = 0U;
     wdt_disable();
 }
@@ -231,6 +236,45 @@ void showLcdBootStage(const __FlashStringHelper* stage)
     delay(350U);
 #else
     (void)stage;
+#endif
+}
+
+const __FlashStringHelper* loopPhaseName(uint8_t phase)
+{
+    switch (phase)
+    {
+        case 1U: return F("KEYPAD");
+        case 2U: return F("EXT START");
+        case 3U: return F("EVENT A");
+        case 4U: return F("TURN");
+        case 5U: return F("EVENT B");
+        case 6U: return F("UART");
+        case 7U: return F("HALL CAL");
+        case 8U: return F("HALL TELEMETRY");
+        case 9U: return F("BUZZER");
+        case 10U: return F("TRANSITION");
+        case 11U: return F("OUTPUTS");
+        case 12U: return F("ALIVE");
+        case 13U: return F("LOOP COMPLETE");
+        default: return F("NOT RECORDED");
+    }
+}
+
+void showPreviousLoopPhase()
+{
+#if CM_FEATURE_LCD1602 && defined(__AVR__)
+    if (cmLoopPhaseMagic == 0xA5U)
+    {
+        lcd.setCursor(0U, 0U);
+        lcd.print(F("PREV LOOP:      "));
+        lcd.setCursor(0U, 1U);
+        lcd.print(F("                "));
+        lcd.setCursor(0U, 1U);
+        lcd.print(loopPhaseName(cmLastLoopPhase));
+        delay(2000U);
+    }
+    cmLoopPhaseMagic = 0xA5U;
+    cmLastLoopPhase = 0U;
 #endif
 }
 
@@ -902,6 +946,7 @@ void setup()
 #if CM_FEATURE_LCD1602
     Wire.begin();
     lcdView.begin();
+    showPreviousLoopPhase();
     showLcdBootStage(F("LCD"));
     printBootStage(F("LCD"));
 #endif
@@ -953,21 +998,60 @@ void loop()
 {
     const uint32_t nowMs = millis();
 
+#if defined(__AVR__)
+    cmLastLoopPhase = 1U;
+#endif
     processKeypad();
+#if defined(__AVR__)
+    cmLastLoopPhase = 2U;
+#endif
     processExternalStart(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 3U;
+#endif
     processStateTransitions(nowMs);
     processCoreEvents();
 
+#if defined(__AVR__)
+    cmLastLoopPhase = 4U;
+#endif
     processTurnSource(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 5U;
+#endif
     processStateTransitions(nowMs);
     processCoreEvents();
 
+#if defined(__AVR__)
+    cmLastLoopPhase = 6U;
+#endif
     processUart(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 7U;
+#endif
     processHallCalibration(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 8U;
+#endif
     processHallTelemetry(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 9U;
+#endif
     processBuzzer(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 10U;
+#endif
     processStateTransitions(nowMs);
 
+#if defined(__AVR__)
+    cmLastLoopPhase = 11U;
+#endif
     updateOutputs();
+#if defined(__AVR__)
+    cmLastLoopPhase = 12U;
+#endif
     processAliveReport(nowMs);
+#if defined(__AVR__)
+    cmLastLoopPhase = 13U;
+#endif
 }

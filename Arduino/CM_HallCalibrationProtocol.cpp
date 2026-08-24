@@ -26,6 +26,7 @@ bool parseDecimal32(const char* text, uint32_t& value)
 {
     value = 0UL;
     if (text == nullptr || *text == '\0') return false;
+    if (text[0] == '0' && text[1] != '\0') return false;
     for (const char* cursor = text; *cursor != '\0'; ++cursor)
     {
         if (*cursor < '0' || *cursor > '9') return false;
@@ -170,7 +171,8 @@ bool formatApplied(uint32_t measurementId,
                    char* output,
                    size_t outputSize)
 {
-    if (output == nullptr || outputSize == 0U || measurementId == 0UL)
+    if (output == nullptr || outputSize == 0U || measurementId == 0UL ||
+        !settings.isValid())
         return false;
     const int length = snprintf(output, outputSize,
         "CMP1|CAL_APPLIED|%lu|%s|%u|%u|%u|%s|C",

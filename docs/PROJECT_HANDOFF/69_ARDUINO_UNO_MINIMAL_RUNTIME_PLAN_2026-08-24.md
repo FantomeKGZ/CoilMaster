@@ -8,6 +8,34 @@
 
 Этот файл — быстрый handoff в новый чат для продолжения аппаратного восстановления CoilMaster. Текущая цель: оставить Arduino Uno минимальным безопасным realtime-контроллером, вернуть проверенную клавиатуру и перенести расширенный тест/анализ Hall на ESP32 без передачи ESP32 права управлять SSR или автоматически запускать двигатель.
 
+## Статус текущего блока 2026-08-24
+
+- Проверенная библиотека `chris--a/Keypad @ ^3.1.1` возвращена; compact scanner удалён.
+- Фактический Uno Actions build после возврата Keypad показал: Flash `32466/32256` (100.7%, +210 bytes), RAM `1903/2048` (92.9%, 145 bytes static headroom). Этот build **FAILED**, GREEN не объявлять.
+- Старые `host-tests` failures на compact scanner были вызваны устаревшим regression contract; contract обновлён под восстановленный Keypad runtime.
+- Расчёт Hall recommendation перенесён на ESP32: `CM_HallCalibrationAnalyzer` теперь принимает bounded measurement summary и рассчитывает threshold/hysteresis/direction.
+- Arduino `CM_HallCalibrationService` оставлен временным safety/sampling owner, но больше не рассчитывает recommendation: передаёт baseline/min/max/sampleCount/duration; recommended fields остаются нулевыми до анализа ESP32.
+- `CM_HardwareControlWeb` на ESP32 анализирует полученный summary через `HallCalibrationAnalyzer::analyzeSummary()` и только затем публикует recommendation в UI.
+- `HallTelemetryService` удалён из production runtime ownership в `firmware/arduino/src/main.cpp`: Arduino теперь отдаёт bounded одиночный Hall snapshot раз в 250 ms без накопления telemetry window; aggregation переносится на ESP32.
+- EEPROM не очищался. Physical START и SSR authority остались на Arduino.
+- Новый Uno/ESP32 build после этого блока **ещё не подтверждён**; следующий обязательный gate — фактические Actions/PlatformIO Flash/RAM numbers.
+
+### Коммиты текущего блока
+
+```text
+7340662d  build(arduino): restore Keypad dependency
+0f4e2daf  fix(arduino): restore proven Keypad runtime
+d80b8971  test(arduino): restore Keypad runtime contract
+cb3863c0  feat(esp32): add Hall calibration analyzer
+1f6fd7df  feat(esp32): port Hall recommendation analysis
+11f7569f  feat(esp32): analyze Hall summary data
+eb7750ec  feat(esp32): analyze Hall summary data
+3fb83698  refactor(arduino): return Hall measurement summary
+b2e3550c  feat(esp32): own Hall calibration recommendation
+68f01b94  test(hall): enforce ESP32 recommendation ownership
+0c146e1b  refactor(arduino): minimize Hall telemetry runtime
+```
+
 ## Подтверждённая аппаратная картина
 
 - LCD 1602 физически исправен: I2C scanner стабильно находил `0x27`, отдельный `LiquidCrystal_I2C(0x27,16,2)` test выводил текст.
@@ -19,27 +47,8 @@
 - После compact keypad + streaming winding UART: RAM `1770/2048` (86.4%), Flash `31022/32256` (96.2%), 278 байт static headroom.
 - Production теперь запускается и не перезапускается.
 - USB diagnostic проходит `SERIAL/LCD/UART/EEPROM/HW_SETTINGS/SSR_SAFE_OFF/BUZZER/KEYPAD/START_BUTTON/STATE/OUTPUTS/READY`.
-- Текущий compact keypad физически не реагирует ни на одну клавишу даже после смены направления scan. До удаления библиотеки Keypad клавиатура работала.
+- Текущий compact keypad физически не реагировал ни на одну клавишу даже после смены направления scan. До удаления библиотеки Keypad клавиатура работала.
 - Пользователь подтвердил: до добавления расширенного Hall test/calibration блока система работала нормально.
-
-## Последние релевантные коммиты
-
-```text
-14209cca  fix(arduino): initialize LCD before startup services
-4bcb43b6  fix(arduino): expose reset loop on LCD
-24685cbe  fix(arduino): retain last loop phase across resets
-951314d9  build(arduino): add USB diagnostic environment
-6413dfe7  build(arduino): use lightweight reset diagnostics
-358558b6  refactor(arduino): replace Keypad library with compact scanner
-7437c303  build(arduino): remove obsolete Keypad dependency
-ae61d39c  refactor(arduino): stream winding UART frames
-5697db17  refactor(arduino): validate EEPROM metadata without full stack copy
-e8142be7  fix(arduino): define EEPROM metadata constants
-dc5f5606  fix(arduino): match proven keypad scan direction
-cc18247c  test(arduino): protect compatible keypad scan direction
-```
-
-Не объявлять commits после последнего operator-confirmed build GREEN без фактического Actions/PlatformIO результата.
 
 ## Принятое целевое разделение
 
@@ -111,6 +120,8 @@ ESP32 CAL_ARM
 5. Собрать `pio run -e uno`; записать RAM/Flash.
 6. Physical smoke: `1`, `#`, `*`, `D`; SSR/двигатель обесточены.
 
+Статус: кодовая часть выполнена; первый build подтвердил корректную установку/компиляцию Keypad, но firmware не влезла во Flash. Physical smoke отложен до проходящего production image.
+
 ### Этап 2 — минимизировать Hall runtime на Arduino
 
 1. Сохранить `CM_HallTurnSource`, threshold/hysteresis, direction и turn counting.
@@ -120,6 +131,8 @@ ESP32 CAL_ARM
 5. Сохранить settings persistence только в минимальной форме, необходимой realtime Hall detector.
 6. Собрать и измерить; целевой static headroom минимум 350–400 байт.
 
+Статус: `HallTelemetryService` уже исключён из production runtime; `HallCalibrationService` временно оставлен только как sampling/safety session и больше не выполняет recommendation math. Следующий шаг — измерить новый image, затем заменить calibration service минимальным session owner и убрать лишние formatting/state paths, если запас всё ещё недостаточен.
+
 ### Этап 3 — перенести Hall test/analysis на ESP32
 
 1. Сначала проверить существующие ESP32 `CM_HardwareControlWeb`/UART receiver owners и не создавать дубликаты.
@@ -128,6 +141,8 @@ ESP32 CAL_ARM
 4. Apply settings только явным действием оператора и только когда Arduino сообщает безопасное idle state.
 5. Reboot не продолжает calibration/apply автоматически.
 6. Добавить exact protocol/UI/safety regressions.
+
+Статус: recommendation calculation уже перенесён. Bounded telemetry сейчас совместимо передаётся как одиночные snapshots; полноценная ESP32 aggregation и proposal/apply handshake ещё не завершены.
 
 ### Этап 4 — дополнительный запас Uno
 
@@ -175,4 +190,4 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 ## Инструкция для следующего чата
 
-Продолжать сразу с этапа 1. Перед каждым update fetch актуальный файл из `cmp-protocol-v1` и использовать current blob SHA. Для новых файлов сначала подтвердить 404. Не использовать `main`. Не очищать EEPROM. Не утверждать CI/build/hardware GREEN без фактического результата. После каждого измеренного блока обновлять этот файл и `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Продолжать с этапа 2/3: сначала получить фактический build после `0c146e1b`, записать Flash/RAM, затем по результату завершить удаление тяжёлого calibration runtime и ESP32 aggregation/proposal handshake. Перед каждым update fetch актуальный файл из `cmp-protocol-v1` и использовать current blob SHA. Для новых файлов сначала подтвердить 404. Не использовать `main`. Не очищать EEPROM. Не утверждать CI/build/hardware GREEN без фактического результата. После каждого измеренного блока обновлять этот файл и `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.

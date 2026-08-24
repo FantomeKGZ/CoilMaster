@@ -46,8 +46,7 @@ enum class HallCalibrationSamplePhase : uint8_t
 
 namespace HallCalibrationProtocol
 {
-// Longest current response is CAL_RESULT at 85 bytes including CRC/newline.
-// Keep bounded headroom without spending 176 bytes of Uno stack per send.
+// Keep bounded headroom for calibration state/applied/sample frames.
 static constexpr size_t MaxFrameLength = 96U;
 
 // Thin compatibility adapters only. Parsing/CRC ownership lives in
@@ -71,12 +70,12 @@ bool formatSample(HallCalibrationSamplePhase phase,
                   char* output,
                   size_t outputSize);
 
-// Compact completion/correlation frame for ESP32-owned raw aggregation.
-// Legacy formatResult remains active until ESP32 dual-frame receive is wired.
+// Active compact completion/correlation frame for ESP32-owned raw aggregation.
 bool formatDone(const HallCalibrationResult& result,
                 char* output,
                 size_t outputSize);
 
+// Compatibility API retained for UartEventTransport; emits CAL_DONE.
 bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize);

@@ -352,3 +352,20 @@ Regression `db158bf9...` protects reset capture, readable holds and early single
 The isolated board completes every setup checkpoint and then restarts from the main loop. Raw LCD reset values changed from `FC` to `F4`; reserved MCUSR bits made those raw values non-actionable. Commit `24685cbe...` masks MCUSR to defined AVR reset bits and retains the last loop phase in `.noinit`; `890cdb8f...` protects this contract.
 
 Temporary PlatformIO environment `uno_diagnostic` was added by `36cf7a71...` + `951314d9...`. Production `uno` remains diagnostics-off. Upload `uno_diagnostic`, monitor USB Serial at 115200 and capture one complete reset cycle. This diagnostic profile is temporary and must be removed or left unselected after root-cause closure.
+
+
+### Arduino Uno SRAM recovery — active 2026-08-24
+
+Physical reset-loop diagnosis proved SRAM exhaustion: the former production image used 1965/2048 bytes (95.9%) and the diagnostic image reported `M=0` with corrupted retained reset flags. ELF ownership showed `espTransport=355` bytes, legacy `Keypad=111` bytes and five Wire/TWI buffers of 32 bytes each.
+
+First verified local build milestone after replacing the Keypad library with a compact PROGMEM matrix scanner:
+
+```text
+before: RAM 1965, Flash 31300
+after:  RAM 1834, Flash 30536
+saved:  RAM 131,  Flash 764
+```
+
+Commits `358558b6...`, `7437c303...`, `d2726440...` preserve debounce, one-event-per-press, emergency `D * # D`, calibration abort and all physical START/SSR safety boundaries.
+
+Current second block `ae61d39c...` + `299cefa5...` streams standard and LOCAL_EVT frames while calculating identical CMP1 CRC incrementally. It removes 96-byte and 176-byte UART stack arrays without reducing the four-event queue or exact local program provenance. Verify the new Uno build before hardware upload; then continue bounded hardware-control frame and LCD/I2C memory recovery.

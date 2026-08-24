@@ -228,6 +228,10 @@ void showPreviousLoopPhase()
         lcd.print(cmLastLoopPhase);
         delay(2000U);
     }
+#endif
+#if defined(__AVR__)
+    // Reset the retained marker only after USB diagnostics consumed the phase
+    // left by the previous reset cycle.
     cmLoopPhaseMagic = 0xA5U;
     cmLastLoopPhase = 0U;
 #endif

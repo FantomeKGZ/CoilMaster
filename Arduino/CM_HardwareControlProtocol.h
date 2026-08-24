@@ -17,6 +17,9 @@ enum class HardwareControlRequestType : uint8_t
     ResetHallSettings,
     StartHallTelemetry,
     StopHallTelemetry,
+    ArmHallCalibration,
+    AbortHallCalibration,
+    GetHallCalibration,
     StageHallCalibrationProposal
 };
 

@@ -66,7 +66,7 @@ bool appendCrc(char* output, size_t outputSize, int payloadLength)
            static_cast<size_t>(payloadLength + suffixLength) < outputSize;
 }
 
-bool verifyAndStripCrc(char* frame)
+bool verifyAndStripCrcImpl(char* frame)
 {
     if (frame == nullptr) return false;
     char* lastSeparator = strrchr(frame, '|');
@@ -123,6 +123,11 @@ PGM_P resultNameP(HardwareControlResult result)
         default: return PSTR("UNSUPPORTED");
     }
 }
+}
+
+bool verifyAndStripCrc(char* frame)
+{
+    return verifyAndStripCrcImpl(frame);
 }
 
 bool parseRequest(char* frame, HardwareControlRequest& request)

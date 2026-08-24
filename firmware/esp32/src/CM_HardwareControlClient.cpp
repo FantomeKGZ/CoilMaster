@@ -361,6 +361,11 @@ bool HardwareControlClient::processSettingsState(char* line, uint32_t nowMs)
 
     if (m_requestType == RequestType::GetSettings)
     {
+        if (m_pendingCalibrationMeasurementId != 0UL)
+        {
+            finishRequest(HardwareControlReplyResult::TimedOut);
+            return true;
+        }
         m_requestType = RequestType::None;
         m_waitingReply = false;
         m_sendAttempts = 0U;
@@ -543,7 +548,12 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
         }
         if (parsed.state == HallCalibrationRemoteState::Completed)
         {
-            finishRequest(HardwareControlReplyResult::TimedOut);
+            static const char ReconcilePayload[] = "CMP1|CFG_GET|HALL|C";
+            memcpy(m_requestPayload, ReconcilePayload, sizeof(ReconcilePayload));
+            m_requestType = RequestType::GetSettings;
+            m_waitingReply = false;
+            m_lastSendMs = 0UL;
+            m_sendAttempts = 0U;
             return true;
         }
     }

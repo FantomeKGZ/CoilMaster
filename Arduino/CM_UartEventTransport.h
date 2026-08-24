@@ -63,10 +63,10 @@ public:
 
 private:
     static constexpr uint8_t QueueCapacity = 4U;
-    // Longest supported incoming JOB/CFG frame stays below 104 bytes including
-    // terminating NUL. Outgoing telemetry uses HardwareControlProtocol's own
-    // bounded frame buffer.
-    static constexpr size_t MaxReplyLength = 104U;
+    // Worst-case valid frame today is a 10-coil STARTING JOB with uint32 max
+    // job/session ids, ten 9999-turn targets, R65535, capability and CRC.
+    // It is 106 bytes before LF, so keep room for the terminating NUL too.
+    static constexpr size_t MaxReplyLength = 112U;
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;
 

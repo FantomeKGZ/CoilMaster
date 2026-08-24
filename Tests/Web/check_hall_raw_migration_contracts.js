@@ -95,6 +95,8 @@ mustContain(unoProtocolCpp, 'PSTR("BASELINE")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'PSTR("RUN")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'rawAdc > 1023U', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'appendCrc(output, outputSize, length)', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'return formatDone(result, output, outputSize);', 'Uno active compact completion TX');
+mustNotContain(unoProtocolCpp, 'CMP1|CAL_RESULT|', 'Uno legacy completion TX removed');
 mustContain(unoDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Uno compact completion formatter');
 mustContain(unoDoneFormatter, 'result.measurementId == 0UL', 'Uno compact completion formatter');
 mustContain(unoDoneFormatter, 'Cmp1Crc::calculate', 'Uno compact completion formatter');
@@ -119,20 +121,9 @@ mustNotContain(unoService, 'm_maxAdc', 'Uno calibration service');
 mustContain(unoServiceH, 'm_measurementId', 'Uno correlation identity');
 mustContain(unoService, 'result.measurementId = m_measurementId', 'Uno correlation identity');
 
-// Uno result storage is identity-only; legacy wire statistics are literal zeroes until TX switch.
 for (const field of ['baselineAdc', 'minAdc', 'maxAdc', 'sampleCount', 'durationMs']) {
   mustNotContain(unoServiceH, field, 'Uno identity-only result');
 }
-mustContain(
-  unoProtocolCpp,
-  'CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|%lu|C',
-  'Uno identity-only legacy result frame'
-);
-mustNotContain(unoProtocolCpp, 'result.baselineAdc', 'Uno legacy result formatter');
-mustNotContain(unoProtocolCpp, 'result.minAdc', 'Uno legacy result formatter');
-mustNotContain(unoProtocolCpp, 'result.maxAdc', 'Uno legacy result formatter');
-mustNotContain(unoProtocolCpp, 'result.sampleCount', 'Uno legacy result formatter');
-mustNotContain(unoProtocolCpp, 'result.durationMs', 'Uno legacy result formatter');
 
 mustContain(analyzerCpp, 'analyzeSummary', 'ESP32 analyzer owner');
 

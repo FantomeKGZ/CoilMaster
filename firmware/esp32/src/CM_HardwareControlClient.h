@@ -52,6 +52,7 @@ enum class HallCalibrationRemoteState : uint8_t
     ArmedWaitingPhysicalStart,
     Running,
     Completed,
+    WaitingApplyConfirm,
     Aborted
 };
 
@@ -69,6 +70,7 @@ struct HallCalibrationRemoteStateSnapshot
 struct HallCalibrationRemoteResult
 {
     bool recommendationValid;
+    uint32_t measurementId;
     uint16_t baselineAdc;
     uint16_t minAdc;
     uint16_t maxAdc;

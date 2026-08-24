@@ -91,6 +91,10 @@ mustContain(clientCpp, 'proposalWasWaitingApply', 'ESP32 Hall client');
 mustContain(clientCpp, 'finishRequest(HardwareControlReplyResult::TimedOut)', 'ESP32 Hall client');
 mustContain(clientCpp, 'finishRequest(HardwareControlReplyResult::Cancelled)', 'ESP32 Hall client');
 mustContain(clientCpp, 'm_pendingCalibrationMeasurementId = 0UL;', 'ESP32 Hall client');
+mustContain(clientCpp, 'applied.threshold > 1023U', 'ESP32 Hall client applied range validation');
+mustContain(clientCpp, 'applied.hysteresis > 512U', 'ESP32 Hall client applied range validation');
+mustContain(clientCpp, 'applied.hysteresis >= applied.threshold', 'ESP32 Hall client applied range validation');
+mustContain(clientCpp, 'applied.releaseDebounceMs > 1000U', 'ESP32 Hall client applied range validation');
 mustContain(clientCpp, 'applied.fromEeprom = true;', 'ESP32 Hall client');
 mustContain(clientCpp, 'm_settings = applied;', 'ESP32 Hall client');
 

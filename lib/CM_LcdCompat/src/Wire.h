@@ -4,5 +4,12 @@
 // Compatibility shim for the production entrypoint. CoilMaster no longer
 // instantiates Arduino Wire/TwoWire on Uno; CM_Pcf8574Lcd owns hardware TWI
 // directly and keeps no persistent I2C buffers in SRAM.
+class CmWireCompat
+{
+public:
+    void begin() const {}
+};
+
+#define Wire CmWireCompat()
 
 #endif

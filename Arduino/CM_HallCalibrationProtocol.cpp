@@ -1,6 +1,8 @@
 #include "CM_HallCalibrationProtocol.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <avr/pgmspace.h>
 
 #include "CM_HardwareControlProtocol.h"
@@ -24,6 +26,30 @@ bool appendCrc(char* output, size_t outputSize, int payloadLength)
         PSTR("|%04X\n"), static_cast<unsigned int>(crc));
     return suffixLength > 0 &&
            static_cast<size_t>(payloadLength + suffixLength) < outputSize;
+}
+
+bool appendP(char*& cursor, size_t& remaining, PGM_P text)
+{
+    const size_t length = strlen_P(text);
+    if (length >= remaining) return false;
+    memcpy_P(cursor, text, length);
+    cursor += length;
+    remaining -= length;
+    *cursor = '\0';
+    return true;
+}
+
+bool appendUnsigned(char*& cursor, size_t& remaining, uint32_t value)
+{
+    char digits[11];
+    ultoa(static_cast<unsigned long>(value), digits, 10);
+    const size_t length = strlen(digits);
+    if (length >= remaining) return false;
+    memcpy(cursor, digits, length);
+    cursor += length;
+    remaining -= length;
+    *cursor = '\0';
+    return true;
 }
 
 PGM_P stateNameP(HallCalibrationState state)
@@ -124,14 +150,27 @@ bool formatSample(HallCalibrationSamplePhase phase,
 {
     if (output == nullptr || outputSize == 0U || rawAdc > 1023U)
         return false;
-    const int length = snprintf_P(
-        output, outputSize,
-        PSTR("CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C"),
-        phase == HallCalibrationSamplePhase::Run ? PSTR("RUN") : PSTR("BASELINE"),
-        static_cast<unsigned int>(rawAdc),
-        static_cast<unsigned int>(sequence),
-        static_cast<unsigned long>(elapsedMs));
-    return appendCrc(output, outputSize, length);
+
+    char* cursor = output;
+    size_t remaining = outputSize;
+    *cursor = '\0';
+
+    if (!appendP(cursor, remaining, PSTR("CMP1|CAL_SAMPLE|")) ||
+        !appendP(cursor, remaining,
+                 phase == HallCalibrationSamplePhase::Run
+                     ? PSTR("RUN|") : PSTR("BASELINE|")) ||
+        !appendUnsigned(cursor, remaining, rawAdc) ||
+        !appendP(cursor, remaining, PSTR("|")) ||
+        !appendUnsigned(cursor, remaining, sequence) ||
+        !appendP(cursor, remaining, PSTR("|")) ||
+        !appendUnsigned(cursor, remaining, elapsedMs) ||
+        !appendP(cursor, remaining, PSTR("|C")))
+    {
+        return false;
+    }
+
+    return appendCrc(output, outputSize,
+                     static_cast<int>(cursor - output));
 }
 
 bool formatResult(const HallCalibrationResult& result,

@@ -30,6 +30,72 @@ bool parseCanonicalUnsigned(const char* text,
     }
     return true;
 }
+
+class CrcFrameWriter
+{
+public:
+    explicit CrcFrameWriter(Print& output)
+        : m_output(output), m_crc(Cmp1Crc::InitialValue), m_ok(true)
+    {
+    }
+
+    bool write(char value)
+    {
+        const uint8_t byte = static_cast<uint8_t>(value);
+        if (m_output.write(byte) != 1U)
+        {
+            m_ok = false;
+            return false;
+        }
+        m_crc = Cmp1Crc::update(m_crc, &byte, 1U);
+        return true;
+    }
+
+    bool write(const char* text)
+    {
+        if (text == nullptr) return false;
+        while (*text != '\0')
+        {
+            if (!write(*text++)) return false;
+        }
+        return true;
+    }
+
+    bool write(const __FlashStringHelper* text)
+    {
+        if (text == nullptr) return false;
+        PGM_P cursor = reinterpret_cast<PGM_P>(text);
+        for (;;)
+        {
+            const char value = static_cast<char>(pgm_read_byte(cursor++));
+            if (value == '\0') return true;
+            if (!write(value)) return false;
+        }
+    }
+
+    bool writeUnsigned(uint32_t value)
+    {
+        char digits[11];
+        ultoa(static_cast<unsigned long>(value), digits, 10);
+        return write(digits);
+    }
+
+    bool finish()
+    {
+        if (!m_ok) return false;
+        char suffix[7];
+        const int length = snprintf_P(
+            suffix, sizeof(suffix), PSTR("|%04X\n"),
+            static_cast<unsigned int>(m_crc));
+        return length == 6 &&
+               m_output.write(reinterpret_cast<const uint8_t*>(suffix), 6U) == 6U;
+    }
+
+private:
+    Print& m_output;
+    uint16_t m_crc;
+    bool m_ok;
+};
 }
 
 UartEventTransport::UartEventTransport(uint8_t rxPin,
@@ -366,39 +432,16 @@ bool UartEventTransport::writeFrame(const QueuedEvent& queued)
 
 bool UartEventTransport::writeStandardFrame(const WindingEvent& event)
 {
-    // Build payload and CRC in one buffer to keep Uno stack usage small.
-    char frame[96];
-    const int payloadLength = snprintf(
-        frame,
-        sizeof(frame),
-        "CMP1|EVT|%s|%lu|%lu|%u",
-        eventName(event.type),
-        static_cast<unsigned long>(event.sessionId),
-        static_cast<unsigned long>(event.runId),
-        static_cast<unsigned int>(event.completedRuns));
-    if (payloadLength <= 0 ||
-        static_cast<size_t>(payloadLength) >= sizeof(frame))
-    {
-        return false;
-    }
-
-    const uint16_t crc = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(frame),
-        static_cast<size_t>(payloadLength));
-    const int suffixLength = snprintf(
-        frame + payloadLength,
-        sizeof(frame) - static_cast<size_t>(payloadLength),
-        "|%04X\n",
-        static_cast<unsigned int>(crc));
-    if (suffixLength <= 0 ||
-        static_cast<size_t>(payloadLength + suffixLength) >= sizeof(frame))
-    {
-        return false;
-    }
-
-    const size_t frameLength = static_cast<size_t>(payloadLength + suffixLength);
-    return m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength) ==
-           frameLength;
+    CrcFrameWriter frame(m_serial);
+    return frame.write(F("CMP1|EVT|")) &&
+           frame.write(eventName(event.type)) &&
+           frame.write('|') &&
+           frame.writeUnsigned(event.sessionId) &&
+           frame.write('|') &&
+           frame.writeUnsigned(event.runId) &&
+           frame.write('|') &&
+           frame.writeUnsigned(event.completedRuns) &&
+           frame.finish();
 }
 
 bool UartEventTransport::writeLocalFrame(
@@ -411,59 +454,32 @@ bool UartEventTransport::writeLocalFrame(
         return false;
     }
 
-    // One buffer is enough for the largest CMP1 LOCAL_EVT frame. Avoid the old
-    // turnsText + payload + frame triple allocation, which consumed ~400 bytes
-    // of Uno stack during a send.
-    char frame[176];
-    int used = snprintf(
-        frame,
-        sizeof(frame),
-        "CMP1|LOCAL_EVT|%s|%lu|%lu|%u|%s|%u|",
-        eventName(event.type),
-        static_cast<unsigned long>(event.sessionId),
-        static_cast<unsigned long>(event.runId),
-        static_cast<unsigned int>(event.completedRuns),
-        windingTypeName(program.type),
-        static_cast<unsigned int>(program.coilCount));
-    if (used <= 0 || static_cast<size_t>(used) >= sizeof(frame)) return false;
+    CrcFrameWriter frame(m_serial);
+    if (!frame.write(F("CMP1|LOCAL_EVT|")) ||
+        !frame.write(eventName(event.type)) ||
+        !frame.write('|') ||
+        !frame.writeUnsigned(event.sessionId) ||
+        !frame.write('|') ||
+        !frame.writeUnsigned(event.runId) ||
+        !frame.write('|') ||
+        !frame.writeUnsigned(event.completedRuns) ||
+        !frame.write('|') ||
+        !frame.write(windingTypeName(program.type)) ||
+        !frame.write('|') ||
+        !frame.writeUnsigned(program.coilCount) ||
+        !frame.write('|'))
+    {
+        return false;
+    }
 
     for (uint8_t index = 0U; index < program.coilCount; ++index)
     {
         const uint16_t turns = program.targetTurns[index];
         if (turns == 0U || turns > MaxTurnsPerCoil) return false;
-
-        const int written = snprintf(
-            frame + used,
-            sizeof(frame) - static_cast<size_t>(used),
-            index == 0U ? "%u" : ",%u",
-            static_cast<unsigned int>(turns));
-        if (written <= 0 ||
-            static_cast<size_t>(written) >=
-                sizeof(frame) - static_cast<size_t>(used))
-        {
-            return false;
-        }
-        used += written;
+        if (index != 0U && !frame.write(',')) return false;
+        if (!frame.writeUnsigned(turns)) return false;
     }
-
-    const uint16_t crc = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(frame),
-        static_cast<size_t>(used));
-    const int suffixLength = snprintf(
-        frame + used,
-        sizeof(frame) - static_cast<size_t>(used),
-        "|%04X\n",
-        static_cast<unsigned int>(crc));
-    if (suffixLength <= 0 ||
-        static_cast<size_t>(suffixLength) >=
-            sizeof(frame) - static_cast<size_t>(used))
-    {
-        return false;
-    }
-
-    const size_t frameLength = static_cast<size_t>(used + suffixLength);
-    return m_serial.write(reinterpret_cast<const uint8_t*>(frame), frameLength) ==
-           frameLength;
+    return frame.finish();
 }
 
 bool UartEventTransport::writeHardwareFrame(const char* frame)

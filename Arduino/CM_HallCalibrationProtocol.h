@@ -60,10 +60,6 @@ bool formatApplied(uint32_t measurementId,
                    const HardwareSettings& settings,
                    char* output,
                    size_t outputSize);
-
-const char* stateName(HallCalibrationState state);
-const char* directionName(HallCalibrationDirection direction);
-const char* applyResultName(HallCalibrationApplyResult result);
 }
 
 } // namespace CM

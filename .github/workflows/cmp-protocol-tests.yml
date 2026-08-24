@@ -170,6 +170,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_uno_hall_parser_ownership.js
 
+      - name: Audit Hall raw migration ownership
+        if: always()
+        run: node Tests/Web/check_hall_raw_migration_contracts.js
+
       - name: Audit Hall history and SD reference contracts
         if: always()
         run: node Tests/Web/check_hall_history_ui.js

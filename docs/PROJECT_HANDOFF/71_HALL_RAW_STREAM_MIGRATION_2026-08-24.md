@@ -49,13 +49,15 @@ ESP32 является owner для extended calibration measurement processing:
 
 ## Реализованный migration layer
 
-Добавлены ESP32 collector и bounded sample parser:
+Добавлены ESP32 collector, bounded sample parser и Uno compact sample formatter:
 
 ```text
 firmware/esp32/src/CM_HallCalibrationRawCollector.h
 firmware/esp32/src/CM_HallCalibrationRawCollector.cpp
 firmware/esp32/src/CM_HallCalibrationRawProtocol.h
 firmware/esp32/src/CM_HallCalibrationRawProtocol.cpp
+Arduino/CM_HallCalibrationProtocol.h
+Arduino/CM_HallCalibrationProtocol.cpp
 ```
 
 Commits:
@@ -68,6 +70,9 @@ Commits:
 5544185faa283c5a4b852a1fabf6f9bba242dbe3  test(hall): guard raw migration ownership
 62420b9c3f20c2510a8ab9d8d75b57d6ec7b8382  test(hall): run raw migration ownership audit
 815a4f8ef9f7032febd43fd2022070e36ef9f836  test(hall): cover raw sample parser contract
+c4961966f62ffb7506f785b1866d1b768bb2f8b3  feat(hall): define compact raw calibration sample frame
+b8b1a7a1811da4ad76329a06d7867ecb4818695e  feat(hall): format compact raw calibration samples
+35dc5478ba02a45ced2c2f395ef725a8bc18c878  test(hall): enforce compact raw sample wire symmetry
 ```
 
 `HallCalibrationRawCollector` уже умеет на ESP32:
@@ -82,7 +87,9 @@ Commits:
 
 `HallCalibrationRawProtocol` уже валидирует будущий wire frame, CRC, phase, raw range, sequence и elapsed time.
 
-Wire TX на Uno и подключение parser/collector к active `HardwareControlClient/UartEventReceiver/Web` **ещё не завершены**. Поэтому старый Uno summary пока нельзя удалять.
+`HallCalibrationProtocol::formatSample()` на Uno формирует тот же compact frame и отвергает ADC > 1023. Он пока **не подключён к runtime TX**. Это намеренно: wire-format сначала закреплён regression-тестом, чтобы не рисковать промежуточным Uno overflow или несовместимым parser/TX.
+
+Подключение active TX/parser/collector к `UartEventTransport -> UartEventReceiver -> HardwareControlWeb` **ещё не завершено**. Поэтому старый Uno summary пока нельзя удалять.
 
 ## Зафиксированный wire contract
 
@@ -110,22 +117,23 @@ CMP1|CAL_SAMPLE|RUN|raw|sequence|elapsed_ms|C|CRC
 
 1. ESP32 raw collector — **сделано**.
 2. ESP32 compact `CAL_SAMPLE` parser — **сделано**.
-3. Добавить compact `CAL_SAMPLE` TX на Uno.
-4. Подключить parser/capture в `HardwareControlClient/UartEventReceiver` и feeding в `HallCalibrationRawCollector`.
-5. Во время `ARMED_WAITING_START` отправлять baseline raw samples; SSR всегда OFF.
-6. Только отдельный physical START переводит Arduino в `RUNNING` и разрешает SSR.
-7. Во время `RUNNING` Uno отправляет raw samples, ESP32 собирает summary.
-8. ESP32 формирует existing analyzer recommendation.
-9. Перевести measurement identity на compact Uno-owned transient token, не зависящий от min/max/baseline math.
-10. Только после подтверждённого ESP32 raw path удалить с Uno:
+3. Uno compact `CAL_SAMPLE` formatter + wire regression — **сделано**.
+4. Подключить runtime TX из уже существующих baseline/run samples, без новой Hall аналитики на Uno.
+5. Подключить parser/capture в `UartEventReceiver` и feeding в `HallCalibrationRawCollector`.
+6. Во время `ARMED_WAITING_START` отправлять baseline raw samples; SSR всегда OFF.
+7. Только отдельный physical START переводит Arduino в `RUNNING` и разрешает SSR.
+8. Во время `RUNNING` Uno отправляет raw samples, ESP32 собирает summary.
+9. ESP32 формирует existing analyzer recommendation.
+10. Перевести measurement identity на compact Uno-owned transient token, не зависящий от min/max/baseline math.
+11. Только после подтверждённого ESP32 raw path удалить с Uno:
    - baseline sum/average computation;
    - run min/max computation;
    - summary result formatter fields, которые больше не нужны;
    - obsolete calibration measurement helpers.
-11. Снять отдельный Uno Flash/RAM gate.
-12. Обновить Hall audits и handoff.
+12. Снять отдельный Uno Flash/RAM gate.
+13. Обновить Hall audits и handoff.
 
-Не выполнять шаг 10 раньше шага 7/8: нельзя одновременно потерять measurement source и summary source.
+Не выполнять шаг 11 раньше шага 8/9: нельзя одновременно потерять measurement source и summary source.
 
 ## Текущий verified Uno checkpoint до raw migration
 
@@ -148,7 +156,7 @@ RAM   1219 / 2048 = 59.5%   free 829 B
 Flash 32084 / 32256 = 99.5% free 172 B
 ```
 
-Не переносить эти цифры на новый raw-migration HEAD без нового Actions build. Новые commits пока затрагивают ESP32/tests/docs, не являются новым verified Uno size checkpoint.
+Не переносить эти цифры на новый raw-migration HEAD без нового Actions build. Новый Uno formatter пока не считается Flash-cost до успешного build; поскольку он ещё не вызывается, LTO может удалить его из финального image.
 
 ## Safety invariants
 
@@ -190,4 +198,6 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 ## Инструкция следующему чату
 
-Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации. Следующий кодовый шаг: добавить Uno compact `CAL_SAMPLE` TX, подключить уже существующий ESP32 parser к receiver/client и feeding в `HallCalibrationRawCollector`. После GREEN raw-path удалить старое Uno summary computation и измерить Flash savings.
+Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
+
+Следующий кодовый шаг: подключить `HallCalibrationProtocol::formatSample()` к runtime TX из уже существующих baseline/run sample points, затем принимать `CAL_SAMPLE` в `UartEventReceiver` и feed в `HallCalibrationRawCollector`. Только после GREEN end-to-end raw path удалить старое Uno summary computation и измерить Flash savings.

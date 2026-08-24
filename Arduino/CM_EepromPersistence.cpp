@@ -21,13 +21,12 @@ void EepromPersistence::begin()
         persist();
     }
 
-    StoredMetadataState metadata;
-    if (!loadMetadata(metadata) || !metadataValid(metadata))
+    if (!metadataValidInEeprom())
     {
-        // Metadata is an additive v1 sidecar. Rebuilding it must never reset the
-        // already-valid nextSessionId/nextRunId stored in the original state.
-        resetMetadata(metadata);
-        persistMetadata(metadata);
+        // Metadata is an additive v1 sidecar. Rebuild it directly in EEPROM so
+        // startup never places the complete sidecar on the Uno stack. This must
+        // not reset the already-valid nextSessionId/nextRunId state.
+        resetMetadataInEeprom();
     }
 }
 
@@ -314,6 +313,107 @@ void EepromPersistence::persistMetadata(StoredMetadataState& metadata) const
         reinterpret_cast<const uint8_t*>(&metadata),
         offsetof(StoredMetadataState, crc));
     EEPROM.put(address, metadata);
+}
+
+uint16_t EepromPersistence::metadataCrcInEeprom() const
+{
+    const int address = metadataAddress();
+    uint16_t crc = 0xFFFFU;
+    for (size_t index = 0U; index < offsetof(StoredMetadataState, crc); ++index)
+    {
+        crc ^= EEPROM.read(address + static_cast<int>(index));
+        for (uint8_t bit = 0U; bit < 8U; ++bit)
+        {
+            crc = (crc & 1U) != 0U
+                      ? static_cast<uint16_t>((crc >> 1U) ^ 0xA001U)
+                      : static_cast<uint16_t>(crc >> 1U);
+        }
+    }
+    return crc;
+}
+
+bool EepromPersistence::metadataValidInEeprom() const
+{
+    const int address = metadataAddress();
+    if (address < 0 ||
+        static_cast<size_t>(address) + sizeof(StoredMetadataState) >
+            static_cast<size_t>(EEPROM.length()))
+    {
+        return false;
+    }
+
+    uint16_t magic = 0U;
+    uint8_t version = 0U;
+    uint8_t count = 0U;
+    uint16_t storedCrc = 0U;
+    EEPROM.get(address + static_cast<int>(offsetof(StoredMetadataState, magic)), magic);
+    EEPROM.get(address + static_cast<int>(offsetof(StoredMetadataState, version)), version);
+    EEPROM.get(address + static_cast<int>(offsetof(StoredMetadataState, count)), count);
+    EEPROM.get(address + static_cast<int>(offsetof(StoredMetadataState, crc)), storedCrc);
+    if (magic != MetadataMagic || version != MetadataVersion ||
+        count != m_state.count || count > PendingCapacity ||
+        metadataCrcInEeprom() != storedCrc)
+    {
+        return false;
+    }
+
+    for (uint8_t index = 0U; index < count; ++index)
+    {
+        StoredJobMetadata item;
+        const int itemAddress =
+            address + static_cast<int>(offsetof(StoredMetadataState, pending)) +
+            static_cast<int>(index * sizeof(StoredJobMetadata));
+        EEPROM.get(itemAddress, item);
+        if (item.runId != m_state.pending[index].runId) return false;
+        if (item.valid == 0U) continue;
+        if (item.valid != 1U ||
+            item.source > static_cast<uint8_t>(JobSource::Esp32Web) ||
+            item.windingType > static_cast<uint8_t>(WindingType::Starting) ||
+            item.coilCount == 0U || item.coilCount > MaxCoilsPerJob)
+        {
+            return false;
+        }
+        for (uint8_t coil = 0U; coil < item.coilCount; ++coil)
+        {
+            if (item.targetTurns[coil] == 0U ||
+                item.targetTurns[coil] > MaxTurnsPerCoil)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void EepromPersistence::resetMetadataInEeprom() const
+{
+    const int address = metadataAddress();
+    if (address < 0 ||
+        static_cast<size_t>(address) + sizeof(StoredMetadataState) >
+            static_cast<size_t>(EEPROM.length()))
+    {
+        return;
+    }
+
+    for (size_t index = 0U; index < offsetof(StoredMetadataState, crc); ++index)
+        EEPROM.update(address + static_cast<int>(index), 0U);
+
+    EEPROM.put(address + static_cast<int>(offsetof(StoredMetadataState, magic)),
+               MetadataMagic);
+    EEPROM.put(address + static_cast<int>(offsetof(StoredMetadataState, version)),
+               MetadataVersion);
+    EEPROM.put(address + static_cast<int>(offsetof(StoredMetadataState, count)),
+               m_state.count);
+    for (uint8_t index = 0U; index < m_state.count; ++index)
+    {
+        const int itemAddress =
+            address + static_cast<int>(offsetof(StoredMetadataState, pending)) +
+            static_cast<int>(index * sizeof(StoredJobMetadata));
+        EEPROM.put(itemAddress + static_cast<int>(offsetof(StoredJobMetadata, runId)),
+                   m_state.pending[index].runId);
+    }
+    const uint16_t crc = metadataCrcInEeprom();
+    EEPROM.put(address + static_cast<int>(offsetof(StoredMetadataState, crc)), crc);
 }
 
 bool EepromPersistence::metadataValid(const StoredMetadataState& metadata) const

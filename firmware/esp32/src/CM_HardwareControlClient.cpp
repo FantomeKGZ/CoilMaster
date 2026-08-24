@@ -680,6 +680,14 @@ bool HardwareControlClient::processCalibrationApplied(char* line, uint32_t nowMs
     else
         return true;
 
+    if (applied.threshold == 0U || applied.threshold > 1023U ||
+        applied.hysteresis == 0U || applied.hysteresis > 512U ||
+        applied.hysteresis >= applied.threshold ||
+        applied.releaseDebounceMs == 0U || applied.releaseDebounceMs > 1000U)
+    {
+        return true;
+    }
+
     if (m_requestType != RequestType::StageCalibrationProposal ||
         measurementId != m_pendingCalibrationMeasurementId)
     {

@@ -25,14 +25,21 @@ If older Hall text conflicts with `72` or this file, this file wins.
 
 ## Current branch checkpoint
 
-Verified branch HEAD before this transfer write:
+Branch HEAD immediately before the frame-bound optimization was:
 
 ```text
-b07de01ee4f3b1216153036dd977fa48bc053c2f
-docs(handoff): record compact completion CI findings
+66e5b84ac040b194ec5b169c1de8f1a5edad0845
+docs(handoff): mark compact completion host tests green
 ```
 
-Important implementation/test commits immediately below it:
+Latest implementation commit:
+
+```text
+256b95754431c30b6da94bd43f399f5085e030fc
+perf(uno): tighten Hall calibration frame buffer
+```
+
+Important earlier implementation/test commits:
 
 ```text
 d77a24b3437831d0a236086055a193f233e1be7e  test(hall): align safety audit with compact completion
@@ -41,9 +48,9 @@ a928a51bc77c00407b146587aaf34c1e08a19998  docs: mark compact completion active
 d35a6de9b378a48578274f4c7320d92b3be4b230  feat(hall): receive compact calibration completion
 ```
 
-After this transfer document is committed, always refetch branch HEAD before modifying anything.
+Always refetch branch HEAD before modifying anything.
 
-## Verified CI — GREEN
+## Verified CI — GREEN baseline
 
 The user supplied two fresh post-fix Actions runs and both are fully successful:
 
@@ -52,7 +59,7 @@ The user supplied two fresh post-fix Actions runs and both are fully successful:
 32753408620  host-tests  checkout b07de01ee4f3b1216153036dd977fa48bc053c2f  SUCCESS
 ```
 
-The latest run `32753408620` passed all listed gates, including:
+The latest verified run `32753408620` passed all listed gates, including:
 
 ```text
 CTest protocol tests
@@ -64,11 +71,11 @@ Hall history and SD reference contracts
 release safety / job lifecycle / material writeoff contracts
 ```
 
-Therefore `b07de01e...` is a verified host-tests GREEN checkpoint.
-
 Hardware is **not** thereby declared GREEN.
 
-## Verified Uno build / memory
+The new frame-bound implementation commit `256b9575...` must not be called CI GREEN until its fresh Actions results are actually confirmed.
+
+## Verified Uno build / memory baseline
 
 Compact-completion Uno build:
 
@@ -86,7 +93,7 @@ RAM   1213 / 2048 = 59.2%   free 835 B
 Flash 31648 / 32256 = 98.1% free 608 B
 ```
 
-Compact completion saves **8 B Flash**, RAM delta **0 B**.
+Compact completion saves **8 B Flash**, RAM delta **0 B** versus that older baseline.
 
 Do not claim a newer descendant Uno size until a newer exact build is measured.
 
@@ -128,7 +135,7 @@ CMP1|CAL_SAMPLE|BASELINE|raw|sequence|elapsed_ms|C|CRC
 CMP1|CAL_SAMPLE|RUN|raw|sequence|elapsed_ms|C|CRC
 ```
 
-Completion emitted by Uno is now compact:
+Completion emitted by Uno is compact:
 
 ```text
 CMP1|CAL_DONE|measurement_id|C|CRC
@@ -205,15 +212,47 @@ Keep intact:
 - cancellation never erases immutable history;
 - reboot never auto-resumes winding/calibration/restore/apply.
 
+## Hall frame-bound proof completed
+
+`HallCalibrationProtocol::MaxFrameLength = 96` was re-evaluated against every active Uno Hall TX formatter.
+
+Exact worst-case wire lengths including `|CRC\n` are:
+
+```text
+CAL_APPLIED  76 B
+CAL_SAMPLE   54 B
+CAL_STATE    48 B
+CAL_DONE     32 B
+```
+
+The longest frame is:
+
+```text
+CMP1|CAL_APPLIED|4294967295|PERSISTENCE_FAILED|1023|512|1000|FALLING|C|FFFF\n
+```
+
+This is **76 wire bytes**. `snprintf_P`/`appendCrc` also requires one byte for the terminating NUL, therefore the exact minimum safe formatter buffer is **77 bytes**.
+
+Commit `256b9575...` changes:
+
+```text
+HallCalibrationProtocol::MaxFrameLength
+96 -> 77
+```
+
+and records the proven `MaxAppliedWireLength = 76` with a compile-time `static_assert(MaxFrameLength == 77U)`.
+
+This reduces each active Hall formatter stack frame using this local buffer by **19 bytes** compared with the prior 96-byte bound. Static global RAM usage may remain unchanged because these are automatic local buffers; exact build output is still required before claiming Flash/RAM deltas.
+
 ## Current optimization status
 
-The large Hall raw migration is complete enough to keep:
+Keep:
 
 - ESP32 extended aggregation active;
 - compact `CAL_DONE` TX active;
 - legacy ESP32 `CAL_RESULT` receive fallback active;
-- parser/ownership/safety regressions GREEN;
-- Uno fits with 616 B Flash free and 835 B RAM free at measured checkpoint.
+- parser/ownership/safety regressions from the previous checkpoint GREEN;
+- Hall response buffer exact bound now 77 bytes in implementation commit `256b9575...`.
 
 Rejected experiments not to repeat:
 
@@ -226,17 +265,16 @@ bridge registration inlining -> 0 B gain
 
 Continue software optimization only; do not request intermediate physical hardware tests.
 
-Recommended next target:
+Immediate next steps:
 
-1. Recalculate the longest **remaining Uno Hall calibration response** now that Uno no longer emits long `CAL_RESULT`.
-2. Determine whether `HallCalibrationProtocol::MaxFrameLength = 96` can be safely reduced while still fitting longest active `CAL_APPLIED` / `CAL_STATE` response including CRC/newline.
-3. If reducing it, change only after exact length proof and regression coverage.
-4. Run `build-uno` and host-tests again; record exact checkout and Flash/RAM delta versus `31640 / 1213`.
-5. After that, inspect the known ESP32 semantic weakness: `CM_HardwareControlClient.cpp::processCalibrationApplied()` historically mirrors APPLIED values without explicit range validation. Desired validation before mirroring:
+1. Confirm fresh `build-uno` for `256b9575...`; record exact Flash/RAM versus `31640 / 1213`.
+2. Confirm fresh host-tests descendant of `256b9575...`.
+3. Then inspect/fix the known ESP32 semantic weakness in `CM_HardwareControlClient.cpp::processCalibrationApplied()`: APPLIED values must be range-validated before mirroring:
    - threshold `1..1023`;
    - hysteresis `1..512` and `< threshold`;
-   - debounce `1..1000`.
-6. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
+   - debounce `1..1000`;
+   - direction must remain a recognized enum value.
+4. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
 
 Do not perform the final hardware acceptance until software optimization is finished.
 

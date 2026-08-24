@@ -162,6 +162,17 @@ bool HardwareControlClient::armHallCalibration()
 
 bool HardwareControlClient::abortHallCalibration()
 {
+    if (m_requestType == RequestType::StageCalibrationProposal &&
+        m_calibrationState.valid &&
+        m_calibrationState.state == HallCalibrationRemoteState::WaitingApplyConfirm)
+    {
+        m_requestType = RequestType::None;
+        m_requestPayload[0] = '\0';
+        m_waitingReply = false;
+        m_lastSendMs = 0UL;
+        m_sendAttempts = 0U;
+        m_pendingCalibrationMeasurementId = 0UL;
+    }
     return queueRequest(RequestType::AbortCalibration, "CMP1|CAL|ABORT|C");
 }
 
@@ -460,6 +471,11 @@ bool HardwareControlClient::processTelemetryState(char* line, uint32_t nowMs)
 
 bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
 {
+    const bool proposalWasWaitingApply =
+        m_requestType == RequestType::StageCalibrationProposal &&
+        m_calibrationState.valid &&
+        m_calibrationState.state == HallCalibrationRemoteState::WaitingApplyConfirm;
+
     if (!validateAndStripCrc(line)) return true;
 
     char* save = nullptr;
@@ -517,6 +533,20 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
     m_calibrationState = parsed;
     m_hasCalibrationState = true;
     m_lastCalibrationKeepAliveMs = calibrationActive(parsed.state) ? nowMs : 0UL;
+
+    if (proposalWasWaitingApply)
+    {
+        if (parsed.state == HallCalibrationRemoteState::Aborted)
+        {
+            finishRequest(HardwareControlReplyResult::Cancelled);
+            return true;
+        }
+        if (parsed.state == HallCalibrationRemoteState::Completed)
+        {
+            finishRequest(HardwareControlReplyResult::TimedOut);
+            return true;
+        }
+    }
 
     if (m_requestType == RequestType::ArmCalibration)
     {

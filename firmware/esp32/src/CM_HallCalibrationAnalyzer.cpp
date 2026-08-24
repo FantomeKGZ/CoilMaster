@@ -62,27 +62,56 @@ void HallCalibrationAnalyzer::addRunSample(uint16_t rawAdc)
 
 HallCalibrationProposal HallCalibrationAnalyzer::finish(uint32_t durationMs) const
 {
-    HallCalibrationProposal proposal;
-    proposal.sampleCount = m_runSamples;
-    proposal.durationMs = durationMs;
-
-    if (!baselineReady() || m_runSamples == 0U || m_maxAdc < m_minAdc)
+    if (!baselineReady())
+    {
+        HallCalibrationProposal proposal;
+        proposal.sampleCount = m_runSamples;
+        proposal.durationMs = durationMs;
         return proposal;
+    }
 
     const uint16_t baseline = static_cast<uint16_t>(
         m_baselineSum / static_cast<uint32_t>(m_baselineSamples));
-    const uint16_t upward = m_maxAdc > baseline
-                                ? static_cast<uint16_t>(m_maxAdc - baseline)
+    return analyze(baseline, m_minAdc, m_maxAdc, m_runSamples, durationMs);
+}
+
+HallCalibrationProposal HallCalibrationAnalyzer::analyzeSummary(
+    uint16_t baselineAdc,
+    uint16_t minAdc,
+    uint16_t maxAdc,
+    uint16_t sampleCount,
+    uint32_t durationMs)
+{
+    return analyze(baselineAdc, minAdc, maxAdc, sampleCount, durationMs);
+}
+
+HallCalibrationProposal HallCalibrationAnalyzer::analyze(
+    uint16_t baseline,
+    uint16_t minAdc,
+    uint16_t maxAdc,
+    uint16_t sampleCount,
+    uint32_t durationMs)
+{
+    HallCalibrationProposal proposal;
+    proposal.baselineAdc = baseline;
+    proposal.minAdc = minAdc;
+    proposal.maxAdc = maxAdc;
+    proposal.sampleCount = sampleCount;
+    proposal.durationMs = durationMs;
+
+    if (baseline > 1023U || minAdc > 1023U || maxAdc > 1023U ||
+        sampleCount == 0U || maxAdc < minAdc)
+        return proposal;
+
+    const uint16_t upward = maxAdc > baseline
+                                ? static_cast<uint16_t>(maxAdc - baseline)
                                 : 0U;
-    const uint16_t downward = baseline > m_minAdc
-                                  ? static_cast<uint16_t>(baseline - m_minAdc)
+    const uint16_t downward = baseline > minAdc
+                                  ? static_cast<uint16_t>(baseline - minAdc)
                                   : 0U;
     const bool rising = upward >= downward;
     const uint16_t span = rising ? upward : downward;
 
-    proposal.baselineAdc = baseline;
-    proposal.minAdc = m_minAdc;
-    proposal.maxAdc = m_maxAdc;
     proposal.direction = rising
                              ? HallSignalDirectionRemote::Rising
                              : HallSignalDirectionRemote::Falling;

@@ -379,3 +379,34 @@ Flash 31022 / 32256 (96.2%), 1234 bytes headroom
 ```
 
 Relative to the failing production baseline, SRAM recovery is 195 bytes (83 -> 278 bytes headroom). Standard/LOCAL_EVT peak frame arrays are removed; the next physical gate is production upload, stable home-screen observation and compact keypad smoke. Hardware-control/calibration formatters still have bounded 176-byte local arrays and remain the next memory-recovery target after this smoke.
+
+
+### Arduino Uno minimal-runtime transition — next chat checkpoint
+
+Operator confirmed production now boots without reset after SRAM/EEPROM recovery, but the compact replacement keypad remains physically non-responsive after both scan orientations. The original Keypad library worked before the Hall calibration/telemetry expansion. Decision: stop iterating the unproven scanner and perform a controlled responsibility reduction.
+
+Authoritative plan:
+
+```text
+docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
+```
+
+Next chat starts immediately with:
+
+1. restore the proven Keypad library and remove compact scanner ownership;
+2. preserve Hall sensor on Arduino A0, realtime turn counting, physical START and Arduino-only SSR;
+3. remove/move advanced Hall calibration, telemetry analysis and large diagnostic formatting from Uno to ESP32;
+4. retain minimal explicit safe settings apply only; no automatic calibration/apply/resume;
+5. measure Uno RAM/Flash after every block; target at least 350–400 bytes static SRAM headroom;
+6. run bounded keypad/Hall/UART/physical START smoke with SSR/motor initially de-energized.
+
+Current last code commits before the handoff:
+
+```text
+5697db17  refactor(arduino): validate EEPROM metadata without full stack copy
+e8142be7  fix(arduino): define EEPROM metadata constants
+dc5f5606  fix(arduino): match proven keypad scan direction
+cc18247c  test(arduino): protect compatible keypad scan direction
+```
+
+Do not clear EEPROM during this transition. Pending RUN_COMPLETED evidence and identifiers remain protected. ESP32 never receives direct SSR authority.

@@ -71,6 +71,12 @@ bool formatSample(HallCalibrationSamplePhase phase,
                   char* output,
                   size_t outputSize);
 
+// Compact completion/correlation frame for ESP32-owned raw aggregation.
+// Legacy formatResult remains active until ESP32 dual-frame receive is wired.
+bool formatDone(const HallCalibrationResult& result,
+                char* output,
+                size_t outputSize);
+
 bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize);

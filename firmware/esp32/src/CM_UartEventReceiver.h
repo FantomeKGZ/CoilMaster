@@ -141,6 +141,11 @@ public:
     bool armHallCalibration();
     bool abortHallCalibration();
     bool requestHallCalibration();
+    bool proposeHallCalibration(uint32_t measurementId,
+                                uint16_t threshold,
+                                uint16_t hysteresis,
+                                uint16_t releaseDebounceMs,
+                                HallSignalDirectionRemote direction);
     bool hallControlPending() const;
     bool takeHallSettings(HallSettingsState& state);
     bool takeHallTelemetry(HallTelemetryState& state);

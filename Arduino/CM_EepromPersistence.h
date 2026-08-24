@@ -85,6 +85,9 @@ private:
     void resetMetadata(StoredMetadataState& metadata) const;
     void persistMetadata(StoredMetadataState& metadata) const;
     bool metadataValid(const StoredMetadataState& metadata) const;
+    bool metadataValidInEeprom() const;
+    void resetMetadataInEeprom() const;
+    uint16_t metadataCrcInEeprom() const;
     bool storeMetadata(StoredMetadataState& metadata,
                        uint8_t index,
                        const WindingJob& job) const;

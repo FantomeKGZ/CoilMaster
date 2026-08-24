@@ -1,7 +1,6 @@
 #include "CM_HallCalibrationProtocol.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <avr/pgmspace.h>
 
@@ -14,31 +13,6 @@ namespace HallCalibrationProtocol
 {
 namespace
 {
-bool parseHex16(const char* text, uint16_t& value)
-{
-    if (text == nullptr || strlen(text) != 4U) return false;
-    char* end = nullptr;
-    const unsigned long parsed = strtoul(text, &end, 16);
-    if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL) return false;
-    value = static_cast<uint16_t>(parsed);
-    return true;
-}
-
-bool verifyAndStripCrc(char* frame)
-{
-    if (frame == nullptr) return false;
-    char* lastSeparator = strrchr(frame, '|');
-    if (lastSeparator == nullptr) return false;
-    uint16_t received = 0U;
-    if (!parseHex16(lastSeparator + 1, received)) return false;
-    const size_t payloadLength = static_cast<size_t>(lastSeparator - frame);
-    const uint16_t calculated = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(frame), payloadLength);
-    if (calculated != received) return false;
-    *lastSeparator = '\0';
-    return true;
-}
-
 bool appendCrc(char* output, size_t outputSize, int payloadLength)
 {
     if (output == nullptr || outputSize == 0U || payloadLength <= 0 ||
@@ -95,7 +69,7 @@ PGM_P applyResultNameP(HallCalibrationApplyResult result)
 bool parseRequest(char* frame, HallCalibrationCommand& command)
 {
     command = HallCalibrationCommand::None;
-    if (!verifyAndStripCrc(frame)) return false;
+    if (!HardwareControlProtocol::verifyAndStripCrc(frame)) return false;
     char* save = nullptr;
     char* version = strtok_r(frame, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);

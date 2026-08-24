@@ -348,6 +348,23 @@ void processKeypad()
 #if CM_FEATURE_KEYPAD_4X4
     const char key = keypad.getKey();
     if (key == NO_KEY) return;
+    if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm)
+    {
+        if (key == '#')
+        {
+            const bool confirmed = hallCalibration.confirmLocal(millis());
+            Serial.println(confirmed
+                               ? F("CM_HALL_CAL local_confirm=ACCEPTED")
+                               : F("CM_HALL_CAL local_confirm=REJECTED"));
+        }
+        else
+        {
+            hallCalibration.abort();
+            ssr.forceOff();
+            Serial.println(F("CM_HALL_CAL abort=LOCAL_CONFIRM_CANCELLED"));
+        }
+        return;
+    }
     if (hallCalibration.active())
     {
         hallCalibration.abort();
@@ -387,6 +404,13 @@ void processExternalStart(uint32_t nowMs)
 #if CM_FEATURE_EXTERNAL_START
     if (startButton.pollPressed(nowMs))
     {
+        if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm)
+        {
+            ssr.forceOff();
+            Serial.println(F("CM_HALL_CAL physical_start=WAITING_LOCAL_CONFIRM"));
+            return;
+        }
+
         if (hallCalibration.state() ==
             CM::HallCalibrationState::ArmedWaitingPhysicalStart)
         {
@@ -549,6 +573,7 @@ void processHallCalibrationCommands(uint32_t nowMs)
     CM::HallCalibrationCommand command;
     while (espTransport.takeHallCalibrationCommand(command))
     {
+        hallCalibration.notePeerContact(nowMs);
         switch (command)
         {
             case CM::HallCalibrationCommand::Arm:

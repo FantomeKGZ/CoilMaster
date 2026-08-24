@@ -26,16 +26,12 @@ enum class HallCalibrationDirection : uint8_t
 };
 
 // Uno owns only correlation identity for a completed calibration measurement.
-// Measurement statistics are collected from CAL_SAMPLE on ESP32. Legacy fields
-// remain on the wire temporarily for compatibility and are emitted as zero.
+// Measurement statistics are collected from CAL_SAMPLE on ESP32. The legacy
+// CAL_RESULT wire fields remain for compatibility, but the formatter emits
+// them as literal zeroes and ESP32 replaces them with its raw-stream summary.
 struct HallCalibrationResult
 {
     uint32_t measurementId;
-    uint16_t baselineAdc;
-    uint16_t minAdc;
-    uint16_t maxAdc;
-    uint16_t sampleCount;
-    uint32_t durationMs;
 
     HallCalibrationResult();
 };

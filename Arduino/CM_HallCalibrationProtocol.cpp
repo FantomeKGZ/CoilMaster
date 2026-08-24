@@ -153,16 +153,14 @@ bool formatResult(const HallCalibrationResult& result,
 {
     if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
         return false;
-    // Keep the existing CAL_RESULT wire shape until ESP32 measurement-id parsing
-    // and proposal sending land atomically. The identity already exists on Uno
-    // but is not exposed by this staged frame yet.
     const int length = snprintf(output, outputSize,
-        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|C",
+        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C",
         static_cast<unsigned int>(result.baselineAdc),
         static_cast<unsigned int>(result.minAdc),
         static_cast<unsigned int>(result.maxAdc),
         static_cast<unsigned int>(result.sampleCount),
-        static_cast<unsigned long>(result.durationMs));
+        static_cast<unsigned long>(result.durationMs),
+        static_cast<unsigned long>(result.measurementId));
     return appendCrc(output, outputSize, length);
 }
 

@@ -44,6 +44,7 @@ public:
     explicit HallCalibrationService(HallTurnSource& hall);
 
     bool arm(uint32_t nowMs);
+    void notePeerContact(uint32_t nowMs);
     bool confirmLocal(uint32_t nowMs);
     bool physicalStart(uint32_t nowMs);
     void update(uint32_t nowMs, bool safeEnvironment);
@@ -62,6 +63,7 @@ private:
     static constexpr uint16_t BaselineSampleIntervalMs = 20U;
     static constexpr uint8_t MinimumBaselineSamples = 8U;
     static constexpr uint32_t ArmedTimeoutMs = 60000UL;
+    static constexpr uint32_t PeerTimeoutMs = 3000UL;
     static constexpr uint32_t RunDurationMs = 5000UL;
     static constexpr uint32_t AbsoluteRunTimeoutMs = 6500UL;
 
@@ -75,6 +77,7 @@ private:
     HallCalibrationState m_state;
     bool m_resultPending;
     uint32_t m_armedAtMs;
+    uint32_t m_lastPeerContactMs;
     uint32_t m_startedAtMs;
     uint32_t m_lastSampleMs;
     uint32_t m_baselineSum;

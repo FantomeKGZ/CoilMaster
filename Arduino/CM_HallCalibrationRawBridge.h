@@ -10,13 +10,21 @@ namespace CM
 
 class UartEventTransport;
 
+namespace HallCalibrationRawBridgeInternal
+{
+extern UartEventTransport* transport;
+}
+
 // Temporary migration bridge: keeps HallCalibrationService independent from
 // main.cpp while raw calibration samples are moved to ESP32. It has no START
 // or SSR authority and can only publish bounded CAL_SAMPLE frames.
 class HallCalibrationRawBridgeRegistration
 {
 public:
-    explicit HallCalibrationRawBridgeRegistration(UartEventTransport* owner);
+    explicit HallCalibrationRawBridgeRegistration(UartEventTransport* owner)
+    {
+        HallCalibrationRawBridgeInternal::transport = owner;
+    }
 };
 
 namespace HallCalibrationRawBridge

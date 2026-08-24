@@ -256,6 +256,9 @@ Commits:
 7025769132fbb1e77c572e8bf81c9965c7342673  feat(hall): define compact calibration done protocol
 29c19abd3abd54b9d3660adc5cc5fa398ef45d6a  feat(hall): parse compact calibration done frames
 6918df96aa5a9d16bfc8f3686aad9e17d8718047  test(hall): lock compact calibration done parser
+5a168dbeb1d16ad2b2dc36ea6b043271acd53c10  feat(hall): add compact completion adapter
+b47bcf727e64a6288c5c7482feaefdeb00b185f4  feat(hall): build remote result from compact completion
+fc7c6cd918a5f3938f2ea8b533e55ae656596c3e  test(hall): lock compact completion adapter ownership
 ```
 
 Parser rules:
@@ -267,15 +270,25 @@ Parser rules:
 - `measurement_id != 0`;
 - no START/SSR/digitalWrite semantics.
 
-Важно: этот protocol **ещё не подключён к runtime**. Uno всё ещё отправляет legacy `CAL_RESULT`, а ESP32 active path всё ещё получает correlation через `HardwareControlClient::processCalibrationResult`. Не переключать Uno TX до того, как ESP32 начнёт принимать и публиковать `CAL_DONE` в тот же `HallCalibrationRemoteResult`/raw-summary flow.
+`CM_HallCalibrationCompletionAdapter` теперь содержит общий ESP32-side result builder:
+
+```text
+buildFromDone(CAL_DONE + raw collector -> HallCalibrationRemoteResult)
+enrichLegacy(CAL_RESULT + raw collector -> HallCalibrationRemoteResult)
+```
+
+В обоих случаях baseline/min/max/runSamples/duration берутся только из `HallCalibrationRawCollector`; completion frame несёт лишь Uno-owned correlation ID. Это закреплено ownership regression. Адаптер не содержит START/SSR/digitalWrite semantics.
+
+Важно: `CAL_DONE` **ещё не подключён к `UartEventReceiver::poll()`**. Uno всё ещё отправляет legacy `CAL_RESULT`, а active ESP32 runtime всё ещё получает correlation через `HardwareControlClient::processCalibrationResult`. Подготовленный adapter уменьшает будущую runtime-правку до тонкого transport hook, но сам по себе active wire path не меняет.
 
 Следующий безопасный шаг:
 
-1. backward-compatible ESP32 runtime: принимать и `CAL_DONE`, и legacy `CAL_RESULT`;
-2. `CAL_DONE` должен создавать result только с Uno-owned `measurement_id`, после чего `UartEventReceiver` накладывает ESP32 raw summary ровно как сейчас;
-3. regression должен доказать, что оба completion frame приводят к одному result path;
-4. только затем переключить Uno `formatResult()` на `CAL_DONE`;
-5. измерить Uno Flash/RAM и при выигрыше уменьшить `MaxFrameLength`, если longest remaining response это позволяет.
+1. `UartEventReceiver` должен распознавать `CMP1|CAL_DONE|` до generic hardware-control parser;
+2. valid `CAL_DONE` передаётся в `HallCalibrationCompletionAdapter::buildFromDone` и публикуется через существующий `takeHallCalibrationResult` API;
+3. legacy `CAL_RESULT` остаётся fallback и проходит через `enrichLegacy`;
+4. regression должен доказать, что оба completion frame сводятся к одному ESP32 raw-summary result shape;
+5. только затем переключить Uno `formatResult()` на `CAL_DONE`;
+6. измерить Uno Flash/RAM и при выигрыше уменьшить `MaxFrameLength`, если longest remaining response это позволяет.
 
 ## Wire contract
 
@@ -333,4 +346,4 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
 
-Первое действие: проверить host + Uno Actions на `4823ecdf...` или descendant. Сравнение для Uno: `31648 Flash / 1213 RAM`. Если completion-tick ID уменьшил Flash и CI GREEN — оставить. Если дельта нулевая/хуже — откатить только этот experiment. Затем подключить prepared `CAL_DONE` parser backward-compatible на ESP32, не меняя Uno TX до regression-locked dual-frame receive path. Большой full-file ESP32 rewrite без атомарного patch-инструмента не делать.
+Сначала подключить prepared `CAL_DONE` parser + `CM_HallCalibrationCompletionAdapter` в `UartEventReceiver` backward-compatible, не меняя Uno TX до regression-locked dual-frame receive path. После этого переключить Uno completion carrier и измерить Uno Flash/RAM. Verified comparison baseline остаётся `31648 Flash / 1213 RAM` на `02d9cd7e...`; completion-tick descendant пока нельзя объявлять verified без отдельного build result. Большой full-file ESP32 rewrite без безопасной полной замены текущего blob не делать.

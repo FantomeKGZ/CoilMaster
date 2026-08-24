@@ -6,6 +6,7 @@ const obsoleteArtifacts = [
 ];
 const platformioPath = 'platformio.ini';
 const productionMainPath = 'firmware/arduino/src/main.cpp';
+const keypadHeaderPath = 'lib/CM_Keypad/src/Keypad.h';
 
 const failures = [];
 
@@ -17,6 +18,7 @@ for (const obsoletePath of obsoleteArtifacts) {
 
 const platformio = fs.readFileSync(platformioPath, 'utf8');
 const productionMain = fs.readFileSync(productionMainPath, 'utf8');
+const keypadHeader = fs.readFileSync(keypadHeaderPath, 'utf8');
 const eepromSource = fs.readFileSync('Arduino/CM_EepromPersistence.cpp', 'utf8');
 
 for (const required of [
@@ -52,8 +54,19 @@ for (const required of [
     failures.push(`${productionMainPath}: proven Keypad runtime missing: ${required}`);
   }
 }
-if (!platformio.includes('chris--a/Keypad @ ^3.1.1')) {
-  failures.push(`${platformioPath}: proven Keypad dependency missing`);
+
+for (const required of [
+  '#define LIST_MAX 1',
+  '#define MAPSIZE 4',
+  'uint bitMap[MAPSIZE];',
+  'Key key[LIST_MAX];',
+]) {
+  if (!keypadHeader.includes(required)) {
+    failures.push(`${keypadHeaderPath}: bounded proven Keypad contract missing: ${required}`);
+  }
+}
+if (platformio.includes('chris--a/Keypad @ ^3.1.1')) {
+  failures.push(`${platformioPath}: external 10-slot Keypad dependency must remain replaced by bounded local copy`);
 }
 for (const forbidden of [
   'void beginKeypad()',
@@ -89,4 +102,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino cleanup contract OK: obsolete artifacts stay removed, proven Keypad runtime is restored, and PlatformIO production main remains authoritative.');
+console.log('Arduino cleanup contract OK: obsolete artifacts stay removed, bounded proven Keypad runtime is active, and PlatformIO production main remains authoritative.');

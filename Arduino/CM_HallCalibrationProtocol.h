@@ -40,7 +40,9 @@ enum class HallCalibrationApplyResult : uint8_t
 
 namespace HallCalibrationProtocol
 {
-static constexpr size_t MaxFrameLength = 176U;
+// Longest current response is CAL_RESULT at 85 bytes including CRC/newline.
+// Keep bounded headroom without spending 176 bytes of Uno stack per send.
+static constexpr size_t MaxFrameLength = 96U;
 
 bool parseRequest(char* frame, HallCalibrationCommand& command);
 bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal);

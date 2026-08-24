@@ -16,6 +16,8 @@ const rawProtocolH = read('firmware/esp32/src/CM_HallCalibrationRawProtocol.h');
 const rawProtocolCpp = read('firmware/esp32/src/CM_HallCalibrationRawProtocol.cpp');
 const doneProtocolH = read('firmware/esp32/src/CM_HallCalibrationDoneProtocol.h');
 const doneProtocolCpp = read('firmware/esp32/src/CM_HallCalibrationDoneProtocol.cpp');
+const completionAdapterH = read('firmware/esp32/src/CM_HallCalibrationCompletionAdapter.h');
+const completionAdapterCpp = read('firmware/esp32/src/CM_HallCalibrationCompletionAdapter.cpp');
 const receiverH = read('firmware/esp32/src/CM_UartEventReceiver.h');
 const receiverCpp = read('firmware/esp32/src/CM_UartEventReceiver.cpp');
 const unoProtocolH = read('Arduino/CM_HallCalibrationProtocol.h');
@@ -56,6 +58,18 @@ mustContain(doneProtocolCpp, 'done.measurementId == 0UL', 'ESP32 done protocol')
 mustContain(doneProtocolCpp, 'strcmp(capability, "C")', 'ESP32 done protocol');
 mustNotContain(doneProtocolCpp, 'StartOrResume', 'ESP32 done protocol safety');
 mustNotContain(doneProtocolCpp, 'digitalWrite', 'ESP32 done protocol safety');
+
+mustContain(completionAdapterH, 'buildFromDone', 'ESP32 completion adapter');
+mustContain(completionAdapterH, 'enrichLegacy', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'collector.finish(rawDurationMs)', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'result.measurementId = done.measurementId', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'result.baselineAdc = summary.baselineAdc', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'result.minAdc = summary.minAdc', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'result.maxAdc = summary.maxAdc', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'result.sampleCount = summary.runSamples', 'ESP32 completion adapter');
+mustContain(completionAdapterCpp, 'result.durationMs = summary.durationMs', 'ESP32 completion adapter');
+mustNotContain(completionAdapterCpp, 'StartOrResume', 'ESP32 completion adapter safety');
+mustNotContain(completionAdapterCpp, 'digitalWrite', 'ESP32 completion adapter safety');
 
 mustContain(receiverH, 'HallCalibrationRawCollector m_hallCalibrationRaw', 'ESP32 raw receiver');
 mustContain(receiverCpp, 'CMP1|CAL_SAMPLE|', 'ESP32 raw receiver');
@@ -123,6 +137,8 @@ for (const [name, text] of [
   ['raw protocol cpp', rawProtocolCpp],
   ['done protocol header', doneProtocolH],
   ['done protocol cpp', doneProtocolCpp],
+  ['completion adapter header', completionAdapterH],
+  ['completion adapter cpp', completionAdapterCpp],
   ['Uno raw protocol header', unoProtocolH],
   ['Uno raw protocol cpp', unoProtocolCpp],
   ['Uno raw bridge header', unoBridgeH],

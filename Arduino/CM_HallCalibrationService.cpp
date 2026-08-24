@@ -6,12 +6,7 @@ namespace CM
 {
 
 HallCalibrationResult::HallCalibrationResult()
-    : measurementId(0UL),
-      baselineAdc(0U),
-      minAdc(0U),
-      maxAdc(0U),
-      sampleCount(0U),
-      durationMs(0UL)
+    : measurementId(0UL)
 {
 }
 

@@ -17,6 +17,7 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
       m_state(HallCalibrationState::Idle),
       m_resultPending(false),
       m_armedAtMs(0UL),
+      m_lastPeerContactMs(0UL),
       m_startedAtMs(0UL),
       m_lastSampleMs(0UL),
       m_baselineSum(0UL),
@@ -36,8 +37,14 @@ bool HallCalibrationService::arm(uint32_t nowMs)
     m_hall.reset(nowMs);
     m_state = HallCalibrationState::WaitingLocalConfirm;
     m_armedAtMs = nowMs;
+    m_lastPeerContactMs = nowMs;
     m_lastSampleMs = nowMs;
     return true;
+}
+
+void HallCalibrationService::notePeerContact(uint32_t nowMs)
+{
+    if (active()) m_lastPeerContactMs = nowMs;
 }
 
 bool HallCalibrationService::confirmLocal(uint32_t nowMs)
@@ -76,7 +83,8 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
         return;
     }
 
-    if (!safeEnvironment)
+    if (!safeEnvironment ||
+        static_cast<uint32_t>(nowMs - m_lastPeerContactMs) >= PeerTimeoutMs)
     {
         abort();
         return;
@@ -216,6 +224,7 @@ void HallCalibrationService::clearMeasurements()
 {
     m_resultPending = false;
     m_armedAtMs = 0UL;
+    m_lastPeerContactMs = 0UL;
     m_startedAtMs = 0UL;
     m_lastSampleMs = 0UL;
     m_baselineSum = 0UL;

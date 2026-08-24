@@ -126,6 +126,9 @@ CM::HardwareSettingsController hardwareSettingsController(hardwareSettingsStore,
 CM::HallCalibrationService hallCalibration(hall);
 CM::HallCalibrationState previousHallCalibrationState =
     CM::HallCalibrationState::Idle;
+CM::HardwareSettings pendingHallCalibrationSettings;
+uint32_t pendingHallCalibrationMeasurementId = 0UL;
+bool hasPendingHallCalibrationProposal = false;
 
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
@@ -152,6 +155,13 @@ int freeSramBytes()
 #endif
 }
 #endif
+
+void clearPendingHallCalibrationProposal()
+{
+    pendingHallCalibrationSettings = CM::HardwareSettings();
+    pendingHallCalibrationMeasurementId = 0UL;
+    hasPendingHallCalibrationProposal = false;
+}
 
 void printResetCause()
 {
@@ -267,6 +277,23 @@ CM::HardwareControlResult hardwareControlResult(
     }
 }
 
+CM::HallCalibrationApplyResult hallCalibrationApplyResult(
+    CM::HardwareSettingsApplyResult result)
+{
+    switch (result)
+    {
+        case CM::HardwareSettingsApplyResult::Applied:
+            return CM::HallCalibrationApplyResult::Applied;
+        case CM::HardwareSettingsApplyResult::Busy:
+            return CM::HallCalibrationApplyResult::Busy;
+        case CM::HardwareSettingsApplyResult::Invalid:
+            return CM::HallCalibrationApplyResult::Invalid;
+        case CM::HardwareSettingsApplyResult::PersistenceFailed:
+        default:
+            return CM::HallCalibrationApplyResult::PersistenceFailed;
+    }
+}
+
 void printHardwareSettings()
 {
 #if CM_FEATURE_DIAGNOSTICS
@@ -365,6 +392,48 @@ void processKeypad()
         }
         return;
     }
+
+    if (hallCalibration.state() == CM::HallCalibrationState::WaitingApplyConfirm)
+    {
+        const uint32_t measurementId = pendingHallCalibrationMeasurementId;
+        if (key == '#' && hasPendingHallCalibrationProposal && measurementId != 0UL)
+        {
+            const CM::HardwareSettingsApplyResult result =
+                hardwareSettingsController.apply(pendingHallCalibrationSettings);
+            const CM::HallCalibrationApplyResult calibrationResult =
+                hallCalibrationApplyResult(result);
+            if (result == CM::HardwareSettingsApplyResult::Applied)
+            {
+                hall.reset(millis());
+                printHardwareSettings();
+            }
+            hallCalibration.completeApply();
+            espTransport.sendHallCalibrationApplied(
+                measurementId,
+                calibrationResult,
+                hardwareSettingsController.settings());
+            clearPendingHallCalibrationProposal();
+            Serial.println(result == CM::HardwareSettingsApplyResult::Applied
+                               ? F("CM_HALL_CAL apply=ACCEPTED")
+                               : F("CM_HALL_CAL apply=FAILED"));
+        }
+        else
+        {
+            hallCalibration.abort();
+            ssr.forceOff();
+            if (measurementId != 0UL)
+            {
+                espTransport.sendHallCalibrationApplied(
+                    measurementId,
+                    CM::HallCalibrationApplyResult::Cancelled,
+                    hardwareSettingsController.settings());
+            }
+            clearPendingHallCalibrationProposal();
+            Serial.println(F("CM_HALL_CAL apply=CANCELLED"));
+        }
+        return;
+    }
+
     if (hallCalibration.active())
     {
         hallCalibration.abort();
@@ -408,6 +477,13 @@ void processExternalStart(uint32_t nowMs)
         {
             ssr.forceOff();
             Serial.println(F("CM_HALL_CAL physical_start=WAITING_LOCAL_CONFIRM"));
+            return;
+        }
+
+        if (hallCalibration.state() == CM::HallCalibrationState::WaitingApplyConfirm)
+        {
+            ssr.forceOff();
+            Serial.println(F("CM_HALL_CAL physical_start=WAITING_APPLY_CONFIRM"));
             return;
         }
 
@@ -580,6 +656,7 @@ void processHallCalibrationCommands(uint32_t nowMs)
                 if (hallCalibrationEnvironmentSafe())
                 {
                     hallTelemetryEnabled = false;
+                    clearPendingHallCalibrationProposal();
                     hallCalibration.reset();
                     hallCalibration.arm(nowMs);
                     previousHallCalibrationState = hallCalibration.state();
@@ -591,6 +668,15 @@ void processHallCalibrationCommands(uint32_t nowMs)
                 break;
 
             case CM::HallCalibrationCommand::Abort:
+                if (hasPendingHallCalibrationProposal &&
+                    pendingHallCalibrationMeasurementId != 0UL)
+                {
+                    espTransport.sendHallCalibrationApplied(
+                        pendingHallCalibrationMeasurementId,
+                        CM::HallCalibrationApplyResult::Cancelled,
+                        hardwareSettingsController.settings());
+                    clearPendingHallCalibrationProposal();
+                }
                 hallCalibration.abort();
                 ssr.forceOff();
                 espTransport.sendHallCalibrationState(
@@ -686,6 +772,48 @@ void processHardwareControlRequests(uint32_t nowMs)
                 espTransport.sendHardwareControlResult(CM::HardwareControlResult::Applied);
                 break;
 
+            case CM::HardwareControlRequestType::StageHallCalibrationProposal:
+            {
+                CM::HallCalibrationResult measured;
+                CM::HallCalibrationApplyResult stageResult =
+                    CM::HallCalibrationApplyResult::Busy;
+                if (!hardwareSettingsController.safeToChange() ||
+                    !hallCalibrationEnvironmentSafe())
+                {
+                    stageResult = CM::HallCalibrationApplyResult::Busy;
+                }
+                else if (!hallCalibration.latestResult(measured))
+                {
+                    stageResult = CM::HallCalibrationApplyResult::Invalid;
+                }
+                else if (measured.measurementId != request.measurementId)
+                {
+                    stageResult = CM::HallCalibrationApplyResult::IdentityMismatch;
+                }
+                else if (!request.settings.isValid())
+                {
+                    stageResult = CM::HallCalibrationApplyResult::Invalid;
+                }
+                else if (hallCalibration.beginApplyConfirm(request.measurementId, nowMs))
+                {
+                    pendingHallCalibrationSettings = request.settings;
+                    pendingHallCalibrationMeasurementId = request.measurementId;
+                    hasPendingHallCalibrationProposal = true;
+                    hallTelemetryEnabled = false;
+                    espTransport.sendHallCalibrationState(
+                        hallCalibration.state(),
+                        hallCalibration.baselineReady(),
+                        hallCalibration.motorPermit());
+                    break;
+                }
+
+                espTransport.sendHallCalibrationApplied(
+                    request.measurementId,
+                    stageResult,
+                    hardwareSettingsController.settings());
+                break;
+            }
+
             case CM::HardwareControlRequestType::None:
             default:
                 espTransport.sendHardwareControlResult(
@@ -705,9 +833,6 @@ void processHallTelemetry(uint32_t nowMs)
     }
     if (static_cast<uint32_t>(nowMs - lastHallTelemetrySendMs) < 250UL) return;
 
-    // Bounded diagnostic sample only. Uno does not keep a telemetry window;
-    // aggregation belongs to ESP32. pollTurn updates the real detector latch,
-    // but the diagnostic result is intentionally discarded outside winding.
     (void)hall.pollTurn(nowMs);
     CM::HallTelemetrySnapshot snapshot;
     snapshot.valid = true;
@@ -845,6 +970,20 @@ void processHallCalibration(uint32_t nowMs)
         hallCalibration.update(nowMs, hallCalibrationEnvironmentSafe());
     }
 
+    if (hallCalibration.state() == CM::HallCalibrationState::Aborted &&
+        hasPendingHallCalibrationProposal)
+    {
+        const uint32_t measurementId = pendingHallCalibrationMeasurementId;
+        clearPendingHallCalibrationProposal();
+        if (measurementId != 0UL)
+        {
+            espTransport.sendHallCalibrationApplied(
+                measurementId,
+                CM::HallCalibrationApplyResult::Cancelled,
+                hardwareSettingsController.settings());
+        }
+    }
+
     CM::HallCalibrationResult result;
     if (hallCalibration.takeResult(result))
         espTransport.sendHallCalibrationResult(result);
@@ -859,7 +998,8 @@ void processHallCalibration(uint32_t nowMs)
     }
 
     if (hallCalibration.state() == CM::HallCalibrationState::Completed ||
-        hallCalibration.state() == CM::HallCalibrationState::Aborted)
+        hallCalibration.state() == CM::HallCalibrationState::Aborted ||
+        hallCalibration.state() == CM::HallCalibrationState::WaitingApplyConfirm)
         ssr.forceOff();
 }
 

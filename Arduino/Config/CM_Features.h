@@ -14,7 +14,9 @@
 // Verbose human-readable Serial diagnostics are disabled in the production Uno
 // image to preserve ATmega328P flash. CMP1 transport, safety, calibration,
 // physical START and SSR behavior do not depend on this flag.
+#ifndef CM_FEATURE_DIAGNOSTICS
 #define CM_FEATURE_DIAGNOSTICS      0
+#endif
 #define CM_FEATURE_CALIBRATION      1
 
 // Simulation is disabled in the normal machine firmware.

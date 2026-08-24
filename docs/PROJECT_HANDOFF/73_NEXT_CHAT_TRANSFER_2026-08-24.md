@@ -32,11 +32,21 @@ Branch HEAD immediately before the frame-bound optimization was:
 docs(handoff): mark compact completion host tests green
 ```
 
-Latest implementation commit:
+Frame-bound implementation:
 
 ```text
 256b95754431c30b6da94bd43f399f5085e030fc
 perf(uno): tighten Hall calibration frame buffer
+```
+
+ESP32 applied-profile validation:
+
+```text
+a2bd5115a75b530f9f72c5e32f5a72e0e847d9d2
+fix(hall): validate applied settings before mirror
+
+ed32e55f91b5e6bada33315c2daafab1e7cd5e6c
+test(hall): require applied range validation
 ```
 
 Important earlier implementation/test commits:
@@ -50,40 +60,39 @@ d35a6de9b378a48578274f4c7320d92b3be4b230  feat(hall): receive compact calibratio
 
 Always refetch branch HEAD before modifying anything.
 
-## Verified CI — GREEN baseline
+## Verified CI — GREEN
 
-The user supplied two fresh post-fix Actions runs and both are fully successful:
+Previous verified baseline:
 
 ```text
 32753340348  host-tests  checkout d77a24b3437831d0a236086055a193f233e1be7e  SUCCESS
 32753408620  host-tests  checkout b07de01ee4f3b1216153036dd977fa48bc053c2f  SUCCESS
 ```
 
-The latest verified run `32753408620` passed all listed gates, including:
+Fresh post-frame-bound verification supplied by the user:
 
 ```text
-CTest protocol tests
-Hall calibration safety contracts
-Hall lost-apply reconciliation
-Uno Hall parser ownership
-Hall raw migration ownership/wire contracts
-Hall history and SD reference contracts
-release safety / job lifecycle / material writeoff contracts
+32759806141  build-uno   checkout 256b95754431c30b6da94bd43f399f5085e030fc  SUCCESS
+32760002181  host-tests  checkout 1e8328733f4495f023748ed7c4f34afdf6f7168e  SUCCESS
 ```
+
+`32760002181` passed all 4 CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
 
 Hardware is **not** thereby declared GREEN.
 
-The new frame-bound implementation commit `256b9575...` must not be called CI GREEN until its fresh Actions results are actually confirmed.
+The later ESP32 applied-profile validation commits `a2bd5115...` / `ed32e55f...` require their own fresh host-test confirmation before they are called GREEN.
 
-## Verified Uno build / memory baseline
+## Verified Uno build / memory
 
-Compact-completion Uno build:
+Fresh frame-bound Uno build:
 
 ```text
-32751199627  build-uno  checkout a928a51bc77c00407b146587aaf34c1e08a19998  SUCCESS
+32759806141  build-uno  checkout 256b95754431c30b6da94bd43f399f5085e030fc  SUCCESS
 RAM   1213 / 2048 = 59.2%   free 835 B
 Flash 31640 / 32256 = 98.1% free 616 B
 ```
+
+Therefore tightening `HallCalibrationProtocol::MaxFrameLength` from `96` to `77` changes static reported Flash/RAM by **0 B / 0 B** versus the compact-completion baseline. It still reduces each active Hall formatter's automatic local stack buffer by **19 bytes**.
 
 Comparison baseline before compact completion:
 
@@ -93,9 +102,7 @@ RAM   1213 / 2048 = 59.2%   free 835 B
 Flash 31648 / 32256 = 98.1% free 608 B
 ```
 
-Compact completion saves **8 B Flash**, RAM delta **0 B** versus that older baseline.
-
-Do not claim a newer descendant Uno size until a newer exact build is measured.
+Compact completion itself saves **8 B Flash**, RAM delta **0 B** versus that older baseline.
 
 ## Active Hall architecture
 
@@ -242,7 +249,22 @@ HallCalibrationProtocol::MaxFrameLength
 
 and records the proven `MaxAppliedWireLength = 76` with a compile-time `static_assert(MaxFrameLength == 77U)`.
 
-This reduces each active Hall formatter stack frame using this local buffer by **19 bytes** compared with the prior 96-byte bound. Static global RAM usage may remain unchanged because these are automatic local buffers; exact build output is still required before claiming Flash/RAM deltas.
+Fresh build `32759806141` confirms the Uno image still fits exactly at `31640 Flash / 1213 RAM`.
+
+## ESP32 CAL_APPLIED mirror validation
+
+`CM_HardwareControlClient.cpp::processCalibrationApplied()` now rejects an incoming CRC-valid `CAL_APPLIED` profile before mirroring it into ESP32 state unless all values satisfy the same active Hall profile bounds:
+
+```text
+threshold           1..1023
+hysteresis          1..512 and < threshold
+releaseDebounceMs   1..1000
+direction           RISING or FALLING
+```
+
+This keeps malformed/out-of-range applied values from being marked `valid`, `fromEeprom`, or copied into `m_settings`. Exact pending measurement-id matching remains mandatory.
+
+Regression contract `ed32e55f...` locks these range checks into `check_hall_calibration_contracts.js`.
 
 ## Current optimization status
 
@@ -251,8 +273,9 @@ Keep:
 - ESP32 extended aggregation active;
 - compact `CAL_DONE` TX active;
 - legacy ESP32 `CAL_RESULT` receive fallback active;
-- parser/ownership/safety regressions from the previous checkpoint GREEN;
-- Hall response buffer exact bound now 77 bytes in implementation commit `256b9575...`.
+- Hall response buffer exact bound 77 bytes, build verified;
+- previous host-test checkpoint through `1e832873...` GREEN;
+- ESP32 CAL_APPLIED range validation implemented and contract-covered, awaiting fresh post-change host-tests.
 
 Rejected experiments not to repeat:
 
@@ -267,16 +290,10 @@ Continue software optimization only; do not request intermediate physical hardwa
 
 Immediate next steps:
 
-1. Confirm fresh `build-uno` for `256b9575...`; record exact Flash/RAM versus `31640 / 1213`.
-2. Confirm fresh host-tests descendant of `256b9575...`.
-3. Then inspect/fix the known ESP32 semantic weakness in `CM_HardwareControlClient.cpp::processCalibrationApplied()`: APPLIED values must be range-validated before mirroring:
-   - threshold `1..1023`;
-   - hysteresis `1..512` and `< threshold`;
-   - debounce `1..1000`;
-   - direction must remain a recognized enum value.
-4. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
-
-Do not perform the final hardware acceptance until software optimization is finished.
+1. Confirm fresh host-tests descendant of `ed32e55f...`.
+2. After GREEN, continue targeted software optimization/review; do not reopen broad cleanup.
+3. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
+4. Do not perform the final hardware acceptance until software optimization is finished.
 
 ## Final hardware acceptance gate — later only
 

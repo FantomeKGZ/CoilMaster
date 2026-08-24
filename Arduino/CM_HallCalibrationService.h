@@ -23,15 +23,14 @@ enum class HallCalibrationDirection : uint8_t
     Falling
 };
 
+// Measurement-only result owned by Uno. Recommendation fields intentionally
+// live on ESP32; the CMP1 formatter preserves the legacy wire shape with
+// neutral placeholders during the staged migration.
 struct HallCalibrationResult
 {
-    bool valid;
     uint16_t baselineAdc;
     uint16_t minAdc;
     uint16_t maxAdc;
-    uint16_t recommendedThreshold;
-    uint16_t recommendedHysteresis;
-    HallCalibrationDirection direction;
     uint16_t sampleCount;
     uint32_t durationMs;
 
@@ -54,18 +53,12 @@ public:
     bool motorPermit() const;
     bool baselineReady() const;
     bool takeResult(HallCalibrationResult& result);
-    bool latestResult(HallCalibrationResult& result) const
-    {
-        if (m_state != HallCalibrationState::Completed) return false;
-        result = m_result;
-        return true;
-    }
+    bool latestResult(HallCalibrationResult& result) const;
 
 private:
     static constexpr uint16_t SampleIntervalMs = 10U;
     static constexpr uint16_t BaselineSampleIntervalMs = 20U;
     static constexpr uint8_t MinimumBaselineSamples = 8U;
-    static constexpr uint16_t MinimumSignalSpan = 60U;
     static constexpr uint32_t ArmedTimeoutMs = 60000UL;
     static constexpr uint32_t RunDurationMs = 5000UL;
     static constexpr uint32_t AbsoluteRunTimeoutMs = 6500UL;
@@ -74,11 +67,11 @@ private:
     void sampleRunning(uint32_t nowMs);
     void finish(uint32_t nowMs);
     void clearMeasurements();
+    bool populateResult(HallCalibrationResult& result) const;
 
     HallTurnSource& m_hall;
     HallCalibrationState m_state;
-    HallCalibrationResult m_result;
-    bool m_hasResult;
+    bool m_resultPending;
     uint32_t m_armedAtMs;
     uint32_t m_startedAtMs;
     uint32_t m_lastSampleMs;
@@ -87,6 +80,7 @@ private:
     uint16_t m_minAdc;
     uint16_t m_maxAdc;
     uint16_t m_runSamples;
+    uint32_t m_resultDurationMs;
 };
 
 } // namespace CM

@@ -188,51 +188,18 @@ void HallCalibrationService::finish(uint32_t nowMs)
         return;
     }
 
-    const uint16_t baseline = static_cast<uint16_t>(
+    // Uno is the measurement/safety owner only. It intentionally does not
+    // derive threshold, hysteresis or signal direction here. ESP32 analyzes
+    // this bounded summary, while Arduino remains authoritative for applying
+    // validated settings through HardwareSettingsController/EEPROM.
+    m_result.baselineAdc = static_cast<uint16_t>(
         m_baselineSum / static_cast<uint32_t>(m_baselineSamples));
-    const uint16_t upward = m_maxAdc > baseline
-                                ? static_cast<uint16_t>(m_maxAdc - baseline)
-                                : 0U;
-    const uint16_t downward = baseline > m_minAdc
-                                  ? static_cast<uint16_t>(baseline - m_minAdc)
-                                  : 0U;
-    const bool rising = upward >= downward;
-    const uint16_t span = rising ? upward : downward;
-
-    m_result.baselineAdc = baseline;
     m_result.minAdc = m_minAdc;
     m_result.maxAdc = m_maxAdc;
-    m_result.direction = rising
-                             ? HallCalibrationDirection::Rising
-                             : HallCalibrationDirection::Falling;
-
-    if (span < MinimumSignalSpan)
-    {
-        m_hasResult = true;
-        return;
-    }
-
-    uint16_t threshold = rising
-                             ? static_cast<uint16_t>(baseline + span / 2U)
-                             : static_cast<uint16_t>(baseline - span / 2U);
-    if (threshold == 0U) threshold = 1U;
-    if (threshold > 1023U) threshold = 1023U;
-
-    uint16_t hysteresis = static_cast<uint16_t>(span / 4U);
-    if (hysteresis < 5U) hysteresis = 5U;
-    if (hysteresis > 128U) hysteresis = 128U;
-    if (hysteresis >= threshold)
-        hysteresis = threshold > 1U ? static_cast<uint16_t>(threshold - 1U) : 1U;
-
-    if (hysteresis == 0U || hysteresis >= threshold)
-    {
-        m_hasResult = true;
-        return;
-    }
-
-    m_result.recommendedThreshold = threshold;
-    m_result.recommendedHysteresis = hysteresis;
-    m_result.valid = true;
+    m_result.recommendedThreshold = 0U;
+    m_result.recommendedHysteresis = 0U;
+    m_result.direction = HallCalibrationDirection::Rising;
+    m_result.valid = false;
     m_hasResult = true;
 }
 

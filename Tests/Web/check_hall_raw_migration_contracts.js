@@ -57,11 +57,15 @@ mustContain(receiverCpp, 'result.maxAdc = rawSummary.maxAdc', 'ESP32 raw result 
 
 mustContain(unoProtocolH, 'HallCalibrationSamplePhase', 'Uno raw protocol');
 mustContain(unoProtocolH, 'formatSample', 'Uno raw protocol');
-mustContain(unoProtocolCpp, 'CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C', 'Uno raw protocol');
-mustContain(unoProtocolCpp, 'PSTR("BASELINE")', 'Uno raw protocol');
-mustContain(unoProtocolCpp, 'PSTR("RUN")', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'CMP1|CAL_SAMPLE|', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'PSTR("BASELINE|")', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'PSTR("RUN|")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'rawAdc > 1023U', 'Uno raw protocol');
-mustContain(unoProtocolCpp, 'appendCrc(output, outputSize, length)', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'appendUnsigned(cursor, remaining, rawAdc)', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'appendUnsigned(cursor, remaining, sequence)', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'appendUnsigned(cursor, remaining, elapsedMs)', 'Uno raw protocol');
+mustContain(unoProtocolCpp, 'appendCrc(output, outputSize', 'Uno raw protocol');
+mustNotContain(unoProtocolCpp, 'CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C', 'Uno raw protocol');
 
 mustContain(unoBridgeH, 'no START', 'Uno raw bridge safety');
 mustContain(unoBridgeCpp, 'sendHallCalibrationSample', 'Uno raw bridge');

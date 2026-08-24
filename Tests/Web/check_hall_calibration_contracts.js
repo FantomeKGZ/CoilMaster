@@ -20,6 +20,7 @@ const analyzerCpp = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.cpp');
 const arduinoMain = read('firmware/arduino/src/main.cpp');
 const calibrationHeader = read('Arduino/CM_HallCalibrationService.h');
 const calibrationCpp = read('Arduino/CM_HallCalibrationService.cpp');
+const calibrationProtocolCpp = read('Arduino/CM_HallCalibrationProtocol.cpp');
 
 for (const [name, page] of [['desktop', desktop], ['mobile', mobile]]) {
   mustContain(page, '/shared/settings-hall-calibration.js', `${name} Hall page`);
@@ -71,13 +72,17 @@ mustContain(arduinoMain, 'abort=PHYSICAL_START_PRESSED_AGAIN', 'Arduino runtime'
 mustContain(calibrationHeader, 'ArmedTimeoutMs = 60000UL', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'nowMs - m_armedAtMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, '>= ArmedTimeoutMs', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, 'm_result.baselineAdc', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, 'm_result.minAdc', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, 'm_result.maxAdc', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, 'm_result.recommendedThreshold = 0U', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, 'm_result.recommendedHysteresis = 0U', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'result.baselineAdc', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'result.minAdc', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'result.maxAdc', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'm_resultPending', 'Arduino Hall calibration service');
+mustNotContain(calibrationCpp, 'm_result.', 'Arduino Hall calibration service');
+mustNotContain(calibrationCpp, 'recommendedThreshold', 'Arduino Hall calibration service');
+mustNotContain(calibrationCpp, 'recommendedHysteresis', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'const uint16_t upward =', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'const uint16_t downward =', 'Arduino Hall calibration service');
+mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|C', 'Arduino Hall calibration protocol');
+
 const armedBranch = calibrationCpp.indexOf('if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)');
 const baselineCall = calibrationCpp.indexOf('sampleBaseline(nowMs);', armedBranch);
 const timeoutCheck = calibrationCpp.indexOf('>= ArmedTimeoutMs', armedBranch);

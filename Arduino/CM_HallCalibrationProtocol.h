@@ -38,6 +38,12 @@ enum class HallCalibrationApplyResult : uint8_t
     Cancelled
 };
 
+enum class HallCalibrationSamplePhase : uint8_t
+{
+    Baseline = 0U,
+    Run
+};
+
 namespace HallCalibrationProtocol
 {
 // Longest current response is CAL_RESULT at 85 bytes including CRC/newline.
@@ -55,6 +61,15 @@ bool formatState(HallCalibrationState state,
                  bool motorPermit,
                  char* output,
                  size_t outputSize);
+
+// Compact calibration-only raw sample. It carries no actuator semantics and
+// is intended for ESP32-owned extended analysis only.
+bool formatSample(HallCalibrationSamplePhase phase,
+                  uint16_t rawAdc,
+                  uint16_t sequence,
+                  uint32_t elapsedMs,
+                  char* output,
+                  size_t outputSize);
 
 bool formatResult(const HallCalibrationResult& result,
                   char* output,

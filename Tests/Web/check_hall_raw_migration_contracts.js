@@ -32,7 +32,8 @@ mustContain(collectorCpp, 'MinimumBaselineSamples', 'ESP32 raw collector');
 
 mustContain(rawProtocolH, 'HallCalibrationRawSample', 'ESP32 raw protocol');
 mustContain(rawProtocolH, 'parseSample', 'ESP32 raw protocol');
-mustContain(rawProtocolCpp, 'CMP1|CAL_SAMPLE', 'ESP32 raw protocol');
+mustContain(rawProtocolCpp, 'strcmp(version, "CMP1")', 'ESP32 raw protocol');
+mustContain(rawProtocolCpp, 'strcmp(category, "CAL_SAMPLE")', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, 'BASELINE', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, 'RUN', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, 'Cmp1Crc::calculate', 'ESP32 raw protocol');

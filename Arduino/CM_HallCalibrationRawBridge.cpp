@@ -4,15 +4,9 @@
 
 namespace CM
 {
-namespace
+namespace HallCalibrationRawBridgeInternal
 {
-UartEventTransport* g_rawCalibrationTransport = nullptr;
-}
-
-HallCalibrationRawBridgeRegistration::HallCalibrationRawBridgeRegistration(
-    UartEventTransport* owner)
-{
-    g_rawCalibrationTransport = owner;
+UartEventTransport* transport = nullptr;
 }
 
 namespace HallCalibrationRawBridge
@@ -22,8 +16,8 @@ bool publish(HallCalibrationSamplePhase phase,
              uint16_t sequence,
              uint32_t elapsedMs)
 {
-    return g_rawCalibrationTransport != nullptr &&
-           g_rawCalibrationTransport->sendHallCalibrationSample(
+    return HallCalibrationRawBridgeInternal::transport != nullptr &&
+           HallCalibrationRawBridgeInternal::transport->sendHallCalibrationSample(
                phase, rawAdc, sequence, elapsedMs);
 }
 }

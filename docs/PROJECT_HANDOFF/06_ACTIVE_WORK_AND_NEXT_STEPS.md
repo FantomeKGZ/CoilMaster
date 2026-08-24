@@ -345,3 +345,10 @@ Commit `4bcb43b6...` adds production-visible reset provenance and bounded boot c
 - no automatic START, resume, SSR activation or writeoff behavior was added.
 
 Regression `db158bf9...` protects reset capture, readable holds and early single-owner SSR initialization. After Arduino Build is GREEN, flash the firmware and record the exact repeating `RST:xx` value plus the last row-2 stage visible before restart. Do not infer the root cause from blinking alone.
+
+
+### Arduino USB diagnostic profile — 2026-08-24
+
+The isolated board completes every setup checkpoint and then restarts from the main loop. Raw LCD reset values changed from `FC` to `F4`; reserved MCUSR bits made those raw values non-actionable. Commit `24685cbe...` masks MCUSR to defined AVR reset bits and retains the last loop phase in `.noinit`; `890cdb8f...` protects this contract.
+
+Temporary PlatformIO environment `uno_diagnostic` was added by `36cf7a71...` + `951314d9...`. Production `uno` remains diagnostics-off. Upload `uno_diagnostic`, monitor USB Serial at 115200 and capture one complete reset cycle. This diagnostic profile is temporary and must be removed or left unselected after root-cause closure.

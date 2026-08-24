@@ -27,6 +27,7 @@ const hardwareSettingsHeader = read('Arduino/CM_HardwareSettings.h');
 const calibrationHeader = read('Arduino/CM_HallCalibrationService.h');
 const calibrationCpp = read('Arduino/CM_HallCalibrationService.cpp');
 const calibrationProtocolCpp = read('Arduino/CM_HallCalibrationProtocol.cpp');
+const calibrationDoneFormatter = read('Arduino/CM_HallCalibrationDoneFormatter.cpp');
 
 for (const [name, page] of [['desktop', desktop], ['mobile', mobile]]) {
   mustContain(page, '/shared/settings-hall-calibration.js', `${name} Hall page`);
@@ -154,7 +155,12 @@ mustContain(calibrationProtocolCpp, 'WAITING_LOCAL_CONFIRM', 'Arduino Hall calib
 mustContain(calibrationProtocolCpp, 'WAITING_APPLY_CONFIRM', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CAL_APPLIED', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, '!settings.isValid()', 'Arduino Hall calibration protocol');
-mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|%lu|C', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'return formatDone(result, output, outputSize);', 'Arduino Hall compact completion TX');
+mustNotContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|', 'Arduino Hall legacy completion TX');
+mustContain(calibrationDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Arduino Hall compact completion protocol');
+mustContain(calibrationDoneFormatter, 'Cmp1Crc::calculate', 'Arduino Hall compact completion protocol');
+mustNotContain(calibrationDoneFormatter, 'StartOrResume', 'Arduino Hall compact completion safety');
+mustNotContain(calibrationDoneFormatter, 'digitalWrite', 'Arduino Hall compact completion safety');
 
 const localConfirmBranch = arduinoMain.indexOf('HallCalibrationState::WaitingLocalConfirm');
 const firstConfirmKey = arduinoMain.indexOf("key == '#'", localConfirmBranch);

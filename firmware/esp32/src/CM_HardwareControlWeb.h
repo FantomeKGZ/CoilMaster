@@ -2,8 +2,10 @@
 #define CM_HARDWARE_CONTROL_WEB_H
 
 #include <Arduino.h>
+#include <SD.h>
 #include <WebServer.h>
 
+#include "CM_HallCalibrationHistoryStore.h"
 #include "CM_UartEventReceiver.h"
 
 namespace CM
@@ -34,6 +36,7 @@ private:
     void handleCalibrationArm();
     void handleCalibrationAbort();
     void handleCalibrationApply();
+    void handleCalibrationHistory();
 
     bool queueAccepted(bool accepted, const char* errorName);
     static bool parseUnsigned(const String& source,
@@ -46,6 +49,7 @@ private:
 
     WebServer& m_server;
     UartEventReceiver& m_receiver;
+    HallCalibrationHistoryStore m_calibrationHistory;
     HallSettingsState m_settings;
     HallTelemetryState m_telemetry;
     HallCalibrationRemoteStateSnapshot m_calibrationState;
@@ -56,6 +60,8 @@ private:
     bool m_hasCalibrationState;
     bool m_hasCalibrationResult;
     bool m_hasReply;
+    bool m_calibrationHistoryReady;
+    uint32_t m_pendingHistoryMeasurementId;
     uint32_t m_nowMs;
 };
 

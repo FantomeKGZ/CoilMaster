@@ -299,33 +299,33 @@ void printHardwareSettings()
 void beginKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
+    // Match the proven Keypad library electrical scan direction: rows are
+    // pulled-up inputs and one column at a time is driven LOW.
     for (uint8_t row = 0U; row < KeypadRows; ++row)
-    {
-        pinMode(RowPins[row], OUTPUT);
-        digitalWrite(RowPins[row], HIGH);
-    }
+        pinMode(RowPins[row], INPUT_PULLUP);
     for (uint8_t col = 0U; col < KeypadCols; ++col)
-        pinMode(ColPins[col], INPUT_PULLUP);
+        pinMode(ColPins[col], INPUT);
 #endif
 }
 
 char scanKeypadRaw()
 {
 #if CM_FEATURE_KEYPAD_4X4
-    for (uint8_t row = 0U; row < KeypadRows; ++row)
+    for (uint8_t col = 0U; col < KeypadCols; ++col)
     {
-        digitalWrite(RowPins[row], LOW);
+        pinMode(ColPins[col], OUTPUT);
+        digitalWrite(ColPins[col], LOW);
         delayMicroseconds(3U);
-        for (uint8_t col = 0U; col < KeypadCols; ++col)
+        for (uint8_t row = 0U; row < KeypadRows; ++row)
         {
-            if (digitalRead(ColPins[col]) == LOW)
+            if (digitalRead(RowPins[row]) == LOW)
             {
-                digitalWrite(RowPins[row], HIGH);
+                pinMode(ColPins[col], INPUT);
                 const uint8_t index = static_cast<uint8_t>(row * KeypadCols + col);
                 return static_cast<char>(pgm_read_byte(&KeyMap[index]));
             }
         }
-        digitalWrite(RowPins[row], HIGH);
+        pinMode(ColPins[col], INPUT);
     }
 #endif
     return '\0';

@@ -315,3 +315,17 @@ Runs `32645799868`, `32645815018`, `32645826246`, `32645835821`, `32645845923` �
 
 Offline dependency closure подтверждён GREEN оператором; software/site readiness около 98%. Текущий workflow генерирует отдельный `coilmaster-reference-smoke-plan-<sha>` с 4А и наиболее рискованными страницами по tables/images/text/path depth, точными desktop/mobile URLs и bounded physical checklist. Local positive/missing-target contract GREEN. После нового Actions GREEN использовать именно этот plan и свежий SD bundle для завершающего ESP32 smoke.
 
+### Arduino LCD startup recovery — 2026-08-24
+
+Physical evidence: LCD 1602 showed only character blocks after production flash. Standalone I2C scan repeatedly found `0x27`; standalone `LiquidCrystal_I2C(0x27,16,2)` test displayed text correctly. Hardware wiring, address, contrast and backpack are therefore verified.
+
+Commits `14209cca...` and `9b17e036...` make production startup explicit and observable:
+
+- `Wire.begin()` is called directly;
+- LCD initializes exactly once before UART, EEPROM and other services;
+- LCD shows bounded boot stages `LCD/UART/EEPROM/SETTINGS/SSR/BUZZER/START/STATE`;
+- final `updateOutputs()` replaces boot text with the normal safe home UI;
+- no automatic START/resume/SSR/writeoff behavior changed.
+
+Exact LCD contract locally GREEN. Await Arduino Uno Build and physical reflash. If boot stops, the last displayed stage identifies the failing service.
+

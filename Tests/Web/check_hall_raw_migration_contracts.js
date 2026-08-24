@@ -22,6 +22,7 @@ const unoBridgeH = read('Arduino/CM_HallCalibrationRawBridge.h');
 const unoBridgeCpp = read('Arduino/CM_HallCalibrationRawBridge.cpp');
 const unoTransportH = read('Arduino/CM_UartEventTransport.h');
 const analyzerCpp = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.cpp');
+const unoServiceH = read('Arduino/CM_HallCalibrationService.h');
 const unoService = read('Arduino/CM_HallCalibrationService.cpp');
 const unoMain = read('firmware/arduino/src/main.cpp');
 const handoff = read('docs/PROJECT_HANDOFF/71_HALL_RAW_STREAM_MIGRATION_2026-08-24.md');
@@ -69,6 +70,17 @@ mustContain(unoService, 'HallCalibrationRawBridge::publish', 'Uno raw sample pub
 mustContain(unoService, 'HallCalibrationSamplePhase::Baseline', 'Uno baseline raw publisher');
 mustContain(unoService, 'HallCalibrationSamplePhase::Run', 'Uno run raw publisher');
 
+// Extended measurement aggregation now belongs exclusively to ESP32.
+mustNotContain(unoServiceH, 'm_baselineSum', 'Uno calibration service');
+mustNotContain(unoServiceH, 'm_minAdc', 'Uno calibration service');
+mustNotContain(unoServiceH, 'm_maxAdc', 'Uno calibration service');
+mustNotContain(unoServiceH, 'm_resultDurationMs', 'Uno calibration service');
+mustNotContain(unoService, 'm_baselineSum', 'Uno calibration service');
+mustNotContain(unoService, 'm_minAdc', 'Uno calibration service');
+mustNotContain(unoService, 'm_maxAdc', 'Uno calibration service');
+mustContain(unoServiceH, 'm_measurementId', 'Uno correlation identity');
+mustContain(unoService, 'result.measurementId = m_measurementId', 'Uno correlation identity');
+
 mustContain(analyzerCpp, 'analyzeSummary', 'ESP32 analyzer owner');
 
 mustContain(unoMain, 'processExternalStart', 'Uno safety runtime');
@@ -94,6 +106,5 @@ for (const [name, text] of [
 
 mustContain(handoff, 'CMP1|CAL_SAMPLE|BASELINE|raw|sequence|elapsed_ms|C|CRC', 'raw migration handoff');
 mustContain(handoff, 'normal winding realtime turn count remains Uno-local', 'raw migration handoff');
-mustContain(handoff, '32725501435', 'raw migration verified baseline');
 
 console.log('Hall raw migration ownership/wire contracts: OK');

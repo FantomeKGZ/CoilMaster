@@ -140,13 +140,9 @@ bool formatResult(const HallCalibrationResult& result,
 {
     if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
         return false;
-    const int length = snprintf_P(output, outputSize,
-        PSTR("CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C"),
-        static_cast<unsigned int>(result.baselineAdc),
-        static_cast<unsigned int>(result.minAdc),
-        static_cast<unsigned int>(result.maxAdc),
-        static_cast<unsigned int>(result.sampleCount),
-        static_cast<unsigned long>(result.durationMs),
+    const int length = snprintf_P(
+        output, outputSize,
+        PSTR("CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|%lu|C"),
         static_cast<unsigned long>(result.measurementId));
     return appendCrc(output, outputSize, length);
 }

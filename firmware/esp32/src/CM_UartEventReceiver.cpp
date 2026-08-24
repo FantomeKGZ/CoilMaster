@@ -84,7 +84,10 @@ JobCancelEvent::JobCancelEvent()
 }
 
 UartEventReceiver::UartEventReceiver(HardwareSerial& serial)
-    : m_serial(serial), m_hardwareControl(serial), m_line(), m_length(0U), m_pendingJob(),
+    : m_serial(serial), m_hardwareControl(serial),
+      m_hallCalibrationRaw(), m_hallCalibrationRawRunStarted(false),
+      m_hallCalibrationRawDurationMs(0UL),
+      m_line(), m_length(0U), m_pendingJob(),
       m_hasPendingJob(false), m_waitingJobAck(false),
       m_lastJobSendMs(0UL), m_jobSendAttempts(0U),
       m_lastQueuedJobId(0UL), m_hasLastQueuedJobId(false),
@@ -125,6 +128,10 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
                 {
                     processCancelAck(m_line);
                     orderingBarrier = true;
+                }
+                else if (strncmp(m_line, "CMP1|CAL_SAMPLE|", 16U) == 0)
+                {
+                    processHallCalibrationRawSample(m_line);
                 }
                 else if (m_hardwareControl.processLine(m_line, millis()))
                 {
@@ -315,7 +322,11 @@ bool UartEventReceiver::setHallTelemetryEnabled(bool enabled)
 
 bool UartEventReceiver::armHallCalibration()
 {
-    return !controlLaneBusy() && m_hardwareControl.armHallCalibration();
+    if (controlLaneBusy()) return false;
+    m_hallCalibrationRaw.reset();
+    m_hallCalibrationRawRunStarted = false;
+    m_hallCalibrationRawDurationMs = 0UL;
+    return m_hardwareControl.armHallCalibration();
 }
 
 bool UartEventReceiver::abortHallCalibration()
@@ -364,7 +375,22 @@ bool UartEventReceiver::takeHallCalibrationState(
 bool UartEventReceiver::takeHallCalibrationResult(
     HallCalibrationRemoteResult& result)
 {
-    return m_hardwareControl.takeHallCalibrationResult(result);
+    if (!m_hardwareControl.takeHallCalibrationResult(result)) return false;
+
+    if (result.valid && m_hallCalibrationRawRunStarted &&
+        m_hallCalibrationRaw.finish(m_hallCalibrationRawDurationMs))
+    {
+        const HallCalibrationRawSummary rawSummary = m_hallCalibrationRaw.summary();
+        if (rawSummary.valid)
+        {
+            result.baselineAdc = rawSummary.baselineAdc;
+            result.minAdc = rawSummary.minAdc;
+            result.maxAdc = rawSummary.maxAdc;
+            result.sampleCount = rawSummary.runSamples;
+            result.durationMs = rawSummary.durationMs;
+        }
+    }
+    return true;
 }
 
 bool UartEventReceiver::takeHardwareControlReply(HardwareControlReply& reply)
@@ -631,6 +657,29 @@ bool UartEventReceiver::processCancelAck(char* line)
         m_recoveryJobId = 0UL;
         m_hasRecoveryJobId = false;
     }
+    return true;
+}
+
+bool UartEventReceiver::processHallCalibrationRawSample(char* line)
+{
+    HallCalibrationRawSample sample;
+    if (!HallCalibrationRawProtocol::parseSample(line, sample) || !sample.valid)
+        return false;
+
+    if (sample.phase == HallCalibrationRawPhase::Baseline)
+    {
+        if (m_hallCalibrationRawRunStarted) return false;
+        return m_hallCalibrationRaw.addBaselineSample(sample.rawAdc);
+    }
+
+    if (!m_hallCalibrationRawRunStarted)
+    {
+        m_hallCalibrationRaw.beginRun();
+        m_hallCalibrationRawRunStarted = true;
+    }
+
+    if (!m_hallCalibrationRaw.addRunSample(sample.rawAdc)) return false;
+    m_hallCalibrationRawDurationMs = sample.elapsedMs;
     return true;
 }
 

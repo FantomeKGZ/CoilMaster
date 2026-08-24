@@ -85,6 +85,12 @@ mustContain(clientCpp, 'measurementId != m_pendingCalibrationMeasurementId', 'ES
 mustContain(clientCpp, 'RequestType::StageCalibrationProposal', 'ESP32 Hall client');
 mustContain(clientCpp, 'HallCalibrationRemoteState::WaitingApplyConfirm', 'ESP32 Hall client');
 mustContain(clientCpp, 'sendCalibrationKeepAlive', 'ESP32 Hall client');
+mustContain(clientCpp, 'proposalWasWaitingApply', 'ESP32 Hall client');
+mustContain(clientCpp, 'finishRequest(HardwareControlReplyResult::TimedOut)', 'ESP32 Hall client');
+mustContain(clientCpp, 'finishRequest(HardwareControlReplyResult::Cancelled)', 'ESP32 Hall client');
+mustContain(clientCpp, 'm_pendingCalibrationMeasurementId = 0UL;', 'ESP32 Hall client');
+mustContain(clientCpp, 'applied.fromEeprom = true;', 'ESP32 Hall client');
+mustContain(clientCpp, 'm_settings = applied;', 'ESP32 Hall client');
 
 mustContain(receiverHeader, 'proposeHallCalibration', 'ESP32 UART receiver');
 mustContain(receiverCpp, 'm_hardwareControl.proposeHallCalibration', 'ESP32 UART receiver');
@@ -179,6 +185,24 @@ if (applyWrite < 0 || appliedReply < 0 || persistedProfileReply < 0 || clearProp
   throw new Error('Arduino Hall calibration runtime: CAL_APPLIED must report authoritative post-apply profile before transient proposal is cleared');
 }
 
+const stagedStateGuard = clientCpp.indexOf('const bool proposalWasWaitingApply');
+const stagedCompleted = clientCpp.indexOf('parsed.state == HallCalibrationRemoteState::Completed', stagedStateGuard);
+const stagedTimeout = clientCpp.indexOf('finishRequest(HardwareControlReplyResult::TimedOut)', stagedCompleted);
+if (stagedStateGuard < 0 || stagedCompleted < 0 || stagedTimeout < 0 ||
+    !(stagedStateGuard < stagedCompleted && stagedCompleted < stagedTimeout)) {
+  throw new Error('ESP32 Hall client: completed staged proposal must reconcile instead of retransmitting CAL_PROPOSAL');
+}
+
+const abortMethod = clientCpp.indexOf('bool HardwareControlClient::abortHallCalibration()');
+const abortStage = clientCpp.indexOf('RequestType::StageCalibrationProposal', abortMethod);
+const abortWaiting = clientCpp.indexOf('HallCalibrationRemoteState::WaitingApplyConfirm', abortStage);
+const abortClear = clientCpp.indexOf('m_requestType = RequestType::None;', abortWaiting);
+const abortQueue = clientCpp.indexOf('queueRequest(RequestType::AbortCalibration', abortClear);
+if (abortMethod < 0 || abortStage < 0 || abortWaiting < 0 || abortClear < 0 || abortQueue < 0 ||
+    !(abortMethod < abortStage && abortStage < abortWaiting && abortWaiting < abortClear && abortClear < abortQueue)) {
+  throw new Error('ESP32 Hall client: Web abort must replace a staged apply-confirm request with CAL ABORT');
+}
+
 const peerTimeout = calibrationCpp.indexOf('>= PeerTimeoutMs');
 const peerAbort = calibrationCpp.indexOf('abort();', peerTimeout);
 if (peerTimeout < 0 || peerAbort < 0 || peerAbort < peerTimeout) {
@@ -194,4 +218,4 @@ if (applyTimeoutState < 0 || applyTimeoutElapsed < 0 || applyTimeoutLimit < 0 ||
   throw new Error('Arduino Hall calibration service: apply confirmation timeout must fail closed to abort');
 }
 
-console.log('Hall calibration exact-id/local-confirm/single-parser contracts: OK');
+console.log('Hall calibration exact-id/local-confirm/no-replay contracts: OK');

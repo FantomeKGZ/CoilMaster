@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <Keypad.h>
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
@@ -84,28 +83,26 @@ extern char* __brkval;
 
 namespace
 {
-char KeyMap[4][4] = {
-    {'1', '2', '3', 'A'},
-    {'4', '5', '6', 'B'},
-    {'7', '8', '9', 'C'},
-    {'*', '0', '#', 'D'}
+constexpr uint8_t KeypadRows = 4U;
+constexpr uint8_t KeypadCols = 4U;
+constexpr uint16_t KeypadDebounceMs = 25U;
+const char KeyMap[KeypadRows * KeypadCols] PROGMEM = {
+    '1', '2', '3', 'A',
+    '4', '5', '6', 'B',
+    '7', '8', '9', 'C',
+    '*', '0', '#', 'D'
 };
-
-byte RowPins[4] = {
-    CM::Pins::KeypadRow0,
-    CM::Pins::KeypadRow1,
-    CM::Pins::KeypadRow2,
-    CM::Pins::KeypadRow3
+const uint8_t RowPins[KeypadRows] = {
+    CM::Pins::KeypadRow0, CM::Pins::KeypadRow1,
+    CM::Pins::KeypadRow2, CM::Pins::KeypadRow3
 };
-
-byte ColPins[4] = {
-    CM::Pins::KeypadCol0,
-    CM::Pins::KeypadCol1,
-    CM::Pins::KeypadCol2,
-    CM::Pins::KeypadCol3
+const uint8_t ColPins[KeypadCols] = {
+    CM::Pins::KeypadCol0, CM::Pins::KeypadCol1,
+    CM::Pins::KeypadCol2, CM::Pins::KeypadCol3
 };
-
-Keypad keypad = Keypad(makeKeymap(KeyMap), RowPins, ColPins, 4, 4);
+char keypadCandidate = '\0';
+char keypadStable = '\0';
+uint32_t keypadChangedAtMs = 0UL;
 LiquidCrystal_I2C lcd(CM::Defaults::LcdI2cAddress, 16, 2);
 
 CM::StateMachine machine;
@@ -299,6 +296,62 @@ void printHardwareSettings()
 #endif
 }
 
+void beginKeypad()
+{
+#if CM_FEATURE_KEYPAD_4X4
+    for (uint8_t row = 0U; row < KeypadRows; ++row)
+    {
+        pinMode(RowPins[row], OUTPUT);
+        digitalWrite(RowPins[row], HIGH);
+    }
+    for (uint8_t col = 0U; col < KeypadCols; ++col)
+        pinMode(ColPins[col], INPUT_PULLUP);
+#endif
+}
+
+char scanKeypadRaw()
+{
+#if CM_FEATURE_KEYPAD_4X4
+    for (uint8_t row = 0U; row < KeypadRows; ++row)
+    {
+        digitalWrite(RowPins[row], LOW);
+        delayMicroseconds(3U);
+        for (uint8_t col = 0U; col < KeypadCols; ++col)
+        {
+            if (digitalRead(ColPins[col]) == LOW)
+            {
+                digitalWrite(RowPins[row], HIGH);
+                const uint8_t index = static_cast<uint8_t>(row * KeypadCols + col);
+                return static_cast<char>(pgm_read_byte(&KeyMap[index]));
+            }
+        }
+        digitalWrite(RowPins[row], HIGH);
+    }
+#endif
+    return '\0';
+}
+
+char pollKeypad()
+{
+#if CM_FEATURE_KEYPAD_4X4
+    const char raw = scanKeypadRaw();
+    const uint32_t nowMs = millis();
+    if (raw != keypadCandidate)
+    {
+        keypadCandidate = raw;
+        keypadChangedAtMs = nowMs;
+        return '\0';
+    }
+    if (raw != keypadStable &&
+        static_cast<uint32_t>(nowMs - keypadChangedAtMs) >= KeypadDebounceMs)
+    {
+        keypadStable = raw;
+        if (keypadStable != '\0') return keypadStable;
+    }
+#endif
+    return '\0';
+}
+
 bool processEmergencyJobClearKey(char key)
 {
     static const char Sequence[] = {'D', '*', '#', 'D'};
@@ -361,8 +414,8 @@ bool processEmergencyJobClearKey(char key)
 void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
-    const char key = keypad.getKey();
-    if (key == NO_KEY) return;
+    const char key = pollKeypad();
+    if (key == '\0') return;
     if (hallCalibration.active())
     {
         hallCalibration.abort();
@@ -935,6 +988,11 @@ void setup()
     buzzer.begin();
     showLcdBootStage(F("BUZZER"));
     printBootStage(F("BUZZER"));
+#endif
+#if CM_FEATURE_KEYPAD_4X4
+    beginKeypad();
+    showLcdBootStage(F("KEYPAD"));
+    printBootStage(F("KEYPAD"));
 #endif
 #if CM_FEATURE_EXTERNAL_START
     startButton.begin();

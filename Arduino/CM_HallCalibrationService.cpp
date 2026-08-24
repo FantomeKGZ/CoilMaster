@@ -4,13 +4,9 @@ namespace CM
 {
 
 HallCalibrationResult::HallCalibrationResult()
-    : valid(false),
-      baselineAdc(0U),
+    : baselineAdc(0U),
       minAdc(0U),
       maxAdc(0U),
-      recommendedThreshold(0U),
-      recommendedHysteresis(0U),
-      direction(HallCalibrationDirection::Rising),
       sampleCount(0U),
       durationMs(0UL)
 {
@@ -19,8 +15,7 @@ HallCalibrationResult::HallCalibrationResult()
 HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
     : m_hall(hall),
       m_state(HallCalibrationState::Idle),
-      m_result(),
-      m_hasResult(false),
+      m_resultPending(false),
       m_armedAtMs(0UL),
       m_startedAtMs(0UL),
       m_lastSampleMs(0UL),
@@ -28,7 +23,8 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
       m_baselineSamples(0U),
       m_minAdc(1023U),
       m_maxAdc(0U),
-      m_runSamples(0U)
+      m_runSamples(0U),
+      m_resultDurationMs(0UL)
 {
 }
 
@@ -103,7 +99,7 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
 void HallCalibrationService::abort()
 {
     m_state = HallCalibrationState::Aborted;
-    m_hasResult = false;
+    m_resultPending = false;
 }
 
 void HallCalibrationService::reset()
@@ -133,12 +129,34 @@ bool HallCalibrationService::baselineReady() const
     return m_baselineSamples >= MinimumBaselineSamples;
 }
 
+bool HallCalibrationService::populateResult(HallCalibrationResult& result) const
+{
+    if (m_state != HallCalibrationState::Completed ||
+        !baselineReady() || m_runSamples == 0U || m_maxAdc < m_minAdc)
+    {
+        return false;
+    }
+
+    result = HallCalibrationResult();
+    result.baselineAdc = static_cast<uint16_t>(
+        m_baselineSum / static_cast<uint32_t>(m_baselineSamples));
+    result.minAdc = m_minAdc;
+    result.maxAdc = m_maxAdc;
+    result.sampleCount = m_runSamples;
+    result.durationMs = m_resultDurationMs;
+    return true;
+}
+
 bool HallCalibrationService::takeResult(HallCalibrationResult& result)
 {
-    if (!m_hasResult) return false;
-    result = m_result;
-    m_hasResult = false;
-    return true;
+    if (!m_resultPending) return false;
+    m_resultPending = false;
+    return populateResult(result);
+}
+
+bool HallCalibrationService::latestResult(HallCalibrationResult& result) const
+{
+    return populateResult(result);
 }
 
 void HallCalibrationService::sampleBaseline(uint32_t nowMs)
@@ -178,35 +196,13 @@ void HallCalibrationService::sampleRunning(uint32_t nowMs)
 void HallCalibrationService::finish(uint32_t nowMs)
 {
     m_state = HallCalibrationState::Completed;
-    m_result = HallCalibrationResult();
-    m_result.sampleCount = m_runSamples;
-    m_result.durationMs = static_cast<uint32_t>(nowMs - m_startedAtMs);
-
-    if (!baselineReady() || m_runSamples == 0U || m_maxAdc < m_minAdc)
-    {
-        m_hasResult = true;
-        return;
-    }
-
-    // Uno is the measurement/safety owner only. It intentionally does not
-    // derive threshold, hysteresis or signal direction here. ESP32 analyzes
-    // this bounded summary, while Arduino remains authoritative for applying
-    // validated settings through HardwareSettingsController/EEPROM.
-    m_result.baselineAdc = static_cast<uint16_t>(
-        m_baselineSum / static_cast<uint32_t>(m_baselineSamples));
-    m_result.minAdc = m_minAdc;
-    m_result.maxAdc = m_maxAdc;
-    m_result.recommendedThreshold = 0U;
-    m_result.recommendedHysteresis = 0U;
-    m_result.direction = HallCalibrationDirection::Rising;
-    m_result.valid = false;
-    m_hasResult = true;
+    m_resultDurationMs = static_cast<uint32_t>(nowMs - m_startedAtMs);
+    m_resultPending = baselineReady() && m_runSamples != 0U && m_maxAdc >= m_minAdc;
 }
 
 void HallCalibrationService::clearMeasurements()
 {
-    m_result = HallCalibrationResult();
-    m_hasResult = false;
+    m_resultPending = false;
     m_armedAtMs = 0UL;
     m_startedAtMs = 0UL;
     m_lastSampleMs = 0UL;
@@ -215,6 +211,7 @@ void HallCalibrationService::clearMeasurements()
     m_minAdc = 1023U;
     m_maxAdc = 0U;
     m_runSamples = 0U;
+    m_resultDurationMs = 0UL;
 }
 
 } // namespace CM

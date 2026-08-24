@@ -79,9 +79,40 @@ GET /api/hardware/hall/calibration/history
 
 Возвращает максимум 10 записей, newest-first.
 
+## Hall Web UI
+
+Общий controller:
+
+```text
+firmware/esp32/web/shared/settings-hall-calibration.js
+```
+
+Desktop и mobile Hall-страницы получают один и тот же блок `Последние калибровки` без дублирования runtime logic. UI показывает отдельно:
+
+- измерение `baseline/min/max/span/samples/duration`;
+- recommendation ESP32;
+- final apply result;
+- authoritative Arduino EEPROM profile, только когда `persisted_valid=true`.
+
+История перечитывается при открытии Hall page и после terminal apply/abort/timeout.
+
+## SD winding reference navigation
+
+Большой справочник на microSD открывается напрямую:
+
+```text
+/sites/reference/desktop/
+/sites/reference/mobile/
+```
+
+Shared app shell уже использует эти маршруты. Дополнительно исправлены legacy navigation owners:
+
+- desktop home sidebar получил `📚 Справочник`;
+- mobile `Ещё` переведён со старого `/mobile/winding-reference.html` на `/sites/reference/mobile/`.
+
 ## Safety boundary
 
-История не изменяет:
+История и UI не изменяют:
 
 - physical START ownership;
 - SSR ownership;
@@ -90,7 +121,7 @@ GET /api/hardware/hall/calibration/history
 - no-auto-resume policy;
 - no-auto-start policy.
 
-Arduino Uno Flash/RAM этим блоком не расширяются: implementation находится только в `firmware/esp32/src`.
+Arduino Uno Flash/RAM этим блоком не расширяются: implementation находится только в `firmware/esp32/src` и Web assets.
 
 ## Current implementation commits
 
@@ -101,13 +132,18 @@ ded1a0cd  persist last ten calibration results
 5e77188a  initialize history owner
 4db40430  track abort finalization
 ecccebdc  persist/expose live calibration history
+f8f5682d  route mobile menu to SD winding reference
+1801b4a4  expose SD winding reference in desktop menu
+7ebc3704  show bounded Hall calibration history in shared UI
+bd556000  guard Hall history and SD reference links
+5897dbf3  run Hall history/reference regression in CI
 ```
 
 ## Verification status
 
-Этот history batch требует собственного ESP32 build + host contract verification. До такого evidence не обозначать его как GREEN.
+Пользователь 2026-08-24 подтвердил GREEN для предыдущего runtime/history checkpoint до текущего UI follow-up. Текущий UI/regression follow-up (`1801b4a4`..`5897dbf3`) требует своих Actions; не переносить GREEN автоматически на новый HEAD до evidence.
 
-Последний подтверждённый Uno baseline до этого ESP32-only блока остаётся:
+Последний подтверждённый Uno baseline остаётся:
 
 ```text
 RAM   1219 / 2048

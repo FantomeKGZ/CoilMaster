@@ -11,6 +11,7 @@ namespace CM
 enum class HallCalibrationState : uint8_t
 {
     Idle = 0U,
+    WaitingLocalConfirm,
     ArmedWaitingPhysicalStart,
     Running,
     Completed,
@@ -43,6 +44,7 @@ public:
     explicit HallCalibrationService(HallTurnSource& hall);
 
     bool arm(uint32_t nowMs);
+    bool confirmLocal(uint32_t nowMs);
     bool physicalStart(uint32_t nowMs);
     void update(uint32_t nowMs, bool safeEnvironment);
     void abort();

@@ -7,6 +7,8 @@
 namespace CM
 {
 
+using LiquidCrystal_I2C = Pcf8574Lcd;
+
 /**
  * @brief Arduino adapter that renders UiModel on a 16x2 I2C LCD.
  *

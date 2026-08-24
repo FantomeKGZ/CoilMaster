@@ -59,8 +59,6 @@ NullDiagnosticSerial diagnosticSerial;
 #endif
 
 #if defined(__AVR__)
-// Capture reset provenance even in production builds where Serial diagnostics
-// are compiled out. The LCD boot screen is the fail-safe field diagnostic.
 uint8_t cmResetFlags __attribute__((section(".noinit")));
 volatile uint8_t cmLastLoopPhase __attribute__((section(".noinit")));
 volatile uint8_t cmLoopPhaseMagic __attribute__((section(".noinit")));
@@ -68,9 +66,6 @@ volatile uint8_t cmLoopPhaseMagic __attribute__((section(".noinit")));
 void cmCaptureResetFlags() __attribute__((naked, section(".init3")));
 void cmCaptureResetFlags()
 {
-    // MCUSR only defines the low five reset-source bits on supported AVR
-    // targets. Mask reserved bits so LCD evidence cannot report values such as
-    // F4/FC that have no reset-source meaning.
     cmResetFlags = static_cast<uint8_t>(MCUSR & 0x1FU);
     MCUSR = 0U;
     wdt_disable();
@@ -128,13 +123,13 @@ CM::HardwareSettingsStore hardwareSettingsStore;
 CM::HardwareSettingsController hardwareSettingsController(hardwareSettingsStore,
                                                           hall,
                                                           machine);
-CM::HallTelemetryService hallTelemetry(hall);
 CM::HallCalibrationService hallCalibration(hall);
 CM::HallCalibrationState previousHallCalibrationState =
     CM::HallCalibrationState::Idle;
 
 CM::MachineState previousState = CM::MachineState::Fault;
 bool synchronizationError = false;
+bool hallTelemetryEnabled = false;
 #if CM_FEATURE_DIAGNOSTICS
 uint32_t lastAliveReportMs = 0UL;
 #endif
@@ -161,8 +156,6 @@ int freeSramBytes()
 void printResetCause()
 {
 #if CM_FEATURE_BOOT_DIAGNOSTICS
-    // Compact field format keeps the ATmega328P diagnostic image within its
-    // flash limit: R=reset flags, L=last retained loop phase, M=free SRAM.
     cmBootSerial.print(F("R="));
 #if defined(__AVR__)
     cmBootSerial.print(cmResetFlags, HEX);
@@ -206,8 +199,6 @@ void showLcdBootStage(const __FlashStringHelper* stage)
     lcd.print(F("                "));
     lcd.setCursor(0U, 1U);
     lcd.print(stage);
-    // Keep every checkpoint visible long enough to identify the last completed
-    // service during a reset loop. SSR is already initialized fail-safe OFF.
     delay(350U);
 #else
     (void)stage;
@@ -230,8 +221,6 @@ void showPreviousLoopPhase()
     }
 #endif
 #if defined(__AVR__)
-    // Reset the retained marker only after USB diagnostics consumed the phase
-    // left by the previous reset cycle.
     cmLoopPhaseMagic = 0xA5U;
     cmLastLoopPhase = 0U;
 #endif
@@ -317,9 +306,7 @@ bool processEmergencyJobClearKey(char key)
 
     if (emergencyClearSequenceIndex != 0U &&
         static_cast<uint32_t>(nowMs - emergencyClearLastKeyMs) > 4000UL)
-    {
         emergencyClearSequenceIndex = 0U;
-    }
 
     if (key != Sequence[emergencyClearSequenceIndex])
     {
@@ -348,8 +335,6 @@ bool processEmergencyJobClearKey(char key)
         }
     }
 
-    // This frame never means RUN_COMPLETED. It only proves that Arduino holds
-    // no ESP32 remote job, allowing ESP32 to clear pending/accepted no-run state.
     espTransport.sendJobClear();
 #if CM_FEATURE_BUZZER
     buzzer.startJobAcceptedSignal(nowMs);
@@ -380,9 +365,7 @@ void processKeypad()
         handled = input.handleEvent(event);
     }
     else
-    {
         handled = input.handleKey(key);
-    }
 
 #if CM_FEATURE_DIAGNOSTICS
     Serial.print(F("CM_KEY key="));
@@ -442,8 +425,8 @@ void processStateTransitions(uint32_t nowMs)
     const CM::MachineState currentState = machine.state();
     if (currentState == previousState) return;
 
-    if (!hardwareSettingsController.safeToChange() && hallTelemetry.enabled())
-        hallTelemetry.setEnabled(false, nowMs);
+    if (!hardwareSettingsController.safeToChange())
+        hallTelemetryEnabled = false;
 
     if (currentState == CM::MachineState::Winding)
         activeTurnSource().reset(nowMs);
@@ -470,17 +453,11 @@ void processCoreEvents()
     {
         persistence.saveNextIdentifiers(machine.nextSessionId(),
                                         machine.nextRunId());
-
-        // Capture the job before any later UI action can edit/reset it. For a
-        // local-keypad run this metadata is the immutable program description
-        // sent to the ESP32 autonomous archive.
         const CM::WindingJob eventJob = machine.job();
 
         bool persisted = true;
         if (event.type == CM::WindingEventType::RunCompleted)
-        {
             persisted = persistence.addPendingCompleted(event, eventJob);
-        }
 
         const bool queued = persisted && espTransport.enqueue(event, eventJob);
         if (!queued) synchronizationError = true;
@@ -510,9 +487,7 @@ void processRemoteJobs()
     {
         if (hallCalibration.active())
         {
-            espTransport.sendJobResult(remoteJob.jobId,
-                                       false,
-                                       "BUSY_CALIBRATION");
+            espTransport.sendJobResult(remoteJob.jobId, false, "BUSY_CALIBRATION");
             continue;
         }
 
@@ -520,11 +495,9 @@ void processRemoteJobs()
         espTransport.sendJobResult(remoteJob.jobId,
                                    accepted,
                                    accepted ? "READY" : "BUSY_OR_INVALID");
-
 #if CM_FEATURE_BUZZER
         if (accepted) buzzer.startJobAcceptedSignal(millis());
 #endif
-
         Serial.print(F("CM_JOB RX id="));
         Serial.print(remoteJob.jobId);
         Serial.print(F(" coils="));
@@ -559,14 +532,11 @@ void processRemoteCancels()
         }
         else if (alreadyClear)
         {
-            // Idempotent cancellation: ESP32 may be retrying after Arduino
-            // already cleared the job or after a reboot. Do not reject absence.
             cancelled = true;
             detail = "ALREADY_CLEAR";
         }
 
         espTransport.sendJobCancelResult(jobId, cancelled, detail);
-
         Serial.print(F("CM_JOB CANCEL id="));
         Serial.print(jobId);
         Serial.print(F(" result="));
@@ -584,7 +554,7 @@ void processHallCalibrationCommands(uint32_t nowMs)
             case CM::HallCalibrationCommand::Arm:
                 if (hallCalibrationEnvironmentSafe())
                 {
-                    hallTelemetry.setEnabled(false, nowMs);
+                    hallTelemetryEnabled = false;
                     hallCalibration.reset();
                     hallCalibration.arm(nowMs);
                     previousHallCalibrationState = hallCalibration.state();
@@ -632,8 +602,7 @@ void processHardwareControlRequests(uint32_t nowMs)
             request.type != CM::HardwareControlRequestType::GetHallSettings &&
             request.type != CM::HardwareControlRequestType::StopHallTelemetry)
         {
-            espTransport.sendHardwareControlResult(
-                CM::HardwareControlResult::Busy);
+            espTransport.sendHardwareControlResult(CM::HardwareControlResult::Busy);
             continue;
         }
 
@@ -653,7 +622,6 @@ void processHardwareControlRequests(uint32_t nowMs)
                 if (result == CM::HardwareSettingsApplyResult::Applied)
                 {
                     hall.reset(nowMs);
-                    hallTelemetry.resetWindow(nowMs);
                     espTransport.sendHardwareSettingsState(
                         hardwareSettingsController.settings(), true);
                     printHardwareSettings();
@@ -669,7 +637,6 @@ void processHardwareControlRequests(uint32_t nowMs)
                 if (result == CM::HardwareSettingsApplyResult::Applied)
                 {
                     hall.reset(nowMs);
-                    hallTelemetry.resetWindow(nowMs);
                     espTransport.sendHardwareSettingsState(
                         hardwareSettingsController.settings(), true);
                     printHardwareSettings();
@@ -680,22 +647,18 @@ void processHardwareControlRequests(uint32_t nowMs)
             case CM::HardwareControlRequestType::StartHallTelemetry:
                 if (hardwareSettingsController.safeToChange())
                 {
-                    hallTelemetry.setEnabled(true, nowMs);
+                    hall.reset(nowMs);
+                    hallTelemetryEnabled = true;
                     lastHallTelemetrySendMs = nowMs;
-                    espTransport.sendHardwareControlResult(
-                        CM::HardwareControlResult::Applied);
+                    espTransport.sendHardwareControlResult(CM::HardwareControlResult::Applied);
                 }
                 else
-                {
-                    espTransport.sendHardwareControlResult(
-                        CM::HardwareControlResult::Busy);
-                }
+                    espTransport.sendHardwareControlResult(CM::HardwareControlResult::Busy);
                 break;
 
             case CM::HardwareControlRequestType::StopHallTelemetry:
-                hallTelemetry.setEnabled(false, nowMs);
-                espTransport.sendHardwareControlResult(
-                    CM::HardwareControlResult::Applied);
+                hallTelemetryEnabled = false;
+                espTransport.sendHardwareControlResult(CM::HardwareControlResult::Applied);
                 break;
 
             case CM::HardwareControlRequestType::None:
@@ -709,23 +672,34 @@ void processHardwareControlRequests(uint32_t nowMs)
 
 void processHallTelemetry(uint32_t nowMs)
 {
-    if (!hallTelemetry.enabled()) return;
-
+    if (!hallTelemetryEnabled) return;
     if (!hardwareSettingsController.safeToChange())
     {
-        hallTelemetry.setEnabled(false, nowMs);
+        hallTelemetryEnabled = false;
         return;
     }
-
-    hallTelemetry.update(nowMs);
     if (static_cast<uint32_t>(nowMs - lastHallTelemetrySendMs) < 250UL) return;
 
+    // Bounded diagnostic sample only. Uno does not keep a telemetry window;
+    // aggregation belongs to ESP32. pollTurn updates the real detector latch,
+    // but the diagnostic result is intentionally discarded outside winding.
+    (void)hall.pollTurn(nowMs);
     CM::HallTelemetrySnapshot snapshot;
-    if (hallTelemetry.takeSnapshot(snapshot))
-    {
-        espTransport.sendHallTelemetry(snapshot);
-        lastHallTelemetrySendMs = nowMs;
-    }
+    snapshot.valid = true;
+    snapshot.rawAdc = hall.rawValue();
+    snapshot.windowMin = snapshot.rawAdc;
+    snapshot.windowMax = snapshot.rawAdc;
+    snapshot.threshold = hall.threshold();
+    snapshot.hysteresis = hall.hysteresis();
+    snapshot.releaseBoundary = hall.releaseBoundary();
+    snapshot.releaseDebounceMs = hall.releaseDebounceMs();
+    snapshot.inverted = hall.inverted();
+    snapshot.magnetDetected = hall.magnetDetected();
+    snapshot.rearmState = hall.rearmState();
+    snapshot.sampleCount = 1U;
+    snapshot.capturedAtMs = nowMs;
+    espTransport.sendHallTelemetry(snapshot);
+    lastHallTelemetrySendMs = nowMs;
 }
 
 void processUart(uint32_t nowMs)
@@ -842,8 +816,7 @@ void processHallCalibration(uint32_t nowMs)
 {
     if (hallCalibration.active())
     {
-        if (hallTelemetry.enabled())
-            hallTelemetry.setEnabled(false, nowMs);
+        hallTelemetryEnabled = false;
         hallCalibration.update(nowMs, hallCalibrationEnvironmentSafe());
     }
 
@@ -862,9 +835,7 @@ void processHallCalibration(uint32_t nowMs)
 
     if (hallCalibration.state() == CM::HallCalibrationState::Completed ||
         hallCalibration.state() == CM::HallCalibrationState::Aborted)
-    {
         ssr.forceOff();
-    }
 }
 
 void updateOutputs()
@@ -894,7 +865,6 @@ void updateOutputs()
 void setup()
 {
 #if CM_FEATURE_SSR
-    // Establish the physical safety boundary before diagnostics or services.
     ssr.begin();
 #endif
 

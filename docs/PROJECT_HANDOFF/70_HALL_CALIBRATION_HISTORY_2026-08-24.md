@@ -71,6 +71,23 @@ CAL_PROPOSAL
 
 Abort, cancellation, timeout и persistence failure сохраняются как итог результата без ложного persisted profile.
 
+## Lost CAL_APPLIED reconciliation
+
+Если ESP32 уже видел `WAITING_APPLY_CONFIRM`, но вместо exact `CAL_APPLIED` затем получил `CAL_STATE COMPLETED`, proposal больше не передаётся повторно.
+
+Новый fail-safe путь:
+
+```text
+WAITING_APPLY_CONFIRM
+ -> CAL_STATE COMPLETED
+ -> ESP32 replaces pending CAL_PROPOSAL with CFG_GET|HALL
+ -> Arduino returns authoritative CFG_STATE from EEPROM
+ -> ESP32 refreshes m_settings mirror
+ -> original apply finishes TIMED_OUT / ambiguous
+```
+
+Важно: совпадение EEPROM profile с recommendation не считается доказательством того, что именно этот apply был успешно записан. Поэтому без exact matching `CAL_APPLIED` результат не повышается до `APPLIED`. Это исключает ложную атрибуцию и при этом восстанавливает authoritative текущие настройки на ESP32.
+
 ## Web API
 
 ```text
@@ -112,7 +129,7 @@ Shared app shell уже использует эти маршруты. Допол
 
 ## Safety boundary
 
-История и UI не изменяют:
+История, reconciliation и UI не изменяют:
 
 - physical START ownership;
 - SSR ownership;
@@ -121,7 +138,7 @@ Shared app shell уже использует эти маршруты. Допол
 - no-auto-resume policy;
 - no-auto-start policy.
 
-Arduino Uno Flash/RAM этим блоком не расширяются: implementation находится только в `firmware/esp32/src` и Web assets.
+Arduino Uno Flash/RAM этим блоком не расширяются: implementation находится только в `firmware/esp32/src`, tests и Web assets.
 
 ## Current implementation commits
 
@@ -137,11 +154,17 @@ f8f5682d  route mobile menu to SD winding reference
 7ebc3704  show bounded Hall calibration history in shared UI
 bd556000  guard Hall history and SD reference links
 5897dbf3  run Hall history/reference regression in CI
+313cfc87  reconcile lost CAL_APPLIED through authoritative CFG_GET
+5f3e998e  add focused lost-apply reconciliation regression
+fa3dfe15  run reconciliation regression in CI
+c41dc221  align main Hall safety audit with two-step reconciliation
 ```
 
 ## Verification status
 
-Пользователь 2026-08-24 подтвердил GREEN для предыдущего runtime/history checkpoint до текущего UI follow-up. Текущий UI/regression follow-up (`1801b4a4`..`5897dbf3`) требует своих Actions; не переносить GREEN автоматически на новый HEAD до evidence.
+Пользователь 2026-08-24 подтвердил GREEN для UI/history/reference batch через `e32e26e7`.
+
+Новый lost-`CAL_APPLIED` reconciliation batch (`313cfc87`..`c41dc221`) требует собственного ESP32 build + host Actions; до этого не обозначать новый HEAD как GREEN.
 
 Последний подтверждённый Uno baseline остаётся:
 

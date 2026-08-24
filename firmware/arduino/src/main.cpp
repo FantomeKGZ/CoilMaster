@@ -180,9 +180,9 @@ void printResetCause()
 void printBootStage(const __FlashStringHelper* stage)
 {
 #if CM_FEATURE_BOOT_DIAGNOSTICS
-    cmBootSerial.print(F("CM_BOOT stage="));
+    cmBootSerial.print(F("B="));
     cmBootSerial.print(stage);
-    cmBootSerial.print(F(" free_sram="));
+    cmBootSerial.print(F(" M="));
     cmBootSerial.println(freeSramBytes());
     cmBootSerial.flush();
 #else

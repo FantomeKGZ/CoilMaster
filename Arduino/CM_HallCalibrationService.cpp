@@ -34,8 +34,17 @@ bool HallCalibrationService::arm(uint32_t nowMs)
 
     clearMeasurements();
     m_hall.reset(nowMs);
-    m_state = HallCalibrationState::ArmedWaitingPhysicalStart;
+    m_state = HallCalibrationState::WaitingLocalConfirm;
     m_armedAtMs = nowMs;
+    m_lastSampleMs = nowMs;
+    return true;
+}
+
+bool HallCalibrationService::confirmLocal(uint32_t nowMs)
+{
+    if (m_state != HallCalibrationState::WaitingLocalConfirm) return false;
+
+    m_state = HallCalibrationState::ArmedWaitingPhysicalStart;
     m_lastSampleMs = nowMs;
     return true;
 }
@@ -73,7 +82,8 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
         return;
     }
 
-    if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
+    if (m_state == HallCalibrationState::WaitingLocalConfirm ||
+        m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
     {
         if (static_cast<uint32_t>(nowMs - m_armedAtMs) >= ArmedTimeoutMs)
         {
@@ -81,7 +91,8 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
             return;
         }
 
-        sampleBaseline(nowMs);
+        if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
+            sampleBaseline(nowMs);
         return;
     }
 
@@ -115,7 +126,8 @@ HallCalibrationState HallCalibrationService::state() const
 
 bool HallCalibrationService::active() const
 {
-    return m_state == HallCalibrationState::ArmedWaitingPhysicalStart ||
+    return m_state == HallCalibrationState::WaitingLocalConfirm ||
+           m_state == HallCalibrationState::ArmedWaitingPhysicalStart ||
            m_state == HallCalibrationState::Running;
 }
 

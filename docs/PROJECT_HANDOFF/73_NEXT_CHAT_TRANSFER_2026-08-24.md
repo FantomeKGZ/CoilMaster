@@ -49,6 +49,16 @@ ed32e55f91b5e6bada33315c2daafab1e7cd5e6c
 test(hall): require applied range validation
 ```
 
+ESP32 authoritative settings-state validation now continues the same fail-closed rule:
+
+```text
+fb547c6c3a5537d42839a6147309985ae717f4e8
+fix(hall): validate settings state before mirror
+
+56268ab17c888510a9ed2b0aa7461b8ef3b250e9
+test(hall): require settings state range validation
+```
+
 Important earlier implementation/test commits:
 
 ```text
@@ -76,11 +86,21 @@ Fresh post-frame-bound verification supplied by the user:
 32760002181  host-tests  checkout 1e8328733f4495f023748ed7c4f34afdf6f7168e  SUCCESS
 ```
 
-`32760002181` passed all 4 CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
+Fresh ESP32 applied-profile validation verification supplied by the user and checked against Actions metadata:
+
+```text
+32760501006  build-esp32  checkout a2bd5115a75b530f9f72c5e32f5a72e0e847d9d2  SUCCESS
+32760592287  host-tests   checkout ed32e55f91b5e6bada33315c2daafab1e7cd5e6c  SUCCESS
+32760645056  host-tests   checkout a8e64695be3413081b71cf052ee361aff0669379  SUCCESS
+```
+
+The host runs passed all 4 CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
+
+Therefore the `CAL_APPLIED` mirror validation block is now verified **ESP32-build GREEN + host-tests GREEN**.
 
 Hardware is **not** thereby declared GREEN.
 
-The later ESP32 applied-profile validation commits `a2bd5115...` / `ed32e55f...` require their own fresh host-test confirmation before they are called GREEN.
+The newer `CFG_STATE` validation commits `fb547c6c...` / `56268ab1...` are not called GREEN until their fresh Actions complete successfully.
 
 ## Verified Uno build / memory
 
@@ -251,9 +271,11 @@ and records the proven `MaxAppliedWireLength = 76` with a compile-time `static_a
 
 Fresh build `32759806141` confirms the Uno image still fits exactly at `31640 Flash / 1213 RAM`.
 
-## ESP32 CAL_APPLIED mirror validation
+## ESP32 Hall profile mirror validation
 
-`CM_HardwareControlClient.cpp::processCalibrationApplied()` now rejects an incoming CRC-valid `CAL_APPLIED` profile before mirroring it into ESP32 state unless all values satisfy the same active Hall profile bounds:
+Both ESP32 Hall settings mirror paths now reject CRC-valid but semantically invalid profiles before copying them into authoritative local state.
+
+`processCalibrationApplied()` validates:
 
 ```text
 threshold           1..1023
@@ -262,9 +284,11 @@ releaseDebounceMs   1..1000
 direction           RISING or FALLING
 ```
 
-This keeps malformed/out-of-range applied values from being marked `valid`, `fromEeprom`, or copied into `m_settings`. Exact pending measurement-id matching remains mandatory.
+This path is verified by `32760501006`, `32760592287` and descendant `32760645056`.
 
-Regression contract `ed32e55f...` locks these range checks into `check_hall_calibration_contracts.js`.
+`processSettingsState()` now applies the same numeric bounds before accepting `CFG_STATE`. This is important for normal `CFG_GET` and especially the lost-`CAL_APPLIED` reconciliation path, which must never mirror a CRC-valid but out-of-range EEPROM profile.
+
+Regression contract `56268ab1...` locks the `CFG_STATE` checks. Its fresh CI is still pending at this checkpoint.
 
 ## Current optimization status
 
@@ -274,8 +298,9 @@ Keep:
 - compact `CAL_DONE` TX active;
 - legacy ESP32 `CAL_RESULT` receive fallback active;
 - Hall response buffer exact bound 77 bytes, build verified;
-- previous host-test checkpoint through `1e832873...` GREEN;
-- ESP32 CAL_APPLIED range validation implemented and contract-covered, awaiting fresh post-change host-tests.
+- `CAL_APPLIED` range validation verified ESP32-build GREEN + host-tests GREEN;
+- `CFG_STATE` range validation implemented and contract-covered, pending fresh CI;
+- no intermediate hardware test requested during this optimization phase.
 
 Rejected experiments not to repeat:
 
@@ -290,8 +315,8 @@ Continue software optimization only; do not request intermediate physical hardwa
 
 Immediate next steps:
 
-1. Confirm fresh host-tests descendant of `ed32e55f...`.
-2. After GREEN, continue targeted software optimization/review; do not reopen broad cleanup.
+1. Confirm fresh ESP32 build + host-tests for `fb547c6c...` / `56268ab1...` or a descendant.
+2. After GREEN, continue targeted Hall receive-semantic review; do not reopen broad cleanup.
 3. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
 4. Do not perform the final hardware acceptance until software optimization is finished.
 

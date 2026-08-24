@@ -113,6 +113,19 @@ for (const [text, description] of [
   if (!entrypoint.includes(text)) failures.push(description + ': ' + text);
 }
 
+
+const features = fs.readFileSync(path.join(root, 'Arduino/Config/CM_Features.h'), 'utf8');
+const platformio = fs.readFileSync(path.join(root, 'platformio.ini'), 'utf8');
+for (const [present, description] of [
+  [features.includes('#define CM_FEATURE_BOOT_DIAGNOSTICS 0'), 'bounded boot diagnostic default missing'],
+  [platformio.includes('[env:uno_diagnostic]'), 'Uno diagnostic environment missing'],
+  [platformio.includes('-DCM_FEATURE_BOOT_DIAGNOSTICS=1'), 'bounded diagnostic flag missing'],
+  [!platformio.includes('-DCM_FEATURE_DIAGNOSTICS=1'), 'full verbose diagnostics must not be enabled for Uno diagnostic image'],
+  [entrypoint.includes('HardwareSerial& cmBootSerial = Serial;'), 'USB boot serial owner missing']
+]) {
+  if (!present) failures.push(description);
+}
+
 if (failures.length) {
   console.error(failures.map(item => sourcePath + ': ' + item).join('\n'));
   process.exit(1);

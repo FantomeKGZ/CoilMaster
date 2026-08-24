@@ -15,6 +15,7 @@ enum class HallCalibrationState : uint8_t
     ArmedWaitingPhysicalStart,
     Running,
     Completed,
+    WaitingApplyConfirm,
     Aborted
 };
 
@@ -25,10 +26,11 @@ enum class HallCalibrationDirection : uint8_t
 };
 
 // Measurement-only result owned by Uno. Recommendation fields intentionally
-// live on ESP32; the CMP1 formatter preserves the legacy wire shape with
-// neutral placeholders during the staged migration.
+// live on ESP32. measurementId binds a later proposal to this exact completed
+// measurement and is deliberately transient across reboot.
 struct HallCalibrationResult
 {
+    uint32_t measurementId;
     uint16_t baselineAdc;
     uint16_t minAdc;
     uint16_t maxAdc;
@@ -47,6 +49,8 @@ public:
     void notePeerContact(uint32_t nowMs);
     bool confirmLocal(uint32_t nowMs);
     bool physicalStart(uint32_t nowMs);
+    bool beginApplyConfirm(uint32_t measurementId, uint32_t nowMs);
+    void completeApply();
     void update(uint32_t nowMs, bool safeEnvironment);
     void abort();
     void reset();
@@ -63,6 +67,7 @@ private:
     static constexpr uint16_t BaselineSampleIntervalMs = 20U;
     static constexpr uint8_t MinimumBaselineSamples = 8U;
     static constexpr uint32_t ArmedTimeoutMs = 60000UL;
+    static constexpr uint32_t ApplyConfirmTimeoutMs = 30000UL;
     static constexpr uint32_t PeerTimeoutMs = 3000UL;
     static constexpr uint32_t RunDurationMs = 5000UL;
     static constexpr uint32_t AbsoluteRunTimeoutMs = 6500UL;
@@ -72,12 +77,14 @@ private:
     void finish(uint32_t nowMs);
     void clearMeasurements();
     bool populateResult(HallCalibrationResult& result) const;
+    uint32_t measurementIdentity(const HallCalibrationResult& result) const;
 
     HallTurnSource& m_hall;
     HallCalibrationState m_state;
     bool m_resultPending;
     uint32_t m_armedAtMs;
     uint32_t m_lastPeerContactMs;
+    uint32_t m_applyConfirmAtMs;
     uint32_t m_startedAtMs;
     uint32_t m_lastSampleMs;
     uint32_t m_baselineSum;

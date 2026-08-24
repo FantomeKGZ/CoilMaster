@@ -95,6 +95,12 @@ mustContain(clientCpp, 'parsed.threshold > 1023U', 'ESP32 Hall settings state ra
 mustContain(clientCpp, 'parsed.hysteresis > 512U', 'ESP32 Hall settings state range validation');
 mustContain(clientCpp, 'parsed.hysteresis >= parsed.threshold', 'ESP32 Hall settings state range validation');
 mustContain(clientCpp, 'parsed.releaseDebounceMs > 1000U', 'ESP32 Hall settings state range validation');
+mustContain(clientCpp, 'expectedReleaseBoundary', 'ESP32 Hall telemetry semantic validation');
+mustContain(clientCpp, 'parsed.rawAdc > 1023U', 'ESP32 Hall telemetry ADC validation');
+mustContain(clientCpp, 'parsed.windowMin > 1023U', 'ESP32 Hall telemetry ADC validation');
+mustContain(clientCpp, 'parsed.rawAdc < parsed.windowMin', 'ESP32 Hall telemetry window validation');
+mustContain(clientCpp, 'parsed.releaseBoundary != expectedReleaseBoundary', 'ESP32 Hall telemetry release validation');
+mustContain(clientCpp, 'parsed.sampleCount == 0U', 'ESP32 Hall telemetry sample validation');
 mustContain(clientCpp, 'applied.threshold > 1023U', 'ESP32 Hall client applied range validation');
 mustContain(clientCpp, 'applied.hysteresis > 512U', 'ESP32 Hall client applied range validation');
 mustContain(clientCpp, 'applied.hysteresis >= applied.threshold', 'ESP32 Hall client applied range validation');

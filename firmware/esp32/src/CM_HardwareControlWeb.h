@@ -61,6 +61,7 @@ private:
     bool m_hasCalibrationResult;
     bool m_hasReply;
     bool m_calibrationHistoryReady = false;
+    bool m_pendingHistoryAbort = false;
     uint32_t m_pendingHistoryMeasurementId = 0UL;
     uint32_t m_nowMs;
 };

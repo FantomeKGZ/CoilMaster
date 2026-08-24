@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <avr/pgmspace.h>
 
 #include "../Shared/CMP1Text/CM_Cmp1Crc.h"
 
@@ -32,6 +33,7 @@ bool parseUint32(const char* text, uint32_t& value)
 {
     value = 0UL;
     if (text == nullptr || *text == '\0') return false;
+    if (text[0] == '0' && text[1] != '\0') return false;
     for (const char* cursor = text; *cursor != '\0'; ++cursor)
     {
         if (*cursor < '0' || *cursor > '9') return false;
@@ -56,9 +58,10 @@ bool appendCrc(char* output, size_t outputSize, int payloadLength)
         static_cast<size_t>(payloadLength) >= outputSize) return false;
     const uint16_t crc = Cmp1Crc::calculate(
         reinterpret_cast<const uint8_t*>(output), static_cast<size_t>(payloadLength));
-    const int suffixLength = snprintf(output + payloadLength,
-                                      outputSize - static_cast<size_t>(payloadLength),
-                                      "|%04X\n", static_cast<unsigned int>(crc));
+    const int suffixLength = snprintf_P(
+        output + payloadLength,
+        outputSize - static_cast<size_t>(payloadLength),
+        PSTR("|%04X\n"), static_cast<unsigned int>(crc));
     return suffixLength > 0 &&
            static_cast<size_t>(payloadLength + suffixLength) < outputSize;
 }
@@ -81,13 +84,44 @@ bool verifyAndStripCrc(char* frame)
 bool parseDirection(const char* text, HallSignalDirection& direction)
 {
     if (text == nullptr) return false;
-    if (strcmp(text, "RISING") == 0)
+    if (strcmp_P(text, PSTR("RISING")) == 0)
         direction = HallSignalDirection::Rising;
-    else if (strcmp(text, "FALLING") == 0)
+    else if (strcmp_P(text, PSTR("FALLING")) == 0)
         direction = HallSignalDirection::Falling;
     else
         return false;
     return true;
+}
+
+PGM_P directionNameP(HallSignalDirection direction)
+{
+    return direction == HallSignalDirection::Falling
+               ? PSTR("FALLING") : PSTR("RISING");
+}
+
+PGM_P rearmStateNameP(HallRearmState state)
+{
+    switch (state)
+    {
+        case HallRearmState::WaitingRelease: return PSTR("WAITING_RELEASE");
+        case HallRearmState::ReleaseDebounce: return PSTR("RELEASE_DEBOUNCE");
+        case HallRearmState::Armed:
+        default: return PSTR("ARMED");
+    }
+}
+
+PGM_P resultNameP(HardwareControlResult result)
+{
+    switch (result)
+    {
+        case HardwareControlResult::Applied: return PSTR("APPLIED");
+        case HardwareControlResult::Busy: return PSTR("BUSY");
+        case HardwareControlResult::Invalid: return PSTR("INVALID");
+        case HardwareControlResult::PersistenceFailed:
+            return PSTR("PERSISTENCE_FAILED");
+        case HardwareControlResult::Unsupported:
+        default: return PSTR("UNSUPPORTED");
+    }
 }
 }
 
@@ -99,25 +133,31 @@ bool parseRequest(char* frame, HardwareControlRequest& request)
     char* save = nullptr;
     char* version = strtok_r(frame, "|", &save);
     char* category = strtok_r(nullptr, "|", &save);
-    if (version == nullptr || category == nullptr || strcmp(version, "CMP1") != 0)
+    if (version == nullptr || category == nullptr ||
+        strcmp_P(version, PSTR("CMP1")) != 0)
         return false;
 
-    if (strcmp(category, "CFG_GET") == 0 || strcmp(category, "CFG_RESET") == 0)
+    if (strcmp_P(category, PSTR("CFG_GET")) == 0 ||
+        strcmp_P(category, PSTR("CFG_RESET")) == 0)
     {
+        const bool get = strcmp_P(category, PSTR("CFG_GET")) == 0;
         char* target = strtok_r(nullptr, "|", &save);
         char* capability = strtok_r(nullptr, "|", &save);
         char* extra = strtok_r(nullptr, "|", &save);
         if (target == nullptr || capability == nullptr || extra != nullptr ||
-            strcmp(target, "HALL") != 0 || strcmp(capability, "C") != 0) return false;
-        request.type = strcmp(category, "CFG_GET") == 0
+            strcmp_P(target, PSTR("HALL")) != 0 ||
+            strcmp_P(capability, PSTR("C")) != 0)
+            return false;
+        request.type = get
             ? HardwareControlRequestType::GetHallSettings
             : HardwareControlRequestType::ResetHallSettings;
         return true;
     }
 
-    if (strcmp(category, "CFG_SET") == 0 || strcmp(category, "CAL_PROPOSAL") == 0)
+    if (strcmp_P(category, PSTR("CFG_SET")) == 0 ||
+        strcmp_P(category, PSTR("CAL_PROPOSAL")) == 0)
     {
-        const bool proposal = strcmp(category, "CAL_PROPOSAL") == 0;
+        const bool proposal = strcmp_P(category, PSTR("CAL_PROPOSAL")) == 0;
         char* measurementOrTarget = strtok_r(nullptr, "|", &save);
         char* thresholdText = strtok_r(nullptr, "|", &save);
         char* hysteresisText = strtok_r(nullptr, "|", &save);
@@ -128,21 +168,24 @@ bool parseRequest(char* frame, HardwareControlRequest& request)
         if (measurementOrTarget == nullptr || thresholdText == nullptr ||
             hysteresisText == nullptr || debounceText == nullptr ||
             directionText == nullptr || capability == nullptr || extra != nullptr ||
-            strcmp(capability, "C") != 0) return false;
+            strcmp_P(capability, PSTR("C")) != 0)
+            return false;
 
         if (proposal)
         {
             if (!parseUint32(measurementOrTarget, request.measurementId) ||
-                request.measurementId == 0UL) return false;
+                request.measurementId == 0UL)
+                return false;
         }
-        else if (strcmp(measurementOrTarget, "HALL") != 0)
+        else if (strcmp_P(measurementOrTarget, PSTR("HALL")) != 0)
             return false;
 
         HardwareSettings parsed;
         if (!parseUint16(thresholdText, parsed.hallThreshold) ||
             !parseUint16(hysteresisText, parsed.hallHysteresis) ||
             !parseUint16(debounceText, parsed.hallReleaseDebounceMs) ||
-            !parseDirection(directionText, parsed.hallDirection) || !parsed.isValid())
+            !parseDirection(directionText, parsed.hallDirection) ||
+            !parsed.isValid())
             return false;
 
         request.type = proposal
@@ -152,16 +195,17 @@ bool parseRequest(char* frame, HardwareControlRequest& request)
         return true;
     }
 
-    if (strcmp(category, "HALL_TELEM") == 0)
+    if (strcmp_P(category, PSTR("HALL_TELEM")) == 0)
     {
         char* action = strtok_r(nullptr, "|", &save);
         char* capability = strtok_r(nullptr, "|", &save);
         char* extra = strtok_r(nullptr, "|", &save);
         if (action == nullptr || capability == nullptr || extra != nullptr ||
-            strcmp(capability, "C") != 0) return false;
-        if (strcmp(action, "START") == 0)
+            strcmp_P(capability, PSTR("C")) != 0)
+            return false;
+        if (strcmp_P(action, PSTR("START")) == 0)
             request.type = HardwareControlRequestType::StartHallTelemetry;
-        else if (strcmp(action, "STOP") == 0)
+        else if (strcmp_P(action, PSTR("STOP")) == 0)
             request.type = HardwareControlRequestType::StopHallTelemetry;
         else
             return false;
@@ -170,34 +214,41 @@ bool parseRequest(char* frame, HardwareControlRequest& request)
     return false;
 }
 
-bool formatSettingsState(const HardwareSettings& settings, bool loadedFromEeprom,
-                         char* output, size_t outputSize)
+bool formatSettingsState(const HardwareSettings& settings,
+                         bool loadedFromEeprom,
+                         char* output,
+                         size_t outputSize)
 {
     if (output == nullptr || outputSize == 0U || !settings.isValid()) return false;
-    const int length = snprintf(output, outputSize,
-        "CMP1|CFG_STATE|HALL|%u|%u|%u|%s|%s|C",
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CFG_STATE|HALL|%u|%u|%u|%S|%S|C"),
         static_cast<unsigned int>(settings.hallThreshold),
         static_cast<unsigned int>(settings.hallHysteresis),
         static_cast<unsigned int>(settings.hallReleaseDebounceMs),
-        directionName(settings.hallDirection), loadedFromEeprom ? "EEPROM" : "FACTORY");
+        directionNameP(settings.hallDirection),
+        loadedFromEeprom ? PSTR("EEPROM") : PSTR("FACTORY"));
     return appendCrc(output, outputSize, length);
 }
 
-bool formatSettingsResult(HardwareControlResult result, char* output, size_t outputSize)
+bool formatSettingsResult(HardwareControlResult result,
+                          char* output,
+                          size_t outputSize)
 {
     if (output == nullptr || outputSize == 0U) return false;
     const bool success = result == HardwareControlResult::Applied;
-    const int length = snprintf(output, outputSize, "CMP1|%s|HALL|%s|C",
-        success ? "CFG_ACK" : "CFG_NACK", resultName(result));
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|%S|HALL|%S|C"),
+        success ? PSTR("CFG_ACK") : PSTR("CFG_NACK"), resultNameP(result));
     return appendCrc(output, outputSize, length);
 }
 
 bool formatHallTelemetry(const HallTelemetrySnapshot& snapshot,
-                         char* output, size_t outputSize)
+                         char* output,
+                         size_t outputSize)
 {
     if (!snapshot.valid || output == nullptr || outputSize == 0U) return false;
-    const int length = snprintf(output, outputSize,
-        "CMP1|HALL_STATE|%u|%u|%u|%u|%u|%u|%u|%s|%u|%s|%u|%lu|C",
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|HALL_STATE|%u|%u|%u|%u|%u|%u|%u|%S|%u|%S|%u|%lu|C"),
         static_cast<unsigned int>(snapshot.rawAdc),
         static_cast<unsigned int>(snapshot.windowMin),
         static_cast<unsigned int>(snapshot.windowMax),
@@ -205,40 +256,12 @@ bool formatHallTelemetry(const HallTelemetrySnapshot& snapshot,
         static_cast<unsigned int>(snapshot.hysteresis),
         static_cast<unsigned int>(snapshot.releaseBoundary),
         static_cast<unsigned int>(snapshot.releaseDebounceMs),
-        snapshot.inverted ? "FALLING" : "RISING",
-        snapshot.magnetDetected ? 1U : 0U, rearmStateName(snapshot.rearmState),
+        snapshot.inverted ? PSTR("FALLING") : PSTR("RISING"),
+        snapshot.magnetDetected ? 1U : 0U,
+        rearmStateNameP(snapshot.rearmState),
         static_cast<unsigned int>(snapshot.sampleCount),
         static_cast<unsigned long>(snapshot.capturedAtMs));
     return appendCrc(output, outputSize, length);
-}
-
-const char* directionName(HallSignalDirection direction)
-{
-    return direction == HallSignalDirection::Falling ? "FALLING" : "RISING";
-}
-
-const char* rearmStateName(HallRearmState state)
-{
-    switch (state)
-    {
-        case HallRearmState::WaitingRelease: return "WAITING_RELEASE";
-        case HallRearmState::ReleaseDebounce: return "RELEASE_DEBOUNCE";
-        case HallRearmState::Armed:
-        default: return "ARMED";
-    }
-}
-
-const char* resultName(HardwareControlResult result)
-{
-    switch (result)
-    {
-        case HardwareControlResult::Applied: return "APPLIED";
-        case HardwareControlResult::Busy: return "BUSY";
-        case HardwareControlResult::Invalid: return "INVALID";
-        case HardwareControlResult::PersistenceFailed: return "PERSISTENCE_FAILED";
-        case HardwareControlResult::Unsupported:
-        default: return "UNSUPPORTED";
-    }
 }
 
 } // namespace HardwareControlProtocol

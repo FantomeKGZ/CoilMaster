@@ -17,6 +17,11 @@
 #ifndef CM_FEATURE_DIAGNOSTICS
 #define CM_FEATURE_DIAGNOSTICS      0
 #endif
+// Bounded USB boot/reset diagnostics. This is independent of the full verbose
+// profile so an Uno diagnostic image can remain within flash/RAM limits.
+#ifndef CM_FEATURE_BOOT_DIAGNOSTICS
+#define CM_FEATURE_BOOT_DIAGNOSTICS 0
+#endif
 #define CM_FEATURE_CALIBRATION      1
 
 // Simulation is disabled in the normal machine firmware.

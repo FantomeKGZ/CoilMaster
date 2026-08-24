@@ -29,6 +29,10 @@
 #include "../../../Arduino/CM_SsrController.h"
 #include "../../../Arduino/CM_UartEventTransport.h"
 
+#if CM_FEATURE_BOOT_DIAGNOSTICS
+HardwareSerial& cmBootSerial = Serial;
+#endif
+
 #if !CM_FEATURE_DIAGNOSTICS
 namespace
 {
@@ -72,7 +76,7 @@ void cmCaptureResetFlags()
     wdt_disable();
 }
 
-#if CM_FEATURE_DIAGNOSTICS
+#if CM_FEATURE_DIAGNOSTICS || CM_FEATURE_BOOT_DIAGNOSTICS
 extern char __heap_start;
 extern char* __brkval;
 #endif
@@ -138,7 +142,7 @@ uint32_t lastHallTelemetrySendMs = 0UL;
 uint8_t emergencyClearSequenceIndex = 0U;
 uint32_t emergencyClearLastKeyMs = 0UL;
 
-#if CM_FEATURE_DIAGNOSTICS
+#if CM_FEATURE_DIAGNOSTICS || CM_FEATURE_BOOT_DIAGNOSTICS
 int freeSramBytes()
 {
 #if defined(__AVR__)
@@ -156,60 +160,60 @@ int freeSramBytes()
 
 void printResetCause()
 {
-#if CM_FEATURE_DIAGNOSTICS
-    Serial.print(F("CM_BOOT reset_flags=0x"));
+#if CM_FEATURE_BOOT_DIAGNOSTICS
+    cmBootSerial.print(F("CM_BOOT reset_flags=0x"));
 #if defined(__AVR__)
-    Serial.print(cmResetFlags, HEX);
-    Serial.print(F(" cause="));
+    cmBootSerial.print(cmResetFlags, HEX);
+    cmBootSerial.print(F(" cause="));
     bool reported = false;
 #ifdef PORF
     if ((cmResetFlags & _BV(PORF)) != 0U)
     {
-        Serial.print(F("POWER_ON"));
+        cmBootSerial.print(F("POWER_ON"));
         reported = true;
     }
 #endif
 #ifdef EXTRF
     if ((cmResetFlags & _BV(EXTRF)) != 0U)
     {
-        if (reported) Serial.print('|');
-        Serial.print(F("EXTERNAL_RESET"));
+        if (reported) cmBootSerial.print('|');
+        cmBootSerial.print(F("EXTERNAL_RESET"));
         reported = true;
     }
 #endif
 #ifdef BORF
     if ((cmResetFlags & _BV(BORF)) != 0U)
     {
-        if (reported) Serial.print('|');
-        Serial.print(F("BROWN_OUT"));
+        if (reported) cmBootSerial.print('|');
+        cmBootSerial.print(F("BROWN_OUT"));
         reported = true;
     }
 #endif
 #ifdef WDRF
     if ((cmResetFlags & _BV(WDRF)) != 0U)
     {
-        if (reported) Serial.print('|');
-        Serial.print(F("WATCHDOG"));
+        if (reported) cmBootSerial.print('|');
+        cmBootSerial.print(F("WATCHDOG"));
         reported = true;
     }
 #endif
-    if (!reported) Serial.print(F("NONE_OR_BOOTLOADER_CLEARED"));
+    if (!reported) cmBootSerial.print(F("NONE_OR_BOOTLOADER_CLEARED"));
 #else
-    Serial.print(F("NA cause=UNSUPPORTED"));
+    cmBootSerial.print(F("NA cause=UNSUPPORTED"));
 #endif
-    Serial.println();
-    Serial.flush();
+    cmBootSerial.println();
+    cmBootSerial.flush();
 #endif
 }
 
 void printBootStage(const __FlashStringHelper* stage)
 {
-#if CM_FEATURE_DIAGNOSTICS
-    Serial.print(F("CM_BOOT stage="));
-    Serial.print(stage);
-    Serial.print(F(" free_sram="));
-    Serial.println(freeSramBytes());
-    Serial.flush();
+#if CM_FEATURE_BOOT_DIAGNOSTICS
+    cmBootSerial.print(F("CM_BOOT stage="));
+    cmBootSerial.print(stage);
+    cmBootSerial.print(F(" free_sram="));
+    cmBootSerial.println(freeSramBytes());
+    cmBootSerial.flush();
 #else
     (void)stage;
 #endif

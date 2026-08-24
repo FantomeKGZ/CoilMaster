@@ -1,5 +1,7 @@
 #include "CM_HallCalibrationService.h"
 
+#include "CM_HallCalibrationRawBridge.h"
+
 namespace CM
 {
 
@@ -236,8 +238,14 @@ void HallCalibrationService::sampleBaseline(uint32_t nowMs)
     const uint16_t raw = m_hall.rawValue();
     if (m_baselineSamples < 64U)
     {
+        const uint16_t sequence = m_baselineSamples;
         m_baselineSum += raw;
         ++m_baselineSamples;
+        (void)HallCalibrationRawBridge::publish(
+            HallCalibrationSamplePhase::Baseline,
+            raw,
+            sequence,
+            static_cast<uint32_t>(nowMs - m_armedAtMs));
     }
     m_lastSampleMs = nowMs;
 }
@@ -252,9 +260,15 @@ void HallCalibrationService::sampleRunning(uint32_t nowMs)
 
     (void)m_hall.pollTurn(nowMs);
     const uint16_t raw = m_hall.rawValue();
+    const uint16_t sequence = m_runSamples;
     if (raw < m_minAdc) m_minAdc = raw;
     if (raw > m_maxAdc) m_maxAdc = raw;
     if (m_runSamples < 0xFFFFU) ++m_runSamples;
+    (void)HallCalibrationRawBridge::publish(
+        HallCalibrationSamplePhase::Run,
+        raw,
+        sequence,
+        static_cast<uint32_t>(nowMs - m_startedAtMs));
     m_lastSampleMs = nowMs;
 }
 

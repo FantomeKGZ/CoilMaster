@@ -33,6 +33,7 @@ private:
     void handleCalibrationRefresh();
     void handleCalibrationArm();
     void handleCalibrationAbort();
+    void handleCalibrationApply();
 
     bool queueAccepted(bool accepted, const char* errorName);
     static bool parseUnsigned(const String& source,

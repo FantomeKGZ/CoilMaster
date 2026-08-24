@@ -57,15 +57,15 @@ public:
                                   bool baselineReady,
                                   bool motorPermit);
     bool sendHallCalibrationResult(const HallCalibrationResult& result);
+    bool sendHallCalibrationApplied(uint32_t measurementId,
+                                    HallCalibrationApplyResult result,
+                                    const HardwareSettings& settings);
 
     uint8_t queuedCount() const;
     bool waitingForAck() const;
 
 private:
     static constexpr uint8_t QueueCapacity = 4U;
-    // Worst-case valid frame today is a 10-coil STARTING JOB with uint32 max
-    // job/session ids, ten 9999-turn targets, R65535, capability and CRC.
-    // It is 106 bytes before LF, so keep room for the terminating NUL too.
     static constexpr size_t MaxReplyLength = 112U;
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;

@@ -2,7 +2,6 @@
   'use strict';
 
   const CAL_URL='/api/hardware/hall/calibration';
-  const HALL_URL='/api/hardware/hall';
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   async function request(url,opt={}){
@@ -27,6 +26,7 @@
       case 'ARMED_WAITING_START': return 'Ожидание физической START';
       case 'RUNNING': return 'Калибровка выполняется';
       case 'COMPLETED': return 'Калибровка завершена';
+      case 'WAITING_APPLY_CONFIRM': return 'Ожидание # для сохранения на Arduino';
       case 'ABORTED': return 'Калибровка прервана';
       case 'IDLE': return 'Готово';
       default: return state||'Нет данных';
@@ -38,6 +38,7 @@
     return {
       available:true,
       valid:!!state.recommendation_valid,
+      measurement_id:state.measurement_id,
       baseline:state.baseline,
       min:state.min,
       max:state.max,
@@ -80,7 +81,7 @@
         applyBtn.disabled=true;
         return;
       }
-      const valid=!!lastResult.valid;
+      const valid=!!lastResult.valid&&Number(lastResult.measurement_id)>0;
       resultBox.className=valid?'note ok':'note warn';
       resultBox.innerHTML='Результат: <b>'+(valid?'VALID':'INVALID')+'</b>'+
         ' · baseline '+lastResult.baseline+
@@ -104,16 +105,20 @@
       }else if(name==='RUNNING'){
         setStatus('Калибровка выполняется. Любая клавиша или повторная START на станке прервёт процедуру.','note ok');
       }else if(name==='COMPLETED'){
-        setStatus('Калибровка завершена. Проверьте результат и примените параметры только вручную.','note ok');
+        setStatus('Калибровка завершена. Проверьте рекомендацию. Кнопка применения только отправит proposal; EEPROM изменится лишь после отдельного # на Arduino.','note ok');
+      }else if(name==='WAITING_APPLY_CONFIRM'){
+        setStatus('Proposal принят Arduino. Для записи параметров в EEPROM нажмите # на Arduino. START не подтверждает сохранение. Другая клавиша или потеря связи отменит применение.','note warn');
       }else if(name==='ABORTED'){
-        setStatus('Калибровка прервана. Двигатель должен оставаться остановленным.','note warn');
+        setStatus('Калибровка или применение прервано. Двигатель должен оставаться остановленным.','note warn');
       }else{
         setStatus('Автокалибровка: '+stateText(name)+(pending?' · команда выполняется':''),pending?'note warn':'note');
       }
-      const active=name==='WAITING_LOCAL_CONFIRM'||name==='ARMED_WAITING_START'||name==='RUNNING';
+      const active=name==='WAITING_LOCAL_CONFIRM'||name==='ARMED_WAITING_START'||
+        name==='RUNNING'||name==='WAITING_APPLY_CONFIRM';
       armBtn.disabled=pending||active;
-      abortBtn.disabled=pending||!active;
+      abortBtn.disabled=!active;
       renderResult(resultFromState(state));
+      if(name==='WAITING_APPLY_CONFIRM')applyBtn.disabled=true;
     }
 
     async function load(refresh=false){
@@ -134,6 +139,12 @@
           (state.state==='COMPLETED'||state.state==='ABORTED'||state.state==='IDLE');
         if(terminal){
           polling=false;
+          if(state.last_reply==='APPLIED'){
+            setStatus('Параметры подтверждены на Arduino и сохранены в EEPROM.','note ok');
+            document.dispatchEvent(new CustomEvent('cm-hall-settings-applied'));
+          }else if(state.last_reply&&state.last_reply!=='NONE'){
+            setStatus('Применение завершилось: '+state.last_reply,'note warn');
+          }
           return;
         }
       }catch(e){
@@ -166,7 +177,7 @@
     });
 
     applyBtn.addEventListener('click',async()=>{
-      if(!lastResult||!lastResult.valid)return;
+      if(!lastResult||!lastResult.valid||Number(lastResult.measurement_id)<=0)return;
       if(!thresholdInput||!hysteresisInput||!directionInput||!debounceInput){
         setStatus('Поля настроек Hall не найдены.','note bad');
         return;
@@ -180,28 +191,15 @@
       hysteresisInput.value=lastResult.recommended_hysteresis;
       directionInput.value=lastResult.direction;
       try{
-        setStatus('Применение рекомендованных параметров…','note warn');
-        await post(HALL_URL+'/settings',{
-          threshold:String(lastResult.recommended_threshold),
-          hysteresis:String(lastResult.recommended_hysteresis),
-          release_debounce_ms:String(debounce),
-          direction:lastResult.direction
+        setStatus('Отправка exact calibration proposal на Arduino…','note warn');
+        await post(CAL_URL+'/apply',{
+          release_debounce_ms:String(debounce)
         });
-        let applied=false;
-        for(let i=0;i<12;i++){
-          await sleep(250);
-          const hall=await request(HALL_URL);
-          if(!hall.pending&&hall.last_reply&&hall.last_reply!=='NONE'){
-            if(hall.last_reply!=='APPLIED')throw new Error(hall.last_reply);
-            applied=true;
-            break;
-          }
-        }
-        if(!applied)throw new Error('timeout');
-        setStatus('Рекомендованные threshold / hysteresis / direction применены вручную.','note ok');
-        document.dispatchEvent(new CustomEvent('cm-hall-settings-applied'));
+        polling=true;
+        clearTimeout(pollTimer);
+        setTimeout(poll,200);
       }catch(e){
-        setStatus('Не удалось применить параметры: '+e.message,'note bad');
+        setStatus('Не удалось подготовить применение: '+e.message,'note bad');
       }
     });
 

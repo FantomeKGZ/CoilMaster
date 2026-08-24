@@ -604,7 +604,6 @@ bool HardwareControlClient::processCalibrationResult(char* line, uint32_t nowMs)
 
 bool HardwareControlClient::processCalibrationApplied(char* line, uint32_t nowMs)
 {
-    (void)nowMs;
     if (!validateAndStripCrc(line)) return true;
 
     char* save = nullptr;
@@ -620,22 +619,26 @@ bool HardwareControlClient::processCalibrationApplied(char* line, uint32_t nowMs
     char* extra = strtok_r(nullptr, "|", &save);
 
     uint32_t measurementId = 0UL;
-    uint16_t threshold = 0U;
-    uint16_t hysteresis = 0U;
-    uint16_t debounce = 0U;
+    HallSettingsState applied;
     if (version == nullptr || category == nullptr || measurementText == nullptr ||
         resultText == nullptr || thresholdText == nullptr || hysteresisText == nullptr ||
         debounceText == nullptr || directionText == nullptr || capability == nullptr ||
         extra != nullptr || strcmp(version, "CMP1") != 0 ||
         strcmp(category, "CAL_APPLIED") != 0 || strcmp(capability, "C") != 0 ||
         !parseDecimal32(measurementText, measurementId) || measurementId == 0UL ||
-        !parseDecimal16(thresholdText, threshold) ||
-        !parseDecimal16(hysteresisText, hysteresis) ||
-        !parseDecimal16(debounceText, debounce) ||
-        (strcmp(directionText, "RISING") != 0 && strcmp(directionText, "FALLING") != 0))
+        !parseDecimal16(thresholdText, applied.threshold) ||
+        !parseDecimal16(hysteresisText, applied.hysteresis) ||
+        !parseDecimal16(debounceText, applied.releaseDebounceMs))
     {
         return true;
     }
+
+    if (strcmp(directionText, "RISING") == 0)
+        applied.direction = HallSignalDirectionRemote::Rising;
+    else if (strcmp(directionText, "FALLING") == 0)
+        applied.direction = HallSignalDirectionRemote::Falling;
+    else
+        return true;
 
     if (m_requestType != RequestType::StageCalibrationProposal ||
         measurementId != m_pendingCalibrationMeasurementId)
@@ -643,7 +646,17 @@ bool HardwareControlClient::processCalibrationApplied(char* line, uint32_t nowMs
         return true;
     }
 
-    finishRequest(parseResultName(resultText));
+    const HardwareControlReplyResult result = parseResultName(resultText);
+    if (result == HardwareControlReplyResult::Applied)
+    {
+        applied.fromEeprom = true;
+        applied.valid = true;
+        applied.receivedAtMs = nowMs;
+        m_settings = applied;
+        m_hasSettings = true;
+    }
+
+    finishRequest(result);
     return true;
 }
 

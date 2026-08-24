@@ -138,6 +138,8 @@ mustContain(calibrationProtocolCpp, 'WAITING_LOCAL_CONFIRM', 'Arduino Hall calib
 mustContain(calibrationProtocolCpp, 'WAITING_APPLY_CONFIRM', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CAL_PROPOSAL', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CAL_APPLIED', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, "text[0] == '0' && text[1] != '\\0'", 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, '!settings.isValid()', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C', 'Arduino Hall calibration protocol');
 
 const localConfirmBranch = arduinoMain.indexOf('HallCalibrationState::WaitingLocalConfirm');

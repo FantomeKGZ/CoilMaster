@@ -81,7 +81,7 @@ if ((entrypoint.match(/lcdView\.begin\(\);/g) || []).length !== 1) {
 // on the LCD and every checkpoint must be readable during a reset loop. The SSR
 // safety owner is initialized exactly once before those bounded holds.
 for (const [text, description] of [
-  ['cmResetFlags = MCUSR;', 'AVR reset flags are not captured in production'],
+  ['cmResetFlags = static_cast<uint8_t>(MCUSR & 0x1FU);', 'defined AVR reset flags are not captured and masked in production'],
   ['CM BOOT RST:', 'LCD reset-code heading missing'],
   ['delay(350U);', 'boot checkpoint is not held long enough to read'],
   ['showLcdBootStage(F("SSR SAFE OFF"))', 'fail-safe SSR checkpoint missing']

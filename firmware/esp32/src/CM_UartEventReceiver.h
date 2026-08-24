@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#include "CM_HallCalibrationCompletionAdapter.h"
+#include "CM_HallCalibrationDoneProtocol.h"
 #include "CM_HallCalibrationRawCollector.h"
 #include "CM_HallCalibrationRawProtocol.h"
 #include "CM_HardwareControlClient.h"
@@ -169,6 +171,7 @@ private:
     bool processJobAck(char* line);
     bool processCancelAck(char* line);
     bool processHallCalibrationRawSample(char* line);
+    bool processHallCalibrationDone(char* line, uint32_t nowMs);
     bool sendPendingJob(uint32_t nowMs);
     bool writeJobFrame(const OutgoingWindingJob& job);
     bool sendPendingCancel(uint32_t nowMs);
@@ -195,6 +198,8 @@ private:
     HallCalibrationRawCollector m_hallCalibrationRaw;
     bool m_hallCalibrationRawRunStarted;
     uint32_t m_hallCalibrationRawDurationMs;
+    HallCalibrationRemoteResult m_compactCalibrationResult;
+    bool m_hasCompactCalibrationResult;
     char m_line[MaxLineLength];
     size_t m_length;
 

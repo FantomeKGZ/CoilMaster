@@ -46,6 +46,8 @@ void HardwareControlWeb::begin()
                 [this]() { handleCalibrationArm(); });
     m_server.on("/api/hardware/hall/calibration/abort", HTTP_POST,
                 [this]() { handleCalibrationAbort(); });
+    m_server.on("/api/hardware/hall/calibration/apply", HTTP_POST,
+                [this]() { handleCalibrationApply(); });
 }
 
 void HardwareControlWeb::update(uint32_t nowMs)
@@ -138,6 +140,8 @@ const char* HardwareControlWeb::calibrationStateText(
             return "RUNNING";
         case HallCalibrationRemoteState::Completed:
             return "COMPLETED";
+        case HallCalibrationRemoteState::WaitingApplyConfirm:
+            return "WAITING_APPLY_CONFIRM";
         case HallCalibrationRemoteState::Aborted:
             return "ABORTED";
         case HallCalibrationRemoteState::Idle:
@@ -153,6 +157,9 @@ const char* HardwareControlWeb::replyText(HardwareControlReplyResult result)
         case HardwareControlReplyResult::Applied: return "APPLIED";
         case HardwareControlReplyResult::Busy: return "BUSY";
         case HardwareControlReplyResult::Invalid: return "INVALID";
+        case HardwareControlReplyResult::IdentityMismatch:
+            return "IDENTITY_MISMATCH";
+        case HardwareControlReplyResult::Cancelled: return "CANCELLED";
         case HardwareControlReplyResult::PersistenceFailed:
             return "PERSISTENCE_FAILED";
         case HardwareControlReplyResult::Unsupported: return "UNSUPPORTED";
@@ -334,7 +341,7 @@ void HardwareControlWeb::handleTelemetryStop()
 void HardwareControlWeb::handleCalibrationState()
 {
     String response;
-    response.reserve(720U);
+    response.reserve(780U);
     response += F("{\"available\":");
     response += m_hasCalibrationState ? F("true") : F("false");
     response += F(",\"pending\":");
@@ -363,6 +370,8 @@ void HardwareControlWeb::handleCalibrationState()
     {
         response += F(",\"result_received_at_ms\":");
         response += m_calibrationResult.receivedAtMs;
+        response += F(",\"measurement_id\":");
+        response += m_calibrationResult.measurementId;
         response += F(",\"recommendation_valid\":");
         response += m_calibrationResult.recommendationValid
                         ? F("true") : F("false");
@@ -406,6 +415,45 @@ void HardwareControlWeb::handleCalibrationArm()
 void HardwareControlWeb::handleCalibrationAbort()
 {
     queueAccepted(m_receiver.abortHallCalibration(), "hall_control_busy");
+}
+
+void HardwareControlWeb::handleCalibrationApply()
+{
+    if (!m_server.hasArg("release_debounce_ms"))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"release_debounce_required\"}");
+        return;
+    }
+
+    uint32_t releaseDebounceMs = 0UL;
+    if (!parseUnsigned(m_server.arg("release_debounce_ms"), 1000UL,
+                       releaseDebounceMs) || releaseDebounceMs == 0UL)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_release_debounce\"}");
+        return;
+    }
+
+    if (!m_hasCalibrationResult || !m_calibrationResult.valid ||
+        !m_calibrationResult.recommendationValid ||
+        m_calibrationResult.measurementId == 0UL ||
+        !m_hasCalibrationState ||
+        m_calibrationState.state != HallCalibrationRemoteState::Completed)
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"calibration_result_not_applicable\"}");
+        return;
+    }
+
+    queueAccepted(
+        m_receiver.proposeHallCalibration(
+            m_calibrationResult.measurementId,
+            m_calibrationResult.recommendedThreshold,
+            m_calibrationResult.recommendedHysteresis,
+            static_cast<uint16_t>(releaseDebounceMs),
+            m_calibrationResult.direction),
+        "hall_control_busy");
 }
 
 } // namespace CM

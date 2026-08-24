@@ -115,17 +115,17 @@ bool formatResult(const HallCalibrationResult& result,
                   size_t outputSize)
 {
     if (output == nullptr || outputSize == 0U) return false;
+    // Keep the staged CMP1 CAL_RESULT shape stable while recommendation
+    // ownership lives on ESP32. Uno sends measurement fields plus neutral
+    // recommendation placeholders; ESP32 recomputes threshold/hysteresis/
+    // direction from baseline/min/max.
     const int length = snprintf(
         output,
         outputSize,
-        "CMP1|CAL_RESULT|%s|%u|%u|%u|%u|%u|%s|%u|%lu|C",
-        result.valid ? "VALID" : "INVALID",
+        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|C",
         static_cast<unsigned int>(result.baselineAdc),
         static_cast<unsigned int>(result.minAdc),
         static_cast<unsigned int>(result.maxAdc),
-        static_cast<unsigned int>(result.recommendedThreshold),
-        static_cast<unsigned int>(result.recommendedHysteresis),
-        directionName(result.direction),
         static_cast<unsigned int>(result.sampleCount),
         static_cast<unsigned long>(result.durationMs));
     return appendCrc(output, outputSize, length);

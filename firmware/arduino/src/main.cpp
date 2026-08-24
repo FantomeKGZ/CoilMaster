@@ -214,27 +214,6 @@ void showLcdBootStage(const __FlashStringHelper* stage)
 #endif
 }
 
-const __FlashStringHelper* loopPhaseName(uint8_t phase)
-{
-    switch (phase)
-    {
-        case 1U: return F("KEYPAD");
-        case 2U: return F("EXT START");
-        case 3U: return F("EVENT A");
-        case 4U: return F("TURN");
-        case 5U: return F("EVENT B");
-        case 6U: return F("UART");
-        case 7U: return F("HALL CAL");
-        case 8U: return F("HALL TELEMETRY");
-        case 9U: return F("BUZZER");
-        case 10U: return F("TRANSITION");
-        case 11U: return F("OUTPUTS");
-        case 12U: return F("ALIVE");
-        case 13U: return F("LOOP COMPLETE");
-        default: return F("NOT RECORDED");
-    }
-}
-
 void showPreviousLoopPhase()
 {
 #if CM_FEATURE_LCD1602 && defined(__AVR__)
@@ -245,7 +224,8 @@ void showPreviousLoopPhase()
         lcd.setCursor(0U, 1U);
         lcd.print(F("                "));
         lcd.setCursor(0U, 1U);
-        lcd.print(loopPhaseName(cmLastLoopPhase));
+        lcd.print(F("PHASE "));
+        lcd.print(cmLastLoopPhase);
         delay(2000U);
     }
     cmLoopPhaseMagic = 0xA5U;

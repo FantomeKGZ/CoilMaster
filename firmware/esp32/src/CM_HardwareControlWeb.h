@@ -49,7 +49,7 @@ private:
 
     WebServer& m_server;
     UartEventReceiver& m_receiver;
-    HallCalibrationHistoryStore m_calibrationHistory;
+    HallCalibrationHistoryStore m_calibrationHistory{SD};
     HallSettingsState m_settings;
     HallTelemetryState m_telemetry;
     HallCalibrationRemoteStateSnapshot m_calibrationState;
@@ -60,8 +60,8 @@ private:
     bool m_hasCalibrationState;
     bool m_hasCalibrationResult;
     bool m_hasReply;
-    bool m_calibrationHistoryReady;
-    uint32_t m_pendingHistoryMeasurementId;
+    bool m_calibrationHistoryReady = false;
+    uint32_t m_pendingHistoryMeasurementId = 0UL;
     uint32_t m_nowMs;
 };
 

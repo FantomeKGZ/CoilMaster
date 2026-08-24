@@ -8,6 +8,7 @@
 #include "../Core/CM_WindingJob.h"
 #include "CM_HardwareControlProtocol.h"
 #include "CM_HallCalibrationProtocol.h"
+#include "CM_HallCalibrationRawBridge.h"
 
 namespace CM
 {
@@ -60,6 +61,19 @@ public:
     bool sendHallCalibrationApplied(uint32_t measurementId,
                                     HallCalibrationApplyResult result,
                                     const HardwareSettings& settings);
+    bool sendHallCalibrationSample(HallCalibrationSamplePhase phase,
+                                   uint16_t rawAdc,
+                                   uint16_t sequence,
+                                   uint32_t elapsedMs)
+    {
+        char frame[HallCalibrationProtocol::MaxFrameLength];
+        if (!HallCalibrationProtocol::formatSample(
+                phase, rawAdc, sequence, elapsedMs, frame, sizeof(frame)))
+        {
+            return false;
+        }
+        return writeHardwareFrame(frame);
+    }
 
     uint8_t queuedCount() const;
     bool waitingForAck() const;
@@ -115,6 +129,7 @@ private:
     static bool parseHex16(const char* text, uint16_t& value);
 
     SoftwareSerial m_serial;
+    HallCalibrationRawBridgeRegistration m_hallCalibrationRawBridge{this};
     uint32_t m_baudRate;
     QueuedEvent m_queue[QueueCapacity];
     uint8_t m_head;

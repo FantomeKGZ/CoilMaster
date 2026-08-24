@@ -22,6 +22,28 @@ bool parseHex16(const char* text, uint16_t& value)
     return true;
 }
 
+bool parseDecimal32(const char* text, uint32_t& value)
+{
+    value = 0UL;
+    if (text == nullptr || *text == '\0') return false;
+    for (const char* cursor = text; *cursor != '\0'; ++cursor)
+    {
+        if (*cursor < '0' || *cursor > '9') return false;
+        const uint8_t digit = static_cast<uint8_t>(*cursor - '0');
+        if (value > (0xFFFFFFFFUL - digit) / 10UL) return false;
+        value = value * 10UL + digit;
+    }
+    return true;
+}
+
+bool parseDecimal16(const char* text, uint16_t& value)
+{
+    uint32_t parsed = 0UL;
+    if (!parseDecimal32(text, parsed) || parsed > 0xFFFFUL) return false;
+    value = static_cast<uint16_t>(parsed);
+    return true;
+}
+
 bool verifyAndStripCrc(char* frame)
 {
     if (frame == nullptr) return false;
@@ -93,6 +115,52 @@ bool parseRequest(char* frame, HallCalibrationCommand& command)
     return true;
 }
 
+bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal)
+{
+    proposal = HallCalibrationProposalRequest();
+    if (!verifyAndStripCrc(frame)) return false;
+
+    char* save = nullptr;
+    char* version = strtok_r(frame, "|", &save);
+    char* category = strtok_r(nullptr, "|", &save);
+    char* measurementText = strtok_r(nullptr, "|", &save);
+    char* thresholdText = strtok_r(nullptr, "|", &save);
+    char* hysteresisText = strtok_r(nullptr, "|", &save);
+    char* debounceText = strtok_r(nullptr, "|", &save);
+    char* directionText = strtok_r(nullptr, "|", &save);
+    char* capability = strtok_r(nullptr, "|", &save);
+    char* extra = strtok_r(nullptr, "|", &save);
+
+    if (version == nullptr || category == nullptr || measurementText == nullptr ||
+        thresholdText == nullptr || hysteresisText == nullptr ||
+        debounceText == nullptr || directionText == nullptr ||
+        capability == nullptr || extra != nullptr ||
+        strcmp(version, "CMP1") != 0 ||
+        strcmp(category, "CAL_PROPOSAL") != 0 ||
+        strcmp(capability, "C") != 0)
+    {
+        return false;
+    }
+
+    if (!parseDecimal32(measurementText, proposal.measurementId) ||
+        proposal.measurementId == 0UL ||
+        !parseDecimal16(thresholdText, proposal.settings.hallThreshold) ||
+        !parseDecimal16(hysteresisText, proposal.settings.hallHysteresis) ||
+        !parseDecimal16(debounceText, proposal.settings.hallReleaseDebounceMs))
+    {
+        return false;
+    }
+
+    if (strcmp(directionText, "RISING") == 0)
+        proposal.settings.hallDirection = HallSignalDirection::Rising;
+    else if (strcmp(directionText, "FALLING") == 0)
+        proposal.settings.hallDirection = HallSignalDirection::Falling;
+    else
+        return false;
+
+    return proposal.settings.isValid();
+}
+
 bool formatState(HallCalibrationState state,
                  bool baselineReady,
                  bool motorPermit,
@@ -114,20 +182,43 @@ bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize)
 {
-    if (output == nullptr || outputSize == 0U) return false;
-    // Keep the staged CMP1 CAL_RESULT shape stable while recommendation
-    // ownership lives on ESP32. Uno sends measurement fields plus neutral
-    // recommendation placeholders; ESP32 recomputes threshold/hysteresis/
-    // direction from baseline/min/max.
+    if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
+        return false;
+    // Uno sends measurement data only. Recommendation placeholders stay neutral;
+    // ESP32 recomputes threshold/hysteresis/direction and must return the exact
+    // measurementId in CAL_PROPOSAL before Arduino can stage an apply.
     const int length = snprintf(
         output,
         outputSize,
-        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|C",
+        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C",
         static_cast<unsigned int>(result.baselineAdc),
         static_cast<unsigned int>(result.minAdc),
         static_cast<unsigned int>(result.maxAdc),
         static_cast<unsigned int>(result.sampleCount),
-        static_cast<unsigned long>(result.durationMs));
+        static_cast<unsigned long>(result.durationMs),
+        static_cast<unsigned long>(result.measurementId));
+    return appendCrc(output, outputSize, length);
+}
+
+bool formatApplied(uint32_t measurementId,
+                   HallCalibrationApplyResult result,
+                   const HardwareSettings& settings,
+                   char* output,
+                   size_t outputSize)
+{
+    if (output == nullptr || outputSize == 0U || measurementId == 0UL)
+        return false;
+    const int length = snprintf(
+        output,
+        outputSize,
+        "CMP1|CAL_APPLIED|%lu|%s|%u|%u|%u|%s|C",
+        static_cast<unsigned long>(measurementId),
+        applyResultName(result),
+        static_cast<unsigned int>(settings.hallThreshold),
+        static_cast<unsigned int>(settings.hallHysteresis),
+        static_cast<unsigned int>(settings.hallReleaseDebounceMs),
+        settings.hallDirection == HallSignalDirection::Falling
+            ? "FALLING" : "RISING");
     return appendCrc(output, outputSize, length);
 }
 
@@ -143,6 +234,8 @@ const char* stateName(HallCalibrationState state)
             return "RUNNING";
         case HallCalibrationState::Completed:
             return "COMPLETED";
+        case HallCalibrationState::WaitingApplyConfirm:
+            return "WAITING_APPLY_CONFIRM";
         case HallCalibrationState::Aborted:
             return "ABORTED";
         case HallCalibrationState::Idle:
@@ -154,6 +247,21 @@ const char* stateName(HallCalibrationState state)
 const char* directionName(HallCalibrationDirection direction)
 {
     return direction == HallCalibrationDirection::Falling ? "FALLING" : "RISING";
+}
+
+const char* applyResultName(HallCalibrationApplyResult result)
+{
+    switch (result)
+    {
+        case HallCalibrationApplyResult::Applied: return "APPLIED";
+        case HallCalibrationApplyResult::Invalid: return "INVALID";
+        case HallCalibrationApplyResult::IdentityMismatch: return "IDENTITY_MISMATCH";
+        case HallCalibrationApplyResult::Busy: return "BUSY";
+        case HallCalibrationApplyResult::PersistenceFailed:
+            return "PERSISTENCE_FAILED";
+        case HallCalibrationApplyResult::Cancelled: return "CANCELLED";
+    }
+    return "INVALID";
 }
 
 } // namespace HallCalibrationProtocol

@@ -20,6 +20,10 @@ public:
     void clear();
     void setCursor(uint8_t column, uint8_t row);
     void print(const char* text);
+    void print(const __FlashStringHelper* text);
+    void print(char value);
+    void print(uint8_t value);
+    void print(uint8_t value, int base);
 
 private:
     static constexpr uint8_t EnableMask = 0x04U;

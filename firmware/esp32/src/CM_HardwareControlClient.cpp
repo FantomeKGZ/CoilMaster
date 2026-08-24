@@ -50,6 +50,7 @@ HardwareControlClient::HardwareControlClient(HardwareSerial& serial)
       m_waitingReply(false), m_lastSendMs(0UL), m_sendAttempts(0U),
       m_settings(), m_hasSettings(false), m_telemetry(), m_hasTelemetry(false),
       m_calibrationState(), m_hasCalibrationState(false),
+      m_lastCalibrationKeepAliveMs(0UL),
       m_calibrationResult(), m_hasCalibrationResult(false),
       m_reply(), m_hasReply(false)
 {
@@ -58,23 +59,32 @@ HardwareControlClient::HardwareControlClient(HardwareSerial& serial)
 
 void HardwareControlClient::update(uint32_t nowMs)
 {
-    if (m_requestType == RequestType::None) return;
-
-    if (!m_waitingReply)
+    if (m_requestType != RequestType::None)
     {
+        if (!m_waitingReply)
+        {
+            sendPending(nowMs);
+            return;
+        }
+
+        if (static_cast<uint32_t>(nowMs - m_lastSendMs) < RetryIntervalMs) return;
+
+        if (m_sendAttempts >= MaxSendAttempts)
+        {
+            finishRequest(HardwareControlReplyResult::TimedOut);
+            return;
+        }
+
         sendPending(nowMs);
         return;
     }
 
-    if (static_cast<uint32_t>(nowMs - m_lastSendMs) < RetryIntervalMs) return;
-
-    if (m_sendAttempts >= MaxSendAttempts)
+    if (m_calibrationState.valid && calibrationActive(m_calibrationState.state) &&
+        static_cast<uint32_t>(nowMs - m_lastCalibrationKeepAliveMs) >=
+            CalibrationKeepAliveMs)
     {
-        finishRequest(HardwareControlReplyResult::TimedOut);
-        return;
+        sendCalibrationKeepAlive(nowMs);
     }
-
-    sendPending(nowMs);
 }
 
 bool HardwareControlClient::processLine(char* line, uint32_t nowMs)
@@ -228,6 +238,20 @@ bool HardwareControlClient::sendPending(uint32_t nowMs)
     ++m_sendAttempts;
     m_waitingReply = true;
     m_lastSendMs = nowMs;
+    return true;
+}
+
+bool HardwareControlClient::sendCalibrationKeepAlive(uint32_t nowMs)
+{
+    static const char Payload[] = "CMP1|CAL|GET|C";
+    const uint16_t crc = Cmp1Crc::calculate(Payload, sizeof(Payload) - 1U);
+    m_serial.print(Payload);
+    m_serial.print('|');
+    if (crc < 0x1000U) m_serial.print('0');
+    if (crc < 0x0100U) m_serial.print('0');
+    if (crc < 0x0010U) m_serial.print('0');
+    m_serial.println(crc, HEX);
+    m_lastCalibrationKeepAliveMs = nowMs;
     return true;
 }
 
@@ -412,6 +436,8 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
     HallCalibrationRemoteStateSnapshot parsed;
     if (strcmp(stateText, "IDLE") == 0)
         parsed.state = HallCalibrationRemoteState::Idle;
+    else if (strcmp(stateText, "WAITING_LOCAL_CONFIRM") == 0)
+        parsed.state = HallCalibrationRemoteState::WaitingLocalConfirm;
     else if (strcmp(stateText, "ARMED_WAITING_START") == 0)
         parsed.state = HallCalibrationRemoteState::ArmedWaitingPhysicalStart;
     else if (strcmp(stateText, "RUNNING") == 0)
@@ -444,10 +470,11 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
     parsed.receivedAtMs = nowMs;
     m_calibrationState = parsed;
     m_hasCalibrationState = true;
+    m_lastCalibrationKeepAliveMs = calibrationActive(parsed.state) ? nowMs : 0UL;
 
     if (m_requestType == RequestType::ArmCalibration)
     {
-        finishRequest(parsed.state == HallCalibrationRemoteState::ArmedWaitingPhysicalStart
+        finishRequest(parsed.state == HallCalibrationRemoteState::WaitingLocalConfirm
                           ? HardwareControlReplyResult::Applied
                           : HardwareControlReplyResult::Busy);
     }
@@ -593,6 +620,13 @@ HardwareControlReplyResult HardwareControlClient::parseResultName(const char* te
     if (strcmp(text, "PERSISTENCE_FAILED") == 0)
         return HardwareControlReplyResult::PersistenceFailed;
     return HardwareControlReplyResult::Unsupported;
+}
+
+bool HardwareControlClient::calibrationActive(HallCalibrationRemoteState state)
+{
+    return state == HallCalibrationRemoteState::WaitingLocalConfirm ||
+           state == HallCalibrationRemoteState::ArmedWaitingPhysicalStart ||
+           state == HallCalibrationRemoteState::Running;
 }
 
 } // namespace CM

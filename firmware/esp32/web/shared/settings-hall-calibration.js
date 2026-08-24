@@ -2,6 +2,7 @@
   'use strict';
 
   const CAL_URL='/api/hardware/hall/calibration';
+  const HISTORY_URL=CAL_URL+'/history';
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
   async function request(url,opt={}){
@@ -51,6 +52,84 @@
     };
   }
 
+  function resultLabel(value){
+    const labels={
+      NONE:'Не применялось',APPLIED:'Сохранено',BUSY:'Arduino занята',
+      INVALID:'Некорректно',IDENTITY_MISMATCH:'Несовпадение измерения',
+      CANCELLED:'Отменено',PERSISTENCE_FAILED:'Ошибка EEPROM',
+      UNSUPPORTED:'Не поддерживается',TIMED_OUT:'Нет подтверждения'
+    };
+    return labels[value]||value||'—';
+  }
+
+  function historyCard(){
+    let card=document.getElementById('hallCalibrationHistoryCard');
+    if(card)return card;
+    const main=document.querySelector('main');
+    if(!main)return null;
+    card=document.createElement('section');
+    card.id='hallCalibrationHistoryCard';
+    card.className='card';
+    card.innerHTML='<h2 class="hall-history-title">Последние калибровки</h2><p class="muted">На microSD ESP32 хранится не более 10 последних результатов. Рекомендация ESP32 и реально сохранённый профиль Arduino показаны отдельно.</p><div id="hallCalibrationHistory" class="note">Загрузка истории…</div>';
+    main.appendChild(card);
+    return card;
+  }
+
+  function makeHistoryRow(item,index){
+    const wrapper=document.createElement('div');
+    wrapper.style.padding='10px 0';
+    wrapper.style.borderBottom=index===0?'0':'1px solid #e8edf1';
+
+    const title=document.createElement('div');
+    const strong=document.createElement('b');
+    strong.textContent='Измерение #'+String(item.measurement_id||'—');
+    title.appendChild(strong);
+    const status=document.createElement('span');
+    status.textContent=' · '+resultLabel(item.apply_result);
+    title.appendChild(status);
+    wrapper.appendChild(title);
+
+    const measurement=document.createElement('div');
+    measurement.className='muted';
+    measurement.textContent='ADC: baseline '+item.baseline+' · min '+item.min+' · max '+item.max+' · span '+item.span+' · samples '+item.samples+' · '+item.duration_ms+' мс';
+    wrapper.appendChild(measurement);
+
+    const recommendation=document.createElement('div');
+    recommendation.className='muted';
+    recommendation.textContent=item.recommendation_valid
+      ? 'Рекомендация ESP32: threshold '+item.recommended_threshold+' · hysteresis '+item.recommended_hysteresis+' · '+item.recommended_direction
+      : 'Рекомендация ESP32: недействительна';
+    wrapper.appendChild(recommendation);
+
+    const persisted=document.createElement('div');
+    persisted.className='muted';
+    persisted.textContent=item.persisted_valid
+      ? 'Сохранено Arduino EEPROM: threshold '+item.persisted_threshold+' · hysteresis '+item.persisted_hysteresis+' · debounce '+item.persisted_release_debounce_ms+' мс · '+item.persisted_direction
+      : 'Arduino EEPROM: профиль не подтверждён';
+    wrapper.appendChild(persisted);
+    return wrapper;
+  }
+
+  async function loadHistory(){
+    historyCard();
+    const box=document.getElementById('hallCalibrationHistory');
+    if(!box)return;
+    try{
+      const data=await request(HISTORY_URL);
+      box.className='note';
+      box.textContent='';
+      const items=Array.isArray(data.items)?data.items:[];
+      if(!items.length){
+        box.textContent='История пока пуста.';
+        return;
+      }
+      for(let i=0;i<items.length;i++)box.appendChild(makeHistoryRow(items[i],i));
+    }catch(e){
+      box.className='note bad';
+      box.textContent='История недоступна: '+e.message;
+    }
+  }
+
   function mount(options={}){
     const get=id=>document.getElementById(id);
     const box=get(options.statusId||'calibrationStatus');
@@ -63,6 +142,9 @@
     const directionInput=get(options.directionId||'direction');
     const debounceInput=get(options.debounceId||'debounce');
     if(!box||!resultBox||!armBtn||!abortBtn||!applyBtn)return;
+
+    historyCard();
+    loadHistory();
 
     let polling=false;
     let pollTimer=null;
@@ -145,6 +227,7 @@
           }else if(state.last_reply&&state.last_reply!=='NONE'){
             setStatus('Применение завершилось: '+state.last_reply,'note warn');
           }
+          await loadHistory();
           return;
         }
       }catch(e){
@@ -217,5 +300,5 @@
     load(true).catch(e=>setStatus('Ошибка автокалибровки: '+e.message,'note bad'));
   }
 
-  window.CMHallCalibration={mount};
+  window.CMHallCalibration={mount,loadHistory};
 })();

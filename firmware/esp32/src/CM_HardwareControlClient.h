@@ -91,6 +91,8 @@ enum class HardwareControlReplyResult : uint8_t
     Applied,
     Busy,
     Invalid,
+    IdentityMismatch,
+    Cancelled,
     PersistenceFailed,
     Unsupported,
     TimedOut
@@ -122,6 +124,11 @@ public:
     bool armHallCalibration();
     bool abortHallCalibration();
     bool requestHallCalibration();
+    bool proposeHallCalibration(uint32_t measurementId,
+                                uint16_t threshold,
+                                uint16_t hysteresis,
+                                uint16_t releaseDebounceMs,
+                                HallSignalDirectionRemote direction);
 
     bool requestPending() const;
     bool takeSettings(HallSettingsState& state);
@@ -141,7 +148,8 @@ private:
         StopTelemetry,
         ArmCalibration,
         AbortCalibration,
-        GetCalibration
+        GetCalibration,
+        StageCalibrationProposal
     };
 
     static constexpr uint32_t RetryIntervalMs = 1000UL;
@@ -157,6 +165,7 @@ private:
     bool processTelemetryState(char* line, uint32_t nowMs);
     bool processCalibrationState(char* line, uint32_t nowMs);
     bool processCalibrationResult(char* line, uint32_t nowMs);
+    bool processCalibrationApplied(char* line, uint32_t nowMs);
     void finishRequest(HardwareControlReplyResult result);
 
     static bool validateAndStripCrc(char* line);
@@ -172,6 +181,7 @@ private:
     bool m_waitingReply;
     uint32_t m_lastSendMs;
     uint8_t m_sendAttempts;
+    uint32_t m_pendingCalibrationMeasurementId;
 
     HallSettingsState m_settings;
     bool m_hasSettings;

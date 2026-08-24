@@ -14,8 +14,13 @@ const collectorH = read('firmware/esp32/src/CM_HallCalibrationRawCollector.h');
 const collectorCpp = read('firmware/esp32/src/CM_HallCalibrationRawCollector.cpp');
 const rawProtocolH = read('firmware/esp32/src/CM_HallCalibrationRawProtocol.h');
 const rawProtocolCpp = read('firmware/esp32/src/CM_HallCalibrationRawProtocol.cpp');
+const receiverH = read('firmware/esp32/src/CM_UartEventReceiver.h');
+const receiverCpp = read('firmware/esp32/src/CM_UartEventReceiver.cpp');
 const unoProtocolH = read('Arduino/CM_HallCalibrationProtocol.h');
 const unoProtocolCpp = read('Arduino/CM_HallCalibrationProtocol.cpp');
+const unoBridgeH = read('Arduino/CM_HallCalibrationRawBridge.h');
+const unoBridgeCpp = read('Arduino/CM_HallCalibrationRawBridge.cpp');
+const unoTransportH = read('Arduino/CM_UartEventTransport.h');
 const analyzerCpp = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.cpp');
 const unoService = read('Arduino/CM_HallCalibrationService.cpp');
 const unoMain = read('firmware/arduino/src/main.cpp');
@@ -40,6 +45,15 @@ mustContain(rawProtocolCpp, 'Cmp1Crc::calculate', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, '1023UL', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, '65535UL', 'ESP32 raw protocol');
 
+mustContain(receiverH, 'HallCalibrationRawCollector m_hallCalibrationRaw', 'ESP32 raw receiver');
+mustContain(receiverCpp, 'CMP1|CAL_SAMPLE|', 'ESP32 raw receiver');
+mustContain(receiverCpp, 'HallCalibrationRawProtocol::parseSample', 'ESP32 raw receiver');
+mustContain(receiverCpp, 'm_hallCalibrationRaw.addBaselineSample', 'ESP32 raw receiver');
+mustContain(receiverCpp, 'm_hallCalibrationRaw.addRunSample', 'ESP32 raw receiver');
+mustContain(receiverCpp, 'result.baselineAdc = rawSummary.baselineAdc', 'ESP32 raw result ownership');
+mustContain(receiverCpp, 'result.minAdc = rawSummary.minAdc', 'ESP32 raw result ownership');
+mustContain(receiverCpp, 'result.maxAdc = rawSummary.maxAdc', 'ESP32 raw result ownership');
+
 mustContain(unoProtocolH, 'HallCalibrationSamplePhase', 'Uno raw protocol');
 mustContain(unoProtocolH, 'formatSample', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C', 'Uno raw protocol');
@@ -47,6 +61,13 @@ mustContain(unoProtocolCpp, 'PSTR("BASELINE")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'PSTR("RUN")', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'rawAdc > 1023U', 'Uno raw protocol');
 mustContain(unoProtocolCpp, 'appendCrc(output, outputSize, length)', 'Uno raw protocol');
+
+mustContain(unoBridgeH, 'no START', 'Uno raw bridge safety');
+mustContain(unoBridgeCpp, 'sendHallCalibrationSample', 'Uno raw bridge');
+mustContain(unoTransportH, 'sendHallCalibrationSample', 'Uno UART raw TX');
+mustContain(unoService, 'HallCalibrationRawBridge::publish', 'Uno raw sample publisher');
+mustContain(unoService, 'HallCalibrationSamplePhase::Baseline', 'Uno baseline raw publisher');
+mustContain(unoService, 'HallCalibrationSamplePhase::Run', 'Uno run raw publisher');
 
 mustContain(analyzerCpp, 'analyzeSummary', 'ESP32 analyzer owner');
 
@@ -63,7 +84,9 @@ for (const [name, text] of [
   ['raw protocol header', rawProtocolH],
   ['raw protocol cpp', rawProtocolCpp],
   ['Uno raw protocol header', unoProtocolH],
-  ['Uno raw protocol cpp', unoProtocolCpp]
+  ['Uno raw protocol cpp', unoProtocolCpp],
+  ['Uno raw bridge header', unoBridgeH],
+  ['Uno raw bridge cpp', unoBridgeCpp]
 ]) {
   mustNotContain(text, 'StartOrResume', `${name}`);
   mustNotContain(text, 'digitalWrite', `${name}`);

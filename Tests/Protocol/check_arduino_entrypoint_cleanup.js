@@ -17,6 +17,7 @@ for (const obsoletePath of obsoleteArtifacts) {
 
 const platformio = fs.readFileSync(platformioPath, 'utf8');
 const productionMain = fs.readFileSync(productionMainPath, 'utf8');
+const eepromSource = fs.readFileSync('Arduino/CM_EepromPersistence.cpp', 'utf8');
 
 for (const required of [
   '+<Core/*.cpp>',
@@ -57,6 +58,25 @@ for (const forbidden of ['#include <Keypad.h>', 'Keypad keypad', 'keypad.getKey(
   if (productionMain.includes(forbidden) || platformio.includes(forbidden)) {
     failures.push(`obsolete heap-heavy Keypad owner remains: ${forbidden}`);
   }
+}
+
+
+for (const required of [
+  'if (!metadataValidInEeprom())',
+  'uint16_t EepromPersistence::metadataCrcInEeprom() const',
+  'bool EepromPersistence::metadataValidInEeprom() const',
+  'void EepromPersistence::resetMetadataInEeprom() const'
+]) {
+  if (!eepromSource.includes(required)) {
+    failures.push(`Arduino/CM_EepromPersistence.cpp: streaming boot metadata contract missing: ${required}`);
+  }
+}
+const beginBody = eepromSource.slice(
+  eepromSource.indexOf('void EepromPersistence::begin()'),
+  eepromSource.indexOf('uint32_t EepromPersistence::nextSessionId()')
+);
+if (beginBody.includes('StoredMetadataState metadata;')) {
+  failures.push('Arduino/CM_EepromPersistence.cpp: startup must not place the full metadata sidecar on the Uno stack');
 }
 
 if (failures.length) {

@@ -67,6 +67,39 @@ cc18247c  test(arduino): protect compatible keypad scan direction
 
 ESP32 не управляет SSR и не создаёт автоматический START. Hall остаётся физически подключён к Arduino `A0`; ESP32 получает только bounded diagnostic samples/results по UART.
 
+## Согласованный автономный Hall calibration handshake
+
+```text
+ESP32 CAL_ARM
+  -> Arduino показывает запрос на LCD
+  -> оператор подтверждает на Arduino
+  -> только отдельный физический START разрешает вращение
+  -> Arduino собирает bounded raw Hall samples/statistics
+  -> Arduino передаёт данные ESP32
+  -> ESP32 рассчитывает threshold/hysteresis/direction
+  -> ESP32 возвращает CAL_PROPOSAL + source sample identity/CRC
+  -> Arduino проверяет диапазоны, identity, safe idle/calibration state
+  -> Arduino показывает результат оператору
+  -> оператор подтверждает применение на Arduino
+  -> Arduino атомарно сохраняет профиль в EEPROM + CRC/version
+  -> Arduino отвечает CAL_APPLIED с фактически сохранённым профилем
+  -> ESP32 сохраняет зеркальную копию для UI/audit
+```
+
+Правила:
+
+- команда ESP32 только arm/request; она никогда не запускает двигатель;
+- локальное подтверждение и физический START принадлежат Arduino;
+- SSR включается только Arduino и только внутри явно подтверждённой calibration state;
+- потеря UART/ESP32 немедленно завершает/abort calibration fail-safe с SSR OFF;
+- proposal ESP32 не применяется автоматически;
+- Arduino независимо валидирует допустимые threshold/hysteresis/direction;
+- authoritative runtime profile хранится в Arduino EEPROM;
+- ESP32 хранит mirror/audit copy, но её отсутствие не мешает обычной работе;
+- после reboot Arduino загружает последний CRC-valid applied profile и не продолжает calibration;
+- несовпадение mirror не перезаписывает Arduino автоматически;
+- production Hall counting полностью автономен после сохранения, ESP32 для намотки не требуется.
+
 ## План реализации
 
 ### Этап 1 — вернуть проверенную клавиатуру

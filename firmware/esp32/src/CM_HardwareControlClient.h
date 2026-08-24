@@ -142,7 +142,6 @@ private:
     {
         None = 0U,
         GetSettings,
-        ReconcileCalibrationSettings,
         SetSettings,
         ResetSettings,
         StartTelemetry,
@@ -159,7 +158,6 @@ private:
     static constexpr size_t MaxRequestPayloadLength = 96U;
 
     bool queueRequest(RequestType type, const char* payload);
-    bool beginCalibrationSettingsReconciliation();
     bool sendPending(uint32_t nowMs);
     bool sendCalibrationKeepAlive(uint32_t nowMs);
     bool processSettingsState(char* line, uint32_t nowMs);
@@ -169,7 +167,6 @@ private:
     bool processCalibrationResult(char* line, uint32_t nowMs);
     bool processCalibrationApplied(char* line, uint32_t nowMs);
     void finishRequest(HardwareControlReplyResult result);
-    void clearCalibrationProposalIdentity();
 
     static bool validateAndStripCrc(char* line);
     static bool parseDecimal16(const char* text, uint16_t& value);
@@ -185,10 +182,6 @@ private:
     uint32_t m_lastSendMs;
     uint8_t m_sendAttempts;
     uint32_t m_pendingCalibrationMeasurementId;
-    uint16_t m_pendingCalibrationThreshold;
-    uint16_t m_pendingCalibrationHysteresis;
-    uint16_t m_pendingCalibrationReleaseDebounceMs;
-    HallSignalDirectionRemote m_pendingCalibrationDirection;
 
     HallSettingsState m_settings;
     bool m_hasSettings;

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <avr/pgmspace.h>
 
+#include "CM_HardwareControlProtocol.h"
 #include "../Shared/CMP1Text/CM_Cmp1Crc.h"
 
 namespace CM
@@ -62,6 +63,43 @@ PGM_P applyResultNameP(HallCalibrationApplyResult result)
     }
     return PSTR("INVALID");
 }
+}
+
+bool parseRequest(char* frame, HallCalibrationCommand& command)
+{
+    command = HallCalibrationCommand::None;
+    HardwareControlRequest parsed;
+    if (!HardwareControlProtocol::parseRequest(frame, parsed)) return false;
+
+    switch (parsed.type)
+    {
+        case HardwareControlRequestType::ArmHallCalibration:
+            command = HallCalibrationCommand::Arm;
+            return true;
+        case HardwareControlRequestType::AbortHallCalibration:
+            command = HallCalibrationCommand::Abort;
+            return true;
+        case HardwareControlRequestType::GetHallCalibration:
+            command = HallCalibrationCommand::Get;
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal)
+{
+    proposal = HallCalibrationProposalRequest();
+    HardwareControlRequest parsed;
+    if (!HardwareControlProtocol::parseRequest(frame, parsed) ||
+        parsed.type != HardwareControlRequestType::StageHallCalibrationProposal)
+    {
+        return false;
+    }
+
+    proposal.measurementId = parsed.measurementId;
+    proposal.settings = parsed.settings;
+    return true;
 }
 
 bool formatState(HallCalibrationState state,

@@ -10,6 +10,10 @@ class Pcf8574Lcd
 {
 public:
     explicit Pcf8574Lcd(uint8_t address);
+    Pcf8574Lcd(uint8_t address, uint8_t, uint8_t)
+        : Pcf8574Lcd(address)
+    {
+    }
 
     bool init();
     void backlight();

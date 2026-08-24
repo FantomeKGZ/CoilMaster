@@ -41,6 +41,24 @@ for (const required of [
   }
 }
 
+
+for (const required of [
+  'void beginKeypad()',
+  'char scanKeypadRaw()',
+  'char pollKeypad()',
+  'pgm_read_byte(&KeyMap[index])',
+  'KeypadDebounceMs = 25U'
+]) {
+  if (!productionMain.includes(required)) {
+    failures.push(`${productionMainPath}: compact keypad scanner missing: ${required}`);
+  }
+}
+for (const forbidden of ['#include <Keypad.h>', 'Keypad keypad', 'keypad.getKey()', 'chris--a/Keypad']) {
+  if (productionMain.includes(forbidden) || platformio.includes(forbidden)) {
+    failures.push(`obsolete heap-heavy Keypad owner remains: ${forbidden}`);
+  }
+}
+
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);

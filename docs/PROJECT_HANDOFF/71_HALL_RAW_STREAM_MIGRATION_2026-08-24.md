@@ -99,6 +99,7 @@ d527cc6a0877342a7d05622d0cf1391d0e0784a2  refactor(hall): make Uno result identi
 0bd3bb4109671fc8a440460046cbe0c9fa3743dc  refactor(hall): drop legacy Uno result fields
 8e7b00536b1d105ef50d02e9900b0b0c4414485d  refactor(hall): emit literal legacy result fields
 69bb08191872111b9801576c1a0a60bd7b9d8528  test(hall): enforce identity-only Uno result
+a8768eb37f95935c447831fc906d237644833c0a  test(hall): align safety audit with raw identity flow
 ```
 
 С Uno удалены:
@@ -137,25 +138,61 @@ CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|measurement_id|C|CRC
 
 `measurement_id` формируется только из Uno-local transient timing/counter state и сохраняется при `finish()`. Он не зависит от ESP32 baseline/min/max и продолжает exact-ID gate для `CAL_PROPOSAL`.
 
-## Actions из batch 2026-08-24 19:55 +06
+## Verified size checkpoint после raw migration
 
-Проверено:
+Actions run:
 
 ```text
-32734442578 host-tests SUCCESS
-32734442579 build-uno SUCCESS на 8dc72bf...
-  RAM   1220 / 2048 = 59.6%
-  Flash 32084 / 32256 = 99.5%
-
-32734516435 host-tests SUCCESS
-32734591226 host-tests SUCCESS
-32734516276 build-uno FAILURE на 094ad9f... из-за overflow 32382/32256
-32734680453 host-tests FAILURE только из-за brittle handoff audit старого run-id
+32736552491  build-uno SUCCESS
 ```
 
-Host RED `32734680453` не является runtime failure: audit требовал literal старый run ID в handoff. Этот brittle check удалён в commit `79bbaf907...`; regression теперь проверяет архитектурные ownership contracts.
+Exact checkout:
 
-Новый size-recovery HEAD после identity-only cleanup ещё нельзя называть GREEN и нельзя присваивать ему размер до нового Actions build.
+```text
+8e7b00536b1d105ef50d02e9900b0b0c4414485d
+```
+
+Memory:
+
+```text
+RAM   1213 / 2048 = 59.2%   free 835 B
+Flash 31738 / 32256 = 98.4% free 518 B
+```
+
+Сравнение:
+
+```text
+до active raw TX:       Flash 32084, free 172 B
+первый active raw TX:   Flash 32382, overflow 126 B
+после ESP32 migration:  Flash 31738, free 518 B
+```
+
+Итого size-recovery освободил **644 B Flash** относительно переполненного raw-TX образа и дал **+346 B headroom** относительно последнего рабочего pre-raw образа 32084 B.
+
+RAM также улучшилась до 1213 B used / 835 B free.
+
+## Host audit status после size recovery
+
+Runs `32736459047`, `32736512840`, `32736552582`, `32736632546`, `32736693013`, `32736815923` проходили CMake 4/4, release safety, lost-apply, parser ownership и raw migration audits, но падали только на старом `check_hall_calibration_contracts.js`.
+
+Причина была stale expectation старой архитектуры:
+
+```text
+result.measurementId = measurementIdentity(result)
+```
+
+и старого formatter с Uno-owned baseline/min/max/samples/duration.
+
+Runtime уже корректно использует:
+
+```text
+m_measurementId = measurementIdentity(nowMs)
+result.measurementId = m_measurementId
+```
+
+а `CAL_RESULT` — literal-zero compatibility carrier.
+
+Audit синхронизирован commit `a8768eb37...`. Этот commit пока не считать host GREEN без нового Actions evidence.
 
 ## Wire contract
 
@@ -213,4 +250,4 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
 
-Первое действие: проверить host + Uno Actions на HEAD после `69bb0819...`/descendant. Главная ожидаемая проверка — Uno должен снова помещаться после удаления aggregation и identity-only result cleanup. Снять точные Flash/RAM. Если запас Flash всё ещё слишком мал, следующий отдельный experiment — упростить raw `CAL_SAMPLE` formatter/bridge либо compact transient measurement token, не трогая START/SSR/realtime Hall counting.
+Первое действие: проверить host Actions на `a8768eb37...` или descendant. Uno size checkpoint уже verified: 31738 Flash / 1213 RAM на `8e7b0053...`. Не смешивать следующий Flash experiment до подтверждения host safety audit GREEN. После GREEN следующий отдельный кандидат — упростить `CAL_SAMPLE` formatter/temporary raw bridge, сохранив wire bytes и без изменения START/SSR/realtime Hall counting.

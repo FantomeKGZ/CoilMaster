@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Keypad.h>
 #include <LiquidCrystal_I2C.h>
+#include <Wire.h>
 
 #if defined(__AVR__)
 #include <avr/io.h>
@@ -206,6 +207,20 @@ void printBootStage(const __FlashStringHelper* stage)
     Serial.print(F(" free_sram="));
     Serial.println(freeSramBytes());
     Serial.flush();
+#else
+    (void)stage;
+#endif
+}
+
+void showLcdBootStage(const __FlashStringHelper* stage)
+{
+#if CM_FEATURE_LCD1602
+    lcd.setCursor(0U, 0U);
+    lcd.print(F("CM BOOT         "));
+    lcd.setCursor(0U, 1U);
+    lcd.print(F("                "));
+    lcd.setCursor(0U, 1U);
+    lcd.print(stage);
 #else
     (void)stage;
 #endif
@@ -871,31 +886,40 @@ void setup()
     printResetCause();
     printBootStage(F("SERIAL"));
 
+#if CM_FEATURE_LCD1602
+    Wire.begin();
+    lcdView.begin();
+    showLcdBootStage(F("LCD"));
+    printBootStage(F("LCD"));
+#endif
+
     espTransport.begin();
+    showLcdBootStage(F("UART"));
     printBootStage(F("UART"));
 
     restorePersistentState();
+    showLcdBootStage(F("EEPROM"));
     printBootStage(F("EEPROM"));
 
     hardwareSettingsController.begin();
+    showLcdBootStage(F("SETTINGS"));
     printHardwareSettings();
     printBootStage(F("HW_SETTINGS"));
 
 #if CM_FEATURE_SSR
     ssr.begin();
+    showLcdBootStage(F("SSR"));
     printBootStage(F("SSR"));
 #endif
 #if CM_FEATURE_BUZZER
     buzzer.begin();
+    showLcdBootStage(F("BUZZER"));
     printBootStage(F("BUZZER"));
 #endif
 #if CM_FEATURE_EXTERNAL_START
     startButton.begin();
+    showLcdBootStage(F("START"));
     printBootStage(F("START_BUTTON"));
-#endif
-#if CM_FEATURE_LCD1602
-    lcdView.begin();
-    printBootStage(F("LCD"));
 #endif
 #if CM_FEATURE_SIMULATION
     simulator.setEnabled(true, millis());
@@ -905,6 +929,7 @@ void setup()
     machine.resetToHome();
     previousState = CM::MachineState::Fault;
     processStateTransitions(millis());
+    showLcdBootStage(F("STATE"));
     printBootStage(F("STATE"));
 
     updateOutputs();

@@ -186,6 +186,8 @@ bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize)
 {
+    // Exact wire shape retained for regression audit:
+    // CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C
     if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
         return false;
     output[0] = '\0';

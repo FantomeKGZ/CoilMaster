@@ -23,6 +23,7 @@
 
   function stateText(state){
     switch(state){
+      case 'WAITING_LOCAL_CONFIRM': return 'Ожидание подтверждения # на Arduino';
       case 'ARMED_WAITING_START': return 'Ожидание физической START';
       case 'RUNNING': return 'Калибровка выполняется';
       case 'COMPLETED': return 'Калибровка завершена';
@@ -96,8 +97,10 @@
     function render(state){
       const name=state.state||'IDLE';
       const pending=!!state.pending;
-      if(name==='ARMED_WAITING_START'){
-        setStatus('Калибровка вооружена. Нажмите физическую START на станке. ESP32 не запускает двигатель.','note warn');
+      if(name==='WAITING_LOCAL_CONFIRM'){
+        setStatus('Команда принята. Подтвердите калибровку клавишей # на Arduino. До подтверждения физическая START не запускает калибровку.','note warn');
+      }else if(name==='ARMED_WAITING_START'){
+        setStatus('Локальное подтверждение принято. Дождитесь готовности baseline и нажмите отдельную физическую START на станке. ESP32 не запускает двигатель.','note warn');
       }else if(name==='RUNNING'){
         setStatus('Калибровка выполняется. Любая клавиша или повторная START на станке прервёт процедуру.','note ok');
       }else if(name==='COMPLETED'){
@@ -107,8 +110,9 @@
       }else{
         setStatus('Автокалибровка: '+stateText(name)+(pending?' · команда выполняется':''),pending?'note warn':'note');
       }
-      armBtn.disabled=pending||name==='ARMED_WAITING_START'||name==='RUNNING';
-      abortBtn.disabled=pending||!(name==='ARMED_WAITING_START'||name==='RUNNING');
+      const active=name==='WAITING_LOCAL_CONFIRM'||name==='ARMED_WAITING_START'||name==='RUNNING';
+      armBtn.disabled=pending||active;
+      abortBtn.disabled=pending||!active;
       renderResult(resultFromState(state));
     }
 

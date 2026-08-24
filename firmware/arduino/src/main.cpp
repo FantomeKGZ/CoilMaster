@@ -161,47 +161,18 @@ int freeSramBytes()
 void printResetCause()
 {
 #if CM_FEATURE_BOOT_DIAGNOSTICS
-    cmBootSerial.print(F("CM_BOOT reset_flags=0x"));
+    // Compact field format keeps the ATmega328P diagnostic image within its
+    // flash limit: R=reset flags, L=last retained loop phase, M=free SRAM.
+    cmBootSerial.print(F("R="));
 #if defined(__AVR__)
     cmBootSerial.print(cmResetFlags, HEX);
-    cmBootSerial.print(F(" cause="));
-    bool reported = false;
-#ifdef PORF
-    if ((cmResetFlags & _BV(PORF)) != 0U)
-    {
-        cmBootSerial.print(F("POWER_ON"));
-        reported = true;
-    }
-#endif
-#ifdef EXTRF
-    if ((cmResetFlags & _BV(EXTRF)) != 0U)
-    {
-        if (reported) cmBootSerial.print('|');
-        cmBootSerial.print(F("EXTERNAL_RESET"));
-        reported = true;
-    }
-#endif
-#ifdef BORF
-    if ((cmResetFlags & _BV(BORF)) != 0U)
-    {
-        if (reported) cmBootSerial.print('|');
-        cmBootSerial.print(F("BROWN_OUT"));
-        reported = true;
-    }
-#endif
-#ifdef WDRF
-    if ((cmResetFlags & _BV(WDRF)) != 0U)
-    {
-        if (reported) cmBootSerial.print('|');
-        cmBootSerial.print(F("WATCHDOG"));
-        reported = true;
-    }
-#endif
-    if (!reported) cmBootSerial.print(F("NONE_OR_BOOTLOADER_CLEARED"));
+    cmBootSerial.print(F(" L="));
+    cmBootSerial.print(cmLoopPhaseMagic == 0xA5U ? cmLastLoopPhase : 0U);
 #else
-    cmBootSerial.print(F("NA cause=UNSUPPORTED"));
+    cmBootSerial.print(F("-- L=0"));
 #endif
-    cmBootSerial.println();
+    cmBootSerial.print(F(" M="));
+    cmBootSerial.println(freeSramBytes());
     cmBootSerial.flush();
 #endif
 }

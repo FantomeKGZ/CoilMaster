@@ -5,6 +5,7 @@
 #endif
 
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 
 namespace CM
 {
@@ -109,8 +110,6 @@ bool Pcf8574Lcd::write(uint8_t value) const
 
 bool Pcf8574Lcd::init()
 {
-    // Hardware TWI, prescaler 1, 100 kHz. Unlike Wire, this owner keeps no
-    // RX/TX/master/slave buffers in SRAM; every PCF8574 byte is synchronous.
     TWSR = static_cast<uint8_t>(TWSR & static_cast<uint8_t>(~0x03U));
     TWBR = static_cast<uint8_t>(((F_CPU / TwiFrequencyHz) - 16UL) / 2UL);
     TWCR = static_cast<uint8_t>(_BV(TWEN));
@@ -126,12 +125,12 @@ bool Pcf8574Lcd::init()
     delayMicroseconds(150U);
     if (!write4Bits(0x20U)) return false;
 
-    if (!command(0x28U)) return false; // 4-bit, 2 lines, 5x8 font
-    if (!command(0x08U)) return false; // display off during initialization
+    if (!command(0x28U)) return false;
+    if (!command(0x08U)) return false;
     if (!command(0x01U)) return false;
     delayMicroseconds(2000U);
-    if (!command(0x06U)) return false; // entry mode: increment, no shift
-    return command(0x0CU);             // display on, cursor/blink off
+    if (!command(0x06U)) return false;
+    return command(0x0CU);
 }
 
 void Pcf8574Lcd::backlight()
@@ -158,6 +157,38 @@ void Pcf8574Lcd::print(const char* text)
     if (text == nullptr) return;
     while (*text != '\0')
         (void)write(static_cast<uint8_t>(*text++));
+}
+
+void Pcf8574Lcd::print(const __FlashStringHelper* text)
+{
+    if (text == nullptr) return;
+    PGM_P cursor = reinterpret_cast<PGM_P>(text);
+    for (;;)
+    {
+        const char value = static_cast<char>(pgm_read_byte(cursor++));
+        if (value == '\0') return;
+        (void)write(static_cast<uint8_t>(value));
+    }
+}
+
+void Pcf8574Lcd::print(char value)
+{
+    (void)write(static_cast<uint8_t>(value));
+}
+
+void Pcf8574Lcd::print(uint8_t value)
+{
+    char digits[4];
+    utoa(value, digits, 10);
+    print(digits);
+}
+
+void Pcf8574Lcd::print(uint8_t value, int base)
+{
+    char digits[4];
+    const uint8_t radix = base == HEX ? 16U : 10U;
+    utoa(value, digits, radix);
+    print(digits);
 }
 
 } // namespace CM

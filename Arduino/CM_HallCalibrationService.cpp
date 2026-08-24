@@ -4,7 +4,8 @@ namespace CM
 {
 
 HallCalibrationResult::HallCalibrationResult()
-    : baselineAdc(0U),
+    : measurementId(0UL),
+      baselineAdc(0U),
       minAdc(0U),
       maxAdc(0U),
       sampleCount(0U),
@@ -18,6 +19,7 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
       m_resultPending(false),
       m_armedAtMs(0UL),
       m_lastPeerContactMs(0UL),
+      m_applyConfirmAtMs(0UL),
       m_startedAtMs(0UL),
       m_lastSampleMs(0UL),
       m_baselineSum(0UL),
@@ -31,7 +33,11 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
 
 bool HallCalibrationService::arm(uint32_t nowMs)
 {
-    if (m_state == HallCalibrationState::Running) return false;
+    if (m_state == HallCalibrationState::Running ||
+        m_state == HallCalibrationState::WaitingApplyConfirm)
+    {
+        return false;
+    }
 
     clearMeasurements();
     m_hall.reset(nowMs);
@@ -74,6 +80,31 @@ bool HallCalibrationService::physicalStart(uint32_t nowMs)
     return true;
 }
 
+bool HallCalibrationService::beginApplyConfirm(uint32_t measurementId,
+                                               uint32_t nowMs)
+{
+    if (m_state != HallCalibrationState::Completed || measurementId == 0UL)
+        return false;
+
+    HallCalibrationResult result;
+    if (!populateResult(result) || result.measurementId != measurementId)
+        return false;
+
+    m_state = HallCalibrationState::WaitingApplyConfirm;
+    m_applyConfirmAtMs = nowMs;
+    m_lastPeerContactMs = nowMs;
+    return true;
+}
+
+void HallCalibrationService::completeApply()
+{
+    if (m_state == HallCalibrationState::WaitingApplyConfirm)
+    {
+        m_state = HallCalibrationState::Completed;
+        m_applyConfirmAtMs = 0UL;
+    }
+}
+
 void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
 {
     if (m_state == HallCalibrationState::Idle ||
@@ -87,6 +118,16 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
         static_cast<uint32_t>(nowMs - m_lastPeerContactMs) >= PeerTimeoutMs)
     {
         abort();
+        return;
+    }
+
+    if (m_state == HallCalibrationState::WaitingApplyConfirm)
+    {
+        if (static_cast<uint32_t>(nowMs - m_applyConfirmAtMs) >=
+            ApplyConfirmTimeoutMs)
+        {
+            abort();
+        }
         return;
     }
 
@@ -119,6 +160,7 @@ void HallCalibrationService::abort()
 {
     m_state = HallCalibrationState::Aborted;
     m_resultPending = false;
+    m_applyConfirmAtMs = 0UL;
 }
 
 void HallCalibrationService::reset()
@@ -136,7 +178,8 @@ bool HallCalibrationService::active() const
 {
     return m_state == HallCalibrationState::WaitingLocalConfirm ||
            m_state == HallCalibrationState::ArmedWaitingPhysicalStart ||
-           m_state == HallCalibrationState::Running;
+           m_state == HallCalibrationState::Running ||
+           m_state == HallCalibrationState::WaitingApplyConfirm;
 }
 
 bool HallCalibrationService::motorPermit() const
@@ -151,7 +194,8 @@ bool HallCalibrationService::baselineReady() const
 
 bool HallCalibrationService::populateResult(HallCalibrationResult& result) const
 {
-    if (m_state != HallCalibrationState::Completed ||
+    if ((m_state != HallCalibrationState::Completed &&
+         m_state != HallCalibrationState::WaitingApplyConfirm) ||
         !baselineReady() || m_runSamples == 0U || m_maxAdc < m_minAdc)
     {
         return false;
@@ -164,7 +208,8 @@ bool HallCalibrationService::populateResult(HallCalibrationResult& result) const
     result.maxAdc = m_maxAdc;
     result.sampleCount = m_runSamples;
     result.durationMs = m_resultDurationMs;
-    return true;
+    result.measurementId = measurementIdentity(result);
+    return result.measurementId != 0UL;
 }
 
 bool HallCalibrationService::takeResult(HallCalibrationResult& result)
@@ -220,11 +265,40 @@ void HallCalibrationService::finish(uint32_t nowMs)
     m_resultPending = baselineReady() && m_runSamples != 0U && m_maxAdc >= m_minAdc;
 }
 
+uint32_t HallCalibrationService::measurementIdentity(
+    const HallCalibrationResult& result) const
+{
+    uint32_t hash = 2166136261UL;
+    const uint32_t values[] = {
+        m_armedAtMs,
+        static_cast<uint32_t>(result.baselineAdc),
+        static_cast<uint32_t>(result.minAdc),
+        static_cast<uint32_t>(result.maxAdc),
+        static_cast<uint32_t>(result.sampleCount),
+        result.durationMs
+    };
+
+    for (uint8_t index = 0U;
+         index < static_cast<uint8_t>(sizeof(values) / sizeof(values[0]));
+         ++index)
+    {
+        uint32_t value = values[index];
+        for (uint8_t byteIndex = 0U; byteIndex < 4U; ++byteIndex)
+        {
+            hash ^= static_cast<uint8_t>(value & 0xFFU);
+            hash *= 16777619UL;
+            value >>= 8U;
+        }
+    }
+    return hash == 0UL ? 1UL : hash;
+}
+
 void HallCalibrationService::clearMeasurements()
 {
     m_resultPending = false;
     m_armedAtMs = 0UL;
     m_lastPeerContactMs = 0UL;
+    m_applyConfirmAtMs = 0UL;
     m_startedAtMs = 0UL;
     m_lastSampleMs = 0UL;
     m_baselineSum = 0UL;

@@ -180,9 +180,11 @@ RAM также улучшилась до 1213 B used / 835 B free.
 32739260013  host-tests SUCCESS
 32740958702  host-tests SUCCESS
 32741039242  host-tests SUCCESS
+32744028372  host-tests SUCCESS
+32744056448  host-tests SUCCESS
 ```
 
-Последние два run полностью GREEN после formatter-audit sync, включая:
+Последние run полностью GREEN, включая:
 
 ```text
 Hall calibration safety contracts
@@ -223,7 +225,41 @@ faaa8c4f47ccc7988ba665f1572c972d1127a4ed  revert(hall): restore compact snprintf
 
 Active implementation снова использует старый `snprintf_P("CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C", ...)`, который на AVR/LTO оказался заметно компактнее ручной сборки.
 
-Не считать `32192 B` новым baseline. Verified хороший baseline остаётся `31738 Flash / 1213 RAM` на `8e7b0053...`; после revert нужен новый Uno build, чтобы подтвердить возвращение размера.
+## Bridge micro-experiment
+
+Commits:
+
+```text
+9cd7be9ee17e3f62ae8de59b3c0ecf2bfe63e7b1  perf(uno): inline Hall raw bridge registration
+e6325c86fbd84445df3c96564cd601b3f0df6baa  fix(uno): remove duplicate bridge registration definition
+```
+
+Первый commit не компилировался из-за временного duplicate constructor definition. Второй исправил это.
+
+Verified Actions:
+
+```text
+32744056466  build-uno SUCCESS
+checkout e6325c86fbd84445df3c96564cd601b3f0df6baa
+RAM   1213 / 2048 = 59.2%   free 835 B
+Flash 31738 / 32256 = 98.4% free 518 B
+```
+
+Дельта против baseline: **0 B Flash / 0 B RAM**. Поэтому сам registration thunk больше не является перспективным объектом оптимизации.
+
+## Active size experiment — compact transient measurement token
+
+Commit:
+
+```text
+02d9cd7e3c0679ae77d645a550af4f933b355e76  perf(uno): simplify transient Hall measurement token
+```
+
+Из `measurementIdentity()` убраны три xorshift-прохода. Новый token остаётся Uno-owned и строится только из transient phase timestamps + run sample count. Ноль по-прежнему зарезервирован как `no measurement`.
+
+Это **не security token** и никогда не персистится; его единственная роль — exact correlation между Uno `CAL_RESULT` и возвращённым ESP32 `CAL_PROPOSAL`. Exact equality gate в `beginApplyConfirm()` не менялся.
+
+Experiment пока **не имеет verified Uno size**. Следующий `build-uno` на `02d9cd7e...` или descendant должен сравниваться с baseline `31738 Flash / 1213 RAM`.
 
 ## Wire contract
 
@@ -281,4 +317,4 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
 
-Первое действие: проверить Uno Actions на `faaa8c4f...` / `7d3c18af...` или descendant и подтвердить возврат размера к ~`31738 Flash / 1213 RAM`. Manual formatter experiment `219ff5b...` не повторять: он дал 32192 Flash и только 64 B free. Следующий отдельный кандидат после подтверждения revert — overhead temporary raw bridge либо ещё более compact transient measurement token, без изменения START/SSR/realtime Hall counting.
+Первое действие: проверить host + Uno Actions на `02d9cd7e...` или descendant. Verified baseline для сравнения: `31738 Flash / 1213 RAM`. Если compact transient token уменьшил Flash и CI GREEN — оставить. Если дельта нулевая/хуже или audit/build ломается — откатить только этот experiment. Manual formatter `219ff5b...` не повторять; bridge registration micro-experiment `e6325c86...` дал 0 B.

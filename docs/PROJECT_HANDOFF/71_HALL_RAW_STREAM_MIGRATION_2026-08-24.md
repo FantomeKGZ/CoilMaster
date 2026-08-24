@@ -171,28 +171,48 @@ Flash 31738 / 32256 = 98.4% free 518 B
 
 RAM также улучшилась до 1213 B used / 835 B free.
 
-## Host audit status после size recovery
+## Verified host checkpoint после raw migration
 
-Runs `32736459047`, `32736512840`, `32736552582`, `32736632546`, `32736693013`, `32736815923` проходили CMake 4/4, release safety, lost-apply, parser ownership и raw migration audits, но падали только на старом `check_hall_calibration_contracts.js`.
-
-Причина была stale expectation старой архитектуры:
+После синхронизации старого Hall safety audit:
 
 ```text
-result.measurementId = measurementIdentity(result)
+32739185113  host-tests SUCCESS
+32739260013  host-tests SUCCESS
 ```
 
-и старого formatter с Uno-owned baseline/min/max/samples/duration.
-
-Runtime уже корректно использует:
+Оба run полностью GREEN, включая:
 
 ```text
-m_measurementId = measurementIdentity(nowMs)
-result.measurementId = m_measurementId
+Hall calibration safety contracts
+Hall lost apply reconciliation
+Uno Hall parser ownership
+Hall raw migration ownership
+Hall history and SD reference contracts
 ```
 
-а `CAL_RESULT` — literal-zero compatibility carrier.
+То есть software contracts новой схемы `Uno raw + safety / ESP32 analysis` подтверждены.
 
-Audit синхронизирован commit `a8768eb37...`. Этот commit пока не считать host GREEN без нового Actions evidence.
+## Текущий отдельный Flash experiment — compact CAL_SAMPLE formatter
+
+После verified host checkpoint начат новый **отдельный измеримый** experiment, не меняющий runtime/safety semantics.
+
+Commits:
+
+```text
+219ff5b56db381742ce71d5faeb4f96b11a78f55  perf(uno): format Hall raw samples without snprintf
+e1cd19756b4fac1e4718a5b6e501fc21f0dc3b54  test(hall): cover compact raw sample formatter
+```
+
+Изменение только в способе сборки Uno `CAL_SAMPLE` frame:
+
+- wire bytes/field order сохранены;
+- `raw` по-прежнему ограничен `0..1023`;
+- CRC по-прежнему формируется через существующий `appendCrc()`;
+- старый variadic `snprintf_P("CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C", ...)` удалён;
+- поля собираются bounded append helpers + уже используемый `ultoa`;
+- START/SSR/EEPROM/state-machine/normal winding turn count не изменялись.
+
+Этот experiment **ещё не имеет verified Uno size**. Не переносить на него цифры `31738 / 1213` как уже измеренные. Следующий Actions build должен дать чистую Flash/RAM дельту относительно verified checkpoint `8e7b0053...`.
 
 ## Wire contract
 
@@ -250,4 +270,4 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
 
-Первое действие: проверить host Actions на `a8768eb37...` или descendant. Uno size checkpoint уже verified: 31738 Flash / 1213 RAM на `8e7b0053...`. Не смешивать следующий Flash experiment до подтверждения host safety audit GREEN. После GREEN следующий отдельный кандидат — упростить `CAL_SAMPLE` formatter/temporary raw bridge, сохранив wire bytes и без изменения START/SSR/realtime Hall counting.
+Первое действие: проверить host + Uno Actions на commit `219ff5b...` / `e1cd1975...` или descendant. Verified baseline для сравнения: `31738 Flash / 1213 RAM` на `8e7b0053...`. Если compact formatter уменьшил Flash и CI GREEN — оставить. Если увеличил Flash или ломает build/audit — откатить именно formatter experiment, не затрагивая raw migration architecture. Следующий кандидат после этого — temporary raw bridge overhead или ещё более compact transient measurement token, отдельным измеримым experiment.

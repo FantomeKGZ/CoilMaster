@@ -142,6 +142,25 @@ bool parseRequest(char* frame, HardwareControlRequest& request)
         strcmp_P(version, PSTR("CMP1")) != 0)
         return false;
 
+    if (strcmp_P(category, PSTR("CAL")) == 0)
+    {
+        char* action = strtok_r(nullptr, "|", &save);
+        char* capability = strtok_r(nullptr, "|", &save);
+        char* extra = strtok_r(nullptr, "|", &save);
+        if (action == nullptr || capability == nullptr || extra != nullptr ||
+            strcmp_P(capability, PSTR("C")) != 0)
+            return false;
+        if (strcmp_P(action, PSTR("ARM")) == 0)
+            request.type = HardwareControlRequestType::ArmHallCalibration;
+        else if (strcmp_P(action, PSTR("ABORT")) == 0)
+            request.type = HardwareControlRequestType::AbortHallCalibration;
+        else if (strcmp_P(action, PSTR("GET")) == 0)
+            request.type = HardwareControlRequestType::GetHallCalibration;
+        else
+            return false;
+        return true;
+    }
+
     if (strcmp_P(category, PSTR("CFG_GET")) == 0 ||
         strcmp_P(category, PSTR("CFG_RESET")) == 0)
     {

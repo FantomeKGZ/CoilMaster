@@ -7,6 +7,8 @@ const obsoleteArtifacts = [
 const platformioPath = 'platformio.ini';
 const productionMainPath = 'firmware/arduino/src/main.cpp';
 const keypadHeaderPath = 'lib/CM_Keypad/src/Keypad.h';
+const lcdTransportPath = 'Arduino/CM_Pcf8574Lcd.cpp';
+const lcdCompatPath = 'lib/CM_LcdCompat/src/Wire.h';
 
 const failures = [];
 
@@ -19,6 +21,8 @@ for (const obsoletePath of obsoleteArtifacts) {
 const platformio = fs.readFileSync(platformioPath, 'utf8');
 const productionMain = fs.readFileSync(productionMainPath, 'utf8');
 const keypadHeader = fs.readFileSync(keypadHeaderPath, 'utf8');
+const lcdTransport = fs.readFileSync(lcdTransportPath, 'utf8');
+const lcdCompat = fs.readFileSync(lcdCompatPath, 'utf8');
 const eepromSource = fs.readFileSync('Arduino/CM_EepromPersistence.cpp', 'utf8');
 
 for (const required of [
@@ -80,6 +84,29 @@ for (const forbidden of [
 }
 
 for (const required of [
+  'TWBR = static_cast<uint8_t>(((F_CPU / TwiFrequencyHz) - 16UL) / 2UL);',
+  'TWDR = static_cast<uint8_t>(m_address << 1U);',
+  'TWDR = value;',
+  'TwiWaitLimit = 60000U',
+]) {
+  if (!lcdTransport.includes(required)) {
+    failures.push(`${lcdTransportPath}: bufferless PCF8574 transport missing: ${required}`);
+  }
+}
+if (!lcdCompat.includes('#define Wire CmWireCompat()')) {
+  failures.push(`${lcdCompatPath}: production Wire compatibility shim must remain bufferless`);
+}
+for (const forbidden of [
+  'marcoschwartz/LiquidCrystal_I2C',
+  'chris--a/Keypad',
+  '-DTWI_BUFFER_LENGTH=',
+]) {
+  if (platformio.includes(forbidden)) {
+    failures.push(`${platformioPath}: buffered external dependency/config must remain removed: ${forbidden}`);
+  }
+}
+
+for (const required of [
   'if (!metadataValidInEeprom())',
   'uint16_t EepromPersistence::metadataCrcInEeprom() const',
   'bool EepromPersistence::metadataValidInEeprom() const',
@@ -102,4 +129,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino cleanup contract OK: obsolete artifacts stay removed, bounded proven Keypad runtime is active, and PlatformIO production main remains authoritative.');
+console.log('Arduino cleanup contract OK: bounded Keypad and bufferless LCD owners are active, obsolete artifacts stay removed, and PlatformIO production main remains authoritative.');

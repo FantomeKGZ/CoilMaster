@@ -1,8 +1,7 @@
 #ifndef CM_LCD1602_VIEW_H
 #define CM_LCD1602_VIEW_H
 
-#include <LiquidCrystal_I2C.h>
-
+#include "CM_Pcf8574Lcd.h"
 #include "../Core/CM_UiModel.h"
 
 namespace CM
@@ -18,7 +17,7 @@ namespace CM
 class Lcd1602View
 {
 public:
-    explicit Lcd1602View(LiquidCrystal_I2C& lcd);
+    explicit Lcd1602View(Pcf8574Lcd& lcd);
 
     void begin();
     void render(const UiModel& model);
@@ -40,7 +39,7 @@ private:
     static uint32_t lineHash(const char* line);
     void writeLine(uint8_t row, const char* line);
 
-    LiquidCrystal_I2C& m_lcd;
+    Pcf8574Lcd& m_lcd;
     uint32_t m_lastLine1Hash;
     uint32_t m_lastLine2Hash;
     bool m_hasLastLine1;

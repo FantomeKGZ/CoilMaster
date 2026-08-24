@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+#include "CM_HallCalibrationRawCollector.h"
+#include "CM_HallCalibrationRawProtocol.h"
 #include "CM_HardwareControlClient.h"
 
 namespace CM
@@ -166,6 +168,7 @@ private:
     bool parseEventLine(char* line, RemoteWindingEvent& event) const;
     bool processJobAck(char* line);
     bool processCancelAck(char* line);
+    bool processHallCalibrationRawSample(char* line);
     bool sendPendingJob(uint32_t nowMs);
     bool writeJobFrame(const OutgoingWindingJob& job);
     bool sendPendingCancel(uint32_t nowMs);
@@ -189,6 +192,9 @@ private:
 
     HardwareSerial& m_serial;
     HardwareControlClient m_hardwareControl;
+    HallCalibrationRawCollector m_hallCalibrationRaw;
+    bool m_hallCalibrationRawRunStarted;
+    uint32_t m_hallCalibrationRawDurationMs;
     char m_line[MaxLineLength];
     size_t m_length;
 

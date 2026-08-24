@@ -1,10 +1,8 @@
 #include "CM_HallCalibrationProtocol.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <avr/pgmspace.h>
 
-#include "CM_HardwareControlProtocol.h"
 #include "../Shared/CMP1Text/CM_Cmp1Crc.h"
 
 namespace CM
@@ -64,45 +62,6 @@ PGM_P applyResultNameP(HallCalibrationApplyResult result)
     }
     return PSTR("INVALID");
 }
-}
-
-bool parseRequest(char* frame, HallCalibrationCommand& command)
-{
-    command = HallCalibrationCommand::None;
-    if (!HardwareControlProtocol::verifyAndStripCrc(frame)) return false;
-    char* save = nullptr;
-    char* version = strtok_r(frame, "|", &save);
-    char* category = strtok_r(nullptr, "|", &save);
-    char* action = strtok_r(nullptr, "|", &save);
-    char* capability = strtok_r(nullptr, "|", &save);
-    char* extra = strtok_r(nullptr, "|", &save);
-    if (version == nullptr || category == nullptr || action == nullptr ||
-        capability == nullptr || extra != nullptr ||
-        strcmp_P(version, PSTR("CMP1")) != 0 ||
-        strcmp_P(category, PSTR("CAL")) != 0 ||
-        strcmp_P(capability, PSTR("C")) != 0)
-        return false;
-    if (strcmp_P(action, PSTR("ARM")) == 0)
-        command = HallCalibrationCommand::Arm;
-    else if (strcmp_P(action, PSTR("ABORT")) == 0)
-        command = HallCalibrationCommand::Abort;
-    else if (strcmp_P(action, PSTR("GET")) == 0)
-        command = HallCalibrationCommand::Get;
-    else
-        return false;
-    return true;
-}
-
-bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal)
-{
-    proposal = HallCalibrationProposalRequest();
-    HardwareControlRequest parsed;
-    if (!HardwareControlProtocol::parseRequest(frame, parsed) ||
-        parsed.type != HardwareControlRequestType::StageHallCalibrationProposal)
-        return false;
-    proposal.measurementId = parsed.measurementId;
-    proposal.settings = parsed.settings;
-    return true;
 }
 
 bool formatState(HallCalibrationState state,

@@ -1,6 +1,6 @@
 #include "CM_HallCalibrationProtocol.h"
 
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <avr/pgmspace.h>
 
@@ -13,76 +13,18 @@ namespace HallCalibrationProtocol
 {
 namespace
 {
-bool appendChar(char* output,
-                size_t outputSize,
-                size_t& length,
-                char value)
+bool appendCrc(char* output, size_t outputSize, int payloadLength)
 {
-    if (output == nullptr || length + 1U >= outputSize) return false;
-    output[length++] = value;
-    output[length] = '\0';
-    return true;
-}
-
-bool appendText(char* output,
-                size_t outputSize,
-                size_t& length,
-                const char* text)
-{
-    if (text == nullptr) return false;
-    while (*text != '\0')
-    {
-        if (!appendChar(output, outputSize, length, *text++)) return false;
-    }
-    return true;
-}
-
-bool appendTextP(char* output,
-                 size_t outputSize,
-                 size_t& length,
-                 PGM_P text)
-{
-    if (text == nullptr) return false;
-    for (;;)
-    {
-        const char value = static_cast<char>(pgm_read_byte(text++));
-        if (value == '\0') return true;
-        if (!appendChar(output, outputSize, length, value)) return false;
-    }
-}
-
-bool appendUnsigned(char* output,
-                    size_t outputSize,
-                    size_t& length,
-                    uint32_t value)
-{
-    char digits[11];
-    ultoa(static_cast<unsigned long>(value), digits, 10);
-    return appendText(output, outputSize, length, digits);
-}
-
-bool appendFieldSeparator(char* output,
-                          size_t outputSize,
-                          size_t& length)
-{
-    return appendChar(output, outputSize, length, '|');
-}
-
-bool appendCrc(char* output, size_t outputSize, size_t& length)
-{
-    if (output == nullptr || outputSize == 0U || length == 0U) return false;
+    if (output == nullptr || outputSize == 0U || payloadLength <= 0 ||
+        static_cast<size_t>(payloadLength) >= outputSize) return false;
     const uint16_t crc = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(output), length);
-    static const char HexDigits[] PROGMEM = "0123456789ABCDEF";
-
-    if (!appendFieldSeparator(output, outputSize, length)) return false;
-    for (int8_t shift = 12; shift >= 0; shift -= 4)
-    {
-        const uint8_t nibble = static_cast<uint8_t>((crc >> shift) & 0x0FU);
-        const char digit = static_cast<char>(pgm_read_byte(HexDigits + nibble));
-        if (!appendChar(output, outputSize, length, digit)) return false;
-    }
-    return appendChar(output, outputSize, length, '\n');
+        reinterpret_cast<const uint8_t*>(output), static_cast<size_t>(payloadLength));
+    const int suffixLength = snprintf_P(
+        output + payloadLength,
+        outputSize - static_cast<size_t>(payloadLength),
+        PSTR("|%04X\n"), static_cast<unsigned int>(crc));
+    return suffixLength > 0 &&
+           static_cast<size_t>(payloadLength + suffixLength) < outputSize;
 }
 
 PGM_P stateNameP(HallCalibrationState state)
@@ -170,43 +112,27 @@ bool formatState(HallCalibrationState state,
                  size_t outputSize)
 {
     if (output == nullptr || outputSize == 0U) return false;
-    output[0] = '\0';
-    size_t length = 0U;
-    return appendTextP(output, outputSize, length, PSTR("CMP1|CAL_STATE|")) &&
-           appendTextP(output, outputSize, length, stateNameP(state)) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendChar(output, outputSize, length, baselineReady ? '1' : '0') &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendChar(output, outputSize, length, motorPermit ? '1' : '0') &&
-           appendTextP(output, outputSize, length, PSTR("|C")) &&
-           appendCrc(output, outputSize, length);
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CAL_STATE|%S|%u|%u|C"), stateNameP(state),
+        baselineReady ? 1U : 0U, motorPermit ? 1U : 0U);
+    return appendCrc(output, outputSize, length);
 }
 
 bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize)
 {
-    // Exact wire shape retained for regression audit:
-    // CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C
     if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
         return false;
-    output[0] = '\0';
-    size_t length = 0U;
-    return appendTextP(output, outputSize, length,
-                       PSTR("CMP1|CAL_RESULT|INVALID|")) &&
-           appendUnsigned(output, outputSize, length, result.baselineAdc) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length, result.minAdc) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length, result.maxAdc) &&
-           appendTextP(output, outputSize, length, PSTR("|0|0|RISING|")) &&
-           appendUnsigned(output, outputSize, length, result.sampleCount) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length, result.durationMs) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length, result.measurementId) &&
-           appendTextP(output, outputSize, length, PSTR("|C")) &&
-           appendCrc(output, outputSize, length);
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C"),
+        static_cast<unsigned int>(result.baselineAdc),
+        static_cast<unsigned int>(result.minAdc),
+        static_cast<unsigned int>(result.maxAdc),
+        static_cast<unsigned int>(result.sampleCount),
+        static_cast<unsigned long>(result.durationMs),
+        static_cast<unsigned long>(result.measurementId));
+    return appendCrc(output, outputSize, length);
 }
 
 bool formatApplied(uint32_t measurementId,
@@ -218,25 +144,15 @@ bool formatApplied(uint32_t measurementId,
     if (output == nullptr || outputSize == 0U || measurementId == 0UL ||
         !settings.isValid())
         return false;
-    output[0] = '\0';
-    size_t length = 0U;
-    return appendTextP(output, outputSize, length, PSTR("CMP1|CAL_APPLIED|")) &&
-           appendUnsigned(output, outputSize, length, measurementId) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendTextP(output, outputSize, length, applyResultNameP(result)) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length, settings.hallThreshold) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length, settings.hallHysteresis) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendUnsigned(output, outputSize, length,
-                          settings.hallReleaseDebounceMs) &&
-           appendFieldSeparator(output, outputSize, length) &&
-           appendTextP(output, outputSize, length,
-                       settings.hallDirection == HallSignalDirection::Falling
-                           ? PSTR("FALLING") : PSTR("RISING")) &&
-           appendTextP(output, outputSize, length, PSTR("|C")) &&
-           appendCrc(output, outputSize, length);
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CAL_APPLIED|%lu|%S|%u|%u|%u|%S|C"),
+        static_cast<unsigned long>(measurementId), applyResultNameP(result),
+        static_cast<unsigned int>(settings.hallThreshold),
+        static_cast<unsigned int>(settings.hallHysteresis),
+        static_cast<unsigned int>(settings.hallReleaseDebounceMs),
+        settings.hallDirection == HallSignalDirection::Falling
+            ? PSTR("FALLING") : PSTR("RISING"));
+    return appendCrc(output, outputSize, length);
 }
 
 } // namespace HallCalibrationProtocol

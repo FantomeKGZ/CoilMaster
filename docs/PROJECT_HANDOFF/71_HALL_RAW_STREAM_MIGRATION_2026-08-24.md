@@ -70,7 +70,7 @@ CMP1|CAL_SAMPLE|RUN|raw|sequence|elapsed_ms|C|CRC
 
 ESP32 receiver валидирует sample, собирает baseline/min/max/sample count/duration и при получении legacy `CAL_RESULT` сохраняет Uno-owned `measurement_id`, но подменяет измерительные поля ESP32-owned raw summary.
 
-## Uno после size-recovery migration
+## Uno size-recovery migration
 
 Первый реально включённый raw TX образ на commit:
 
@@ -89,12 +89,16 @@ overflow 126 B
 
 Это подтвердило, что нельзя держать одновременно raw TX и старую Uno extended aggregation.
 
-Поэтому выполнен size-recovery block:
+Выполненный size-recovery block:
 
 ```text
 173532480d8f41475acd0070399b7b9e61e00204  refactor(hall): make Uno calibration result identity-only
 3272cabbeb7654ac185450f678491a918319d126  refactor(hall): remove Uno calibration aggregation
 79bbaf907548f96e241a3c2064786ceb4044132d  test(hall): enforce ESP32-only calibration aggregation
+d527cc6a0877342a7d05622d0cf1391d0e0784a2  refactor(hall): make Uno result identity-only struct
+0bd3bb4109671fc8a440460046cbe0c9fa3743dc  refactor(hall): drop legacy Uno result fields
+8e7b00536b1d105ef50d02e9900b0b0c4414485d  refactor(hall): emit literal legacy result fields
+69bb08191872111b9801576c1a0a60bd7b9d8528  test(hall): enforce identity-only Uno result
 ```
 
 С Uno удалены:
@@ -109,7 +113,13 @@ run min/max calculation
 summary-dependent measurement identity
 ```
 
-На Uno оставлены только:
+`HallCalibrationResult` теперь содержит **только**:
+
+```text
+uint32_t measurementId
+```
+
+На Uno calibration runtime оставлены только:
 
 ```text
 m_baselineSamples   // local physical-START safety gate
@@ -117,9 +127,15 @@ m_runSamples        // reject empty measurement / raw sequence
 m_measurementId     // exact transient proposal correlation
 ```
 
-`HallCalibrationResult` временно сохраняет legacy wire fields для совместимости, но Uno их больше не вычисляет; они остаются zero и заменяются ESP32 raw summary до analyzer.
+Legacy wire shape `CAL_RESULT` пока сохранён без изменения parser contract, но measurement fields печатаются литералами:
 
-Новый `measurement_id` формируется только из Uno-local transient timing/counter state и сохраняется при `finish()`. Он не зависит от ESP32 baseline/min/max и продолжает exact-ID gate для `CAL_PROPOSAL`.
+```text
+CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|measurement_id|C|CRC
+```
+
+Это намеренный compatibility carrier. ESP32 заменяет zero statistics собственным valid raw summary до `HallCalibrationAnalyzer`.
+
+`measurement_id` формируется только из Uno-local transient timing/counter state и сохраняется при `finish()`. Он не зависит от ESP32 baseline/min/max и продолжает exact-ID gate для `CAL_PROPOSAL`.
 
 ## Actions из batch 2026-08-24 19:55 +06
 
@@ -137,9 +153,9 @@ m_measurementId     // exact transient proposal correlation
 32734680453 host-tests FAILURE только из-за brittle handoff audit старого run-id
 ```
 
-Host RED `32734680453` не является runtime failure: audit требовал literal старый run ID `32725501435` в handoff. Этот brittle check удалён в commit `79bbaf907...`; regression теперь проверяет архитектурные ownership contracts.
+Host RED `32734680453` не является runtime failure: audit требовал literal старый run ID в handoff. Этот brittle check удалён в commit `79bbaf907...`; regression теперь проверяет архитектурные ownership contracts.
 
-Новый size-recovery HEAD после `3272cabb...`/`79bbaf...` ещё нельзя называть GREEN и нельзя присваивать ему размер до нового Actions build.
+Новый size-recovery HEAD после identity-only cleanup ещё нельзя называть GREEN и нельзя присваивать ему размер до нового Actions build.
 
 ## Wire contract
 
@@ -197,4 +213,4 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 
 Продолжать только `cmp-protocol-v1`. Перед каждым update fetch current blob SHA. Не использовать `main` как source. Не просить hardware smoke-test до конца оптимизации.
 
-Первое действие: проверить host + Uno Actions на HEAD после `79bbaf907...`. Главная ожидаемая проверка — Uno должен снова помещаться после удаления baseline/min/max aggregation. Если GREEN, снять точные Flash/RAM и продолжить упрощение legacy `CAL_RESULT` formatter/bridge только отдельными измеримыми experiments.
+Первое действие: проверить host + Uno Actions на HEAD после `69bb0819...`/descendant. Главная ожидаемая проверка — Uno должен снова помещаться после удаления aggregation и identity-only result cleanup. Снять точные Flash/RAM. Если запас Flash всё ещё слишком мал, следующий отдельный experiment — упростить raw `CAL_SAMPLE` formatter/bridge либо compact transient measurement token, не трогая START/SSR/realtime Hall counting.

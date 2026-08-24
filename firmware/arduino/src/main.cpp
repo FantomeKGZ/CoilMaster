@@ -192,7 +192,7 @@ void printBootStage(const __FlashStringHelper* stage)
 
 void showLcdBootStage(const __FlashStringHelper* stage)
 {
-#if CM_FEATURE_LCD1602
+#if CM_FEATURE_LCD1602 && !CM_FEATURE_BOOT_DIAGNOSTICS
     lcd.setCursor(0U, 0U);
     lcd.print(F("CM BOOT RST:"));
 #if defined(__AVR__)
@@ -216,7 +216,7 @@ void showLcdBootStage(const __FlashStringHelper* stage)
 
 void showPreviousLoopPhase()
 {
-#if CM_FEATURE_LCD1602 && defined(__AVR__)
+#if CM_FEATURE_LCD1602 && defined(__AVR__) && !CM_FEATURE_BOOT_DIAGNOSTICS
     if (cmLoopPhaseMagic == 0xA5U)
     {
         lcd.setCursor(0U, 0U);

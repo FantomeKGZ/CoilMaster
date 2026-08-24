@@ -461,6 +461,29 @@ bool HardwareControlClient::processTelemetryState(char* line, uint32_t nowMs)
     else
         return true;
 
+    const uint16_t expectedReleaseBoundary =
+        parsed.direction == HallSignalDirectionRemote::Falling
+            ? static_cast<uint16_t>(
+                  static_cast<uint32_t>(parsed.threshold) +
+                          static_cast<uint32_t>(parsed.hysteresis) > 1023UL
+                      ? 1023UL
+                      : static_cast<uint32_t>(parsed.threshold) +
+                            static_cast<uint32_t>(parsed.hysteresis))
+            : static_cast<uint16_t>(parsed.threshold - parsed.hysteresis);
+
+    if (parsed.rawAdc > 1023U || parsed.windowMin > 1023U ||
+        parsed.windowMax > 1023U || parsed.windowMin > parsed.windowMax ||
+        parsed.rawAdc < parsed.windowMin || parsed.rawAdc > parsed.windowMax ||
+        parsed.threshold == 0U || parsed.threshold > 1023U ||
+        parsed.hysteresis == 0U || parsed.hysteresis > 512U ||
+        parsed.hysteresis >= parsed.threshold ||
+        parsed.releaseBoundary != expectedReleaseBoundary ||
+        parsed.releaseDebounceMs == 0U || parsed.releaseDebounceMs > 1000U ||
+        parsed.sampleCount == 0U)
+    {
+        return true;
+    }
+
     if (strcmp(magnetText, "0") == 0)
         parsed.magnetDetected = false;
     else if (strcmp(magnetText, "1") == 0)

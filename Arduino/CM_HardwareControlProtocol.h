@@ -42,6 +42,10 @@ namespace HardwareControlProtocol
 {
 static constexpr size_t MaxFrameLength = 176U;
 
+// Shared bounded CMP1 CRC owner for hardware-control and Hall CAL commands.
+// On success the trailing |CRC is stripped in place before token parsing.
+bool verifyAndStripCrc(char* frame);
+
 bool parseRequest(char* frame, HardwareControlRequest& request);
 
 bool formatSettingsState(const HardwareSettings& settings,

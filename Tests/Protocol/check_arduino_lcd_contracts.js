@@ -76,6 +76,28 @@ if ((entrypoint.match(/lcdView\.begin\(\);/g) || []).length !== 1) {
   failures.push('LCD view must be initialized exactly once');
 }
 
+
+// Production diagnostics are disabled, so reset provenance must remain visible
+// on the LCD and every checkpoint must be readable during a reset loop. The SSR
+// safety owner is initialized exactly once before those bounded holds.
+for (const [text, description] of [
+  ['cmResetFlags = MCUSR;', 'AVR reset flags are not captured in production'],
+  ['CM BOOT RST:', 'LCD reset-code heading missing'],
+  ['delay(350U);', 'boot checkpoint is not held long enough to read'],
+  ['showLcdBootStage(F("SSR SAFE OFF"))', 'fail-safe SSR checkpoint missing']
+]) {
+  if (!entrypoint.includes(text)) failures.push(description + ': ' + text);
+}
+if ((entrypoint.match(/ssr\.begin\(\);/g) || []).length !== 1) {
+  failures.push('SSR must be initialized exactly once');
+}
+if (entrypoint.indexOf('ssr.begin();') > entrypoint.indexOf('Serial.begin(115200);')) {
+  failures.push('SSR must be forced fail-safe before startup diagnostics');
+}
+if (entrypoint.indexOf('ssr.begin();') > entrypoint.indexOf('Wire.begin();')) {
+  failures.push('SSR must be fail-safe before LCD checkpoint delays');
+}
+
 if (failures.length) {
   console.error(failures.map(item => sourcePath + ': ' + item).join('\n'));
   process.exit(1);

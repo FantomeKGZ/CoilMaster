@@ -268,28 +268,17 @@ void HallCalibrationService::finish(uint32_t nowMs)
 uint32_t HallCalibrationService::measurementIdentity(
     const HallCalibrationResult& result) const
 {
-    uint32_t hash = 2166136261UL;
-    const uint32_t values[] = {
-        m_armedAtMs,
-        static_cast<uint32_t>(result.baselineAdc),
-        static_cast<uint32_t>(result.minAdc),
-        static_cast<uint32_t>(result.maxAdc),
-        static_cast<uint32_t>(result.sampleCount),
-        result.durationMs
-    };
-
-    for (uint8_t index = 0U;
-         index < static_cast<uint8_t>(sizeof(values) / sizeof(values[0]));
-         ++index)
-    {
-        uint32_t value = values[index];
-        for (uint8_t byteIndex = 0U; byteIndex < 4U; ++byteIndex)
-        {
-            hash ^= static_cast<uint8_t>(value & 0xFFU);
-            hash *= 16777619UL;
-            value >>= 8U;
-        }
-    }
+    // Transient correlation token only: bind a proposal to this exact arm/result
+    // without carrying a heavy general-purpose hash loop in the Uno image.
+    uint32_t hash = m_armedAtMs ^ result.durationMs;
+    hash ^= static_cast<uint32_t>(result.baselineAdc) << 22U;
+    hash ^= static_cast<uint32_t>(result.minAdc) << 12U;
+    hash ^= static_cast<uint32_t>(result.maxAdc) << 2U;
+    hash ^= (static_cast<uint32_t>(result.sampleCount) << 16U) |
+            static_cast<uint32_t>(result.sampleCount);
+    hash ^= hash << 13U;
+    hash ^= hash >> 17U;
+    hash ^= hash << 5U;
     return hash == 0UL ? 1UL : hash;
 }
 

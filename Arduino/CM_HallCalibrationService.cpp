@@ -262,12 +262,12 @@ void HallCalibrationService::finish(uint32_t nowMs)
 
 uint32_t HallCalibrationService::measurementIdentity(uint32_t completedAtMs) const
 {
-    uint32_t token = m_armedAtMs ^ m_startedAtMs ^ completedAtMs;
-    token ^= (static_cast<uint32_t>(m_runSamples) << 16U) |
-             static_cast<uint32_t>(m_runSamples);
-    token ^= token << 13U;
-    token ^= token >> 17U;
-    token ^= token << 5U;
+    // Correlation token only: it is transient, never persisted, and does not
+    // authenticate anything. Mix Uno-owned phase timestamps with the run sample
+    // count, then reserve zero as "no measurement".
+    uint32_t token = m_armedAtMs ^ completedAtMs;
+    token += m_startedAtMs;
+    token ^= static_cast<uint32_t>(m_runSamples) << 16U;
     return token == 0UL ? 1UL : token;
 }
 

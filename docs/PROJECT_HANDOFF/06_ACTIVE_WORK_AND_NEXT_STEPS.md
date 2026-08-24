@@ -369,3 +369,13 @@ saved:  RAM 131,  Flash 764
 Commits `358558b6...`, `7437c303...`, `d2726440...` preserve debounce, one-event-per-press, emergency `D * # D`, calibration abort and all physical START/SSR safety boundaries.
 
 Current second block `ae61d39c...` + `299cefa5...` streams standard and LOCAL_EVT frames while calculating identical CMP1 CRC incrementally. It removes 96-byte and 176-byte UART stack arrays without reducing the four-event queue or exact local program provenance. Verify the new Uno build before hardware upload; then continue bounded hardware-control frame and LCD/I2C memory recovery.
+
+
+Verified local Uno build after streaming winding UART frames:
+
+```text
+RAM   1770 / 2048 (86.4%), 278 bytes static headroom
+Flash 31022 / 32256 (96.2%), 1234 bytes headroom
+```
+
+Relative to the failing production baseline, SRAM recovery is 195 bytes (83 -> 278 bytes headroom). Standard/LOCAL_EVT peak frame arrays are removed; the next physical gate is production upload, stable home-screen observation and compact keypad smoke. Hardware-control/calibration formatters still have bounded 176-byte local arrays and remain the next memory-recovery target after this smoke.

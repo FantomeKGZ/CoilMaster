@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <avr/pgmspace.h>
 
+#include "CM_HardwareControlProtocol.h"
 #include "../Shared/CMP1Text/CM_Cmp1Crc.h"
 
 namespace CM
@@ -18,29 +20,6 @@ bool parseHex16(const char* text, uint16_t& value)
     char* end = nullptr;
     const unsigned long parsed = strtoul(text, &end, 16);
     if (end == nullptr || *end != '\0' || parsed > 0xFFFFUL) return false;
-    value = static_cast<uint16_t>(parsed);
-    return true;
-}
-
-bool parseDecimal32(const char* text, uint32_t& value)
-{
-    value = 0UL;
-    if (text == nullptr || *text == '\0') return false;
-    if (text[0] == '0' && text[1] != '\0') return false;
-    for (const char* cursor = text; *cursor != '\0'; ++cursor)
-    {
-        if (*cursor < '0' || *cursor > '9') return false;
-        const uint8_t digit = static_cast<uint8_t>(*cursor - '0');
-        if (value > (0xFFFFFFFFUL - digit) / 10UL) return false;
-        value = value * 10UL + digit;
-    }
-    return true;
-}
-
-bool parseDecimal16(const char* text, uint16_t& value)
-{
-    uint32_t parsed = 0UL;
-    if (!parseDecimal32(text, parsed) || parsed > 0xFFFFUL) return false;
     value = static_cast<uint16_t>(parsed);
     return true;
 }
@@ -66,12 +45,50 @@ bool appendCrc(char* output, size_t outputSize, int payloadLength)
         static_cast<size_t>(payloadLength) >= outputSize) return false;
     const uint16_t crc = Cmp1Crc::calculate(
         reinterpret_cast<const uint8_t*>(output), static_cast<size_t>(payloadLength));
-    const int suffixLength = snprintf(
+    const int suffixLength = snprintf_P(
         output + payloadLength,
         outputSize - static_cast<size_t>(payloadLength),
-        "|%04X\n", static_cast<unsigned int>(crc));
+        PSTR("|%04X\n"), static_cast<unsigned int>(crc));
     return suffixLength > 0 &&
            static_cast<size_t>(payloadLength + suffixLength) < outputSize;
+}
+
+PGM_P stateNameP(HallCalibrationState state)
+{
+    switch (state)
+    {
+        case HallCalibrationState::WaitingLocalConfirm:
+            return PSTR("WAITING_LOCAL_CONFIRM");
+        case HallCalibrationState::ArmedWaitingPhysicalStart:
+            return PSTR("ARMED_WAITING_START");
+        case HallCalibrationState::Running:
+            return PSTR("RUNNING");
+        case HallCalibrationState::Completed:
+            return PSTR("COMPLETED");
+        case HallCalibrationState::WaitingApplyConfirm:
+            return PSTR("WAITING_APPLY_CONFIRM");
+        case HallCalibrationState::Aborted:
+            return PSTR("ABORTED");
+        case HallCalibrationState::Idle:
+        default:
+            return PSTR("IDLE");
+    }
+}
+
+PGM_P applyResultNameP(HallCalibrationApplyResult result)
+{
+    switch (result)
+    {
+        case HallCalibrationApplyResult::Applied: return PSTR("APPLIED");
+        case HallCalibrationApplyResult::Invalid: return PSTR("INVALID");
+        case HallCalibrationApplyResult::IdentityMismatch:
+            return PSTR("IDENTITY_MISMATCH");
+        case HallCalibrationApplyResult::Busy: return PSTR("BUSY");
+        case HallCalibrationApplyResult::PersistenceFailed:
+            return PSTR("PERSISTENCE_FAILED");
+        case HallCalibrationApplyResult::Cancelled: return PSTR("CANCELLED");
+    }
+    return PSTR("INVALID");
 }
 }
 
@@ -87,13 +104,15 @@ bool parseRequest(char* frame, HallCalibrationCommand& command)
     char* extra = strtok_r(nullptr, "|", &save);
     if (version == nullptr || category == nullptr || action == nullptr ||
         capability == nullptr || extra != nullptr ||
-        strcmp(version, "CMP1") != 0 || strcmp(category, "CAL") != 0 ||
-        strcmp(capability, "C") != 0) return false;
-    if (strcmp(action, "ARM") == 0)
+        strcmp_P(version, PSTR("CMP1")) != 0 ||
+        strcmp_P(category, PSTR("CAL")) != 0 ||
+        strcmp_P(capability, PSTR("C")) != 0)
+        return false;
+    if (strcmp_P(action, PSTR("ARM")) == 0)
         command = HallCalibrationCommand::Arm;
-    else if (strcmp(action, "ABORT") == 0)
+    else if (strcmp_P(action, PSTR("ABORT")) == 0)
         command = HallCalibrationCommand::Abort;
-    else if (strcmp(action, "GET") == 0)
+    else if (strcmp_P(action, PSTR("GET")) == 0)
         command = HallCalibrationCommand::Get;
     else
         return false;
@@ -103,36 +122,13 @@ bool parseRequest(char* frame, HallCalibrationCommand& command)
 bool parseProposal(char* frame, HallCalibrationProposalRequest& proposal)
 {
     proposal = HallCalibrationProposalRequest();
-    if (!verifyAndStripCrc(frame)) return false;
-    char* save = nullptr;
-    char* version = strtok_r(frame, "|", &save);
-    char* category = strtok_r(nullptr, "|", &save);
-    char* measurementText = strtok_r(nullptr, "|", &save);
-    char* thresholdText = strtok_r(nullptr, "|", &save);
-    char* hysteresisText = strtok_r(nullptr, "|", &save);
-    char* debounceText = strtok_r(nullptr, "|", &save);
-    char* directionText = strtok_r(nullptr, "|", &save);
-    char* capability = strtok_r(nullptr, "|", &save);
-    char* extra = strtok_r(nullptr, "|", &save);
-    if (version == nullptr || category == nullptr || measurementText == nullptr ||
-        thresholdText == nullptr || hysteresisText == nullptr ||
-        debounceText == nullptr || directionText == nullptr || capability == nullptr ||
-        extra != nullptr || strcmp(version, "CMP1") != 0 ||
-        strcmp(category, "CAL_PROPOSAL") != 0 || strcmp(capability, "C") != 0)
+    HardwareControlRequest parsed;
+    if (!HardwareControlProtocol::parseRequest(frame, parsed) ||
+        parsed.type != HardwareControlRequestType::StageHallCalibrationProposal)
         return false;
-    if (!parseDecimal32(measurementText, proposal.measurementId) ||
-        proposal.measurementId == 0UL ||
-        !parseDecimal16(thresholdText, proposal.settings.hallThreshold) ||
-        !parseDecimal16(hysteresisText, proposal.settings.hallHysteresis) ||
-        !parseDecimal16(debounceText, proposal.settings.hallReleaseDebounceMs))
-        return false;
-    if (strcmp(directionText, "RISING") == 0)
-        proposal.settings.hallDirection = HallSignalDirection::Rising;
-    else if (strcmp(directionText, "FALLING") == 0)
-        proposal.settings.hallDirection = HallSignalDirection::Falling;
-    else
-        return false;
-    return proposal.settings.isValid();
+    proposal.measurementId = parsed.measurementId;
+    proposal.settings = parsed.settings;
+    return true;
 }
 
 bool formatState(HallCalibrationState state,
@@ -142,8 +138,8 @@ bool formatState(HallCalibrationState state,
                  size_t outputSize)
 {
     if (output == nullptr || outputSize == 0U) return false;
-    const int length = snprintf(output, outputSize,
-        "CMP1|CAL_STATE|%s|%u|%u|C", stateName(state),
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CAL_STATE|%S|%u|%u|C"), stateNameP(state),
         baselineReady ? 1U : 0U, motorPermit ? 1U : 0U);
     return appendCrc(output, outputSize, length);
 }
@@ -154,8 +150,8 @@ bool formatResult(const HallCalibrationResult& result,
 {
     if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
         return false;
-    const int length = snprintf(output, outputSize,
-        "CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C",
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C"),
         static_cast<unsigned int>(result.baselineAdc),
         static_cast<unsigned int>(result.minAdc),
         static_cast<unsigned int>(result.maxAdc),
@@ -174,48 +170,15 @@ bool formatApplied(uint32_t measurementId,
     if (output == nullptr || outputSize == 0U || measurementId == 0UL ||
         !settings.isValid())
         return false;
-    const int length = snprintf(output, outputSize,
-        "CMP1|CAL_APPLIED|%lu|%s|%u|%u|%u|%s|C",
-        static_cast<unsigned long>(measurementId), applyResultName(result),
+    const int length = snprintf_P(output, outputSize,
+        PSTR("CMP1|CAL_APPLIED|%lu|%S|%u|%u|%u|%S|C"),
+        static_cast<unsigned long>(measurementId), applyResultNameP(result),
         static_cast<unsigned int>(settings.hallThreshold),
         static_cast<unsigned int>(settings.hallHysteresis),
         static_cast<unsigned int>(settings.hallReleaseDebounceMs),
-        settings.hallDirection == HallSignalDirection::Falling ? "FALLING" : "RISING");
+        settings.hallDirection == HallSignalDirection::Falling
+            ? PSTR("FALLING") : PSTR("RISING"));
     return appendCrc(output, outputSize, length);
-}
-
-const char* stateName(HallCalibrationState state)
-{
-    switch (state)
-    {
-        case HallCalibrationState::WaitingLocalConfirm: return "WAITING_LOCAL_CONFIRM";
-        case HallCalibrationState::ArmedWaitingPhysicalStart: return "ARMED_WAITING_START";
-        case HallCalibrationState::Running: return "RUNNING";
-        case HallCalibrationState::Completed: return "COMPLETED";
-        case HallCalibrationState::WaitingApplyConfirm: return "WAITING_APPLY_CONFIRM";
-        case HallCalibrationState::Aborted: return "ABORTED";
-        case HallCalibrationState::Idle:
-        default: return "IDLE";
-    }
-}
-
-const char* directionName(HallCalibrationDirection direction)
-{
-    return direction == HallCalibrationDirection::Falling ? "FALLING" : "RISING";
-}
-
-const char* applyResultName(HallCalibrationApplyResult result)
-{
-    switch (result)
-    {
-        case HallCalibrationApplyResult::Applied: return "APPLIED";
-        case HallCalibrationApplyResult::Invalid: return "INVALID";
-        case HallCalibrationApplyResult::IdentityMismatch: return "IDENTITY_MISMATCH";
-        case HallCalibrationApplyResult::Busy: return "BUSY";
-        case HallCalibrationApplyResult::PersistenceFailed: return "PERSISTENCE_FAILED";
-        case HallCalibrationApplyResult::Cancelled: return "CANCELLED";
-    }
-    return "INVALID";
 }
 
 } // namespace HallCalibrationProtocol

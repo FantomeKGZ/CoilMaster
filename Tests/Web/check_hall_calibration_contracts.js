@@ -118,7 +118,7 @@ mustContain(calibrationCpp, 'm_state = HallCalibrationState::WaitingApplyConfirm
 mustContain(calibrationCpp, 'result.measurementId = measurementIdentity(result)', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'nowMs - m_lastPeerContactMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, '>= PeerTimeoutMs', 'Arduino Hall calibration service');
-mustContain(calibrationCpp, '>= ApplyConfirmTimeoutMs', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'ApplyConfirmTimeoutMs', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'recommendedThreshold', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'recommendedHysteresis', 'Arduino Hall calibration service');
 
@@ -155,6 +155,15 @@ const peerTimeout = calibrationCpp.indexOf('>= PeerTimeoutMs');
 const peerAbort = calibrationCpp.indexOf('abort();', peerTimeout);
 if (peerTimeout < 0 || peerAbort < 0 || peerAbort < peerTimeout) {
   throw new Error('Arduino Hall calibration service: UART peer timeout must fail closed to abort');
+}
+
+const applyTimeoutState = calibrationCpp.indexOf('m_state == HallCalibrationState::WaitingApplyConfirm');
+const applyTimeoutElapsed = calibrationCpp.indexOf('nowMs - m_applyConfirmAtMs', applyTimeoutState);
+const applyTimeoutLimit = calibrationCpp.indexOf('ApplyConfirmTimeoutMs', applyTimeoutElapsed);
+const applyTimeoutAbort = calibrationCpp.indexOf('abort();', applyTimeoutLimit);
+if (applyTimeoutState < 0 || applyTimeoutElapsed < 0 || applyTimeoutLimit < 0 || applyTimeoutAbort < 0 ||
+    !(applyTimeoutState < applyTimeoutElapsed && applyTimeoutElapsed < applyTimeoutLimit && applyTimeoutLimit < applyTimeoutAbort)) {
+  throw new Error('Arduino Hall calibration service: apply confirmation timeout must fail closed to abort');
 }
 
 console.log('Hall calibration exact-id/local-confirm contracts: OK');

@@ -262,13 +262,10 @@ void HallCalibrationService::finish(uint32_t nowMs)
 
 uint32_t HallCalibrationService::measurementIdentity(uint32_t completedAtMs) const
 {
-    // Correlation token only: it is transient, never persisted, and does not
-    // authenticate anything. Mix Uno-owned phase timestamps with the run sample
-    // count, then reserve zero as "no measurement".
-    uint32_t token = m_armedAtMs ^ completedAtMs;
-    token += m_startedAtMs;
-    token ^= static_cast<uint32_t>(m_runSamples) << 16U;
-    return token == 0UL ? 1UL : token;
+    // Exact transient correlation only, not authentication. A completed test
+    // cannot share its completion tick with another active test; proposals are
+    // RAM-only and expire/abort before a later calibration can reuse the gate.
+    return completedAtMs == 0UL ? 1UL : completedAtMs;
 }
 
 void HallCalibrationService::clearMeasurements()

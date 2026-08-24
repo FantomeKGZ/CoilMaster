@@ -22,6 +22,7 @@ const analyzerHeader = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.h');
 const analyzerCpp = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.cpp');
 const arduinoMain = read('firmware/arduino/src/main.cpp');
 const uartCpp = read('Arduino/CM_UartEventTransport.cpp');
+const hardwareSettingsHeader = read('Arduino/CM_HardwareSettings.h');
 const calibrationHeader = read('Arduino/CM_HallCalibrationService.h');
 const calibrationCpp = read('Arduino/CM_HallCalibrationService.cpp');
 const calibrationProtocolCpp = read('Arduino/CM_HallCalibrationProtocol.cpp');
@@ -104,9 +105,20 @@ mustContain(arduinoMain, 'measured.measurementId != request.measurementId', 'Ard
 mustContain(arduinoMain, 'hallCalibration.beginApplyConfirm(request.measurementId, nowMs)', 'Arduino runtime');
 mustContain(arduinoMain, 'hardwareSettingsController.apply(pendingHallCalibrationSettings)', 'Arduino runtime');
 mustContain(arduinoMain, 'sendHallCalibrationApplied', 'Arduino runtime');
+mustContain(arduinoMain, 'hardwareSettingsController.settings());', 'Arduino runtime');
 mustContain(arduinoMain, 'clearPendingHallCalibrationProposal', 'Arduino runtime');
 mustContain(arduinoMain, 'HallCalibrationApplyResult::Cancelled', 'Arduino runtime');
 mustContain(arduinoMain, 'hallCalibration.notePeerContact(nowMs);', 'Arduino runtime');
+
+// Calibration proposal identity/settings are deliberately transient runtime state.
+// The authoritative EEPROM schema stores only the applied Hall profile + CRC/sequence.
+mustNotContain(hardwareSettingsHeader, 'measurementId', 'Arduino hardware settings EEPROM schema');
+mustNotContain(hardwareSettingsHeader, 'proposal', 'Arduino hardware settings EEPROM schema');
+mustNotContain(hardwareSettingsHeader, 'WaitingApplyConfirm', 'Arduino hardware settings EEPROM schema');
+mustContain(hardwareSettingsHeader, 'hallThreshold', 'Arduino hardware settings EEPROM schema');
+mustContain(hardwareSettingsHeader, 'hallHysteresis', 'Arduino hardware settings EEPROM schema');
+mustContain(hardwareSettingsHeader, 'hallReleaseDebounceMs', 'Arduino hardware settings EEPROM schema');
+mustContain(hardwareSettingsHeader, 'crc', 'Arduino hardware settings EEPROM schema');
 
 mustContain(calibrationHeader, 'WaitingLocalConfirm', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'WaitingApplyConfirm', 'Arduino Hall calibration service');
@@ -151,6 +163,15 @@ if (proposalCase < 0 || stageConfirm < 0 || (proposalApply >= 0 && proposalApply
   throw new Error('Arduino Hall calibration runtime: proposal staging must not write EEPROM');
 }
 
+const applyWrite = arduinoMain.indexOf('hardwareSettingsController.apply(pendingHallCalibrationSettings)', applyBranch);
+const appliedReply = arduinoMain.indexOf('espTransport.sendHallCalibrationApplied(', applyWrite);
+const persistedProfileReply = arduinoMain.indexOf('hardwareSettingsController.settings());', appliedReply);
+const clearProposal = arduinoMain.indexOf('clearPendingHallCalibrationProposal();', appliedReply);
+if (applyWrite < 0 || appliedReply < 0 || persistedProfileReply < 0 || clearProposal < 0 ||
+    !(applyWrite < appliedReply && appliedReply < persistedProfileReply && persistedProfileReply < clearProposal)) {
+  throw new Error('Arduino Hall calibration runtime: CAL_APPLIED must report authoritative post-apply profile before transient proposal is cleared');
+}
+
 const peerTimeout = calibrationCpp.indexOf('>= PeerTimeoutMs');
 const peerAbort = calibrationCpp.indexOf('abort();', peerTimeout);
 if (peerTimeout < 0 || peerAbort < 0 || peerAbort < peerTimeout) {
@@ -166,4 +187,4 @@ if (applyTimeoutState < 0 || applyTimeoutElapsed < 0 || applyTimeoutLimit < 0 ||
   throw new Error('Arduino Hall calibration service: apply confirmation timeout must fail closed to abort');
 }
 
-console.log('Hall calibration exact-id/local-confirm contracts: OK');
+console.log('Hall calibration exact-id/local-confirm/transient-persistence contracts: OK');

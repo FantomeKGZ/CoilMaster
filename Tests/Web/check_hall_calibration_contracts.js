@@ -79,6 +79,7 @@ mustContain(clientHeader, 'm_pendingCalibrationMeasurementId', 'ESP32 Hall clien
 mustContain(clientCpp, 'CMP1|CAL|ARM|C', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL|ABORT|C', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL|GET|C', 'ESP32 Hall client');
+mustContain(clientCpp, 'CMP1|CFG_GET|HALL|C', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL_PROPOSAL|%lu|%u|%u|%u|%s|C', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL_APPLIED|', 'ESP32 Hall client');
 mustContain(clientCpp, 'measurementId != m_pendingCalibrationMeasurementId', 'ESP32 Hall client');
@@ -187,10 +188,16 @@ if (applyWrite < 0 || appliedReply < 0 || persistedProfileReply < 0 || clearProp
 
 const stagedStateGuard = clientCpp.indexOf('const bool proposalWasWaitingApply');
 const stagedCompleted = clientCpp.indexOf('parsed.state == HallCalibrationRemoteState::Completed', stagedStateGuard);
-const stagedTimeout = clientCpp.indexOf('finishRequest(HardwareControlReplyResult::TimedOut)', stagedCompleted);
-if (stagedStateGuard < 0 || stagedCompleted < 0 || stagedTimeout < 0 ||
-    !(stagedStateGuard < stagedCompleted && stagedCompleted < stagedTimeout)) {
-  throw new Error('ESP32 Hall client: completed staged proposal must reconcile instead of retransmitting CAL_PROPOSAL');
+const stagedCfgGet = clientCpp.indexOf('CMP1|CFG_GET|HALL|C', stagedCompleted);
+const stagedSwitch = clientCpp.indexOf('m_requestType = RequestType::GetSettings;', stagedCfgGet);
+const settingsHandler = clientCpp.indexOf('bool HardwareControlClient::processSettingsState');
+const settingsMirror = clientCpp.indexOf('m_settings = parsed;', settingsHandler);
+const stagedTimeout = clientCpp.indexOf('finishRequest(HardwareControlReplyResult::TimedOut)', settingsMirror);
+if (stagedStateGuard < 0 || stagedCompleted < 0 || stagedCfgGet < 0 || stagedSwitch < 0 ||
+    settingsHandler < 0 || settingsMirror < 0 || stagedTimeout < 0 ||
+    !(stagedStateGuard < stagedCompleted && stagedCompleted < stagedCfgGet && stagedCfgGet < stagedSwitch &&
+      settingsHandler < settingsMirror && settingsMirror < stagedTimeout)) {
+  throw new Error('ESP32 Hall client: completed staged proposal must read authoritative EEPROM state before ambiguous timeout completion');
 }
 
 const abortMethod = clientCpp.indexOf('bool HardwareControlClient::abortHallCalibration()');
@@ -218,4 +225,4 @@ if (applyTimeoutState < 0 || applyTimeoutElapsed < 0 || applyTimeoutLimit < 0 ||
   throw new Error('Arduino Hall calibration service: apply confirmation timeout must fail closed to abort');
 }
 
-console.log('Hall calibration exact-id/local-confirm/no-replay contracts: OK');
+console.log('Hall calibration exact-id/local-confirm/no-replay/reconciliation contracts: OK');

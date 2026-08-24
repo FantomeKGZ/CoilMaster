@@ -22,6 +22,7 @@ const analyzerHeader = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.h');
 const analyzerCpp = read('firmware/esp32/src/CM_HallCalibrationAnalyzer.cpp');
 const arduinoMain = read('firmware/arduino/src/main.cpp');
 const uartCpp = read('Arduino/CM_UartEventTransport.cpp');
+const hardwareControlCpp = read('Arduino/CM_HardwareControlProtocol.cpp');
 const hardwareSettingsHeader = read('Arduino/CM_HardwareSettings.h');
 const calibrationHeader = read('Arduino/CM_HallCalibrationService.h');
 const calibrationCpp = read('Arduino/CM_HallCalibrationService.cpp');
@@ -93,6 +94,14 @@ mustContain(uartCpp, 'HallCalibrationProtocol::parseProposal', 'Arduino UART tra
 mustContain(uartCpp, 'StageHallCalibrationProposal', 'Arduino UART transport');
 mustContain(uartCpp, 'sendHallCalibrationApplied', 'Arduino UART transport');
 
+mustContain(hardwareControlCpp, 'CAL_PROPOSAL', 'Arduino hardware-control protocol');
+mustContain(hardwareControlCpp, 'StageHallCalibrationProposal', 'Arduino hardware-control protocol');
+mustContain(hardwareControlCpp, "text[0] == '0' && text[1] != '\\0'", 'Arduino hardware-control protocol');
+mustContain(calibrationProtocolCpp, 'HardwareControlProtocol::parseRequest', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'StageHallCalibrationProposal', 'Arduino Hall calibration protocol');
+mustNotContain(calibrationProtocolCpp, 'bool parseDecimal32', 'Arduino Hall calibration protocol');
+mustNotContain(calibrationProtocolCpp, 'bool parseDecimal16', 'Arduino Hall calibration protocol');
+
 mustContain(arduinoMain, 'HallCalibrationState::WaitingLocalConfirm', 'Arduino runtime');
 mustContain(arduinoMain, 'HallCalibrationState::WaitingApplyConfirm', 'Arduino runtime');
 mustContain(arduinoMain, "key == '#'", 'Arduino runtime');
@@ -110,8 +119,6 @@ mustContain(arduinoMain, 'clearPendingHallCalibrationProposal', 'Arduino runtime
 mustContain(arduinoMain, 'HallCalibrationApplyResult::Cancelled', 'Arduino runtime');
 mustContain(arduinoMain, 'hallCalibration.notePeerContact(nowMs);', 'Arduino runtime');
 
-// Calibration proposal identity/settings are deliberately transient runtime state.
-// The authoritative EEPROM schema stores only the applied Hall profile + CRC/sequence.
 mustNotContain(hardwareSettingsHeader, 'measurementId', 'Arduino hardware settings EEPROM schema');
 mustNotContain(hardwareSettingsHeader, 'proposal', 'Arduino hardware settings EEPROM schema');
 mustNotContain(hardwareSettingsHeader, 'WaitingApplyConfirm', 'Arduino hardware settings EEPROM schema');
@@ -136,9 +143,7 @@ mustNotContain(calibrationCpp, 'recommendedHysteresis', 'Arduino Hall calibratio
 
 mustContain(calibrationProtocolCpp, 'WAITING_LOCAL_CONFIRM', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'WAITING_APPLY_CONFIRM', 'Arduino Hall calibration protocol');
-mustContain(calibrationProtocolCpp, 'CAL_PROPOSAL', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CAL_APPLIED', 'Arduino Hall calibration protocol');
-mustContain(calibrationProtocolCpp, "text[0] == '0' && text[1] != '\\0'", 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, '!settings.isValid()', 'Arduino Hall calibration protocol');
 mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C', 'Arduino Hall calibration protocol');
 
@@ -189,4 +194,4 @@ if (applyTimeoutState < 0 || applyTimeoutElapsed < 0 || applyTimeoutLimit < 0 ||
   throw new Error('Arduino Hall calibration service: apply confirmation timeout must fail closed to abort');
 }
 
-console.log('Hall calibration exact-id/local-confirm/transient-persistence contracts: OK');
+console.log('Hall calibration exact-id/local-confirm/single-parser contracts: OK');

@@ -36,7 +36,6 @@ mustContain(shared, "'/api/hardware/hall/calibration'", 'shared calibration cont
 mustContain(shared, "CAL_URL+'/arm'", 'shared calibration controller');
 mustContain(shared, "CAL_URL+'/abort'", 'shared calibration controller');
 mustContain(shared, "CAL_URL+'/refresh'", 'shared calibration controller');
-mustContain(shared, "HALL_URL+'/settings'", 'shared calibration controller');
 mustContain(shared, 'WAITING_LOCAL_CONFIRM', 'shared calibration controller');
 mustContain(shared, 'Подтвердите калибровку клавишей # на Arduino', 'shared calibration controller');
 mustContain(shared, 'физическую START', 'shared calibration controller');
@@ -62,11 +61,17 @@ mustContain(analyzerCpp, 'recommendedThreshold', 'ESP32 Hall analyzer');
 mustContain(analyzerCpp, 'recommendedHysteresis', 'ESP32 Hall analyzer');
 
 mustContain(clientHeader, 'CalibrationKeepAliveMs = 1000UL', 'ESP32 Hall client');
+mustContain(clientHeader, 'proposeHallCalibration', 'ESP32 Hall client');
+mustContain(clientHeader, 'm_pendingCalibrationMeasurementId', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL|ARM|C', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL|ABORT|C', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL|GET|C', 'ESP32 Hall client');
+mustContain(clientCpp, 'CMP1|CAL_PROPOSAL|%lu|%u|%u|%u|%s|C', 'ESP32 Hall client');
+mustContain(clientCpp, 'CMP1|CAL_APPLIED|', 'ESP32 Hall client');
+mustContain(clientCpp, 'measurementId != m_pendingCalibrationMeasurementId', 'ESP32 Hall client');
 mustContain(clientCpp, 'sendCalibrationKeepAlive', 'ESP32 Hall client');
 mustContain(clientCpp, 'WAITING_LOCAL_CONFIRM', 'ESP32 Hall client');
+mustContain(clientCpp, 'WAITING_APPLY_CONFIRM', 'ESP32 Hall client');
 mustContain(clientCpp, 'HallCalibrationRemoteState::WaitingLocalConfirm', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL_STATE|', 'ESP32 Hall client');
 mustContain(clientCpp, 'CMP1|CAL_RESULT|', 'ESP32 Hall client');
@@ -84,12 +89,18 @@ mustContain(arduinoMain, 'abort=PHYSICAL_START_PRESSED_AGAIN', 'Arduino runtime'
 mustContain(arduinoMain, 'hallCalibration.notePeerContact(nowMs);', 'Arduino runtime');
 
 mustContain(calibrationHeader, 'WaitingLocalConfirm', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'WaitingApplyConfirm', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'PeerTimeoutMs = 3000UL', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'ApplyConfirmTimeoutMs = 30000UL', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'notePeerContact', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'confirmLocal', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'beginApplyConfirm', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'measurementId', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'ArmedTimeoutMs = 60000UL', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'm_state = HallCalibrationState::WaitingLocalConfirm', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'm_state = HallCalibrationState::ArmedWaitingPhysicalStart', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'm_state = HallCalibrationState::WaitingApplyConfirm', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'result.measurementId = measurementIdentity(result)', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'nowMs - m_lastPeerContactMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, '>= PeerTimeoutMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'nowMs - m_armedAtMs', 'Arduino Hall calibration service');
@@ -101,10 +112,11 @@ mustContain(calibrationCpp, 'm_resultPending', 'Arduino Hall calibration service
 mustNotContain(calibrationCpp, 'm_result.', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'recommendedThreshold', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'recommendedHysteresis', 'Arduino Hall calibration service');
-mustNotContain(calibrationCpp, 'const uint16_t upward =', 'Arduino Hall calibration service');
-mustNotContain(calibrationCpp, 'const uint16_t downward =', 'Arduino Hall calibration service');
 mustContain(calibrationProtocolCpp, 'WAITING_LOCAL_CONFIRM', 'Arduino Hall calibration protocol');
-mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|C', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'WAITING_APPLY_CONFIRM', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'CAL_PROPOSAL', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'CAL_APPLIED', 'Arduino Hall calibration protocol');
+mustContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|INVALID|%u|%u|%u|0|0|RISING|%u|%lu|%lu|C', 'Arduino Hall calibration protocol');
 
 const waitingBranch = calibrationCpp.indexOf('m_state == HallCalibrationState::WaitingLocalConfirm ||');
 const armedBranch = calibrationCpp.indexOf('m_state == HallCalibrationState::ArmedWaitingPhysicalStart', waitingBranch);

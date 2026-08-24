@@ -103,9 +103,6 @@ void UartEventReceiver::begin(uint32_t baud, int8_t rxPin, int8_t txPin)
 
 bool UartEventReceiver::poll(RemoteWindingEvent& event)
 {
-    // update() and reply parsing can publish control events before main.cpp has
-    // persisted them. Do not consume a later physical RUN frame until those
-    // delivery/cancel events have been drained by the main loop.
     if (m_hasJobDelivery || m_hasJobCancel) return false;
 
     while (m_serial.available() > 0)
@@ -131,16 +128,12 @@ bool UartEventReceiver::poll(RemoteWindingEvent& event)
                 }
                 else if (m_hardwareControl.processLine(m_line, millis()))
                 {
-                    // Service frame consumed; never reinterpret it as winding evidence.
                 }
                 else
                     eventReady = parseEventLine(m_line, event);
             }
             m_length = 0U;
             if (eventReady) return true;
-            // Do not consume a later RUN frame in the same poll call after a
-            // JOB/CANCEL reply. main.cpp persists that control result after poll()
-            // returns, preserving wire order before any physical run evidence.
             if (orderingBarrier) return false;
             continue;
         }
@@ -211,8 +204,6 @@ bool UartEventReceiver::queueJob(const OutgoingWindingJob& job)
     m_jobSendAttempts = 0U;
     m_lastQueuedJobId = job.jobId;
     m_hasLastQueuedJobId = true;
-    // A fresh JOB supersedes any zero-id ALL_CLEAR fallback remembered during
-    // reboot recovery. Identity-less evidence must never attach to a new job.
     m_recoveryJobId = 0UL;
     m_hasRecoveryJobId = false;
     return true;
@@ -228,9 +219,6 @@ bool UartEventReceiver::cancelPendingJob(const char* detail)
     const uint8_t sendAttempts = m_jobSendAttempts;
     const bool mayHaveReachedArduino = m_waitingJobAck || sendAttempts != 0U;
 
-    // Stop JOB retransmission first. If even one frame may have reached Arduino,
-    // do not declare a local-only cancellation: switch to an idempotent remote
-    // JOB_CANCEL handshake so a lost JOB_ACK can never leave a ghost job behind.
     m_pendingJob = OutgoingWindingJob();
     m_hasPendingJob = false;
     m_waitingJobAck = false;
@@ -338,6 +326,18 @@ bool UartEventReceiver::abortHallCalibration()
 bool UartEventReceiver::requestHallCalibration()
 {
     return !controlLaneBusy() && m_hardwareControl.requestHallCalibration();
+}
+
+bool UartEventReceiver::proposeHallCalibration(
+    uint32_t measurementId,
+    uint16_t threshold,
+    uint16_t hysteresis,
+    uint16_t releaseDebounceMs,
+    HallSignalDirectionRemote direction)
+{
+    return !controlLaneBusy() &&
+           m_hardwareControl.proposeHallCalibration(
+               measurementId, threshold, hysteresis, releaseDebounceMs, direction);
 }
 
 bool UartEventReceiver::hallControlPending() const
@@ -576,12 +576,6 @@ bool UartEventReceiver::processCancelAck(char* line)
     uint32_t jobId = 0UL;
     if (!parseDecimal32(jobText, jobId)) return false;
 
-    // Physical Arduino fallback may send job_id=0 after proving that it holds
-    // no ESP32 remote job. Zero carries no identity, so correlate it only to an
-    // explicit pending cancel or to a job identity explicitly remembered during
-    // reboot recovery. queueJob() clears that recovery identity before any fresh
-    // job can be sent, preventing stale ALL_CLEAR from cancelling a new job even
-    // after its JOB_ACK has already arrived.
     if (jobId == 0UL)
     {
         if (strcmp(status, "CANCELLED") != 0 || detail == nullptr ||
@@ -765,8 +759,6 @@ bool UartEventReceiver::validateAndStripJobReplyCrc(char* line)
     for (const char* value = line; *value != '\0'; ++value)
         if (*value == '|') ++separatorCount;
 
-    // Legacy JOB_ACK/JOB_CANCEL_ACK has four separators. A negotiated reply
-    // adds |C|CRC, so a truncated CRC frame cannot be mistaken for legacy.
     if (separatorCount == 4U) return true;
     if (separatorCount != 6U) return false;
 

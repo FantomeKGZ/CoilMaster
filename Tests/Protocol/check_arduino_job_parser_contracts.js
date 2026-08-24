@@ -4,6 +4,7 @@ const fs = require('fs');
 
 const path = 'Arduino/CM_UartEventTransport.cpp';
 const source = fs.readFileSync(path, 'utf8');
+const header = fs.readFileSync('Arduino/CM_UartEventTransport.h', 'utf8');
 
 function requireText(text, message) {
   if (!source.includes(text)) throw new Error(message || `missing ${text}`);
@@ -62,7 +63,6 @@ forbidText('const uint32_t runId = strtoul(runText, nullptr, 10);',
 forbidText('const unsigned long parsed = strtoul(jobText, &end, 10);',
   'JOB_CANCEL correlation must not accept signs/whitespace/non-canonical tokens');
 
-
 requireText('class CrcFrameWriter',
   'Arduino transport must stream CRC frames with bounded stack');
 requireText('frame.write(F("CMP1|LOCAL_EVT|"))',
@@ -77,5 +77,20 @@ forbidText('char frame[176]',
   'Uno transport must not restore the 176-byte LOCAL_EVT stack frame');
 forbidText('char frame[96]',
   'Uno transport must not restore the 96-byte EVT stack frame');
+
+const maxJob = 'CMP1|JOB|4294967295|4294967295|STARTING|10|' +
+  Array(10).fill('9999').join(',') + '|R65535|C|FFFF';
+if (maxJob.length !== 106) {
+  throw new Error(`test fixture drift: worst-case JOB payload+CRC must be 106 bytes, got ${maxJob.length}`);
+}
+const replyMatch = header.match(/MaxReplyLength = (\d+)U/);
+if (!replyMatch) throw new Error('Arduino transport: MaxReplyLength declaration missing');
+const maxReplyLength = Number(replyMatch[1]);
+if (maxReplyLength < maxJob.length + 1) {
+  throw new Error(`Arduino transport: MaxReplyLength ${maxReplyLength} cannot hold worst-case JOB plus NUL (${maxJob.length + 1})`);
+}
+if (maxReplyLength > 112) {
+  throw new Error(`Arduino transport: MaxReplyLength ${maxReplyLength} exceeds reviewed SRAM bound 112`);
+}
 
 console.log('Arduino JOB/ACK/cancel parser contracts: OK');

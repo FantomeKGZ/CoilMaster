@@ -130,6 +130,8 @@ const char* HardwareControlWeb::calibrationStateText(
 {
     switch (state)
     {
+        case HallCalibrationRemoteState::WaitingLocalConfirm:
+            return "WAITING_LOCAL_CONFIRM";
         case HallCalibrationRemoteState::ArmedWaitingPhysicalStart:
             return "ARMED_WAITING_START";
         case HallCalibrationRemoteState::Running:

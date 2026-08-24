@@ -35,10 +35,25 @@ public:
     void addRunSample(uint16_t rawAdc);
     HallCalibrationProposal finish(uint32_t durationMs) const;
 
+    // Transition path for the Uno-minimal runtime: Arduino owns only physical
+    // sampling and returns bounded baseline/min/max statistics. Recommendation
+    // math lives on ESP32 and never grants motor/SSR authority.
+    static HallCalibrationProposal analyzeSummary(uint16_t baselineAdc,
+                                                  uint16_t minAdc,
+                                                  uint16_t maxAdc,
+                                                  uint16_t sampleCount,
+                                                  uint32_t durationMs);
+
 private:
     static constexpr uint8_t MinimumBaselineSamples = 8U;
     static constexpr uint16_t MaximumBaselineSamples = 64U;
     static constexpr uint16_t MinimumSignalSpan = 60U;
+
+    static HallCalibrationProposal analyze(uint16_t baselineAdc,
+                                           uint16_t minAdc,
+                                           uint16_t maxAdc,
+                                           uint16_t sampleCount,
+                                           uint32_t durationMs);
 
     uint32_t m_baselineSum;
     uint16_t m_baselineSamples;

@@ -115,6 +115,25 @@ bool formatState(HallCalibrationState state,
     return appendCrc(output, outputSize, length);
 }
 
+bool formatSample(HallCalibrationSamplePhase phase,
+                  uint16_t rawAdc,
+                  uint16_t sequence,
+                  uint32_t elapsedMs,
+                  char* output,
+                  size_t outputSize)
+{
+    if (output == nullptr || outputSize == 0U || rawAdc > 1023U)
+        return false;
+    const int length = snprintf_P(
+        output, outputSize,
+        PSTR("CMP1|CAL_SAMPLE|%S|%u|%u|%lu|C"),
+        phase == HallCalibrationSamplePhase::Run ? PSTR("RUN") : PSTR("BASELINE"),
+        static_cast<unsigned int>(rawAdc),
+        static_cast<unsigned int>(sequence),
+        static_cast<unsigned long>(elapsedMs));
+    return appendCrc(output, outputSize, length);
+}
+
 bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize)

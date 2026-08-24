@@ -161,3 +161,7 @@ jobs:
       - name: Audit Hall calibration safety contracts
         if: always()
         run: node Tests/Web/check_hall_calibration_contracts.js
+
+      - name: Audit Hall history and SD reference contracts
+        if: always()
+        run: node Tests/Web/check_hall_history_ui.js

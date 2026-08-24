@@ -138,13 +138,7 @@ bool formatResult(const HallCalibrationResult& result,
                   char* output,
                   size_t outputSize)
 {
-    if (output == nullptr || outputSize == 0U || result.measurementId == 0UL)
-        return false;
-    const int length = snprintf_P(
-        output, outputSize,
-        PSTR("CMP1|CAL_RESULT|INVALID|0|0|0|0|0|RISING|0|0|%lu|C"),
-        static_cast<unsigned long>(result.measurementId));
-    return appendCrc(output, outputSize, length);
+    return formatDone(result, output, outputSize);
 }
 
 bool formatApplied(uint32_t measurementId,

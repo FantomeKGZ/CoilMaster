@@ -14,6 +14,8 @@ const collectorH = read('firmware/esp32/src/CM_HallCalibrationRawCollector.h');
 const collectorCpp = read('firmware/esp32/src/CM_HallCalibrationRawCollector.cpp');
 const rawProtocolH = read('firmware/esp32/src/CM_HallCalibrationRawProtocol.h');
 const rawProtocolCpp = read('firmware/esp32/src/CM_HallCalibrationRawProtocol.cpp');
+const doneProtocolH = read('firmware/esp32/src/CM_HallCalibrationDoneProtocol.h');
+const doneProtocolCpp = read('firmware/esp32/src/CM_HallCalibrationDoneProtocol.cpp');
 const receiverH = read('firmware/esp32/src/CM_UartEventReceiver.h');
 const receiverCpp = read('firmware/esp32/src/CM_UartEventReceiver.cpp');
 const unoProtocolH = read('Arduino/CM_HallCalibrationProtocol.h');
@@ -45,6 +47,15 @@ mustContain(rawProtocolCpp, 'RUN', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, 'Cmp1Crc::calculate', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, '1023UL', 'ESP32 raw protocol');
 mustContain(rawProtocolCpp, '65535UL', 'ESP32 raw protocol');
+
+mustContain(doneProtocolH, 'HallCalibrationDone', 'ESP32 done protocol');
+mustContain(doneProtocolH, 'parseDone', 'ESP32 done protocol');
+mustContain(doneProtocolCpp, 'strcmp(category, "CAL_DONE")', 'ESP32 done protocol');
+mustContain(doneProtocolCpp, 'Cmp1Crc::calculate', 'ESP32 done protocol');
+mustContain(doneProtocolCpp, 'done.measurementId == 0UL', 'ESP32 done protocol');
+mustContain(doneProtocolCpp, 'strcmp(capability, "C")', 'ESP32 done protocol');
+mustNotContain(doneProtocolCpp, 'StartOrResume', 'ESP32 done protocol safety');
+mustNotContain(doneProtocolCpp, 'digitalWrite', 'ESP32 done protocol safety');
 
 mustContain(receiverH, 'HallCalibrationRawCollector m_hallCalibrationRaw', 'ESP32 raw receiver');
 mustContain(receiverCpp, 'CMP1|CAL_SAMPLE|', 'ESP32 raw receiver');
@@ -110,6 +121,8 @@ for (const [name, text] of [
   ['collector cpp', collectorCpp],
   ['raw protocol header', rawProtocolH],
   ['raw protocol cpp', rawProtocolCpp],
+  ['done protocol header', doneProtocolH],
+  ['done protocol cpp', doneProtocolCpp],
   ['Uno raw protocol header', unoProtocolH],
   ['Uno raw protocol cpp', unoProtocolCpp],
   ['Uno raw bridge header', unoBridgeH],

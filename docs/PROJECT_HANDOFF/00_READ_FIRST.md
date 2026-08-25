@@ -10,6 +10,7 @@
 /AGENTS.md
 this file
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md
 docs/PROJECT_HANDOFF/89_REPAIR_PRICING_REFERENCE_BATCHING_2026-08-25.md
 docs/PROJECT_HANDOFF/88_MATERIAL_REFERENCE_BATCHING_2026-08-25.md
 docs/PROJECT_HANDOFF/87_FINALIZATION_COSTING_SINGLE_PASS_2026-08-25.md
@@ -23,6 +24,10 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
 `90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` — текущий authoritative transfer checkpoint. Если старые numbered checkpoints противоречат `90` по текущему состоянию, verified GREEN baseline, active Stage-1 direction или следующему hardware gate, использовать `90`.
+
+`91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md` — newest fully GREEN Stage-1 implementation block.
+
+Если исторический exact path `85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md` отсутствует, не подменять его `main`: текущие authoritative NDJSON rules находятся в `90`, `06`, `/api/system/storage` diagnostics contract и current source.
 
 Старые numbered checkpoints — history/evidence, а не backlog. Не продолжать старую задачу только потому, что исторический checkpoint содержит `next`/`pending`.
 
@@ -41,24 +46,34 @@ Full two-board hardware acceptance                still required
 
 ## Current verified GREEN baseline
 
-Latest verified Stage-1 block: **89_REPAIR_PRICING_REFERENCE_BATCHING**.
+Latest verified Stage-1 block: **91_REPAIR_PRICING_SAVE_SINGLE_PASS**.
 
 ```text
-29ecbb799a14da455aa5d732764613465b21788a
-perf(esp32): batch repair pricing references
+8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
+perf(esp32): avoid duplicate repair scan on pricing save
 
-ESP32 Build #1441
-run 32818211915
-head_sha 29ecbb799a14da455aa5d732764613465b21788a
+510f449de040ec4aec4814a08fbe7565fcd4c41a
+test(esp32): protect pricing save repair single-pass
+
+bbca869a52db892305a1419230c77f26d6def7fd
+ci(esp32): audit pricing save repair single-pass
+
+ESP32 Build #1442
+run 32830427142
+head_sha 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
 SUCCESS
 
-CMP Protocol Tests #3096
-run 32818305639
-head_sha 921999a8f2a11405c8a312a4f6064c2a29834e93
+CMP Protocol Tests #3103
+run 32830498664
+head_sha bbca869a52db892305a1419230c77f26d6def7fd
 SUCCESS
 ```
 
-Final CMP run includes GREEN repair pricing batching, material batching, scoped backup, final acceptance, KG_FIRST, winding/finalization/workshop single-pass, write-off fault, NDJSON growth diagnostics and Hall contract audits.
+Block 91 removes one duplicate repair identity scan from pricing save while retaining the mandatory authoritative `RepairCosting::load()` validation and all lifecycle/costing/movement fail-closed gates.
+
+CMP #3103 includes the dedicated pricing-save single-pass regression together with material batching, scoped backup, final acceptance, KG_FIRST, winding/finalization/workshop single-pass, write-off fault, NDJSON growth diagnostics and Hall contract audits.
+
+Documentation-only commits after `bbca869a...` do not establish a newer firmware GREEN baseline unless separately verified.
 
 Hardware GREEN из CI не выводить.
 

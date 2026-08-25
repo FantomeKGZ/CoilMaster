@@ -1,0 +1,69 @@
+name: One-shot CRM backup integrity patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/crm-backup-integrity-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=firmware/esp32/src/CM_BackupExportWeb.cpp
+          EXPECTED=e7ed8110a3335c2a19f31d1355e1909c26f71ecb
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('firmware/esp32/src/CM_BackupExportWeb.cpp')
+          s=p.read_text()
+          old='#include "CM_BackupBusinessDataIntegrityAudit.h"\n'
+          new=old+'#include "CM_CrmPersistenceIntegrityAudit.h"\n'
+          assert old in s and '#include "CM_CrmPersistenceIntegrityAudit.h"' not in s
+          s=s.replace(old,new,1)
+
+          old='    AuditTimingMetric businessDataAuditTiming;\n'
+          new=old+'    AuditTimingMetric crmPersistenceAuditTiming;\n'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='    uint32_t repairPricingRecordCount = 0UL;\n'
+          new=old+'''    bool crmRecordCountsMeasured = false;\n    uint32_t motorWindingVersionRecordCount = 0UL;\n    uint32_t repairAsReceivedRecordCount = 0UL;\n    uint32_t materialRequestRecordCount = 0UL;\n    uint32_t materialRequestMovementRecordCount = 0UL;\n'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='    {"repair-status", "/data/workshop/repair-status.ndjson", "application/x-ndjson", "repair-status.ndjson"},\n'
+          new=old+'''    {"motor-winding-versions", "/data/workshop/motor-winding-versions.ndjson", "application/x-ndjson", "motor-winding-versions.ndjson"},\n    {"repair-as-received", "/data/workshop/repair-as-received.ndjson", "application/x-ndjson", "repair-as-received.ndjson"},\n    {"material-requests", "/data/workshop/material-requests.ndjson", "application/x-ndjson", "material-requests.ndjson"},\n    {"material-request-movements", "/data/workshop/material-request-movements.ndjson", "application/x-ndjson", "material-request-movements.ndjson"},\n'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='    {"/data/warehouse/spools.bak", "warehouse_spool_swap_backup_present"}\n'
+          new='''    {"/data/warehouse/spools.bak", "warehouse_spool_swap_backup_present"},\n    {"/data/workshop/repair-intake.pending.json", "repair_intake_pending"},\n    {"/data/workshop/repair-intake.pending.tmp", "repair_intake_temp_present"}\n'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='''    metrics.businessRecordCountsMeasured = true;\n\n    AutonomousWindingIntegrityMetrics autonomousMetrics;\n'''
+          new='''    metrics.businessRecordCountsMeasured = true;\n\n    CrmPersistenceAuditMetrics crmMetrics;\n    startedAtMs = millis();\n    const bool crmPersistenceValid =\n        CrmPersistenceIntegrityAudit::check(storage, crmMetrics);\n    metrics.crmPersistenceAuditTiming.durationMs = millis() - startedAtMs;\n    metrics.crmPersistenceAuditTiming.measured = true;\n    if (!crmPersistenceValid)\n        return "crm_persistence_unstable_or_invalid";\n    metrics.motorWindingVersionRecordCount = crmMetrics.windingVersionRecordCount;\n    metrics.repairAsReceivedRecordCount = crmMetrics.asReceivedRecordCount;\n    metrics.materialRequestRecordCount = crmMetrics.materialRequestRecordCount;\n    metrics.materialRequestMovementRecordCount = crmMetrics.materialRequestMovementRecordCount;\n    metrics.crmRecordCountsMeasured = true;\n\n    AutonomousWindingIntegrityMetrics autonomousMetrics;\n'''
+          assert old in s
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firmware/esp32/src/CM_BackupExportWeb.cpp
+          git commit -m 'feat(crm): include CRM stores in backup integrity'
+          git push origin HEAD:cmp-protocol-v1

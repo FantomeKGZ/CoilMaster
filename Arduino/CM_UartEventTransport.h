@@ -142,7 +142,7 @@ private:
     uint32_t m_lastSendMs;
     uint32_t m_retryIntervalMs;
     char m_reply[MaxReplyLength];
-    size_t m_replyLength;
+    uint8_t m_replyLength;
     UartDeliveryEvent m_deliveryEvent;
     bool m_hasDeliveryEvent;
     WindingJob m_remoteJob;

@@ -3,6 +3,8 @@
 
 #include <WebServer.h>
 
+#include "CM_MotorWindingVersionStore.h"
+#include "CM_RepairAsReceivedSnapshotStore.h"
 #include "CM_RepairRegistry.h"
 
 namespace CM
@@ -18,6 +20,9 @@ private:
     void handleMotor();
     void handleRepair();
     void handleMotorRepairs();
+    void handleMotorWindingLatest();
+    void handleMotorWindingVersions();
+    void handleRepairAsReceived();
     void handleClientSearch();
     void handleRepairSearch();
     bool parseId(const char* name, uint32_t& value) const;
@@ -29,6 +34,10 @@ private:
 
     WebServer& m_server;
     RepairRegistry& m_registry;
+    MotorWindingVersionStore m_windingVersions;
+    RepairAsReceivedSnapshotStore m_asReceivedSnapshots;
+    bool m_windingVersionsReady;
+    bool m_asReceivedSnapshotsReady;
 };
 }
 

@@ -472,7 +472,7 @@ bool validateMovements(fs::FS& storage, uint32_t& count)
                 return false;
             }
         }
-        else if (line.indexOf(F(""correction_direction":")) >= 0)
+        else if (line.indexOf(F("\"correction_direction\":")) >= 0)
         {
             file.close();
             return false;

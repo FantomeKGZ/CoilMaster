@@ -105,7 +105,7 @@ Therefore the temporary Uno diagnostic profile cleanup is now **software CI GREE
 
 No Arduino runtime, physical START, SSR, EEPROM, Hall counting, UART protocol or write-off logic changed in this cleanup.
 
-## HALL_STATE telemetry validation-order cleanup
+## HALL_STATE telemetry validation-order cleanup — software CI GREEN
 
 A narrow review of `HardwareControlClient::processTelemetryState()` confirmed a low-risk correctness issue: for Rising telemetry the expected release boundary was calculated before threshold/hysteresis validity was checked. Invalid profiles were rejected later, so there was no acceptance bypass, but an invalid `hysteresis >= threshold` frame could make unsigned subtraction wrap before that rejection.
 
@@ -116,21 +116,12 @@ Implementation:
 fix(hall): validate telemetry profile before boundary math
 ```
 
-The ESP32 parser now:
-
-1. validates ADC/window/profile/debounce/sample semantics first;
-2. computes `expectedReleaseBoundary` only after `threshold/hysteresis` are known valid;
-3. retains the exact `parsed.releaseBoundary != expectedReleaseBoundary` rejection;
-4. leaves CMP1 wire format and Uno behavior unchanged.
-
 Dedicated regression:
 
 ```text
 ac1b36cd5259d25632953168358b68a45f8132ee
 test(hall): require telemetry validation before boundary math
 ```
-
-`Tests/Web/check_hall_telemetry_validation_order.js` verifies the semantic order without duplicating the large Hall safety matcher.
 
 CI integration:
 
@@ -139,15 +130,63 @@ CI integration:
 ci(hall): run telemetry validation order audit
 ```
 
-The CMP workflow now runs `Audit Hall telemetry validation order` alongside the existing Hall safety audits.
+Verified runs:
+
+```text
+32799148672  CMP Protocol Tests @ 8586c4a4... SUCCESS
+32799148673  ESP32 Build @ 8586c4a4... SUCCESS
+32799235059  CMP Protocol Tests @ ac1b36cd... SUCCESS
+32799255011  CMP Protocol Tests @ 20294900... SUCCESS
+32799278211  CMP Protocol Tests @ a9ed7ef6... SUCCESS
+```
+
+The descendant workflow explicitly executed `Audit Hall telemetry validation order` and it passed. The ESP32 parser now validates ADC/window/profile/debounce/sample semantics before computing the release boundary. CMP1 wire format and Uno behavior are unchanged.
+
+## Uno hardware-control TX frame bound — current software-only cleanup
+
+Review of the old SRAM-recovery backlog found one remaining bounded peak-stack cost: `HardwareControlProtocol::MaxFrameLength` was still `176U`, even though Hall calibration TX already uses a separate exact 77-byte bound.
+
+The hardware-control formatter accepts `HallTelemetrySnapshot` fields directly, so the safe bound must be based on the field types, not only normal ADC/settings semantics. Exact worst case is:
+
+```text
+CMP1|HALL_STATE|65535|65535|65535|65535|65535|65535|65535|FALLING|1|RELEASE_DEBOUNCE|65535|4294967295|C|FFFF\n
+```
+
+This is 109 wire bytes; one trailing NUL requires a 110-byte formatter buffer.
+
+Implementation history:
+
+```text
+c2a785ab...  initial bounded TX change; superseded before verification
+ce760d45099dfa65de735df0b0a6c4eb1489c18b
+fix(uno): correct Hall telemetry TX bound
+```
+
+Current authoritative bound:
+
+```text
+HardwareControlProtocol::MaxFrameLength = 110U
+```
+
+This reduces the three hardware-control TX stack buffers from 176 to 110 bytes, saving 66 bytes of peak local stack when those formatters execute. It does not change static `.bss` SRAM, the persistent RX `MaxReplyLength=112`, queue capacity, protocol fields, physical START, SSR, EEPROM or calibration authority.
+
+Regression:
+
+```text
+d08816b29ef663b87ce9b61959e8b9332aa9eeba
+test(uno): protect hardware TX frame bound
+```
+
+The regression independently checks the 109-byte worst-case wire fixture, requires the 110-byte compile-time bound and protects use of `HardwareControlProtocol::MaxFrameLength` in the UART TX stack buffers.
 
 ## Verification state
 
 - Hall rejected-ARM / APPLY-ABORT orchestration: software CI GREEN.
 - Uno temporary diagnostic cleanup: software CI GREEN.
-- HALL_STATE validation-order implementation/regression/workflow: **fresh CI pending**; do not declare GREEN until an ESP32 Build and descendant CMP Protocol Tests are checked.
+- HALL_STATE validation-order batch: software CI GREEN.
+- Uno hardware-control TX bound `ce760d45...` + regression `d08816b2...`: **fresh Arduino Uno Build / CMP Protocol Tests pending**.
 - Final two-board physical acceptance remains deferred until software optimization is complete.
 
 ## Next software step
 
-After fresh CI for the HALL_STATE validation-order batch, continue narrow software-only review. Do not change legacy `CAL_RESULT|VALID` semantics without authoritative contract evidence, and do not request intermediate hardware testing.
+Verify the Uno TX-bound batch with fresh Arduino Uno Build and CMP Protocol Tests. If GREEN, continue narrow software-only review; do not change legacy `CAL_RESULT|VALID` semantics without authoritative contract evidence and do not request intermediate hardware testing.

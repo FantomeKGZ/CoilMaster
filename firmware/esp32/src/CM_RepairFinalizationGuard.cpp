@@ -1,7 +1,6 @@
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_RepairCosting.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
-#include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalTransitionAudit.h"
 #include "CM_WireWriteOffCoverageAudit.h"
 
@@ -65,16 +64,9 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
         return RepairFinalizationCheck::CostingIntegrityFailed;
     }
 
-    WindingJournalQuery history(storage);
-    if (!history.begin() || !history.isReady())
-        return RepairFinalizationCheck::WindingStorageUnavailable;
-
-    const WindingJournalQueryResult journalAudit = history.validateAll();
-    if (journalAudit == WindingJournalQueryResult::StorageUnavailable)
-        return RepairFinalizationCheck::WindingStorageUnavailable;
-    if (journalAudit != WindingJournalQueryResult::Ok)
-        return RepairFinalizationCheck::WindingIntegrityFailed;
-
+    // TransitionAudit performs the authoritative full-record schema validation
+    // and STARTED/COMPLETED sequence audit in one pass. Do not add a separate
+    // WindingJournalQuery::validateAll() pre-pass here.
     const WindingJournalTransitionAuditResult transitionAudit =
         WindingJournalTransitionAudit::validate(storage);
     if (transitionAudit == WindingJournalTransitionAuditResult::StorageUnavailable)

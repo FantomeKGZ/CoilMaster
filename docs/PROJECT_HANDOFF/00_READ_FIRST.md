@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/107_MATERIAL_REQUEST_LIFECYCLE_2026-08-25.md
 docs/PROJECT_HANDOFF/106_MATERIAL_CATALOG_ADAPTER_AND_LOOKUP_2026-08-25.md
 docs/PROJECT_HANDOFF/105_MATERIAL_CATALOG_SERIALIZATION_FIX_2026-08-25.md
 docs/PROJECT_HANDOFF/104_CRM_BACKUP_INTEGRITY_2026-08-25.md
@@ -32,7 +33,7 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint 106.
+Latest GREEN foundation = checkpoint 107.
 
 ## Current GREEN implementation
 
@@ -46,13 +47,15 @@ Latest GREEN foundation = checkpoint 106.
 104 CRM backup/export + fail-closed integrity
 105 MaterialLedger serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
+107 Material Request lifecycle + backup/integrity
 ```
 
 Latest verified:
 
 ```text
-CMP run 32857435377 / SUCCESS
-ESP32 Build run 32857318798 / SUCCESS
+head a960999b040afbdd7c48bbde08763e042408a2e8
+CMP run 32860049965 / SUCCESS
+ESP32 Build run 32860049946 / SUCCESS
 ```
 
 ## Current material contract
@@ -67,14 +70,20 @@ M->METRE x1
 M2->SQUARE_METRE x1
 ```
 
+Material Request lifecycle is append-only:
+
+```text
+DRAFT -> ISSUED -> PRICED -> CLOSED
+```
+
 Material Request movements support `ISSUE/RETURN/CORRECTION`, `MANUAL_MATERIAL/RUN_WIRE`, and `KG/L/PCS/M/M2`. `RUN_WIRE` remains KG-only with exact session/run provenance.
 
 ## Immediate NEXT
 
-1. Append-only Material Request status history.
-2. Resolver/validation for `DRAFT -> ISSUED -> PRICED -> CLOSED`.
-3. Backup/integrity coverage for status history.
-4. Crash-safe explicit operator ISSUE/RETURN/CORRECTION coordinator coupling physical stock mutation with durable request movement evidence.
+1. Crash-safe explicit operator ISSUE/RETURN/CORRECTION transaction coordinator.
+2. Couple physical MaterialLedger mutation with durable request movement evidence via pending/recovery marker.
+3. Enforce lifecycle gates and fail closed on ambiguous recovery.
+4. Then bounded runtime/Web APIs for material requests and warehouse operations.
 5. `RUN_COMPLETED` remains non-mutating.
 
 ## Wire migration rule

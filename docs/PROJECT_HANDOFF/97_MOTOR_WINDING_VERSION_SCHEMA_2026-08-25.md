@@ -2,7 +2,7 @@
 
 Дата: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **SOFTWARE GREEN / FOUNDATION ONLY**
+Статус: **SOFTWARE GREEN / FOUNDATION CLOSED**
 
 Этот checkpoint фиксирует первый implementation block Phase A из `95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md`.
 
@@ -23,13 +23,16 @@ Legacy motor master остаётся читаемым. Новые обмоточ
 ```text
 firmware/esp32/src/CM_MotorWindingVersionStore.h
 firmware/esp32/src/CM_MotorWindingVersionStore.cpp
+Tests/Web/check_motor_winding_version_schema.js
 ```
 
-Implementation commits:
+Implementation / verification commits:
 
 ```text
 a4895a6d058a56cd3041573b38d6ec808196cc99  feat(crm): add motor winding version contract
 2513d5392840fc739f402ce754f9543996086bc3  feat(crm): persist motor winding versions
+863ecd52d718f2ddfc43c74ca32ec21c18c252f8  test(crm): protect motor winding version schema
+c6432c95e9f39464640a1c6ea49b097934bc5612  ci(crm): audit motor winding version schema
 ```
 
 ## Contract
@@ -107,19 +110,20 @@ Store:
 
 ## Verification
 
-На commit `2513d539...`:
-
 ```text
 CMP Protocol Tests #3137 / run 32844995517 / SUCCESS
 ESP32 Build #1446 / run 32844995460 / SUCCESS
+CMP Protocol Tests #3140 / run 32845194923 / SUCCESS
+CMP Protocol Tests #3141 / run 32845242025 / SUCCESS
 ```
 
-Блок считается software GREEN только как schema/persistence foundation. Store ещё не подключён к runtime/API и ещё не release-critical.
+#3141 включает отдельный CI step `Audit motor winding version schema contracts` и завершён SUCCESS.
+
+Блок закрыт GREEN как schema/persistence foundation. Store ещё не release-critical: runtime/API/backup integration выполняются следующим блоком.
 
 ## Следующие шаги
 
-1. Добавить regression contract для schema/canonical conductor format.
-2. Подключить store lifecycle к ESP32 runtime.
-3. Добавить read/latest/page API для motor card/catalog.
-4. До release-critical использования добавить store в backup whitelist + integrity audit.
-5. Затем перейти к immutable repair `AS_RECEIVED` snapshot contract.
+1. Подключить store lifecycle к ESP32 runtime.
+2. Добавить read/latest/page API для motor card/catalog.
+3. До release-critical использования добавить store в backup whitelist + integrity audit.
+4. Реализовать immutable repair `AS_RECEIVED` snapshot contract.

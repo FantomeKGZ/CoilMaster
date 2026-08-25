@@ -1,6 +1,6 @@
 # CoilMaster — next chat transfer
 
-Date: **2026-08-24**  
+Date: **2026-08-25**  
 Repository: `FantomeKGZ/CoilMaster`  
 Source of truth: **`cmp-protocol-v1` only**. Never use `main` as source.
 
@@ -24,13 +24,6 @@ docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
 If older Hall text conflicts with `72` or this file, this file wins.
 
 ## Current branch checkpoint
-
-Branch HEAD immediately before the frame-bound optimization was:
-
-```text
-66e5b84ac040b194ec5b169c1de8f1a5edad0845
-docs(handoff): mark compact completion host tests green
-```
 
 Frame-bound implementation:
 
@@ -69,6 +62,16 @@ fix(hall): validate telemetry semantics before mirror
 test(hall): require telemetry semantic validation
 ```
 
+ESP32 direct settings send fail-fast validation:
+
+```text
+f44e9a8966e2f6f8f385e0c718c2c952e4d6c45a
+fix(hall): reject invalid settings before send
+
+09de40da0c8a2f1f036f1c7624ee260f386cf2ea
+test(hall): require settings send validation
+```
+
 Important earlier implementation/test commits:
 
 ```text
@@ -82,44 +85,32 @@ Always refetch branch HEAD before modifying anything.
 
 ## Verified CI — GREEN
 
-Previous verified baseline:
+Verified baseline and Hall hardening runs supplied by the user:
 
 ```text
-32753340348  host-tests  checkout d77a24b3437831d0a236086055a193f233e1be7e  SUCCESS
-32753408620  host-tests  checkout b07de01ee4f3b1216153036dd977fa48bc053c2f  SUCCESS
-```
-
-Fresh post-frame-bound verification supplied by the user:
-
-```text
-32759806141  build-uno   checkout 256b95754431c30b6da94bd43f399f5085e030fc  SUCCESS
-32760002181  host-tests  checkout 1e8328733f4495f023748ed7c4f34afdf6f7168e  SUCCESS
-```
-
-Fresh ESP32 applied-profile validation verification supplied by the user and checked against Actions metadata:
-
-```text
+32759806141  build-uno    checkout 256b95754431c30b6da94bd43f399f5085e030fc  SUCCESS
+32760002181  host-tests   checkout 1e8328733f4495f023748ed7c4f34afdf6f7168e  SUCCESS
 32760501006  build-esp32  checkout a2bd5115a75b530f9f72c5e32f5a72e0e847d9d2  SUCCESS
 32760592287  host-tests   checkout ed32e55f91b5e6bada33315c2daafab1e7cd5e6c  SUCCESS
 32760645056  host-tests   checkout a8e64695be3413081b71cf052ee361aff0669379  SUCCESS
-```
-
-Fresh CFG_STATE validation verification supplied by the user and checked against Actions metadata:
-
-```text
 32761464209  build-esp32  checkout fb547c6c3a5537d42839a6147309985ae717f4e8  SUCCESS
 32761464222  host-tests   checkout fb547c6c3a5537d42839a6147309985ae717f4e8  SUCCESS
 32761539190  host-tests   checkout 56268ab17c888510a9ed2b0aa7461b8ef3b250e9  SUCCESS
 32761611196  host-tests   checkout 89741c5f1582c295cabcab08c06d7e91ff3c3bf7  SUCCESS
+32762099225  build-esp32  checkout a18158da211ab3e36fe043f80e278c252d184312  SUCCESS
+32762099263  host-tests   checkout a18158da211ab3e36fe043f80e278c252d184312  SUCCESS
+32762184024  host-tests   checkout 94ec3d6749debc09d5406eb49612125f060c4611  SUCCESS
+32762259476  host-tests   checkout 1c7cf1aa4943285f26cd79683ccfdb15ac9e8ca1  SUCCESS
+32763177751  host-tests   checkout 728a9e79f0bf69d6cd1a45c9fd2932b2b50d32ec  SUCCESS
 ```
 
-The host runs passed all 4 CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
+The host runs passed all CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
 
-Therefore both `CAL_APPLIED` and `CFG_STATE` mirror-validation blocks are verified **ESP32-build GREEN + host-tests GREEN**.
+Therefore `CAL_APPLIED`, `CFG_STATE`, `HALL_STATE`, compact completion and legacy-audit handoff are verified GREEN at the software CI level.
+
+The new direct `CFG_SET` fail-fast block `f44e9a89...` / `09de40da...` is implemented and contract-covered but must not be called GREEN until fresh Actions complete successfully.
 
 Hardware is **not** thereby declared GREEN.
-
-The newer Hall telemetry semantic validation commits `a18158da...` / `94ec3d67...` are not called GREEN until fresh Actions complete successfully.
 
 ## Verified Uno build / memory
 
@@ -131,17 +122,7 @@ RAM   1213 / 2048 = 59.2%   free 835 B
 Flash 31640 / 32256 = 98.1% free 616 B
 ```
 
-Therefore tightening `HallCalibrationProtocol::MaxFrameLength` from `96` to `77` changes static reported Flash/RAM by **0 B / 0 B** versus the compact-completion baseline. It still reduces each active Hall formatter's automatic local stack buffer by **19 bytes**.
-
-Comparison baseline before compact completion:
-
-```text
-checkout 02d9cd7e3c0679ae77d645a550af4f933b355e76
-RAM   1213 / 2048 = 59.2%   free 835 B
-Flash 31648 / 32256 = 98.1% free 608 B
-```
-
-Compact completion itself saves **8 B Flash**, RAM delta **0 B** versus that older baseline.
+Tightening `HallCalibrationProtocol::MaxFrameLength` from `96` to `77` changes static reported Flash/RAM by **0 B / 0 B** versus the compact-completion baseline and reduces each active Hall formatter automatic stack buffer by **19 bytes**.
 
 ## Active Hall architecture
 
@@ -168,9 +149,7 @@ ESP32 owns extended Hall test/calibration analysis:
 - proposal orchestration/reconciliation;
 - settings mirror/audit.
 
-Normal winding must remain autonomous on Uno after calibration is saved.
-
-Never move realtime per-turn decision making to ESP32.
+Normal winding must remain autonomous on Uno after calibration is saved. Never move realtime per-turn decision making to ESP32.
 
 ## Active Hall wire path
 
@@ -206,9 +185,7 @@ CAL_RESULT
  -> HallCalibrationCompletionAdapter::enrichLegacy
 ```
 
-Uno no longer emits legacy `CAL_RESULT`.
-
-For both receive paths, extended stats come only from `HallCalibrationRawCollector`; completion carries correlation identity only.
+Uno no longer emits legacy `CAL_RESULT`. A targeted audit found no authoritative active `CAL_RESULT|VALID` emitter in current `cmp-protocol-v1`, so the receive fallback remains unchanged for compatibility rather than being narrowed without an authoritative legacy contract.
 
 ## Hall calibration flow / safety
 
@@ -258,43 +235,9 @@ Keep intact:
 - cancellation never erases immutable history;
 - reboot never auto-resumes winding/calibration/restore/apply.
 
-## Hall frame-bound proof completed
+## ESP32 Hall validation status
 
-`HallCalibrationProtocol::MaxFrameLength = 96` was re-evaluated against every active Uno Hall TX formatter.
-
-Exact worst-case wire lengths including `|CRC\n` are:
-
-```text
-CAL_APPLIED  76 B
-CAL_SAMPLE   54 B
-CAL_STATE    48 B
-CAL_DONE     32 B
-```
-
-The longest frame is:
-
-```text
-CMP1|CAL_APPLIED|4294967295|PERSISTENCE_FAILED|1023|512|1000|FALLING|C|FFFF\n
-```
-
-This is **76 wire bytes**. `snprintf_P`/`appendCrc` also requires one byte for the terminating NUL, therefore the exact minimum safe formatter buffer is **77 bytes**.
-
-Commit `256b9575...` changes:
-
-```text
-HallCalibrationProtocol::MaxFrameLength
-96 -> 77
-```
-
-and records the proven `MaxAppliedWireLength = 76` with a compile-time `static_assert(MaxFrameLength == 77U)`.
-
-Fresh build `32759806141` confirms the Uno image still fits exactly at `31640 Flash / 1213 RAM`.
-
-## ESP32 Hall receive validation
-
-Both ESP32 Hall settings mirror paths reject CRC-valid but semantically invalid profiles before copying them into local authoritative state.
-
-`processCalibrationApplied()` and `processSettingsState()` enforce:
+`processCalibrationApplied()` and `processSettingsState()` reject invalid mirrored settings:
 
 ```text
 threshold           1..1023
@@ -303,9 +246,7 @@ releaseDebounceMs   1..1000
 direction           RISING or FALLING
 ```
 
-These paths are verified GREEN by the Actions listed above.
-
-`processTelemetryState()` now additionally rejects CRC-valid `HALL_STATE` telemetry unless:
+`processTelemetryState()` rejects invalid `HALL_STATE` telemetry unless:
 
 ```text
 rawAdc/windowMin/windowMax  0..1023
@@ -317,9 +258,7 @@ sampleCount                 > 0
 releaseBoundary             exactly matches threshold/hysteresis/direction
 ```
 
-For RISING, `releaseBoundary = threshold - hysteresis`. For FALLING, it is `min(1023, threshold + hysteresis)`, matching Uno `HallTurnSource::releaseThreshold()`.
-
-Regression contract `94ec3d67...` locks these telemetry checks. Fresh CI is pending at this checkpoint.
+`setSettings()` now applies the same Hall profile bounds before formatting/queueing `CMP1|CFG_SET|HALL|...`. This is fail-fast only: Uno remains authoritative and still validates every received `CFG_SET` through `HardwareSettings::isValid()`.
 
 ## Current optimization status
 
@@ -331,7 +270,8 @@ Keep:
 - Hall response buffer exact bound 77 bytes, build verified;
 - `CAL_APPLIED` range validation verified ESP32-build GREEN + host-tests GREEN;
 - `CFG_STATE` range validation verified ESP32-build GREEN + host-tests GREEN;
-- `HALL_STATE` semantic validation implemented and contract-covered, pending fresh CI;
+- `HALL_STATE` semantic validation verified ESP32-build GREEN + host-tests GREEN;
+- direct `CFG_SET` fail-fast validation implemented and contract-covered, fresh CI pending;
 - no intermediate hardware test requested during this optimization phase.
 
 Rejected experiments not to repeat:
@@ -347,8 +287,8 @@ Continue software optimization only; do not request intermediate physical hardwa
 
 Immediate next steps:
 
-1. Confirm fresh ESP32 build + host-tests for `a18158da...` / `94ec3d67...` or a descendant.
-2. After GREEN, continue targeted Hall receive-semantic review, with legacy `CAL_RESULT` fallback as the next audit target.
+1. Confirm fresh ESP32 build + host-tests for `f44e9a89...` / `09de40da...` or a descendant.
+2. After GREEN, continue targeted Hall request/reply semantic review; do not reopen broad cleanup.
 3. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
 4. Do not perform the final hardware acceptance until software optimization is finished.
 

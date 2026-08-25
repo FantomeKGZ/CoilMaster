@@ -3,8 +3,7 @@
 #include "CM_WarehousePersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
 #include "CM_WindingSessionPersistenceIntegrityAudit.h"
-#include "CM_WindingJournalQuery.h"
-#include "CM_WindingJournalTransitionAudit.h"
+#include "CM_WindingPersistenceIntegrityAudit.h"
 
 namespace CM
 {
@@ -34,11 +33,6 @@ bool WorkshopPersistenceIntegrityAudit::check(fs::FS& storage)
         return false;
     }
 
-    WindingJournalQuery query(storage);
-    if (!query.begin() || query.validateAll() != WindingJournalQueryResult::Ok)
-        return false;
-
-    return WindingJournalTransitionAudit::validate(storage) ==
-           WindingJournalTransitionAuditResult::Ok;
+    return WindingPersistenceIntegrityAudit::check(storage);
 }
 }

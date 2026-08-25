@@ -246,7 +246,8 @@ bool MaterialRequestMovementStore::validMovement(
 
 bool MaterialRequestMovementStore::validUnit(const String& unit)
 {
-    return unit == "KG" || unit == "L" || unit == "PCS" || unit == "M";
+    return unit == "KG" || unit == "L" || unit == "PCS" || unit == "M" ||
+           unit == "M2";
 }
 
 bool MaterialRequestMovementStore::validCurrency(const String& currency)

@@ -43,6 +43,7 @@ A3  Runtime/read API                          checkpoint 99
 A4  Repair intake pending transaction         checkpoint 100
 A5  Transactional POST /api/repairs           checkpoint 102
 A6  Material Request identity/movement schema checkpoint 103
+A7  CRM backup/export + integrity             checkpoint 104
 ```
 
 Transactional repair evidence:
@@ -59,7 +60,16 @@ ESP32 Build / run 32851843400 / SUCCESS
 CMP #3189 / run 32852061125 / SUCCESS
 ```
 
-Material Request stores now exist as persistence foundation:
+CRM backup/integrity evidence:
+
+```text
+CMP run 32855540935 / SUCCESS
+ESP32 Build run 32855541246 / SUCCESS
+```
+
+Backup/export now includes winding versions, AS_RECEIVED, material requests and request movements. Repair-intake pending/temp are recovery markers that block a stable backup. `CM_CrmPersistenceIntegrityAudit` validates the new journals and cross references fail-closed.
+
+Material Request stores:
 
 ```text
 /data/workshop/material-requests.ndjson
@@ -76,21 +86,16 @@ KG | L | PCS | M
 
 `RUN_WIRE` requires exact `source_session_id + source_run_id`, CU/AL and KG. This does not yet replace the existing exact-spool production flow.
 
-## Current NEXT — mandatory before runtime Material Request mutations
+## Current NEXT
 
-1. Add new CRM files to backup/export whitelist:
-   - motor winding versions;
-   - AS_RECEIVED snapshots;
-   - material requests;
-   - material request movements.
-2. Treat `/data/workshop/repair-intake.pending.json` and `.tmp` as recovery markers that block a stable backup snapshot.
-3. Add fail-closed CRM persistence integrity audit and cross-reference validation.
-4. Verify ESP32 Build + CMP and record a numbered checkpoint.
-5. Implement generic warehouse item catalog with bounded units/accounting cost.
-6. Implement Material Request status transitions `DRAFT -> ISSUED -> PRICED -> CLOSED`.
-7. Expose explicit operator APIs for ISSUE/RETURN/CORRECTION; no automatic RUN_COMPLETED writeoff.
-8. Add delivery event/store/API.
-9. Add payment/correction store/API.
+1. Reuse the existing generic `MaterialLedger` as the warehouse item catalog instead of creating a duplicate catalog.
+2. First correct and regression-protect the current `MaterialLedger::addMaterial()` unit JSON serialization defect.
+3. Define a canonical mapping between existing material units (`PIECE/GRAM/MILLILITRE/METRE/SQUARE_METRE`) and Material Request movement units/cost quantities.
+4. Expose warehouse-item lookup/state needed by Material Request while preserving existing material ledger compatibility.
+5. Implement Material Request status transitions `DRAFT -> ISSUED -> PRICED -> CLOSED`.
+6. Expose explicit operator APIs for ISSUE/RETURN/CORRECTION; no automatic RUN_COMPLETED writeoff.
+7. Add delivery event/store/API.
+8. Add payment/correction store/API.
 
 ## Then Web phases
 

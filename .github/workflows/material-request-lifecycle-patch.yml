@@ -1,69 +1,13 @@
-# retry after lifecycle backup regression path fix
-name: One-shot Material Request lifecycle integration patch
+name: Archived Material Request lifecycle patch
 
 on:
-  push:
-    branches:
-      - cmp-protocol-v1
-    paths:
-      - ".github/workflows/material-request-lifecycle-patch.yml"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-          fetch-depth: 0
-      - name: Guard and patch lifecycle backup integrity
-        shell: bash
-        run: |
-          set -euo pipefail
-          AUDIT=firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp
-          BACKUP=firmware/esp32/src/CM_BackupExportWeb.cpp
-          test "$(git hash-object "$AUDIT")" = "68febe94f59a0c07e31e320878077c69333858a0"
-          test "$(git hash-object "$BACKUP")" = "72f3252149f24816de70942f37b8f1566e7dcf87"
-          python3 - <<'PY'
-          from pathlib import Path
-
-          audit = Path('firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp')
-          s = audit.read_text()
-          s = s.replace(
-              'constexpr const char* MaterialRequestMovementsPath =\n    "/data/workshop/material-request-movements.ndjson";\n',
-              'constexpr const char* MaterialRequestMovementsPath =\n    "/data/workshop/material-request-movements.ndjson";\nconstexpr const char* MaterialRequestStatusPath =\n    "/data/workshop/material-request-status.ndjson";\n', 1)
-          s = s.replace(
-              '(unit != "KG" && unit != "L" && unit != "PCS" && unit != "M") ||',
-              '(unit != "KG" && unit != "L" && unit != "PCS" && unit != "M" && unit != "M2") ||', 1)
-          anchor = '''    const bool ok = flush();\n    file.close();\n    return ok;\n}\n}\n\nbool CrmPersistenceIntegrityAudit::check(fs::FS& storage)\n'''
-          insert = '''    const bool ok = flush();\n    file.close();\n    return ok;\n}\n\nbool validateRequestStatuses(fs::FS& storage)\n{\n    if (!storage.exists(MaterialRequestStatusPath)) return true;\n    File file = storage.open(MaterialRequestStatusPath, FILE_READ);\n    if (!prepareNdjson(file))\n    {\n        if (file) file.close();\n        return false;\n    }\n    uint32_t previousTransitionId = 0UL;\n    Reference requestRefs[ReferenceBatchSize];\n    uint8_t batchCount = 0U;\n    auto flush = [&]() -> bool\n    {\n        const bool ok = resolveReferences(storage, MaterialRequestsPath,\n                                          "material_request_id",\n                                          requestRefs, batchCount);\n        batchCount = 0U;\n        return ok;\n    };\n    while (file.available())\n    {\n        const String line = file.readStringUntil('\\n');\n        if (line.length() == 0U) continue;\n        uint32_t transitionId = 0UL, requestId = 0UL;\n        String fromStatus, toStatus, changedAt;\n        if (!FlatJsonObjectValidator::valid(line) ||\n            !findUnsigned(line, "transition_id", transitionId) || transitionId == 0UL ||\n            transitionId <= previousTransitionId ||\n            !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||\n            !findString(line, "from_status", fromStatus) ||\n            !findString(line, "to_status", toStatus) ||\n            !findString(line, "changed_at", changedAt) || changedAt.length() < 10U ||\n            changedAt.length() > 32U)\n        {\n            file.close();\n            return false;\n        }\n        const bool legal =\n            (fromStatus == "DRAFT" && toStatus == "ISSUED") ||\n            (fromStatus == "ISSUED" && toStatus == "PRICED") ||\n            (fromStatus == "PRICED" && toStatus == "CLOSED");\n        if (!legal)\n        {\n            file.close();\n            return false;\n        }\n        previousTransitionId = transitionId;\n        resetReference(requestRefs[batchCount++], requestId);\n        if (batchCount == ReferenceBatchSize && !flush())\n        {\n            file.close();\n            return false;\n        }\n    }\n    const bool ok = flush();\n    file.close();\n    return ok;\n}\n}\n\nbool CrmPersistenceIntegrityAudit::check(fs::FS& storage)\n'''
-          if anchor not in s:
-              raise SystemExit('audit insertion anchor missing')
-          s = s.replace(anchor, insert, 1)
-          old = '''           validateRequests(storage, metrics.materialRequestRecordCount) &&\n           validateMovements(storage, metrics.materialRequestMovementRecordCount);'''
-          new = '''           validateRequests(storage, metrics.materialRequestRecordCount) &&\n           validateMovements(storage, metrics.materialRequestMovementRecordCount) &&\n           validateRequestStatuses(storage);'''
-          if old not in s:
-              raise SystemExit('audit check anchor missing')
-          s = s.replace(old, new, 1)
-          audit.write_text(s)
-
-          backup = Path('firmware/esp32/src/CM_BackupExportWeb.cpp')
-          b = backup.read_text()
-          old = '    {"material-request-movements", "/data/workshop/material-request-movements.ndjson", "application/x-ndjson", "material-request-movements.ndjson"},\n'
-          new = old + '    {"material-request-status", "/data/workshop/material-request-status.ndjson", "application/x-ndjson", "material-request-status.ndjson"},\n'
-          if old not in b:
-              raise SystemExit('backup export anchor missing')
-          b = b.replace(old, new, 1)
-          backup.write_text(b)
-          PY
-          git diff --check
-          node Tests/Web/check_material_request_status_store.js
-          node Tests/Web/check_material_request_status_backup.js
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp firmware/esp32/src/CM_BackupExportWeb.cpp
-          git commit -m 'feat(materials): include request lifecycle in backup integrity'
-          git push origin HEAD:cmp-protocol-v1
+      - run: echo "Archived one-shot workflow; no writes are performed."

@@ -10,41 +10,25 @@
 Единственный источник реализации — `cmp-protocol-v1`. `main` для исходников не использовать.
 Перед изменением existing file получать current content + blob SHA. Для нового path сначала проверять отсутствие файла. Не объявлять CI/build/hardware GREEN без фактической проверки.
 
-## Completion estimate
+## Current project state
+
+Stage-1 repo-only performance optimization закрыт. Финальная двухплатная hardware acceptance была начата на реальном ESP32 + Arduino Uno, выявила operator-B exit defect и привела к исправлению operator abort behavior. Полный hardware gate ещё не завершён.
+
+После этого пользователь утвердил новый крупный product/Web этап: **Workshop Web/CRM redesign**.
+
+Authoritative design:
 
 ```text
-Overall project readiness                         ~95%
-Software/repo implementation + integrity          ~98-99%
-Reference Web/site layer                          ~98%
-Final two-board hardware acceptance               pending
+docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 ```
 
-Проект находится в стадии финальной оптимизации и интеграционной приёмки, а не основной разработки.
-
-## Current verified GREEN baseline
-
-Latest verified Stage-1 block: `89_REPAIR_PRICING_REFERENCE_BATCHING_2026-08-25.md`.
+Active queue:
 
 ```text
-29ecbb799a14da455aa5d732764613465b21788a  perf(esp32): batch repair pricing references
-e027e86fe66a9ea2473d53ed01dd69ace279e5a7  test(esp32): protect repair pricing reference batching
-91ea3ee824b4589e88ec2c2cd7c063ad3e3c7ffe  ci(esp32): audit repair pricing reference batching
-921999a8f2a11405c8a312a4f6064c2a29834e93  docs(handoff): record repair pricing reference batching
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-Verified Actions:
-
-```text
-ESP32 Build #1441 / run 32818211915 / head 29ecbb79... / SUCCESS
-CMP #3093 / run 32818211986 / head 29ecbb79... / SUCCESS
-CMP #3094 / run 32818234743 / head e027e86f... / SUCCESS
-CMP #3095 / run 32818272548 / head 91ea3ee8... / SUCCESS
-CMP #3096 / run 32818305639 / head 921999a8... / SUCCESS
-```
-
-Final CMP includes GREEN material/repair-pricing batching, scoped backup, final acceptance, KG_FIRST, winding/finalization/workshop single-pass, write-off fault, NDJSON growth diagnostics and Hall contract audits.
-
-## Production architecture
+## Production architecture unchanged at hardware boundary
 
 ```text
 ESP32:
@@ -62,9 +46,77 @@ Arduino Uno:
   realtime winding state machine, RUN_STARTED/RUN_COMPLETED
 ```
 
-Production protocol is text `CMP1|...`. `Shared/Protocol/` is older host/test protocol code, not production wire protocol.
+Production protocol remains text `CMP1|...`.
 
-## Safety boundary
+## Approved new Workshop/CRM direction
+
+Target domain flow:
+
+```text
+CLIENT
+  -> physical MOTOR
+  -> REPAIR
+  -> immutable AS_RECEIVED winding snapshot
+  -> WORKING / STARTING winding jobs
+  -> resulting winding version
+  -> COSTING
+  -> PAYMENTS / BALANCE
+  -> repair completion
+  -> DELIVERED_TO_CLIENT
+```
+
+Key decisions:
+
+- `motors.html` becomes catalog only and adopts Arduino archive style/layout;
+- motor creation moves to `/desktop/motor-new.html`;
+- `motor-details.html` becomes the main motor work card;
+- one physical motor keeps one `motor_id` while winding changes become version history;
+- each winding version supports WORKING and STARTING roles;
+- 3-phase motors normally show only WORKING;
+- conductor model must support combinations such as `0.95 + 1.00` and `0.80 x 3`;
+- direct send of WORKING/STARTING from motor card is required, but physical START remains local-only;
+- `clients.html` becomes catalog only;
+- client creation moves to `/desktop/client-new.html`;
+- add `/desktop/client-details.html` with motors, repairs, payments, balance and delivery dates;
+- remove duplicated inline client/motor creation forms from repair page and replace with links;
+- closing a repair and physically delivering the motor are separate events;
+- cash/payment subsystem becomes separate from costing;
+- add append-only payments/corrections and `/desktop/cash.html`;
+- payment does not hard-block delivery; debt creates warning + explicit operator confirmation.
+
+## Motor/winding history rule
+
+One physical motor must not be duplicated merely because it was rewound from Al to Cu.
+
+Target model:
+
+```text
+motor_id
+  winding version 1: AS_RECEIVED / ORIGINAL
+  winding version 2: REWOUND / CURRENT
+  winding version N: later repair
+```
+
+Existing legacy motor records with `coil_program + repeat_target` remain readable during migration and can be synthesized as a legacy WORKING version until upgraded.
+
+## Wire accounting migration decision
+
+User approved simplifying the main workflow away from mandatory exact spool selection.
+
+Target future manual consumption contract:
+
+```text
+source_session_id + source_run_id
+material class CU/AL
+actual consumed weight
+manual confirmation
+```
+
+However **this migration is NOT implemented yet**. Current production backend/finalization still uses exact `spool_id`, so existing spool safety checks must remain until the whole chain is migrated coherently.
+
+Do not partially remove spool UI/backend requirements before job creation, writeoff, costing, finalization, backup/integrity, reports and regression contracts are all updated together.
+
+## Safety boundary — unchanged
 
 Never weaken:
 
@@ -76,85 +128,46 @@ Never weaken:
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never auto-writes off material;
-- manual linked-production writeoff requires exact `source_session_id + source_run_id + immutable spool_id`;
-- cancellation never erases immutable run/history evidence;
+- cancellation/operator abort never erases immutable run/history evidence;
 - restore operator-only, transactional, fail-closed;
 - no automatic production-data deletion/NDJSON truncation.
 
-## Production flow
+Until wire-accounting migration is complete, linked-production writeoff still follows current exact-spool implementation.
+
+## Hardware acceptance status
+
+Not complete.
+
+Observed during current real-device pass:
+
+- ESP32 production firmware built, flashed and booted normally;
+- Uno production firmware built, flashed and reached normal UI;
+- reboot did not automatically resume recovered job state;
+- keypad/UI operation exposed the B-exit defect during winding;
+- B-exit/operator-abort software correction passed Uno/ESP32/CMP build verification.
+
+A complete E2E hardware pass remains required after contract-changing Web/CRM/wire changes are stabilized.
+
+## NDJSON/storage rule
+
+- no premature DB migration;
+- no destructive migration of historical motor/client/repair records;
+- prefer append-only sidecar/version/event stores for new history;
+- no automatic cleanup/rotation;
+- every new production store must enter backup whitelist + integrity validation before becoming release-critical.
+
+## Documentation rule for the new phase
+
+Documentation is updated with each meaningful implementation block, not at the end.
+
+Required living files:
 
 ```text
-client -> motor -> OPEN repair -> costing -> linked winding
--> immutable snapshot + exact immutable spool selection
--> UART JOB -> physical START
--> RUN_STARTED / RUN_COMPLETED
--> explicit manual exact-run exact-spool writeoff
--> costing/finalization -> CLOSED -> reports -> backup
-```
-
-## Hall ownership
-
-Uno keeps realtime Hall threshold/hysteresis/debounce/direction, physical START and local safety gates.
-ESP32 owns raw sample aggregation, baseline/min/max/span/count/duration, recommendation, Web/status/history and proposal orchestration.
-
-Calibration:
-
-```text
-CAL_ARM -> local # -> ARMED_WAITING_START -> baseline
--> physical START -> RUNNING -> CAL_SAMPLE/CAL_DONE
--> ESP32 analysis -> CAL_PROPOSAL exact measurement_id
--> local # -> EEPROM apply
-```
-
-ESP32 intentionally keeps legacy `CAL_RESULT` receive fallback. Uno no longer emits it.
-Lost CAL_APPLIED does not cause proposal replay; CFG_GET can reconcile settings but does not prove exact apply event.
-
-## Uno resource baseline
-
-```text
-RAM   1205 / 2048 = 58.8%   free 843 B
-Flash 31460 / 32256 = 97.5%  free 796 B
-```
-
-Flash is limiting. CI guard requires >=512 B free RAM and >=512 B free flash.
-
-## Storage/performance state
-
-Stage-1 blocks 80-89 are implemented and GREEN, including:
-
-- writeoff movement single-pass;
-- winding completion/finalization/workshop single-pass;
-- material/warehouse backup scoped audits;
-- finalization costing/movement single-pass;
-- material reference batching batch=32;
-- repair pricing reference batching batch=32.
-
-NDJSON strategy: no premature DB migration, no automatic cleanup/rotation, thresholds only from measured real-device data.
-
-Current KEEP decisions:
-
-- repair-status bounded self-scan;
-- autonomous assignment event batching;
-- warehouse movement provenance uniqueness batching;
-- legacy ESP32 CAL_RESULT receive fallback.
-
-## Reference Web/site
-
-Legacy winding-reference integration, fidelity/integrity tooling and SD bundle are effectively software-complete. Physical microSD/ESP32 reference smoke was previously reported without errors. The separate ESP32<->Arduino two-board gate is still pending.
-
-## Current active direction
-
-Continue only narrow Stage-1 repo-only performance review:
-
-1. proven per-record full-file reference scans;
-2. proven duplicate authoritative scans with equivalent semantics;
-3. measurable avoidable allocation/I/O without weakening fail-closed integrity;
-4. otherwise mark KEEP and move on.
-
-After justified repo-only candidates are exhausted, perform one full two-board hardware acceptance.
-
-Authoritative next-chat transfer:
-
-```text
+docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/00_READ_FIRST.md
 ```
+
+For major new persistence/API subsystems, add new numbered checkpoints with exact commits and CI evidence.

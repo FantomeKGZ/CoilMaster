@@ -2,6 +2,26 @@
 
 namespace CM
 {
+bool WindingJournalQuery::isValidRecord(const String& line)
+{
+    if (line.length() == 0U) return false;
+
+    uint32_t schemaVersion = 0UL;
+    if (!findUnsigned(line, "schema_version", schemaVersion) ||
+        (schemaVersion != 1UL && schemaVersion != 2UL))
+    {
+        return false;
+    }
+
+    if (schemaVersion == 1UL)
+        return isValidLegacySchema1Record(line);
+
+    uint32_t sessionId = 0UL;
+    uint32_t repairId = 0UL;
+    bool linked = false;
+    return isValidSchema2Record(line, sessionId, linked, repairId);
+}
+
 WindingJournalQueryResult WindingJournalQuery::validateAll() const
 {
     uint32_t ignoredRecordCount = 0UL;
@@ -24,35 +44,7 @@ WindingJournalQueryResult WindingJournalQuery::validateAll(uint32_t& recordCount
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
-        if (line.length() == 0U || recordCount == 0xFFFFFFFFUL)
-        {
-            file.close();
-            return WindingJournalQueryResult::ReadFailed;
-        }
-
-        uint32_t schemaVersion = 0UL;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            (schemaVersion != 1UL && schemaVersion != 2UL))
-        {
-            file.close();
-            return WindingJournalQueryResult::ReadFailed;
-        }
-
-        if (schemaVersion == 1UL)
-        {
-            if (!isValidLegacySchema1Record(line))
-            {
-                file.close();
-                return WindingJournalQueryResult::ReadFailed;
-            }
-            ++recordCount;
-            continue;
-        }
-
-        uint32_t sessionId = 0UL;
-        uint32_t repairId = 0UL;
-        bool linked = false;
-        if (!isValidSchema2Record(line, sessionId, linked, repairId))
+        if (recordCount == 0xFFFFFFFFUL || !isValidRecord(line))
         {
             file.close();
             return WindingJournalQueryResult::ReadFailed;

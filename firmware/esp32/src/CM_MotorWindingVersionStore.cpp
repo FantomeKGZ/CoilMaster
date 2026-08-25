@@ -144,6 +144,101 @@ bool MotorWindingVersionStore::append(const NewMotorWindingVersion& version,
     return true;
 }
 
+bool MotorWindingVersionStore::appendLatestByMotorJson(String& json,
+                                                       uint32_t motorId,
+                                                       bool& found) const
+{
+    found = false;
+    if (!ready() || motorId == 0UL) return false;
+    if (!m_storage.exists(Path)) return true;
+
+    File file = m_storage.open(Path, FILE_READ);
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    String latest;
+    uint32_t previousVersionId = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t versionId = 0UL;
+        uint32_t currentMotorId = 0UL;
+        if (!findUnsigned(line, "winding_version_id", versionId) || versionId == 0UL ||
+            versionId <= previousVersionId ||
+            !findUnsigned(line, "motor_id", currentMotorId) || currentMotorId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        previousVersionId = versionId;
+        if (currentMotorId == motorId)
+        {
+            latest = line;
+            found = true;
+        }
+    }
+    file.close();
+    if (found) json += latest;
+    return true;
+}
+
+bool MotorWindingVersionStore::appendMotorPageJson(String& json,
+                                                   uint32_t motorId,
+                                                   uint32_t cursor,
+                                                   uint8_t limit,
+                                                   uint16_t& count,
+                                                   uint32_t& nextCursor,
+                                                   bool& hasMore) const
+{
+    count = 0U;
+    nextCursor = 0UL;
+    hasMore = false;
+    if (!ready() || motorId == 0UL || limit == 0U || limit > MaxPageSize)
+        return false;
+    if (!m_storage.exists(Path)) return true;
+
+    File file = m_storage.open(Path, FILE_READ);
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint32_t previousVersionId = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t versionId = 0UL;
+        uint32_t currentMotorId = 0UL;
+        if (!findUnsigned(line, "winding_version_id", versionId) || versionId == 0UL ||
+            versionId <= previousVersionId ||
+            !findUnsigned(line, "motor_id", currentMotorId) || currentMotorId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        previousVersionId = versionId;
+        if (versionId <= cursor || currentMotorId != motorId) continue;
+        if (count >= limit)
+        {
+            hasMore = true;
+            break;
+        }
+        if (count > 0U) json += ',';
+        json += line;
+        ++count;
+        nextCursor = versionId;
+    }
+    file.close();
+    if (!hasMore) nextCursor = 0UL;
+    return true;
+}
+
 bool MotorWindingVersionStore::canonicalConductors(const MotorWindingRoleSpec& role,
                                                     String& canonical)
 {

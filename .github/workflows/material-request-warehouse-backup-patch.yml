@@ -1,0 +1,35 @@
+name: One-shot material request warehouse backup guard patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/material-request-warehouse-backup-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch backup recovery markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=firmware/esp32/src/CM_BackupExportWeb.cpp
+          EXPECTED=7184f644dcf877c1e6d87acda8ea8a84b9bd04a0
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 -c "from pathlib import Path; p=Path('$FILE'); s=p.read_text(); old='    {\"/data/workshop/repair-intake.pending.json\", \"repair_intake_pending\"},\\n    {\"/data/workshop/repair-intake.pending.tmp\", \"repair_intake_temp_present\"}\\n'; new='    {\"/data/workshop/repair-intake.pending.json\", \"repair_intake_pending\"},\\n    {\"/data/workshop/repair-intake.pending.tmp\", \"repair_intake_temp_present\"},\\n    {\"/data/workshop/material-request-warehouse.pending.json\", \"material_request_warehouse_pending\"},\\n    {\"/data/workshop/material-request-warehouse.pending.tmp\", \"material_request_warehouse_temp_present\"}\\n'; assert old in s, 'anchor missing'; p.write_text(s.replace(old,new,1))"
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firmware/esp32/src/CM_BackupExportWeb.cpp
+          git commit -m 'feat(backup): block snapshots during material request warehouse transaction'
+          git push origin HEAD:cmp-protocol-v1

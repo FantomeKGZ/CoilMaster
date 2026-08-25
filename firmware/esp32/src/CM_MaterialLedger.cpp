@@ -48,7 +48,7 @@ bool MaterialLedger::addMaterial(const NewMaterial& material,
     line = F("{\"material_id\":"); line += assignedMaterialId;
     line += F(",\"name\":\""); line += jsonEscape(material.name);
     line += F("\",\"unit\":\""); line += unitText(material.unit);
-    line += F(",\"stock_quantity_milli\":"); line += material.stockQuantityMilli;
+    line += F("\",\"stock_quantity_milli\":"); line += material.stockQuantityMilli;
     line += F(",\"price_per_unit_minor\":"); line += material.pricePerUnitMinor;
     line += F(",\"currency\":\""); line += jsonEscape(material.currency);
     line += F("\",\"status\":\"ACTIVE\"");

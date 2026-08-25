@@ -21,6 +21,10 @@ public:
     bool begin();
     bool isReady() const;
 
+    // Validate one complete journal line against the authoritative schema-1/2
+    // contract. Transition/integrity scans reuse this to avoid a second file pass.
+    static bool isValidRecord(const String& line);
+
     // Read-only full-file schema validation. No filter/pagination short-circuit.
     WindingJournalQueryResult validateAll() const;
     WindingJournalQueryResult validateAll(uint32_t& recordCount) const;

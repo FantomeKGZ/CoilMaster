@@ -69,13 +69,18 @@ bool MaterialRequestMovementStore::append(const NewMaterialRequestMovement& move
     }
 
     String line;
-    line.reserve(900U);
+    line.reserve(940U);
     line = F("{\"movement_id\":"); line += movementId;
     line += F(",\"material_request_id\":"); line += movement.materialRequestId;
     line += F(",\"repair_id\":"); line += movement.repairId;
     line += F(",\"warehouse_item_id\":"); line += movement.warehouseItemId;
     line += F(",\"movement_kind\":\""); line += movement.movementKind;
     line += F("\",\"source_kind\":\""); line += movement.sourceKind;
+    if (movement.movementKind == "CORRECTION")
+    {
+        line += F("\",\"correction_direction\":\"");
+        line += movement.correctionDirection;
+    }
     line += F("\",\"quantity_milli_units\":"); line += movement.quantityMilliUnits;
     line += F(",\"unit\":\""); line += movement.unit;
     line += F("\",\"unit_cost_minor\":"); appendUint64(line, movement.unitCostMinor);
@@ -226,12 +231,26 @@ bool MaterialRequestMovementStore::validMovement(
     {
         return false;
     }
+    if (movement.movementKind == "CORRECTION")
+    {
+        if (movement.correctionDirection != "ADD" &&
+            movement.correctionDirection != "REMOVE")
+        {
+            return false;
+        }
+    }
+    else if (movement.correctionDirection.length() != 0U)
+    {
+        return false;
+    }
+
     if (movement.unit == "PCS" && (movement.quantityMilliUnits % 1000UL) != 0UL)
         return false;
 
     if (movement.sourceKind == "RUN_WIRE")
     {
-        return movement.sourceSessionId > 0UL && movement.sourceRunId > 0UL &&
+        return movement.movementKind == "ISSUE" &&
+               movement.sourceSessionId > 0UL && movement.sourceRunId > 0UL &&
                (movement.materialClass == "CU" || movement.materialClass == "AL") &&
                movement.wireDiameterHundredthsMm > 0U &&
                movement.wireDiameterHundredthsMm <= 500U &&

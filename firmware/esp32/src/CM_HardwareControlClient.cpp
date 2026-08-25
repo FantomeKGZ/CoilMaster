@@ -61,7 +61,7 @@ HardwareControlClient::HardwareControlClient(HardwareSerial& serial)
 void HardwareControlClient::update(uint32_t nowMs)
 {
     if (m_requestType == RequestType::StageCalibrationProposal &&
-        m_calibrationState.valid &&
+        m_waitingReply && m_calibrationState.valid &&
         m_calibrationState.state == HallCalibrationRemoteState::WaitingApplyConfirm)
     {
         if (static_cast<uint32_t>(nowMs - m_lastCalibrationKeepAliveMs) >=
@@ -533,7 +533,7 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
 {
     const bool proposalWasWaitingApply =
         m_requestType == RequestType::StageCalibrationProposal &&
-        m_calibrationState.valid &&
+        m_waitingReply && m_calibrationState.valid &&
         m_calibrationState.state == HallCalibrationRemoteState::WaitingApplyConfirm;
 
     if (!validateAndStripCrc(line)) return true;
@@ -588,13 +588,6 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
     if (parsed.motorPermit && parsed.state != HallCalibrationRemoteState::Running)
         return true;
 
-    if (m_requestType == RequestType::StageCalibrationProposal &&
-        !m_waitingReply &&
-        parsed.state == HallCalibrationRemoteState::WaitingApplyConfirm)
-    {
-        return true;
-    }
-
     parsed.valid = true;
     parsed.receivedAtMs = nowMs;
     m_calibrationState = parsed;
@@ -620,15 +613,13 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
         }
     }
 
-    if (!m_waitingReply) return true;
-
-    if (m_requestType == RequestType::ArmCalibration)
+    if (m_requestType == RequestType::ArmCalibration && m_waitingReply)
     {
         finishRequest(parsed.state == HallCalibrationRemoteState::WaitingLocalConfirm
                           ? HardwareControlReplyResult::Applied
                           : HardwareControlReplyResult::Busy);
     }
-    else if (m_requestType == RequestType::AbortCalibration)
+    else if (m_requestType == RequestType::AbortCalibration && m_waitingReply)
     {
         const bool stopped = parsed.state == HallCalibrationRemoteState::Aborted ||
                              parsed.state == HallCalibrationRemoteState::Idle ||
@@ -636,7 +627,7 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
         finishRequest(stopped ? HardwareControlReplyResult::Applied
                               : HardwareControlReplyResult::Busy);
     }
-    else if (m_requestType == RequestType::GetCalibration)
+    else if (m_requestType == RequestType::GetCalibration && m_waitingReply)
     {
         finishRequest(HardwareControlReplyResult::Applied);
     }
@@ -753,7 +744,7 @@ bool HardwareControlClient::processCalibrationApplied(char* line, uint32_t nowMs
     }
 
     if (m_requestType != RequestType::StageCalibrationProposal ||
-        measurementId != m_pendingCalibrationMeasurementId)
+        !m_waitingReply || measurementId != m_pendingCalibrationMeasurementId)
     {
         return true;
     }

@@ -69,6 +69,10 @@ public:
     bool ready() const;
     bool append(const NewMotorWindingVersion& version, uint32_t& versionId);
     bool appendLatestByMotorJson(String& json, uint32_t motorId, bool& found) const;
+    bool appendByVersionIdJson(String& json,
+                               uint32_t versionId,
+                               uint32_t expectedMotorId,
+                               bool& found) const;
     bool appendMotorPageJson(String& json,
                              uint32_t motorId,
                              uint32_t cursor,

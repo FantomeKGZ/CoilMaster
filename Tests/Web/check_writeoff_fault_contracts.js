@@ -20,6 +20,8 @@ const storeHeaderPath = 'firmware/esp32/src/CM_WarehouseStore.h';
 const writeoffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const writeoffStorePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
 const writeoffLookupPath = 'firmware/esp32/src/CM_WarehouseWriteOffLookup.cpp';
+const movementAuditHeaderPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h';
+const movementAuditPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp';
 const controllerPath = 'firmware/esp32/web/shared/writeoff-spool-suggestion.js';
 
 const recovery = read(recoveryPath);
@@ -28,6 +30,8 @@ const storeHeader = read(storeHeaderPath);
 const writeoff = read(writeoffPath);
 const writeoffStore = read(writeoffStorePath);
 const writeoffLookup = read(writeoffLookupPath);
+const movementAuditHeader = read(movementAuditHeaderPath);
+const movementAudit = read(movementAuditPath);
 const controller = read(controllerPath);
 
 // Startup must resolve an interrupted stock-file swap before examining a pending
@@ -93,7 +97,7 @@ for (const source of [
 for (const text of [
   'confirmedWriteOffForSourceRun(uint32_t sourceSessionId',
   'sourceRunId == 0UL',
-  'currentSessionId == sourceSessionId && currentRunId == sourceRunId'
+  'WarehouseMovementIntegrityAudit::checkSourceRun('
 ]) {
   requireText(writeoffLookupPath, writeoffLookup, text,
     'exact-run duplicate lookup contract missing: ' + text);
@@ -101,6 +105,37 @@ for (const text of [
 requireText(storeHeaderPath, storeHeader,
   'confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;',
   'public duplicate lookup must require source_session_id + source_run_id');
+
+// The exact-run result must be resolved inside the authoritative movement audit.
+// Do not restore a second complete movements.ndjson scan after the audit.
+for (const text of [
+  'static bool checkSourceRun(fs::FS& storage,',
+  'uint32_t sourceSessionId,',
+  'uint32_t sourceRunId,',
+  'bool& confirmed);'
+]) {
+  requireText(movementAuditHeaderPath, movementAuditHeader, text,
+    'movement audit exact-run API missing: ' + text);
+}
+for (const text of [
+  'record.status == "CONFIRMED"',
+  'record.sourceSessionId == sourceSessionId',
+  'record.sourceRunId == sourceRunId',
+  '*sourceRunConfirmed = true;',
+  'if (!confirmedProvenanceUnique(storage, Path)) return false;'
+]) {
+  requireText(movementAuditPath, movementAudit, text,
+    'single-pass exact-run resolution/fail-closed audit missing: ' + text);
+}
+for (const forbidden of [
+  'm_storage.open(MovementsPath, FILE_READ)',
+  'readStringUntil',
+  'findUnsigned(line, "source_session_id"',
+  'findUnsigned(line, "source_run_id"'
+]) {
+  requireAbsent(writeoffLookupPath, writeoffLookup, forbidden,
+    'write-off lookup must not restore a post-audit full-file scan: ' + forbidden);
+}
 
 // Every JSON error emitted from the POST handler must explicitly state that no
 // write was performed. GET history errors are outside this contract.
@@ -164,4 +199,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: explicit write_performed:false failures, fail-closed storage/repair/run guards, exact-run-only duplicate protection, deterministic reboot recovery, and no automatic deduction.');
+console.log('Write-off fault contracts OK: explicit write_performed:false failures, fail-closed storage/repair/run guards, exact-run-only duplicate protection resolved inside the movement audit, deterministic reboot recovery, and no automatic deduction.');

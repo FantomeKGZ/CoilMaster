@@ -32,7 +32,9 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> COMPLETED -> DELIVERED
 ```
 
-## Phase A progress — GREEN
+## Phase A progress
+
+GREEN:
 
 ```text
 97  Motor winding versions
@@ -45,55 +47,44 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request append-only lifecycle + backup/integrity
+108 Warehouse pending transaction persistence foundation
 ```
 
-Latest lifecycle evidence:
+Checkpoint 108 foundation evidence:
 
 ```text
-final head a960999b040afbdd7c48bbde08763e042408a2e8
-CMP run 32860049965 / SUCCESS
-ESP32 Build run 32860049946 / SUCCESS
+ESP32 Build run 32861148982 / SUCCESS
+CMP run 32861149158 / SUCCESS
+CMP permanent regression run 32861266055 / SUCCESS
 ```
 
-Lifecycle:
+Pending transaction paths:
 
 ```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
+/data/workshop/material-request-warehouse.pending.json
+/data/workshop/material-request-warehouse.pending.tmp
 ```
 
-Status history:
-
-```text
-/data/workshop/material-request-status.ndjson
-```
-
-Backup/export includes status history. CRM deep audit validates legal transitions, monotonic transition IDs, request references and now accepts request movement unit `M2` consistently with the production movement store.
+The pending store is GREEN, but full transaction coordinator is NOT complete yet. Stable-backup recovery guard for these two paths is still pending after an invalid one-shot workflow was deleted without modifying production backup code.
 
 ## Current NEXT
 
-1. Build a crash-safe warehouse transaction coordinator for explicit operator:
-
-```text
-ISSUE
-RETURN
-CORRECTION
-```
-
-2. Couple physical `MaterialLedger` mutation and durable Material Request movement evidence without a two-append crash window.
-3. Add durable pending/recovery marker for unfinished warehouse-request transactions.
-4. Enforce request lifecycle gates around warehouse operations; no implicit status rewrite.
-5. `RUN_COMPLETED` remains non-mutating.
-6. After transaction foundation is GREEN, expose bounded runtime/Web API for request create/read/status/movements and explicit warehouse operations.
-7. Then delivery event/store/API.
-8. Then payment/correction store/API.
-9. Motor Web / Client Web redesign.
-10. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
+1. Safely add warehouse pending/temp paths to stable-backup recovery markers.
+2. Implement crash-safe `MaterialRequestWarehouseCoordinator`.
+3. Use movement-first + ledger-second ordering with durable `transaction_ref` evidence.
+4. Recovery must distinguish: neither side committed, movement only, ledger only (fail-closed), both committed.
+5. Support explicit operator `ISSUE`, `RETURN`, `CORRECTION` (`ADD|REMOVE`).
+6. Enforce lifecycle gates without implicit status rewrites.
+7. `RUN_COMPLETED` remains non-mutating.
+8. After coordinator GREEN, expose bounded runtime/Web APIs for request create/read/status/movements and warehouse actions.
+9. Then delivery event/store/API.
+10. Then payment/correction store/API.
+11. Motor Web / Client Web redesign.
+12. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
 
 ## Warehouse/catalog contract
 
-Existing `MaterialLedger` remains the authoritative generic catalog.
-
-Canonical mapping:
+Existing `MaterialLedger` remains authoritative generic catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -103,27 +94,11 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-Material Request movement units:
-
-```text
-KG | L | PCS | M | M2
-```
-
 `RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
 ## Wire migration rule
 
-Current exact `spool_id` contract remains authoritative until coordinated migration across:
-
-```text
-job/writeoff
-material-request movement
-costing/finalization
-backup/integrity/reports
-Web/tests
-```
-
-Future run-linked wire issue remains manual and keeps exact session/run provenance.
+Current exact `spool_id` contract remains authoritative until coordinated migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
 
 ## Safety invariants
 

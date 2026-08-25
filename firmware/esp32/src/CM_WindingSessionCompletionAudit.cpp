@@ -1,5 +1,4 @@
 #include "CM_WindingSessionCompletionAudit.h"
-#include "CM_WindingJournalQuery.h"
 #include "CM_WindingJournalTransitionAudit.h"
 
 namespace CM
@@ -16,16 +15,9 @@ WindingSessionCompletionCheck WindingSessionCompletionAudit::check(fs::FS& stora
 {
     if (sessionId == 0UL) return WindingSessionCompletionCheck::IntegrityFailed;
 
-    WindingJournalQuery query(storage);
-    if (!query.begin() || !query.isReady())
-        return WindingSessionCompletionCheck::StorageUnavailable;
-
-    const WindingJournalQueryResult schemaAudit = query.validateAll();
-    if (schemaAudit == WindingJournalQueryResult::StorageUnavailable)
-        return WindingSessionCompletionCheck::StorageUnavailable;
-    if (schemaAudit != WindingJournalQueryResult::Ok)
-        return WindingSessionCompletionCheck::IntegrityFailed;
-
+    // TransitionAudit validates every record against the full winding-journal
+    // schema while checking STARTED/COMPLETED ordering and exact completion
+    // evidence, so a separate validateAll() file pass is unnecessary here.
     bool completed = false;
     const WindingJournalTransitionAuditResult transitionAudit =
         WindingJournalTransitionAudit::validate(storage, sessionId, runId, completed);

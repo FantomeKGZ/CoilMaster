@@ -462,11 +462,26 @@ bool validateMovements(fs::FS& storage, uint32_t& count)
             file.close();
             return false;
         }
+        if (movementKind == "CORRECTION")
+        {
+            String correctionDirection;
+            if (!findString(line, "correction_direction", correctionDirection) ||
+                (correctionDirection != "ADD" && correctionDirection != "REMOVE"))
+            {
+                file.close();
+                return false;
+            }
+        }
+        else if (line.indexOf(F(""correction_direction":")) >= 0)
+        {
+            file.close();
+            return false;
+        }
         if (sourceKind == "RUN_WIRE")
         {
             uint32_t sessionId = 0UL, runId = 0UL, diameter = 0UL;
             String materialClass;
-            if (unit != "KG" ||
+            if (movementKind != "ISSUE" || unit != "KG" ||
                 !findUnsigned(line, "source_session_id", sessionId) || sessionId == 0UL ||
                 !findUnsigned(line, "source_run_id", runId) || runId == 0UL ||
                 !findString(line, "material_class", materialClass) ||

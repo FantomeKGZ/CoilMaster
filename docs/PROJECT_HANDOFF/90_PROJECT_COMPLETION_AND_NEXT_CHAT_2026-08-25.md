@@ -46,21 +46,21 @@ Authoritative design:
 105 MaterialLedger serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request lifecycle + backup/integrity
+108 Material Request warehouse pending persistence + stable-backup guard
 ```
 
-Latest evidence:
+Checkpoint 108 evidence:
 
 ```text
-final lifecycle head a960999b040afbdd7c48bbde08763e042408a2e8
-CMP run 32860049965 / SUCCESS
-ESP32 Build run 32860049946 / SUCCESS
+ESP32 Build run 32861148982 / SUCCESS
+CMP run 32861149158 / SUCCESS
+CMP permanent regression run 32861266055 / SUCCESS
+backup guarded patch run 32861669436 / SUCCESS
 ```
 
 ## Current material architecture
 
-Existing `MaterialLedger` is the authoritative generic warehouse item catalog.
-
-Canonical request mapping:
+Existing `MaterialLedger` is authoritative generic warehouse item catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -78,13 +78,20 @@ Material Request stores:
 /data/workshop/material-request-status.ndjson
 ```
 
+Warehouse transaction recovery markers:
+
+```text
+/data/workshop/material-request-warehouse.pending.json
+/data/workshop/material-request-warehouse.pending.tmp
+```
+
+Both block stable backup until resolved.
+
 Lifecycle:
 
 ```text
 DRAFT -> ISSUED -> PRICED -> CLOSED
 ```
-
-Status history is append-only and included in backup/deep CRM integrity. Missing-request lookup returns `true + found=false`; storage/validation error returns `false`.
 
 Movements:
 
@@ -94,21 +101,22 @@ MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-RUN_WIRE remains KG-only with exact source session/run provenance. No new runtime stock-mutation API exists yet; current exact-spool/writeoff flow remains authoritative.
+RUN_WIRE is ISSUE/KG-only in the pending contract with exact source session/run provenance. Current exact-spool/writeoff flow remains authoritative.
 
 ## Next mandatory block
 
-1. Crash-safe Material Request warehouse transaction coordinator.
-2. Explicit operator ISSUE/RETURN/CORRECTION only.
-3. Durable pending/recovery marker coupling physical `MaterialLedger` stock change and immutable request movement evidence.
-4. Lifecycle gates remain fail-closed; no implicit rewrite of request/status history.
-5. After transaction foundation GREEN, expose bounded runtime/Web request and warehouse APIs.
-6. Delivery store/API.
-7. Payment/correction store/API.
-8. Motor Web / Client Web.
-9. Coordinated spool -> material-request wire migration.
-10. Costing/cash integration.
-11. Full regression/backup/restore and final two-board hardware E2E.
+1. Implement `MaterialRequestWarehouseCoordinator`.
+2. Transaction ordering: immutable request movement evidence first, physical MaterialLedger mutation second.
+3. Durable `transaction_ref` must make reboot recovery idempotent.
+4. Recovery matrix: neither -> safe no-op/retry; movement-only -> finish stock mutation; ledger-only -> fail-closed; both -> clear pending.
+5. Explicit operator ISSUE/RETURN/CORRECTION only; lifecycle transition remains separate and explicit.
+6. After coordinator GREEN, expose bounded runtime/Web request + warehouse APIs.
+7. Delivery store/API.
+8. Payment/correction store/API.
+9. Motor Web / Client Web.
+10. Coordinated spool -> material-request wire migration.
+11. Costing/cash integration.
+12. Full regression/backup/restore and final two-board hardware E2E.
 
 ## Wire accounting target
 
@@ -150,6 +158,7 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/108_MATERIAL_REQUEST_WAREHOUSE_PENDING_TRANSACTION_2026-08-25.md
 docs/PROJECT_HANDOFF/107_MATERIAL_REQUEST_LIFECYCLE_2026-08-25.md
 docs/PROJECT_HANDOFF/106_MATERIAL_CATALOG_ADAPTER_AND_LOOKUP_2026-08-25.md
 docs/PROJECT_HANDOFF/105_MATERIAL_CATALOG_SERIALIZATION_FIX_2026-08-25.md
@@ -163,5 +172,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Прочитай AGENTS.md, 00, 95, 101, 107, 106, 105, 104, 103, 06, 01 и 90. Material Request lifecycle DRAFT->ISSUED->PRICED->CLOSED, backup/integrity и MaterialLedger adapter GREEN на head a960999b...; CMP 32860049965 SUCCESS, ESP32 32860049946 SUCCESS. Следующий блок: crash-safe explicit ISSUE/RETURN/CORRECTION coordinator coupling MaterialLedger stock mutation with immutable request movement evidence. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Прочитай AGENTS.md, 00, 95, 101, 108, 107, 106, 105, 104, 103, 06, 01 и 90. Material Request lifecycle и warehouse pending persistence/stable-backup guard GREEN. Checkpoint 108 evidence: ESP32 32861148982 SUCCESS, CMP 32861266055 SUCCESS, guarded backup patch 32861669436 SUCCESS. Следующий блок: MaterialRequestWarehouseCoordinator with movement-first + ledger-second idempotent recovery for explicit ISSUE/RETURN/CORRECTION. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
 ```

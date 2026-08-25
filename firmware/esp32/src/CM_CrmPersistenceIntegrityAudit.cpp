@@ -17,6 +17,8 @@ constexpr const char* AsReceivedPath = "/data/workshop/repair-as-received.ndjson
 constexpr const char* MaterialRequestsPath = "/data/workshop/material-requests.ndjson";
 constexpr const char* MaterialRequestMovementsPath =
     "/data/workshop/material-request-movements.ndjson";
+constexpr const char* MaterialRequestStatusPath =
+    "/data/workshop/material-request-status.ndjson";
 constexpr uint8_t ReferenceBatchSize = 24U;
 
 struct Reference
@@ -451,7 +453,7 @@ bool validateMovements(fs::FS& storage, uint32_t& count)
             (sourceKind != "MANUAL_MATERIAL" && sourceKind != "RUN_WIRE") ||
             !findUnsigned(line, "quantity_milli_units", quantity) || quantity == 0UL ||
             !findString(line, "unit", unit) ||
-            (unit != "KG" && unit != "L" && unit != "PCS" && unit != "M") ||
+            (unit != "KG" && unit != "L" && unit != "PCS" && unit != "M" && unit != "M2") ||
             (unit == "PCS" && quantity % 1000UL != 0UL) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !findString(line, "created_at", createdAt) || createdAt.length() < 10U ||
@@ -490,6 +492,66 @@ bool validateMovements(fs::FS& storage, uint32_t& count)
     file.close();
     return ok;
 }
+
+bool validateRequestStatuses(fs::FS& storage)
+{
+    if (!storage.exists(MaterialRequestStatusPath)) return true;
+    File file = storage.open(MaterialRequestStatusPath, FILE_READ);
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+    uint32_t previousTransitionId = 0UL;
+    Reference requestRefs[ReferenceBatchSize];
+    uint8_t batchCount = 0U;
+    auto flush = [&]() -> bool
+    {
+        const bool ok = resolveReferences(storage, MaterialRequestsPath,
+                                          "material_request_id",
+                                          requestRefs, batchCount);
+        batchCount = 0U;
+        return ok;
+    };
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t transitionId = 0UL, requestId = 0UL;
+        String fromStatus, toStatus, changedAt;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "transition_id", transitionId) || transitionId == 0UL ||
+            transitionId <= previousTransitionId ||
+            !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
+            !findString(line, "from_status", fromStatus) ||
+            !findString(line, "to_status", toStatus) ||
+            !findString(line, "changed_at", changedAt) || changedAt.length() < 10U ||
+            changedAt.length() > 32U)
+        {
+            file.close();
+            return false;
+        }
+        const bool legal =
+            (fromStatus == "DRAFT" && toStatus == "ISSUED") ||
+            (fromStatus == "ISSUED" && toStatus == "PRICED") ||
+            (fromStatus == "PRICED" && toStatus == "CLOSED");
+        if (!legal)
+        {
+            file.close();
+            return false;
+        }
+        previousTransitionId = transitionId;
+        resetReference(requestRefs[batchCount++], requestId);
+        if (batchCount == ReferenceBatchSize && !flush())
+        {
+            file.close();
+            return false;
+        }
+    }
+    const bool ok = flush();
+    file.close();
+    return ok;
+}
 }
 
 bool CrmPersistenceIntegrityAudit::check(fs::FS& storage)
@@ -505,6 +567,7 @@ bool CrmPersistenceIntegrityAudit::check(fs::FS& storage,
     return validateWindingVersions(storage, metrics.windingVersionRecordCount) &&
            validateAsReceived(storage, metrics.asReceivedRecordCount) &&
            validateRequests(storage, metrics.materialRequestRecordCount) &&
-           validateMovements(storage, metrics.materialRequestMovementRecordCount);
+           validateMovements(storage, metrics.materialRequestMovementRecordCount) &&
+           validateRequestStatuses(storage);
 }
 }

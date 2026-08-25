@@ -97,6 +97,7 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"repair-as-received", "/data/workshop/repair-as-received.ndjson", "application/x-ndjson", "repair-as-received.ndjson"},
     {"material-requests", "/data/workshop/material-requests.ndjson", "application/x-ndjson", "material-requests.ndjson"},
     {"material-request-movements", "/data/workshop/material-request-movements.ndjson", "application/x-ndjson", "material-request-movements.ndjson"},
+    {"material-request-status", "/data/workshop/material-request-status.ndjson", "application/x-ndjson", "material-request-status.ndjson"},
     {"winding-events", "/data/winding-runs/events.ndjson", "application/x-ndjson", "winding-events.ndjson"},
     {"autonomous-winding-events", "/data/autonomous-windings/events.ndjson", "application/x-ndjson", "autonomous-winding-events.ndjson"},
     {"autonomous-winding-assignments", "/data/autonomous-windings/assignments.ndjson", "application/x-ndjson", "autonomous-winding-assignments.ndjson"},

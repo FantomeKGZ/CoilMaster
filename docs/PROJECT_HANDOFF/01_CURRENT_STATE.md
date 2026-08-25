@@ -52,20 +52,20 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 104 CRM backup/export + integrity
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
+107 Material Request append-only lifecycle + backup/integrity
 ```
 
-Latest catalog foundation verification:
+Latest lifecycle verification:
 
 ```text
-CMP run 32857435377 / SUCCESS
-ESP32 Build run 32857318798 / SUCCESS
+final head a960999b040afbdd7c48bbde08763e042408a2e8
+CMP run 32860049965 / SUCCESS
+ESP32 Build run 32860049946 / SUCCESS
 ```
 
 ## Material / warehouse catalog foundation
 
 Existing `/data/materials/materials.ndjson` and `MaterialLedger` are authoritative generic warehouse item catalog. A duplicate catalog is not being introduced.
-
-Catalog serialization bug is fixed and permanent regression-protected.
 
 Canonical Material Request unit mapping:
 
@@ -79,7 +79,7 @@ M2  -> SQUARE_METRE x1
 
 Conversion and costing are integer-only with overflow guards.
 
-`MaterialLedger::loadActiveMaterialState()` now supplies exact ACTIVE item state:
+`MaterialLedger::loadActiveMaterialState()` supplies exact ACTIVE item state:
 
 ```text
 material_id
@@ -89,8 +89,6 @@ price_per_unit_minor
 currency
 ```
 
-Existing currency lookup reuses the same authoritative scan.
-
 ## Material Request current implementation
 
 Stores:
@@ -98,7 +96,16 @@ Stores:
 ```text
 /data/workshop/material-requests.ndjson
 /data/workshop/material-request-movements.ndjson
+/data/workshop/material-request-status.ndjson
 ```
+
+Lifecycle:
+
+```text
+DRAFT -> ISSUED -> PRICED -> CLOSED
+```
+
+Status identity is append-only. Missing request lookup is distinct from storage failure (`true + found=false` vs `false`). Status journal is included in backup/export and CRM deep integrity validation.
 
 Movements support:
 
@@ -110,17 +117,21 @@ KG | L | PCS | M | M2
 
 `RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
-No Material Request runtime stock mutation API exists yet. Existing exact-spool/writeoff flow remains authoritative.
+No new Material Request runtime stock mutation API exists yet. Existing exact-spool/writeoff flow remains authoritative.
 
 ## Current NEXT
 
-Implement append-only Material Request status history + resolver for:
+Implement a crash-safe transaction coordinator for explicit operator:
 
 ```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
+ISSUE
+RETURN
+CORRECTION
 ```
 
-Then add backup/integrity for status history and a crash-safe transaction coordinator for explicit operator ISSUE/RETURN/CORRECTION. `RUN_COMPLETED` must remain non-mutating.
+It must couple the physical `MaterialLedger` stock mutation with durable Material Request movement evidence using a pending/recovery marker so a reboot cannot leave stock and request history inconsistent. Lifecycle gates remain fail-closed and `RUN_COMPLETED` remains non-mutating.
+
+After transaction foundation is GREEN, expose bounded runtime/Web APIs for request create/read/status/movements and explicit warehouse operations.
 
 ## Wire migration
 

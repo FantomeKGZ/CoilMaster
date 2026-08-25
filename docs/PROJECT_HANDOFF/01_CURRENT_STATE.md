@@ -24,8 +24,6 @@ Authoritative design:
 101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
 ```
 
-Active queue: `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
-
 Target flow:
 
 ```text
@@ -40,7 +38,9 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 
 Warehouse = physical materials. Cash = money. Material Request bridges repair/warehouse/costing.
 
-## Phase A software GREEN blocks
+## Phase A software blocks
+
+GREEN:
 
 ```text
 97  Motor winding versions
@@ -53,21 +53,21 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request append-only lifecycle + backup/integrity
+108 Material Request warehouse pending persistence foundation
 ```
 
-Latest lifecycle verification:
+Checkpoint 108 verification:
 
 ```text
-final head a960999b040afbdd7c48bbde08763e042408a2e8
-CMP run 32860049965 / SUCCESS
-ESP32 Build run 32860049946 / SUCCESS
+implementation head dc73b39e6f7d202d75dae801f5e3413218ca3c0e
+ESP32 Build run 32861148982 / SUCCESS
+CMP run 32861149158 / SUCCESS
+CMP permanent regression run 32861266055 / SUCCESS
 ```
 
 ## Material / warehouse catalog foundation
 
-Existing `/data/materials/materials.ndjson` and `MaterialLedger` are authoritative generic warehouse item catalog. A duplicate catalog is not being introduced.
-
-Canonical Material Request unit mapping:
+Existing `/data/materials/materials.ndjson` and `MaterialLedger` are authoritative generic warehouse item catalog. No duplicate catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -77,21 +77,11 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-Conversion and costing are integer-only with overflow guards.
-
-`MaterialLedger::loadActiveMaterialState()` supplies exact ACTIVE item state:
-
-```text
-material_id
-unit
-stock_quantity_milli
-price_per_unit_minor
-currency
-```
+`MaterialLedger::loadActiveMaterialState()` provides ACTIVE item unit/stock/price/currency.
 
 ## Material Request current implementation
 
-Stores:
+Durable journals:
 
 ```text
 /data/workshop/material-requests.ndjson
@@ -105,7 +95,16 @@ Lifecycle:
 DRAFT -> ISSUED -> PRICED -> CLOSED
 ```
 
-Status identity is append-only. Missing request lookup is distinct from storage failure (`true + found=false` vs `false`). Status journal is included in backup/export and CRM deep integrity validation.
+Warehouse pending recovery marker foundation:
+
+```text
+/data/workshop/material-request-warehouse.pending.json
+/data/workshop/material-request-warehouse.pending.tmp
+```
+
+It persists the exact operator-confirmed transaction intent/cost/provenance and rejects a second in-flight warehouse transaction.
+
+The full crash-safe warehouse coordinator is NOT complete yet. Stable backup still needs these two paths added to its recovery-marker guard. A one-shot workflow intended to apply that guarded large-file patch was invalid before any job ran and was removed; production backup code was not changed by it.
 
 Movements support:
 
@@ -115,23 +114,15 @@ MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-`RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
-
-No new Material Request runtime stock mutation API exists yet. Existing exact-spool/writeoff flow remains authoritative.
+`RUN_WIRE` remains ISSUE/KG-only in the new pending contract and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
 ## Current NEXT
 
-Implement a crash-safe transaction coordinator for explicit operator:
-
-```text
-ISSUE
-RETURN
-CORRECTION
-```
-
-It must couple the physical `MaterialLedger` stock mutation with durable Material Request movement evidence using a pending/recovery marker so a reboot cannot leave stock and request history inconsistent. Lifecycle gates remain fail-closed and `RUN_COMPLETED` remains non-mutating.
-
-After transaction foundation is GREEN, expose bounded runtime/Web APIs for request create/read/status/movements and explicit warehouse operations.
+1. Add warehouse pending/temp paths to stable-backup recovery markers safely.
+2. Implement `MaterialRequestWarehouseCoordinator` with idempotent crash recovery.
+3. Use movement-first + ledger-second ordering and transaction-ref evidence so stock cannot be silently changed without request evidence.
+4. Explicit operator ISSUE/RETURN/CORRECTION only; lifecycle changes remain separate explicit transitions.
+5. Then expose bounded request/status/movement/warehouse Web APIs.
 
 ## Wire migration
 
@@ -167,8 +158,8 @@ Never weaken:
 
 ## Hardware acceptance
 
-Not complete. A full two-board E2E pass remains mandatory after final CRM/material/writeoff contracts stabilize.
+Not complete. Full two-board E2E remains mandatory after CRM/material/writeoff contracts stabilize.
 
 ## Documentation rule
 
-Synchronize 95/101/06/01/90 and update 00 when read order changes. New major persistence/API blocks receive numbered checkpoints with exact commit and CI evidence.
+Synchronize 95/101/06/01/90 and update 00 when read order changes. Major persistence/API blocks receive numbered checkpoints with exact commit and CI evidence.

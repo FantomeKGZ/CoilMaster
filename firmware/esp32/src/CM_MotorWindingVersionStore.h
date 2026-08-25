@@ -61,12 +61,21 @@ class MotorWindingVersionStore
 {
 public:
     static constexpr const char* Path = "/data/workshop/motor-winding-versions.ndjson";
+    static constexpr uint8_t MaxPageSize = 24U;
 
     explicit MotorWindingVersionStore(fs::FS& storage);
 
     bool begin();
     bool ready() const;
     bool append(const NewMotorWindingVersion& version, uint32_t& versionId);
+    bool appendLatestByMotorJson(String& json, uint32_t motorId, bool& found) const;
+    bool appendMotorPageJson(String& json,
+                             uint32_t motorId,
+                             uint32_t cursor,
+                             uint8_t limit,
+                             uint16_t& count,
+                             uint32_t& nextCursor,
+                             bool& hasMore) const;
 
     static bool canonicalConductors(const MotorWindingRoleSpec& role,
                                     String& canonical);

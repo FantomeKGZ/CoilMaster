@@ -69,12 +69,13 @@ bool MaterialRequestMovementStore::append(const NewMaterialRequestMovement& move
     }
 
     String line;
-    line.reserve(940U);
+    line.reserve(1020U);
     line = F("{\"movement_id\":"); line += movementId;
     line += F(",\"material_request_id\":"); line += movement.materialRequestId;
     line += F(",\"repair_id\":"); line += movement.repairId;
     line += F(",\"warehouse_item_id\":"); line += movement.warehouseItemId;
-    line += F(",\"movement_kind\":\""); line += movement.movementKind;
+    line += F(",\"transaction_ref\":\""); line += jsonEscape(movement.transactionRef);
+    line += F("\",\"movement_kind\":\""); line += movement.movementKind;
     line += F("\",\"source_kind\":\""); line += movement.sourceKind;
     if (movement.movementKind == "CORRECTION")
     {
@@ -218,7 +219,8 @@ bool MaterialRequestMovementStore::validMovement(
     const NewMaterialRequestMovement& movement)
 {
     if (movement.materialRequestId == 0UL || movement.repairId == 0UL ||
-        movement.warehouseItemId == 0UL || movement.quantityMilliUnits == 0UL ||
+        movement.warehouseItemId == 0UL || movement.transactionRef.length() < 8U ||
+        movement.transactionRef.length() > 80U || movement.quantityMilliUnits == 0UL ||
         !validUnit(movement.unit) || !validCurrency(movement.currency) ||
         movement.createdAt.length() < 10U || movement.createdAt.length() > 32U ||
         movement.comment.length() > 500U)

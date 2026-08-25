@@ -22,38 +22,17 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/106_MATERIAL_CATALOG_ADAPTER_AND_LOOKUP_2026-08-25.md
+docs/PROJECT_HANDOFF/105_MATERIAL_CATALOG_SERIALIZATION_FIX_2026-08-25.md
 docs/PROJECT_HANDOFF/104_CRM_BACKUP_INTEGRITY_2026-08-25.md
 docs/PROJECT_HANDOFF/103_MATERIAL_REQUEST_SCHEMA_2026-08-25.md
 docs/PROJECT_HANDOFF/102_TRANSACTIONAL_REPAIR_INTAKE_INTEGRATION_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
-docs/PROJECT_HANDOFF/100_REPAIR_INTAKE_TRANSACTION_FOUNDATION_2026-08-25.md
-docs/PROJECT_HANDOFF/99_CRM_WINDING_LOOKUP_API_2026-08-25.md
-docs/PROJECT_HANDOFF/98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md
-docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
 ```
 
-Checkpoint 95 = authoritative CRM design.  
-Checkpoint 101 = authoritative Warehouse ↔ Material Request ↔ Cash design.  
-Checkpoint 104 = latest GREEN CRM backup/export + integrity gate.  
-Checkpoint 103 = GREEN Material Request persistence foundation.  
-Checkpoint 06 = active queue.  
-Checkpoint 90 = transfer state.
-
-## Current phase / target flow
-
-```text
-CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
-                     -> WINDING VERSION/JOBS
-                     -> MATERIAL REQUEST
-                          -> WAREHOUSE ISSUE/RETURN/CORRECTION
-                          -> COSTING
-                     -> CASH/PAYMENTS
-                     -> COMPLETED -> DELIVERED
-```
-
-Warehouse = physical inventory. Cash = money. Material Request = repair-specific bridge.
+Latest GREEN foundation = checkpoint 106.
 
 ## Current GREEN implementation
 
@@ -65,32 +44,40 @@ Warehouse = physical inventory. Cash = money. Material Request = repair-specific
 102 transactional POST /api/repairs
 103 Material Request identity + movement schema
 104 CRM backup/export + fail-closed integrity
+105 MaterialLedger serialization fix
+106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 ```
 
-Latest verification:
+Latest verified:
 
 ```text
-CMP run 32855540935 / SUCCESS
-ESP32 Build run 32855541246 / SUCCESS
+CMP run 32857435377 / SUCCESS
+ESP32 Build run 32857318798 / SUCCESS
 ```
 
-New CRM journals are exported and deep-audited. Repair-intake pending/temp markers block stable backups.
+## Current material contract
+
+`MaterialLedger` is the authoritative generic warehouse item catalog.
+
+```text
+KG->GRAM x1000
+L->MILLILITRE x1000
+PCS->PIECE x1
+M->METRE x1
+M2->SQUARE_METRE x1
+```
+
+Material Request movements support `ISSUE/RETURN/CORRECTION`, `MANUAL_MATERIAL/RUN_WIRE`, and `KG/L/PCS/M/M2`. `RUN_WIRE` remains KG-only with exact session/run provenance.
 
 ## Immediate NEXT
 
-1. Reuse existing `MaterialLedger` as generic warehouse item catalog.
-2. Fix/regression-protect `MaterialLedger::addMaterial()` unit JSON serialization.
-3. Define canonical unit/accounting-cost mapping into Material Request movements.
-4. Implement item lookup/state needed by request mutations.
-5. Implement Material Request lifecycle and explicit operator ISSUE/RETURN/CORRECTION APIs.
+1. Append-only Material Request status history.
+2. Resolver/validation for `DRAFT -> ISSUED -> PRICED -> CLOSED`.
+3. Backup/integrity coverage for status history.
+4. Crash-safe explicit operator ISSUE/RETURN/CORRECTION coordinator coupling physical stock mutation with durable request movement evidence.
+5. `RUN_COMPLETED` remains non-mutating.
 
 ## Wire migration rule
-
-```text
-RUN_COMPLETED never auto-deducts material.
-Operator explicitly confirms warehouse ISSUE.
-Run-linked wire movement preserves material_request_id + source_session_id + source_run_id + CU/AL + actual weight.
-```
 
 Current exact `spool_id` requirements remain until coordinated migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
 
@@ -113,5 +100,3 @@ Current exact `spool_id` requirements remain until coordinated migration across 
 ## Working discipline
 
 Before modifying an existing file: fetch exact `cmp-protocol-v1` content + current blob SHA. Before a new path: confirm 404. Never claim GREEN without actual CI/build evidence.
-
-Synchronize 95/101/06/01/90 after meaningful blocks and update this file when entrypoint/read order changes. Major persistence/API work gets a numbered checkpoint with exact commits + CI evidence.

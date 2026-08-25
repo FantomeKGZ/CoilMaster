@@ -94,6 +94,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_crm_winding_lookup_api.js
 
+      - name: Audit repair intake pending recovery
+        if: always()
+        run: node Tests/Web/check_repair_intake_pending_contract.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

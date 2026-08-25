@@ -131,6 +131,13 @@ bool HardwareControlClient::setSettings(uint16_t threshold,
                                         uint16_t releaseDebounceMs,
                                         HallSignalDirectionRemote direction)
 {
+    if (threshold == 0U || threshold > 1023U ||
+        hysteresis == 0U || hysteresis > 512U || hysteresis >= threshold ||
+        releaseDebounceMs == 0U || releaseDebounceMs > 1000U)
+    {
+        return false;
+    }
+
     char payload[MaxRequestPayloadLength];
     const int length = snprintf(
         payload, sizeof(payload), "CMP1|CFG_SET|HALL|%u|%u|%u|%s|C",

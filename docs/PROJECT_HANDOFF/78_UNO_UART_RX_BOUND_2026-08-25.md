@@ -72,9 +72,9 @@ The first counter regression incorrectly searched the `.cpp` source for a member
 32801535581  CMP Protocol Tests @ d977c2f7... SUCCESS
 ```
 
-Run `32801535581` explicitly passed `Audit Arduino JOB parser contracts`. Therefore the RX bound/counter batch is now **software CI GREEN**.
+Run `32801535581` explicitly passed `Audit Arduino JOB parser contracts`. Therefore the RX bound/counter batch is **software CI GREEN**.
 
-## Uno buzzer timing state compaction — current batch
+## Uno buzzer timing state compaction — software CI GREEN
 
 Review of `BuzzerService` found duplicate persistent duration fields:
 
@@ -118,9 +118,30 @@ Regression:
 test(uno): protect compact buzzer timing
 ```
 
-The existing Arduino cleanup contract now protects the single duration field, exact 80/120 ms pattern constants, and rejects restoration of `m_onDurationMs` / `m_offDurationMs`.
+Verified operator-supplied runs:
 
-Fresh Arduino Uno Build and CMP Protocol Tests for the buzzer batch are **pending**. Do not call this batch GREEN until verified.
+```text
+32801765239  CMP Protocol Tests @ 8db6a321... SUCCESS
+32801785488  Arduino Uno Build @ a224c239... SUCCESS
+32801785553  CMP Protocol Tests @ a224c239... SUCCESS
+32801820990  CMP Protocol Tests @ 7a03511f... SUCCESS
+32801850029  CMP Protocol Tests @ daad5413... SUCCESS
+```
+
+Therefore the buzzer compaction batch is **software CI GREEN**.
+
+## Current measured Uno resource state
+
+The authoritative Arduino Uno Build run `32801785488` at implementation SHA `a224c239...` reports:
+
+```text
+RAM:   1205 / 2048 bytes = 58.8%
+Flash: 31460 / 32256 bytes = 97.5%
+```
+
+Remaining static SRAM headroom is **843 bytes**. Remaining flash headroom is only **796 bytes**.
+
+This changes the optimization priority: Uno SRAM is no longer the immediate resource bottleneck. Do not continue one- or two-byte SRAM micro-optimizations if they add code or complexity. Flash remains the tight resource and must be protected.
 
 ## Review decisions — KEEP
 
@@ -136,13 +157,18 @@ The UART event queue intentionally retains a separate `LocalProgramSnapshot` per
 
 The proven `Keypad` library expects RAM-backed map/pin data. Moving them to PROGMEM would require input-path changes and risks repeating the prior keypad regression. Keep unchanged.
 
+### Small persistent bool/enum packing
+
+Several Uno services still contain individual boolean or small enum fields that could theoretically be packed. With current RAM at 58.8% and flash at 97.5%, do **not** spend flash or readability to save isolated bytes unless a measured runtime SRAM problem reappears.
+
 ## Verification state
 
 - Uno hardware-control TX bound 110: **software CI GREEN**.
 - Uno UART RX bound 107 + byte-sized counter: **software CI GREEN**.
-- Uno buzzer timing state compaction (`8db6a321...` + `a224c239...` + `7a03511f...`): **fresh Arduino Uno Build / CMP Protocol Tests pending**.
+- Uno buzzer timing state compaction: **software CI GREEN**.
+- Current measured Uno resource state: **RAM 58.8%, Flash 97.5%**.
 - Final two-board physical acceptance remains deferred until software optimization is complete.
 
 ## Next software step
 
-Verify the buzzer compaction batch with fresh Arduino Uno Build and CMP Protocol Tests. If GREEN, continue only narrow evidence-backed Uno memory/reliability review; avoid keypad/START/SSR rewrites and avoid flash-heavy changes for tiny stack wins.
+End the current Uno SRAM micro-optimization pass. Continue with software-only reliability/review work that does not enlarge the Uno firmware unnecessarily. Prefer ESP32/Web/storage/protocol review or Uno flash-neutral fixes. Keep Keypad, physical START, SSR ownership and Hall authority unchanged.

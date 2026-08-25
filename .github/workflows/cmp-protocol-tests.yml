@@ -98,6 +98,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_repair_intake_pending_contract.js
 
+      - name: Audit transactional repair intake integration
+        if: always()
+        run: node Tests/Web/check_repair_intake_transaction_integration.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

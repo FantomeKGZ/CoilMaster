@@ -200,7 +200,7 @@ bool RepairCosting::savePricing(uint32_t repairId,
                                 const String& currency,
                                 const String& timestamp)
 {
-    if (!ready() || repairId == 0UL || !repairExists(repairId) ||
+    if (!ready() || repairId == 0UL ||
         currency.length() != 3U || timestamp.length() < 10U)
         return false;
 

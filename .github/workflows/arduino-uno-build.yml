@@ -38,4 +38,37 @@ jobs:
         run: pip install --upgrade platformio
 
       - name: Build Arduino Uno firmware
-        run: pio run -e uno
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e uno | tee uno-build.log
+
+      - name: Check Arduino Uno resource headroom
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          MIN_HEADROOM_BYTES = 512
+          text = Path('uno-build.log').read_text(encoding='utf-8', errors='replace')
+
+          def usage(label):
+              line = next((line for line in text.splitlines() if f'{label}:' in line), None)
+              if line is None:
+                  raise SystemExit(f'{label} usage line missing from PlatformIO output')
+              match = re.search(r'used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes', line)
+              if match is None:
+                  raise SystemExit(f'{label} usage numbers missing from PlatformIO output: {line}')
+              used, total = map(int, match.groups())
+              return used, total
+
+          for label in ('RAM', 'Flash'):
+              used, total = usage(label)
+              headroom = total - used
+              print(f'{label}: used={used} total={total} headroom={headroom}')
+              if headroom < MIN_HEADROOM_BYTES:
+                  raise SystemExit(
+                      f'{label} headroom {headroom} bytes is below required '
+                      f'{MIN_HEADROOM_BYTES}-byte safety margin'
+                  )
+          PY

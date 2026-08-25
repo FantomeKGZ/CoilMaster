@@ -69,6 +69,7 @@ mustContain(webCpp, 'HallCalibrationAnalyzer::analyzeSummary', 'ESP32 Hall web A
 mustContain(webCpp, 'measurement_id', 'ESP32 Hall web API');
 mustContain(webCpp, 'const bool accepted = m_receiver.armHallCalibration();', 'ESP32 Hall Web ARM acceptance');
 mustContain(webCpp, 'while (m_receiver.takeHallCalibrationResult(discardedResult))', 'ESP32 Hall stale result drain');
+mustContain(webCpp, '        m_hasCalibrationResult = false;\n        m_pendingHistoryMeasurementId = 0UL;\n        m_pendingHistoryAbort = false;\n    }\n    queueAccepted(accepted, "hall_control_busy");', 'ESP32 Hall rejected ARM Web-state preservation');
 mustNotContain(webCpp, '/api/hardware/hall/calibration/start', 'ESP32 Hall web API');
 
 mustContain(analyzerHeader, 'analyzeSummary', 'ESP32 Hall analyzer');

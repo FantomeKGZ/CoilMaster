@@ -122,7 +122,9 @@ constexpr RecoveryMarkerDefinition RecoveryMarkers[] =
     {"/data/warehouse/spools.tmp", "warehouse_spool_swap_temp_present"},
     {"/data/warehouse/spools.bak", "warehouse_spool_swap_backup_present"},
     {"/data/workshop/repair-intake.pending.json", "repair_intake_pending"},
-    {"/data/workshop/repair-intake.pending.tmp", "repair_intake_temp_present"}
+    {"/data/workshop/repair-intake.pending.tmp", "repair_intake_temp_present"},
+    {"/data/workshop/material-request-warehouse.pending.json", "material_request_warehouse_pending"},
+    {"/data/workshop/material-request-warehouse.pending.tmp", "material_request_warehouse_temp_present"}
 };
 
 constexpr size_t ExportFileCount = sizeof(ExportFiles) / sizeof(ExportFiles[0]);

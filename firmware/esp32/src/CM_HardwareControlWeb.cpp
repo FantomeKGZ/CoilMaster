@@ -436,10 +436,18 @@ void HardwareControlWeb::handleCalibrationRefresh()
 
 void HardwareControlWeb::handleCalibrationArm()
 {
+    const bool accepted = m_receiver.armHallCalibration();
+    if (accepted)
+    {
+        HallCalibrationRemoteResult discardedResult;
+        while (m_receiver.takeHallCalibrationResult(discardedResult))
+        {
+        }
+    }
     m_hasCalibrationResult = false;
     m_pendingHistoryMeasurementId = 0UL;
     m_pendingHistoryAbort = false;
-    queueAccepted(m_receiver.armHallCalibration(), "hall_control_busy");
+    queueAccepted(accepted, "hall_control_busy");
 }
 
 void HardwareControlWeb::handleCalibrationAbort()

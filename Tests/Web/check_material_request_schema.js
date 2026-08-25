@@ -18,6 +18,7 @@ must(requestSource, 'FILE_APPEND', 'append-only request persistence');
 must(requestSource, 'material_request_id', 'monotonic request identity');
 
 must(movementHeader, '/data/workshop/material-request-movements.ndjson', 'movement store path');
+must(movementHeader, 'String transactionRef;', 'transaction provenance');
 must(movementHeader, 'ISSUE | RETURN | CORRECTION', 'movement kinds contract');
 must(movementHeader, 'MANUAL_MATERIAL | RUN_WIRE', 'movement source contract');
 must(movementHeader, 'String correctionDirection;', 'correction direction contract');
@@ -26,6 +27,8 @@ must(movementHeader, 'uint32_t sourceRunId;', 'run provenance');
 must(movementHeader, 'uint32_t quantityMilliUnits;', 'integer quantity representation');
 must(movementHeader, 'uint64_t unitCostMinor;', 'unit cost snapshot');
 must(movementHeader, 'uint64_t costAmountMinor;', 'line cost snapshot');
+must(movementSource, '\\"transaction_ref\\":\\"', 'transaction provenance persistence');
+must(movementSource, 'movement.transactionRef.length() < 8U', 'transaction provenance validation');
 must(movementSource, 'movement.movementKind != "ISSUE"', 'ISSUE validation');
 must(movementSource, 'movement.movementKind != "RETURN"', 'RETURN validation');
 must(movementSource, 'movement.movementKind != "CORRECTION"', 'CORRECTION validation');

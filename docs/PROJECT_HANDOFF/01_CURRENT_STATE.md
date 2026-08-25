@@ -3,81 +3,41 @@
 Дата обновления: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**
 
-Этот файл описывает только текущее состояние. История и доказательства находятся в numbered checkpoints.
+Этот файл описывает текущее состояние. История/evidence — в numbered checkpoints.
 
-## Source of truth
+## Source of truth / stable baseline
 
-Единственный источник реализации — `cmp-protocol-v1`. `main` для исходников не использовать.
-Перед изменением existing file получать current content + blob SHA. Для нового path сначала проверять отсутствие файла. Не объявлять CI/build/hardware GREEN без фактической проверки.
+Единственная рабочая source-of-truth ветка: `cmp-protocol-v1`. `main` для исходников не использовать.
 
-## Stable snapshot before CRM redesign
-
-Перед новым Web/CRM этапом stable point зафиксирован на:
+Перед Web/CRM redesign зафиксирован stable pre-CRM commit:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
+main -> этот commit
+stable-2026-08-25-pre-crm-redesign -> этот commit
 ```
 
-`main` fast-forward синхронизирован с этой точкой. Дополнительно создан reference branch:
+Все новые изменения идут только в `cmp-protocol-v1`.
 
-```text
-stable-2026-08-25-pre-crm-redesign
-```
+## Current phase
 
-Подробности: `docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md`.
-
-После snapshot все новые изменения снова идут только в `cmp-protocol-v1`; `main` сохраняется как pre-CRM stable baseline до следующего явно согласованного stable checkpoint.
-
-## Current project state
-
-Stage-1 repo-only performance optimization закрыт. Финальная двухплатная hardware acceptance была начата на реальном ESP32 + Arduino Uno, выявила operator-B exit defect и привела к исправлению operator abort behavior. Полный hardware gate ещё не завершён.
-
-После этого пользователь утвердил новый крупный product/Web этап: **Workshop Web/CRM redesign**.
-
-Authoritative design:
+Активен **Workshop Web/CRM redesign**, design checkpoint:
 
 ```text
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 ```
 
-Active queue:
+Current queue:
 
 ```text
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
-## Current CRM implementation progress
+Полный двухплатный hardware acceptance ранее начат, выявил B/operator-exit defect и не считается завершённым. После стабилизации новых CRM/writeoff contracts полный E2E требуется повторить.
 
-Phase A начата кодом, не только документацией.
+## Phase A — implemented
 
-Добавлен backward-compatible append-only winding version foundation:
-
-```text
-/data/workshop/motor-winding-versions.ndjson
-firmware/esp32/src/CM_MotorWindingVersionStore.h
-firmware/esp32/src/CM_MotorWindingVersionStore.cpp
-Tests/Web/check_motor_winding_version_schema.js
-```
-
-Поддержано:
-
-- один physical `motor_id` с историей winding versions;
-- predecessor linkage через `previous_version_id`;
-- optional `source_repair_id`;
-- отдельные WORKING/STARTING programs и repeat targets;
-- bounded multi-conductor representation до 4 conductor components на role;
-- Cu/Al conductor identity без coupling к spool inventory;
-- legacy `motors.ndjson` остаётся без destructive rewrite.
-
-Основной schema/persistence implementation `2513d539...` прошёл:
-
-```text
-CMP Protocol Tests #3137 / run 32844995517 / SUCCESS
-ESP32 Build #1446 / run 32844995460 / SUCCESS
-CMP #3140 / run 32845194923 / SUCCESS
-```
-
-Regression уже добавлен и подключён в CMP workflow; последний CI wiring run #3141 ещё не считается GREEN, пока не завершится SUCCESS.
+### Motor winding version foundation — SOFTWARE GREEN
 
 Checkpoint:
 
@@ -85,84 +45,123 @@ Checkpoint:
 docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
 ```
 
-Следующий schema block: immutable repair `AS_RECEIVED` snapshot + read/runtime integration winding version store.
-
-## Production architecture unchanged at hardware boundary
+Store:
 
 ```text
-ESP32:
-  Wi-Fi/AP/HTTP/FTP, SD/RTC, workshop registry, jobs/persistence,
-  warehouse/material/costing, backup/restore, Web UI,
-  extended Hall calibration analysis/history
-
-CMP1 UART:
-  JOB/control/config down
-  run/status/calibration events up
-
-Arduino Uno:
-  physical START, SSR authority, normal Hall realtime count,
-  keypad/LCD/buzzer, calibration local safety gates,
-  realtime winding state machine, RUN_STARTED/RUN_COMPLETED
+/data/workshop/motor-winding-versions.ndjson
 ```
 
-Production protocol remains text `CMP1|...`.
+Поддержано:
 
-## Approved new Workshop/CRM direction
+- один physical `motor_id` -> versioned winding history;
+- `previous_version_id` / optional `source_repair_id`;
+- отдельные WORKING / STARTING programs + repeat targets;
+- bounded multi-conductor data, до 4 components/role;
+- Cu/Al representation вроде `CU:95x1+CU:100x1`;
+- legacy `motors.ndjson` остаётся читаемым без destructive rewrite.
 
-Target domain flow:
+Verified:
+
+```text
+ESP32 Build #1446 / 32844995460 / SUCCESS
+CMP #3137 / 32844995517 / SUCCESS
+CMP #3140 / 32845194923 / SUCCESS
+CMP #3141 / 32845242025 / SUCCESS
+```
+
+### Repair AS_RECEIVED snapshot foundation — SOFTWARE GREEN
+
+Checkpoint:
+
+```text
+docs/PROJECT_HANDOFF/98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md
+```
+
+Store:
+
+```text
+/data/workshop/repair-as-received.ndjson
+```
+
+Snapshot captures immutable intake evidence:
+
+```text
+repair_id + client_id + motor_id
+optional winding_version_id
+motor identity / phases / slots
+WORKING program/repeats/conductors
+STARTING presence/program/repeats/conductors
+captured_at / source_kind
+```
+
+Verified:
+
+```text
+ESP32 Build #1448 / 32846323653 / SUCCESS
+CMP #3147 / 32846371316 / SUCCESS
+CMP #3148 / 32846419170 / SUCCESS
+```
+
+### Runtime/read API — SOFTWARE GREEN
+
+Checkpoint:
+
+```text
+docs/PROJECT_HANDOFF/99_CRM_WINDING_LOOKUP_API_2026-08-25.md
+```
+
+Read-only API:
+
+```text
+GET /api/motors/winding/latest?motor_id=...
+GET /api/motors/winding/versions?motor_id=...&cursor=...&limit=...
+GET /api/repairs/as-received?repair_id=...
+```
+
+Legacy fallback is explicit rather than treated as corruption.
+
+Verified:
+
+```text
+ESP32 Build #1452 / 32846834525 / SUCCESS
+CMP #3154 / 32846834557 / SUCCESS
+CMP #3155 / 32846874546 / SUCCESS
+CMP #3156 / 32846924439 / SUCCESS
+```
+
+CMP #3156 includes `Audit CRM winding/as-received lookup API` SUCCESS.
+
+## Current NEXT — repair intake transaction
+
+Automatic AS_RECEIVED write during `POST /api/repairs` is intentionally **not yet enabled**.
+
+Reason: two independent appends (`repair` then `snapshot`) create a power-loss crash window. The next block must introduce fail-closed transaction/recovery semantics so a newly accepted repair cannot silently exist without immutable intake evidence.
+
+After that:
+
+1. add both new stores to backup whitelist/integrity;
+2. implement delivery event contract;
+3. implement payment/correction contract;
+4. move to Motor Web (`motor-new`, new catalog, motor card).
+
+## Approved target flow
 
 ```text
 CLIENT
-  -> physical MOTOR
-  -> REPAIR
-  -> immutable AS_RECEIVED winding snapshot
-  -> WORKING / STARTING winding jobs
-  -> resulting winding version
-  -> COSTING
-  -> PAYMENTS / BALANCE
-  -> repair completion
-  -> DELIVERED_TO_CLIENT
+-> physical MOTOR
+-> REPAIR
+-> immutable AS_RECEIVED snapshot
+-> WORKING / STARTING winding jobs
+-> resulting winding version
+-> COSTING
+-> PAYMENTS / BALANCE
+-> repair completion
+-> DELIVERED_TO_CLIENT
 ```
 
-Key decisions:
+## Wire accounting migration
 
-- `motors.html` becomes catalog only and adopts Arduino archive style/layout;
-- motor creation moves to `/desktop/motor-new.html`;
-- `motor-details.html` becomes the main motor work card;
-- one physical motor keeps one `motor_id` while winding changes become version history;
-- each winding version supports WORKING and STARTING roles;
-- 3-phase motors normally show only WORKING;
-- conductor model must support combinations such as `0.95 + 1.00` and `0.80 x 3`;
-- direct send of WORKING/STARTING from motor card is required, but physical START remains local-only;
-- `clients.html` becomes catalog only;
-- client creation moves to `/desktop/client-new.html`;
-- add `/desktop/client-details.html` with motors, repairs, payments, balance and delivery dates;
-- remove duplicated inline client/motor creation forms from repair page and replace with links;
-- closing a repair and physically delivering the motor are separate events;
-- cash/payment subsystem becomes separate from costing;
-- add append-only payments/corrections and `/desktop/cash.html`;
-- payment does not hard-block delivery; debt creates warning + explicit operator confirmation.
-
-## Motor/winding history rule
-
-One physical motor must not be duplicated merely because it was rewound from Al to Cu.
-
-Target model:
-
-```text
-motor_id
-  winding version 1: AS_RECEIVED / ORIGINAL
-  winding version 2: REWOUND / CURRENT
-  winding version N: later repair
-```
-
-Existing legacy motor records with `coil_program + repeat_target` remain readable during migration and can be synthesized as a legacy WORKING version until upgraded.
-
-## Wire accounting migration decision
-
-User approved simplifying the main workflow away from mandatory exact spool selection.
-
-Target future manual consumption contract:
+Approved target later:
 
 ```text
 source_session_id + source_run_id
@@ -171,13 +170,9 @@ actual consumed weight
 manual confirmation
 ```
 
-However **this migration is NOT implemented yet**. Current production backend/finalization still uses exact `spool_id`, so existing spool safety checks must remain until the whole chain is migrated coherently.
+Но текущий backend всё ещё использует exact `spool_id`. Нельзя частично убрать spool requirement только из Web; migration должна одновременно обновить job/writeoff/costing/finalization/backup/integrity/reports/tests.
 
-Do not partially remove spool UI/backend requirements before job creation, writeoff, costing, finalization, backup/integrity, reports and regression contracts are all updated together.
-
-## Safety boundary — unchanged
-
-Never weaken:
+## Safety invariants — unchanged
 
 - no automatic physical START;
 - no automatic START between repeats;
@@ -186,47 +181,27 @@ Never weaken:
 - ESP32/Web never directly controls SSR;
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
-- `RUN_COMPLETED` never auto-writes off material;
+- `RUN_COMPLETED` never automatically deducts wire/material;
 - cancellation/operator abort never erases immutable run/history evidence;
 - restore operator-only, transactional, fail-closed;
-- no automatic production-data deletion/NDJSON truncation.
+- no automatic production-data deletion/truncation.
 
-Until wire-accounting migration is complete, linked-production writeoff still follows current exact-spool implementation.
-
-## Hardware acceptance status
-
-Not complete.
-
-Observed during current real-device pass:
-
-- ESP32 production firmware built, flashed and booted normally;
-- Uno production firmware built, flashed and reached normal UI;
-- reboot did not automatically resume recovered job state;
-- keypad/UI operation exposed the B-exit defect during winding;
-- B-exit/operator-abort software correction passed Uno/ESP32/CMP build verification.
-
-A complete E2E hardware pass remains required after contract-changing Web/CRM/wire changes are stabilized.
-
-## NDJSON/storage rule
+## Storage rule
 
 - no premature DB migration;
-- no destructive migration of historical motor/client/repair records;
-- prefer append-only sidecar/version/event stores for new history;
-- no automatic cleanup/rotation;
-- every new production store must enter backup whitelist + integrity validation before becoming release-critical.
+- no destructive migration of historical records;
+- prefer append-only sidecar/version/event stores;
+- every new release-critical store must enter backup whitelist + integrity validation;
+- no automatic NDJSON cleanup/truncation.
 
-## Documentation rule for the new phase
+## Documentation discipline
 
-Documentation is updated with each meaningful implementation block, not at the end.
-
-Required living files:
+Update together with each meaningful implementation block:
 
 ```text
-docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
-docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
-docs/PROJECT_HANDOFF/00_READ_FIRST.md
+95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+06_ACTIVE_WORK_AND_NEXT_STEPS.md
+01_CURRENT_STATE.md
+90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md when transfer state changes
+00_READ_FIRST.md when entrypoint/read order changes
 ```
-
-For major new persistence/API subsystems, add new numbered checkpoints with exact commits and CI evidence.

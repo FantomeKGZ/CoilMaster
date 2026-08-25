@@ -154,6 +154,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_winding_completion_single_pass.js
 
+      - name: Audit finalization winding single-pass contracts
+        if: always()
+        run: node Tests/Web/check_finalization_winding_single_pass.js
+
       - name: Audit write-off fault contracts
         if: always()
         run: node Tests/Web/check_writeoff_fault_contracts.js

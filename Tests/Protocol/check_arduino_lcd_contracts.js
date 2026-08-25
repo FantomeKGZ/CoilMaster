@@ -76,7 +76,6 @@ if ((entrypoint.match(/lcdView\.begin\(\);/g) || []).length !== 1) {
   failures.push('LCD view must be initialized exactly once');
 }
 
-
 // Production diagnostics are disabled, so reset provenance must remain visible
 // on the LCD and every checkpoint must be readable during a reset loop. The SSR
 // safety owner is initialized exactly once before those bounded holds.
@@ -98,7 +97,6 @@ if (entrypoint.indexOf('ssr.begin();') > entrypoint.indexOf('Wire.begin();')) {
   failures.push('SSR must be fail-safe before LCD checkpoint delays');
 }
 
-
 // Reset-loop localization must survive the reset and identify the last loop
 // subsystem without writing EEPROM on every pass.
 for (const [text, description] of [
@@ -113,14 +111,13 @@ for (const [text, description] of [
   if (!entrypoint.includes(text)) failures.push(description + ': ' + text);
 }
 
-
 const features = fs.readFileSync(path.join(root, 'Arduino/Config/CM_Features.h'), 'utf8');
 const platformio = fs.readFileSync(path.join(root, 'platformio.ini'), 'utf8');
 for (const [present, description] of [
   [features.includes('#define CM_FEATURE_BOOT_DIAGNOSTICS 0'), 'bounded boot diagnostic default missing'],
-  [platformio.includes('[env:uno_diagnostic]'), 'Uno diagnostic environment missing'],
-  [platformio.includes('-DCM_FEATURE_BOOT_DIAGNOSTICS=1'), 'bounded diagnostic flag missing'],
-  [!platformio.includes('-DCM_FEATURE_DIAGNOSTICS=1'), 'full verbose diagnostics must not be enabled for Uno diagnostic image'],
+  [!platformio.includes('[env:uno_diagnostic]'), 'retired Uno diagnostic environment must stay removed'],
+  [!platformio.includes('-DCM_FEATURE_BOOT_DIAGNOSTICS=1'), 'retired Uno diagnostic build flag must stay removed'],
+  [!platformio.includes('-DCM_FEATURE_DIAGNOSTICS=1'), 'full verbose diagnostics must not be enabled for production Uno'],
   [entrypoint.includes('HardwareSerial& cmBootSerial = Serial;'), 'USB boot serial owner missing']
 ]) {
   if (!present) failures.push(description);
@@ -131,4 +128,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino LCD contracts OK: layout is bounded and I2C/LCD startup is early, explicit and stage-visible.');
+console.log('Arduino LCD contracts OK: layout/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');

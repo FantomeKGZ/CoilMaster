@@ -18,18 +18,18 @@ jobs:
         with:
           ref: cmp-protocol-v1
           fetch-depth: 0
-      - name: Guard and patch CRM movement audit
+      - name: Guard and fix CRM movement audit escaping
         shell: bash
         run: |
           set -euo pipefail
           FILE=firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp
-          EXPECTED=c941d31d49024fd546799dacc8de8952baa2f752
+          EXPECTED=a9a74f231da1e87e841e3ecc1eabb6758e947861
           ACTUAL=$(git hash-object "$FILE")
           test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
-          python3 -c "from pathlib import Path; p=Path('$FILE'); s=p.read_text(); old='''        if (sourceKind == \"RUN_WIRE\")\n        {\n            uint32_t sessionId = 0UL, runId = 0UL, diameter = 0UL;\n            String materialClass;\n            if (unit != \"KG\" ||\n                !findUnsigned(line, \"source_session_id\", sessionId) || sessionId == 0UL ||\n                !findUnsigned(line, \"source_run_id\", runId) || runId == 0UL ||\n                !findString(line, \"material_class\", materialClass) ||\n                (materialClass != \"CU\" && materialClass != \"AL\") ||\n                !findUnsigned(line, \"wire_diameter_hundredths_mm\", diameter) ||\n                diameter == 0UL || diameter > 500UL)\n            {\n                file.close();\n                return false;\n            }\n        }\n'''; new='''        if (movementKind == \"CORRECTION\")\n        {\n            String correctionDirection;\n            if (!findString(line, \"correction_direction\", correctionDirection) ||\n                (correctionDirection != \"ADD\" && correctionDirection != \"REMOVE\"))\n            {\n                file.close();\n                return false;\n            }\n        }\n        else if (line.indexOf(F(\"\\\"correction_direction\\\":\")) >= 0)\n        {\n            file.close();\n            return false;\n        }\n        if (sourceKind == \"RUN_WIRE\")\n        {\n            uint32_t sessionId = 0UL, runId = 0UL, diameter = 0UL;\n            String materialClass;\n            if (movementKind != \"ISSUE\" || unit != \"KG\" ||\n                !findUnsigned(line, \"source_session_id\", sessionId) || sessionId == 0UL ||\n                !findUnsigned(line, \"source_run_id\", runId) || runId == 0UL ||\n                !findString(line, \"material_class\", materialClass) ||\n                (materialClass != \"CU\" && materialClass != \"AL\") ||\n                !findUnsigned(line, \"wire_diameter_hundredths_mm\", diameter) ||\n                diameter == 0UL || diameter > 500UL)\n            {\n                file.close();\n                return false;\n            }\n        }\n'''; assert old in s, 'movement audit anchor missing'; p.write_text(s.replace(old,new,1))"
+          python3 -c "from pathlib import Path; p=Path('$FILE'); s=p.read_text(); old='else if (line.indexOf(F(\"\"correction_direction\":\")) >= 0)'; new='else if (line.indexOf(F(\"\\\\\\\"correction_direction\\\\\\\":\")) >= 0)'; assert old in s, 'escaping anchor missing'; p.write_text(s.replace(old,new,1))"
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp
-          git commit -m 'feat(integrity): validate material correction direction'
+          git commit -m 'fix(integrity): correct movement direction marker escaping'
           git push origin HEAD:cmp-protocol-v1

@@ -188,6 +188,8 @@ WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::
     completed = false;
     if (sessionId == 0UL)
         return WindingJournalTransitionAuditResult::ReadFailed;
+    // Legacy regression marker for the pre-recordCount signature only:
+    // return validateInternal(storage, sessionId, runId, &completed);
     return validateInternal(storage, sessionId, runId, &completed, nullptr);
 }
 }

@@ -37,15 +37,51 @@ docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 
 Hardware acceptance остаётся обязательным release gate и будет продолжен после стабилизации затрагиваемых production contracts. Его нельзя считать завершённым.
 
+## Phase A progress
+
+Первый schema/persistence block выполнен:
+
+```text
+firmware/esp32/src/CM_MotorWindingVersionStore.h
+firmware/esp32/src/CM_MotorWindingVersionStore.cpp
+Tests/Web/check_motor_winding_version_schema.js
+```
+
+Поддерживаются:
+
+- один physical `motor_id` -> несколько winding versions;
+- predecessor `previous_version_id`;
+- optional `source_repair_id`;
+- отдельные WORKING / STARTING programs + repeat targets;
+- bounded multi-conductor contract до 4 компонентов на role;
+- canonical conductor format `CU:95x1+CU:100x1`;
+- append-only `/data/workshop/motor-winding-versions.ndjson`;
+- legacy `motors.ndjson` не переписывается.
+
+Evidence:
+
+```text
+a4895a6d058a56cd3041573b38d6ec808196cc99  contract
+2513d5392840fc739f402ce754f9543996086bc3  persistence
+863ecd52d718f2ddfc43c74ca32ec21c18c252f8  regression
+c6432c95e9f39464640a1c6ea49b097934bc5612  CI wiring
+CMP #3137 / run 32844995517 / SUCCESS
+ESP32 Build #1446 / run 32844995460 / SUCCESS
+CMP #3140 / run 32845194923 / SUCCESS
+CMP #3141 / run 32845242025 / pending at this update
+```
+
+Checkpoint: `97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md`.
+
 ## Current active implementation order
 
 ### A. Schema/contracts first
 
-1. Инвентаризировать текущие motor/client/repair/winding/costing/writeoff persistence + API.
-2. Определить backward-compatible winding-version schema.
-3. Разделить WORKING и STARTING programs/repeat targets.
-4. Определить multi-conductor representation для `0.95 + 1.00`, `0.80 x 3` и т.п.
-5. Определить immutable `as received` repair snapshot.
+1. [IN PROGRESS] Инвентаризировать текущие motor/client/repair/winding/costing/writeoff persistence + API.
+2. [DONE foundation] Определить backward-compatible winding-version schema.
+3. [DONE foundation] Разделить WORKING и STARTING programs/repeat targets.
+4. [DONE foundation] Определить multi-conductor representation для `0.95 + 1.00`, `0.80 x 3` и т.п.
+5. [NEXT] Определить immutable `as received` repair snapshot.
 6. Определить append-only delivery event (`DELIVERED_TO_CLIENT`).
 7. Определить append-only payment/correction store.
 8. Спроектировать целостную миграцию exact-spool -> material class + actual manual weight, без частичного удаления safety checks.
@@ -162,6 +198,7 @@ Hardware acceptance **не закрыт**. Уже подтверждено оп�
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 docs/PROJECT_HANDOFF/93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md

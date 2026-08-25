@@ -43,14 +43,14 @@ enum class HardwareControlResult : uint8_t
 
 namespace HardwareControlProtocol
 {
-// Longest active hardware-control TX is HALL_STATE with every numeric field at
-// its type maximum, FALLING, RELEASE_DEBOUNCE, CRC and newline:
+// Longest active hardware-control TX is HALL_STATE with every uint16 field at
+// its type maximum, FALLING, RELEASE_DEBOUNCE, uint32 timestamp, CRC and newline:
 // CMP1|HALL_STATE|65535|65535|65535|65535|65535|65535|65535|FALLING|1|RELEASE_DEBOUNCE|65535|4294967295|C|FFFF\n
-// = 113 wire bytes if arbitrary uint16 values are formatted. Runtime Hall
-// telemetry values are semantically bounded to ADC/settings ranges, but the
-// formatter itself accepts the struct directly, so keep the type-safe bound.
-static constexpr size_t MaxFrameLength = 114U;
-static_assert(MaxFrameLength == 114U,
+// = 109 wire bytes. The formatter also needs one byte for the trailing NUL.
+// Runtime Hall telemetry is normally semantically narrower, but this bound is
+// deliberately type-safe for any valid HallTelemetrySnapshot storage values.
+static constexpr size_t MaxFrameLength = 110U;
+static_assert(MaxFrameLength == 110U,
               "Hardware-control frame bound must include wire bytes plus NUL");
 
 // Shared bounded CMP1 CRC owner for hardware-control and Hall CAL commands.

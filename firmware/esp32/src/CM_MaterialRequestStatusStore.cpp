@@ -45,7 +45,8 @@ bool MaterialRequestStatusStore::resolve(uint32_t materialRequestId,
     found = false;
     if (!ready() || materialRequestId == 0UL) return false;
 
-    if (!requestExists(materialRequestId, found) || !found) return found;
+    if (!requestExists(materialRequestId, found)) return false;
+    if (!found) return true;
     state.status = "DRAFT";
 
     if (!m_storage.exists(Path)) return true;

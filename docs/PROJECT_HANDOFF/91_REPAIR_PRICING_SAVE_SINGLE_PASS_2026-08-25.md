@@ -81,6 +81,8 @@ The guard requires:
 
 ## Verification — GREEN
 
+Implementation / CI gates:
+
 ```text
 ESP32 Build #1442
 run 32830427142
@@ -103,6 +105,17 @@ head bbca869a52db892305a1419230c77f26d6def7fd
 SUCCESS
 ```
 
-Block 91 is fully software GREEN.
+Subsequent documentation descendants were also explicitly checked GREEN:
+
+```text
+CMP #3104 / run 32830566684 / head 3d4eb23eba67dee5c5b58d1ac6fd8207674ba2fe / SUCCESS
+CMP #3105 / run 32830602296 / head ed7e3b7d665435c9aa84fb0d48fcd63e76b94a31 / SUCCESS
+CMP #3106 / run 32830643211 / head 58b22be71dad3d9c82f2e41938fe66bbec6292bc / SUCCESS
+CMP #3107 / run 32830676575 / head 7c2d7589150296cdca1b7818c94b403252421db2 / SUCCESS
+CMP #3108 / run 32830798548 / head e6cfc57d535220b887f18b01fef3e41ad9b92803 / SUCCESS
+CMP #3109 / run 32830836275 / head eb20ae239550d2cf163bf5645e85901504fbe05c / SUCCESS
+```
+
+Block 91 is fully software GREEN. The latest explicitly verified CMP descendant before this documentation update is `eb20ae239550d2cf163bf5645e85901504fbe05c`.
 
 Hardware testing is not required for this repo-only optimization block.

@@ -46,6 +46,47 @@ Active queue:
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 ```
 
+## Current CRM implementation progress
+
+Phase A начата кодом, не только документацией.
+
+Добавлен backward-compatible append-only winding version foundation:
+
+```text
+/data/workshop/motor-winding-versions.ndjson
+firmware/esp32/src/CM_MotorWindingVersionStore.h
+firmware/esp32/src/CM_MotorWindingVersionStore.cpp
+Tests/Web/check_motor_winding_version_schema.js
+```
+
+Поддержано:
+
+- один physical `motor_id` с историей winding versions;
+- predecessor linkage через `previous_version_id`;
+- optional `source_repair_id`;
+- отдельные WORKING/STARTING programs и repeat targets;
+- bounded multi-conductor representation до 4 conductor components на role;
+- Cu/Al conductor identity без coupling к spool inventory;
+- legacy `motors.ndjson` остаётся без destructive rewrite.
+
+Основной schema/persistence implementation `2513d539...` прошёл:
+
+```text
+CMP Protocol Tests #3137 / run 32844995517 / SUCCESS
+ESP32 Build #1446 / run 32844995460 / SUCCESS
+CMP #3140 / run 32845194923 / SUCCESS
+```
+
+Regression уже добавлен и подключён в CMP workflow; последний CI wiring run #3141 ещё не считается GREEN, пока не завершится SUCCESS.
+
+Checkpoint:
+
+```text
+docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
+```
+
+Следующий schema block: immutable repair `AS_RECEIVED` snapshot + read/runtime integration winding version store.
+
 ## Production architecture unchanged at hardware boundary
 
 ```text

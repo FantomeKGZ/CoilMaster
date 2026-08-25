@@ -443,10 +443,10 @@ void HardwareControlWeb::handleCalibrationArm()
         while (m_receiver.takeHallCalibrationResult(discardedResult))
         {
         }
+        m_hasCalibrationResult = false;
+        m_pendingHistoryMeasurementId = 0UL;
+        m_pendingHistoryAbort = false;
     }
-    m_hasCalibrationResult = false;
-    m_pendingHistoryMeasurementId = 0UL;
-    m_pendingHistoryAbort = false;
     queueAccepted(accepted, "hall_control_busy");
 }
 

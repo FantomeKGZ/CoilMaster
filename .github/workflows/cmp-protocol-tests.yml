@@ -82,6 +82,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_motor_schema_ui.js
 
+      - name: Audit motor winding version schema contracts
+        if: always()
+        run: node Tests/Web/check_motor_winding_version_schema.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

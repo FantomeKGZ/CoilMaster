@@ -186,6 +186,50 @@ bool MotorWindingVersionStore::appendLatestByMotorJson(String& json,
     return true;
 }
 
+bool MotorWindingVersionStore::appendByVersionIdJson(String& json,
+                                                     uint32_t versionId,
+                                                     uint32_t expectedMotorId,
+                                                     bool& found) const
+{
+    found = false;
+    if (!ready() || versionId == 0UL || expectedMotorId == 0UL) return false;
+    if (!m_storage.exists(Path)) return true;
+
+    File file = m_storage.open(Path, FILE_READ);
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint32_t previousVersionId = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t currentVersionId = 0UL;
+        uint32_t currentMotorId = 0UL;
+        if (!findUnsigned(line, "winding_version_id", currentVersionId) ||
+            currentVersionId == 0UL || currentVersionId <= previousVersionId ||
+            !findUnsigned(line, "motor_id", currentMotorId) || currentMotorId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        previousVersionId = currentVersionId;
+        if (currentVersionId != versionId) continue;
+        if (currentMotorId != expectedMotorId || found)
+        {
+            file.close();
+            return false;
+        }
+        json += line;
+        found = true;
+    }
+    file.close();
+    return true;
+}
+
 bool MotorWindingVersionStore::appendMotorPageJson(String& json,
                                                    uint32_t motorId,
                                                    uint32_t cursor,

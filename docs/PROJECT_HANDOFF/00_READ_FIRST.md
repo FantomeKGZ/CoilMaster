@@ -10,6 +10,7 @@
 /AGENTS.md
 this file
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT_2026-08-25.md
 docs/PROJECT_HANDOFF/91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md
 docs/PROJECT_HANDOFF/89_REPAIR_PRICING_REFERENCE_BATCHING_2026-08-25.md
 docs/PROJECT_HANDOFF/88_MATERIAL_REFERENCE_BATCHING_2026-08-25.md
@@ -25,7 +26,7 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 
 `90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` — текущий authoritative transfer checkpoint. Если старые numbered checkpoints противоречат `90` по текущему состоянию, verified GREEN baseline, active Stage-1 direction или следующему hardware gate, использовать `90`.
 
-`91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md` — newest fully GREEN Stage-1 implementation block.
+`92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT_2026-08-25.md` — newest fully GREEN Stage-1 implementation block.
 
 Если исторический exact path `85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md` отсутствует, не подменять его `main`: текущие authoritative NDJSON rules находятся в `90`, `06`, `/api/system/storage` diagnostics contract и current source.
 
@@ -46,34 +47,34 @@ Full two-board hardware acceptance                still required
 
 ## Current verified GREEN baseline
 
-Latest verified Stage-1 block: **91_REPAIR_PRICING_SAVE_SINGLE_PASS**.
+Latest verified Stage-1 block: **92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT**.
 
 ```text
-8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
-perf(esp32): avoid duplicate repair scan on pricing save
+72401aae0d1b34fbb211ce92c48d0a367f337b91
+perf(esp32): collapse material usage preflight scan
 
-510f449de040ec4aec4814a08fbe7565fcd4c41a
-test(esp32): protect pricing save repair single-pass
+8ce55052f98d491f3f1f2fda4830955e87159798
+test(esp32): protect material usage single-pass preflight
 
-bbca869a52db892305a1419230c77f26d6def7fd
-ci(esp32): audit pricing save repair single-pass
+6d77ac1b4ad7fcc25cc1873d5e0c13e819011ece
+ci(esp32): audit material usage single-pass preflight
 
-ESP32 Build #1442
-run 32830427142
-head_sha 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
+ESP32 Build #1443
+run 32831517073
+head_sha 72401aae0d1b34fbb211ce92c48d0a367f337b91
 SUCCESS
 
-CMP Protocol Tests #3103
-run 32830498664
-head_sha bbca869a52db892305a1419230c77f26d6def7fd
+CMP Protocol Tests #3113
+run 32831593193
+head_sha 6d77ac1b4ad7fcc25cc1873d5e0c13e819011ece
 SUCCESS
 ```
 
-Block 91 removes one duplicate repair identity scan from pricing save while retaining the mandatory authoritative `RepairCosting::load()` validation and all lifecycle/costing/movement fail-closed gates.
+Block 92 collapses two equivalent material-catalog preflight reads in `MaterialLedger::confirmUsage()` into one existing authoritative `readMaterialState()` pass while retaining `rewriteQuantity()` as the separate transactional mutation/revalidation pass.
 
-CMP #3103 includes the dedicated pricing-save single-pass regression together with material batching, scoped backup, final acceptance, KG_FIRST, winding/finalization/workshop single-pass, write-off fault, NDJSON growth diagnostics and Hall contract audits.
+CMP #3113 includes the dedicated material-usage single-pass regression together with material/reference/backup/finalization/writeoff/NDJSON/Hall contract audits.
 
-Documentation-only commits after `bbca869a...` do not establish a newer firmware GREEN baseline unless separately verified.
+Documentation-only commits after `6d77ac1b...` do not establish a newer firmware GREEN baseline unless separately verified.
 
 Hardware GREEN из CI не выводить.
 

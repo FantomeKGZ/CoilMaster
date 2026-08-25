@@ -1,5 +1,5 @@
 #include "CM_WindingJournalTransitionAudit.h"
-#include "CM_FlatJsonObjectValidator.h"
+#include "CM_WindingJournalQuery.h"
 
 namespace CM
 {
@@ -100,7 +100,7 @@ WindingJournalTransitionAuditResult validateInternal(fs::FS& storage,
         uint32_t persistedCompletedRuns = 0UL;
         AuditEvent event = AuditEvent::Started;
 
-        if (line.length() == 0U || !FlatJsonObjectValidator::valid(line) ||
+        if (!WindingJournalQuery::isValidRecord(line) ||
             !findUnsigned(line, "session_id", sessionId) || sessionId == 0UL ||
             !findUnsigned(line, "run_id", runId) || runId == 0UL ||
             !findUnsigned(line, "completed_runs", persistedCompletedRuns) ||

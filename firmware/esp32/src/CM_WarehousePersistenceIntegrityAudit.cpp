@@ -288,7 +288,10 @@ bool checkMovementReferences(fs::FS& storage)
 bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage)
 {
     WarehousePersistenceAuditMetrics ignoredMetrics;
-    return check(storage, ignoredMetrics);
+    if (!check(storage, ignoredMetrics)) return false;
+
+    // Standalone callers retain the original broad integrity contract.
+    return checkMovementReferences(storage);
 }
 
 bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage,
@@ -298,8 +301,7 @@ bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage,
     uint32_t spoolRecordCount = 0UL;
     uint32_t priceRecordCount = 0UL;
     if (!checkSpools(storage, spoolRecordCount) ||
-        !checkPrice(storage, priceRecordCount) ||
-        !checkMovementReferences(storage))
+        !checkPrice(storage, priceRecordCount))
     {
         return false;
     }

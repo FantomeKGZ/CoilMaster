@@ -32,6 +32,19 @@ struct NewMaterial
           pricePerUnitMinor(0UL), currency("KGS") {}
 };
 
+struct MaterialItemState
+{
+    uint32_t materialId;
+    MaterialUnit unit;
+    uint32_t stockQuantityMilli;
+    uint32_t pricePerUnitMinor;
+    String currency;
+
+    MaterialItemState()
+        : materialId(0UL), unit(MaterialUnit::Piece), stockQuantityMilli(0UL),
+          pricePerUnitMinor(0UL), currency("KGS") {}
+};
+
 struct MaterialAdjustment
 {
     uint32_t materialId;
@@ -97,6 +110,11 @@ public:
     bool loadActiveMaterialCurrency(uint32_t materialId,
                                     String& currency,
                                     bool& found) const;
+    bool loadActiveMaterialState(uint32_t materialId,
+                                 MaterialItemState& state,
+                                 bool& found) const;
+    bool loadActiveMaterialState(uint32_t materialId,
+                                 MaterialItemState& state) const;
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);

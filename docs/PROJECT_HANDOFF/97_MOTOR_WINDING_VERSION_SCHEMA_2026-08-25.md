@@ -2,7 +2,7 @@
 
 Дата: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **IMPLEMENTATION STARTED / ESP32 BUILD PENDING**
+Статус: **SOFTWARE GREEN / FOUNDATION ONLY**
 
 Этот checkpoint фиксирует первый implementation block Phase A из `95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md`.
 
@@ -111,16 +111,15 @@ Store:
 
 ```text
 CMP Protocol Tests #3137 / run 32844995517 / SUCCESS
-ESP32 Build #1446 / run 32844995460 / pending at checkpoint creation
+ESP32 Build #1446 / run 32844995460 / SUCCESS
 ```
 
-Не считать весь блок GREEN, пока ESP32 Build #1446 не завершится SUCCESS.
+Блок считается software GREEN только как schema/persistence foundation. Store ещё не подключён к runtime/API и ещё не release-critical.
 
 ## Следующие шаги
 
-1. Дождаться/проверить ESP32 Build #1446.
-2. Добавить regression contract для schema/canonical conductor format.
-3. Подключить store lifecycle к ESP32 runtime.
-4. Добавить read/latest/page API для motor card/catalog.
-5. До release-critical использования добавить store в backup whitelist + integrity audit.
-6. Затем перейти к immutable repair `AS_RECEIVED` snapshot contract.
+1. Добавить regression contract для schema/canonical conductor format.
+2. Подключить store lifecycle к ESP32 runtime.
+3. Добавить read/latest/page API для motor card/catalog.
+4. До release-critical использования добавить store в backup whitelist + integrity audit.
+5. Затем перейти к immutable repair `AS_RECEIVED` snapshot contract.

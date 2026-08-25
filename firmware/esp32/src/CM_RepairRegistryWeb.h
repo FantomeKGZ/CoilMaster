@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <WebServer.h>
+#include "CM_RepairIntakeCoordinator.h"
 #include "CM_RepairRegistry.h"
 
 namespace CM
@@ -28,6 +29,7 @@ private:
 
     WebServer& m_server;
     RepairRegistry& m_registry;
+    RepairIntakeCoordinator* m_intake;
 };
 }
 

@@ -1,4 +1,4 @@
-# CoilMaster — Web/CRM motor, client, repair and cash redesign
+# CoilMaster — Web/CRM motor, client, repair, warehouse and cash redesign
 
 Дата: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**  
@@ -16,13 +16,28 @@
 -> WORKING / STARTING winding data
 -> winding job(s)
 -> resulting winding version
--> COSTING
--> PAYMENTS / BALANCE
+-> MATERIAL REQUEST
+   -> warehouse ISSUE/RETURN/CORRECTION
+   -> costing/material valuation
+-> CASH / PAYMENTS / BALANCE
 -> repair completion
 -> DELIVERED_TO_CLIENT
+-> archived/read-only history
 ```
 
-Каталоги становятся browse/search-oriented. Создание клиента/двигателя переносится на отдельные страницы. Карточки клиента и двигателя становятся основными рабочими экранами.
+Ключевое разделение ответственности:
+
+```text
+СКЛАД = физические остатки и движение материалов
+КАССА = деньги, начисления, оплаты и баланс
+ЗАЯВКА МАТЕРИАЛОВ = связующий документ repair ↔ warehouse ↔ costing/cash
+```
+
+Подробный material-request design:
+
+```text
+docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+```
 
 ## 2. Stable baseline / branch rule
 
@@ -49,37 +64,15 @@ motor_id
   -> winding version N
 ```
 
-Каждая version поддерживает:
-
-```text
-WORKING
-  coil_program
-  repeat_target
-  coil_pitch optional
-  conductors[]
-
-STARTING optional
-  coil_program
-  repeat_target
-  coil_pitch optional
-  conductors[]
-```
+Каждая version поддерживает отдельные WORKING и optional STARTING programs, repeat targets, coil pitch и multi-conductor data. Реальные комбинации вроде `0.95 + 1.00`, `0.80 x 3`, `0.71 x 2 + 0.80` должны поддерживаться без привязки к одной бухте.
 
 Для 3-фазного двигателя STARTING обычно отсутствует.
-
-Multi-conductor должен покрывать реальные комбинации:
-
-```text
-0.95 + 1.00
-0.80 x 3
-0.71 x 2 + 0.80
-```
 
 ## 4. Motor Web
 
 ### `/desktop/motors.html`
 
-Catalog-only в визуальном/рабочем стиле `/desktop/arduino-windings.html`.
+Catalog-only в стиле `/desktop/arduino-windings.html`: компактный список, поиск, bounded paging, фильтры, быстрый переход в карточку.
 
 Основные поля строки:
 
@@ -94,45 +87,31 @@ Catalog-only в визуальном/рабочем стиле `/desktop/arduino
 Открыть
 ```
 
-Фильтры: identity, phases, slots, Cu/Al, starting presence, winding program, power where available.
-
 ### `/desktop/motor-new.html`
 
-Отдельная страница создания motor master. Другие страницы больше не содержат большую inline motor form; оставляют ссылку `+ Добавить двигатель`.
-
-После создания — переход в `motor-details.html?motor_id=...`.
+Отдельная страница создания motor master. Другие страницы оставляют только ссылку `+ Добавить двигатель`.
 
 ### `/desktop/motor-details.html`
 
-Рабочая карточка:
+Рабочая карточка двигателя:
 
 - identity/passport data;
 - current winding version;
-- WORKING;
-- STARTING;
+- WORKING / STARTING;
 - conductor data;
 - version history;
 - before/after comparison;
 - repair history;
-- source/notes;
-- direct actions.
+- material requests history;
+- direct `Отправить рабочую/пусковую на станок` actions.
 
-Кнопки:
-
-```text
-Отправить рабочую на станок
-Отправить пусковую на станок
-```
-
-Они создают JOB, но никогда не выполняют physical START. Physical START остаётся только локальным.
+JOB creation никогда не означает physical START. Physical START остаётся только локальным.
 
 ## 5. AS_RECEIVED snapshot
 
-При создании нового ремонта должна фиксироваться immutable copy состояния двигателя/обмотки на момент приёмки.
+При создании нового ремонта фиксируется immutable copy состояния двигателя/обмотки на момент приёмки. Старый ремонт продолжает показывать `как поступил`, даже если текущая motor card изменилась.
 
-Старый ремонт обязан продолжать показывать состояние `как поступил`, даже если текущая motor card позже обновилась.
-
-Snapshot включает минимум:
+Snapshot минимум:
 
 ```text
 repair_id + client_id + motor_id
@@ -160,30 +139,108 @@ Catalog-only. Поиск минимум по имени, телефону, ID.
 
 Показывает:
 
-- имя/телефон/заметки;
-- двигатели, которые клиент привозил;
-- ссылки на physical motor cards;
+- identity/contacts/notes;
+- физические двигатели клиента;
 - ремонты;
-- open / completed-not-delivered;
+- material requests;
 - начислено / оплачено / баланс;
 - payment history;
-- accepted/completed/delivered dates.
+- accepted/completed/delivered dates;
+- ссылки client -> motor -> repair -> material request и обратно.
 
-Не встраивать постоянный `client_id` в motor master как вечного владельца. Связь клиента с мотором следует из repair/history semantics.
+Не встраивать `client_id` в motor master как вечного владельца. Связь клиента с мотором следует из repair/history semantics.
 
-## 7. Repair lifecycle / delivery
+## 7. Material Request — связка склада и кассы
+
+Главный owner заявки — `repair_id`; для exact provenance также сохраняются `client_id + motor_id`.
+
+Target lifecycle:
+
+```text
+DRAFT -> ISSUED -> PRICED -> CLOSED
+```
+
+Заявка содержит/агрегирует фактические складские движения:
+
+```text
+ISSUE
+RETURN
+CORRECTION
+```
+
+Материалы: провод Cu/Al, лак, клинья/палочки, изоляция, подшипники и любые другие warehouse items.
+
+После ISSUE исходную строку нельзя молча переписать или удалить. Возврат/исправление — отдельный append-only movement.
+
+После CLOSED заявка не копируется в отдельный файл-архив; она остаётся доступной через repair/client/motor history, а active UI просто фильтрует closed requests.
+
+## 8. Склад
+
+Склад отвечает только за physical inventory:
+
+- item catalog;
+- quantity/current stock;
+- bounded unit set (`kg/g/l/ml/pcs/...`);
+- accounting/purchase cost;
+- ISSUE/RETURN/CORRECTION;
+- привязку movements к material request;
+- inventory integrity/audit.
+
+Склад не хранит клиентские платежи.
+
+## 9. Wire accounting migration
+
+Ранее одобренный уход от mandatory exact `spool_id` теперь реализуется как часть material-request architecture.
+
+Target future wire issue:
+
+```text
+RUN_COMPLETED
+-> НИЧЕГО автоматически не списывает
+-> оператор вводит фактический расход
+-> warehouse ISSUE movement
+-> material_request_id
+-> exact source_session_id + source_run_id
+-> material class CU/AL + actual weight
+```
+
+`spool_id` может остаться optional inventory metadata после полной migration.
+
+КРИТИЧНО: текущий production backend/finalization пока использует exact spool identity. Нельзя убрать только Web selector. Migration должна согласованно обновить job metadata, writeoff, material request movement, costing, finalization, backup/integrity, reports, Web и tests.
+
+## 10. Costing vs Cash
+
+Costing читает подтверждённые warehouse movements/material request и считает фактическую себестоимость.
+
+Полезно хранить отдельно:
+
+```text
+cost_amount = себестоимость мастерской
+charge_amount = сумма, начисленная клиенту
+```
+
+Cash хранит только financial events:
+
+```text
+repair/client charge
+payment
+correction/refund
+balance
+```
+
+`/desktop/cash.html` показывает:
+
+```text
+Дата | Клиент | Двигатель | Ремонт | Заявка | Начислено | Оплачено | Остаток | Статус
+```
+
+Поддержать partial/multiple payments, debt, overpayment и append-only corrections.
+
+## 11. Repair lifecycle / delivery
 
 `CLOSED` ремонта и физическая выдача клиенту — разные события.
 
-Target:
-
-```text
-repair completed
-ready for delivery
-delivered to client
-```
-
-Добавить append-only delivery evidence:
+Append-only delivery evidence:
 
 ```text
 repair_id
@@ -195,79 +252,17 @@ comment optional
 
 Долг не hard-block выдачи. UI предупреждает и требует explicit operator confirmation.
 
-## 8. Costing vs cash
-
-Существующий costing отвечает за:
-
-- себестоимость;
-- провод/materials;
-- labour;
-- client price;
-- margin/loss;
-- pricing revision history.
-
-Cash/payments — отдельная подсистема.
-
-Target `/desktop/cash.html`:
-
-```text
-Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус
-```
-
-Payment storage append-only/correction-based:
-
-```text
-payment/correction id
-client_id
-repair_id
-amount
-timestamp
-```
-
-Поддержать partial/multiple payments, debt, overpayment, aggregated client balance.
-
-## 9. Wire accounting migration
-
-Пользователь одобрил уход основного workflow от обязательной exact `spool_id`.
-
-Target future contract:
-
-```text
-source_session_id + source_run_id
-material class CU/AL
-actual consumed weight
-manual confirmation
-```
-
-`RUN_COMPLETED` никогда ничего автоматически не списывает.
-
-КРИТИЧНО: migration ещё не завершена. Текущий backend/finalization использует exact spool identity. Нельзя убрать только Web selector.
-
-Migration должна согласованно обновить:
-
-- linked job creation;
-- immutable job metadata;
-- writeoff API/storage;
-- costing;
-- finalization;
-- backup/integrity;
-- reports/history;
-- Web;
-- tests/docs.
-
-Spool inventory UI можно сохранить как optional interface.
-
-## 10. Backward compatibility
+## 12. Backward compatibility
 
 - старые `motors.ndjson` остаются читаемыми;
-- legacy `coil_program + repeat_target` синтезируется как legacy/current WORKING до upgrade;
+- legacy `coil_program + repeat_target` синтезируется как legacy/current WORKING;
 - старые repairs остаются читаемыми;
-- repair без нового snapshot получает явный legacy status, а не ложную corruption classification;
+- repair без нового snapshot получает явный legacy status;
 - никаких destructive rewrite historical stores;
-- новые history/event/version stores предпочтительно append-only;
+- new history/event/version stores append-only where practical;
 - каждый release-critical store обязан войти в backup whitelist + integrity validation.
 
-## 11. Safety invariants — never weaken
+## 13. Safety invariants — never weaken
 
 - no automatic physical START;
 - no automatic START between repeats;
@@ -277,97 +272,63 @@ Spool inventory UI можно сохранить как optional interface.
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts wire/material;
+- physical warehouse ISSUE requires explicit operator action;
+- run-linked wire ISSUE retains exact `source_session_id + source_run_id`;
 - cancellation/operator abort never erases immutable run/history evidence;
 - restore operator-only, transactional, fail-closed;
 - no automatic production-data deletion/truncation.
 
-## 12. Phase A implementation status
+## 14. Phase A implementation status
 
 ### GREEN — winding version schema/persistence
-
-Checkpoint:
-
-```text
-97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
-```
-
-Implemented `/data/workshop/motor-winding-versions.ndjson`, WORKING/STARTING, predecessor, repair linkage, multi-conductor.
+`97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md`
 
 ### GREEN — AS_RECEIVED persistence foundation
-
-Checkpoint:
-
-```text
-98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md
-```
-
-Implemented `/data/workshop/repair-as-received.ndjson` and immutable snapshot contract.
+`98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md`
 
 ### GREEN — runtime/read API
+`99_CRM_WINDING_LOOKUP_API_2026-08-25.md`
 
-Checkpoint:
+### GREEN — repair intake pending transaction foundation
+`100_REPAIR_INTAKE_TRANSACTION_FOUNDATION_2026-08-25.md`
 
-```text
-99_CRM_WINDING_LOOKUP_API_2026-08-25.md
-```
+### INTEGRATED / verification pending — transactional POST `/api/repairs`
 
-Read-only endpoints:
-
-```text
-GET /api/motors/winding/latest
-GET /api/motors/winding/versions
-GET /api/repairs/as-received
-```
-
-Verified through ESP32 Build #1452 and CMP #3154-#3156.
-
-### IN PROGRESS — repair intake transaction/recovery
-
-Added foundation:
+Current integrated commit:
 
 ```text
-/data/workshop/repair-intake.pending.json
-/data/workshop/repair-intake.pending.tmp
-CM_RepairIntakePendingStore
+92523c7c6f4c8af8c71a63c4178a4b1e41953f19
+feat(crm): make repair intake snapshot transactional
 ```
 
-Purpose: close power-loss window between new repair append and mandatory AS_RECEIVED snapshot append.
+The integration uses `RepairIntakeCoordinator`; it must not be declared GREEN until a normal connector-triggered ESP32 Build + CMP regression run succeeds.
 
-Required semantics:
+## 15. Updated implementation order
 
-1. durable pending marker before repair append;
-2. if crash before repair exists -> pending may be discarded as uncommitted;
-3. if repair exists but snapshot missing -> recover exact snapshot from marker/source version before normal operation;
-4. if repair+snapshot both exist -> clear stale marker;
-5. ambiguous/corrupt state -> fail closed.
-
-This block must not be declared GREEN before CI/build evidence.
-
-## 13. Remaining implementation order
-
-1. Finish repair intake transaction/recovery and connect `POST /api/repairs`.
-2. Add winding/snapshot/pending stores to backup whitelist + integrity audit.
-3. Add delivery event/store/API.
-4. Add payment/correction store/API.
-5. Implement `motor-new.html`.
-6. Redesign `motors.html`.
-7. Expand `motor-details.html` and direct WORKING/STARTING job send.
-8. Implement `client-new.html`, catalog-only `clients.html`, `client-details.html`.
-9. Repair delivery lifecycle UI.
-10. Coordinated spool -> material+weight migration.
-11. `cash.html` and payment integration.
-12. Desktop/mobile navigation alignment, regressions, backup/restore audit.
+1. Finish transactional repair intake verification.
+2. Add winding/snapshot/intake stores to backup whitelist + integrity audit.
+3. Implement **Material Request schema + movement store + warehouse item/unit contract** from checkpoint 101.
+4. Add delivery event/store/API.
+5. Add payment/correction store/API.
+6. Implement Motor Web (`motor-new`, new catalog, motor card).
+7. Implement Client Web (`client-new`, catalog, client card).
+8. Coordinated spool -> material-request wire migration.
+9. Costing/material request integration.
+10. `cash.html` + payment integration.
+11. Archive/navigation/analytics foundations.
+12. Desktop/mobile alignment, regressions, backup/restore audit.
 13. Repeat full hardware E2E acceptance on final contracts.
 
-## 14. Documentation discipline
+## 16. Documentation discipline
 
 После каждого meaningful implementation block обновлять своевременно:
 
 ```text
 this file
+101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md when material-request design/implementation changes
 06_ACTIVE_WORK_AND_NEXT_STEPS.md
 01_CURRENT_STATE.md
-90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md when transfer state changes
+90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 00_READ_FIRST.md when entrypoint/read order changes
 ```
 

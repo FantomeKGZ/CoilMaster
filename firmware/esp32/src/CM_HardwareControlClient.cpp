@@ -411,9 +411,26 @@ bool HardwareControlClient::processSettingsResult(char* line)
     const bool categoryNack = strcmp(category, "CFG_NACK") == 0;
     if ((!categoryAck && !categoryNack) || categoryAck != ackPrefix) return true;
 
+    if (!m_waitingReply) return true;
+    const bool directSettingsReply =
+        m_requestType == RequestType::SetSettings ||
+        m_requestType == RequestType::ResetSettings ||
+        m_requestType == RequestType::StartTelemetry ||
+        m_requestType == RequestType::StopTelemetry;
+    const bool proposalEarlyReply =
+        m_requestType == RequestType::StageCalibrationProposal &&
+        (!m_calibrationState.valid ||
+         m_calibrationState.state != HallCalibrationRemoteState::WaitingApplyConfirm);
+    if (!directSettingsReply && !proposalEarlyReply) return true;
+
     HardwareControlReplyResult result = parseResultName(resultText);
     if (categoryAck && result != HardwareControlReplyResult::Applied) return true;
     if (categoryNack && result == HardwareControlReplyResult::Applied) return true;
+    if (proposalEarlyReply &&
+        (!categoryNack || result != HardwareControlReplyResult::Busy))
+    {
+        return true;
+    }
     finishRequest(result);
     return true;
 }

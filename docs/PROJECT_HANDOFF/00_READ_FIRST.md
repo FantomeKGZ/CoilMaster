@@ -6,21 +6,13 @@
 
 ## Stable pre-CRM snapshot
 
-Перед началом нового Web/CRM этапа `main` был fast-forward синхронизирован с текущей стабильной точкой `cmp-protocol-v1`.
-
 ```text
 stable commit: 449570d47649d5f6336a31ee3eed491256e0fb1a
-main -> 449570d47649d5f6336a31ee3eed491256e0fb1a
+main -> same commit
 stable-2026-08-25-pre-crm-redesign -> same commit
 ```
 
-Подробности:
-
-```text
-docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
-```
-
-После snapshot разработка снова ведётся только в `cmp-protocol-v1`. `main` не двигать до следующего явно согласованного stable checkpoint.
+После snapshot разработка только в `cmp-protocol-v1`. `main` не двигать до следующего согласованного stable checkpoint.
 
 ## Что читать новому AI / coding agent
 
@@ -29,9 +21,14 @@ docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/100_REPAIR_INTAKE_TRANSACTION_FOUNDATION_2026-08-25.md
+docs/PROJECT_HANDOFF/99_CRM_WINDING_LOOKUP_API_2026-08-25.md
+docs/PROJECT_HANDOFF/98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md
+docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
 docs/PROJECT_HANDOFF/93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md
 docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
 docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
@@ -40,106 +37,126 @@ docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-`96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md` — stable pre-CRM reference point.
+Checkpoint 95 — authoritative CRM design.  
+Checkpoint 101 — authoritative Material Request / Warehouse ↔ Cash bridge.  
+Checkpoint 06 — текущая очередь.  
+Checkpoint 90 — authoritative transfer.
 
-`95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md` — authoritative design нового активного Web/CRM этапа.
+Старые checkpoints — history/evidence, не backlog.
 
-`06_ACTIVE_WORK_AND_NEXT_STEPS.md` — только текущая очередь реализации.
-
-`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` — authoritative transfer checkpoint.
-
-`93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md` — закрытие предыдущего repo-only optimization этапа и hardware acceptance context.
-
-Старые numbered checkpoints — history/evidence, а не backlog. Не продолжать старую задачу только потому, что исторический checkpoint содержит `next`/`pending`.
-
-Перед изменением/deletion existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата или явного подтверждения оператора.
+Перед изменением existing file обязательно fetch exact current content из `cmp-protocol-v1` + current blob SHA. Для нового path сначала подтвердить 404/not found. Не объявлять CI/build/hardware GREEN без фактического результата.
 
 ## Current phase
 
-Stage-1 optimization закрыт. Реальная двухплатная hardware acceptance была начата, выявила defect operator exit via key `B`; программный fix прошёл Uno/ESP32/CMP verification. Полный hardware acceptance всё ещё не завершён.
+Workshop Web/CRM redesign, Phase A foundations.
 
-Текущий активный product этап — **Workshop Web/CRM redesign**:
+Текущий target flow:
 
 ```text
-client
--> physical motor
--> repair
--> immutable as-received snapshot
--> winding versions (WORKING / STARTING)
--> winding job(s)
--> costing
--> payments / balance
--> repair completion
--> delivered-to-client event
+CLIENT
+-> MOTOR
+-> REPAIR
+-> immutable AS_RECEIVED
+-> WORKING / STARTING winding versions/jobs
+-> MATERIAL REQUEST
+   -> WAREHOUSE physical movements
+   -> COSTING
+-> CASH/PAYMENTS/BALANCE
+-> repair completed
+-> DELIVERED_TO_CLIENT
 ```
 
-## Approved Web/CRM decisions
+Главное новое разделение:
 
-- `motors.html` — только каталог в стиле Arduino archive;
-- отдельный `/desktop/motor-new.html`;
-- `motor-details.html` — основная рабочая карточка;
-- один физический двигатель = один `motor_id`;
-- Al -> Cu и последующие перемотки = winding versions, не новые motors;
-- отдельные WORKING / STARTING programs and repeats;
-- 3-phase: STARTING обычно отсутствует;
-- multi-conductor data должна поддерживать `0.95 + 1.00`, `0.80 x 3` и аналоги;
-- WORKING/STARTING можно отправлять на станок прямо из motor card;
-- это никогда не означает automatic physical START;
-- `clients.html` — только каталог;
-- отдельный `/desktop/client-new.html`;
-- отдельный `/desktop/client-details.html` с motors/repairs/payments/balance/delivery;
-- inline forms добавления клиента/двигателя из repairs должны быть заменены ссылками;
-- repair CLOSED и фактическая выдача — разные события;
-- cash/payments отделяются от costing;
-- payments append-only/correction-based;
-- выдача при долге разрешена только после явного operator confirmation warning.
+```text
+СКЛАД = физический inventory и ISSUE/RETURN/CORRECTION
+КАССА = денежные события и баланс
+MATERIAL REQUEST = repair-specific документ, связывающий склад и стоимость/кассу
+```
+
+## Current implementation status
+
+GREEN foundations:
+
+- motor winding versions — checkpoint 97;
+- repair AS_RECEIVED store — checkpoint 98;
+- read/latest/history API — checkpoint 99;
+- repair intake pending transaction foundation — checkpoint 100.
+
+Transactional `POST /api/repairs` integrated commit:
+
+```text
+92523c7c6f4c8af8c71a63c4178a4b1e41953f19
+```
+
+Uses `RepairIntakeCoordinator`; ещё требует normal ESP32 Build + CMP regression до GREEN.
+
+## Approved Material Request decisions
+
+- owner = `repair_id`, plus exact `client_id + motor_id` provenance;
+- target lifecycle `DRAFT -> ISSUED -> PRICED -> CLOSED`;
+- warehouse movement kinds `ISSUE | RETURN | CORRECTION`;
+- supports wire, varnish/lacquer, wedges/sticks, insulation, bearings and arbitrary warehouse items;
+- after ISSUE no silent rewrite/delete; return/correction append-only;
+- CLOSED request stays queryable in history, not copied to another archive;
+- client/motor/repair/request/cash navigation is bidirectional.
 
 ## Wire accounting migration — important
 
-Пользователь одобрил будущее упрощение linked workflow: уйти от обязательной exact `spool_id` и учитывать ручной фактический расход по material class + weight.
-
-Но **это пока не реализовано**. Текущий backend/finalization всё ещё использует exact spool identity. Нельзя частично удалить spool checks только из Web.
-
-После полной миграции целевой invariant:
+Approved future flow is now part of Material Request architecture:
 
 ```text
-RUN_COMPLETED never auto-deducts wire/material.
-Manual wire usage remains tied to exact source_session_id + source_run_id,
-plus CU/AL material class and actual consumed weight.
+RUN_COMPLETED never auto-deducts.
+Operator confirms warehouse ISSUE manually.
+Run-linked wire movement keeps:
+material_request_id + source_session_id + source_run_id + CU/AL + actual weight.
 ```
 
-До окончания migration действует текущий exact-spool production contract.
+Current backend/finalization still uses exact `spool_id`. Do not partially remove it. `spool_id` may become optional inventory metadata only after coordinated migration across job/writeoff/material-request/costing/finalization/backup/integrity/reports/Web/tests.
+
+## Motor/Client/Cash target
+
+- `motors.html` catalog-only in Arduino archive style;
+- separate `motor-new.html`;
+- `motor-details.html` as work card with versions, WORKING/STARTING, direct JOB send, repair/request history;
+- `clients.html` catalog-only;
+- separate `client-new.html` and `client-details.html`;
+- client card includes motors, repairs, material requests, payments, balance, delivery dates;
+- costing reads confirmed material request movements;
+- cash stores payments/corrections/refunds only;
+- repair CLOSED != delivered.
 
 ## Safety invariants — never weaken
 
-- physical START only physical/local;
-- no automatic physical START between repeat cycles;
+- physical START only local;
+- no automatic START between repeats;
 - no auto-resume after reboot;
 - Arduino owns SSR;
 - ESP32/Web never directly control SSR;
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot reopen automatically;
-- `RUN_COMPLETED` never performs automatic wire/material writeoff;
-- cancellation/operator abort does not erase immutable run/history evidence;
-- backup restore operator-only, transactional and fail-closed;
-- no automatic production-data deletion/truncation.
+- `RUN_COMPLETED` never performs automatic material writeoff;
+- warehouse ISSUE requires explicit operator action;
+- run-linked wire movement preserves exact run provenance;
+- cancellation/operator abort preserves immutable evidence;
+- restore operator-only, transactional, fail-closed;
+- no automatic production deletion/truncation.
 
-## Documentation rule for current phase
+## Documentation rule
 
-Documentation is updated together with every meaningful implementation block.
-
-Always keep current:
+Keep synchronized after every meaningful implementation block:
 
 ```text
-docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
-docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
-this file
+95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md when relevant
+06_ACTIVE_WORK_AND_NEXT_STEPS.md
+01_CURRENT_STATE.md
+90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+this file when entrypoint/read order changes
 ```
 
-For major persistence/API additions create a new numbered checkpoint with exact commits, CI runs and migration status.
+For each major new store/API create a numbered checkpoint with exact commits + CI evidence.
 
 ## NDJSON rule
 
-No premature DB migration. No destructive historical rewrite. Prefer bounded append-only version/event stores where practical. Every new production store must enter backup whitelist/integrity validation before becoming release-critical.
+No premature DB migration. No destructive historical rewrite. Prefer bounded append-only version/event/movement stores. Every new production store must enter backup whitelist/integrity validation before becoming release-critical.

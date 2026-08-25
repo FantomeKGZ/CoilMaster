@@ -106,14 +106,17 @@ void appendPageMetadata(String& response,
 }
 
 RepairRegistryWeb::RepairRegistryWeb(WebServer& server, RepairRegistry& registry)
-    : m_server(server), m_registry(registry) {}
+    : m_server(server), m_registry(registry), m_intake(nullptr) {}
 
 void RepairRegistryWeb::begin()
 {
     static BackupExportWeb backupExportWeb(m_server, SD);
     static RepairRegistryLookupWeb lookupWeb(m_server, m_registry);
+    static RepairIntakeCoordinator repairIntake(SD, m_registry);
+    m_intake = &repairIntake;
     backupExportWeb.begin();
     lookupWeb.begin();
+    m_intake->begin();
     m_server.on("/api/clients", HTTP_GET, [this]() { handleListClients(); });
     m_server.on("/api/clients", HTTP_POST, [this]() { handleCreateClient(); });
     m_server.on("/api/motors", HTTP_GET, [this]() { handleListMotors(); });
@@ -632,18 +635,40 @@ void RepairRegistryWeb::handleCreateRepair()
     repair.receivedAt = m_server.arg("received_at");
     repair.complaint = m_server.arg("complaint");
     repair.comment = m_server.arg("comment");
-    uint32_t repairId = 0UL;
-    if (!m_registry.addRepair(repair, repairId))
+    if (m_intake == nullptr || !m_intake->ready())
     {
-        if (!m_registry.ready())
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_intake_unavailable\"}");
+        return;
+    }
+
+    uint32_t repairId = 0UL;
+    const RepairIntakeCreateResult intakeResult = m_intake->create(repair, repairId);
+    if (intakeResult != RepairIntakeCreateResult::Created)
+    {
+        switch (intakeResult)
         {
-            m_server.send(503, "application/json; charset=utf-8",
-                          "{\"error\":\"repair_registry_unavailable\"}");
-        }
-        else
-        {
-            m_server.send(409, "application/json; charset=utf-8",
-                          "{\"error\":\"repair_not_created\"}");
+            case RepairIntakeCreateResult::Busy:
+                m_server.send(409, "application/json; charset=utf-8",
+                              "{\"error\":\"repair_intake_pending_recovery\"}");
+                break;
+            case RepairIntakeCreateResult::InvalidSource:
+                m_server.send(409, "application/json; charset=utf-8",
+                              "{\"error\":\"repair_intake_source_invalid\"}");
+                break;
+            case RepairIntakeCreateResult::RegistryRejected:
+                m_server.send(409, "application/json; charset=utf-8",
+                              "{\"error\":\"repair_not_created\"}");
+                break;
+            case RepairIntakeCreateResult::Unavailable:
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"repair_intake_unavailable\"}");
+                break;
+            case RepairIntakeCreateResult::IntegrityFailed:
+            default:
+                m_server.send(503, "application/json; charset=utf-8",
+                              "{\"error\":\"repair_intake_integrity_failed\"}");
+                break;
         }
         return;
     }

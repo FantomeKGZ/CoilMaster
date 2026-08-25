@@ -4,11 +4,9 @@ namespace CM
 {
 namespace
 {
-constexpr uint16_t JobAcceptedSignalOnMs = 80U;
-constexpr uint16_t JobAcceptedSignalOffMs = 80U;
-constexpr uint16_t CoilSignalOnMs = 120U;
-constexpr uint16_t ProgramSignalOnMs = 120U;
-constexpr uint16_t ProgramSignalOffMs = 120U;
+constexpr uint16_t JobAcceptedSignalMs = 80U;
+constexpr uint16_t CoilSignalMs = 120U;
+constexpr uint16_t ProgramSignalMs = 120U;
 }
 
 BuzzerService::BuzzerService(uint8_t pin, bool activeHigh)
@@ -19,8 +17,7 @@ BuzzerService::BuzzerService(uint8_t pin, bool activeHigh)
       m_finishedEvent(false),
       m_phase(0U),
       m_phaseCount(0U),
-      m_onDurationMs(0U),
-      m_offDurationMs(0U),
+      m_phaseDurationMs(0U),
       m_phaseStartedMs(0UL)
 {
 }
@@ -33,31 +30,24 @@ void BuzzerService::begin()
 
 void BuzzerService::startJobAcceptedSignal(uint32_t nowMs)
 {
-    startPattern(nowMs,
-                 2U,
-                 JobAcceptedSignalOnMs,
-                 JobAcceptedSignalOffMs);
+    startPattern(nowMs, 2U, JobAcceptedSignalMs);
 }
 
 void BuzzerService::startCoilCompleteSignal(uint32_t nowMs)
 {
-    startPattern(nowMs, 1U, CoilSignalOnMs, 0U);
+    startPattern(nowMs, 1U, CoilSignalMs);
 }
 
 void BuzzerService::startProgramCompleteSignal(uint32_t nowMs)
 {
-    startPattern(nowMs,
-                 3U,
-                 ProgramSignalOnMs,
-                 ProgramSignalOffMs);
+    startPattern(nowMs, 3U, ProgramSignalMs);
 }
 
 void BuzzerService::startPattern(uint32_t nowMs,
                                  uint8_t signalCount,
-                                 uint16_t onDurationMs,
-                                 uint16_t offDurationMs)
+                                 uint16_t phaseDurationMs)
 {
-    if (signalCount == 0U || onDurationMs == 0U)
+    if (signalCount == 0U || phaseDurationMs == 0U)
     {
         stop();
         return;
@@ -67,8 +57,7 @@ void BuzzerService::startPattern(uint32_t nowMs,
     m_finishedEvent = false;
     m_phase = 0U;
     m_phaseCount = static_cast<uint8_t>(signalCount * 2U - 1U);
-    m_onDurationMs = onDurationMs;
-    m_offDurationMs = offDurationMs;
+    m_phaseDurationMs = phaseDurationMs;
     m_phaseStartedMs = nowMs;
     writeOutput(true);
 }
@@ -80,8 +69,7 @@ void BuzzerService::update(uint32_t nowMs)
         return;
     }
 
-    const uint16_t duration = m_outputOn ? m_onDurationMs : m_offDurationMs;
-    if (static_cast<uint32_t>(nowMs - m_phaseStartedMs) < duration)
+    if (static_cast<uint32_t>(nowMs - m_phaseStartedMs) < m_phaseDurationMs)
     {
         return;
     }
@@ -107,8 +95,7 @@ void BuzzerService::stop()
     m_finishedEvent = false;
     m_phase = 0U;
     m_phaseCount = 0U;
-    m_onDurationMs = 0U;
-    m_offDurationMs = 0U;
+    m_phaseDurationMs = 0U;
 }
 
 bool BuzzerService::isActive() const

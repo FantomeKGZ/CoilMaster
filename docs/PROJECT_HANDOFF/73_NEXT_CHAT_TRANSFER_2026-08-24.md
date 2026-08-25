@@ -82,6 +82,16 @@ e4efdb3835d5a059bd4dae70b9883587036f2634
 test(hall): require cfg reply correlation
 ```
 
+ESP32 sent-state correlation hardening:
+
+```text
+db6927b186d607a07ecb5eeb4d7a4cbd2b3e0c36
+fix(hall): ignore stale state before request send
+
+ee4c04e68d5fc0959988a9394f8116de0db586f9
+test(hall): require sent-state correlation
+```
+
 Important earlier implementation/test commits:
 
 ```text
@@ -116,13 +126,16 @@ Verified baseline and Hall hardening runs supplied by the user:
 32792203111  host-tests   checkout f44e9a8966e2f6f8f385e0c718c2c952e4d6c45a  SUCCESS
 32792249748  host-tests   checkout 09de40da0c8a2f1f036f1c7624ee260f386cf2ea  SUCCESS
 32792288954  host-tests   checkout 9719b08dbf0e26a1698194651854ae050a5bb530  SUCCESS
+32792761065  build-esp32  checkout f927b9a41ea020237cb354e3bbd80d302e799f64  SUCCESS
+32792761032  host-tests   checkout f927b9a41ea020237cb354e3bbd80d302e799f64  SUCCESS
+32792812940  host-tests   checkout e4efdb3835d5a059bd4dae70b9883587036f2634  SUCCESS
 ```
 
 The host runs passed all CTest targets and every listed contract audit, including Hall calibration safety, lost-apply reconciliation, Uno Hall parser ownership, Hall raw migration, Hall history, release safety, job lifecycle and material writeoff contracts.
 
-Therefore `CAL_APPLIED`, `CFG_STATE`, `HALL_STATE`, direct `CFG_SET`, compact completion and legacy-audit blocks are verified GREEN at the software CI level.
+Therefore `CAL_APPLIED`, `CFG_STATE`, `HALL_STATE`, direct `CFG_SET`, compact completion, legacy-audit and CFG reply-correlation blocks are verified GREEN at the software CI level.
 
-The newer CFG reply-correlation commits `f927b9a4...` / `e4efdb38...` are implemented and contract-covered but must not be called GREEN until fresh Actions complete successfully.
+The newer sent-state correlation commits `db6927b1...` / `ee4c04e6...` are implemented and contract-covered but must not be called GREEN until fresh Actions complete successfully.
 
 Hardware is **not** thereby declared GREEN.
 
@@ -274,7 +287,7 @@ releaseBoundary             exactly matches threshold/hysteresis/direction
 
 `setSettings()` applies the same Hall profile bounds before formatting/queueing `CMP1|CFG_SET|HALL|...`. Uno remains authoritative and still validates every received `CFG_SET` through `HardwareSettings::isValid()`.
 
-`processSettingsResult()` now also correlates generic `CFG_ACK/CFG_NACK` to the active request lane:
+`processSettingsResult()` correlates generic `CFG_ACK/CFG_NACK` to the active request lane:
 
 - a reply is ignored unless the request has actually been sent and is waiting for a reply;
 - direct CFG replies are accepted only for SET/RESET/telemetry start/stop;
@@ -282,7 +295,9 @@ releaseBoundary             exactly matches threshold/hysteresis/direction
 - a staged `CAL_PROPOSAL` accepts only the early generic `CFG_NACK|BUSY` path used by Uno while calibration is already active;
 - once `WAITING_APPLY_CONFIRM` is observed, generic CFG replies cannot terminate the staged proposal; completion remains `CAL_APPLIED` or the existing state/reconciliation flow.
 
-This is the strongest correlation available without changing the existing generic CFG reply wire format to carry a request id.
+`processSettingsState()` and `processCalibrationState()` now also require the corresponding request to have actually been sent before a state frame may complete that request. Unsolicited valid state is still mirrored for observation, but cannot consume a queued-unsent request.
+
+A specifically dangerous stale-state race is also blocked: while a new `CAL_PROPOSAL` is queued but not yet sent, a late `CAL_STATE|WAITING_APPLY_CONFIRM` is ignored rather than changing the local state and suppressing the proposal's first send.
 
 ## Current optimization status
 
@@ -296,7 +311,8 @@ Keep:
 - `CFG_STATE` range validation verified ESP32-build GREEN + host-tests GREEN;
 - `HALL_STATE` semantic validation verified ESP32-build GREEN + host-tests GREEN;
 - direct `CFG_SET` fail-fast validation verified ESP32-build GREEN + host-tests GREEN;
-- CFG reply correlation implemented and contract-covered, fresh CI pending;
+- CFG reply correlation verified ESP32-build GREEN + host-tests GREEN;
+- sent-state correlation implemented and contract-covered, fresh CI pending;
 - no intermediate hardware test requested during this optimization phase.
 
 Rejected experiments not to repeat:
@@ -312,8 +328,8 @@ Continue software optimization only; do not request intermediate physical hardwa
 
 Immediate next steps:
 
-1. Confirm fresh ESP32 build + host-tests for `f927b9a4...` / `e4efdb38...` or a descendant.
-2. After GREEN, continue one more targeted Hall request/reply semantic review; do not reopen broad cleanup.
+1. Confirm fresh ESP32 build + host-tests for `db6927b1...` / `ee4c04e6...` or a descendant.
+2. After GREEN, continue final targeted Hall request/reply semantic review; do not reopen broad cleanup.
 3. Keep legacy CAL_RESULT receive parser unless compatibility removal is an explicit later decision.
 4. Do not perform the final hardware acceptance until software optimization is finished.
 

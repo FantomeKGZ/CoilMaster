@@ -86,6 +86,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_motor_winding_version_schema.js
 
+      - name: Audit repair as-received snapshot contracts
+        if: always()
+        run: node Tests/Web/check_repair_as_received_snapshot_contract.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

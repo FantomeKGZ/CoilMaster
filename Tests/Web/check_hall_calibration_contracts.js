@@ -127,6 +127,7 @@ mustContain(clientCpp, 'm_settings = applied;', 'ESP32 Hall client');
 
 mustContain(receiverHeader, 'proposeHallCalibration', 'ESP32 UART receiver');
 mustContain(receiverCpp, 'm_hardwareControl.proposeHallCalibration', 'ESP32 UART receiver');
+mustContain(receiverCpp, 'if (controlLaneBusy() || !m_hardwareControl.armHallCalibration()) return false;', 'ESP32 Hall receiver ARM acceptance before reset');
 
 mustContain(uartCpp, 'CMP1|CAL_PROPOSAL|', 'Arduino UART transport');
 mustContain(uartCpp, 'HallCalibrationProtocol::parseProposal', 'Arduino UART transport');
@@ -192,6 +193,15 @@ mustContain(calibrationDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Arduino Hall compa
 mustContain(calibrationDoneFormatter, 'Cmp1Crc::calculate', 'Arduino Hall compact completion protocol');
 mustNotContain(calibrationDoneFormatter, 'StartOrResume', 'Arduino Hall compact completion safety');
 mustNotContain(calibrationDoneFormatter, 'digitalWrite', 'Arduino Hall compact completion safety');
+
+const receiverArmHandler = receiverCpp.indexOf('bool UartEventReceiver::armHallCalibration()');
+const receiverArmAccepted = receiverCpp.indexOf('!m_hardwareControl.armHallCalibration()', receiverArmHandler);
+const receiverRawReset = receiverCpp.indexOf('m_hallCalibrationRaw.reset();', receiverArmAccepted);
+const receiverCompactReset = receiverCpp.indexOf('m_hasCompactCalibrationResult = false;', receiverRawReset);
+if (receiverArmHandler < 0 || receiverArmAccepted < 0 || receiverRawReset < 0 || receiverCompactReset < 0 ||
+    !(receiverArmHandler < receiverArmAccepted && receiverArmAccepted < receiverRawReset && receiverRawReset < receiverCompactReset)) {
+  throw new Error('ESP32 Hall receiver: rejected ARM must preserve prior raw/compact result state');
+}
 
 const webArmHandler = webCpp.indexOf('void HardwareControlWeb::handleCalibrationArm()');
 const webArmAccepted = webCpp.indexOf('const bool accepted = m_receiver.armHallCalibration();', webArmHandler);

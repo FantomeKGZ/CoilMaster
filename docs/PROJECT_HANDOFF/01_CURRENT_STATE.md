@@ -3,23 +3,19 @@
 Дата обновления: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**
 
-Этот файл описывает текущее состояние. История/evidence — в numbered checkpoints.
-
 ## Source of truth / stable baseline
 
-Единственная рабочая source-of-truth ветка: `cmp-protocol-v1`. `main` для исходников не использовать.
-
-Stable pre-CRM baseline:
+Working source-of-truth only `cmp-protocol-v1`. `main` не использовать как source.
 
 ```text
-449570d47649d5f6336a31ee3eed491256e0fb1a
-main -> этот commit
-stable-2026-08-25-pre-crm-redesign -> этот commit
+stable pre-CRM: 449570d47649d5f6336a31ee3eed491256e0fb1a
+main -> same commit
+stable-2026-08-25-pre-crm-redesign -> same commit
 ```
 
 ## Current phase
 
-Активен Workshop Web/CRM redesign.
+Workshop Web/CRM redesign.
 
 Authoritative design:
 
@@ -28,152 +24,128 @@ Authoritative design:
 101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
 ```
 
-Current queue: `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Active queue: `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
 
-Полный двухплатный hardware acceptance ранее начат, выявил B/operator-exit defect и не завершён. После стабилизации новых CRM/material/writeoff contracts полный E2E требуется повторить.
-
-## Approved domain model
+Target flow:
 
 ```text
-CLIENT
--> MOTOR
--> REPAIR
--> immutable AS_RECEIVED
--> WORKING / STARTING winding version/jobs
--> MATERIAL REQUEST
-   -> WAREHOUSE physical movements
-   -> COSTING/material valuation
--> CASH/PAYMENTS/BALANCE
--> repair completed
--> DELIVERED_TO_CLIENT
+CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
+                     -> WINDING VERSION/JOBS
+                     -> MATERIAL REQUEST
+                          -> WAREHOUSE physical movements
+                          -> COSTING
+                     -> CASH/PAYMENTS
+                     -> COMPLETED -> DELIVERED
 ```
 
-Разделение ответственности:
+Warehouse = physical materials. Cash = money. Material Request bridges repair/warehouse/costing.
+
+## Phase A software GREEN blocks
 
 ```text
-СКЛАД = физический остаток, ISSUE/RETURN/CORRECTION, accounting cost
-КАССА = начисления, оплаты, corrections/refunds, баланс
-MATERIAL REQUEST = связка repair ↔ warehouse ↔ costing/cash
+97  Motor winding versions
+98  Repair AS_RECEIVED persistence
+99  Runtime/read winding + snapshot API
+100 Repair intake pending transaction foundation
+102 Transactional repair creation + crash recovery
+103 Material Request identity + movement schema foundation
 ```
 
-## Phase A — GREEN foundations
-
-### Motor winding versions — GREEN
-Checkpoint 97. Store `/data/workshop/motor-winding-versions.ndjson`.
-
-Поддерживаются version history, WORKING/STARTING, predecessor/source repair, Cu/Al и bounded multi-conductor data.
-
-### Repair AS_RECEIVED — GREEN
-Checkpoint 98. Store `/data/workshop/repair-as-received.ndjson`.
-
-### Runtime/read API — GREEN
-Checkpoint 99.
+Transactional repair verification:
 
 ```text
-GET /api/motors/winding/latest
-GET /api/motors/winding/versions
-GET /api/repairs/as-received
+CMP #3182 / 32851184680 / SUCCESS
+ESP32 Build #1460 / 32851184075 / SUCCESS
 ```
 
-### Repair intake pending transaction foundation — GREEN
-Checkpoint 100.
-
-Durable pending marker закрывает crash-window между repair append и mandatory AS_RECEIVED append.
-
-## Current integrated work — transactional repair creation
-
-`POST /api/repairs` уже переведён на `RepairIntakeCoordinator` commit:
+Material Request verification:
 
 ```text
-92523c7c6f4c8af8c71a63c4178a4b1e41953f19
+ESP32 Build / 32851843400 / SUCCESS
+CMP #3189 / 32852061125 / SUCCESS
 ```
 
-Coordinator должен выполнить:
+## Current implemented Material Request foundation
 
-```text
-prepare pending
--> determine exact winding/legacy intake source
--> add repair
--> append immutable AS_RECEIVED
--> verify
--> clear pending
-```
-
-Recovery запускается до normal create-repair operation. Этот integrated block ещё нельзя считать GREEN до нового normal ESP32 Build + CMP regression run.
-
-## Material Request — newly approved next foundation
-
-Checkpoint 101 фиксирует новую связку warehouse/cash.
-
-Target stores:
+Stores:
 
 ```text
 /data/workshop/material-requests.ndjson
 /data/workshop/material-request-movements.ndjson
 ```
 
-Target request lifecycle:
+Request identity keeps:
 
 ```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
+material_request_id + repair_id + client_id + motor_id
+initial_status DRAFT
 ```
 
-Movement kinds:
+Movement contract supports:
 
 ```text
 ISSUE | RETURN | CORRECTION
+MANUAL_MATERIAL | RUN_WIRE
+KG | L | PCS | M
+integer quantity_milli_units
+unit_cost_minor + cost_amount_minor + currency
 ```
 
-Материалы включают провод, лак, клинья/палочки, изоляцию, подшипники и другие warehouse items.
+`RUN_WIRE` requires exact `source_session_id + source_run_id`, CU/AL, diameter and KG. `MANUAL_MATERIAL` cannot fake run provenance.
 
-После ISSUE history не переписывается; возвраты/коррекции append-only.
+No Material Request runtime mutation API exists yet. No generic warehouse item catalog exists yet. Existing exact-spool/writeoff flow is still authoritative.
 
-## Wire accounting migration
+## Current NEXT
 
-Ранее утверждённый уход от mandatory spool теперь должен быть частью Material Request architecture.
+Before new stores become release-critical/runtime-writable:
 
-Target:
+1. export/backup new CRM NDJSON stores;
+2. add repair-intake pending/temp as recovery markers;
+3. add fail-closed CRM persistence integrity/cross-reference audit;
+4. verify build/CMP;
+5. implement generic warehouse item catalog and status/API layers.
+
+## Wire migration
+
+Future contract:
 
 ```text
-RUN_COMPLETED -> no automatic deduction
+RUN_COMPLETED -> never auto-deducts
 operator confirms warehouse ISSUE
 material_request_id
-exact source_session_id + source_run_id for run-linked wire
-CU/AL + actual weight
+exact source_session_id + source_run_id for wire
+CU/AL + actual consumed weight
 ```
 
-Текущий production backend пока использует exact `spool_id`; старые проверки остаются до полной согласованной migration. `spool_id` может стать optional inventory metadata только после обновления всей цепочки.
+Current exact `spool_id` backend/finalization safety checks remain until all job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests are migrated coherently.
 
-## Cash / costing
+## Web target
 
-Costing читает подтверждённые warehouse movements и рассчитывает себестоимость/charge.
+Motor:
+- `motor-new.html` separate;
+- `motors.html` catalog-only in Arduino archive style;
+- `motor-details.html` working card with winding versions and direct WORKING/STARTING JOB send;
+- repair/material-request history.
 
-Различать:
+Client:
+- `client-new.html` separate;
+- `clients.html` catalog-only;
+- `client-details.html` with motors, repairs, requests, payments/balance, delivered date.
 
-```text
-cost_amount
-charge_amount
-```
+Cash:
+- separate financial subsystem from warehouse/costing;
+- partial/multiple payments, corrections/refunds, debt/overpayment;
+- payment ↔ repair ↔ material request ↔ warehouse navigation.
 
-Cash хранит financial events, а не складские движения. Поддержать partial/multiple payments, corrections/refunds, debt/overpayment, client balance.
+## Repair lifecycle
 
-## Motor/Client Web target
+AS_RECEIVED immutable. Repair CLOSED != delivered. Delivery evidence append-only. Debt warns but does not hard-block after explicit operator confirmation.
 
-- `motor-new.html`, catalog-only `motors.html`, expanded `motor-details.html`;
-- direct WORKING/STARTING JOB creation from motor card, без physical auto-start;
-- `client-new.html`, catalog-only `clients.html`, `client-details.html`;
-- client card links motors, repairs, material requests, payments, balance, delivery.
+## Safety invariants
 
-## Repair lifecycle target
+Never weaken:
 
-- AS_RECEIVED immutable;
-- repair CLOSED != delivered;
-- append-only delivery event;
-- debt warns but does not hard-block delivery after explicit confirmation.
-
-## Safety invariants — unchanged
-
-- no automatic physical START;
+- physical START local-only;
 - no automatic START between repeats;
 - no auto-resume after reboot;
 - Arduino owns SSR;
@@ -181,29 +153,16 @@ Cash хранит financial events, а не складские движения.
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
-- physical warehouse ISSUE requires explicit operator action;
+- warehouse ISSUE requires explicit operator action;
 - run-linked wire movement preserves exact run provenance;
-- cancellation/operator abort never erases immutable evidence;
+- cancellation/operator abort preserves immutable evidence;
 - restore operator-only, transactional, fail-closed;
 - no automatic production-data deletion/truncation.
 
-## Storage rule
+## Hardware acceptance
 
-- no premature DB migration;
-- no destructive migration of historical records;
-- prefer append-only sidecar/version/event stores;
-- every new release-critical store must enter backup whitelist + integrity validation;
-- no automatic NDJSON cleanup/truncation.
+Not complete. A full two-board E2E pass remains mandatory after final CRM/material/writeoff contracts stabilize.
 
-## Documentation discipline
+## Documentation rule
 
-Update together with each meaningful implementation block:
-
-```text
-95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md when relevant
-06_ACTIVE_WORK_AND_NEXT_STEPS.md
-01_CURRENT_STATE.md
-90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
-00_READ_FIRST.md when entrypoint/read order changes
-```
+Synchronize 95/101/06/01/90 and update 00 when read order changes. New major persistence/API blocks receive numbered checkpoints with exact commit and CI evidence.

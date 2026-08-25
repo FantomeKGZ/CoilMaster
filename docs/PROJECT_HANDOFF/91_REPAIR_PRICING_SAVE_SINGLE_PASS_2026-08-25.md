@@ -79,11 +79,14 @@ The guard requires:
 - `load()` still owns exact repair identity validation;
 - authoritative warehouse movement integrity aggregation retained.
 
-## Verification status at documentation commit time
-
-Confirmed so far:
+## Verification — GREEN
 
 ```text
+ESP32 Build #1442
+run 32830427142
+head 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
+SUCCESS
+
 CMP Protocol Tests #3101
 run 32830427181
 head 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
@@ -93,22 +96,13 @@ CMP Protocol Tests #3102
 run 32830457634
 head 510f449de040ec4aec4814a08fbe7565fcd4c41a
 SUCCESS
-```
-
-Still in progress when this handoff entry was written:
-
-```text
-ESP32 Build #1442
-run 32830427142
-head 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f
-IN PROGRESS
 
 CMP Protocol Tests #3103
 run 32830498664
 head bbca869a52db892305a1419230c77f26d6def7fd
-IN PROGRESS
+SUCCESS
 ```
 
-Do not call block 91 fully GREEN until those runs complete successfully (or a later descendant proves the same gates).
+Block 91 is fully software GREEN.
 
 Hardware testing is not required for this repo-only optimization block.

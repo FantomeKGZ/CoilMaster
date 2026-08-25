@@ -374,7 +374,7 @@ bool HardwareControlClient::processSettingsState(char* line, uint32_t nowMs)
     m_settings = parsed;
     m_hasSettings = true;
 
-    if (m_requestType == RequestType::GetSettings)
+    if (m_requestType == RequestType::GetSettings && m_waitingReply)
     {
         if (m_pendingCalibrationMeasurementId != 0UL)
         {
@@ -588,6 +588,13 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
     if (parsed.motorPermit && parsed.state != HallCalibrationRemoteState::Running)
         return true;
 
+    if (m_requestType == RequestType::StageCalibrationProposal &&
+        !m_waitingReply &&
+        parsed.state == HallCalibrationRemoteState::WaitingApplyConfirm)
+    {
+        return true;
+    }
+
     parsed.valid = true;
     parsed.receivedAtMs = nowMs;
     m_calibrationState = parsed;
@@ -612,6 +619,8 @@ bool HardwareControlClient::processCalibrationState(char* line, uint32_t nowMs)
             return true;
         }
     }
+
+    if (!m_waitingReply) return true;
 
     if (m_requestType == RequestType::ArmCalibration)
     {

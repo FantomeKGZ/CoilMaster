@@ -50,18 +50,48 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 102 Transactional repair creation + crash recovery
 103 Material Request identity + movement schema foundation
 104 CRM backup/export + integrity
+105 MaterialLedger catalog serialization fix
+106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 ```
 
-Latest CRM backup/integrity verification:
+Latest catalog foundation verification:
 
 ```text
-CMP run 32855540935 / SUCCESS
-ESP32 Build run 32855541246 / SUCCESS
+CMP run 32857435377 / SUCCESS
+ESP32 Build run 32857318798 / SUCCESS
 ```
 
-New CRM journals are exported and deep-audited. Repair-intake pending/temp markers block stable backups. `CM_CrmPersistenceIntegrityAudit` is read-only and fail-closed.
+## Material / warehouse catalog foundation
 
-## Current implemented Material Request foundation
+Existing `/data/materials/materials.ndjson` and `MaterialLedger` are authoritative generic warehouse item catalog. A duplicate catalog is not being introduced.
+
+Catalog serialization bug is fixed and permanent regression-protected.
+
+Canonical Material Request unit mapping:
+
+```text
+KG  -> GRAM x1000
+L   -> MILLILITRE x1000
+PCS -> PIECE x1
+M   -> METRE x1
+M2  -> SQUARE_METRE x1
+```
+
+Conversion and costing are integer-only with overflow guards.
+
+`MaterialLedger::loadActiveMaterialState()` now supplies exact ACTIVE item state:
+
+```text
+material_id
+unit
+stock_quantity_milli
+price_per_unit_minor
+currency
+```
+
+Existing currency lookup reuses the same authoritative scan.
+
+## Material Request current implementation
 
 Stores:
 
@@ -70,30 +100,27 @@ Stores:
 /data/workshop/material-request-movements.ndjson
 ```
 
-Request identity keeps:
-
-```text
-material_request_id + repair_id + client_id + motor_id
-initial_status DRAFT
-```
-
-Movement contract supports:
+Movements support:
 
 ```text
 ISSUE | RETURN | CORRECTION
 MANUAL_MATERIAL | RUN_WIRE
-KG | L | PCS | M
-integer quantity_milli_units
-unit_cost_minor + cost_amount_minor + currency
+KG | L | PCS | M | M2
 ```
 
-`RUN_WIRE` requires exact `source_session_id + source_run_id`, CU/AL, diameter and KG. `MANUAL_MATERIAL` cannot fake run provenance.
+`RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
-No Material Request runtime mutation API exists yet. Existing exact-spool/writeoff flow is still authoritative.
+No Material Request runtime stock mutation API exists yet. Existing exact-spool/writeoff flow remains authoritative.
 
 ## Current NEXT
 
-The existing `MaterialLedger` will be reused as generic warehouse item catalog rather than introducing a duplicate catalog. Before reuse, fix and regression-protect `MaterialLedger::addMaterial()` unit JSON serialization, then define canonical unit mapping and warehouse item lookup/state for Material Request. After that implement `DRAFT -> ISSUED -> PRICED -> CLOSED` and explicit operator ISSUE/RETURN/CORRECTION APIs.
+Implement append-only Material Request status history + resolver for:
+
+```text
+DRAFT -> ISSUED -> PRICED -> CLOSED
+```
+
+Then add backup/integrity for status history and a crash-safe transaction coordinator for explicit operator ISSUE/RETURN/CORRECTION. `RUN_COMPLETED` must remain non-mutating.
 
 ## Wire migration
 
@@ -107,29 +134,7 @@ exact source_session_id + source_run_id for wire
 CU/AL + actual consumed weight
 ```
 
-Current exact `spool_id` backend/finalization safety checks remain until all job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests are migrated coherently.
-
-## Web target
-
-Motor:
-- `motor-new.html` separate;
-- `motors.html` catalog-only in Arduino archive style;
-- `motor-details.html` working card with winding versions and direct WORKING/STARTING JOB send;
-- repair/material-request history.
-
-Client:
-- `client-new.html` separate;
-- `clients.html` catalog-only;
-- `client-details.html` with motors, repairs, requests, payments/balance, delivered date.
-
-Cash:
-- separate financial subsystem from warehouse/costing;
-- partial/multiple payments, corrections/refunds, debt/overpayment;
-- payment ↔ repair ↔ material request ↔ warehouse navigation.
-
-## Repair lifecycle
-
-AS_RECEIVED immutable. Repair CLOSED != delivered. Delivery evidence append-only. Debt warns but does not hard-block after explicit operator confirmation.
+Current exact `spool_id` backend/finalization checks remain until coherent migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
 
 ## Safety invariants
 

@@ -52,21 +52,17 @@ SOFTWARE GREEN:
 100 Repair intake pending transaction
 102 Transactional POST /api/repairs + recovery
 103 Material Request identity + movement schema foundation
+104 CRM backup/export + fail-closed integrity
 ```
 
-Transactional repair evidence:
+Latest backup/integrity evidence:
 
 ```text
-CMP #3182 / run 32851184680 / SUCCESS
-ESP32 Build #1460 / run 32851184075 / SUCCESS
+CMP run 32855540935 / SUCCESS
+ESP32 Build run 32855541246 / SUCCESS
 ```
 
-Material Request evidence:
-
-```text
-ESP32 Build / run 32851843400 / SUCCESS
-CMP #3189 / run 32852061125 / SUCCESS
-```
+New CRM journals are in backup/export and `CM_CrmPersistenceIntegrityAudit` validates them read-only/fail-closed. Repair-intake pending/temp are recovery markers that block a stable backup snapshot.
 
 ## Material Request current implementation
 
@@ -93,22 +89,20 @@ RUN_WIRE requires exact `source_session_id + source_run_id`, CU/AL and KG. No Ma
 
 ## Next mandatory block
 
-Before Material Request becomes release-critical/runtime-writable:
-
-1. add new CRM NDJSON files to backup/export coverage;
-2. treat repair-intake pending/temp as recovery markers;
-3. add fail-closed CRM persistence/cross-reference integrity audit;
-4. verify ESP32 Build + CMP and record checkpoint;
-5. implement generic warehouse item catalog + bounded unit/accounting cost contract;
-6. implement Material Request status/API and explicit ISSUE/RETURN/CORRECTION;
-7. delivery store/API;
-8. payment/correction store/API;
-9. Motor Web;
-10. Client Web;
-11. coordinated spool -> material-request wire migration;
-12. costing/cash integration;
-13. archive/navigation/analytics foundations;
-14. full regression/backup/restore + two-board hardware E2E.
+1. Reuse existing `MaterialLedger` as generic warehouse item catalog rather than creating a duplicate catalog.
+2. Fix and regression-protect `MaterialLedger::addMaterial()` unit JSON serialization.
+3. Define canonical unit mapping/accounting-cost semantics between the ledger and Material Request movements.
+4. Expose warehouse item lookup/state required by request mutations.
+5. Implement Material Request lifecycle `DRAFT -> ISSUED -> PRICED -> CLOSED`.
+6. Add explicit operator ISSUE/RETURN/CORRECTION APIs; `RUN_COMPLETED` remains non-mutating.
+7. Delivery store/API.
+8. Payment/correction store/API.
+9. Motor Web.
+10. Client Web.
+11. Coordinated spool -> material-request wire migration.
+12. Costing/cash integration.
+13. Archive/navigation/analytics foundations.
+14. Full regression/backup/restore + two-board hardware E2E.
 
 ## Wire accounting target
 
@@ -121,24 +115,6 @@ CU/AL + actual weight
 ```
 
 Do not partially remove current `spool_id` requirements. Migration must cover job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests coherently.
-
-## Web targets
-
-Motor:
-- separate `motor-new.html`;
-- catalog-only `motors.html` based on Arduino archive UX;
-- `motor-details.html` work card with versions, WORKING/STARTING and direct JOB send;
-- repair/material-request links.
-
-Client:
-- separate `client-new.html`;
-- catalog-only `clients.html`;
-- `client-details.html` with motors, repairs, requests, payments/balance and delivery.
-
-Cash:
-- separate from warehouse;
-- partial/multiple payments, corrections/refunds, debt/overpayment;
-- navigate payment ↔ repair ↔ request ↔ warehouse.
 
 ## Safety invariants
 
@@ -168,6 +144,7 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/104_CRM_BACKUP_INTEGRITY_2026-08-25.md
 docs/PROJECT_HANDOFF/103_MATERIAL_REQUEST_SCHEMA_2026-08-25.md
 docs/PROJECT_HANDOFF/102_TRANSACTIONAL_REPAIR_INTAKE_INTEGRATION_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
@@ -178,9 +155,7 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Repo FantomeKGZ/CoilMaster, source-of-truth только cmp-protocol-v1; main не использовать и не двигать. Прочитай AGENTS.md, 00, 95, 101, 103, 102, 06, 01 и 90. Stable pre-CRM baseline 449570d... сохранён в main и stable-2026-08-25-pre-crm-redesign.
+Продолжаем CoilMaster. Repo FantomeKGZ/CoilMaster, source-of-truth только cmp-protocol-v1; main не использовать и не двигать. Прочитай AGENTS.md, 00, 95, 101, 104, 103, 102, 06, 01 и 90. Stable pre-CRM baseline 449570d... сохранён в main и stable-2026-08-25-pre-crm-redesign.
 
-Transactional repair intake и Material Request schema foundation GREEN. Следующий обязательный блок: backup/export + fail-closed integrity для winding versions, AS_RECEIVED, material requests/movements и repair-intake recovery markers. После этого generic warehouse item catalog и Material Request status/API. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
-
-После каждого meaningful block сразу обновляй 95/101/06/01/90 и при необходимости 00; крупные persistence/API блоки фиксируй numbered checkpoints с commits/CI evidence.
+Transactional repair intake, Material Request schema и CRM backup/integrity GREEN. Следующий блок: reuse существующего MaterialLedger как generic warehouse catalog. Сначала исправить unit JSON serialization в addMaterial и добавить regression, затем canonical unit mapping/lookup, Material Request status/API и explicit ISSUE/RETURN/CORRECTION. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
 ```

@@ -32,9 +32,7 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> COMPLETED -> DELIVERED
 ```
 
-## Phase A progress
-
-GREEN:
+## Phase A progress — GREEN
 
 ```text
 97  Motor winding versions
@@ -47,15 +45,16 @@ GREEN:
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request append-only lifecycle + backup/integrity
-108 Warehouse pending transaction persistence foundation
+108 Warehouse pending transaction persistence + stable-backup guard
 ```
 
-Checkpoint 108 foundation evidence:
+Checkpoint 108 evidence:
 
 ```text
 ESP32 Build run 32861148982 / SUCCESS
 CMP run 32861149158 / SUCCESS
 CMP permanent regression run 32861266055 / SUCCESS
+backup guarded patch run 32861669436 / SUCCESS
 ```
 
 Pending transaction paths:
@@ -65,22 +64,29 @@ Pending transaction paths:
 /data/workshop/material-request-warehouse.pending.tmp
 ```
 
-The pending store is GREEN, but full transaction coordinator is NOT complete yet. Stable-backup recovery guard for these two paths is still pending after an invalid one-shot workflow was deleted without modifying production backup code.
+Both now block stable backup while transaction recovery is unresolved.
 
 ## Current NEXT
 
-1. Safely add warehouse pending/temp paths to stable-backup recovery markers.
-2. Implement crash-safe `MaterialRequestWarehouseCoordinator`.
-3. Use movement-first + ledger-second ordering with durable `transaction_ref` evidence.
-4. Recovery must distinguish: neither side committed, movement only, ledger only (fail-closed), both committed.
-5. Support explicit operator `ISSUE`, `RETURN`, `CORRECTION` (`ADD|REMOVE`).
-6. Enforce lifecycle gates without implicit status rewrites.
-7. `RUN_COMPLETED` remains non-mutating.
-8. After coordinator GREEN, expose bounded runtime/Web APIs for request create/read/status/movements and warehouse actions.
-9. Then delivery event/store/API.
-10. Then payment/correction store/API.
-11. Motor Web / Client Web redesign.
-12. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
+1. Implement crash-safe `MaterialRequestWarehouseCoordinator`.
+2. Use movement-first + ledger-second ordering with durable `transaction_ref` evidence.
+3. Recovery matrix must distinguish:
+
+```text
+neither side committed -> safe no-op/retry
+movement only -> complete physical ledger mutation
+ledger only -> impossible ordering / fail-closed
+both committed -> clear pending
+```
+
+4. Support explicit operator `ISSUE`, `RETURN`, `CORRECTION` (`ADD|REMOVE`).
+5. Lifecycle transitions stay explicit; warehouse coordinator must not silently change DRAFT/ISSUED/PRICED/CLOSED.
+6. `RUN_COMPLETED` remains non-mutating.
+7. After coordinator GREEN, expose bounded runtime/Web APIs for request create/read/status/movements and warehouse actions.
+8. Then delivery event/store/API.
+9. Then payment/correction store/API.
+10. Motor Web / Client Web redesign.
+11. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
 
 ## Warehouse/catalog contract
 
@@ -94,7 +100,7 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-`RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
+`RUN_WIRE` remains ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
 ## Wire migration rule
 

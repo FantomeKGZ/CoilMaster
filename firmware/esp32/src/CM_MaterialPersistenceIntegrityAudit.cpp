@@ -8,6 +8,16 @@ namespace CM
 {
 namespace
 {
+constexpr uint8_t ReferenceBatchSize = 32U;
+
+struct ExactIdReference
+{
+    uint32_t id;
+    uint8_t matches;
+
+    ExactIdReference() : id(0UL), matches(0U) {}
+};
+
 bool findUnsigned(const String& line, const char* key, uint32_t& value)
 {
     value = 0UL;
@@ -91,16 +101,31 @@ bool validMaterialUnit(const String& unit)
            unit == "METRE" || unit == "SQUARE_METRE";
 }
 
-bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wanted)
+bool resolveExactReferences(fs::FS& storage,
+                            const char* path,
+                            const char* key,
+                            ExactIdReference* references,
+                            uint8_t count)
 {
-    if (wanted == 0UL || !storage.exists(path)) return false;
+    if (count == 0U) return true;
+    if (!storage.exists(path)) return false;
     File file = storage.open(path, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
         return false;
     }
-    uint8_t matches = 0U;
+
+    for (uint8_t index = 0U; index < count; ++index)
+    {
+        if (references[index].id == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        references[index].matches = 0U;
+    }
+
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -111,14 +136,24 @@ bool idExists(fs::FS& storage, const char* path, const char* key, uint32_t wante
             file.close();
             return false;
         }
-        if (id == wanted && ++matches > 1U)
+        for (uint8_t index = 0U; index < count; ++index)
         {
-            file.close();
-            return false;
+            ExactIdReference& reference = references[index];
+            if (reference.id != id) continue;
+            if (reference.matches == 0xFFU || ++reference.matches > 1U)
+            {
+                file.close();
+                return false;
+            }
         }
     }
     file.close();
-    return matches == 1U;
+
+    for (uint8_t index = 0U; index < count; ++index)
+    {
+        if (references[index].matches != 1U) return false;
+    }
+    return true;
 }
 
 bool checkMaterials(fs::FS& storage, uint32_t& recordCount)
@@ -185,6 +220,10 @@ bool checkUsage(fs::FS& storage, uint32_t& recordCount)
         if (file) file.close();
         return false;
     }
+
+    ExactIdReference materialReferences[ReferenceBatchSize];
+    ExactIdReference repairReferences[ReferenceBatchSize];
+    uint8_t batchCount = 0U;
     uint32_t previousId = 0UL;
     while (file.available())
     {
@@ -202,9 +241,7 @@ bool checkUsage(fs::FS& storage, uint32_t& recordCount)
             !findUnsigned(line, "price_per_unit_minor", unitPrice) || unitPrice == 0UL ||
             !findUnsigned64(line, "line_cost_minor", lineCost) ||
             !findString(line, "currency", currency) || currency != "KGS" ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
-            !idExists(storage, MaterialsPath, "material_id", materialId) ||
-            !idExists(storage, RepairsPath, "repair_id", repairId))
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
             file.close();
             return false;
@@ -231,6 +268,34 @@ bool checkUsage(fs::FS& storage, uint32_t& recordCount)
             return false;
         }
         ++recordCount;
+
+        materialReferences[batchCount].id = materialId;
+        materialReferences[batchCount].matches = 0U;
+        repairReferences[batchCount].id = repairId;
+        repairReferences[batchCount].matches = 0U;
+        ++batchCount;
+        if (batchCount == ReferenceBatchSize)
+        {
+            if (!resolveExactReferences(storage, MaterialsPath, "material_id",
+                                        materialReferences, batchCount) ||
+                !resolveExactReferences(storage, RepairsPath, "repair_id",
+                                        repairReferences, batchCount))
+            {
+                file.close();
+                return false;
+            }
+            batchCount = 0U;
+        }
+    }
+
+    if (batchCount > 0U &&
+        (!resolveExactReferences(storage, MaterialsPath, "material_id",
+                                 materialReferences, batchCount) ||
+         !resolveExactReferences(storage, RepairsPath, "repair_id",
+                                 repairReferences, batchCount)))
+    {
+        file.close();
+        return false;
     }
     file.close();
     return true;
@@ -248,6 +313,9 @@ bool checkAdjustments(fs::FS& storage, uint32_t& recordCount)
         if (file) file.close();
         return false;
     }
+
+    ExactIdReference materialReferences[ReferenceBatchSize];
+    uint8_t batchCount = 0U;
     uint32_t previousId = 0UL;
     while (file.available())
     {
@@ -269,8 +337,7 @@ bool checkAdjustments(fs::FS& storage, uint32_t& recordCount)
             !findUnsigned(line, "price_after_minor", priceAfter) || priceAfter == 0UL ||
             !findString(line, "currency_before", currencyBefore) || currencyBefore != "KGS" ||
             !findString(line, "currency_after", currencyAfter) || currencyAfter != "KGS" ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
-            !idExists(storage, MaterialsPath, "material_id", materialId))
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
             file.close();
             return false;
@@ -291,6 +358,28 @@ bool checkAdjustments(fs::FS& storage, uint32_t& recordCount)
             return false;
         }
         ++recordCount;
+
+        materialReferences[batchCount].id = materialId;
+        materialReferences[batchCount].matches = 0U;
+        ++batchCount;
+        if (batchCount == ReferenceBatchSize)
+        {
+            if (!resolveExactReferences(storage, MaterialsPath, "material_id",
+                                        materialReferences, batchCount))
+            {
+                file.close();
+                return false;
+            }
+            batchCount = 0U;
+        }
+    }
+
+    if (batchCount > 0U &&
+        !resolveExactReferences(storage, MaterialsPath, "material_id",
+                                materialReferences, batchCount))
+    {
+        file.close();
+        return false;
     }
     file.close();
     return true;

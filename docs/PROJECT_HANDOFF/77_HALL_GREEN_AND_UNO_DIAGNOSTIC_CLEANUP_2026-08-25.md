@@ -46,13 +46,13 @@ The detailed review is recorded in `76_HALL_STALE_LEGACY_RESULT_GUARD_2026-08-25
 docs(handoff): close Hall orchestration review
 ```
 
-That documentation commit itself is fresh-CI-pending until a descendant host-tests run is checked.
+Run `32797758790` verified this descendant host-tests checkpoint GREEN.
 
-## Uno temporary diagnostic profile cleanup
+## Uno temporary diagnostic profile cleanup — software CI GREEN
 
-The reset-loop investigation is already closed and production Uno no longer needs the temporary PlatformIO environment `uno_diagnostic`.
+The reset-loop investigation is closed and production Uno no longer needs the temporary PlatformIO environment `uno_diagnostic`.
 
-Current cleanup commit:
+Implementation:
 
 ```text
 c0781c664ff83ded464e8f3ef732990a19532011
@@ -70,15 +70,50 @@ SERIAL_RX_BUFFER_SIZE=8
 SERIAL_TX_BUFFER_SIZE=8
 ```
 
+Verification supplied by operator:
+
+```text
+32797818090  ESP32 Build
+checkout c0781c664ff83ded464e8f3ef732990a19532011
+build-esp32 SUCCESS
+
+32797818106  Arduino Uno Build
+checkout c0781c664ff83ded464e8f3ef732990a19532011
+build-uno SUCCESS
+```
+
+The first CMP runs on `c0781c66...` and its documentation descendant failed only because `Tests/Protocol/check_arduino_lcd_contracts.js` still required the retired diagnostic environment. Firmware build and CTest were not the failure.
+
+The stale contract was corrected by:
+
+```text
+5514a20da5ee856e0f99886a4f026a5bfad9655b
+test(uno): retire diagnostic environment contract
+```
+
+Fresh verification:
+
+```text
+32798067981  CMP Protocol Tests
+checkout 5514a20da5ee856e0f99886a4f026a5bfad9655b
+host-tests SUCCESS
+Arduino LCD layout contracts SUCCESS
+Hall/release/storage audits SUCCESS
+```
+
+Therefore the temporary Uno diagnostic profile cleanup is now **software CI GREEN**.
+
 No Arduino runtime, physical START, SSR, EEPROM, Hall counting, UART protocol or write-off logic changed in this cleanup.
 
-## Verification state
+## Current software-only review
 
-- Hall rejected-ARM Web-state block: **software CI GREEN**.
-- Hall APPLY/ABORT follow-up: **review-only; no code change required**.
-- `c0781c66...` diagnostic-env cleanup: **fresh Arduino Uno Build / CMP tests pending**.
-- Final two-board physical acceptance remains deferred until software optimization is complete.
+A narrow review of `HardwareControlClient::processTelemetryState()` confirmed one low-risk correctness cleanup still exists: for Rising telemetry the expected release boundary is currently calculated before threshold/hysteresis validity is checked. An invalid profile such as `hysteresis >= threshold` is rejected later, so this is not an acceptance bypass, but the intermediate unsigned subtraction can wrap before that reject.
 
-## Next software step
+Next change should be minimal and ESP32-only:
 
-Verify descendant CI for `c0781c66...`. If GREEN, continue software-only review from the active queue without reintroducing broad cleanup work or intermediate hardware testing.
+1. validate ADC window, threshold/hysteresis, debounce and sample count first;
+2. calculate `expectedReleaseBoundary` only after the profile is known valid;
+3. retain the exact release-boundary equality check;
+4. add/adjust the Hall contract regression without changing the wire format.
+
+Final two-board physical acceptance remains deferred until software optimization is complete.

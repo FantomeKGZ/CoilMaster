@@ -76,7 +76,7 @@ Debt must warn and require explicit operator confirmation but does not permanent
 
 Main owner = `repair_id`, with exact `client_id + motor_id` provenance.
 
-Target lifecycle:
+Lifecycle is now implemented append-only:
 
 ```text
 DRAFT -> ISSUED -> PRICED -> CLOSED
@@ -91,6 +91,16 @@ ISSUE | RETURN | CORRECTION
 Materials include wire, varnish/lacquer, wedges/sticks, insulation, bearings and arbitrary warehouse items. After ISSUE the original movement is never silently rewritten; return/correction is append-only.
 
 A CLOSED request remains queryable through repair/client/motor history instead of being copied to another archive file.
+
+Existing `MaterialLedger` is the authoritative generic warehouse item catalog. Request units are mapped deterministically:
+
+```text
+KG->GRAM x1000
+L->MILLILITRE x1000
+PCS->PIECE
+M->METRE
+M2->SQUARE_METRE
+```
 
 ## Wire accounting migration
 
@@ -120,7 +130,7 @@ Cash stores financial events only: charge/payment/correction/refund/balance. Par
 
 ## Phase A status
 
-GREEN:
+SOFTWARE GREEN:
 
 ```text
 97  Motor winding versions
@@ -129,47 +139,44 @@ GREEN:
 100 Repair intake pending transaction foundation
 102 Transactional POST /api/repairs integration
 103 Material Request identity + movement schema foundation
+104 CRM backup/export + integrity
+105 MaterialLedger catalog serialization fix
+106 Material Request ↔ MaterialLedger unit adapter + active item lookup
+107 Material Request lifecycle + lifecycle backup/integrity
 ```
 
-Transactional repair verification:
+Latest lifecycle verification:
 
 ```text
-CMP #3182 / run 32851184680 / SUCCESS
-ESP32 Build #1460 / run 32851184075 / SUCCESS
+head a960999b040afbdd7c48bbde08763e042408a2e8
+CMP run 32860049965 / SUCCESS
+ESP32 Build run 32860049946 / SUCCESS
 ```
 
-Material Request persistence verification:
-
-```text
-ESP32 Build / run 32851843400 / SUCCESS / head a24c1e7e...
-CMP #3189 / run 32852061125 / SUCCESS / head 10ce3c25...
-```
-
-Checkpoint 103 added append-only:
+Current Material Request stores:
 
 ```text
 /data/workshop/material-requests.ndjson
 /data/workshop/material-request-movements.ndjson
+/data/workshop/material-request-status.ndjson
 ```
 
-The movement contract already supports `MANUAL_MATERIAL` and `RUN_WIRE`, bounded units, accounting cost snapshots and exact session/run provenance for run-linked wire. It is persistence foundation only: no new runtime warehouse deduction API yet, and the old spool/writeoff flow remains authoritative.
+The lifecycle and persistence layers are ready, but no new operator warehouse mutation API is active yet; the existing exact-spool/writeoff production flow remains authoritative.
 
 ## Next implementation order
 
-1. Add winding-version, AS_RECEIVED, material-request and request-movement files to backup/export coverage.
-2. Treat repair-intake pending/temp as recovery markers, not normal backup business payload.
-3. Add fail-closed CRM integrity audit/cross-reference validation.
-4. Add generic warehouse item catalog + bounded unit/accounting-cost contract.
-5. Add Material Request status/API and explicit stock ISSUE/RETURN/CORRECTION integration.
-6. Add delivery event/store/API.
-7. Add payment/correction store/API.
-8. Motor Web redesign.
-9. Client Web redesign.
-10. Coordinated spool -> material-request wire migration.
-11. Costing/material-request integration.
-12. `cash.html` + payment integration.
-13. Archive/navigation/analytics foundations.
-14. Regression + backup/restore audit + full hardware E2E.
+1. crash-safe transaction coordinator coupling physical `MaterialLedger` mutation and immutable Material Request movement evidence;
+2. explicit operator ISSUE/RETURN/CORRECTION only, with durable pending/recovery state;
+3. bounded Material Request runtime/Web APIs;
+4. delivery event/store/API;
+5. payment/correction store/API;
+6. Motor Web redesign;
+7. Client Web redesign;
+8. coordinated spool -> material-request wire migration;
+9. costing/material-request integration;
+10. `cash.html` + payment integration;
+11. archive/navigation/analytics foundations;
+12. regression + backup/restore audit + full hardware E2E.
 
 ## Safety invariants — never weaken
 
@@ -182,6 +189,7 @@ The movement contract already supports `MANUAL_MATERIAL` and `RUN_WIRE`, bounded
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
 - physical warehouse ISSUE requires explicit operator action;
+- physical stock mutation and immutable request evidence must recover transactionally/fail-closed;
 - run-linked wire ISSUE keeps exact `source_session_id + source_run_id`;
 - cancellation/operator abort never erases immutable evidence;
 - restore operator-only, transactional, fail-closed;

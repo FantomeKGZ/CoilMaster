@@ -80,7 +80,11 @@ public:
 
 private:
     static constexpr uint8_t QueueCapacity = 4U;
-    static constexpr size_t MaxReplyLength = 112U;
+    // Worst-case accepted ESP32 -> Uno JOB frame is 106 characters before
+    // the terminating newline: max uint32 job/session ids, STARTING, 10 coils,
+    // ten 9999 turn targets, max repeat target, capability and CRC. Keep one
+    // extra byte for the in-place NUL added by pollReplies().
+    static constexpr size_t MaxReplyLength = 107U;
     static constexpr uint32_t RetryIntervalMs = 1500UL;
     static constexpr uint32_t NackRetryIntervalMs = 3000UL;
 

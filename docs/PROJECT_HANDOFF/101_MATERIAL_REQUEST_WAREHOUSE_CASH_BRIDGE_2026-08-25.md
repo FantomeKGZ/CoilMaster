@@ -2,7 +2,7 @@
 
 Дата: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **APPROVED DESIGN / IMPLEMENTATION NEXT**
+Статус: **APPROVED DESIGN / IMPLEMENTATION IN PROGRESS**
 
 Этот checkpoint дополняет authoritative CRM design `95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md`.
 
@@ -37,28 +37,28 @@ CLIENT
 
 Никакая позиция материалов не должна исчезать после фактической выдачи со склада. Исправления оформляются отдельными RETURN/CORRECTION movements.
 
-## 3. Material Request identity
+## 3. Material Request identity / lifecycle
 
-Предлагаемый production store:
+Production stores:
 
 ```text
 /data/workshop/material-requests.ndjson
+/data/workshop/material-request-status.ndjson
 ```
 
-Header/event identity минимум:
+Identity минимум:
 
 ```text
 material_request_id
 repair_id
 client_id
 motor_id
-status
+initial_status=DRAFT
 created_at
-closed_at optional
 comment optional
 ```
 
-Status lifecycle:
+Status lifecycle реализован append-only:
 
 ```text
 DRAFT -> ISSUED -> PRICED -> CLOSED
@@ -66,9 +66,11 @@ DRAFT -> ISSUED -> PRICED -> CLOSED
 
 `CLOSED` не означает физическое копирование в другой архив. Append-only/history остаётся на месте, а активные UI просто фильтруют closed requests.
 
+Checkpoint 107 подтвердил lifecycle, missing-request semantics, backup/export и fail-closed integrity.
+
 ## 4. Material request lines / movements
 
-Материалы должны поддерживать не только провод:
+Материалы поддерживают не только провод:
 
 - Cu/Al wire;
 - varnish/lacquer;
@@ -79,40 +81,64 @@ DRAFT -> ISSUED -> PRICED -> CLOSED
 - fasteners;
 - другие пользовательские warehouse items.
 
-Рекомендуемый append-only movement/event store:
+Append-only movement store:
 
 ```text
 /data/workshop/material-request-movements.ndjson
 ```
 
-Минимум:
+Movements:
+
+```text
+movement_kind = ISSUE | RETURN | CORRECTION
+source_kind = MANUAL_MATERIAL | RUN_WIRE
+unit = KG | L | PCS | M | M2
+```
+
+Минимум movement evidence:
 
 ```text
 movement_id
 material_request_id
 repair_id
-warehouse_item_id or canonical material identity
-movement_kind = ISSUE | RETURN | CORRECTION
-quantity
+warehouse_item_id
+movement_kind
+quantity_milli_units
 unit
-unit_cost_snapshot
+unit_cost_minor
+cost_amount_minor
+currency
 created_at
 ```
 
-Для провода дополнительно сохраняется exact winding provenance, когда расход относится к реальному запуску:
+Для провода дополнительно exact winding provenance:
 
 ```text
-source_session_id optional
-source_run_id optional
-material_class CU/AL optional
-wire_diameter optional
+source_session_id
+source_run_id
+material_class CU/AL
+wire_diameter
 ```
 
 Для лака/клиньев/etc run provenance не требуется.
 
-## 5. Wire accounting integration
+## 5. Warehouse catalog / units
 
-Утверждённый ранее переход от mandatory spool selection теперь должен входить в material-request architecture, а не существовать как отдельный параллельный workflow.
+Existing `MaterialLedger` и `/data/materials/materials.ndjson` являются authoritative generic warehouse item catalog; второй каталог не создаётся.
+
+Canonical request mapping реализован:
+
+```text
+KG  -> GRAM x1000
+L   -> MILLILITRE x1000
+PCS -> PIECE x1
+M   -> METRE x1
+M2  -> SQUARE_METRE x1
+```
+
+`MaterialLedger::loadActiveMaterialState()` предоставляет единый fail-closed lookup unit/stock/price/currency.
+
+## 6. Wire accounting integration
 
 Целевой wire issue:
 
@@ -124,17 +150,15 @@ RUN_COMPLETED
   -> movement привязан к material_request_id + exact source_session_id + source_run_id
 ```
 
-`spool_id` может остаться optional inventory metadata, но не должен быть главным обязательным provenance после полной migration.
+`spool_id` может остаться optional inventory metadata после полной migration. До полной migration текущий exact-spool backend остаётся действующим; нельзя частично отключать старые safety checks.
 
-До полной migration текущий exact-spool backend остаётся действующим. Нельзя частично отключать старые safety checks.
+## 7. Warehouse responsibilities
 
-## 6. Warehouse responsibilities
-
-Склад должен отвечать за:
+Склад отвечает за:
 
 - warehouse item catalog;
 - physical quantity/current stock;
-- unit (`kg`, `g`, `l`, `ml`, `pcs`, etc. bounded set);
+- bounded units;
 - purchase/accounting cost;
 - ISSUE/RETURN/CORRECTION movements;
 - material request allocation;
@@ -142,11 +166,9 @@ RUN_COMPLETED
 
 Склад **не** хранит клиентские платежи и не решает, сколько клиент уже оплатил.
 
-## 7. Costing/Cash responsibilities
+## 8. Costing/Cash responsibilities
 
-Costing читает уже подтверждённые складом quantities и их cost snapshot.
-
-Для каждой позиции полезно различать:
+Costing читает подтверждённые складом quantities и их cost snapshot.
 
 ```text
 cost_amount = фактическая себестоимость мастерской
@@ -162,48 +184,11 @@ corrections/refunds
 balance
 ```
 
-Cash page должна уметь перейти:
+Навигация должна быть двусторонней:
 
 ```text
 payment -> repair -> material request -> warehouse movements
-```
-
-и обратно:
-
-```text
 material request -> repair -> client -> cash/payment history
-```
-
-## 8. Bidirectional navigation
-
-Client card:
-
-```text
-client
- -> motor
- -> repair
- -> material request
- -> payments
- -> delivery
-```
-
-Material request card:
-
-```text
-request
- -> repair
- -> motor
- -> client
- -> warehouse movements
- -> costing/cash
-```
-
-Motor card:
-
-```text
-motor
- -> repair history
- -> each repair material request
 ```
 
 ## 9. Archive semantics
@@ -219,8 +204,6 @@ motor
 
 После ISSUE нельзя молча изменить quantity старой позиции.
 
-Пример:
-
 ```text
 ISSUE Cu 1.00 = -2.40 kg
 RETURN Cu 1.00 = +0.30 kg
@@ -229,38 +212,44 @@ actual consumed = 2.10 kg
 
 Ошибочная финансовая операция аналогично исправляется отдельной cash correction/refund event, а не rewrite.
 
-## 11. Analytics enabled by this model
+## 11. Current implementation status
 
-После реализации можно без дополнительной миграции получать:
+SOFTWARE GREEN:
 
-- расход Cu/Al за период;
-- расход лака/клиньев/etc;
-- закупочную стоимость материалов;
-- charge клиенту по материалам;
-- gross margin по ремонту;
-- прибыль/выручка по клиенту;
-- наиболее расходуемые материалы;
-- ready-to-order stock warnings;
-- unpaid repairs;
-- completed-but-not-delivered repairs.
+```text
+103 Material Request identity + movement schema
+104 CRM backup/export + integrity
+105 MaterialLedger serialization fix
+106 MaterialLedger adapter + active item lookup
+107 Material Request lifecycle + lifecycle backup/integrity
+```
 
-## 12. Implementation order change
+Latest lifecycle evidence:
 
-Новый порядок внутри Phase A:
+```text
+head a960999b040afbdd7c48bbde08763e042408a2e8
+CMP run 32860049965 / SUCCESS
+ESP32 Build run 32860049946 / SUCCESS
+```
 
-1. завершить transactional repair intake + AS_RECEIVED;
-2. backup/integrity для winding/snapshot/intake stores;
-3. **material request schema + request movements + warehouse item/unit contract**;
-4. delivery event;
-5. payment/correction store;
-6. Motor Web;
-7. Client Web;
-8. coordinated spool -> material-request wire migration;
-9. costing/cash integration;
-10. archive/navigation/analytics foundations;
-11. full software + hardware acceptance.
+## 12. Current implementation order
 
-Material request schema создаётся **до cash.html**, иначе кассу пришлось бы переделывать после warehouse integration.
+Immediate NEXT:
+
+1. crash-safe transaction coordinator for explicit operator ISSUE/RETURN/CORRECTION;
+2. durable pending/recovery marker coupling physical MaterialLedger mutation and immutable movement evidence;
+3. fail-closed lifecycle gates around warehouse mutation;
+4. bounded runtime/Web Material Request APIs;
+5. delivery event/store/API;
+6. payment/correction store/API;
+7. Motor Web;
+8. Client Web;
+9. coordinated spool -> material-request wire migration;
+10. costing/cash integration;
+11. archive/navigation/analytics foundations;
+12. full software + hardware acceptance.
+
+Material request subsystem строится **до cash.html**, иначе кассу пришлось бы переделывать после warehouse integration.
 
 ## 13. Safety / integrity invariants
 
@@ -268,6 +257,7 @@ Material request schema создаётся **до cash.html**, иначе кас
 
 - `RUN_COMPLETED` never auto-deducts material;
 - physical stock movement requires explicit operator action;
+- physical stock mutation and immutable request evidence must recover atomically/fail-closed;
 - run-linked wire ISSUE сохраняет exact `source_session_id + source_run_id`;
 - no silent rewrite/delete of issued movements;
 - corrections/returns append-only;
@@ -287,4 +277,4 @@ Material request schema создаётся **до cash.html**, иначе кас
 00_READ_FIRST.md
 ```
 
-При начале кода material-request subsystem создать следующий numbered implementation checkpoint с exact commits + CI evidence.
+Каждый крупный persistence/API блок получает numbered checkpoint с exact commits + CI evidence.

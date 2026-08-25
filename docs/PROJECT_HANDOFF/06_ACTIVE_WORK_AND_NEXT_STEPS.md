@@ -7,35 +7,20 @@
 
 ## Current verified baseline
 
-Latest fully verified block: **89_REPAIR_PRICING_REFERENCE_BATCHING**.
-
-```text
-ESP32 Build #1441 / run 32818211915 / SUCCESS
-CMP #3096 / run 32818305639 / SUCCESS
-final descendant 921999a8f2a11405c8a312a4f6064c2a29834e93
-```
-
-Block **91_REPAIR_PRICING_SAVE_SINGLE_PASS** is implemented with regression + CI wiring, but is not yet promoted to the fully verified baseline in this document.
-
-Confirmed so far:
+Latest fully verified block: **91_REPAIR_PRICING_SAVE_SINGLE_PASS**.
 
 ```text
 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f  perf implementation
 510f449de040ec4aec4814a08fbe7565fcd4c41a  regression guard
 bbca869a52db892305a1419230c77f26d6def7fd  CMP workflow wiring
 
+ESP32 Build #1442 / run 32830427142 / SUCCESS
 CMP #3101 / run 32830427181 / SUCCESS
 CMP #3102 / run 32830457634 / SUCCESS
+CMP #3103 / run 32830498664 / SUCCESS
 ```
 
-At the time of this update:
-
-```text
-ESP32 Build #1442 / run 32830427142 / IN PROGRESS
-CMP #3103 / run 32830498664 / IN PROGRESS
-```
-
-Do not call block 91 fully GREEN until both required gates complete successfully or a later descendant proves them.
+Block 91 removes one duplicate `/data/workshop/repairs.ndjson` identity scan from `RepairCosting::savePricing()` while retaining the authoritative repair identity validation inside mandatory `RepairCosting::load()`.
 
 Overall project readiness: **~95%**. Software/repo implementation and integrity: **~98-99%**.
 
@@ -66,11 +51,6 @@ Overall project readiness: **~95%**. Software/repo implementation and integrity:
 87  finalization costing/movement single-pass
 88  material reference batching
 89  repair pricing reference batching
-```
-
-Pending verification:
-
-```text
 91  repair pricing save single-pass
 ```
 
@@ -110,10 +90,9 @@ Never weaken:
 
 ## Next steps
 
-1. Finish software verification for block 91 and promote it to GREEN only with actual Actions evidence.
-2. Continue narrow repo-only Stage-1 audit and implement only justified hotspots with regression + CI gate + handoff.
-3. When no justified candidate remains, stop software optimization instead of forcing rewrites.
-4. Then perform one full two-board ESP32 + Arduino Uno hardware acceptance:
+1. Continue narrow repo-only Stage-1 audit and implement only justified hotspots with regression + CI gate + handoff.
+2. When no justified candidate remains, stop software optimization instead of forcing rewrites.
+3. Then perform one full two-board ESP32 + Arduino Uno hardware acceptance:
    - boot/handshake;
    - JOB delivery without auto-start;
    - physical START;
@@ -126,7 +105,7 @@ Never weaken:
    - Hall calibration ARM/local confirm/physical start/CAL_DONE/proposal/local apply/reconciliation;
    - keypad/LCD/buzzer;
    - SSR owned only by Uno.
-5. After hardware acceptance, use real device storage metrics to decide whether any NDJSON rotation thresholds are actually needed.
+4. After hardware acceptance, use real device storage metrics to decide whether any NDJSON rotation thresholds are actually needed.
 
 ## New-chat entrypoint
 
@@ -139,4 +118,4 @@ docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 docs/PROJECT_HANDOFF/91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md
 ```
 
-`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` remains the authoritative transfer checkpoint; `91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md` records the newest Stage-1 block and its verification status.
+`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` remains the authoritative transfer checkpoint; `91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md` records the newest fully GREEN Stage-1 block.

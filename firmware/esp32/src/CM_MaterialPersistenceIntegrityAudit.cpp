@@ -303,8 +303,9 @@ bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage)
     return check(storage, ignoredMetrics);
 }
 
-bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage,
-                                              MaterialPersistenceAuditMetrics& metrics)
+bool MaterialPersistenceIntegrityAudit::checkMaterialDomain(
+    fs::FS& storage,
+    MaterialPersistenceAuditMetrics& metrics)
 {
     metrics.materialRecordCount = 0UL;
     metrics.usageRecordCount = 0UL;
@@ -315,9 +316,7 @@ bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage,
     uint32_t adjustmentRecordCount = 0UL;
     if (!checkMaterials(storage, materialRecordCount) ||
         !checkUsage(storage, usageRecordCount) ||
-        !checkAdjustments(storage, adjustmentRecordCount) ||
-        !WorkshopPersistenceIntegrityAudit::check(storage) ||
-        !RepairPricingIntegrityAudit::check(storage))
+        !checkAdjustments(storage, adjustmentRecordCount))
     {
         return false;
     }
@@ -326,5 +325,15 @@ bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage,
     metrics.usageRecordCount = usageRecordCount;
     metrics.adjustmentRecordCount = adjustmentRecordCount;
     return true;
+}
+
+bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage,
+                                              MaterialPersistenceAuditMetrics& metrics)
+{
+    if (!checkMaterialDomain(storage, metrics)) return false;
+
+    // Standalone callers retain the original broad integrity contract.
+    return WorkshopPersistenceIntegrityAudit::check(storage) &&
+           RepairPricingIntegrityAudit::check(storage);
 }
 }

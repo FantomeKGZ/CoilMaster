@@ -210,10 +210,14 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
 bool checkInternal(fs::FS& storage,
                    uint32_t& validatedRecordCount,
                    uint32_t repairId,
-                   WarehouseMovementRepairTotals* totals)
+                   WarehouseMovementRepairTotals* totals,
+                   uint32_t sourceSessionId,
+                   uint32_t sourceRunId,
+                   bool* sourceRunConfirmed)
 {
     validatedRecordCount = 0UL;
     if (totals != nullptr) *totals = WarehouseMovementRepairTotals();
+    if (sourceRunConfirmed != nullptr) *sourceRunConfirmed = false;
 
     constexpr const char* Path = "/data/warehouse/movements.ndjson";
     if (!storage.exists(Path)) return true;
@@ -269,6 +273,14 @@ bool checkInternal(fs::FS& storage,
             return false;
         }
 
+        if (sourceRunConfirmed != nullptr && record.status == "CONFIRMED" &&
+            record.hasSourceSessionId && record.hasSourceRunId &&
+            record.sourceSessionId == sourceSessionId &&
+            record.sourceRunId == sourceRunId)
+        {
+            *sourceRunConfirmed = true;
+        }
+
         hasPending = false;
         pending = WarehouseWriteOffRecord();
         ++recordCount;
@@ -286,13 +298,13 @@ bool checkInternal(fs::FS& storage,
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
 {
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr);
+    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
                                             uint32_t& validatedRecordCount)
 {
-    return checkInternal(storage, validatedRecordCount, 0UL, nullptr);
+    return checkInternal(storage, validatedRecordCount, 0UL, nullptr, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::checkRepair(
@@ -302,6 +314,18 @@ bool WarehouseMovementIntegrityAudit::checkRepair(
 {
     if (repairId == 0UL) return false;
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, repairId, &totals);
+    return checkInternal(storage, ignoredRecordCount, repairId, &totals, 0UL, 0UL, nullptr);
+}
+
+bool WarehouseMovementIntegrityAudit::checkSourceRun(fs::FS& storage,
+                                                      uint32_t sourceSessionId,
+                                                      uint32_t sourceRunId,
+                                                      bool& confirmed)
+{
+    confirmed = false;
+    if (sourceSessionId == 0UL || sourceRunId == 0UL) return false;
+    uint32_t ignoredRecordCount = 0UL;
+    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
+                         sourceSessionId, sourceRunId, &confirmed);
 }
 }

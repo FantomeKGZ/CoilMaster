@@ -1,0 +1,93 @@
+name: Apply operator B abort patch
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - .github/workflows/operator-b-abort-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Verify exact source blobs and apply patch
+        shell: python
+        run: |
+          from pathlib import Path
+          import hashlib
+          import subprocess
+          import sys
+
+          expected = {
+              'firmware/arduino/src/main.cpp': '76236e2837bc68b9b69bcfa931e45011c601e352',
+              'firmware/esp32/src/CM_UartEventReceiver.cpp': '5c577193a6a612471430c4b97ac7af2b6ac8b979',
+              'firmware/esp32/src/CM_JobStateRemoteCancel.cpp': '3efe434a1594d1de2034b96ffd69b19b9ca7e379',
+              'Tests/Web/check_job_cancel_recovery_contracts.js': 'e4e68a375ae606ae022d97f557dabb6e73138ee1',
+          }
+
+          def git_blob_sha(data: bytes) -> str:
+              header = f'blob {len(data)}\0'.encode()
+              return hashlib.sha1(header + data).hexdigest()
+
+          for name, sha in expected.items():
+              data = Path(name).read_bytes()
+              actual = git_blob_sha(data)
+              if actual != sha:
+                  raise SystemExit(f'{name}: expected blob {sha}, got {actual}')
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: replacement match count={count}')
+              p.write_text(text.replace(old, new, 1))
+
+          arduino = 'firmware/arduino/src/main.cpp'
+          marker = '''void processKeypad()\n{\n#if CM_FEATURE_KEYPAD_4X4\n'''
+          helper = '''bool processRemoteOperatorExitKey(char key)\n{\n    if (key != 'B') return false;\n\n    const CM::MachineState state = machine.state();\n    const bool abortable =\n        state == CM::MachineState::Ready ||\n        state == CM::MachineState::Winding ||\n        state == CM::MachineState::Paused ||\n        state == CM::MachineState::ManualRun ||\n        state == CM::MachineState::CoilComplete;\n    if (!abortable) return false;\n\n    const CM::WindingJob active = machine.job();\n    if (active.source != CM::JobSource::Esp32Web ||\n        !active.isValid() || active.jobId == 0UL)\n    {\n        return false;\n    }\n\n    // Physical B is an explicit operator abort. Cut motor authority first, then\n    // clear the Uno job and report the exact remote job id back to ESP32.\n    ssr.forceOff();\n    if (!machine.cancel()) return false;\n    input.resetToHome();\n    espTransport.sendJobCancelResult(active.jobId, true, "OPERATOR_ABORT");\n#if CM_FEATURE_BUZZER\n    buzzer.stop();\n#endif\n    Serial.println(F("CM_JOB OPERATOR_ABORT result=CANCELLED"));\n    return true;\n}\n\nvoid processKeypad()\n{\n#if CM_FEATURE_KEYPAD_4X4\n'''
+          replace_once(arduino, marker, helper)
+
+          old = '''    if (processEmergencyJobClearKey(key)) return;\n\n    bool handled = false;\n'''
+          new = '''    if (processEmergencyJobClearKey(key)) return;\n    if (processRemoteOperatorExitKey(key)) return;\n\n    bool handled = false;\n'''
+          replace_once(arduino, old, new)
+
+          receiver = 'firmware/esp32/src/CM_UartEventReceiver.cpp'
+          old = '''    if (!m_hasPendingCancel || jobId != m_cancelJobId) return false;\n\n    JobCancelResult result = JobCancelResult::None;\n'''
+          new = '''    const bool operatorAbort =\n        strcmp(status, "CANCELLED") == 0 && detail != nullptr &&\n        strcmp(detail, "OPERATOR_ABORT") == 0 &&\n        m_hasLastQueuedJobId && jobId == m_lastQueuedJobId;\n    if (operatorAbort)\n    {\n        publishJobCancel(JobCancelResult::Cancelled, jobId, 0U, "OPERATOR_ABORT");\n        m_hasPendingCancel = false;\n        m_cancelJobId = 0UL;\n        m_cancelSendAttempts = 0U;\n        if (m_hasRecoveryJobId && jobId == m_recoveryJobId)\n        {\n            m_recoveryJobId = 0UL;\n            m_hasRecoveryJobId = false;\n        }\n        return true;\n    }\n\n    if (!m_hasPendingCancel || jobId != m_cancelJobId) return false;\n\n    JobCancelResult result = JobCancelResult::None;\n'''
+          replace_once(receiver, old, new)
+
+          state = 'firmware/esp32/src/CM_JobStateRemoteCancel.cpp'
+          old = '''    const bool waitingOnly =\n        state.executionState == JobExecutionState::WaitingDelivery ||\n        state.executionState == JobExecutionState::WaitingPhysicalStart;\n    if (!waitingOnly || state.lastRunId != 0UL || state.completedRuns != 0U)\n        return true;\n\n    state.deliveryState = JobDeliveryState::Cancelled;\n'''
+          new = '''    // A positive exact cancel while RUNNING can only come from the physical\n    // operator-abort path: ordinary remote JOB_CANCEL is rejected by Uno once a\n    // run has started. Preserve lastRunId/completedRuns evidence but close the\n    // active lifecycle so the operator can correct the program and send a new job.\n    if (state.executionState == JobExecutionState::Running)\n    {\n        state.executionState = JobExecutionState::ClosedAfterReview;\n        state.updatedUptimeMs = nowMs;\n        return writeAtomic(state);\n    }\n\n    const bool waitingOnly =\n        state.executionState == JobExecutionState::WaitingDelivery ||\n        state.executionState == JobExecutionState::WaitingPhysicalStart;\n    if (!waitingOnly || state.lastRunId != 0UL || state.completedRuns != 0U)\n        return true;\n\n    state.deliveryState = JobDeliveryState::Cancelled;\n'''
+          replace_once(state, old, new)
+
+          test = 'Tests/Web/check_job_cancel_recovery_contracts.js'
+          old = '''// Physical emergency clear is allowed only for a zero-run READY remote job.\n'''
+          new = '''// Physical B is an explicit exact-id operator abort for an ESP32-owned job.\n// SSR authority is removed before the Uno job is cleared, and ESP32 accepts the\n// unsolicited acknowledgement only for the last exact queued job id. A started\n// run keeps its run evidence while the lifecycle becomes terminal.\nfor (const text of [\n  'bool processRemoteOperatorExitKey(char key)',\n  "if (key != 'B') return false;",\n  'ssr.forceOff();',\n  'if (!machine.cancel()) return false;',\n  'espTransport.sendJobCancelResult(active.jobId, true, "OPERATOR_ABORT");',\n  'if (processRemoteOperatorExitKey(key)) return;'\n]) {\n  requireText(arduinoMainPath, arduinoMain, text,\n    'physical B operator-abort contract missing: ' + text);\n}\nfor (const text of [\n  'const bool operatorAbort =',\n  'strcmp(detail, "OPERATOR_ABORT") == 0 &&',\n  'm_hasLastQueuedJobId && jobId == m_lastQueuedJobId;',\n  'publishJobCancel(JobCancelResult::Cancelled, jobId, 0U, "OPERATOR_ABORT");'\n]) {\n  requireText(espTransportPath, espTransport, text,\n    'exact-id unsolicited operator-abort correlation missing: ' + text);\n}\nfor (const text of [\n  'if (state.executionState == JobExecutionState::Running)',\n  'state.executionState = JobExecutionState::ClosedAfterReview;',\n  'return writeAtomic(state);'\n]) {\n  requireText(remoteCancelStatePath, remoteCancelState, text,\n    'started-run operator-abort persistence contract missing: ' + text);\n}\n\n// Physical emergency clear is allowed only for a zero-run READY remote job.\n'''
+          replace_once(test, old, new)
+
+          old = "console.log('JOB lifecycle contracts OK: control-before-RUN ordering, timeout RUN reconciliation, runtime normalization, lost-ACK remote cancel, recovery-only ALL_CLEAR, run-evidence cancel no-op, timeout manual-review isolation, repeat-target integrity, and Arduino physical clear safety.');"
+          new = "console.log('JOB lifecycle contracts OK: control-before-RUN ordering, timeout RUN reconciliation, runtime normalization, lost-ACK remote cancel, recovery-only ALL_CLEAR, physical B exact-id operator abort with run-evidence preservation, timeout manual-review isolation, repeat-target integrity, and Arduino physical clear safety.');"
+          replace_once(test, old, new)
+
+      - name: Commit production patch
+        shell: bash
+        run: |
+          git config user.name "FantomeKGZ"
+          git config user.email "deadgrog@gmail.com"
+          git add firmware/arduino/src/main.cpp \
+                  firmware/esp32/src/CM_UartEventReceiver.cpp \
+                  firmware/esp32/src/CM_JobStateRemoteCancel.cpp \
+                  Tests/Web/check_job_cancel_recovery_contracts.js
+          git diff --cached --check
+          git commit -m "fix(runtime): allow physical B operator abort"
+          git push origin HEAD:cmp-protocol-v1

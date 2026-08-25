@@ -6,6 +6,9 @@
 
 namespace CM
 {
+// Catalog stock is stored in thousandths of the declared unit. This legacy
+// scale remains authoritative while Material Request adopts the same exact
+// integer accounting model through explicit unit mapping.
 enum class MaterialUnit : uint8_t
 {
     Piece = 0,

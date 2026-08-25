@@ -75,9 +75,11 @@ bool parseEvent(const String& line, AuditEvent& event)
 WindingJournalTransitionAuditResult validateInternal(fs::FS& storage,
                                                      uint32_t targetSessionId,
                                                      uint32_t targetRunId,
-                                                     bool* completed)
+                                                     bool* completed,
+                                                     uint32_t* recordCount)
 {
     if (completed != nullptr) *completed = false;
+    if (recordCount != nullptr) *recordCount = 0UL;
 
     File root = storage.open("/", FILE_READ);
     if (!root) return WindingJournalTransitionAuditResult::StorageUnavailable;
@@ -108,6 +110,16 @@ WindingJournalTransitionAuditResult validateInternal(fs::FS& storage,
         {
             file.close();
             return WindingJournalTransitionAuditResult::ReadFailed;
+        }
+
+        if (recordCount != nullptr)
+        {
+            if (*recordCount == 0xFFFFFFFFUL)
+            {
+                file.close();
+                return WindingJournalTransitionAuditResult::ReadFailed;
+            }
+            ++(*recordCount);
         }
 
         if (currentSessionId == 0UL || sessionId > currentSessionId)
@@ -159,7 +171,13 @@ WindingJournalTransitionAuditResult validateInternal(fs::FS& storage,
 
 WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::FS& storage)
 {
-    return validateInternal(storage, 0UL, 0UL, nullptr);
+    return validateInternal(storage, 0UL, 0UL, nullptr, nullptr);
+}
+
+WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::FS& storage,
+                                                                            uint32_t& recordCount)
+{
+    return validateInternal(storage, 0UL, 0UL, nullptr, &recordCount);
 }
 
 WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::FS& storage,
@@ -170,6 +188,6 @@ WindingJournalTransitionAuditResult WindingJournalTransitionAudit::validate(fs::
     completed = false;
     if (sessionId == 0UL)
         return WindingJournalTransitionAuditResult::ReadFailed;
-    return validateInternal(storage, sessionId, runId, &completed);
+    return validateInternal(storage, sessionId, runId, &completed, nullptr);
 }
 }

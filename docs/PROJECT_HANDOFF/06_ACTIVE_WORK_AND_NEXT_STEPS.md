@@ -5,57 +5,44 @@
 
 Этот файл содержит только текущую активную очередь. Старые checkpoints — history/evidence, а не backlog.
 
-## Stable baseline before new work
+## Stable baseline before CRM redesign
 
-Перед началом Web/CRM redesign зафиксирована стабильная pre-CRM точка:
+Зафиксирован pre-CRM stable snapshot:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
+main -> этот commit
+stable-2026-08-25-pre-crm-redesign -> этот commit
 ```
 
-`main` fast-forward синхронизирован на этот commit; дополнительно создан reference branch:
+Все новые изменения выполняются только в `cmp-protocol-v1`. `main` не использовать как source и не двигать до следующего явно согласованного stable checkpoint.
 
-```text
-stable-2026-08-25-pre-crm-redesign
-```
-
-Подробности: `docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md`.
-
-Все следующие пункты выполняются только в `cmp-protocol-v1`. `main` не использовать как source и не двигать до следующего явно согласованного stable checkpoint.
-
-## Current phase
-
-Stage-1 repo-only optimization закрыт. Финальный hardware acceptance начат на реальных ESP32 + Arduino Uno и уже выявил/закрыл один операторский UX defect: клавиша `B` должна позволять безопасно прервать ошибочно начатую намотку и вернуться домой без потери run evidence. Uno и ESP32 build/CMP проверки этого исправления прошли успешно.
-
-После этого пользователь утвердил следующий большой product/Web этап: **полный redesign Workshop Web/CRM вокруг клиента, физического двигателя, версий обмотки, ремонта, оплаты и выдачи**.
-
-Authoritative design:
+## Active design
 
 ```text
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 ```
 
-Hardware acceptance остаётся обязательным release gate и будет продолжен после стабилизации затрагиваемых production contracts. Его нельзя считать завершённым.
+Hardware acceptance был начат, но не завершён. После contract-changing CRM/writeoff изменений полный hardware E2E требуется повторить.
 
 ## Phase A progress
 
-Первый schema/persistence block выполнен:
+### A1. Motor winding versions — SOFTWARE GREEN
+
+Checkpoint:
 
 ```text
-firmware/esp32/src/CM_MotorWindingVersionStore.h
-firmware/esp32/src/CM_MotorWindingVersionStore.cpp
-Tests/Web/check_motor_winding_version_schema.js
+docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
 ```
 
-Поддерживаются:
+Реализовано:
 
-- один physical `motor_id` -> несколько winding versions;
-- predecessor `previous_version_id`;
-- optional `source_repair_id`;
-- отдельные WORKING / STARTING programs + repeat targets;
-- bounded multi-conductor contract до 4 компонентов на role;
-- canonical conductor format `CU:95x1+CU:100x1`;
 - append-only `/data/workshop/motor-winding-versions.ndjson`;
+- один physical `motor_id` -> несколько winding versions;
+- predecessor + optional repair linkage;
+- WORKING / STARTING separate program + repeats;
+- до 4 conductor components на role;
+- canonical representation вроде `CU:95x1+CU:100x1`;
 - legacy `motors.ndjson` не переписывается.
 
 Evidence:
@@ -65,95 +52,106 @@ a4895a6d058a56cd3041573b38d6ec808196cc99  contract
 2513d5392840fc739f402ce754f9543996086bc3  persistence
 863ecd52d718f2ddfc43c74ca32ec21c18c252f8  regression
 c6432c95e9f39464640a1c6ea49b097934bc5612  CI wiring
-CMP #3137 / run 32844995517 / SUCCESS
-ESP32 Build #1446 / run 32844995460 / SUCCESS
-CMP #3140 / run 32845194923 / SUCCESS
-CMP #3141 / run 32845242025 / pending at this update
+ESP32 Build #1446 / 32844995460 / SUCCESS
+CMP #3137 / 32844995517 / SUCCESS
+CMP #3140 / 32845194923 / SUCCESS
+CMP #3141 / 32845242025 / SUCCESS
 ```
 
-Checkpoint: `97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md`.
+### A2. Repair AS_RECEIVED snapshot — IMPLEMENTED, final CI/build verification in progress
 
-## Current active implementation order
-
-### A. Schema/contracts first
-
-1. [IN PROGRESS] Инвентаризировать текущие motor/client/repair/winding/costing/writeoff persistence + API.
-2. [DONE foundation] Определить backward-compatible winding-version schema.
-3. [DONE foundation] Разделить WORKING и STARTING programs/repeat targets.
-4. [DONE foundation] Определить multi-conductor representation для `0.95 + 1.00`, `0.80 x 3` и т.п.
-5. [NEXT] Определить immutable `as received` repair snapshot.
-6. Определить append-only delivery event (`DELIVERED_TO_CLIENT`).
-7. Определить append-only payment/correction store.
-8. Спроектировать целостную миграцию exact-spool -> material class + actual manual weight, без частичного удаления safety checks.
-9. Добавить backup/integrity contracts для новых production stores до того, как они станут release-critical.
-
-### B. Motor Web
-
-10. Создать `/desktop/motor-new.html`.
-11. Переделать `/desktop/motors.html` по layout/UX Arduino archive.
-12. Удалить встроенные motor creation forms из catalog/repair flow; оставить ссылки на `motor-new.html`.
-13. Расширить `motor-details.html` до рабочей карточки двигателя.
-14. Добавить winding versions, WORKING/STARTING, Cu/Al, conductors, before/after comparison.
-15. Добавить прямую отправку WORKING/STARTING на станок из карточки при сохранении physical START-only invariant.
-
-### C. Client Web
-
-16. Создать `/desktop/client-new.html`.
-17. Переделать `/desktop/clients.html` в каталог без формы создания.
-18. Создать `/desktop/client-details.html`.
-19. Удалить дублированное inline создание клиента из `repairs.html`; оставить ссылку.
-20. Показать в карточке клиента физические двигатели, ремонты, платежи, баланс и даты выдачи.
-
-### D. Repair lifecycle / delivery
-
-21. Сохранять immutable motor/winding snapshot `как поступил` при новом ремонте.
-22. Показывать `как поступил` vs `после перемотки`.
-23. Добавить append-only событие фактической выдачи.
-24. Различать `ремонт завершён` и `выдан клиенту`.
-25. Выдача при долге — warning + explicit operator confirmation, но не hard block.
-
-### E. Wire accounting simplification
-
-26. Убрать обязательную `spool_id` из linked workflow только после согласованной backend migration.
-27. Новый расход: exact run provenance + CU/AL + фактический вес + manual confirmation.
-28. `RUN_COMPLETED` по-прежнему никогда ничего автоматически не списывает.
-29. Обновить costing/finalization/backup/integrity/reports одновременно.
-30. Существующий spool inventory UI сохранить как необязательный интерфейс.
-
-### F. Cash/payments
-
-31. Добавить append-only payment/correction persistence/API.
-32. Создать `/desktop/cash.html`.
-33. Связать платеж с `client_id + repair_id`.
-34. Поддержать частичную оплату, несколько платежей, долг/переплату и агрегированный баланс клиента.
-35. Интегрировать payment history в client card и repair context.
-
-### G. Consolidation / acceptance
-
-36. Привести desktop navigation к новой структуре.
-37. Синхронизировать mobile semantics без отдельной несовместимой схемы.
-38. Добавить regression tests.
-39. Проверить backup/restore whitelist/integrity для новых stores.
-40. ESP32 build + CMP/Web tests.
-41. Продолжить/повторить полный hardware E2E с новым final flow.
-
-## Important migration rule — spool accounting
-
-Пользователь одобрил переход от обязательной конкретной бухты к более простому учёту материала по фактическому весу.
-
-Но **текущий production code пока всё ещё требует exact `spool_id`**. Поэтому до завершения Phase E старый spool invariant остаётся действующим. Нельзя удалить только Web selector и оставить backend/finalization в несовместимом состоянии.
-
-После законченной миграции новый invariant должен быть:
+Checkpoint:
 
 ```text
-RUN_COMPLETED never auto-deducts wire/material.
-Manual consumption remains tied to exact source_session_id + source_run_id,
-plus material class (CU/AL) and actual consumed weight.
+docs/PROJECT_HANDOFF/98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md
 ```
 
-## Safety invariants — unchanged
+Реализовано foundation:
 
-Никогда не ослаблять:
+- append-only `/data/workshop/repair-as-received.ndjson`;
+- exact `repair_id + client_id + motor_id` provenance;
+- optional `winding_version_id`;
+- immutable copy identity + phases/slots;
+- WORKING program/repeats/conductors;
+- STARTING presence/program/repeats/conductors;
+- fail-closed duplicate lookup by repair;
+- old `repairs.ndjson` / `motors.ndjson` не переписываются.
+
+Evidence so far:
+
+```text
+d6e4652aa3ff56d89138519c4ce2d4983b06a394  contract
+568beb9c34512c936685a985c360179a0c92fb76  persistence
+5bba647c7346ad03b9af028365a9b2f1753c2874  regression
+3d1bb7af3ac5b0f2124604b2ad29343cae78d9b5  CI wiring
+CMP #3147 / 32846371316 / SUCCESS
+CMP #3148 / 32846419170 / verification in progress at this update
+ESP32 Build #1448 / 32846323653 / verification in progress at this update
+```
+
+Не объявлять A2 полностью GREEN, пока оба последних runs не SUCCESS.
+
+## Current NEXT
+
+1. Завершить verification A2 и обновить checkpoint 98.
+2. Подключить `MotorWindingVersionStore` lifecycle к ESP32 runtime.
+3. Добавить read/latest/page API для winding versions.
+4. Подключить `RepairAsReceivedSnapshotStore` lifecycle.
+5. При create repair сохранять AS_RECEIVED snapshot fail-closed, без silent history loss.
+6. Добавить read API snapshot по `repair_id`.
+7. Добавить оба store в backup whitelist/integrity audit до release-critical use.
+8. Затем реализовать delivery event + payment/correction contracts.
+9. После Phase A перейти к `motor-new.html`, redesign `motors.html`, расширенному `motor-details.html`.
+
+## Remaining approved order
+
+### Motor Web
+
+- `/desktop/motor-new.html`;
+- `motors.html` как catalog-only в стиле Arduino archive;
+- удалить inline motor forms и оставить ссылки;
+- `motor-details.html` как рабочая карточка;
+- versions / WORKING / STARTING / Cu-Al / conductors / before-after;
+- отправка WORKING/STARTING на станок прямо из карточки без automatic physical START.
+
+### Client Web
+
+- `/desktop/client-new.html`;
+- `clients.html` catalog-only;
+- `/desktop/client-details.html`;
+- удалить inline client form из repairs;
+- motors/repairs/payments/balance/delivery dates в client card.
+
+### Repair lifecycle
+
+- immutable AS_RECEIVED capture;
+- completed != delivered;
+- append-only delivery evidence;
+- debt warning + explicit operator confirmation, не hard block.
+
+### Wire accounting migration
+
+Текущий exact-spool contract действует до полной согласованной migration.
+
+Target после migration:
+
+```text
+source_session_id + source_run_id
+material class CU/AL
+actual consumed weight
+manual confirmation
+```
+
+Нельзя частично удалить `spool_id` только из Web. Одновременно обновляются job/writeoff/costing/finalization/backup/integrity/reports/tests.
+
+### Cash/payments
+
+- append-only payment/correction store/API;
+- `/desktop/cash.html`;
+- `client_id + repair_id` provenance;
+- partial/multiple payments, debt/overpayment, client balance.
+
+## Safety invariants — unchanged
 
 - no automatic physical START;
 - no automatic START between repeats;
@@ -167,39 +165,16 @@ plus material class (CU/AL) and actual consumed weight.
 - restore operator-only, transactional, fail-closed;
 - no automatic production-data deletion/truncation.
 
-## Hardware acceptance status
+## Documentation discipline
 
-Hardware acceptance **не закрыт**. Уже подтверждено оператором:
-
-- обе production firmware собираются и прошиваются;
-- ESP32 boots and services initialize;
-- Uno boots to normal UI;
-- reboot did not auto-resume the recovered ESP32 job;
-- during real operation found B-exit defect, then software fix passed Uno/ESP32/CMP builds.
-
-Оставшаяся полная hardware sequence должна быть повторена после затрагивающих contract changes, особенно после нового winding/job/writeoff flow.
-
-## Documentation discipline — mandatory
-
-Во время этого redesign документация обновляется вместе с кодом:
-
-1. после каждого meaningful implementation block обновлять этот файл;
-2. checkpoint 95 обновлять фактическим статусом/решениями;
-3. при изменении transfer state обновлять `90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md`;
-4. при изменении current entrypoint/read order обновлять `00_READ_FIRST.md`;
-5. для каждого крупного persistence/API subsystem создавать новый numbered checkpoint;
-6. сохранять exact commits/CI run evidence;
-7. не объявлять CI/hardware GREEN без фактической проверки.
-
-## Read first for continuation
+После каждого meaningful block своевременно обновлять:
 
 ```text
-/AGENTS.md
-docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
-docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-docs/PROJECT_HANDOFF/97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
-docs/PROJECT_HANDOFF/93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md
+95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+06_ACTIVE_WORK_AND_NEXT_STEPS.md
+01_CURRENT_STATE.md
+90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md (при transfer-state change)
+00_READ_FIRST.md (при entrypoint/read-order change)
 ```
+
+Для крупных persistence/API блоков создавать numbered checkpoint с exact commits и CI evidence.

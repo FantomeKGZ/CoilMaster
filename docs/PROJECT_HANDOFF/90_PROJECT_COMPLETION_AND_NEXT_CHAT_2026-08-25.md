@@ -45,13 +45,15 @@ Authoritative design:
 104 CRM backup/export + integrity
 105 MaterialLedger serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
+107 Material Request lifecycle + backup/integrity
 ```
 
 Latest evidence:
 
 ```text
-CMP run 32857435377 / SUCCESS
-ESP32 Build run 32857318798 / SUCCESS
+final lifecycle head a960999b040afbdd7c48bbde08763e042408a2e8
+CMP run 32860049965 / SUCCESS
+ESP32 Build run 32860049946 / SUCCESS
 ```
 
 ## Current material architecture
@@ -68,9 +70,23 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-`loadActiveMaterialState()` provides one authoritative fail-closed ACTIVE item scan with unit, stock, accounting price and currency.
+Material Request stores:
 
-Material Request movements:
+```text
+/data/workshop/material-requests.ndjson
+/data/workshop/material-request-movements.ndjson
+/data/workshop/material-request-status.ndjson
+```
+
+Lifecycle:
+
+```text
+DRAFT -> ISSUED -> PRICED -> CLOSED
+```
+
+Status history is append-only and included in backup/deep CRM integrity. Missing-request lookup returns `true + found=false`; storage/validation error returns `false`.
+
+Movements:
 
 ```text
 ISSUE | RETURN | CORRECTION
@@ -82,21 +98,17 @@ RUN_WIRE remains KG-only with exact source session/run provenance. No new runtim
 
 ## Next mandatory block
 
-1. Append-only Material Request status history.
-2. Authoritative lifecycle resolver:
-
-```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
-```
-
-3. Backup/integrity coverage for status history.
-4. Crash-safe transaction coordinator for explicit operator ISSUE/RETURN/CORRECTION coupling MaterialLedger stock mutation with durable request movement evidence.
-5. Delivery store/API.
-6. Payment/correction store/API.
-7. Motor Web / Client Web.
-8. Coordinated spool -> material-request wire migration.
-9. Costing/cash integration.
-10. Full regression/backup/restore and final two-board hardware E2E.
+1. Crash-safe Material Request warehouse transaction coordinator.
+2. Explicit operator ISSUE/RETURN/CORRECTION only.
+3. Durable pending/recovery marker coupling physical `MaterialLedger` stock change and immutable request movement evidence.
+4. Lifecycle gates remain fail-closed; no implicit rewrite of request/status history.
+5. After transaction foundation GREEN, expose bounded runtime/Web request and warehouse APIs.
+6. Delivery store/API.
+7. Payment/correction store/API.
+8. Motor Web / Client Web.
+9. Coordinated spool -> material-request wire migration.
+10. Costing/cash integration.
+11. Full regression/backup/restore and final two-board hardware E2E.
 
 ## Wire accounting target
 
@@ -138,6 +150,7 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/107_MATERIAL_REQUEST_LIFECYCLE_2026-08-25.md
 docs/PROJECT_HANDOFF/106_MATERIAL_CATALOG_ADAPTER_AND_LOOKUP_2026-08-25.md
 docs/PROJECT_HANDOFF/105_MATERIAL_CATALOG_SERIALIZATION_FIX_2026-08-25.md
 docs/PROJECT_HANDOFF/104_CRM_BACKUP_INTEGRITY_2026-08-25.md
@@ -150,5 +163,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Прочитай AGENTS.md, 00, 95, 101, 106, 105, 104, 103, 06, 01 и 90. MaterialLedger catalog foundation и Material Request adapter GREEN. Следующий блок: append-only Material Request status history + resolver DRAFT->ISSUED->PRICED->CLOSED, затем backup/integrity и crash-safe explicit ISSUE/RETURN/CORRECTION coordinator. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Прочитай AGENTS.md, 00, 95, 101, 107, 106, 105, 104, 103, 06, 01 и 90. Material Request lifecycle DRAFT->ISSUED->PRICED->CLOSED, backup/integrity и MaterialLedger adapter GREEN на head a960999b...; CMP 32860049965 SUCCESS, ESP32 32860049946 SUCCESS. Следующий блок: crash-safe explicit ISSUE/RETURN/CORRECTION coordinator coupling MaterialLedger stock mutation with immutable request movement evidence. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
 ```

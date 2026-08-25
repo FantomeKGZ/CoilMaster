@@ -30,8 +30,7 @@ public:
 private:
     void startPattern(uint32_t nowMs,
                       uint8_t signalCount,
-                      uint16_t onDurationMs,
-                      uint16_t offDurationMs);
+                      uint16_t phaseDurationMs);
     void writeOutput(bool enabled);
 
     uint8_t m_pin;
@@ -41,8 +40,7 @@ private:
     bool m_finishedEvent;
     uint8_t m_phase;
     uint8_t m_phaseCount;
-    uint16_t m_onDurationMs;
-    uint16_t m_offDurationMs;
+    uint16_t m_phaseDurationMs;
     uint32_t m_phaseStartedMs;
 };
 }

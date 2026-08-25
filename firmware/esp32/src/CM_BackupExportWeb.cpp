@@ -4,6 +4,7 @@
 #include "CM_WarehousePersistenceIntegrityAudit.h"
 #include "CM_MaterialPersistenceIntegrityAudit.h"
 #include "CM_BackupBusinessDataIntegrityAudit.h"
+#include "CM_CrmPersistenceIntegrityAudit.h"
 #include "CM_WindingPersistenceIntegrityAudit.h"
 #include "CM_WindingSessionPersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
@@ -40,6 +41,7 @@ struct SnapshotAuditMetrics
     AuditTimingMetric conductorSettingsAuditTiming;
     AuditTimingMetric materialPersistenceAuditTiming;
     AuditTimingMetric businessDataAuditTiming;
+    AuditTimingMetric crmPersistenceAuditTiming;
     AuditTimingMetric autonomousWindingArchiveAuditTiming;
     AuditTimingMetric windingPersistenceAuditTiming;
     AuditTimingMetric warehousePersistenceAuditTiming;
@@ -58,6 +60,11 @@ struct SnapshotAuditMetrics
     uint32_t workshopRepairRecordCount = 0UL;
     uint32_t repairStatusRecordCount = 0UL;
     uint32_t repairPricingRecordCount = 0UL;
+    bool crmRecordCountsMeasured = false;
+    uint32_t motorWindingVersionRecordCount = 0UL;
+    uint32_t repairAsReceivedRecordCount = 0UL;
+    uint32_t materialRequestRecordCount = 0UL;
+    uint32_t materialRequestMovementRecordCount = 0UL;
     bool autonomousRecordCountsMeasured = false;
     uint32_t autonomousEventRecordCount = 0UL;
     uint32_t autonomousStartedRecordCount = 0UL;
@@ -86,6 +93,10 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"workshop-motors", "/data/workshop/motors.ndjson", "application/x-ndjson", "motors.ndjson"},
     {"workshop-repairs", "/data/workshop/repairs.ndjson", "application/x-ndjson", "repairs.ndjson"},
     {"repair-status", "/data/workshop/repair-status.ndjson", "application/x-ndjson", "repair-status.ndjson"},
+    {"motor-winding-versions", "/data/workshop/motor-winding-versions.ndjson", "application/x-ndjson", "motor-winding-versions.ndjson"},
+    {"repair-as-received", "/data/workshop/repair-as-received.ndjson", "application/x-ndjson", "repair-as-received.ndjson"},
+    {"material-requests", "/data/workshop/material-requests.ndjson", "application/x-ndjson", "material-requests.ndjson"},
+    {"material-request-movements", "/data/workshop/material-request-movements.ndjson", "application/x-ndjson", "material-request-movements.ndjson"},
     {"winding-events", "/data/winding-runs/events.ndjson", "application/x-ndjson", "winding-events.ndjson"},
     {"autonomous-winding-events", "/data/autonomous-windings/events.ndjson", "application/x-ndjson", "autonomous-winding-events.ndjson"},
     {"autonomous-winding-assignments", "/data/autonomous-windings/assignments.ndjson", "application/x-ndjson", "autonomous-winding-assignments.ndjson"},
@@ -108,7 +119,9 @@ constexpr RecoveryMarkerDefinition RecoveryMarkers[] =
     {"/data/materials/materials.tmp", "material_swap_temp_present"},
     {"/data/materials/materials.bak", "material_swap_backup_present"},
     {"/data/warehouse/spools.tmp", "warehouse_spool_swap_temp_present"},
-    {"/data/warehouse/spools.bak", "warehouse_spool_swap_backup_present"}
+    {"/data/warehouse/spools.bak", "warehouse_spool_swap_backup_present"},
+    {"/data/workshop/repair-intake.pending.json", "repair_intake_pending"},
+    {"/data/workshop/repair-intake.pending.tmp", "repair_intake_temp_present"}
 };
 
 constexpr size_t ExportFileCount = sizeof(ExportFiles) / sizeof(ExportFiles[0]);
@@ -318,6 +331,20 @@ const char* snapshotStabilityReason(fs::FS& storage,
     metrics.repairStatusRecordCount = businessMetrics.repairStatusRecordCount;
     metrics.repairPricingRecordCount = businessMetrics.pricingRecordCount;
     metrics.businessRecordCountsMeasured = true;
+
+    CrmPersistenceAuditMetrics crmMetrics;
+    startedAtMs = millis();
+    const bool crmPersistenceValid =
+        CrmPersistenceIntegrityAudit::check(storage, crmMetrics);
+    metrics.crmPersistenceAuditTiming.durationMs = millis() - startedAtMs;
+    metrics.crmPersistenceAuditTiming.measured = true;
+    if (!crmPersistenceValid)
+        return "crm_persistence_unstable_or_invalid";
+    metrics.motorWindingVersionRecordCount = crmMetrics.windingVersionRecordCount;
+    metrics.repairAsReceivedRecordCount = crmMetrics.asReceivedRecordCount;
+    metrics.materialRequestRecordCount = crmMetrics.materialRequestRecordCount;
+    metrics.materialRequestMovementRecordCount = crmMetrics.materialRequestMovementRecordCount;
+    metrics.crmRecordCountsMeasured = true;
 
     AutonomousWindingIntegrityMetrics autonomousMetrics;
     startedAtMs = millis();

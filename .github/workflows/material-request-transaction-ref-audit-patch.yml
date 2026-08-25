@@ -1,0 +1,35 @@
+name: One-shot material request transaction ref audit patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/material-request-transaction-ref-audit-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch transaction ref audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp
+          EXPECTED=892675e315503046f579bac3209be55c6d13c033
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 -c "from pathlib import Path; p=Path('$FILE'); s=p.read_text(); s=s.replace('String movementKind, sourceKind, unit, currency, createdAt;', 'String transactionRef, movementKind, sourceKind, unit, currency, createdAt;', 1); old='''            !findUnsigned(line, \"warehouse_item_id\", itemId) || itemId == 0UL ||\n            !findString(line, \"movement_kind\", movementKind) ||\n'''; new='''            !findUnsigned(line, \"warehouse_item_id\", itemId) || itemId == 0UL ||\n            !findString(line, \"transaction_ref\", transactionRef) ||\n            transactionRef.length() < 8U || transactionRef.length() > 80U ||\n            !findString(line, \"movement_kind\", movementKind) ||\n'''; assert old in s, 'transaction ref anchor missing'; p.write_text(s.replace(old,new,1))"
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp
+          git commit -m 'feat(integrity): require material request transaction refs'
+          git push origin HEAD:cmp-protocol-v1

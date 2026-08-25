@@ -11,10 +11,11 @@ struct NewMaterialRequestMovement
     uint32_t materialRequestId;
     uint32_t repairId;
     uint32_t warehouseItemId;
-    String movementKind;     // ISSUE | RETURN | CORRECTION
-    String sourceKind;       // MANUAL_MATERIAL | RUN_WIRE
+    String movementKind;       // ISSUE | RETURN | CORRECTION
+    String sourceKind;         // MANUAL_MATERIAL | RUN_WIRE
+    String correctionDirection; // ADD | REMOVE only for CORRECTION
     uint32_t quantityMilliUnits;
-    String unit;             // KG | L | PCS | M
+    String unit;               // KG | L | PCS | M | M2
     uint64_t unitCostMinor;
     uint64_t costAmountMinor;
     String currency;

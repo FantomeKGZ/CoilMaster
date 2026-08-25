@@ -1,0 +1,35 @@
+name: One-shot material request coordinator CI patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/material-request-coordinator-ci-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and wire coordinator regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=.github/workflows/cmp-protocol-tests.yml
+          EXPECTED=98d3844799f6c29ce07fd464753d3a0bab66b3e2
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 -c "from pathlib import Path; p=Path('$FILE'); s=p.read_text(); old='''      - name: Audit Material Request warehouse pending transaction\n        if: always()\n        run: node Tests/Web/check_material_request_warehouse_pending.js\n\n      - name: Audit CRM backup and integrity coverage\n'''; new='''      - name: Audit Material Request warehouse pending transaction\n        if: always()\n        run: node Tests/Web/check_material_request_warehouse_pending.js\n\n      - name: Audit Material Request warehouse coordinator\n        if: always()\n        run: node Tests/Web/check_material_request_warehouse_coordinator.js\n\n      - name: Audit CRM backup and integrity coverage\n'''; assert old in s, 'coordinator CI anchor missing'; p.write_text(s.replace(old,new,1))"
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$FILE"
+          git commit -m 'test(materials): run warehouse coordinator regression'
+          git push origin HEAD:cmp-protocol-v1

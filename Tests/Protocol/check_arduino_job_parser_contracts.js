@@ -86,11 +86,9 @@ if (maxJob.length !== 106) {
 const replyMatch = header.match(/MaxReplyLength = (\d+)U/);
 if (!replyMatch) throw new Error('Arduino transport: MaxReplyLength declaration missing');
 const maxReplyLength = Number(replyMatch[1]);
-if (maxReplyLength < maxJob.length + 1) {
-  throw new Error(`Arduino transport: MaxReplyLength ${maxReplyLength} cannot hold worst-case JOB plus NUL (${maxJob.length + 1})`);
-}
-if (maxReplyLength > 112) {
-  throw new Error(`Arduino transport: MaxReplyLength ${maxReplyLength} exceeds reviewed SRAM bound 112`);
+const exactReplyLength = maxJob.length + 1;
+if (maxReplyLength !== exactReplyLength) {
+  throw new Error(`Arduino transport: MaxReplyLength must equal exact worst-case JOB plus NUL (${exactReplyLength}), got ${maxReplyLength}`);
 }
 
 console.log('Arduino JOB/ACK/cancel parser contracts: OK');

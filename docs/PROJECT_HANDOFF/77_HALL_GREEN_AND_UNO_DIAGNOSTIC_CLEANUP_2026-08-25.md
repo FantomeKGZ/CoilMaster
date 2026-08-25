@@ -105,15 +105,49 @@ Therefore the temporary Uno diagnostic profile cleanup is now **software CI GREE
 
 No Arduino runtime, physical START, SSR, EEPROM, Hall counting, UART protocol or write-off logic changed in this cleanup.
 
-## Current software-only review
+## HALL_STATE telemetry validation-order cleanup
 
-A narrow review of `HardwareControlClient::processTelemetryState()` confirmed one low-risk correctness cleanup still exists: for Rising telemetry the expected release boundary is currently calculated before threshold/hysteresis validity is checked. An invalid profile such as `hysteresis >= threshold` is rejected later, so this is not an acceptance bypass, but the intermediate unsigned subtraction can wrap before that reject.
+A narrow review of `HardwareControlClient::processTelemetryState()` confirmed a low-risk correctness issue: for Rising telemetry the expected release boundary was calculated before threshold/hysteresis validity was checked. Invalid profiles were rejected later, so there was no acceptance bypass, but an invalid `hysteresis >= threshold` frame could make unsigned subtraction wrap before that rejection.
 
-Next change should be minimal and ESP32-only:
+Implementation:
 
-1. validate ADC window, threshold/hysteresis, debounce and sample count first;
-2. calculate `expectedReleaseBoundary` only after the profile is known valid;
-3. retain the exact release-boundary equality check;
-4. add/adjust the Hall contract regression without changing the wire format.
+```text
+8586c4a4dc7286ea4598dfe81225e34212a9c849
+fix(hall): validate telemetry profile before boundary math
+```
 
-Final two-board physical acceptance remains deferred until software optimization is complete.
+The ESP32 parser now:
+
+1. validates ADC/window/profile/debounce/sample semantics first;
+2. computes `expectedReleaseBoundary` only after `threshold/hysteresis` are known valid;
+3. retains the exact `parsed.releaseBoundary != expectedReleaseBoundary` rejection;
+4. leaves CMP1 wire format and Uno behavior unchanged.
+
+Dedicated regression:
+
+```text
+ac1b36cd5259d25632953168358b68a45f8132ee
+test(hall): require telemetry validation before boundary math
+```
+
+`Tests/Web/check_hall_telemetry_validation_order.js` verifies the semantic order without duplicating the large Hall safety matcher.
+
+CI integration:
+
+```text
+202949005b34b1a4db6052fb99b8fb4ba7223bf5
+ci(hall): run telemetry validation order audit
+```
+
+The CMP workflow now runs `Audit Hall telemetry validation order` alongside the existing Hall safety audits.
+
+## Verification state
+
+- Hall rejected-ARM / APPLY-ABORT orchestration: software CI GREEN.
+- Uno temporary diagnostic cleanup: software CI GREEN.
+- HALL_STATE validation-order implementation/regression/workflow: **fresh CI pending**; do not declare GREEN until an ESP32 Build and descendant CMP Protocol Tests are checked.
+- Final two-board physical acceptance remains deferred until software optimization is complete.
+
+## Next software step
+
+After fresh CI for the HALL_STATE validation-order batch, continue narrow software-only review. Do not change legacy `CAL_RESULT|VALID` semantics without authoritative contract evidence, and do not request intermediate hardware testing.

@@ -99,6 +99,10 @@ mustContain(clientCpp, 'if (!m_waitingReply) return true;', 'ESP32 CFG reply pen
 mustContain(clientCpp, 'const bool directSettingsReply =', 'ESP32 CFG reply request-type correlation');
 mustContain(clientCpp, 'const bool proposalEarlyReply =', 'ESP32 CFG proposal early BUSY correlation');
 mustContain(clientCpp, '!categoryNack || result != HardwareControlReplyResult::Busy', 'ESP32 CFG proposal BUSY-only correlation');
+mustContain(clientCpp, 'm_requestType == RequestType::GetSettings && m_waitingReply', 'ESP32 CFG_STATE sent-request correlation');
+mustContain(clientCpp, 'm_requestType == RequestType::StageCalibrationProposal &&\n        !m_waitingReply &&\n        parsed.state == HallCalibrationRemoteState::WaitingApplyConfirm', 'ESP32 stale apply-confirm state guard');
+mustContain(clientCpp, 'if (!m_waitingReply) return true;\n\n    if (m_requestType == RequestType::ArmCalibration)', 'ESP32 CAL_STATE sent-request correlation');
+mustContain(clientCpp, 'm_requestType = RequestType::GetSettings;\n            m_waitingReply = false;', 'ESP32 reconciliation must queue CFG_GET unsent');
 mustContain(clientCpp, 'parsed.threshold > 1023U', 'ESP32 Hall settings state range validation');
 mustContain(clientCpp, 'parsed.hysteresis > 512U', 'ESP32 Hall settings state range validation');
 mustContain(clientCpp, 'parsed.hysteresis >= parsed.threshold', 'ESP32 Hall settings state range validation');

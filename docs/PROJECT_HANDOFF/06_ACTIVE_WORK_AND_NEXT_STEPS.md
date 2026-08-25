@@ -7,20 +7,20 @@
 
 ## Current verified baseline
 
-Latest fully verified block: **91_REPAIR_PRICING_SAVE_SINGLE_PASS**.
+Latest fully verified block: **92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT**.
 
 ```text
-8339863f4c8fe395f5340ec93f98f3f5ac7ef43f  perf implementation
-510f449de040ec4aec4814a08fbe7565fcd4c41a  regression guard
-bbca869a52db892305a1419230c77f26d6def7fd  CMP workflow wiring
+72401aae0d1b34fbb211ce92c48d0a367f337b91  perf implementation
+8ce55052f98d491f3f1f2fda4830955e87159798  regression guard
+6d77ac1b4ad7fcc25cc1873d5e0c13e819011ece  CMP workflow wiring
 
-ESP32 Build #1442 / run 32830427142 / SUCCESS
-CMP #3101 / run 32830427181 / SUCCESS
-CMP #3102 / run 32830457634 / SUCCESS
-CMP #3103 / run 32830498664 / SUCCESS
+ESP32 Build #1443 / run 32831517073 / SUCCESS
+CMP #3111 / run 32831517018 / SUCCESS
+CMP #3112 / run 32831547926 / SUCCESS
+CMP #3113 / run 32831593193 / SUCCESS
 ```
 
-Block 91 removes one duplicate `/data/workshop/repairs.ndjson` identity scan from `RepairCosting::savePricing()` while retaining the authoritative repair identity validation inside mandatory `RepairCosting::load()`.
+Block 92 collapses the two preflight reads of `/data/materials/materials.ndjson` in `MaterialLedger::confirmUsage()` into one existing authoritative `readMaterialState()` pass while retaining `rewriteQuantity()` as the separate transactional mutation/revalidation pass.
 
 Overall project readiness: **~95%**. Software/repo implementation and integrity: **~98-99%**.
 
@@ -52,6 +52,7 @@ Overall project readiness: **~95%**. Software/repo implementation and integrity:
 88  material reference batching
 89  repair pricing reference batching
 91  repair pricing save single-pass
+92  material usage single-pass preflight
 ```
 
 ## Current KEEP
@@ -115,7 +116,8 @@ Read first:
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT_2026-08-25.md
 docs/PROJECT_HANDOFF/91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md
 ```
 
-`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` remains the authoritative transfer checkpoint; `91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md` records the newest fully GREEN Stage-1 block.
+`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` remains the authoritative transfer checkpoint; `92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT_2026-08-25.md` records the newest fully GREEN Stage-1 block.

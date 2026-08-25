@@ -14,6 +14,12 @@ function requireText(source, text, description) {
   }
 }
 
+function requirePattern(source, pattern, description) {
+  if (!pattern.test(source)) {
+    throw new Error(`Missing ${description}: ${pattern}`);
+  }
+}
+
 requireText(
   audit,
   'bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage)\n{\n    WarehousePersistenceAuditMetrics ignoredMetrics;\n    if (!check(storage, ignoredMetrics)) return false;\n\n    // Standalone callers retain the original broad integrity contract.\n    return checkMovementReferences(storage);\n}',
@@ -38,9 +44,9 @@ requireText(
   backup,
   'WarehousePersistenceIntegrityAudit::check(storage, warehouseMetrics)',
   'backup scoped warehouse persistence audit');
-requireText(
+requirePattern(
   backup,
-  'WarehouseMovementIntegrityAudit::check(storage, warehouseMovementRecordCount)',
+  /WarehouseMovementIntegrityAudit::check\(storage,\s*warehouseMovementRecordCount\)/,
   'separate authoritative warehouse movement audit');
 
 console.log('Scoped warehouse backup audit contracts OK');

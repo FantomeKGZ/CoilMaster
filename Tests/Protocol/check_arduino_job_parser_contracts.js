@@ -90,9 +90,11 @@ const exactReplyLength = maxJob.length + 1;
 if (maxReplyLength !== exactReplyLength) {
   throw new Error(`Arduino transport: MaxReplyLength must equal exact worst-case JOB plus NUL (${exactReplyLength}), got ${maxReplyLength}`);
 }
-requireText('uint8_t m_replyLength;',
-  'Arduino transport: reply length counter must remain uint8_t for the sub-256-byte RX bound');
-forbidText('size_t m_replyLength;',
-  'Arduino transport: reply length counter must not regress to a wider AVR size_t');
+if (!header.includes('uint8_t m_replyLength;')) {
+  throw new Error('Arduino transport: reply length counter must remain uint8_t for the sub-256-byte RX bound');
+}
+if (header.includes('size_t m_replyLength;')) {
+  throw new Error('Arduino transport: reply length counter must not regress to a wider AVR size_t');
+}
 
 console.log('Arduino JOB/ACK/cancel parser contracts: OK');

@@ -1,46 +1,14 @@
-name: One-shot material catalog serialization patch
+name: Archived CRM/material patch helper
 
 on:
-  push:
-    branches:
-      - cmp-protocol-v1
-    paths:
-      - ".github/workflows/crm-backup-integrity-patch.yml"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-          fetch-depth: 0
-      - name: Guard and patch MaterialLedger
-        shell: bash
-        run: |
-          set -euo pipefail
-          FILE=firmware/esp32/src/CM_MaterialLedger.cpp
-          EXPECTED=151c9ac58718540cf0532fc159c159b61dfbe91c
-          ACTUAL=$(git hash-object "$FILE")
-          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('firmware/esp32/src/CM_MaterialLedger.cpp')
-          s = p.read_text()
-          old = '    line += F("\\\",\\\"unit\\\":\\\""); line += unitText(material.unit);\n    line += F(",\\\"stock_quantity_milli\\\":"); line += material.stockQuantityMilli;\n'
-          new = '    line += F("\\\",\\\"unit\\\":\\\""); line += unitText(material.unit);\n    line += F("\\\",\\\"stock_quantity_milli\\\":"); line += material.stockQuantityMilli;\n'
-          if old not in s:
-              raise SystemExit('serialization anchor missing')
-          s = s.replace(old, new, 1)
-          p.write_text(s)
-          PY
-          git diff --check
-          node Tests/Web/check_material_catalog_serialization.js
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add firmware/esp32/src/CM_MaterialLedger.cpp
-          git commit -m 'fix(materials): close catalog unit JSON field'
-          git push origin HEAD:cmp-protocol-v1
+      - name: Archived one-shot helper
+        run: echo "One-shot patch helper is intentionally inert."

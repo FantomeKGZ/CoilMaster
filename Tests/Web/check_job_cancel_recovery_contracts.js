@@ -239,6 +239,39 @@ for (const text of [
     'Arduino idempotent remote cancel contract missing: ' + text);
 }
 
+// Physical B is an explicit exact-id operator abort for an ESP32-owned job.
+// SSR authority is removed before the Uno job is cleared, and ESP32 accepts the
+// unsolicited acknowledgement only for the last exact queued job id. A started
+// run keeps its run evidence while the lifecycle becomes terminal.
+for (const text of [
+  'bool processRemoteOperatorExitKey(char key)',
+  "if (key != 'B') return false;",
+  'ssr.forceOff();',
+  'if (!machine.cancel()) return false;',
+  'espTransport.sendJobCancelResult(active.jobId, true, "OPERATOR_ABORT");',
+  'if (processRemoteOperatorExitKey(key)) return;'
+]) {
+  requireText(arduinoMainPath, arduinoMain, text,
+    'physical B operator-abort contract missing: ' + text);
+}
+for (const text of [
+  'const bool operatorAbort =',
+  'strcmp(detail, "OPERATOR_ABORT") == 0 &&',
+  'm_hasLastQueuedJobId && jobId == m_lastQueuedJobId;',
+  'publishJobCancel(JobCancelResult::Cancelled, jobId, 0U, "OPERATOR_ABORT");'
+]) {
+  requireText(espTransportPath, espTransport, text,
+    'exact-id unsolicited operator-abort correlation missing: ' + text);
+}
+for (const text of [
+  'if (state.executionState == JobExecutionState::Running)',
+  'state.executionState = JobExecutionState::ClosedAfterReview;',
+  'return writeAtomic(state);'
+]) {
+  requireText(remoteCancelStatePath, remoteCancelState, text,
+    'started-run operator-abort persistence contract missing: ' + text);
+}
+
 // Physical emergency clear is allowed only for a zero-run READY remote job.
 for (const text of [
   "static const char Sequence[] = {'D', '*', '#', 'D'};",
@@ -260,4 +293,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('JOB lifecycle contracts OK: control-before-RUN ordering, timeout RUN reconciliation, runtime normalization, lost-ACK remote cancel, recovery-only ALL_CLEAR, run-evidence cancel no-op, timeout manual-review isolation, repeat-target integrity, and Arduino physical clear safety.');
+console.log('JOB lifecycle contracts OK: control-before-RUN ordering, timeout RUN reconciliation, runtime normalization, lost-ACK remote cancel, recovery-only ALL_CLEAR, physical B exact-id operator abort with run-evidence preservation, timeout manual-review isolation, repeat-target integrity, and Arduino physical clear safety.');

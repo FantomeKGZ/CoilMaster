@@ -22,6 +22,17 @@ bool JobStateStore::closeAfterRemoteCancel(uint32_t sessionId, uint32_t nowMs)
     // acknowledgement as a safe no-op instead of a storage failure. Recovery
     // remains fail-closed because the unchanged state still requires explicit
     // operator review before another job can be created.
+    // A positive exact cancel while RUNNING can only come from the physical
+    // operator-abort path: ordinary remote JOB_CANCEL is rejected by Uno once a
+    // run has started. Preserve lastRunId/completedRuns evidence but close the
+    // active lifecycle so the operator can correct the program and send a new job.
+    if (state.executionState == JobExecutionState::Running)
+    {
+        state.executionState = JobExecutionState::ClosedAfterReview;
+        state.updatedUptimeMs = nowMs;
+        return writeAtomic(state);
+    }
+
     const bool waitingOnly =
         state.executionState == JobExecutionState::WaitingDelivery ||
         state.executionState == JobExecutionState::WaitingPhysicalStart;

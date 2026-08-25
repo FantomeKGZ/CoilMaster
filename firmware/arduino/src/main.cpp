@@ -370,6 +370,39 @@ bool processEmergencyJobClearKey(char key)
     return true;
 }
 
+bool processRemoteOperatorExitKey(char key)
+{
+    if (key != 'B') return false;
+
+    const CM::MachineState state = machine.state();
+    const bool abortable =
+        state == CM::MachineState::Ready ||
+        state == CM::MachineState::Winding ||
+        state == CM::MachineState::Paused ||
+        state == CM::MachineState::ManualRun ||
+        state == CM::MachineState::CoilComplete;
+    if (!abortable) return false;
+
+    const CM::WindingJob active = machine.job();
+    if (active.source != CM::JobSource::Esp32Web ||
+        !active.isValid() || active.jobId == 0UL)
+    {
+        return false;
+    }
+
+    // Physical B is an explicit operator abort. Cut motor authority first, then
+    // clear the Uno job and report the exact remote job id back to ESP32.
+    ssr.forceOff();
+    if (!machine.cancel()) return false;
+    input.resetToHome();
+    espTransport.sendJobCancelResult(active.jobId, true, "OPERATOR_ABORT");
+#if CM_FEATURE_BUZZER
+    buzzer.stop();
+#endif
+    Serial.println(F("CM_JOB OPERATOR_ABORT result=CANCELLED"));
+    return true;
+}
+
 void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
@@ -442,6 +475,7 @@ void processKeypad()
         return;
     }
     if (processEmergencyJobClearKey(key)) return;
+    if (processRemoteOperatorExitKey(key)) return;
 
     bool handled = false;
     if (key == '#')

@@ -637,6 +637,24 @@ bool UartEventReceiver::processCancelAck(char* line)
         return true;
     }
 
+    const bool operatorAbort =
+        strcmp(status, "CANCELLED") == 0 && detail != nullptr &&
+        strcmp(detail, "OPERATOR_ABORT") == 0 &&
+        m_hasLastQueuedJobId && jobId == m_lastQueuedJobId;
+    if (operatorAbort)
+    {
+        publishJobCancel(JobCancelResult::Cancelled, jobId, 0U, "OPERATOR_ABORT");
+        m_hasPendingCancel = false;
+        m_cancelJobId = 0UL;
+        m_cancelSendAttempts = 0U;
+        if (m_hasRecoveryJobId && jobId == m_recoveryJobId)
+        {
+            m_recoveryJobId = 0UL;
+            m_hasRecoveryJobId = false;
+        }
+        return true;
+    }
+
     if (!m_hasPendingCancel || jobId != m_cancelJobId) return false;
 
     JobCancelResult result = JobCancelResult::None;

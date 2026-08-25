@@ -45,6 +45,14 @@ requireText(arduino, '- "firmware/arduino/**"',
   'Arduino build must run for production UNO entrypoint changes');
 requireText(arduino, 'pio run -e uno',
   'Arduino workflow must compile the production UNO PlatformIO environment');
+requireText(arduino, 'pio run -e uno | tee uno-build.log',
+  'Arduino workflow must retain the exact PlatformIO size output for budget checks');
+requireText(arduino, '- name: Check Arduino Uno resource headroom',
+  'Arduino workflow must enforce a resource-headroom gate after the build');
+requireText(arduino, 'MIN_HEADROOM_BYTES = 512',
+  'Arduino workflow must preserve at least the agreed 512-byte RAM/Flash safety margin');
+requireText(arduino, "for label in ('RAM', 'Flash'):",
+  'Arduino resource gate must cover both static RAM and flash');
 
 requireText(esp32, '- "firmware/esp32/**"',
   'ESP32 build must run for ESP32 firmware/web changes');
@@ -89,4 +97,4 @@ for (const path of [
     `CMP Protocol Tests pull-request trigger missing ${path}`);
 }
 
-console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, and main is not a build push source.');
+console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, and main is not a build push source.');

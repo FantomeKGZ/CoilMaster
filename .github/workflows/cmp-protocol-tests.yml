@@ -162,6 +162,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_hall_calibration_contracts.js
 
+      - name: Audit Hall telemetry validation order
+        if: always()
+        run: node Tests/Web/check_hall_telemetry_validation_order.js
+
       - name: Audit Hall lost apply reconciliation
         if: always()
         run: node Tests/Web/check_hall_apply_reconciliation.js

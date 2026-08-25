@@ -18,6 +18,12 @@ class MaterialPersistenceIntegrityAudit
 public:
     static bool check(fs::FS& storage);
     static bool check(fs::FS& storage, MaterialPersistenceAuditMetrics& metrics);
+
+    // Composite deep-audit helper: validates only the material domain and its
+    // exact material/repair references. Callers must separately run their
+    // authoritative workshop/pricing audit in the same fail-closed flow.
+    static bool checkMaterialDomain(fs::FS& storage,
+                                    MaterialPersistenceAuditMetrics& metrics);
 };
 }
 

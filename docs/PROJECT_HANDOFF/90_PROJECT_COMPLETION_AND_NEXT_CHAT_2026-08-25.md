@@ -148,38 +148,31 @@ Completed and CI-verified:
 87  finalization costing/movement single-pass
 88  material reference batching (batch=32)
 89  repair pricing reference batching (batch=32)
+91  repair pricing save single-pass
 ```
 
-Latest block 89 commits:
+Latest fully GREEN block 91 commits:
 
 ```text
-29ecbb799a14da455aa5d732764613465b21788a  perf(esp32): batch repair pricing references
-e027e86fe66a9ea2473d53ed01dd69ace279e5a7  test(esp32): protect repair pricing reference batching
-91ea3ee824b4589e88ec2c2cd7c063ad3e3c7ffe  ci(esp32): audit repair pricing reference batching
-921999a8f2a11405c8a312a4f6064c2a29834e93  docs(handoff): record repair pricing reference batching
+8339863f4c8fe395f5340ec93f98f3f5ac7ef43f  perf(esp32): avoid duplicate repair scan on pricing save
+510f449de040ec4aec4814a08fbe7565fcd4c41a  test(esp32): protect pricing save repair single-pass
+bbca869a52db892305a1419230c77f26d6def7fd  ci(esp32): audit pricing save repair single-pass
 ```
+
+Block 91 removes the redundant direct `repairExists(repairId)` scan from `RepairCosting::savePricing()`. The mandatory `RepairCosting::load()` still performs the authoritative repair identity validation before any pricing append. Lifecycle OPEN, costing, movement integrity/provenance and currency/no-op guards are unchanged.
 
 Verified Actions:
 
 ```text
-ESP32 Build #1441 / run 32818211915 / head 29ecbb79... / SUCCESS
-CMP #3093 / run 32818211986 / head 29ecbb79... / SUCCESS
-CMP #3094 / run 32818234743 / head e027e86f... / SUCCESS
-CMP #3095 / run 32818272548 / head 91ea3ee8... / SUCCESS
-CMP #3096 / run 32818305639 / head 921999a8... / SUCCESS
+ESP32 Build #1442 / run 32830427142 / head 8339863f... / SUCCESS
+CMP #3101 / run 32830427181 / head 8339863f... / SUCCESS
+CMP #3102 / run 32830457634 / head 510f449d... / SUCCESS
+CMP #3103 / run 32830498664 / head bbca869a... / SUCCESS
 ```
 
-Final CMP includes GREEN:
+CMP #3103 includes the dedicated `Audit repair pricing save single-pass contracts` step together with the existing material/reference/backup/finalization/writeoff/NDJSON/Hall contract suite.
 
-- material reference batching;
-- repair pricing reference batching;
-- material/warehouse backup scoped contracts;
-- final acceptance;
-- kg-first material contracts;
-- winding completion/finalization/persistence/workshop single-pass;
-- write-off fault contracts;
-- NDJSON growth diagnostics;
-- all Hall safety/telemetry/apply/ownership/history audits.
+Documentation commits after `bbca869a...` are docs-only and are not a newer firmware GREEN baseline unless separately verified.
 
 ## KEEP decisions from latest review
 
@@ -248,16 +241,20 @@ SSR controlled only by Uno
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/91_REPAIR_PRICING_SAVE_SINGLE_PASS_2026-08-25.md
 docs/PROJECT_HANDOFF/89_REPAIR_PRICING_REFERENCE_BATCHING_2026-08-25.md
 docs/PROJECT_HANDOFF/88_MATERIAL_REFERENCE_BATCHING_2026-08-25.md
 docs/PROJECT_HANDOFF/87_FINALIZATION_COSTING_SINGLE_PASS_2026-08-25.md
 docs/PROJECT_HANDOFF/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
 docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
+
+Note: if the exact historical block-85 filename is unavailable at that path, use the current `00_READ_FIRST.md`, `06_ACTIVE_WORK_AND_NEXT_STEPS.md`, `/api/system/storage` diagnostics contract and current source as authoritative current state; do not substitute `main`.
 
 ## Ready-to-paste prompt for the new chat
 
@@ -288,10 +285,13 @@ Safety-инварианты не менять:
 
 Текущая общая готовность проекта около 95%; software/repo часть около 98-99%. Основной production flow уже собран.
 
-Последний полностью GREEN блок: 89_REPAIR_PRICING_REFERENCE_BATCHING.
-Финальный descendant: 921999a8f2a11405c8a312a4f6064c2a29834e93.
-ESP32 Build #1441 run 32818211915 GREEN.
-CMP #3096 run 32818305639 GREEN, включая новый repair pricing batching audit и все ключевые Hall/material/backup/finalization audits.
+Последний полностью GREEN блок: 91_REPAIR_PRICING_SAVE_SINGLE_PASS.
+Implementation: 8339863f4c8fe395f5340ec93f98f3f5ac7ef43f.
+Regression: 510f449de040ec4aec4814a08fbe7565fcd4c41a.
+CI wiring: bbca869a52db892305a1419230c77f26d6def7fd.
+ESP32 Build #1442 run 32830427142 GREEN.
+CMP #3103 run 32830498664 GREEN, включая dedicated pricing-save single-pass audit и ключевые Hall/material/backup/finalization/writeoff/NDJSON audits.
+Docs-only commits после этого не считать новым firmware GREEN baseline без проверки.
 
 Текущая работа: узкий Stage-1 ESP32/storage performance review. Ищи только доказанные duplicate authoritative scans или per-record full-file reference lookups. Сохраняй bounded RAM, exact uniqueness и fail-closed semantics. Если scan семантически нужен — помечай KEEP и переходи дальше.
 

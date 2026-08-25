@@ -4,7 +4,7 @@ Date: **2026-08-25**
 Repository: `FantomeKGZ/CoilMaster`
 Source of truth: **`cmp-protocol-v1` only**.
 
-## Previous block now verified GREEN
+## Previous blocks now verified GREEN
 
 User-supplied Actions runs:
 
@@ -25,9 +25,25 @@ host-tests SUCCESS
 32794909365  CMP Protocol Tests
 checkout b374aae424fcfe5df4015647cea8c8f291cc111c
 host-tests SUCCESS
+
+32795389705  ESP32 Build
+checkout 8280d6066e72033bbbcb10e10415a61212b1c13c
+build-esp32 SUCCESS
+
+32795389713  CMP Protocol Tests
+checkout 8280d6066e72033bbbcb10e10415a61212b1c13c
+host-tests SUCCESS
+
+32795444329  CMP Protocol Tests
+checkout 7035dd025a3def712fb775c9513e311bba0e8a3c
+host-tests SUCCESS
+
+32795464371  CMP Protocol Tests
+checkout 16a75232deeb1677646c8ca70d29953b86e9b684
+host-tests SUCCESS
 ```
 
-This closes the software-CI verification for the stale legacy result drain added at the Web ARM boundary.
+This closes software-CI verification for both the stale legacy result drain and the receiver-level rejected-ARM preservation block.
 
 Hardware is not thereby declared GREEN.
 
@@ -62,7 +78,7 @@ b002d8b71629c9600acc0758ac025ed6589514b0
 test(hall): require stale result drain on arm
 ```
 
-## Rejected-ARM preservation finding
+## Rejected-ARM receiver preservation
 
 A follow-up review found a separate state-loss issue inside `UartEventReceiver::armHallCalibration()`.
 
@@ -90,13 +106,41 @@ Regression:
 test(hall): preserve result on rejected arm
 ```
 
-`Tests/Web/check_hall_calibration_contracts.js` now requires the accepted ARM call to precede the raw/compact reset.
+## Rejected-ARM Web-state preservation
+
+The next review found the same semantic issue one layer higher in `HardwareControlWeb::handleCalibrationArm()`.
+
+Even after the receiver-level fix, a rejected ARM still cleared the Web cache:
+
+- `m_hasCalibrationResult`;
+- `m_pendingHistoryMeasurementId`;
+- `m_pendingHistoryAbort`.
+
+Therefore an HTTP `409`/busy ARM could make the previous measurement disappear from the Web state even though no new calibration was queued.
+
+Implementation:
+
+```text
+ba7d49fe6b2e48f361fb78890830d98b6b814e71
+fix(hall): preserve web result on rejected arm
+```
+
+The Web layer now drains stale receiver results and clears result/history state only inside the successful `if (accepted)` ARM branch. A rejected ARM leaves the previous Web-visible measurement and pending history state unchanged.
+
+Regression:
+
+```text
+ad0015cab7fd1840b0b02f818131cc297c9c3099
+test(hall): preserve web state on rejected arm
+```
+
+The Hall safety contract now requires the Web result/history clears to remain inside the accepted ARM branch immediately before `queueAccepted(...)`.
 
 ## Current CI state
 
-The stale-result block `0099d724...` / `b002d8b7...` and descendant handoff commit are verified GREEN.
+The older stale-result and receiver-level rejected-ARM blocks are verified GREEN by the Actions runs listed above.
 
-The newer rejected-ARM preservation commits `8280d606...` and `7035dd02...` are **not yet declared GREEN** until fresh Actions runs for these SHAs or descendants are checked.
+The newer Web-state preservation commits `ba7d49fe...` and `ad0015ca...` are **not yet declared GREEN** until fresh Actions runs for these SHAs or descendants are checked.
 
 Do not request an intermediate hardware test for this block.
 

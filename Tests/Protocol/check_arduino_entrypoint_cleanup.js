@@ -9,6 +9,8 @@ const productionMainPath = 'firmware/arduino/src/main.cpp';
 const keypadHeaderPath = 'lib/CM_Keypad/src/Keypad.h';
 const lcdTransportPath = 'Arduino/CM_Pcf8574Lcd.cpp';
 const lcdCompatPath = 'lib/CM_LcdCompat/src/Wire.h';
+const buzzerHeaderPath = 'Arduino/CM_BuzzerService.h';
+const buzzerSourcePath = 'Arduino/CM_BuzzerService.cpp';
 
 const failures = [];
 
@@ -23,6 +25,8 @@ const productionMain = fs.readFileSync(productionMainPath, 'utf8');
 const keypadHeader = fs.readFileSync(keypadHeaderPath, 'utf8');
 const lcdTransport = fs.readFileSync(lcdTransportPath, 'utf8');
 const lcdCompat = fs.readFileSync(lcdCompatPath, 'utf8');
+const buzzerHeader = fs.readFileSync(buzzerHeaderPath, 'utf8');
+const buzzerSource = fs.readFileSync(buzzerSourcePath, 'utf8');
 const eepromSource = fs.readFileSync('Arduino/CM_EepromPersistence.cpp', 'utf8');
 
 for (const required of [
@@ -107,6 +111,36 @@ for (const forbidden of [
 }
 
 for (const required of [
+  'uint16_t m_phaseDurationMs;',
+  'void startPattern(uint32_t nowMs,',
+]) {
+  if (!buzzerHeader.includes(required)) {
+    failures.push(`${buzzerHeaderPath}: compact buzzer timing contract missing: ${required}`);
+  }
+}
+for (const forbidden of [
+  'm_onDurationMs',
+  'm_offDurationMs',
+]) {
+  if (buzzerHeader.includes(forbidden) || buzzerSource.includes(forbidden)) {
+    failures.push(`${buzzerSourcePath}: buzzer must not restore duplicate ON/OFF duration state: ${forbidden}`);
+  }
+}
+for (const required of [
+  'constexpr uint16_t JobAcceptedSignalMs = 80U;',
+  'constexpr uint16_t CoilSignalMs = 120U;',
+  'constexpr uint16_t ProgramSignalMs = 120U;',
+  'startPattern(nowMs, 2U, JobAcceptedSignalMs);',
+  'startPattern(nowMs, 1U, CoilSignalMs);',
+  'startPattern(nowMs, 3U, ProgramSignalMs);',
+  'nowMs - m_phaseStartedMs) < m_phaseDurationMs',
+]) {
+  if (!buzzerSource.includes(required)) {
+    failures.push(`${buzzerSourcePath}: compact buzzer pattern semantics missing: ${required}`);
+  }
+}
+
+for (const required of [
   'if (!metadataValidInEeprom())',
   'uint16_t EepromPersistence::metadataCrcInEeprom() const',
   'bool EepromPersistence::metadataValidInEeprom() const',
@@ -129,4 +163,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino cleanup contract OK: bounded Keypad and bufferless LCD owners are active, obsolete artifacts stay removed, and PlatformIO production main remains authoritative.');
+console.log('Arduino cleanup contract OK: bounded Keypad, bufferless LCD, compact buzzer timing, and authoritative production entrypoint remain active.');

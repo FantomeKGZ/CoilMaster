@@ -114,6 +114,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_material_catalog_serialization.js
 
+      - name: Audit Material Request unit adapter
+        if: always()
+        run: node Tests/Web/check_material_request_unit_adapter.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

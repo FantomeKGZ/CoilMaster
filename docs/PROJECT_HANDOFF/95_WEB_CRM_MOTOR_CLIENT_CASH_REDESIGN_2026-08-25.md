@@ -2,131 +2,72 @@
 
 Дата: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **APPROVED DESIGN / IMPLEMENTATION NOT STARTED**
+Статус: **APPROVED DESIGN / PHASE A IMPLEMENTATION IN PROGRESS**
 
-Этот checkpoint фиксирует новую согласованную Web/CRM архитектуру перед началом реализации. Он является authoritative design для следующего большого блока Web/ESP32 работ.
+Этот checkpoint — authoritative design текущего Web/CRM этапа. История конкретных implementation blocks фиксируется numbered checkpoints 97+.
 
-## 1. Цель
-
-Перестроить Workshop Web из набора отдельных форм в цельный рабочий поток:
+## 1. Целевой рабочий поток
 
 ```text
 КЛИЕНТ
-  -> его физические двигатели
-  -> ремонты этих двигателей
-  -> состояние двигателя при приёмке
-  -> выполненная/новая версия обмотки
-  -> калькуляция ремонта
-  -> платежи / баланс
-  -> завершение ремонта
-  -> фактическая выдача клиенту
+-> его физические ДВИГАТЕЛИ
+-> РЕМОНТ
+-> immutable AS_RECEIVED snapshot
+-> WORKING / STARTING winding data
+-> winding job(s)
+-> resulting winding version
+-> COSTING
+-> PAYMENTS / BALANCE
+-> repair completion
+-> DELIVERED_TO_CLIENT
 ```
 
-Каталоги становятся read/browse-oriented. Создание сущностей переносится на отдельные страницы. Карточки клиента и двигателя становятся основными рабочими экранами.
+Каталоги становятся browse/search-oriented. Создание клиента/двигателя переносится на отдельные страницы. Карточки клиента и двигателя становятся основными рабочими экранами.
 
-## 2. Каталог двигателей
+## 2. Stable baseline / branch rule
 
-`/desktop/motors.html` должен быть визуально и функционально перестроен на основе удачного layout `/desktop/arduino-windings.html`:
-
-- компактная таблица/список;
-- быстрый поиск;
-- bounded cursor paging;
-- фильтры;
-- быстрый переход в карточку;
-- без встроенной формы создания двигателя.
-
-Основные отображаемые поля одной строки:
+До начала CRM redesign зафиксирован stable pre-CRM commit:
 
 ```text
-Название двигателя
-Количество фаз
-Рабочая обмотка: coil program, например 40/40/30
-Количество повторов рабочей обмотки
-Пусковая обмотка: coil program, например 65/65
-Количество повторов пусковой обмотки
-Материал/провод кратко
-Действия / открыть карточку
+449570d47649d5f6336a31ee3eed491256e0fb1a
+main -> этот commit
+stable-2026-08-25-pre-crm-redesign -> этот commit
 ```
 
-Для 3-фазного двигателя пусковая обмотка отсутствует и отображается как `—`.
+Вся новая работа идёт только в `cmp-protocol-v1`. `main` не использовать как source и не двигать без отдельного согласованного stable checkpoint.
 
-Предпочтительные фильтры:
+## 3. Двигатель / winding versions
 
-- название / производитель / модель;
-- фазы;
-- пазы;
-- Cu / Al;
-- наличие пусковой обмотки;
-- программа витков;
-- мощность при наличии данных.
+Один физический двигатель = один `motor_id`.
 
-## 3. Создание двигателя — отдельная страница
-
-Создать отдельную страницу:
-
-```text
-/desktop/motor-new.html
-```
-
-`motors.html`, `repairs.html` и другие места больше не содержат встроенную большую форму двигателя. Вместо неё — ссылка/кнопка:
-
-```text
-+ Добавить двигатель
-```
-
-которая ведёт на `motor-new.html`.
-
-Первичное создание двигателя должно требовать минимально необходимую identity/technical информацию, а не заставлять вводить всю обмотку сразу.
-
-После успешного создания пользователь автоматически переходит в `motor-details.html?motor_id=...`, где может добавлять/редактировать обмоточные данные.
-
-## 4. Физический двигатель и версии обмотки
-
-Один физический двигатель должен оставаться одним `motor_id`.
-
-Не создавать новый `motor_id` только потому, что двигатель был перемотан с Al на Cu или получил другую обмотку.
-
-Новая модель:
+Перемотка Al -> Cu или последующая перемотка не создаёт новый motor master. Вместо этого:
 
 ```text
 motor_id
   -> winding version 1: AS_RECEIVED / ORIGINAL
   -> winding version 2: REWOUND / CURRENT
-  -> winding version 3: later repair
-  -> ...
+  -> winding version N
 ```
 
-Версия обмотки должна иметь связь с предыдущей версией (`converted_from` / predecessor semantics), чтобы можно было показать цепочку:
-
-```text
-Исходная Al -> перемотана Cu -> следующая перемотка
-```
-
-Старые данные не перезаписывать так, чтобы терялась история.
-
-## 5. Рабочая и пусковая обмотки
-
-Каждая winding version должна поддерживать отдельные role-блоки:
+Каждая version поддерживает:
 
 ```text
 WORKING
-STARTING
+  coil_program
+  repeat_target
+  coil_pitch optional
+  conductors[]
+
+STARTING optional
+  coil_program
+  repeat_target
+  coil_pitch optional
+  conductors[]
 ```
 
-Для каждого role:
+Для 3-фазного двигателя STARTING обычно отсутствует.
 
-- `coil_program` — например `40/40/30`;
-- `repeat_target`;
-- coil pitch / шаг при наличии;
-- wire material (`CU` / `AL`);
-- один или несколько conductor specifications;
-- комментарий/источник/статус доверия при необходимости.
-
-Для 3-фазных двигателей STARTING обычно отсутствует; UI должен автоматически это учитывать.
-
-## 6. Несколько жил / проводов
-
-Не ограничивать обмотку моделью `один диаметр + parallel_strands`, потому что реальный случай может быть:
+Multi-conductor должен покрывать реальные комбинации:
 
 ```text
 0.95 + 1.00
@@ -134,111 +75,117 @@ STARTING
 0.71 x 2 + 0.80
 ```
 
-Новая conductor-модель должна позволять массив/список составляющих:
+## 4. Motor Web
+
+### `/desktop/motors.html`
+
+Catalog-only в визуальном/рабочем стиле `/desktop/arduino-windings.html`.
+
+Основные поля строки:
 
 ```text
-diameter
-strand_count
-material
+Название
+Фазы
+Рабочая программа
+Повторов рабочей
+Пусковая программа
+Повторов пусковой
+Провод/материал кратко
+Открыть
 ```
 
-или эквивалентную bounded representation.
+Фильтры: identity, phases, slots, Cu/Al, starting presence, winding program, power where available.
 
-Это также станет основой для Al -> Cu calculator/conversion history.
+### `/desktop/motor-new.html`
 
-## 7. Карточка двигателя
+Отдельная страница создания motor master. Другие страницы больше не содержат большую inline motor form; оставляют ссылку `+ Добавить двигатель`.
 
-`/desktop/motor-details.html?motor_id=...` становится рабочим центром двигателя.
+После создания — переход в `motor-details.html?motor_id=...`.
 
-Блоки:
+### `/desktop/motor-details.html`
 
-1. identity / паспортные данные;
-2. текущая winding version;
-3. WORKING winding;
-4. STARTING winding (если применимо);
-5. история winding versions;
-6. сравнение `как поступил` vs `после перемотки`;
-7. ремонты двигателя;
-8. источник/заметки;
-9. быстрые действия.
+Рабочая карточка:
 
-Ключевые кнопки прямо в карточке:
+- identity/passport data;
+- current winding version;
+- WORKING;
+- STARTING;
+- conductor data;
+- version history;
+- before/after comparison;
+- repair history;
+- source/notes;
+- direct actions.
+
+Кнопки:
 
 ```text
 Отправить рабочую на станок
 Отправить пусковую на станок
 ```
 
-Эти кнопки создают/передают JOB, но **никогда не запускают физическую намотку**. Physical START остаётся только локальной физической кнопкой.
+Они создают JOB, но никогда не выполняют physical START. Physical START остаётся только локальным.
 
-После завершения рабочей обмотки оператор может из той же карточки отправить пусковую без перехода на отдельную страницу выбора программы.
+## 5. AS_RECEIVED snapshot
 
-## 8. Snapshot "как поступил"
+При создании нового ремонта должна фиксироваться immutable copy состояния двигателя/обмотки на момент приёмки.
 
-При создании ремонта необходимо сохранять immutable/read-only snapshot состояния двигателя/обмотки на момент приёмки.
+Старый ремонт обязан продолжать показывать состояние `как поступил`, даже если текущая motor card позже обновилась.
 
-Это нужно, чтобы последующая перемотка/обновление карточки не изменяла историческую картину старого ремонта.
-
-Ремонт должен уметь показать:
+Snapshot включает минимум:
 
 ```text
-ПРИ ПОСТУПЛЕНИИ
-- material
-- WORKING program / repeats / conductor data
-- STARTING program / repeats / conductor data
-
-ПОСЛЕ РЕМОНТА
-- новая winding version
-- фактически применённые данные
+repair_id + client_id + motor_id
+optional winding_version_id
+captured_at / source_kind
+motor identity
+phases / slots
+WORKING program/repeats/conductors
+STARTING presence/program/repeats/conductors
 ```
 
-## 9. Клиенты — отдельный каталог и отдельное создание
+Новый repair не должен считаться корректно созданным, если обязательный AS_RECEIVED evidence потерян из-за crash/power loss.
 
-`/desktop/clients.html` становится только каталогом клиентов.
+## 6. Клиенты
 
-Создать:
+### `/desktop/clients.html`
 
-```text
-/desktop/client-new.html
-/desktop/client-details.html?client_id=...
-```
+Catalog-only. Поиск минимум по имени, телефону, ID.
 
-Встроенные формы создания клиента из `clients.html` и `repairs.html` должны быть удалены после появления нового flow. Вместо них — ссылка `+ Добавить клиента`.
+### `/desktop/client-new.html`
 
-Каталог клиентов должен поддерживать поиск минимум по:
+Отдельное создание клиента.
 
-- имени;
-- телефону;
-- ID.
+### `/desktop/client-details.html`
 
-## 10. Карточка клиента
+Показывает:
 
-`client-details.html` должна показывать:
-
-- имя;
-- телефон;
-- комментарии/заметки;
+- имя/телефон/заметки;
 - двигатели, которые клиент привозил;
-- ссылки на физические motor cards;
+- ссылки на physical motor cards;
 - ремонты;
-- текущие/open ремонты;
-- завершённые, но ещё не выданные ремонты;
-- начислено;
-- оплачено;
-- баланс/долг;
-- историю платежей;
-- даты приёмки/завершения/выдачи.
+- open / completed-not-delivered;
+- начислено / оплачено / баланс;
+- payment history;
+- accepted/completed/delivered dates.
 
-Связь клиента с двигателем не должна навсегда встраивать `client_id` в master motor identity. Источник связи — ремонты/ownership-history-equivalent linkage, потому что физический двигатель потенциально может сменить владельца.
+Не встраивать постоянный `client_id` в motor master как вечного владельца. Связь клиента с мотором следует из repair/history semantics.
 
-## 11. Выдача двигателя
+## 7. Repair lifecycle / delivery
 
-`CLOSED` ремонта и фактическая выдача клиенту — разные события.
+`CLOSED` ремонта и физическая выдача клиенту — разные события.
 
-Добавить отдельное append-only событие/record выдачи, например semantic:
+Target:
 
 ```text
-DELIVERED_TO_CLIENT
+repair completed
+ready for delivery
+delivered to client
+```
+
+Добавить append-only delivery evidence:
+
+```text
 repair_id
 client_id
 motor_id
@@ -246,105 +193,81 @@ delivered_at
 comment optional
 ```
 
-Нужно уметь различать:
+Долг не hard-block выдачи. UI предупреждает и требует explicit operator confirmation.
 
-```text
-ремонт завершён
-готов к выдаче
-выдан клиенту
-```
+## 8. Costing vs cash
 
-Оплата не должна жёстко блокировать выдачу. При наличии долга UI должен показать предупреждение, но оператор может подтвердить выдачу в долг.
+Существующий costing отвечает за:
 
-## 12. Калькуляция и касса — разные подсистемы
-
-Существующий `costing.html` сохраняет роль расчёта:
-
-- wire/material cost;
-- additional materials;
+- себестоимость;
+- провод/materials;
 - labour;
-- total cost;
 - client price;
 - margin/loss;
-- append-only pricing revisions.
+- pricing revision history.
 
-Но `costing != cash`.
+Cash/payments — отдельная подсистема.
 
-Создать отдельный cash/payment layer и Web UI, например:
-
-```text
-/desktop/cash.html
-```
-
-Касса связывает:
-
-```text
-client_id
-repair_id
-amount
-payment timestamp
-payment/correction identity
-```
-
-Должны поддерживаться:
-
-- полная оплата;
-- частичная оплата;
-- несколько платежей по одному ремонту;
-- остаток/долг;
-- клиентский агрегированный баланс;
-- append-only correction вместо silent rewrite старого платежа.
-
-Пример таблицы кассы:
+Target `/desktop/cash.html`:
 
 ```text
 Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус
 ```
 
-## 13. Упрощение учёта провода — approved direction, migration required
-
-Пользователь утвердил направление: основной рабочий UX больше не должен требовать выбора конкретной `spool_id`, потому что фактический склад бухт пока мал и exact-spool workflow создаёт лишнюю операционную нагрузку.
-
-Предпочтительная новая модель:
+Payment storage append-only/correction-based:
 
 ```text
-material class (CU/AL)
+payment/correction id
+client_id
+repair_id
+amount
+timestamp
+```
+
+Поддержать partial/multiple payments, debt, overpayment, aggregated client balance.
+
+## 9. Wire accounting migration
+
+Пользователь одобрил уход основного workflow от обязательной exact `spool_id`.
+
+Target future contract:
+
+```text
+source_session_id + source_run_id
+material class CU/AL
 actual consumed weight
-price/cost basis
 manual confirmation
 ```
 
-Интерфейс бухт можно сохранить как вспомогательный/необязательный inventory interface, но linked winding flow не должен требовать бухту.
+`RUN_COMPLETED` никогда ничего автоматически не списывает.
 
-КРИТИЧЕСКИ ВАЖНО: это пока **design decision, не текущий production invariant**.
+КРИТИЧНО: migration ещё не завершена. Текущий backend/finalization использует exact spool identity. Нельзя убрать только Web selector.
 
-До завершения миграции текущий production код всё ещё использует exact `spool_id`. Нельзя частично удалить spool checks только из Web и оставить backend/finalization в противоречивом состоянии.
+Migration должна согласованно обновить:
 
-Миграция должна быть атомарно согласована через:
-
-- job creation;
-- immutable snapshot/spool selection semantics;
-- writeoff API;
+- linked job creation;
+- immutable job metadata;
+- writeoff API/storage;
 - costing;
-- repair finalization guard;
-- backup integrity;
+- finalization;
+- backup/integrity;
 - reports/history;
 - Web;
-- regression tests/docs.
+- tests/docs.
 
-Новый обязательный invariant после завершения миграции:
+Spool inventory UI можно сохранить как optional interface.
 
-```text
-RUN_COMPLETED never auto-deducts material.
-Actual wire consumption remains explicit/manual and tied to exact run evidence
-(source_session_id + source_run_id) plus material class and actual weight.
-```
+## 10. Backward compatibility
 
-То есть удаляется обязательность exact spool identity, но **не** ручное подтверждение расхода и **не** provenance RUN.
+- старые `motors.ndjson` остаются читаемыми;
+- legacy `coil_program + repeat_target` синтезируется как legacy/current WORKING до upgrade;
+- старые repairs остаются читаемыми;
+- repair без нового snapshot получает явный legacy status, а не ложную corruption classification;
+- никаких destructive rewrite historical stores;
+- новые history/event/version stores предпочтительно append-only;
+- каждый release-critical store обязан войти в backup whitelist + integrity validation.
 
-## 14. Safety invariants, которые не меняются
-
-Независимо от Web/CRM redesign:
+## 11. Safety invariants — never weaken
 
 - no automatic physical START;
 - no automatic START between repeats;
@@ -353,100 +276,99 @@ Actual wire consumption remains explicit/manual and tied to exact run evidence
 - ESP32/Web never directly controls SSR;
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
-- RUN_COMPLETED does not automatically deduct wire/material;
-- cancellation/abort does not erase immutable RUN/history evidence;
-- restore remains operator-only, transactional, fail-closed;
+- `RUN_COMPLETED` never automatically deducts wire/material;
+- cancellation/operator abort never erases immutable run/history evidence;
+- restore operator-only, transactional, fail-closed;
 - no automatic production-data deletion/truncation.
 
-## 15. Compatibility / migration rules
+## 12. Phase A implementation status
 
-Implementation must be backward-compatible with existing motor/client/repair records during migration.
+### GREEN — winding version schema/persistence
 
-Rules:
+Checkpoint:
 
-1. Existing motors with legacy `coil_program + repeat_target` remain readable.
-2. New UI may expose them as a synthesized legacy/current WORKING version until explicitly upgraded.
-3. Existing repairs/history remain readable.
-4. No destructive rewrite of `motors.ndjson` just to adopt the new model.
-5. Prefer append-only sidecar/event/version stores over mutation of historical master records.
-6. Backup whitelist and integrity audit must be updated for every new production store.
-7. Restore must understand/validate new stores before they become release-required.
-8. Mobile pages must eventually follow the same data semantics; desktop implementation may lead, but no incompatible parallel schemas.
+```text
+97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md
+```
 
-## 16. Implementation order
+Implemented `/data/workshop/motor-winding-versions.ndjson`, WORKING/STARTING, predecessor, repair linkage, multi-conductor.
 
-### Phase A — schema/contracts first
+### GREEN — AS_RECEIVED persistence foundation
 
-1. Inventory current motor/client/repair/costing/writeoff/cash-related endpoints and persistence.
-2. Define winding-version + role + conductor schema.
-3. Define client-motor/repair snapshot semantics.
-4. Define delivered-to-client event/store.
-5. Define payment/cash append-only schema.
-6. Define weight-only manual wire usage replacement contract and compatibility path.
-7. Add integrity/backup contracts before making new stores release-critical.
+Checkpoint:
 
-### Phase B — motor Web foundation
+```text
+98_REPAIR_AS_RECEIVED_SNAPSHOT_2026-08-25.md
+```
 
-8. Create `motor-new.html`.
-9. Redesign `motors.html` using Arduino archive layout.
-10. Remove embedded motor creation from catalog/repair pages; replace with links.
-11. Expand `motor-details.html` for winding versions + WORKING/STARTING.
-12. Add create/edit/add winding data actions from motor card.
-13. Add direct WORKING/STARTING send-to-machine actions from motor card while preserving physical START invariant.
+Implemented `/data/workshop/repair-as-received.ndjson` and immutable snapshot contract.
 
-### Phase C — client Web foundation
+### GREEN — runtime/read API
 
-14. Create `client-new.html`.
-15. Redesign `clients.html` as catalog only.
-16. Create `client-details.html`.
-17. Remove duplicated inline client creation from repairs; replace with links.
-18. Show linked physical motors and repair history in client card.
+Checkpoint:
 
-### Phase D — repair snapshots and delivery
+```text
+99_CRM_WINDING_LOOKUP_API_2026-08-25.md
+```
 
-19. Add immutable `as received` motor/winding snapshot linkage to new repairs.
-20. Show before/after winding comparison.
-21. Add delivered-to-client append-only event.
-22. Add `ready but not delivered` views and client-card delivery dates.
+Read-only endpoints:
 
-### Phase E — wire accounting simplification
+```text
+GET /api/motors/winding/latest
+GET /api/motors/winding/versions
+GET /api/repairs/as-received
+```
 
-23. Replace mandatory exact-spool selection in linked JOB UX/backend with approved material+actual-weight model.
-24. Preserve manual exact-run provenance (`source_session_id + source_run_id`).
-25. Update costing/finalization/integrity/backup/report contracts atomically.
-26. Keep existing spool inventory UI available but optional/non-blocking where appropriate.
+Verified through ESP32 Build #1452 and CMP #3154-#3156.
 
-### Phase F — cash/payments
+### IN PROGRESS — repair intake transaction/recovery
 
-27. Add append-only payment/correction persistence and API.
-28. Build `cash.html`.
-29. Link payment to client + repair.
-30. Add repair/client balances and payment history.
-31. Integrate delivery warning when balance remains unpaid, without hard-blocking operator delivery.
+Added foundation:
 
-### Phase G — consolidation/acceptance
+```text
+/data/workshop/repair-intake.pending.json
+/data/workshop/repair-intake.pending.tmp
+CM_RepairIntakePendingStore
+```
 
-32. Update desktop navigation and corresponding mobile semantics.
-33. Add/expand regression tests for all new contracts.
-34. Verify backup/restore whitelist/integrity for every new data store.
-35. Run ESP32 build + CMP/Web regressions.
-36. Perform real-device workflow acceptance for client -> motor -> repair -> winding -> cost -> payment -> delivery.
+Purpose: close power-loss window between new repair append and mandatory AS_RECEIVED snapshot append.
 
-## 17. Documentation update discipline for this redesign
+Required semantics:
 
-During implementation, documentation is part of the change, not a final cleanup task.
+1. durable pending marker before repair append;
+2. if crash before repair exists -> pending may be discarded as uncommitted;
+3. if repair exists but snapshot missing -> recover exact snapshot from marker/source version before normal operation;
+4. if repair+snapshot both exist -> clear stale marker;
+5. ambiguous/corrupt state -> fail closed.
 
-After every meaningful block:
+This block must not be declared GREEN before CI/build evidence.
 
-1. update this checkpoint with actual implemented status and commit/run evidence;
-2. update `06_ACTIVE_WORK_AND_NEXT_STEPS.md` so it contains only current queue;
-3. update `90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` when transfer state materially changes;
-4. update `00_READ_FIRST.md` when the authoritative read order/current phase changes;
-5. create a numbered checkpoint for each major completed subsystem if it materially changes persistence/contracts;
-6. never mark implementation/CI/hardware GREEN without actual evidence.
+## 13. Remaining implementation order
 
-## 18. Start condition
+1. Finish repair intake transaction/recovery and connect `POST /api/repairs`.
+2. Add winding/snapshot/pending stores to backup whitelist + integrity audit.
+3. Add delivery event/store/API.
+4. Add payment/correction store/API.
+5. Implement `motor-new.html`.
+6. Redesign `motors.html`.
+7. Expand `motor-details.html` and direct WORKING/STARTING job send.
+8. Implement `client-new.html`, catalog-only `clients.html`, `client-details.html`.
+9. Repair delivery lifecycle UI.
+10. Coordinated spool -> material+weight migration.
+11. `cash.html` and payment integration.
+12. Desktop/mobile navigation alignment, regressions, backup/restore audit.
+13. Repeat full hardware E2E acceptance on final contracts.
 
-Before coding Phase A, current repository state and affected files must be fetched from `cmp-protocol-v1` with current blob SHAs, exactly per project rules.
+## 14. Documentation discipline
 
-Do not start by only changing HTML. Persistence/API compatibility and wire-accounting migration must be designed/implemented coherently so Web cannot claim behavior backend does not support.
+После каждого meaningful implementation block обновлять своевременно:
+
+```text
+this file
+06_ACTIVE_WORK_AND_NEXT_STEPS.md
+01_CURRENT_STATE.md
+90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md when transfer state changes
+00_READ_FIRST.md when entrypoint/read order changes
+```
+
+Для крупных stores/API создавать numbered checkpoint с exact commit SHA и CI evidence.

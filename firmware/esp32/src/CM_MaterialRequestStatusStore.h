@@ -29,6 +29,8 @@ public:
     bool begin();
     bool ready() const;
 
+    // Successful lookup of a missing request returns true with found=false;
+    // storage/validation failures return false so Web can distinguish 404 from 5xx.
     bool resolve(uint32_t materialRequestId,
                  MaterialRequestStatusState& state,
                  bool& found) const;

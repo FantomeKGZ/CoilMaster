@@ -90,6 +90,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_repair_as_received_snapshot_contract.js
 
+      - name: Audit CRM winding/as-received lookup API
+        if: always()
+        run: node Tests/Web/check_crm_winding_lookup_api.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

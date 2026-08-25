@@ -4,11 +4,30 @@
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
+## Stable pre-CRM snapshot
+
+Перед началом нового Web/CRM этапа `main` был fast-forward синхронизирован с текущей стабильной точкой `cmp-protocol-v1`.
+
+```text
+stable commit: 449570d47649d5f6336a31ee3eed491256e0fb1a
+main -> 449570d47649d5f6336a31ee3eed491256e0fb1a
+stable-2026-08-25-pre-crm-redesign -> same commit
+```
+
+Подробности:
+
+```text
+docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
+```
+
+После snapshot разработка снова ведётся только в `cmp-protocol-v1`. `main` не двигать до следующего явно согласованного stable checkpoint.
+
 ## Что читать новому AI / coding agent
 
 ```text
 /AGENTS.md
 this file
+docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
@@ -20,6 +39,8 @@ docs/AI_AGENT/00_START_HERE.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
+
+`96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md` — stable pre-CRM reference point.
 
 `95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md` — authoritative design нового активного Web/CRM этапа.
 

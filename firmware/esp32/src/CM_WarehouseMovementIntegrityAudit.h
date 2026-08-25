@@ -47,5 +47,9 @@ public:
     static bool checkRepair(fs::FS& storage,
                             uint32_t repairId,
                             WarehouseMovementRepairTotals& totals);
+    static bool checkSourceRun(fs::FS& storage,
+                               uint32_t sourceSessionId,
+                               uint32_t sourceRunId,
+                               bool& confirmed);
 };
 }

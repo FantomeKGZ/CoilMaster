@@ -6,6 +6,24 @@ Repo: `FantomeKGZ/CoilMaster`
 
 Этот checkpoint является текущим authoritative transfer для продолжения проекта в новом чате. Старые numbered checkpoints остаются history/evidence и не являются активным backlog.
 
+## Stable pre-CRM baseline
+
+Перед началом нового Web/CRM этапа `main` был clean fast-forward синхронизирован с текущей стабильной точкой `cmp-protocol-v1`:
+
+```text
+449570d47649d5f6336a31ee3eed491256e0fb1a
+```
+
+До sync `cmp-protocol-v1` был ahead of `main` на 583 commits и behind на 0. Дополнительно создан reference branch:
+
+```text
+stable-2026-08-25-pre-crm-redesign
+```
+
+Подробности: `docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md`.
+
+После snapshot все дальнейшие изменения выполняются только в `cmp-protocol-v1`; `main` не использовать как source и не двигать до следующего явно согласованного stable checkpoint.
+
 ## Current phase
 
 Stage-1 repo-only optimization закрыт. Реальная двухплатная hardware acceptance была начата и выявила operator-B exit defect; исправление прошло Uno/ESP32/CMP verification. Полный hardware acceptance ещё не завершён.
@@ -227,6 +245,7 @@ Create new numbered checkpoints for major persistence/API subsystems and record 
 ```text
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
@@ -247,7 +266,9 @@ docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 Репозиторий: FantomeKGZ/CoilMaster.
 Единственная source-of-truth ветка: cmp-protocol-v1. main для исходников не использовать.
 
-Сначала прочитай /AGENTS.md, docs/PROJECT_HANDOFF/00_READ_FIRST.md, docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md, docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md и docs/PROJECT_HANDOFF/01_CURRENT_STATE.md.
+Перед CRM redesign зафиксирована stable pre-CRM точка 449570d47649d5f6336a31ee3eed491256e0fb1a: main и stable-2026-08-25-pre-crm-redesign указывают на этот commit. Дальнейшая разработка только в cmp-protocol-v1; main не двигать до следующего согласованного stable checkpoint.
+
+Сначала прочитай /AGENTS.md, docs/PROJECT_HANDOFF/00_READ_FIRST.md, docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md, docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md, docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md и docs/PROJECT_HANDOFF/01_CURRENT_STATE.md.
 
 Stage-1 optimization закрыт. Hardware acceptance был начат, но не завершён; найденный operator-B defect исправлен и software verification прошёл. Текущий активный этап — Web/CRM redesign из checkpoint 95.
 

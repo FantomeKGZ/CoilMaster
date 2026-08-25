@@ -2,7 +2,7 @@
 
 Дата: **2026-08-25**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **IMPLEMENTED / ESP32 BUILD PENDING**
+Статус: **SOFTWARE GREEN / WRITE-INTEGRATION PENDING**
 
 Этот checkpoint фиксирует следующий Phase-A block после `97_MOTOR_WINDING_VERSION_SCHEMA_2026-08-25.md`.
 
@@ -27,15 +27,13 @@ Tests/Web/check_repair_as_received_snapshot_contract.js
 Implementation commits:
 
 ```text
-d6e4652aa3ff56d89138519c4ce2d4983b06a394  feat(crm): add repair as-received snapshot contract
-568beb9c34512c936685a985c360179a0c92fb76  feat(crm): persist repair as-received snapshots
-5bba647c7346ad03b9af028365a9b2f1753c2874  test(crm): protect repair as-received snapshots
-3d1bb7af3ac5b0f2124604b2ad29343cae78d9b5  ci(crm): audit repair as-received snapshots
+d6e4652aa3ff56d89138519c4ce2d4983b06a394  contract
+568beb9c34512c936685a985c360179a0c92fb76  persistence
+5bba647c7346ad03b9af028365a9b2f1753c2874  regression
+3d1bb7af3ac5b0f2124604b2ad29343cae78d9b5  CI wiring
 ```
 
 ## Snapshot identity
-
-Каждая запись связывает:
 
 ```text
 snapshot_id
@@ -47,7 +45,7 @@ captured_at
 source_kind
 ```
 
-И хранит read-only copy значимых данных при поступлении:
+Read-only copied state:
 
 ```text
 motor name / manufacturer / model
@@ -59,44 +57,55 @@ comment optional
 
 ## Append-only / integrity semantics
 
-- store записывается только через `FILE_APPEND`;
-- `snapshot_id` должен строго возрастать;
-- `repair_id` должен строго возрастать, что обеспечивает максимум один snapshot на новый repair в normal append flow;
-- lookup по `repair_id` fail-closed при duplicate snapshot;
-- WORKING program canonicalized через `CM_WindingProgramParser`;
-- STARTING validation fail-closed;
-- отсутствие STARTING запрещает скрытые starting fields;
-- incomplete NDJSON без финального newline считается invalid;
-- существующие `repairs.ndjson` и `motors.ndjson` не переписываются.
+- store uses `FILE_APPEND` only;
+- `snapshot_id` strictly increases;
+- `repair_id` strictly increases in normal append flow;
+- lookup by `repair_id` fails closed on duplicate evidence;
+- WORKING/STARTING programs canonicalized/validated;
+- absent STARTING forbids hidden starting fields;
+- incomplete NDJSON without final newline is invalid;
+- existing `repairs.ndjson` and `motors.ndjson` are not rewritten.
 
-## Compatibility
+## Runtime/read integration
 
-Этот блок пока является persistence foundation. Он не меняет текущий create-repair endpoint и пока не начинает автоматически писать snapshot при создании ремонта.
+Read-side integration is now implemented separately in checkpoint:
 
-Следующий integration block обязан:
+```text
+docs/PROJECT_HANDOFF/99_CRM_WINDING_LOOKUP_API_2026-08-25.md
+```
 
-1. инициализировать winding-version + AS_RECEIVED stores в runtime;
-2. дать read API для current/latest winding version;
-3. при создании нового ремонта атомарно/с fail-closed semantics сохранить AS_RECEIVED evidence;
-4. предоставить read endpoint snapshot по `repair_id`;
-5. включить оба stores в backup whitelist + integrity audit до release-critical использования.
+Available read endpoint:
+
+```text
+GET /api/repairs/as-received?repair_id=...
+```
+
+Legacy repairs created before this subsystem return an explicit legacy/no-snapshot state instead of being falsely classified as corrupt.
+
+## Write-side transaction requirement
+
+Automatic snapshot creation during `POST /api/repairs` is intentionally still pending.
+
+Do **not** implement it as two best-effort independent appends (`repair` then `snapshot`) because a power loss between them can create an accepted repair without immutable intake evidence.
+
+The next write-side block must add fail-closed transaction/recovery semantics so a new repair cannot be treated as complete if AS_RECEIVED persistence is missing.
 
 ## Safety
 
-Не меняются:
+Unchanged:
 
-- physical START только локальный;
-- ESP32/Web не управляет SSR;
-- RUN_COMPLETED ничего автоматически не списывает;
-- текущий exact-spool contract действует до отдельной полной migration;
-- historical run/repair evidence не удаляется и не переписывается автоматически.
+- physical START local-only;
+- ESP32/Web does not control SSR;
+- RUN_COMPLETED never auto-deducts material;
+- current exact-spool contract remains until coordinated migration;
+- historical run/repair evidence is never silently erased.
 
 ## Verification
 
 ```text
 CMP #3147 / run 32846371316 / SUCCESS
-CMP #3148 / run 32846419170 / running/queued at checkpoint creation
-ESP32 Build #1448 / run 32846323653 / running at checkpoint creation
+CMP #3148 / run 32846419170 / SUCCESS
+ESP32 Build #1448 / run 32846323653 / SUCCESS
 ```
 
-Не объявлять блок полностью GREEN до SUCCESS ESP32 Build #1448 и CI run #3148.
+Foundation is SOFTWARE GREEN. Release-critical write integration and backup/integrity coverage remain pending.

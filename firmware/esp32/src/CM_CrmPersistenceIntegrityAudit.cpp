@@ -441,12 +441,14 @@ bool validateMovements(fs::FS& storage, uint32_t& count)
         if (line.length() == 0U) continue;
         uint32_t id = 0UL, requestId = 0UL, repairId = 0UL, itemId = 0UL;
         uint32_t quantity = 0UL;
-        String movementKind, sourceKind, unit, currency, createdAt;
+        String transactionRef, movementKind, sourceKind, unit, currency, createdAt;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "movement_id", id) || id == 0UL || id <= previousId ||
             !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
             !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
             !findUnsigned(line, "warehouse_item_id", itemId) || itemId == 0UL ||
+            !findString(line, "transaction_ref", transactionRef) ||
+            transactionRef.length() < 8U || transactionRef.length() > 80U ||
             !findString(line, "movement_kind", movementKind) ||
             (movementKind != "ISSUE" && movementKind != "RETURN" && movementKind != "CORRECTION") ||
             !findString(line, "source_kind", sourceKind) ||

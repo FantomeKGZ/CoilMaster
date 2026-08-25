@@ -118,6 +118,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_material_request_unit_adapter.js
 
+      - name: Audit material catalog active state lookup
+        if: always()
+        run: node Tests/Web/check_material_catalog_state_lookup.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

@@ -67,6 +67,8 @@ mustContain(webCpp, 'HallCalibrationRemoteState::Completed', 'ESP32 Hall web API
 mustContain(webCpp, 'HallCalibrationRemoteState::WaitingApplyConfirm', 'ESP32 Hall web API');
 mustContain(webCpp, 'HallCalibrationAnalyzer::analyzeSummary', 'ESP32 Hall web API');
 mustContain(webCpp, 'measurement_id', 'ESP32 Hall web API');
+mustContain(webCpp, 'const bool accepted = m_receiver.armHallCalibration();', 'ESP32 Hall Web ARM acceptance');
+mustContain(webCpp, 'while (m_receiver.takeHallCalibrationResult(discardedResult))', 'ESP32 Hall stale result drain');
 mustNotContain(webCpp, '/api/hardware/hall/calibration/start', 'ESP32 Hall web API');
 
 mustContain(analyzerHeader, 'analyzeSummary', 'ESP32 Hall analyzer');
@@ -190,6 +192,15 @@ mustContain(calibrationDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Arduino Hall compa
 mustContain(calibrationDoneFormatter, 'Cmp1Crc::calculate', 'Arduino Hall compact completion protocol');
 mustNotContain(calibrationDoneFormatter, 'StartOrResume', 'Arduino Hall compact completion safety');
 mustNotContain(calibrationDoneFormatter, 'digitalWrite', 'Arduino Hall compact completion safety');
+
+const webArmHandler = webCpp.indexOf('void HardwareControlWeb::handleCalibrationArm()');
+const webArmAccepted = webCpp.indexOf('const bool accepted = m_receiver.armHallCalibration();', webArmHandler);
+const webArmDrain = webCpp.indexOf('while (m_receiver.takeHallCalibrationResult(discardedResult))', webArmAccepted);
+const webArmClear = webCpp.indexOf('m_hasCalibrationResult = false;', webArmDrain);
+if (webArmHandler < 0 || webArmAccepted < 0 || webArmDrain < 0 || webArmClear < 0 ||
+    !(webArmHandler < webArmAccepted && webArmAccepted < webArmDrain && webArmDrain < webArmClear)) {
+  throw new Error('ESP32 Hall Web: accepted ARM must drain stale result before exposing the new calibration cycle');
+}
 
 const localConfirmBranch = arduinoMain.indexOf('HallCalibrationState::WaitingLocalConfirm');
 const firstConfirmKey = arduinoMain.indexOf("key == '#'", localConfirmBranch);

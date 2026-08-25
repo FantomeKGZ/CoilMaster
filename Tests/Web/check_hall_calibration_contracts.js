@@ -95,6 +95,10 @@ mustContain(clientCpp, 'threshold > 1023U', 'ESP32 Hall CFG_SET fail-fast valida
 mustContain(clientCpp, 'hysteresis > 512U', 'ESP32 Hall CFG_SET fail-fast validation');
 mustContain(clientCpp, 'hysteresis >= threshold', 'ESP32 Hall CFG_SET fail-fast validation');
 mustContain(clientCpp, 'releaseDebounceMs > 1000U', 'ESP32 Hall CFG_SET fail-fast validation');
+mustContain(clientCpp, 'if (!m_waitingReply) return true;', 'ESP32 CFG reply pending-request correlation');
+mustContain(clientCpp, 'const bool directSettingsReply =', 'ESP32 CFG reply request-type correlation');
+mustContain(clientCpp, 'const bool proposalEarlyReply =', 'ESP32 CFG proposal early BUSY correlation');
+mustContain(clientCpp, '!categoryNack || result != HardwareControlReplyResult::Busy', 'ESP32 CFG proposal BUSY-only correlation');
 mustContain(clientCpp, 'parsed.threshold > 1023U', 'ESP32 Hall settings state range validation');
 mustContain(clientCpp, 'parsed.hysteresis > 512U', 'ESP32 Hall settings state range validation');
 mustContain(clientCpp, 'parsed.hysteresis >= parsed.threshold', 'ESP32 Hall settings state range validation');

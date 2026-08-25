@@ -327,13 +327,13 @@ bool UartEventReceiver::setHallTelemetryEnabled(bool enabled)
 
 bool UartEventReceiver::armHallCalibration()
 {
-    if (controlLaneBusy()) return false;
+    if (controlLaneBusy() || !m_hardwareControl.armHallCalibration()) return false;
     m_hallCalibrationRaw.reset();
     m_hallCalibrationRawRunStarted = false;
     m_hallCalibrationRawDurationMs = 0UL;
     m_compactCalibrationResult = HallCalibrationRemoteResult();
     m_hasCompactCalibrationResult = false;
-    return m_hardwareControl.armHallCalibration();
+    return true;
 }
 
 bool UartEventReceiver::abortHallCalibration()

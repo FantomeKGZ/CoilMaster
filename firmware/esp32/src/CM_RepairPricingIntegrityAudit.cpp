@@ -6,6 +6,17 @@ namespace CM
 {
 namespace
 {
+constexpr uint8_t ReferenceBatchSize = 32U;
+constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
+
+struct RepairReference
+{
+    uint32_t id;
+    uint8_t matches;
+
+    RepairReference() : id(0UL), matches(0U) {}
+};
+
 bool findUnsigned64(const String& line, const char* key, uint64_t& value)
 {
     value = 0ULL;
@@ -70,10 +81,15 @@ bool findString(const String& line, const char* key, String& value)
     return false;
 }
 
-bool repairExists(fs::FS& storage, uint32_t repairId)
+bool resolveRepairReferences(fs::FS& storage,
+                             RepairReference* references,
+                             uint8_t count)
 {
-    constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
-    if (repairId == 0UL || !storage.exists(RepairsPath)) return false;
+    if (count == 0U) return true;
+    if (!storage.exists(RepairsPath)) return false;
+
+    for (uint8_t index = 0U; index < count; ++index)
+        references[index].matches = 0U;
 
     File file = storage.open(RepairsPath, FILE_READ);
     if (!file || file.isDirectory())
@@ -82,7 +98,6 @@ bool repairExists(fs::FS& storage, uint32_t repairId)
         return false;
     }
 
-    uint8_t matches = 0U;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -95,14 +110,25 @@ bool repairExists(fs::FS& storage, uint32_t repairId)
             file.close();
             return false;
         }
-        if (currentId == repairId && ++matches > 1U)
+
+        for (uint8_t index = 0U; index < count; ++index)
         {
-            file.close();
-            return false;
+            RepairReference& reference = references[index];
+            if (reference.id != currentId) continue;
+            if (reference.matches == 0xFFU || ++reference.matches > 1U)
+            {
+                file.close();
+                return false;
+            }
         }
     }
     file.close();
-    return matches == 1U;
+
+    for (uint8_t index = 0U; index < count; ++index)
+    {
+        if (references[index].matches != 1U) return false;
+    }
+    return true;
 }
 }
 
@@ -118,6 +144,8 @@ bool RepairPricingIntegrityAudit::check(fs::FS& storage)
         return false;
     }
 
+    RepairReference references[ReferenceBatchSize];
+    uint8_t batchCount = 0U;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -136,12 +164,31 @@ bool RepairPricingIntegrityAudit::check(fs::FS& storage)
             !findUnsigned64(line, "labour_cost_minor", labour) ||
             !findUnsigned64(line, "client_price_minor", client) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
-            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U ||
-            !repairExists(storage, repairId))
+            !findString(line, "timestamp", timestamp) || timestamp.length() < 10U)
         {
             file.close();
             return false;
         }
+
+        references[batchCount].id = repairId;
+        references[batchCount].matches = 0U;
+        ++batchCount;
+        if (batchCount == ReferenceBatchSize)
+        {
+            if (!resolveRepairReferences(storage, references, batchCount))
+            {
+                file.close();
+                return false;
+            }
+            batchCount = 0U;
+        }
+    }
+
+    if (batchCount > 0U &&
+        !resolveRepairReferences(storage, references, batchCount))
+    {
+        file.close();
+        return false;
     }
 
     file.close();

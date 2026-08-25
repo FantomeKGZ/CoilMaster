@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-24**  
+Дата обновления: **2026-08-25**  
 Репозиторий: `FantomeKGZ/CoilMaster`  
 Единственная source-of-truth ветка: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
@@ -9,64 +9,79 @@
 ```text
 /AGENTS.md
 this file
-docs/PROJECT_HANDOFF/73_NEXT_CHAT_TRANSFER_2026-08-24.md
-docs/PROJECT_HANDOFF/72_HALL_COMPACT_COMPLETION_ACTIVE_2026-08-24.md
-docs/PROJECT_HANDOFF/71_HALL_RAW_STREAM_MIGRATION_2026-08-24.md
-docs/PROJECT_HANDOFF/70_HALL_CALIBRATION_HISTORY_2026-08-24.md
+docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+docs/PROJECT_HANDOFF/89_REPAIR_PRICING_REFERENCE_BATCHING_2026-08-25.md
+docs/PROJECT_HANDOFF/88_MATERIAL_REFERENCE_BATCHING_2026-08-25.md
+docs/PROJECT_HANDOFF/87_FINALIZATION_COSTING_SINGLE_PASS_2026-08-25.md
+docs/PROJECT_HANDOFF/85_NDJSON_PERFORMANCE_AND_ROTATION_STRATEGY.md
 docs/PROJECT_HANDOFF/69_ARDUINO_UNO_MINIMAL_RUNTIME_PLAN_2026-08-24.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/03_PROTOCOL_AND_WINDING_FLOW.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/AI_AGENT/00_START_HERE.md
-docs/AI_AGENT/01_PROJECT_MAP.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```
 
-`73_NEXT_CHAT_TRANSFER_2026-08-24.md` — текущий authoritative transfer checkpoint. Если старые numbered checkpoints противоречат `73` по текущему Hall/Uno состоянию или следующему шагу, использовать `73`.
+`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` — текущий authoritative transfer checkpoint. Если старые numbered checkpoints противоречат `90` по текущему состоянию, verified GREEN baseline, active Stage-1 direction или следующему hardware gate, использовать `90`.
 
 Старые numbered checkpoints — history/evidence, а не backlog. Не продолжать старую задачу только потому, что исторический checkpoint содержит `next`/`pending`.
 
 Перед изменением/deletion existing file обязательно fetch актуального содержимого из `cmp-protocol-v1` и current blob SHA. Для нового файла сначала проверить exact path. Не утверждать CI/build/hardware GREEN без фактического результата или явного подтверждения оператора. Empty GitHub code-search не является достаточным доказательством отсутствия dependency.
 
-## Current verification baseline
-
-Последний подтверждённый Hall compact-completion host-tests baseline:
+## Current completion estimate
 
 ```text
-32753340348  host-tests  checkout d77a24b3437831d0a236086055a193f233e1be7e  SUCCESS
-32753408620  host-tests  checkout b07de01ee4f3b1216153036dd977fa48bc053c2f  SUCCESS
+Overall project readiness                         ~95%
+Software/repo implementation + integrity          ~98-99%
+Reference Web/site layer                          ~98%
+Full two-board hardware acceptance                still required
 ```
 
-Verified Uno compact-completion build baseline:
+Основной production flow, persistence, Web, backup, Hall split, Uno runtime, safety contracts и Stage-1 storage/performance hardening уже собраны. Оставшаяся работа — узкий repo-only performance review только по доказанным hotspots и один финальный hardware E2E после завершения software batch.
+
+## Current verified GREEN baseline
+
+Latest verified Stage-1 block: **89_REPAIR_PRICING_REFERENCE_BATCHING**.
 
 ```text
-32751199627  build-uno  checkout a928a51bc77c00407b146587aaf34c1e08a19998  SUCCESS
-RAM   1213 / 2048 = 59.2%   free 835 B
-Flash 31640 / 32256 = 98.1% free 616 B
+29ecbb799a14da455aa5d732764613465b21788a
+perf(esp32): batch repair pricing references
+
+ESP32 Build #1441
+run 32818211915
+head_sha 29ecbb799a14da455aa5d732764613465b21788a
+SUCCESS
+
+CMP Protocol Tests #3096
+run 32818305639
+head_sha 921999a8f2a11405c8a312a4f6064c2a29834e93
+SUCCESS
 ```
 
-Новый frame-bound implementation commit:
-
-```text
-256b95754431c30b6da94bd43f399f5085e030fc
-perf(uno): tighten Hall calibration frame buffer
-```
-
-Для него fresh Actions ещё нужно фактически подтвердить перед объявлением GREEN.
+Final CMP run includes GREEN repair pricing batching, material batching, scoped backup, final acceptance, KG_FIRST, winding/finalization/workshop single-pass, write-off fault, NDJSON growth diagnostics and Hall contract audits.
 
 Hardware GREEN из CI не выводить.
 
 ## Current active phase
 
-Software cleanup закрыт. Текущая работа — финальная software optimization минимального Arduino Uno runtime и Hall calibration split перед единственным полным hardware acceptance.
+Software cleanup и основной production implementation закрыты. Текущая работа — **Stage-1 ESP32/storage performance review** перед финальным two-board hardware acceptance.
 
-Hall extended aggregation уже перенесена на ESP32; Uno сохраняет physical START, SSR authority, обычный realtime Hall turn count и local safety gates. Uno completion TX использует compact `CAL_DONE`; ESP32 сохраняет legacy `CAL_RESULT` receive fallback.
+Искать только:
 
-Точная максимальная длина оставшихся Uno Hall TX доказана. Самый длинный активный frame — `CAL_APPLIED`: **76 wire bytes**, поэтому `HallCalibrationProtocol::MaxFrameLength` безопасно уменьшен **96 -> 77** с учётом trailing NUL.
+- per-record full-file reference scans;
+- доказанные duplicate authoritative scans с эквивалентной семантикой;
+- явно измеримые avoidable allocations/I/O без ослабления fail-closed integrity.
 
-Точный current state и следующий шаг: `docs/PROJECT_HANDOFF/73_NEXT_CHAT_TRANSFER_2026-08-24.md`.
+Если повторный scan обеспечивает отдельную семантику и его нельзя убрать без unbounded RAM/indexing — помечать `KEEP` и переходить дальше.
 
-Не начинать broad cleanup заново без конкретного нового inconsistency, failing test, runtime defect или stale contract evidence.
+Current KEEP:
+
+- repair-status bounded self-scan;
+- autonomous assignment event batching;
+- warehouse movement provenance uniqueness batching;
+- legacy ESP32 `CAL_RESULT` receive fallback.
+
+No premature database migration. No automatic NDJSON cleanup/rotation. Thresholds only from measured real-device data.
 
 ## Safety invariants
 
@@ -80,8 +95,7 @@ Never weaken:
 - lost ACK / timeout never proves Arduino idle;
 - final repeat cannot reopen automatically;
 - `RUN_COMPLETED` never performs automatic wire/material writeoff;
-- current linked-production manual writeoff requires exact `source_session_id + source_run_id + immutable spool_id`;
-- historical `UNALLOCATED` KG_FIRST remains read/audit/recovery compatibility evidence only, not permission to drop a selected spool from a new run;
+- linked-production manual writeoff requires exact `source_session_id + source_run_id + immutable spool_id`;
 - operational cancellation does not erase immutable run/history evidence;
 - backup restore operator-only, transactional and fail-closed;
 - reboot never auto-continues restore/apply;
@@ -111,14 +125,25 @@ client -> motor -> OPEN repair -> costing -> linked winding
 -> costing/finalization -> CLOSED -> reports -> backup
 ```
 
+## Uno resource baseline
+
+Latest verified baseline:
+
+```text
+RAM   1205 / 2048 = 58.8%   free 843 B
+Flash 31460 / 32256 = 97.5%  free 796 B
+```
+
+Flash is limiting. CI guard requires >=512 B free RAM and >=512 B free flash.
+
 ## External hardware gate
 
-По решению пользователя промежуточные hardware tests во время текущей optimization phase не запрашивать. Использовать software gates/CI/size/contracts.
+По решению пользователя промежуточные hardware tests во время software optimization phase не запрашивать.
 
-После завершения оптимизации выполнить один полный hardware acceptance из `73_NEXT_CHAT_TRANSFER_2026-08-24.md`.
+После исчерпания оправданных Stage-1 candidates выполнить один полный hardware acceptance ESP32 + Arduino Uno: UART/JOB, physical START, RUN events, repeat, cancel/recovery, reboot fail-closed, Hall calibration/apply/reconciliation, keypad/LCD/buzzer и Uno-only SSR ownership.
 
-Hardware GREEN никогда не выводить из CI.
+Точная current state, completion estimate, recent commits, KEEP decisions и ready-to-paste prompt для нового чата находятся в:
 
-## Next work rule
-
-Продолжать с `73_NEXT_CHAT_TRANSFER_2026-08-24.md`. После подтверждения fresh software gates следующий кодовый приоритет — range validation для `CM_HardwareControlClient.cpp::processCalibrationApplied()` перед mirroring APPLIED Hall settings на ESP32.
+```text
+docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
+```

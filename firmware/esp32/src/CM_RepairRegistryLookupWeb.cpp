@@ -1,5 +1,7 @@
 #include "CM_RepairRegistryLookupWeb.h"
 
+#include <SD.h>
+
 namespace CM
 {
 namespace
@@ -28,20 +30,34 @@ void appendSearchPageMetadata(String& response,
 
 RepairRegistryLookupWeb::RepairRegistryLookupWeb(WebServer& server,
                                                  RepairRegistry& registry)
-    : m_server(server), m_registry(registry)
+    : m_server(server),
+      m_registry(registry),
+      m_windingVersions(SD),
+      m_asReceivedSnapshots(SD),
+      m_windingVersionsReady(false),
+      m_asReceivedSnapshotsReady(false)
 {
 }
 
 void RepairRegistryLookupWeb::begin()
 {
+    m_windingVersionsReady = m_windingVersions.begin();
+    m_asReceivedSnapshotsReady = m_asReceivedSnapshots.begin();
+
     m_server.on("/api/clients/by-id", HTTP_GET,
                 [this]() { handleClient(); });
     m_server.on("/api/motors/by-id", HTTP_GET,
                 [this]() { handleMotor(); });
     m_server.on("/api/motors/repairs", HTTP_GET,
                 [this]() { handleMotorRepairs(); });
+    m_server.on("/api/motors/winding/latest", HTTP_GET,
+                [this]() { handleMotorWindingLatest(); });
+    m_server.on("/api/motors/winding/versions", HTTP_GET,
+                [this]() { handleMotorWindingVersions(); });
     m_server.on("/api/repairs/by-id", HTTP_GET,
                 [this]() { handleRepair(); });
+    m_server.on("/api/repairs/as-received", HTTP_GET,
+                [this]() { handleRepairAsReceived(); });
     m_server.on("/api/search/clients", HTTP_GET,
                 [this]() { handleClientSearch(); });
     m_server.on("/api/search/repairs", HTTP_GET,
@@ -211,6 +227,110 @@ void RepairRegistryLookupWeb::handleMotorRepairs()
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 
+void RepairRegistryLookupWeb::handleMotorWindingLatest()
+{
+    if (!m_registry.ready() || !m_windingVersionsReady || !m_windingVersions.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_store_unavailable\"}");
+        return;
+    }
+    uint32_t motorId = 0UL;
+    if (!parseId("motor_id", motorId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_id\"}");
+        return;
+    }
+    if (!m_registry.motorExists(motorId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_not_found\"}");
+        return;
+    }
+
+    String item;
+    item.reserve(960U);
+    bool found = false;
+    if (!m_windingVersions.appendLatestByMotorJson(item, motorId, found))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_integrity_failed\"}");
+        return;
+    }
+    String response = F("{\"motor_id\":");
+    response += motorId;
+    response += F(",\"item\":");
+    response += found ? item : F("null");
+    response += F(",\"versioned\":");
+    response += found ? F("true") : F("false");
+    response += F(",\"legacy_motor_fallback_required\":");
+    response += found ? F("false") : F("true");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryLookupWeb::handleMotorWindingVersions()
+{
+    if (!m_registry.ready() || !m_windingVersionsReady || !m_windingVersions.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_store_unavailable\"}");
+        return;
+    }
+    uint32_t motorId = 0UL;
+    if (!parseId("motor_id", motorId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_id\"}");
+        return;
+    }
+    if (!m_registry.motorExists(motorId))
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_not_found\"}");
+        return;
+    }
+
+    uint32_t cursor = 0UL;
+    uint32_t parsedLimit = 12UL;
+    bool cursorPresent = false;
+    bool limitPresent = false;
+    if (!parseOptionalUnsigned("cursor", 0UL, 0xFFFFFFFFUL,
+                               cursor, cursorPresent) ||
+        !parseOptionalUnsigned("limit", 1UL, MotorWindingVersionStore::MaxPageSize,
+                               parsedLimit, limitPresent))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_cursor_or_limit\"}");
+        return;
+    }
+    if (!limitPresent) parsedLimit = 12UL;
+    const uint8_t limit = static_cast<uint8_t>(parsedLimit);
+
+    String response = F("{\"items\":[");
+    response.reserve(256U + static_cast<unsigned int>(limit) * 960U);
+    uint16_t count = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_windingVersions.appendMotorPageJson(response, motorId, cursor, limit,
+                                                count, nextCursor, hasMore))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_integrity_failed\"}");
+        return;
+    }
+    response += F("],\"motor_id\":"); response += motorId;
+    response += F(",\"count\":"); response += count;
+    response += F(",\"limit\":"); response += limit;
+    response += F(",\"cursor\":"); response += cursor;
+    response += F(",\"has_more\":"); response += hasMore ? F("true") : F("false");
+    response += F(",\"next_cursor\":");
+    if (hasMore) response += nextCursor; else response += F("null");
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
 void RepairRegistryLookupWeb::handleRepair()
 {
     uint32_t id = 0UL;
@@ -244,6 +364,55 @@ void RepairRegistryLookupWeb::handleRepair()
         return;
     }
     response += item;
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void RepairRegistryLookupWeb::handleRepairAsReceived()
+{
+    if (!m_registry.ready() || !m_asReceivedSnapshotsReady || !m_asReceivedSnapshots.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_as_received_store_unavailable\"}");
+        return;
+    }
+    uint32_t repairId = 0UL;
+    if (!parseId("repair_id", repairId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_repair_id\"}");
+        return;
+    }
+
+    String repair;
+    bool repairFound = false;
+    if (!m_registry.appendRepairByIdJson(repair, repairId, repairFound))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_lookup_integrity_failed\"}");
+        return;
+    }
+    if (!repairFound)
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_not_found\"}");
+        return;
+    }
+
+    String item;
+    item.reserve(1280U);
+    bool found = false;
+    if (!m_asReceivedSnapshots.appendByRepairIdJson(item, repairId, found))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_as_received_integrity_failed\"}");
+        return;
+    }
+    String response = F("{\"repair_id\":"); response += repairId;
+    response += F(",\"item\":"); response += found ? item : F("null");
+    response += F(",\"snapshot_present\":"); response += found ? F("true") : F("false");
+    response += F(",\"legacy_repair_without_snapshot\":");
+    response += found ? F("false") : F("true");
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
 }

@@ -193,48 +193,12 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     uint32_t stockBefore = 0UL;
     uint32_t price = 0UL;
     String currency;
-    if (!readStockQuantity(usage.materialId, stockBefore) ||
-        stockBefore < usage.quantityMilli)
+    if (!readMaterialState(usage.materialId, stockBefore, price, currency) ||
+        stockBefore < usage.quantityMilli || currency != "KGS")
     {
         return false;
     }
     const uint32_t remaining = stockBefore - usage.quantityMilli;
-
-    File materialFile = m_storage.open(MaterialsPath, FILE_READ);
-    if (!materialFile) return false;
-    bool materialFound = false;
-    uint32_t previousMaterialId = 0UL;
-    while (materialFile.available())
-    {
-        const String materialLine = materialFile.readStringUntil('\n');
-        if (materialLine.length() == 0U) continue;
-        uint32_t materialId = 0UL;
-        uint32_t linePrice = 0UL;
-        String lineCurrency, status;
-        if (!FlatJsonObjectValidator::valid(materialLine) ||
-            !findUnsigned(materialLine, "material_id", materialId) || materialId == 0UL ||
-            materialId <= previousMaterialId ||
-            !findUnsigned(materialLine, "price_per_unit_minor", linePrice) || linePrice == 0UL ||
-            !findString(materialLine, "currency", lineCurrency) || lineCurrency.length() != 3U ||
-            !findString(materialLine, "status", status))
-        {
-            materialFile.close();
-            return false;
-        }
-        previousMaterialId = materialId;
-
-        if (materialId != usage.materialId) continue;
-        if (materialFound || status != "ACTIVE")
-        {
-            materialFile.close();
-            return false;
-        }
-        materialFound = true;
-        price = linePrice;
-        currency = lineCurrency;
-    }
-    materialFile.close();
-    if (!materialFound || currency != "KGS") return false;
 
     const uint64_t cost =
         (static_cast<uint64_t>(usage.quantityMilli) *

@@ -150,6 +150,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_kg_first_material_contracts.js
 
+      - name: Audit winding completion single-pass contracts
+        if: always()
+        run: node Tests/Web/check_winding_completion_single_pass.js
+
       - name: Audit write-off fault contracts
         if: always()
         run: node Tests/Web/check_writeoff_fault_contracts.js

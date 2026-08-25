@@ -49,21 +49,17 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 100 Repair intake pending transaction foundation
 102 Transactional repair creation + crash recovery
 103 Material Request identity + movement schema foundation
+104 CRM backup/export + integrity
 ```
 
-Transactional repair verification:
+Latest CRM backup/integrity verification:
 
 ```text
-CMP #3182 / 32851184680 / SUCCESS
-ESP32 Build #1460 / 32851184075 / SUCCESS
+CMP run 32855540935 / SUCCESS
+ESP32 Build run 32855541246 / SUCCESS
 ```
 
-Material Request verification:
-
-```text
-ESP32 Build / 32851843400 / SUCCESS
-CMP #3189 / 32852061125 / SUCCESS
-```
+New CRM journals are exported and deep-audited. Repair-intake pending/temp markers block stable backups. `CM_CrmPersistenceIntegrityAudit` is read-only and fail-closed.
 
 ## Current implemented Material Request foundation
 
@@ -93,17 +89,11 @@ unit_cost_minor + cost_amount_minor + currency
 
 `RUN_WIRE` requires exact `source_session_id + source_run_id`, CU/AL, diameter and KG. `MANUAL_MATERIAL` cannot fake run provenance.
 
-No Material Request runtime mutation API exists yet. No generic warehouse item catalog exists yet. Existing exact-spool/writeoff flow is still authoritative.
+No Material Request runtime mutation API exists yet. Existing exact-spool/writeoff flow is still authoritative.
 
 ## Current NEXT
 
-Before new stores become release-critical/runtime-writable:
-
-1. export/backup new CRM NDJSON stores;
-2. add repair-intake pending/temp as recovery markers;
-3. add fail-closed CRM persistence integrity/cross-reference audit;
-4. verify build/CMP;
-5. implement generic warehouse item catalog and status/API layers.
+The existing `MaterialLedger` will be reused as generic warehouse item catalog rather than introducing a duplicate catalog. Before reuse, fix and regression-protect `MaterialLedger::addMaterial()` unit JSON serialization, then define canonical unit mapping and warehouse item lookup/state for Material Request. After that implement `DRAFT -> ISSUED -> PRICED -> CLOSED` and explicit operator ISSUE/RETURN/CORRECTION APIs.
 
 ## Wire migration
 

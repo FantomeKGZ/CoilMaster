@@ -38,9 +38,7 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 
 Warehouse = physical materials. Cash = money. Material Request bridges repair/warehouse/costing.
 
-## Phase A software blocks
-
-GREEN:
+## Phase A software GREEN blocks
 
 ```text
 97  Motor winding versions
@@ -53,16 +51,17 @@ GREEN:
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request append-only lifecycle + backup/integrity
-108 Material Request warehouse pending persistence foundation
+108 Material Request warehouse pending persistence + stable-backup guard
 ```
 
-Checkpoint 108 verification:
+Checkpoint 108 evidence:
 
 ```text
 implementation head dc73b39e6f7d202d75dae801f5e3413218ca3c0e
 ESP32 Build run 32861148982 / SUCCESS
 CMP run 32861149158 / SUCCESS
 CMP permanent regression run 32861266055 / SUCCESS
+backup guarded patch run 32861669436 / SUCCESS
 ```
 
 ## Material / warehouse catalog foundation
@@ -95,16 +94,14 @@ Lifecycle:
 DRAFT -> ISSUED -> PRICED -> CLOSED
 ```
 
-Warehouse pending recovery marker foundation:
+Warehouse pending recovery markers:
 
 ```text
 /data/workshop/material-request-warehouse.pending.json
 /data/workshop/material-request-warehouse.pending.tmp
 ```
 
-It persists the exact operator-confirmed transaction intent/cost/provenance and rejects a second in-flight warehouse transaction.
-
-The full crash-safe warehouse coordinator is NOT complete yet. Stable backup still needs these two paths added to its recovery-marker guard. A one-shot workflow intended to apply that guarded large-file patch was invalid before any job ran and was removed; production backup code was not changed by it.
+The pending store preserves the exact operator-confirmed transaction intent/cost/provenance and rejects a second in-flight warehouse transaction. Both paths now block stable backup until recovery is resolved.
 
 Movements support:
 
@@ -114,15 +111,21 @@ MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-`RUN_WIRE` remains ISSUE/KG-only in the new pending contract and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
+`RUN_WIRE` is ISSUE/KG-only in the pending contract and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
 ## Current NEXT
 
-1. Add warehouse pending/temp paths to stable-backup recovery markers safely.
-2. Implement `MaterialRequestWarehouseCoordinator` with idempotent crash recovery.
-3. Use movement-first + ledger-second ordering and transaction-ref evidence so stock cannot be silently changed without request evidence.
-4. Explicit operator ISSUE/RETURN/CORRECTION only; lifecycle changes remain separate explicit transitions.
-5. Then expose bounded request/status/movement/warehouse Web APIs.
+Implement `MaterialRequestWarehouseCoordinator` with idempotent crash recovery:
+
+```text
+movement evidence first
+-> physical MaterialLedger mutation second
+-> clear pending only after both durable sides agree
+```
+
+Recovery must safely handle neither/movement-only/both and fail-closed on impossible ledger-only ordering. Lifecycle status changes remain explicit and separate. `RUN_COMPLETED` remains non-mutating.
+
+After coordinator is GREEN, expose bounded request/status/movement/warehouse Web APIs.
 
 ## Wire migration
 

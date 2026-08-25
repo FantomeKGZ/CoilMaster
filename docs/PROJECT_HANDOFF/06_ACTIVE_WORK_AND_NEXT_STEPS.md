@@ -5,113 +5,145 @@
 
 Этот файл содержит только текущую активную очередь. Старые checkpoints — history/evidence, а не backlog.
 
-## Current verified software baseline
+## Current phase
 
-Latest fully verified implementation block: **92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT**.
+Stage-1 repo-only optimization закрыт. Финальный hardware acceptance начат на реальных ESP32 + Arduino Uno и уже выявил/закрыл один операторский UX defect: клавиша `B` должна позволять безопасно прервать ошибочно начатую намотку и вернуться домой без потери run evidence. Uno и ESP32 build/CMP проверки этого исправления прошли успешно.
 
-```text
-72401aae0d1b34fbb211ce92c48d0a367f337b91  perf implementation
-8ce55052f98d491f3f1f2fda4830955e87159798  regression guard
-6d77ac1b4ad7fcc25cc1873d5e0c13e819011ece  CMP workflow wiring
+После этого пользователь утвердил следующий большой product/Web этап: **полный redesign Workshop Web/CRM вокруг клиента, физического двигателя, версий обмотки, ремонта, оплаты и выдачи**.
 
-ESP32 Build #1443 / run 32831517073 / SUCCESS
-CMP #3111 / run 32831517018 / SUCCESS
-CMP #3112 / run 32831547926 / SUCCESS
-CMP #3113 / run 32831593193 / SUCCESS
-CMP #3114 / run 32831715701 / SUCCESS
-CMP #3115 / run 32831755533 / SUCCESS
-CMP #3116 / run 32831820366 / SUCCESS
-CMP #3117 / run 32831861941 / SUCCESS
-```
-
-Block 92 collapses two equivalent preflight reads of `/data/materials/materials.ndjson` in `MaterialLedger::confirmUsage()` into one authoritative `readMaterialState()` pass while retaining `rewriteQuantity()` as the separate transactional mutation/revalidation pass.
-
-Overall project readiness: **~95%**. Software/repo implementation and integrity: **~98-99%**.
-
-## Active phase
-
-**Stage-1 ESP32/storage software optimization is closed.**
-
-Closure checkpoint:
+Authoritative design:
 
 ```text
-docs/PROJECT_HANDOFF/93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md
+docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 ```
 
-The final review found no additional justified duplicate scan/O(n*m) rewrite that can be removed without weakening HTTP diagnostics, transaction boundaries, fail-closed integrity, bounded RAM, or exact provenance.
+Hardware acceptance остаётся обязательным release gate и будет продолжен после стабилизации затрагиваемых production contracts. Его нельзя считать завершённым.
 
-Do not continue optimization merely to reduce scan count. Reopen repo-only performance work only with new measured evidence or a newly demonstrated true semantic duplicate.
+## Current active implementation order
 
-## Current KEEP
+### A. Schema/contracts first
 
-Do not reopen without new evidence:
+1. Инвентаризировать текущие motor/client/repair/winding/costing/writeoff persistence + API.
+2. Определить backward-compatible winding-version schema.
+3. Разделить WORKING и STARTING programs/repeat targets.
+4. Определить multi-conductor representation для `0.95 + 1.00`, `0.80 x 3` и т.п.
+5. Определить immutable `as received` repair snapshot.
+6. Определить append-only delivery event (`DELIVERED_TO_CLIENT`).
+7. Определить append-only payment/correction store.
+8. Спроектировать целостную миграцию exact-spool -> material class + actual manual weight, без частичного удаления safety checks.
+9. Добавить backup/integrity contracts для новых production stores до того, как они станут release-critical.
 
-- `MaterialLedgerWeb::handleUsage()` HTTP prevalidation vs core mutation validation;
-- warehouse write-off Web prevalidation vs core/transaction revalidation;
-- warehouse price Web no-op detection vs service-level integrity/no-op protection;
-- repair-status bounded self-scan;
-- autonomous assignment event batching;
-- warehouse movement provenance uniqueness batching;
-- legacy ESP32 `CAL_RESULT` receive fallback;
-- Uno resource-sensitive buffers/contracts already classified KEEP.
+### B. Motor Web
 
-## NDJSON rule
+10. Создать `/desktop/motor-new.html`.
+11. Переделать `/desktop/motors.html` по layout/UX Arduino archive.
+12. Удалить встроенные motor creation forms из catalog/repair flow; оставить ссылки на `motor-new.html`.
+13. Расширить `motor-details.html` до рабочей карточки двигателя.
+14. Добавить winding versions, WORKING/STARTING, Cu/Al, conductors, before/after comparison.
+15. Добавить прямую отправку WORKING/STARTING на станок из карточки при сохранении physical START-only invariant.
 
-- no premature DB migration;
-- no automatic cleanup/rotation;
-- no production-data truncation;
-- `/api/system/storage` observability is available;
-- threshold/rotation decisions only after real-device measurements.
+### C. Client Web
 
-## Safety invariants
+16. Создать `/desktop/client-new.html`.
+17. Переделать `/desktop/clients.html` в каталог без формы создания.
+18. Создать `/desktop/client-details.html`.
+19. Удалить дублированное inline создание клиента из `repairs.html`; оставить ссылку.
+20. Показать в карточке клиента физические двигатели, ремонты, платежи, баланс и даты выдачи.
 
-Never weaken:
+### D. Repair lifecycle / delivery
+
+21. Сохранять immutable motor/winding snapshot `как поступил` при новом ремонте.
+22. Показывать `как поступил` vs `после перемотки`.
+23. Добавить append-only событие фактической выдачи.
+24. Различать `ремонт завершён` и `выдан клиенту`.
+25. Выдача при долге — warning + explicit operator confirmation, но не hard block.
+
+### E. Wire accounting simplification
+
+26. Убрать обязательную `spool_id` из linked workflow только после согласованной backend migration.
+27. Новый расход: exact run provenance + CU/AL + фактический вес + manual confirmation.
+28. `RUN_COMPLETED` по-прежнему никогда ничего автоматически не списывает.
+29. Обновить costing/finalization/backup/integrity/reports одновременно.
+30. Существующий spool inventory UI сохранить как необязательный интерфейс.
+
+### F. Cash/payments
+
+31. Добавить append-only payment/correction persistence/API.
+32. Создать `/desktop/cash.html`.
+33. Связать платеж с `client_id + repair_id`.
+34. Поддержать частичную оплату, несколько платежей, долг/переплату и агрегированный баланс клиента.
+35. Интегрировать payment history в client card и repair context.
+
+### G. Consolidation / acceptance
+
+36. Привести desktop navigation к новой структуре.
+37. Синхронизировать mobile semantics без отдельной несовместимой схемы.
+38. Добавить regression tests.
+39. Проверить backup/restore whitelist/integrity для новых stores.
+40. ESP32 build + CMP/Web tests.
+41. Продолжить/повторить полный hardware E2E с новым final flow.
+
+## Important migration rule — spool accounting
+
+Пользователь одобрил переход от обязательной конкретной бухты к более простому учёту материала по фактическому весу.
+
+Но **текущий production code пока всё ещё требует exact `spool_id`**. Поэтому до завершения Phase E старый spool invariant остаётся действующим. Нельзя удалить только Web selector и оставить backend/finalization в несовместимом состоянии.
+
+После законченной миграции новый invariant должен быть:
+
+```text
+RUN_COMPLETED never auto-deducts wire/material.
+Manual consumption remains tied to exact source_session_id + source_run_id,
+plus material class (CU/AL) and actual consumed weight.
+```
+
+## Safety invariants — unchanged
+
+Никогда не ослаблять:
 
 - no automatic physical START;
 - no automatic START between repeats;
 - no auto-resume after reboot;
 - Arduino owns SSR;
-- ESP32/Web never controls SSR directly;
+- ESP32/Web never directly controls SSR;
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
-- RUN_COMPLETED never auto-writes off wire/material;
-- linked-production writeoff remains manual and exact `source_session_id + source_run_id + immutable spool_id`;
-- cancellation never erases immutable run/history evidence;
-- restore is operator-only, transactional, fail-closed.
+- `RUN_COMPLETED` never automatically deducts wire/material;
+- cancellation/operator abort never erases immutable run/history evidence;
+- restore operator-only, transactional, fail-closed;
+- no automatic production-data deletion/truncation.
 
-## Next mandatory step — final two-board hardware acceptance
+## Hardware acceptance status
 
-Perform one complete ESP32 + Arduino Uno acceptance; this is the final external hardware gate, not an intermediate test.
+Hardware acceptance **не закрыт**. Уже подтверждено оператором:
 
-```text
-1. boot both boards / CMP1 handshake
-2. linked JOB delivery; Uno receives it but does not auto-start
-3. physical START only
-4. RUN_STARTED reaches ESP32
-5. stable normal Hall count
-6. RUN_COMPLETED reaches ESP32
-7. no automatic wire/material writeoff
-8. manual exact source_session_id + source_run_id + immutable spool_id writeoff
-9. repeat requires another physical START; final repeat cannot auto-reopen
-10. cancel/recovery
-11. reboot -> no auto-resume / no physical auto-start
-12. Hall calibration full flow: CAL_ARM -> local confirm -> physical START -> CAL_SAMPLE/CAL_DONE -> proposal -> local apply -> CFG reconciliation
-13. keypad/LCD/buzzer usable
-14. SSR remains Uno-only
-```
+- обе production firmware собираются и прошиваются;
+- ESP32 boots and services initialize;
+- Uno boots to normal UI;
+- reboot did not auto-resume the recovered ESP32 job;
+- during real operation found B-exit defect, then software fix passed Uno/ESP32/CMP builds.
 
-After this hardware acceptance, use real device storage metrics to decide whether any NDJSON threshold/rotation work is actually needed.
+Оставшаяся полная hardware sequence должна быть повторена после затрагивающих contract changes, особенно после нового winding/job/writeoff flow.
 
-## New-chat entrypoint
+## Documentation discipline — mandatory
 
-Read first:
+Во время этого redesign документация обновляется вместе с кодом:
+
+1. после каждого meaningful implementation block обновлять этот файл;
+2. checkpoint 95 обновлять фактическим статусом/решениями;
+3. при изменении transfer state обновлять `90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md`;
+4. при изменении current entrypoint/read order обновлять `00_READ_FIRST.md`;
+5. для каждого крупного persistence/API subsystem создавать новый numbered checkpoint;
+6. сохранять exact commits/CI run evidence;
+7. не объявлять CI/hardware GREEN без фактической проверки.
+
+## Read first for continuation
 
 ```text
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 docs/PROJECT_HANDOFF/93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md
-docs/PROJECT_HANDOFF/92_MATERIAL_USAGE_SINGLE_PASS_PREFLIGHT_2026-08-25.md
 ```
-
-`90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md` remains the authoritative transfer checkpoint. `93_STAGE1_SOFTWARE_OPTIMIZATION_CLOSURE_2026-08-25.md` records the software-stage closure and the transition to final hardware acceptance.

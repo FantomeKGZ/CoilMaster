@@ -300,7 +300,11 @@ bool checkAdjustments(fs::FS& storage, uint32_t& recordCount)
 bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage)
 {
     MaterialPersistenceAuditMetrics ignoredMetrics;
-    return check(storage, ignoredMetrics);
+    if (!checkMaterialDomain(storage, ignoredMetrics)) return false;
+
+    // Standalone callers retain the original broad integrity contract.
+    return WorkshopPersistenceIntegrityAudit::check(storage) &&
+           RepairPricingIntegrityAudit::check(storage);
 }
 
 bool MaterialPersistenceIntegrityAudit::checkMaterialDomain(
@@ -330,10 +334,8 @@ bool MaterialPersistenceIntegrityAudit::checkMaterialDomain(
 bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage,
                                               MaterialPersistenceAuditMetrics& metrics)
 {
-    if (!checkMaterialDomain(storage, metrics)) return false;
-
-    // Standalone callers retain the original broad integrity contract.
-    return WorkshopPersistenceIntegrityAudit::check(storage) &&
-           RepairPricingIntegrityAudit::check(storage);
+    // Metrics overload is used by the composite backup audit, which runs the
+    // authoritative business/pricing domain immediately afterwards.
+    return checkMaterialDomain(storage, metrics);
 }
 }

@@ -24,7 +24,7 @@ must(source, 'if (mainExists && loadPath(Path, mainPending))', 'valid main wins 
 must(source, 'return m_storage.remove(TempPath);', 'stale temp cleanup');
 must(source, 'if (mainExists) return false;', 'invalid ambiguous main fail closed');
 must(source, 'if (!loadPath(TempPath, tempPending)) return false;', 'invalid temp fail closed');
-must(source, 'if (m_storage.exists(Path)) return false;', 'single pending transaction guard');
+must(source, 'm_storage.exists(Path)) return false;', 'single pending transaction guard');
 
 if (source.includes('m_storage.remove(Path);\n    return save(')) {
   throw new Error('pending marker must not silently replace an active transaction');

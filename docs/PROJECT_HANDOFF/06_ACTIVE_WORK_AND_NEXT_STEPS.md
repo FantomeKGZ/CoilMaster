@@ -5,6 +5,24 @@
 
 Этот файл содержит только текущую активную очередь. Старые checkpoints — history/evidence, а не backlog.
 
+## Stable baseline before new work
+
+Перед началом Web/CRM redesign зафиксирована стабильная pre-CRM точка:
+
+```text
+449570d47649d5f6336a31ee3eed491256e0fb1a
+```
+
+`main` fast-forward синхронизирован на этот commit; дополнительно создан reference branch:
+
+```text
+stable-2026-08-25-pre-crm-redesign
+```
+
+Подробности: `docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md`.
+
+Все следующие пункты выполняются только в `cmp-protocol-v1`. `main` не использовать как source и не двигать до следующего явно согласованного stable checkpoint.
+
 ## Current phase
 
 Stage-1 repo-only optimization закрыт. Финальный hardware acceptance начат на реальных ESP32 + Arduino Uno и уже выявил/закрыл один операторский UX defect: клавиша `B` должна позволять безопасно прервать ошибочно начатую намотку и вернуться домой без потери run evidence. Uno и ESP32 build/CMP проверки этого исправления прошли успешно.
@@ -142,6 +160,7 @@ Hardware acceptance **не закрыт**. Уже подтверждено оп�
 ```text
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md

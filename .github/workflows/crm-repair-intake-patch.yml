@@ -1,0 +1,59 @@
+name: CRM Repair Intake Patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/crm-repair-intake-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Guard and patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          path = Path('firmware/esp32/src/CM_RepairRegistryWeb.cpp')
+          expected = 'c229f13d8ac2385e573a99eec24cce8f9fc713f9'
+          actual = subprocess.check_output(['git','hash-object',str(path)], text=True).strip()
+          if actual != expected:
+              raise SystemExit(f'blob changed: expected {expected}, got {actual}')
+
+          text = path.read_text()
+          old_ctor = '''RepairRegistryWeb::RepairRegistryWeb(WebServer& server, RepairRegistry& registry)\n    : m_server(server), m_registry(registry) {}\n'''
+          new_ctor = '''RepairRegistryWeb::RepairRegistryWeb(WebServer& server, RepairRegistry& registry)\n    : m_server(server), m_registry(registry), m_intake(nullptr) {}\n'''
+          if old_ctor not in text:
+              raise SystemExit('constructor anchor missing')
+          text = text.replace(old_ctor, new_ctor, 1)
+
+          old_begin = '''    static BackupExportWeb backupExportWeb(m_server, SD);\n    static RepairRegistryLookupWeb lookupWeb(m_server, m_registry);\n    backupExportWeb.begin();\n    lookupWeb.begin();\n'''
+          new_begin = '''    static BackupExportWeb backupExportWeb(m_server, SD);\n    static RepairRegistryLookupWeb lookupWeb(m_server, m_registry);\n    static RepairIntakeCoordinator repairIntake(SD, m_registry);\n    m_intake = &repairIntake;\n    backupExportWeb.begin();\n    lookupWeb.begin();\n    m_intake->begin();\n'''
+          if old_begin not in text:
+              raise SystemExit('begin anchor missing')
+          text = text.replace(old_begin, new_begin, 1)
+
+          old_create = '''    uint32_t repairId = 0UL;\n    if (!m_registry.addRepair(repair, repairId))\n    {\n        if (!m_registry.ready())\n        {\n            m_server.send(503, "application/json; charset=utf-8",\n                          "{\\\"error\\\":\\\"repair_registry_unavailable\\\"}");\n        }\n        else\n        {\n            m_server.send(409, "application/json; charset=utf-8",\n                          "{\\\"error\\\":\\\"repair_not_created\\\"}");\n        }\n        return;\n    }\n'''
+          new_create = '''    if (m_intake == nullptr || !m_intake->ready())\n    {\n        m_server.send(503, "application/json; charset=utf-8",\n                      "{\\\"error\\\":\\\"repair_intake_unavailable\\\"}");\n        return;\n    }\n\n    uint32_t repairId = 0UL;\n    const RepairIntakeCreateResult intakeResult = m_intake->create(repair, repairId);\n    if (intakeResult != RepairIntakeCreateResult::Created)\n    {\n        switch (intakeResult)\n        {\n            case RepairIntakeCreateResult::Busy:\n                m_server.send(409, "application/json; charset=utf-8",\n                              "{\\\"error\\\":\\\"repair_intake_pending_recovery\\\"}");\n                break;\n            case RepairIntakeCreateResult::InvalidSource:\n                m_server.send(409, "application/json; charset=utf-8",\n                              "{\\\"error\\\":\\\"repair_intake_source_invalid\\\"}");\n                break;\n            case RepairIntakeCreateResult::RegistryRejected:\n                m_server.send(409, "application/json; charset=utf-8",\n                              "{\\\"error\\\":\\\"repair_not_created\\\"}");\n                break;\n            case RepairIntakeCreateResult::Unavailable:\n                m_server.send(503, "application/json; charset=utf-8",\n                              "{\\\"error\\\":\\\"repair_intake_unavailable\\\"}");\n                break;\n            case RepairIntakeCreateResult::IntegrityFailed:\n            default:\n                m_server.send(503, "application/json; charset=utf-8",\n                              "{\\\"error\\\":\\\"repair_intake_integrity_failed\\\"}");\n                break;\n        }\n        return;\n    }\n'''
+          if old_create not in text:
+              raise SystemExit('create anchor missing')
+          text = text.replace(old_create, new_create, 1)
+          path.write_text(text)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/esp32/src/CM_RepairRegistryWeb.cpp
+          git diff --cached --check
+          git commit -m "feat(crm): make repair intake snapshot transactional"
+          git push origin HEAD:cmp-protocol-v1

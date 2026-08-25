@@ -17,6 +17,8 @@ struct CrmPersistenceAuditMetrics
 class CrmPersistenceIntegrityAudit
 {
 public:
+    // Read-only deep audit for backup/release integrity. It never repairs or
+    // rewrites CRM journals; any malformed record/reference fails closed.
     static bool check(fs::FS& storage);
     static bool check(fs::FS& storage, CrmPersistenceAuditMetrics& metrics);
 };

@@ -10,6 +10,24 @@
 Единственный источник реализации — `cmp-protocol-v1`. `main` для исходников не использовать.
 Перед изменением existing file получать current content + blob SHA. Для нового path сначала проверять отсутствие файла. Не объявлять CI/build/hardware GREEN без фактической проверки.
 
+## Stable snapshot before CRM redesign
+
+Перед новым Web/CRM этапом stable point зафиксирован на:
+
+```text
+449570d47649d5f6336a31ee3eed491256e0fb1a
+```
+
+`main` fast-forward синхронизирован с этой точкой. Дополнительно создан reference branch:
+
+```text
+stable-2026-08-25-pre-crm-redesign
+```
+
+Подробности: `docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md`.
+
+После snapshot все новые изменения снова идут только в `cmp-protocol-v1`; `main` сохраняется как pre-CRM stable baseline до следующего явно согласованного stable checkpoint.
+
 ## Current project state
 
 Stage-1 repo-only performance optimization закрыт. Финальная двухплатная hardware acceptance была начата на реальном ESP32 + Arduino Uno, выявила operator-B exit defect и привела к исправлению operator abort behavior. Полный hardware gate ещё не завершён.

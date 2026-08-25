@@ -35,6 +35,7 @@ jobs:
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
+      # This build always compiles the current branch HEAD, including CRM transaction integration.
       - name: Build ESP32 firmware
         shell: bash
         run: |

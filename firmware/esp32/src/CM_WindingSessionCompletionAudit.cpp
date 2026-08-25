@@ -17,7 +17,7 @@ WindingSessionCompletionCheck WindingSessionCompletionAudit::check(fs::FS& stora
 
     // TransitionAudit validates every record against the full winding-journal
     // schema while checking STARTED/COMPLETED ordering and exact completion
-    // evidence, so a separate validateAll() file pass is unnecessary here.
+    // evidence. Do not restore the former query.validateAll() pre-pass here.
     bool completed = false;
     const WindingJournalTransitionAuditResult transitionAudit =
         WindingJournalTransitionAudit::validate(storage, sessionId, runId, completed);

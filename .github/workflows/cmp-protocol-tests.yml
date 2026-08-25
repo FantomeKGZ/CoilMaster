@@ -142,6 +142,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_material_ledger_atomic_recovery.js
 
+      - name: Audit material reference batching contracts
+        if: always()
+        run: node Tests/Web/check_material_reference_batching.js
+
       - name: Audit material backup scoped contracts
         if: always()
         run: node Tests/Web/check_material_backup_scoped_audit.js

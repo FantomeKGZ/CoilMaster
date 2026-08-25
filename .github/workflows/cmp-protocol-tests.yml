@@ -102,6 +102,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_repair_intake_transaction_integration.js
 
+      - name: Audit material request schema contracts
+        if: always()
+        run: node Tests/Web/check_material_request_schema.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

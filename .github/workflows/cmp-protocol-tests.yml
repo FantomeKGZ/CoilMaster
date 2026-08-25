@@ -150,6 +150,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_repair_pricing_reference_batching.js
 
+      - name: Audit repair pricing save single-pass contracts
+        if: always()
+        run: node Tests/Web/check_repair_pricing_save_single_pass.js
+
       - name: Audit material backup scoped contracts
         if: always()
         run: node Tests/Web/check_material_backup_scoped_audit.js

@@ -110,6 +110,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_crm_backup_integrity.js
 
+      - name: Audit material catalog serialization
+        if: always()
+        run: node Tests/Web/check_material_catalog_serialization.js
+
       - name: Audit motor details and repair history contracts
         if: always()
         run: node Tests/Web/check_motor_details_ui.js

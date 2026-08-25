@@ -44,18 +44,56 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 104 CRM backup/export + integrity
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
+107 Material Request append-only lifecycle + backup/integrity
 ```
 
-Latest catalog foundation evidence:
+Latest lifecycle evidence:
 
 ```text
-CMP run 32857435377 / SUCCESS
-ESP32 Build run 32857318798 / SUCCESS
+final head a960999b040afbdd7c48bbde08763e042408a2e8
+CMP run 32860049965 / SUCCESS
+ESP32 Build run 32860049946 / SUCCESS
 ```
 
-Existing `MaterialLedger` is authoritative generic warehouse catalog; no duplicate catalog is planned.
+Lifecycle:
 
-Canonical request mapping:
+```text
+DRAFT -> ISSUED -> PRICED -> CLOSED
+```
+
+Status history:
+
+```text
+/data/workshop/material-request-status.ndjson
+```
+
+Backup/export includes status history. CRM deep audit validates legal transitions, monotonic transition IDs, request references and now accepts request movement unit `M2` consistently with the production movement store.
+
+## Current NEXT
+
+1. Build a crash-safe warehouse transaction coordinator for explicit operator:
+
+```text
+ISSUE
+RETURN
+CORRECTION
+```
+
+2. Couple physical `MaterialLedger` mutation and durable Material Request movement evidence without a two-append crash window.
+3. Add durable pending/recovery marker for unfinished warehouse-request transactions.
+4. Enforce request lifecycle gates around warehouse operations; no implicit status rewrite.
+5. `RUN_COMPLETED` remains non-mutating.
+6. After transaction foundation is GREEN, expose bounded runtime/Web API for request create/read/status/movements and explicit warehouse operations.
+7. Then delivery event/store/API.
+8. Then payment/correction store/API.
+9. Motor Web / Client Web redesign.
+10. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
+
+## Warehouse/catalog contract
+
+Existing `MaterialLedger` remains the authoritative generic catalog.
+
+Canonical mapping:
 
 ```text
 KG  -> GRAM x1000
@@ -65,35 +103,13 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-`MaterialLedger::loadActiveMaterialState()` now returns exact unit/stock/price/currency for one ACTIVE item through one fail-closed scan. Existing currency lookup reuses this path.
-
-Material Request movements support:
+Material Request movement units:
 
 ```text
-ISSUE | RETURN | CORRECTION
-MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-`RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter. Current exact-spool production flow is still authoritative.
-
-## Current NEXT
-
-1. Add append-only Material Request status history and authoritative resolver.
-2. Enforce lifecycle:
-
-```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
-```
-
-3. Add fail-closed transition validation; no status rewrite of request identity.
-4. Add backup/integrity coverage for status history before runtime use.
-5. Build transactional explicit operator ISSUE/RETURN/CORRECTION coordinator coupling MaterialLedger stock mutation with durable Material Request movement evidence and crash recovery.
-6. `RUN_COMPLETED` remains non-mutating.
-7. Then delivery event/store/API.
-8. Then payment/correction store/API.
-9. Motor Web / Client Web redesign.
-10. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
+`RUN_WIRE` remains KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
 ## Wire migration rule
 

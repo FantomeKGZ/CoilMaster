@@ -2,6 +2,7 @@
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobSpoolSelectionStore.h"
 #include "CM_JobStateStore.h"
+#include "CM_RunWireIssuePendingStore.h"
 
 namespace CM
 {
@@ -37,6 +38,15 @@ BackupActivityCheck BackupActivityGuard::check(fs::FS& storage)
     const BackupActivityCheck runtime = runtimeCheck();
     if (runtime != BackupActivityCheck::Safe)
         return runtime;
+
+    // A RUN_WIRE ISSUE pending owns a multi-store stock transaction. Never
+    // snapshot or restore through the boundary while its authoritative intent
+    // or atomic temp file is present; recovery must complete first.
+    if (storage.exists(RunWireIssuePendingStore::Path) ||
+        storage.exists(RunWireIssuePendingStore::TempPath))
+    {
+        return BackupActivityCheck::Busy;
+    }
 
     if (!directoryReady(storage, "/data") ||
         !directoryReady(storage, "/data/winding-jobs") ||

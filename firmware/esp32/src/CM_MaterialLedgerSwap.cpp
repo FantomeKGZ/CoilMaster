@@ -52,6 +52,28 @@ bool MaterialLedger::validateMaterialsFile(const char* path) const
                 return false;
             }
         }
+
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+        const bool hasDiameter = line.indexOf(F("\"diameter_hundredths_mm\":")) >= 0;
+        if (hasWireType != hasDiameter)
+        {
+            file.close();
+            return false;
+        }
+        if (hasWireType)
+        {
+            String wireType;
+            uint32_t diameter = 0UL;
+            if (unit != "GRAM" ||
+                !findString(line, "wire_type", wireType) ||
+                (wireType != "CU" && wireType != "AL") ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                diameter == 0UL || diameter > 65535UL)
+            {
+                file.close();
+                return false;
+            }
+        }
     }
 
     file.close();
@@ -148,5 +170,4 @@ bool MaterialLedger::replaceMaterialsFileFromTemp()
     }
 
     return true;
-}
 }

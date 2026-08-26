@@ -18,6 +18,17 @@ for (const relative of ['desktop/motor-details.html', 'mobile/motor-details.html
   if (!source.includes('has_more') || !source.includes('next_cursor')) failures.push(`${relative}: bounded repair history paging missing`);
 }
 
+const desktopDetails = fs.readFileSync(path.join(webRoot, 'desktop/motor-details.html'), 'utf8');
+for (const token of ['/api/motors/winding/latest', '/api/motors/winding/versions', 'WORKING', 'STARTING', 'working_conductors', 'starting_conductors', 'legacy WORKING']) {
+  if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing versioned winding contract ${token}`);
+}
+if (!desktopDetails.includes('versionNextCursor') || !desktopDetails.includes("limit:'12'")) {
+  failures.push('desktop/motor-details.html: winding-version history is not bounded/paged');
+}
+if (!desktopDetails.includes('Web-действия никогда не включают SSR автоматически')) {
+  failures.push('desktop/motor-details.html: explicit Web/SSR safety wording missing');
+}
+
 for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
   const source = fs.readFileSync(path.join(webRoot, relative), 'utf8');
   if (!source.includes('motor-details.html?motor_id=')) failures.push(`${relative}: motor details link missing`);
@@ -41,4 +52,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor details contracts OK: exact lookup, bounded motor repair history, legacy-safe unknown display, catalog links, and physical START semantics are present.');
+console.log('Motor details contracts OK: exact motor/repair lookups, versioned WORKING/STARTING display, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');

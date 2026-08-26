@@ -4,6 +4,7 @@
 #include "CM_RepairClosureGuard.h"
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_RepairRegistryLookupWeb.h"
+#include "CM_MaterialRequestRuntime.h"
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -117,6 +118,7 @@ void RepairRegistryWeb::begin()
     backupExportWeb.begin();
     lookupWeb.begin();
     m_intake->begin();
+    beginMaterialRequestRuntime(m_server, m_registry);
     m_server.on("/api/clients", HTTP_GET, [this]() { handleListClients(); });
     m_server.on("/api/clients", HTTP_POST, [this]() { handleCreateClient(); });
     m_server.on("/api/motors", HTTP_GET, [this]() { handleListMotors(); });

@@ -19,9 +19,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
 121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md
+122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 121
+## GREEN foundation through checkpoint 122
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -30,64 +31,67 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 119 backward-compatible MaterialLedger wire metadata + exact bridge metadata validation
 120 explicit operator-only runtime spool-material bridge creation
 121 atomic explicit-operator RUN_WIRE ISSUE across Material Request + MaterialLedger + exact physical spool
+122 desktop/mobile operator writeoff UI migrated to atomic RUN_WIRE ISSUE
 ```
 
-Latest verified source/test evidence:
+Latest verified checkpoint-122 source/test evidence:
 
 ```text
-source commit        db643d33cd5327556429e71f3734864c484d2f40
-final test commit    7e73e9016c690e3ec65dfacfe3a80328b05a2148
-ESP32 Build #1551    32951550134 / SUCCESS
-CMP Tests #3475      32951582879 / SUCCESS
+operator UI commit       5c28fadd4a3d1ef8de272f677e2b2f53bfc77794
+UI contract commit       10528b23336bebe30208a56e085d3d77aeb19af9
+fault-contract fix       f8d25c1b5fb04bddbd0c2b93fca704f14a7b565f
+CMP Protocol Tests #3489 32954794059 / SUCCESS
 ```
 
-Checkpoint 121: `121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md`.
+Checkpoint 122: `122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md`.
 
-## Checkpoint 121 transaction boundary
+## Current RUN_WIRE production boundary
 
-RUN_WIRE is no longer allowed through the generic Ledger-only path. The explicit operator route requires:
+`RUN_COMPLETED` remains strictly non-mutating. Manual wire consumption now follows one operator path:
 
 ```text
-confirmed=true
-movement_kind=ISSUE
-source_kind=RUN_WIRE
-unit=KG
-material_request_id
-repair_id
-warehouse_item_id
-source_session_id + source_run_id
-exact spool_id
-CU|AL + exact diameter
-actual consumed grams
+operator reviews exact uncovered RUN_COMPLETED
+-> immutable source session/run spool
+-> exact spool <-> MaterialLedger bridge
+-> explicit DRAFT/ISSUED Material Request selection
+-> actual consumed kg
+-> POST /api/material-requests/warehouse
+   confirmed=true
+   movement_kind=ISSUE
+   source_kind=RUN_WIRE
+   unit=KG
+   material_request_id
+   repair_id
+   warehouse_item_id
+   source_session_id + source_run_id
+   exact spool_id
+   CU|AL + exact diameter
+   actual consumed grams
+-> one durable RunWireIssueCoordinator transaction/recovery owner
 ```
 
-One durable high-level pending freezes exact identity, before/after spool weight and costing. Recovery verifies Material Request movement, Ledger `RWI_TX` usage, standard warehouse CONFIRMED writeoff and exact spool state. Impossible ordering fails closed.
+The active production UI no longer performs a mutating POST to `/api/warehouse/write-offs`. Legacy warehouse writeoff GET remains authoritative read/history/coverage evidence; the old backend POST stays compatibility-only until formal deprecation is safe.
 
-Backup/restore is blocked while RUN_WIRE pending/tmp recovery intent exists.
-
-## Current active queue — operator/report completion
+## Current active queue — accounting/report convergence
 
 Next coherent block:
 
-1. Audit current Web operator surfaces that can perform or suggest exact-spool writeoff and Material Request warehouse ISSUE.
-2. Add a bounded operator path for the new atomic RUN_WIRE ISSUE without any automatic action on `RUN_COMPLETED`.
-3. Show/retain exact `material_request_id + source_session_id + source_run_id + spool_id + warehouse_item_id` provenance in read/report surfaces.
-4. Verify costing/finalization/report consumers continue to use standard confirmed physical writeoff evidence and do not double-count MaterialLedger usage.
-5. Add contract tests for duplicate/double-accounting prevention across old direct exact-spool and new RUN_WIRE paths.
-6. Keep the legacy direct exact-spool writeoff available until this operator/report transition is fully GREEN.
-7. Continue software optimization/integrity work before mandatory final two-board hardware E2E.
+1. Audit costing, finalization and report consumers for double-accounting between MaterialLedger RUN_WIRE usage and standard confirmed physical writeoff evidence.
+2. Keep standard confirmed physical spool writeoff as the one consumption evidence used by costing/finalization unless an explicit audited migration says otherwise.
+3. Expose/retain exact `material_request_id + warehouse_item_id + source_session_id + source_run_id + spool_id` provenance in operator/report surfaces where needed.
+4. Add contract coverage that rejects double-counting and rejects any reintroduction of direct legacy mutation from production UI.
+5. Review formal deprecation boundary for legacy direct writeoff POST while preserving historical read compatibility.
+6. Continue software optimization/integrity work before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
 RUN_COMPLETED -> non-mutating
-operator reviews completed run
-operator chooses exact Material Request / exact bridged spool
-explicit atomic RUN_WIRE ISSUE
+explicit operator RUN_WIRE ISSUE
+one Material Request movement
+one MaterialLedger usage
 one physical confirmed writeoff evidence
-one MaterialLedger usage evidence
-one Material Request movement evidence
-reports/costing/finalization remain consistent
+costing/finalization/reporting count consumption once
 ```
 
 ## Safety invariants
@@ -101,7 +105,7 @@ reports/costing/finalization remain consistent
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
 - warehouse ISSUE requires explicit operator action;
-- exact spool/session/run provenance cannot be inferred or weakened;
+- exact Material Request / warehouse item / spool / session / run provenance cannot be inferred or weakened;
 - cash events never mutate machine/warehouse state;
 - cancellation/operator abort never erases immutable evidence;
 - restore operator-only, transactional, fail-closed;

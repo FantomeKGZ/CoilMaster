@@ -39,11 +39,38 @@ struct WarehouseMovementRepairTotals
     }
 };
 
+constexpr uint8_t WarehouseMovementSummaryMaxDiameters = 32U;
+
+struct WarehouseMovementDiameterTotals
+{
+    uint16_t diameterHundredthsMm;
+    uint32_t consumedMonthGrams;
+    uint32_t consumedAllTimeGrams;
+
+    WarehouseMovementDiameterTotals()
+        : diameterHundredthsMm(0U),
+          consumedMonthGrams(0UL),
+          consumedAllTimeGrams(0UL)
+    {
+    }
+};
+
+struct WarehouseMovementSummaryTotals
+{
+    WarehouseMovementDiameterTotals diameters[WarehouseMovementSummaryMaxDiameters];
+    uint8_t diameterCount;
+
+    WarehouseMovementSummaryTotals() : diameterCount(0U) {}
+};
+
 class WarehouseMovementIntegrityAudit
 {
 public:
     static bool check(fs::FS& storage);
     static bool check(fs::FS& storage, uint32_t& validatedRecordCount);
+    static bool checkSummary(fs::FS& storage,
+                             const char* monthPrefix,
+                             WarehouseMovementSummaryTotals& totals);
     static bool checkRepair(fs::FS& storage,
                             uint32_t repairId,
                             WarehouseMovementRepairTotals& totals);

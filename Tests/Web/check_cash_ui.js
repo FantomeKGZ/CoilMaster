@@ -4,8 +4,12 @@ const path = require('path');
 const root = path.resolve(__dirname, '../..');
 const cashPath = 'firmware/esp32/web/desktop/cash.html';
 const costingPath = 'firmware/esp32/web/desktop/costing.html';
+const indexPath = 'firmware/esp32/web/desktop/index.html';
+const clientDetailsPath = 'firmware/esp32/web/desktop/client-details.html';
 const cash = fs.readFileSync(path.join(root, cashPath), 'utf8');
 const costing = fs.readFileSync(path.join(root, costingPath), 'utf8');
+const index = fs.readFileSync(path.join(root, indexPath), 'utf8');
+const clientDetails = fs.readFileSync(path.join(root, clientDetailsPath), 'utf8');
 const failures = [];
 const must = (token, label) => { if (!cash.includes(token)) failures.push(`${cashPath}: missing ${label}: ${token}`); };
 const forbid = (token, label) => { if (cash.includes(token)) failures.push(`${cashPath}: forbidden ${label}: ${token}`); };
@@ -55,9 +59,16 @@ if (costing.includes("fetch('/api/payments',{method:'POST'")) {
 if (costing.includes('<h1>Касса</h1>')) {
   failures.push(`${costingPath}: costing must remain costing, not cash UI`);
 }
+if (!index.includes('href="/desktop/cash.html"')) {
+  failures.push(`${indexPath}: dedicated cash navigation missing`);
+}
+if (!clientDetails.includes('id="cashLink"') ||
+    !clientDetails.includes("/desktop/cash.html?client_id='")) {
+  failures.push(`${clientDetailsPath}: client-scoped cash navigation missing`);
+}
 
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Cash UI contracts OK: exact uint64 minor-unit display, exact repair balance, bounded append-only payment history, explicit PAYMENT/CORRECTION writes, no destructive edits, and no machine/warehouse shortcuts.');
+console.log('Cash UI contracts OK: exact uint64 minor-unit display, exact repair balance, bounded append-only payment history, dedicated navigation, explicit PAYMENT/CORRECTION writes, no destructive edits, and no machine/warehouse shortcuts.');

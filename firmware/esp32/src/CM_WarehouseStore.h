@@ -26,7 +26,6 @@ public:
     fs::FS& storage() { return m_storage; }
     bool addSpool(const NewWireSpool& spool,uint32_t& assignedSpoolId);
     bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
-    bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity) const;
     bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity,bool& found) const;
     bool repairExists(uint32_t repairId,bool& found) const;
     bool confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;
@@ -42,7 +41,6 @@ public:
     bool appendActiveSpoolsPageJson(String& json,uint16_t diameterHundredthsMm,const char* materialFilter,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore) const;
     bool appendMaterialSummaryJson(String& json,const char* monthPrefix) const;
     bool loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;
-    uint8_t loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity) const;
     uint8_t summaryCount() const; bool summaryAt(uint8_t index,WireStockSummary& summary) const;
     uint32_t totalRemainingGrams() const; uint32_t totalConsumedMonthGrams() const; uint32_t totalConsumedAllTimeGrams() const;
 

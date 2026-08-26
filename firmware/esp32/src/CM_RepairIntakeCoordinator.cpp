@@ -226,8 +226,15 @@ bool RepairIntakeCoordinator::preparePending(const NewRepair& repair,
 {
     pending = RepairIntakePending();
     if (repairId == 0UL || repair.clientId == 0UL || repair.motorId == 0UL ||
-        repair.receivedAt.length() < 10U || !m_registry.clientExists(repair.clientId) ||
-        !m_registry.motorExists(repair.motorId))
+        repair.receivedAt.length() < 10U)
+    {
+        return false;
+    }
+
+    bool clientFound = false;
+    bool motorFound = false;
+    if (!m_registry.clientExists(repair.clientId, clientFound) || !clientFound ||
+        !m_registry.motorExists(repair.motorId, motorFound) || !motorFound)
     {
         return false;
     }

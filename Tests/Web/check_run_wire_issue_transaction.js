@@ -120,9 +120,6 @@ requireText(runtime, 'SpoolMaterialBridgeStore spoolMaterialBridges', 'runtime b
 requireText(runtime, 'RunWireIssueCoordinator runWire', 'runtime dedicated coordinator');
 requireText(runtime, '!runWire.begin()', 'runtime fail-closed recovery gate');
 
-// New RUN_WIRE movements carry exact spool_id directly for bounded read/report
-// provenance. The Store derives it from the immutable session selection rather
-// than trusting caller input; historic records remain readable without spool_id.
 for (const text of ['uint32_t spoolId;', 'spoolId(0UL)']) {
   requireText(movementHeader, text, `RUN_WIRE movement spool schema ${text}`);
 }
@@ -139,8 +136,6 @@ for (const text of [
   requireText(movementStore, text, `immutable RUN_WIRE movement spool provenance ${text}`);
 }
 
-// RWI_TX is system-owned accounting provenance. Generic MaterialLedger usage
-// cannot spoof it.
 for (const text of [
   'const String usageComment=m_server.arg("comment")',
   'usageComment.indexOf(F("RWI_TX="))==0',
@@ -151,8 +146,6 @@ for (const text of [
   requireText(materialWeb, text, `reserved RUN_WIRE ledger provenance guard ${text}`);
 }
 
-// Legacy writeoff POST is formally deprecated at the HTTP boundary. Historical
-// GET remains, while all old POST clients receive 410 and the atomic replacement.
 for (const text of [
   'm_server.on("/api/warehouse/write-offs", HTTP_POST',
   'm_server.send(410',
@@ -167,8 +160,6 @@ if (directWriteoffWeb.includes('handleConfirmWriteOff')) {
   throw new Error('legacy writeoff mutating handler must not remain reachable or defined');
 }
 
-// Atomic RUN_WIRE and the retained low-level compatibility Store still share the
-// same exact-run duplicate authority. The HTTP legacy path can no longer mutate.
 for (const [source, label] of [
   [coordinator, 'atomic RUN_WIRE'],
   [directWriteoffStore, 'legacy/direct store']
@@ -176,22 +167,10 @@ for (const [source, label] of [
   requireText(source, 'confirmedWriteOffForSourceRun', `${label} exact-run duplicate lookup`);
   requireText(source, 'alreadyConfirmed', `${label} exact-run duplicate result`);
 }
-requireText(
-  coordinator,
-  'm_warehouse.confirmedWriteOffForSourceRun(requestedMovement.sourceSessionId,',
-  'atomic exact source-session duplicate key');
-requireText(
-  coordinator,
-  'requestedMovement.sourceRunId,',
-  'atomic exact source-run duplicate key');
-requireText(
-  directWriteoffStore,
-  'confirmedWriteOffForSourceRun(operation.sourceSessionId,',
-  'direct store exact source-session duplicate key');
-requireText(
-  directWriteoffStore,
-  'operation.sourceRunId,',
-  'direct store exact source-run duplicate key');
+requireText(coordinator, 'm_warehouse.confirmedWriteOffForSourceRun(requestedMovement.sourceSessionId,', 'atomic exact source-session duplicate key');
+requireText(coordinator, 'requestedMovement.sourceRunId,', 'atomic exact source-run duplicate key');
+requireText(directWriteoffStore, 'confirmedWriteOffForSourceRun(operation.sourceSessionId,', 'direct store exact source-session duplicate key');
+requireText(directWriteoffStore, 'operation.sourceRunId,', 'direct store exact source-run duplicate key');
 
 for (const text of [
   'ReferenceBatchSize = 16U',
@@ -219,6 +198,31 @@ for (const text of [
 ]) {
   requireText(accountingAudit, text, `cross-log RUN_WIRE accounting contract ${text}`);
 }
+
+// Checkpoint 127: direct spool_id is optional only for historical movement lines.
+// If present, it is parsed during the existing movement pass and must match the
+// immutable session selection before bridge/Ledger/warehouse evidence is trusted.
+for (const text of [
+  'bool hasPersistedSpoolId;',
+  'uint32_t persistedSpoolId;',
+  'const String spoolMarker = F("\\\"spool_id\\\":")',
+  'if (spoolPosition >= 0)',
+  'findUnsigned(line, "spool_id", reference.persistedSpoolId)',
+  'reference.persistedSpoolId == 0UL',
+  'reference.hasPersistedSpoolId = true',
+  'reference.hasPersistedSpoolId &&',
+  'reference.persistedSpoolId != selection.spoolId'
+]) {
+  requireText(accountingAudit, text, `optional persisted spool integrity ${text}`);
+}
+if (accountingAudit.includes('!findUnsigned(line, "spool_id", reference.persistedSpoolId) ||\n            !reference.hasPersistedSpoolId')) {
+  throw new Error('historical RUN_WIRE movements without spool_id must remain accepted');
+}
+const movementOpenCount = (accountingAudit.match(/storage\.open\(MaterialRequestMovementStore::Path, FILE_READ\)/g) || []).length;
+if (movementOpenCount !== 1) {
+  throw new Error(`persisted spool audit must reuse the existing bounded movement pass; found ${movementOpenCount} movement log opens`);
+}
+
 requireText(accountingAudit, 'reference.unitCostMinor / 1000ULL', 'Ledger gram price from immutable KG price');
 requireText(accountingAudit, 'extractRunWireTag', 'system RWI transaction tag parser');
 requireText(accountingAudit, 'RWI_TX=', 'cross-log transaction marker');
@@ -228,4 +232,4 @@ requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evide
 requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
 requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; exact spool provenance is directly readable and legacy writeoff POST is fail-closed deprecated.');
+console.log('RUN_WIRE ISSUE transaction contracts: OK; direct spool provenance is audited in the existing bounded pass, historical spool-less movements remain compatible, and legacy writeoff POST stays fail-closed deprecated.');

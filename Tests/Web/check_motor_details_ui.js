@@ -40,6 +40,15 @@ if (!desktopDetails.includes('Legacy-ремонт: immutable AS_RECEIVED snapsho
 if (!desktopDetails.includes('Текущая карточка выше не подменяет исторический результат ремонта')) {
   failures.push('desktop/motor-details.html: current winding must not substitute missing historical repair result');
 }
+for (const token of ['winding-job.html?repair_id=', '&role=working', '&role=starting', 'Отправить WORKING на станок', 'Отправить STARTING на станок']) {
+  if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing safe role job navigation ${token}`);
+}
+if (!desktopDetails.includes("closed?'':''" ) && !desktopDetails.includes("closed?'':'<a href=\"/desktop/winding-job.html")) {
+  failures.push('desktop/motor-details.html: role job links must be omitted for CLOSED repairs');
+}
+if (desktopDetails.includes("fetch('/api/jobs'")) {
+  failures.push('desktop/motor-details.html: motor card must navigate to linked job flow, not POST jobs directly');
+}
 
 for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
   const source = fs.readFileSync(path.join(webRoot, relative), 'utf8');
@@ -65,4 +74,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor details contracts OK: versioned roles, immutable AS_RECEIVED comparison, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');
+console.log('Motor details contracts OK: versioned roles, immutable AS_RECEIVED comparison, safe OPEN-repair role navigation, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');

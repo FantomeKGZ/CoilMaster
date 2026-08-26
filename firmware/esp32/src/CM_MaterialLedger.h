@@ -178,8 +178,6 @@ private:
                                 const String& currencyBefore,
                                 const String& currencyAfter,
                                 const String& auditLine);
-    bool usageExists(uint32_t usageId) const;
-    bool repairExists(uint32_t repairId) const;
     bool readStockQuantity(uint32_t materialId, uint32_t& quantityMilli) const;
     bool readMaterialState(uint32_t materialId,
                            uint32_t& stockQuantityMilli,
@@ -194,7 +192,6 @@ private:
                          uint32_t& remainingMilli,
                          uint32_t& unitPriceMinor,
                          String& currency);
-    bool restoreQuantity(uint32_t materialId, uint32_t quantityMilli);
 
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);

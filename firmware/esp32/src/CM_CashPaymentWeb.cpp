@@ -275,7 +275,13 @@ bool CashPaymentWeb::sendRepairBalance(uint32_t repairId)
 
 bool CashPaymentWeb::sendClientBalance(uint32_t clientId)
 {
-    if (!m_repairs.clientExists(clientId))
+    bool clientFound = false;
+    if (!m_repairs.clientExists(clientId, clientFound))
+    {
+        m_server.send(500, "application/json", "{\"error\":\"client_lookup_integrity_failed\"}");
+        return false;
+    }
+    if (!clientFound)
     {
         m_server.send(404, "application/json", "{\"error\":\"client_not_found\"}");
         return false;

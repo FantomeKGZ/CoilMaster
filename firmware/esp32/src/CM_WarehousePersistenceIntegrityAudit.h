@@ -10,6 +10,7 @@ struct WarehousePersistenceAuditMetrics
 {
     uint32_t spoolRecordCount = 0UL;
     uint32_t priceRecordCount = 0UL;
+    uint32_t spoolMaterialBridgeRecordCount = 0UL;
 };
 
 class WarehousePersistenceIntegrityAudit

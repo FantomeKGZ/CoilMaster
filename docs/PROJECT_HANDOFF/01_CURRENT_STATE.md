@@ -53,20 +53,20 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 107 Material Request append-only lifecycle + backup/integrity
 108 Material Request warehouse pending persistence + stable-backup guard
 109 Crash-safe Material Request warehouse coordinator
+110 Material Request production runtime/Web API
 ```
 
-Checkpoint 109 evidence:
+Latest block 110 verification:
 
 ```text
-CMP run 32925574132 / SUCCESS
-CMP run 32925599254 / SUCCESS
+CMP run 32926200712 / SUCCESS
+ESP32 Build run 32926237400 / SUCCESS
+runtime bootstrap ESP32 Build 32926105448 / SUCCESS
 ```
 
-The earlier one-shot run `32863289280` failed only because GitHub Actions bot lacked permission to push changes to `.github/workflows/*`; permanent coordinator regression was wired directly and passed.
+## Material / warehouse model
 
-## Material / warehouse catalog foundation
-
-Existing `/data/materials/materials.ndjson` and `MaterialLedger` are the authoritative generic warehouse item catalog. No duplicate catalog.
+Existing `/data/materials/materials.ndjson` and `MaterialLedger` remain the authoritative generic warehouse catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -76,9 +76,7 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-`MaterialLedger::loadActiveMaterialState()` provides ACTIVE item unit/stock/price/currency.
-
-## Material Request durable model
+Material Request durable data:
 
 ```text
 /data/workshop/material-requests.ndjson
@@ -103,7 +101,7 @@ MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-Every immutable movement now has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
+Every movement has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` is non-mutating.
 
 Coordinator ordering:
 
@@ -116,18 +114,9 @@ explicit operator confirmation
 -> clear pending
 ```
 
-Recovery is fail-closed on impossible ledger-only evidence. Warehouse mutation is allowed only while request status is `DRAFT` or `ISSUED` and the repair is still OPEN.
+Recovery is fail-closed on impossible ledger-only evidence. Warehouse mutation is allowed only for DRAFT/ISSUED request tied to an OPEN repair.
 
-## Block 110 — runtime/Web API — IN PROGRESS
-
-Implemented files:
-
-```text
-firmware/esp32/src/CM_MaterialRequestWeb.h/.cpp
-firmware/esp32/src/CM_MaterialRequestRuntime.h/.cpp
-```
-
-API routes implemented:
+## Material Request production API — GREEN
 
 ```text
 POST /api/material-requests
@@ -139,27 +128,16 @@ POST /api/material-requests/status
 POST /api/material-requests/warehouse
 ```
 
-Creation accepts `repair_id`; server derives exact `client_id + motor_id` from authoritative repair identity. Warehouse mutations require `confirmed=true` and route exclusively through `MaterialRequestWarehouseCoordinator`. Web never accepts material price and never calls `MaterialLedger::confirmUsage/adjustMaterial` directly.
-
-Production bootstrap is wired from `RepairRegistryWeb::begin()` after repair-intake initialization. Material Request stores and coordinator recover before mutation routes are registered.
-
-Current verification status:
-
-```text
-CMP runtime/API safety regression run 32926200712 / running at last check
-Integrated production ESP32 Build run 32926237400 / running at last check
-Earlier runtime bootstrap ESP32 Build 32926105448 / SUCCESS
-```
-
-Do not mark block 110 GREEN until both current integrated CMP + ESP32 checks complete successfully.
+Creation derives exact `client_id + motor_id` from authoritative `repair_id`. Warehouse mutation requires `confirmed=true`, does not accept operator-supplied material price and executes only through the coordinator. Stores and transaction recovery initialize before routes are registered.
 
 ## Current NEXT
 
-1. Close block 110 after integrated CMP + ESP32 GREEN.
-2. Add immutable delivery event/store/API (`COMPLETED -> DELIVERED` remains separate from payment).
-3. Add payment/correction journal/API and client/repair balance reads.
-4. Then Motor Web / Client Web redesign using the new domain model.
-5. Coordinated spool -> Material Request wire migration only after all job/writeoff/finalization/backup/report contracts are updated together.
+1. Add immutable repair delivery store/API: repair completion and delivery are different facts.
+2. Delivery record keeps exact `repair_id + client_id + motor_id + delivered_at`, with optional comment.
+3. Delivery requires repair CLOSED but must not require balance == 0; a debt warning belongs to future Cash/UI, not the persistence gate.
+4. Then add append-only payments/corrections and client/repair balance reads.
+5. Then Motor Web / Client Web redesign using the new model.
+6. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report contracts are changed together.
 
 ## Wire migration
 

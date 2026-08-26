@@ -117,14 +117,22 @@ for (const text of [
   'directoryPreflightMeasured', 'directoryPreflightDurationMs'
 ]) requireText(sessionAuditHeaderPath, sessionAuditHeader, text, 'session persistence preflight result contract missing: ' + text);
 for (const text of [
-  'directoryContentsCanonical(storage, directories[index])', 'isCanonicalTempName(name)',
+  'directoryContentsCanonical(storage, SelectionDirectory)', 'isCanonicalTempName(name)',
   'const uint32_t preflightStartedAtMs = millis();', 'validatedMetrics.directoryPreflightMeasured = true;',
   'JobSnapshotStore snapshots(storage);', 'JobSpoolSelectionStore selections(storage);'
-]) requireText(sessionAuditPath, sessionAudit, text, 'read-only session persistence preflight missing: ' + text);
+]) requireText(sessionAuditPath, sessionAudit, text, 'selection-only read-only session persistence preflight missing: ' + text);
+for (const forbidden of [
+  'const char* directories[] = {SnapshotDirectory, StateDirectory, SelectionDirectory};',
+  'directoryContentsCanonical(storage, directories[index])',
+  'directoryContentsCanonical(storage, SnapshotDirectory)',
+  'directoryContentsCanonical(storage, StateDirectory)'
+]) {
+  if (sessionAudit.includes(forbidden)) failures.push(sessionAuditPath + ': redundant snapshot/state directory preflight returned: ' + forbidden);
+}
 const preflightPos = sessionAudit.indexOf('const uint32_t preflightStartedAtMs = millis();');
 const storeBeginPos = sessionAudit.indexOf('JobSnapshotStore snapshots(storage);');
 if (preflightPos < 0 || storeBeginPos < 0 || preflightPos >= storeBeginPos) {
-  failures.push(sessionAuditPath + ': session directory preflight must finish before mutable store begin paths');
+  failures.push(sessionAuditPath + ': selection directory preflight must finish before mutable selection store begin path');
 }
 
 for (const text of [
@@ -144,9 +152,6 @@ for (const text of [
 ]) requireText(writeOffPath, writeOff, text, 'legacy writeoff hard-deprecation contract missing: ' + text);
 if (writeOff.includes('handleConfirmWriteOff')) failures.push(writeOffPath + ': retired public writeoff mutation handler returned');
 
-// Atomic coordinator is the only current writeoff safety owner. Direct Store
-// mutation entrypoints are intentionally absent; legacy startup reconciliation
-// keeps only append helpers and durable before/after proof.
 for (const text of [
   'requestedMovement.sourceSessionId == 0UL', 'requestedMovement.sourceRunId == 0UL',
   'JobSpoolSelectionStore::loadReadOnly', 'selection.spoolId != spoolId',
@@ -181,4 +186,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Final acceptance contracts OK: bounded workshop reads, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, atomic manual exact-run RUN_WIRE, removed dead direct writeoff entrypoints, deterministic historical recovery, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded workshop reads, selection-only preflight before recoverable spool-store begin, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, atomic manual exact-run RUN_WIRE, removed dead direct writeoff entrypoints, deterministic historical recovery, and desktop/mobile acceptance UI.');

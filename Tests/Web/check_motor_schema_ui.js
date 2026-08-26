@@ -5,15 +5,29 @@ const repoRoot = path.resolve(__dirname, '../..');
 const webRoot = path.join(repoRoot, 'firmware/esp32/web');
 const failures = [];
 
-for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
-  const source = fs.readFileSync(path.join(webRoot, relative), 'utf8');
-  for (const field of ['manufacturer', 'model', 'phase_count', 'slot_count', 'coil_program', 'repeat_target']) {
-    if (!source.includes(`name="${field}"`)) failures.push(`${relative}: missing ${field} field`);
-  }
-  if (!source.includes('не указано')) failures.push(`${relative}: legacy unknown values are not shown explicitly`);
-  if (!source.includes('каждый повтор') && !source.includes('Каждый повтор')) failures.push(`${relative}: per-repeat physical START wording missing`);
+const desktopCatalog = fs.readFileSync(path.join(webRoot, 'desktop/motors.html'), 'utf8');
+const desktopCreate = fs.readFileSync(path.join(webRoot, 'desktop/motor-new.html'), 'utf8');
+const mobileCatalog = fs.readFileSync(path.join(webRoot, 'mobile/motors.html'), 'utf8');
+
+for (const field of ['manufacturer', 'model', 'phase_count', 'slot_count', 'coil_program', 'repeat_target']) {
+  if (!desktopCreate.includes(`name="${field}"`)) failures.push(`desktop/motor-new.html: missing ${field} field`);
+  if (!mobileCatalog.includes(`name="${field}"`)) failures.push(`mobile/motors.html: missing ${field} field`);
+}
+
+if (desktopCatalog.includes('id="motorForm"') || desktopCatalog.includes('<h2>Новый двигатель</h2>')) {
+  failures.push('desktop/motors.html: catalog must not contain inline motor creation form');
+}
+if (!desktopCatalog.includes('/desktop/motor-new.html')) failures.push('desktop/motors.html: dedicated create-page link missing');
+if (!desktopCatalog.includes('/api/motors/winding/latest')) failures.push('desktop/motors.html: latest winding version lookup missing');
+for (const role of ['WORKING', 'STARTING']) {
+  if (!desktopCatalog.includes(role)) failures.push(`desktop/motors.html: ${role} catalog column missing`);
+}
+if (!desktopCatalog.includes('legacy WORKING')) failures.push('desktop/motors.html: legacy winding fallback marker missing');
+
+for (const [relative, source] of [['desktop/motor-new.html', desktopCreate], ['mobile/motors.html', mobileCatalog]]) {
   if (!source.includes('38/38')) failures.push(`${relative}: accepted program/repeat example missing`);
   if (!source.includes('max="65535"')) failures.push(`${relative}: repeat_target limit mismatch`);
+  if (!source.includes('физический START') && !source.includes('физического START')) failures.push(`${relative}: per-repeat physical START wording missing`);
 }
 
 const repairQuickAdd = fs.readFileSync(path.join(webRoot, 'desktop/repairs.html'), 'utf8');
@@ -42,4 +56,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor schema UI contracts OK: catalogs and repair quick-add expose manufacturer/model, phase_count, slot_count, program, repeat_target, legacy compatibility, and physical START semantics.');
+console.log('Motor Web contracts OK: desktop catalog is read-only, dedicated create page preserves schema/safety, versioned WORKING/STARTING lookup and legacy fallback remain explicit.');

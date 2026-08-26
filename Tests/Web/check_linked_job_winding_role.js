@@ -22,7 +22,8 @@ must(source, 'findString(versionJson, "working_program"', 'WORKING program looku
 must(source, 'findUnsigned(versionJson, "working_repeat_target"', 'WORKING repeat lookup');
 must(source, 'if (requestedType == RemoteJobType::Starting)', 'legacy STARTING rejection');
 must(source, 'uint32_t parsedRepeatTarget = 1UL;', 'legacy repeat default');
-must(source, 'findUnsigned(line, "repeat_target", parsedRepeatTarget)', 'legacy persisted repeat lookup');
+must(source, 'repeatTargetPresent = line.indexOf', 'legacy repeat presence distinction');
+must(source, 'repeatTargetPresent && !hasValidRepeatTarget', 'malformed legacy repeat fail-closed');
 must(main, 'jobLinkageResolver.resolveWithProgramAndRepeat(linkage.repairId,', 'handleCreateJob uses role+repeat resolver');
 must(main, 'job.type,', 'handleCreateJob passes parsed job.type');
 must(main, 'catalogRepeatTarget', 'authoritative repeat target local');
@@ -35,4 +36,4 @@ if (main.includes('jobLinkageResolver.resolveWithProgram(linkage.repairId,\n    
   throw new Error('linked job still uses role-blind resolver call');
 }
 
-console.log('Linked job winding-role contract OK: latest version is authoritative for role/program/repeat, legacy STARTING fails closed, and server validates exact program plus repeat target before job persistence/UART.');
+console.log('Linked job winding-role contract OK: latest version is authoritative for role/program/repeat, legacy STARTING and malformed legacy repeat fail closed, and server validates exact program plus repeat target before job persistence/UART.');

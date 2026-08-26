@@ -52,7 +52,6 @@ public:
     bool create(const OutgoingWindingJob& job,
                 const JobLinkage& linkage,
                 uint32_t createdUptimeMs);
-    bool exists(uint32_t sessionId) const;
 
     // Loads and validates immutable program and linkage data for recovery.
     // Legacy schema-v1 snapshots without repeat_target are read as target 1.
@@ -71,6 +70,7 @@ private:
     bool m_ready;
 
     bool ensureDirectories();
+    bool exists(uint32_t sessionId) const;
     String snapshotPath(uint32_t sessionId) const;
     String temporaryPath(uint32_t sessionId) const;
     String serialize(const OutgoingWindingJob& job,

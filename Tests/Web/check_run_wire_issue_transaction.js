@@ -28,6 +28,8 @@ const runtime = read('firmware/esp32/src/CM_MaterialRequestRuntime.cpp');
 const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
 const directWriteoffWeb = read('firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp');
 const directWriteoffStore = read('firmware/esp32/src/CM_WarehouseWriteOff.cpp');
+const accountingAudit = read('firmware/esp32/src/CM_RunWireAccountingIntegrityAudit.cpp');
+const workshopAudit = read('firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.cpp');
 
 for (const field of [
   'materialRequestId', 'repairId', 'warehouseItemId',
@@ -138,4 +140,37 @@ requireText(
   'operation.sourceRunId,',
   'direct store exact source-run duplicate key');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; RWI_TX provenance is reserved from direct MaterialLedger usage and legacy/direct versus atomic mutations share exact-run duplicate protection.');
+// Completed RUN_WIRE accounting is a three-log invariant. The audit is bounded,
+// read-only and refuses to interpret an in-flight high-level transaction.
+for (const text of [
+  'ReferenceBatchSize = 16U',
+  'RunWireIssuePendingStore::Path',
+  'RunWireIssuePendingStore::TempPath',
+  'JobSpoolSelectionStore::loadReadOnly',
+  'SpoolMaterialBridgeStore::Path',
+  'resolveLedgerBatch',
+  'resolveWarehouseBatch',
+  'WarehouseWriteOffMode::KgFirst',
+  'WarehouseWriteOffStockMode::Spool',
+  'reference.spoolId',
+  'reference.warehouseItemId',
+  'reference.sourceSessionId',
+  'reference.sourceRunId',
+  'reference.consumedGrams',
+  'reference.ledgerQuantityMilli',
+  'reference.materialClass',
+  'reference.diameterHundredthsMm',
+  'metrics.movementCount == metrics.ledgerEvidenceCount',
+  'metrics.movementCount == metrics.warehouseEvidenceCount'
+]) {
+  requireText(accountingAudit, text, `cross-log RUN_WIRE accounting contract ${text}`);
+}
+requireText(accountingAudit, 'extractRunWireTag', 'system RWI transaction tag parser');
+requireText(accountingAudit, 'RWI_TX=', 'cross-log transaction marker');
+requireText(accountingAudit, 'matches > 1U', 'exact bridge duplicate rejection');
+requireText(accountingAudit, 'ledgerMatches > 1U', 'duplicate ledger evidence rejection');
+requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evidence rejection');
+requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
+requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
+
+console.log('RUN_WIRE ISSUE transaction contracts: OK; accounting provenance is exact across Material Request, MaterialLedger, immutable spool/bridge, and warehouse CONFIRMED evidence.');

@@ -68,6 +68,15 @@ struct NewRepair
     NewRepair() : clientId(0UL), motorId(0UL) {}
 };
 
+struct RepairIdentity
+{
+    uint32_t repairId;
+    uint32_t clientId;
+    uint32_t motorId;
+
+    RepairIdentity() : repairId(0UL), clientId(0UL), motorId(0UL) {}
+};
+
 class RepairRegistry
 {
 public:
@@ -97,6 +106,10 @@ public:
         open = !closed;
         return true;
     }
+
+    bool loadRepairIdentity(uint32_t repairId,
+                            RepairIdentity& identity,
+                            bool& found) const;
 
     bool appendSimilarMotorsJson(String& json,
                                  const NewMotor& candidate,

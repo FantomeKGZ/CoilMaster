@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **135**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary is single-pass through authoritative movement validation, and MaterialLedger public repair/material lookups now expose explicit `found` outputs.
+GREEN through checkpoint **137**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary is single-pass, MaterialLedger public lookups are explicitly fail-closed, and obsolete private full-log helpers are removed.
 
 ## Latest GREEN state
 
@@ -18,8 +18,10 @@ GREEN through checkpoint **135**. Atomic RUN_WIRE is the only current wire mutat
 131 warehouse repair lookup -> explicit found
 132 warehouse spool identity + wire catalogue -> explicit found/count
 133 warehouse price public read -> explicit configured
-134 warehouse summary -> authoritative movement audit + aggregation in one primary codec pass
-135 MaterialLedger public repair/state/currency reads -> explicit found; dead material wrappers removed
+134 warehouse summary -> one authoritative movement validation/aggregation pass
+135 MaterialLedger public repair/state/currency -> explicit found
+136 dead adjustmentExists full-log helper removed
+137 one-arg repair wrapper + dead usageExists/restoreQuantity helpers removed
 ```
 
 Production RUN_WIRE path remains:
@@ -32,24 +34,23 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 135 keeps `repairExists(repairId)` only as a private internal compatibility wrapper for `confirmUsage()`. Public callers must use `repairExists(repairId, found)`. One-argument material state/currency wrappers are fully removed.
+`confirmUsage()` now explicitly distinguishes repair-reference read failure from `found=false` before mutation. Usage recovery still uses `readStockQuantity()` for exact BEFORE/AFTER reconciliation; this live recovery helper was intentionally retained.
 
-Latest verified checkpoint-135 evidence:
+Latest verified checkpoint-137 evidence:
 
 ```text
-6d1ca9a32611b0d0fc42ce4ed2aa1aa22e5d98d9  MaterialLedger public surface narrowed
-4f92afd94aec4eca0c2fda4ec6ad7d13c9065e9c  dead material wrappers removed
-1c9e2c6b402b28130ffd9e67d12a29b6918476e2  fail-closed lookup contracts
-ESP32 Build #1587   32971695182 / SUCCESS
-CMP Tests #3601     32971743951 / SUCCESS
+90c732a9caef1d1e4104c9c7374a72f6a8df3811  final MaterialLedger source
+5dc6f1c0303834274d989b8846b53ba34c1f3368  final contracts
+ESP32 Build #1592   32972822029 / SUCCESS
+CMP Tests #3614     32972911974 / SUCCESS
 ```
 
-Checkpoint: `135_MATERIAL_LEDGER_FAIL_CLOSED_LOOKUPS_2026-08-26.md`.
+Checkpoint: `137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08-26.md`.
 
 ## Current NEXT
 
-1. Continue bounded runtime/API audit for concrete duplicate validated passes or ambiguous read APIs.
-2. Keep `MaterialLedgerWeb::handleUsage()` material preflight while it supplies distinct HTTP 404/409 semantics; `confirmUsage()` must still re-read authoritative state immediately before mutation.
+1. Continue bounded runtime/read-helper audit for dead scans or ambiguous bool APIs.
+2. Preserve Web HTTP preflight semantics and mutation-time TOCTOU protection.
 3. No automatic production-data rotation/deletion/truncation and no premature DB migration.
 4. Preserve historical recovery/history and atomic RUN_WIRE safety.
 

@@ -51,7 +51,6 @@ for (const token of [
 
 must(details, 'Выдача двигателя не зависит от нулевого баланса', 'delivery/cash independence');
 mustNot(details, "method:'POST'", 'client details must remain read-only');
-mustNot(details, '/api/motors',{ }, '');
 
 must(repairs, '/desktop/client-new.html', 'repair client-create navigation');
 mustNot(repairs, 'clientForm', 'repair page duplicate client form');

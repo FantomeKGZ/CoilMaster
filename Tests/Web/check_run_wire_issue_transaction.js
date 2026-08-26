@@ -26,6 +26,8 @@ const web = read('firmware/esp32/src/CM_MaterialRequestWeb.cpp');
 const managedWarehouse = read('firmware/esp32/src/CM_WarehouseRunWireManaged.cpp');
 const runtime = read('firmware/esp32/src/CM_MaterialRequestRuntime.cpp');
 const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
+const directWriteoffWeb = read('firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp');
+const directWriteoffStore = read('firmware/esp32/src/CM_WarehouseWriteOff.cpp');
 
 for (const field of [
   'materialRequestId', 'repairId', 'warehouseItemId',
@@ -100,4 +102,40 @@ for (const text of [
   requireText(materialWeb, text, `reserved RUN_WIRE ledger provenance guard ${text}`);
 }
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; RWI_TX provenance is reserved from direct MaterialLedger usage.');
+// Compatibility direct writeoff and atomic RUN_WIRE must share the same exact
+// session+run duplicate authority. This makes path switching non-repeatable:
+// atomic after legacy and legacy after atomic both stop before physical mutation.
+for (const [source, label] of [
+  [coordinator, 'atomic RUN_WIRE'],
+  [directWriteoffWeb, 'legacy/direct Web'],
+  [directWriteoffStore, 'legacy/direct store']
+]) {
+  requireText(source, 'confirmedWriteOffForSourceRun', `${label} exact-run duplicate lookup`);
+  requireText(source, 'alreadyConfirmed', `${label} exact-run duplicate result`);
+}
+requireText(
+  coordinator,
+  'm_warehouse.confirmedWriteOffForSourceRun(requestedMovement.sourceSessionId,',
+  'atomic exact source-session duplicate key');
+requireText(
+  coordinator,
+  'requestedMovement.sourceRunId,',
+  'atomic exact source-run duplicate key');
+requireText(
+  directWriteoffWeb,
+  'm_store.confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)',
+  'direct Web exact session+run duplicate key');
+requireText(
+  directWriteoffWeb,
+  'source_run_already_written_off',
+  'direct Web explicit duplicate rejection');
+requireText(
+  directWriteoffStore,
+  'confirmedWriteOffForSourceRun(operation.sourceSessionId,',
+  'direct store exact source-session duplicate key');
+requireText(
+  directWriteoffStore,
+  'operation.sourceRunId,',
+  'direct store exact source-run duplicate key');
+
+console.log('RUN_WIRE ISSUE transaction contracts: OK; RWI_TX provenance is reserved from direct MaterialLedger usage and legacy/direct versus atomic mutations share exact-run duplicate protection.');

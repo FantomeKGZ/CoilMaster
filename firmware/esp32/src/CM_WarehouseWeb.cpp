@@ -3,6 +3,7 @@
 #include "CM_ConductorSettingsWeb.h"
 #include "CM_MaterialLedger.h"
 #include "CM_MaterialLedgerWeb.h"
+#include "CM_SpoolMaterialBridgeWeb.h"
 #include <SD.h>
 
 namespace CM
@@ -71,11 +72,15 @@ void WarehouseWeb::begin()
     static ConductorSettingsWeb conductorSettingsWeb(m_server, m_store);
     static MaterialLedger materialLedger(SD);
     static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);
+    static SpoolMaterialBridgeStore spoolMaterialBridgeStore(SD);
+    static SpoolMaterialBridgeWeb spoolMaterialBridgeWeb(m_server, m_store, materialLedger, spoolMaterialBridgeStore);
 
     materialLedger.begin();
+    spoolMaterialBridgeStore.begin();
     conductorCalculatorWeb.begin();
     conductorSettingsWeb.begin();
     materialLedgerWeb.begin();
+    spoolMaterialBridgeWeb.begin();
 }
 
 void WarehouseWeb::handleSummary()

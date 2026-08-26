@@ -19,7 +19,6 @@ struct WarehouseMovementRepairTotals
     uint16_t copperWireLineCount;
     uint16_t aluminiumWireLineCount;
     uint16_t unknownWireLineCount;
-    uint16_t materialLineCount;
     String currency;
     bool currencySet;
 
@@ -35,7 +34,6 @@ struct WarehouseMovementRepairTotals
           copperWireLineCount(0U),
           aluminiumWireLineCount(0U),
           unknownWireLineCount(0U),
-          materialLineCount(0U),
           currencySet(false)
     {
     }

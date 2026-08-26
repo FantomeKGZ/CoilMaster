@@ -30,6 +30,8 @@ const directWriteoffWeb = read('firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp')
 const directWriteoffStore = read('firmware/esp32/src/CM_WarehouseWriteOff.cpp');
 const accountingAudit = read('firmware/esp32/src/CM_RunWireAccountingIntegrityAudit.cpp');
 const workshopAudit = read('firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.cpp');
+const movementHeader = read('firmware/esp32/src/CM_MaterialRequestMovementStore.h');
+const movementStore = read('firmware/esp32/src/CM_MaterialRequestMovementStore.cpp');
 
 for (const field of [
   'materialRequestId', 'repairId', 'warehouseItemId',
@@ -119,6 +121,28 @@ requireText(runtime, 'RunWireIssuePendingStore runWirePending', 'runtime authori
 requireText(runtime, 'SpoolMaterialBridgeStore spoolMaterialBridges', 'runtime bridge store');
 requireText(runtime, 'RunWireIssueCoordinator runWire', 'runtime dedicated coordinator');
 requireText(runtime, '!runWire.begin()', 'runtime fail-closed recovery gate');
+
+// The immutable Material Request movement is also a bounded read/report surface.
+// New RUN_WIRE records must carry exact spool_id directly, but the store derives
+// that value from the immutable session selection rather than trusting a caller.
+for (const text of [
+  'uint32_t spoolId;',
+  'spoolId(0UL)'
+]) {
+  requireText(movementHeader, text, `RUN_WIRE movement spool schema ${text}`);
+}
+for (const text of [
+  '#include "CM_JobSpoolSelectionStore.h"',
+  'JobSpoolSelectionStore::loadReadOnly',
+  'selection.repairId != movement.repairId',
+  'selection.wireType != movement.materialClass',
+  'selection.diameterHundredthsMm != movement.wireDiameterHundredthsMm',
+  '(persistedSpoolId != 0UL && persistedSpoolId != selection.spoolId)',
+  'persistedSpoolId = selection.spoolId',
+  'F(",\\\"spool_id\\\":")'
+]) {
+  requireText(movementStore, text, `immutable RUN_WIRE movement spool provenance ${text}`);
+}
 
 // RWI_TX is system-owned accounting provenance. Generic material usage and the
 // compatibility direct writeoff endpoint must not be able to spoof it.
@@ -213,4 +237,4 @@ requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evide
 requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
 requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; accounting identity, system provenance and one KG wire price converge across Material Request, MaterialLedger and warehouse CONFIRMED evidence.');
+console.log('RUN_WIRE ISSUE transaction contracts: OK; exact spool provenance is directly readable from new immutable request movements and accounting identity remains converged.');

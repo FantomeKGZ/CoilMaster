@@ -48,8 +48,9 @@ public:
     uint32_t totalRemainingGrams() const; uint32_t totalConsumedMonthGrams() const; uint32_t totalConsumedAllTimeGrams() const;
 
 private:
+    // Legacy journal-shape support is retained only so startup recovery can close
+    // historical direct WRITE_OFF PENDING records. No direct mutation entrypoint remains.
     struct ConfirmedSpoolWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t sourceSessionId;uint32_t sourceRunId;uint32_t weightBeforeGrams;uint32_t weightAfterGrams;String timestamp;String comment;ConfirmedSpoolWriteOff():spoolId(0UL),repairId(0UL),sourceSessionId(0UL),sourceRunId(0UL),weightBeforeGrams(0UL),weightAfterGrams(0UL){}};
-    struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;String wireType;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
     static constexpr const char* SpoolsPath="/data/warehouse/spools.ndjson";
     static constexpr const char* SpoolsTempPath="/data/warehouse/spools.tmp";
     static constexpr const char* SpoolsBackupPath="/data/warehouse/spools.bak";
@@ -69,10 +70,6 @@ private:
     void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
     bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);
-    // Legacy direct mutation remains implemented only for internal deterministic
-    // compatibility/recovery. It is intentionally not part of the public Store API.
-    bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
-    bool confirmKgFirstWriteOff(const KgFirstWriteOff& operation,SpoolWriteOffResult& result);
     bool appendWriteOffRecord(uint32_t movementId,const ConfirmedSpoolWriteOff& operation,uint16_t diameterHundredthsMm,uint32_t consumedGrams,const WarehousePrice& price,const char* status,const String& wireType);
     bool appendKgFirstWriteOffRecord(uint32_t movementId,const KgFirstWriteOff& operation,uint32_t weightBeforeGrams,uint32_t weightAfterGrams,const WarehousePrice& price,const char* status);
     static bool findUnsigned(const String& line,const char* key,uint32_t& value); static bool findString(const String& line,const char* key,String& value); static String jsonEscape(const String& value);

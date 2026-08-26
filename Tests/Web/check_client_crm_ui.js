@@ -1,3 +1,4 @@
+require('./check_cash_ui.js');
 const fs = require('fs');
 const path = require('path');
 

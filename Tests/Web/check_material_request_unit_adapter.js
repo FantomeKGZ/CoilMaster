@@ -30,4 +30,5 @@ must(source, '+\n         500ULL) /\n        1000ULL;', 'nearest-minor cost roun
 must(movement, 'unit == "M2"', 'movement M2 support');
 must(movement, 'movement.unit == "KG"', 'RUN_WIRE stays KG-only');
 
+require('./check_spool_material_bridge_store.js');
 console.log('Material Request unit adapter contracts OK');

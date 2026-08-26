@@ -32,7 +32,7 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> COMPLETED -> DELIVERED
 ```
 
-## Backend foundation — GREEN
+## GREEN foundation through checkpoint 114
 
 ```text
 97  Motor winding versions
@@ -50,73 +50,66 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 110 Material Request production runtime/Web API
 111 Repair delivery store/API + backup/integrity
 112 Cash payment/correction journal + repair/client balance API + backup/integrity
+113 Motor Web catalog + separate create + versioned card
+114 AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 ```
 
-Backend verification:
+Latest verification:
 
 ```text
-CMP 32928743465 / SUCCESS
-ESP32 Build 32928706196 / SUCCESS
+CMP 32934323481 / SUCCESS
+ESP32 Build 32934092563 / SUCCESS
 ```
 
-## Motor Web — Part A GREEN
+## Motor Web — CLOSED SOFTWARE GREEN
 
-Checkpoint: `113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md`
+Checkpoint: `114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md`
 
 Completed:
 
-- desktop `motors.html` is catalog-only;
-- separate `/desktop/motor-new.html` exists;
-- catalog shows phases, WORKING, STARTING and conductor summary;
-- latest version uses `/api/motors/winding/latest`;
-- legacy `coil_program + repeat_target` remains explicit synthesized WORKING;
-- `motor-details.html` shows current version and bounded version history;
-- WORKING/STARTING roles and canonical multi-conductor strings are visible;
-- repair history remains bounded and linked;
-- Web/SSR physical START safety wording remains explicit.
+- desktop `motors.html` catalog-only;
+- separate `/desktop/motor-new.html`;
+- current and historical versioned WORKING/STARTING data;
+- multi-conductor display;
+- immutable `AS_RECEIVED` vs after-repair comparison;
+- safe OPEN-repair links to existing linked-job page;
+- `?role=working|starting` support;
+- latest winding version authoritative for exact program + repeat target;
+- legacy fallback WORKING-only;
+- STARTING absence fails closed;
+- program and repeat target readonly in linked UI;
+- server revalidates exact role/program/repeat before persistence/UART;
+- exact spool selection remains authoritative;
+- no Web physical START / no direct SSR control.
 
-Verification:
+## Current active queue — Client Web
 
-```text
-CMP 32932380926 / SUCCESS
-CMP 32932518963 / SUCCESS
-```
-
-## Current active queue — Web/CRM UI
-
-### 1. Finish Motor Web
-
-1. Add AS_RECEIVED / after-rewind context to the motor card using immutable repair snapshots.
-2. Audit the existing linked-job path before adding direct WORKING/STARTING actions.
-3. Role-aware send must reuse exact repair/motor/spool/snapshot safety and must never create a shortcut around linked-job preflight.
-4. If no safe direct role handoff exists yet, extend the existing linked-job flow rather than POSTing a second job path.
-5. After role-aware job flow regression is GREEN, Motor Web is closed.
-
-### 2. Client Web
+### 1. Client catalog/create/card
 
 - `clients.html` catalog-only; remove creation form.
 - Create `client-new.html`.
 - Create `client-details.html?client_id=...`.
-- Remove duplicated inline client creation from repairs page; leave link/button to client-new.
+- Remove duplicated inline client creation from repairs page; leave link/button to `client-new.html`.
 - Client card must show:
   - identity/contact;
   - motors brought through repair history;
   - open/closed repairs;
-  - charges/payments/debt/credit;
+  - material-request links where relevant;
+  - charged / paid / debt / credit;
   - payment history;
   - completed/delivered status and dates.
-- Motor ownership is historical through repairs; do not make mutable `client_id` part of permanent physical motor identity.
+- Motor ownership is historical through repairs; never add mutable `client_id` to permanent physical motor identity.
 
-### 3. Dedicated Cash UI
+### 2. Dedicated Cash UI
 
 - Create `cash.html` using checkpoint 112 APIs.
 - `costing.html` remains cost/price/margin, not payments.
 - Main columns target:
   `Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус`.
-- Support payment, partial payments, correction, debt and credit display.
+- Support full/partial/multiple payments, correction, debt and credit display.
 - No destructive payment edits.
 
-### 4. Later coordinated wire migration
+### 3. Later coordinated wire migration
 
 Do not partially remove exact `spool_id`. Migration must change together:
 
@@ -128,7 +121,7 @@ backup/integrity/reports
 Web/tests
 ```
 
-Target still:
+Target remains:
 
 ```text
 RUN_COMPLETED -> non-mutating
@@ -138,7 +131,7 @@ source_session_id + source_run_id for RUN_WIRE
 CU/AL + actual weight
 ```
 
-### 5. Acceptance
+### 4. Acceptance
 
 - full Web/backend software regression;
 - backup/export/restore integrity;

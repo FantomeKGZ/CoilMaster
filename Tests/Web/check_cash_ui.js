@@ -26,7 +26,10 @@ for (const [token, label] of [
   ["value=\"SUBTRACT\"", 'SUBTRACT direction'],
   ["fd.set('corrects_event_id',corrects)", 'correction provenance'],
   ['function decimalToMinor', 'major-to-minor parser'],
-  ['BigInt(whole)*100n', 'integer money conversion'],
+  ['BigInt(whole)*100n', 'integer input money conversion'],
+  ['const n=BigInt(String(minor??0))', 'integer-exact money rendering'],
+  ['debt=b?BigInt(String(b.debt_minor||0))', 'integer-exact debt comparison'],
+  ['credit=b?BigInt(String(b.credit_minor||0))', 'integer-exact credit comparison'],
   ['if(!confirm(text))return', 'operator confirmation'],
   ['Старые cash events не редактируются и не удаляются', 'append-only wording'],
   ['Payment разрешён и после CLOSED/DELIVERED', 'post-close payment contract'],
@@ -42,7 +45,8 @@ for (const [token, label] of [
   ['/api/material-requests/warehouse', 'warehouse mutation'],
   ['/api/jobs', 'job mutation'],
   ['/api/hardware', 'hardware mutation'],
-  ['/api/start', 'start mutation']
+  ['/api/start', 'start mutation'],
+  ['const n=Number(minor)', 'lossy money rendering']
 ]) forbid(token, label);
 
 if (costing.includes("fetch('/api/payments',{method:'POST'")) {
@@ -56,4 +60,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Cash UI contracts OK: exact repair balance, bounded append-only payment history, explicit PAYMENT/CORRECTION writes, no destructive edits, and no machine/warehouse shortcuts.');
+console.log('Cash UI contracts OK: exact uint64 minor-unit display, exact repair balance, bounded append-only payment history, explicit PAYMENT/CORRECTION writes, no destructive edits, and no machine/warehouse shortcuts.');

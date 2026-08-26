@@ -34,7 +34,6 @@ public:
     bool confirmManagedRunWireWriteOff(uint32_t movementId,const KgFirstWriteOff& operation,uint32_t weightBeforeGrams,uint32_t weightAfterGrams);
     bool appendConfirmedWriteOffsPageJson(String& json,uint32_t repairId,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore,uint32_t& totalConsumedGrams,uint64_t& totalConsumedValueMinor,WriteOffMaterialTotals& materialTotals) const;
     bool setWarehousePrice(const WarehousePrice& price);
-    bool loadWarehousePrice(WarehousePrice& price) const;
     bool loadWarehousePrice(WarehousePrice& price,bool& configured) const;
     bool setConversionSettings(const ConversionSettings& settings);
     bool loadConversionSettings(ConversionSettings& settings) const;
@@ -64,6 +63,7 @@ private:
     bool recoverPendingWriteOff();
     bool recoverConversionSettingsFileSwap() const;
     bool loadConversionSettingsFromPath(const char* path,ConversionSettings& settings) const;
+    bool loadWarehousePrice(WarehousePrice& price) const;
     void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
     bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);

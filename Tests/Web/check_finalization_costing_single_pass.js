@@ -44,4 +44,23 @@ requireText(
   'if (!confirmedProvenanceUnique(storage, Path)) return false;',
   'provenance uniqueness validation');
 
-console.log('Finalization costing single-pass contracts OK: authoritative movement transaction/provenance validation and repair aggregation share the costing pass.');
+// Atomic RUN_WIRE owns both a MaterialLedger stock usage and a standard physical
+// warehouse movement. Costing must publish neither a mixed in-flight snapshot nor
+// count the same wire cost in both materialCostMinor and wireCostMinor.
+for (const text of [
+  '"/data/workshop/run-wire-issue.pending.json"',
+  '"/data/workshop/run-wire-issue.pending.tmp"',
+  'm_storage.exists(RunWirePendingPath)',
+  'm_storage.exists(RunWirePendingTempPath)',
+  'classifyRunWireManagedUsage(comment, runWireManaged)',
+  'comment.indexOf(F("RWI_TX=")) != 0',
+  'transactionRef.indexOf(F("RWI-")) != 0',
+  'if (runWireManaged) continue;',
+  'uint64_t total = summary.wireCostMinor;',
+  'addChecked64(total, summary.materialCostMinor)',
+  'addChecked64(total, summary.labourCostMinor)'
+]) {
+  requireText(costing, text, `RUN_WIRE costing dedup/fail-closed guard ${text}`);
+}
+
+console.log('Finalization costing single-pass contracts OK: authoritative movement transaction/provenance validation and repair aggregation share the costing pass; atomic RUN_WIRE ledger usage is not double-counted and in-flight RUN_WIRE costing fails closed.');

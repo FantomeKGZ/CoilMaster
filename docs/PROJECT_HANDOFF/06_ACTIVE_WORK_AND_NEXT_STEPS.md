@@ -28,11 +28,11 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> MATERIAL REQUEST
                           -> WAREHOUSE ISSUE/RETURN/CORRECTION
                           -> COSTING
-                     -> CASH/PAYMENTS
+                     -> CASH/PAYMENTS/BALANCE
                      -> COMPLETED -> DELIVERED
 ```
 
-## Phase A progress — GREEN
+## Backend foundation — GREEN
 
 ```text
 97  Motor winding versions
@@ -44,65 +44,92 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 104 CRM backup/export + integrity
 105 MaterialLedger catalog serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
-107 Material Request append-only lifecycle + backup/integrity
+107 Material Request lifecycle + backup/integrity
 108 Warehouse pending transaction persistence + stable-backup guard
 109 Crash-safe Material Request warehouse coordinator
 110 Material Request production runtime/Web API
+111 Repair delivery store/API + backup/integrity
+112 Cash payment/correction journal + repair/client balance API + backup/integrity
 ```
 
 Latest verification:
 
 ```text
-CMP 32926200712 / SUCCESS
-ESP32 Build 32926237400 / SUCCESS
+CMP 32928743465 / SUCCESS
+ESP32 Build 32928706196 / SUCCESS
 ```
 
-Material Request production API:
+## Current active queue — Web/CRM UI
+
+### 1. Motor Web
+
+- `motors.html` becomes catalog-only; remove inline creation form.
+- Create separate `motor-new.html`.
+- Restyle catalog using current `arduino-windings.html` archive pattern.
+- Catalog fields: motor, phases, WORKING program/repeats, STARTING program/repeats, conductor/material summary, actions.
+- 3-phase motor normally shows STARTING `—`.
+- `motor-details.html` becomes the motor working card:
+  - current winding version;
+  - WORKING/STARTING roles;
+  - multi-conductor representation;
+  - version history;
+  - AS_RECEIVED / after rewinding context;
+  - repair links;
+  - direct WORKING/STARTING job-send actions.
+- Direct send reuses existing linked-job safety and never physical auto-start.
+- Legacy single `coil_program + repeat_target` remains readable as synthesized WORKING data.
+
+### 2. Client Web
+
+- `clients.html` catalog-only; remove creation form.
+- Create `client-new.html`.
+- Create `client-details.html?client_id=...`.
+- Remove duplicated inline client creation from repairs page; leave link/button to client-new.
+- Client card must show:
+  - identity/contact;
+  - motors brought through repair history;
+  - open/closed repairs;
+  - charges/payments/debt/credit;
+  - payment history;
+  - completed/delivered status and dates.
+- Motor ownership is historical through repairs; do not make mutable `client_id` part of permanent physical motor identity.
+
+### 3. Dedicated Cash UI
+
+- Create `cash.html` using checkpoint 112 APIs.
+- `costing.html` remains cost/price/margin, not payments.
+- Main columns target:
+  `Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус`.
+- Support payment, partial payments, correction, debt and credit display.
+- No destructive payment edits.
+
+### 4. Later coordinated wire migration
+
+Do not partially remove exact `spool_id`. Migration must change together:
 
 ```text
-POST /api/material-requests
-GET  /api/material-requests?repair_id=...
-GET  /api/material-requests/item?material_request_id=...
-GET  /api/material-requests/movements?material_request_id=...
-GET  /api/material-requests/status?material_request_id=...
-POST /api/material-requests/status
-POST /api/material-requests/warehouse
+job/writeoff
+Material Request movement
+costing/finalization
+backup/integrity/reports
+Web/tests
 ```
 
-Server derives client/motor from repair; warehouse actions require explicit confirmation, accept no client-supplied price and mutate stock only through the crash-safe coordinator.
-
-## Current NEXT
-
-1. Immutable delivery event/store/API.
-2. Delivery is separate from repair completion and payment.
-3. Delivery record keeps exact `repair_id + client_id + motor_id + delivered_at` and optional comment.
-4. Only CLOSED repair may be delivered; zero balance is NOT a persistence requirement.
-5. Include delivery journal in backup/export + CRM integrity.
-6. Then append-only payment/correction journal/API and client/repair balance readers.
-7. Motor Web redesign: separate `motor-new.html`, archive-style catalog, versioned WORKING/STARTING details and direct send without physical auto-start.
-8. Client Web redesign: separate `client-new.html`, client card with motors, repairs, material requests, payments and delivery history.
-9. Cash UI after payment/costing contracts stabilize.
-10. Coordinated spool -> Material Request migration only after job/writeoff/finalization/backup/report/Web contracts are updated together.
-11. Final software regression + backup/restore.
-12. Full two-board hardware E2E.
-
-## Warehouse/catalog contract
-
-`MaterialLedger` remains authoritative generic catalog.
+Target still:
 
 ```text
-KG  -> GRAM x1000
-L   -> MILLILITRE x1000
-PCS -> PIECE x1
-M   -> METRE x1
-M2  -> SQUARE_METRE x1
+RUN_COMPLETED -> non-mutating
+operator explicit warehouse ISSUE
+material_request_id
+source_session_id + source_run_id for RUN_WIRE
+CU/AL + actual weight
 ```
 
-`RUN_WIRE` remains ISSUE/KG-only with exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` remains non-mutating.
+### 5. Acceptance
 
-## Wire migration rule
-
-Current exact `spool_id` contract remains authoritative until coordinated migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
+- full Web/backend software regression;
+- backup/export/restore integrity;
+- then full two-board hardware E2E.
 
 ## Safety invariants
 
@@ -115,11 +142,12 @@ Current exact `spool_id` contract remains authoritative until coordinated migrat
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
 - warehouse ISSUE requires explicit operator action;
-- run-linked wire movement preserves exact run provenance;
+- cash events never mutate machine/warehouse state;
+- delivery does not erase debt/history;
 - cancellation/operator abort never erases immutable evidence;
 - restore operator-only, transactional, fail-closed;
 - no automatic production-data deletion/truncation.
 
 ## Documentation discipline
 
-Synchronize after each meaningful block: 95, 101 when relevant, 06, 01, 90; update 00 when read order changes. Create a numbered checkpoint with exact CI evidence for every major store/API block.
+Synchronize after each meaningful block: 95, 101 when relevant, 06, 01, 90; update 00 when read order changes. Create a numbered checkpoint with exact CI evidence for every major store/API/UI block.

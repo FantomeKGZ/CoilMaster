@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/140_WINDING_SESSION_SELECTION_ONLY_PREFLIGHT_2026-08-26.md
 docs/PROJECT_HANDOFF/139_FINALIZATION_WRITEOFF_FIRST_BATCH_FUSED_AUDIT_2026-08-26.md
 docs/PROJECT_HANDOFF/138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
 docs/PROJECT_HANDOFF/137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08-26.md
@@ -50,29 +51,30 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **139**.
+Latest GREEN foundation = checkpoint **140**.
 
-Latest verified checkpoint-139 evidence:
+Latest verified checkpoint-140 evidence:
 
 ```text
-final source                       0e4896e0139ac8b7f79effb02d644e42dd057d22
-final contract                     1d78995c5cd203cbfadbaf67aa03b48a813a5ca0
-ESP32 Build #1602                  32979299677 / SUCCESS
-CMP Protocol Tests #3635           32979340004 / SUCCESS
+final source                       1584672e49288334da531235e3bec9f6a691fc7f
+final contract                     0e3786c2894cd5b078645ae24ed5ceb3975cb4ea
+ESP32 Build #1606                  32981707495 / SUCCESS
+CMP Protocol Tests #3644           32981785788 / SUCCESS
 ```
 
 ## Current state
 
-Warehouse summary and first finalization write-off coverage batch now reuse authoritative movement validation. Finalization retains the checkpoint-55 fixed 32-target RAM bound; the first batch combines exact coverage evidence with movement pairing/global provenance validation, while later batches remain bounded read-only scans. One redundant full `movements.ndjson` pass is removed.
+Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence now keeps the read-only pre-begin directory preflight only for spool-selection, the only session store whose `begin()` may promote recoverable temp evidence. Snapshot/state directories are validated once in their normal content pass, removing two redundant directory scans.
 
 MaterialLedger and RepairCosting repair/material lookups expose explicit result channels instead of convenience bool wrappers. Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
 
 ## Immediate NEXT
 
 1. Continue audit of growing append-only readers for concrete redundant full scans, preserving fixed-size batches.
-2. Prefer authoritative parser/audit reuse rather than parallel custom parsers.
-3. Preserve distinct Web HTTP preflight semantics and mutation-time TOCTOU validation.
-4. Do not weaken integrity/provenance checks or add automatic rotation/deletion/truncation.
-5. Continue software optimization before final two-board hardware E2E.
+2. Preserve mutation-sensitive preflight only where a `begin()` or recovery path can actually modify persisted state.
+3. Prefer authoritative parser/audit reuse rather than parallel custom parsers.
+4. Preserve distinct Web HTTP preflight semantics and mutation-time TOCTOU validation.
+5. Do not weaken integrity/provenance checks or add automatic rotation/deletion/truncation.
+6. Continue software optimization before final two-board hardware E2E.
 
 `RUN_COMPLETED` remains evidence only; no automatic writeoff, START or resume.

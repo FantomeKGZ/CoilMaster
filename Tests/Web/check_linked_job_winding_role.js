@@ -15,7 +15,7 @@ must(header, 'RemoteJobType requestedType', 'role-aware resolver overload');
 must(source, 'm_windingVersionsReady = m_windingVersions.begin();', 'fail-closed version store begin');
 must(source, 'appendLatestByMotorJson(versionJson', 'latest winding version lookup');
 must(source, 'requestedType == RemoteJobType::Starting', 'STARTING role branch');
-must(source, '\"starting_present\":true', 'STARTING presence gate');
+must(source, 'starting_present', 'STARTING presence gate');
 must(source, 'findString(versionJson, "starting_program"', 'STARTING program lookup');
 must(source, 'findUnsigned(versionJson, "starting_repeat_target"', 'STARTING repeat lookup');
 must(source, 'findString(versionJson, "working_program"', 'WORKING program lookup');

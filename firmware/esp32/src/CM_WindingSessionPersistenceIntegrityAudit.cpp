@@ -69,9 +69,6 @@ bool stateConsistentWithSnapshot(const JobRuntimeState& state,
         return state.completedRuns < snapshot.repeatTarget;
     }
 
-    // WaitingDelivery is already constrained by JobStateStore parsing to zero
-    // run evidence. ClosedAfterReview/Fault may preserve partial or final run
-    // evidence, but they still must never exceed the immutable target.
     return true;
 }
 
@@ -165,17 +162,17 @@ bool WindingSessionPersistenceIntegrityAudit::check(
     const bool hasStates = storage.exists(StateDirectory);
     const bool hasSelections = storage.exists(SelectionDirectory);
 
-    // Complete the read-only directory audit before any store begin(). In
-    // particular JobSpoolSelectionStore::begin() can recover a .tmp file, so a
-    // non-canonical entry must fail here before that code is reached. The backup
-    // manifest consumes this same measured preflight instead of rescanning the
-    // three directories separately.
+    // Only JobSpoolSelectionStore::begin() may promote a recoverable temp file.
+    // Snapshot/state begin() only ensure already-known directories and their
+    // content passes below reject temp/non-canonical entries themselves. Keep
+    // the read-only preflight solely on the selection directory so corrupt or
+    // stale selection temp evidence cannot be mutated before the audit sees it,
+    // while avoiding duplicate snapshot/state directory scans.
     const uint32_t preflightStartedAtMs = millis();
-    const char* directories[] = {SnapshotDirectory, StateDirectory, SelectionDirectory};
-    for (uint8_t index = 0U; index < sizeof(directories) / sizeof(directories[0]); ++index)
+    if (hasSelections)
     {
         const WindingSessionPersistenceAuditFailure failure =
-            directoryContentsCanonical(storage, directories[index]);
+            directoryContentsCanonical(storage, SelectionDirectory);
         if (failure != WindingSessionPersistenceAuditFailure::None)
         {
             validatedMetrics.directoryPreflightDurationMs = millis() - preflightStartedAtMs;
@@ -286,11 +283,6 @@ bool WindingSessionPersistenceIntegrityAudit::check(
                                  WindingSessionPersistenceAuditFailure::ContentInvalid);
             }
 
-            // A linked job may legitimately be interrupted before exact spool
-            // selection while it is still local-only CREATED preparation. Once
-            // it leaves that boundary, the immutable spool selection was already
-            // required before DELIVERING/UART and therefore becomes mandatory
-            // persistence evidence for this exact session.
             if (snapshot.linkage.linked && !JobStateStore::isLocalPreparation(state))
             {
                 JobSpoolSelection selection;

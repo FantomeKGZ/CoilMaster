@@ -15,11 +15,11 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 ## Current phase
 
-Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 129: atomic RUN_WIRE has authoritative operator UI, single-count costing, bounded cross-log integrity, one agreed KG price, direct exact-spool read provenance, hard-disabled legacy public writeoff POST, persisted spool integrity and narrowed legacy Store API/types.
+Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 130: atomic RUN_WIRE is the only current wire mutation path; accounting/provenance is converged and bounded; obsolete direct warehouse mutation code has now been deleted while historical deterministic recovery remains supported.
 
 ## Latest GREEN migration state
 
-Checkpoints 118–129 establish:
+Checkpoints 118–130 establish:
 
 ```text
 spool_id <-> warehouse_item_id + CU/AL + exact diameter
@@ -38,8 +38,9 @@ direct spool_id in new immutable RUN_WIRE movements
 legacy public writeoff POST = HTTP 410
 persisted spool_id == immutable JobSpoolSelection when field exists
 historic spool-less RUN_WIRE movement remains compatible
-legacy direct Store mutation methods = private
-legacy direct request/result support types = private
+legacy direct Store mutation entrypoints = removed
+legacy SpoolWriteOffResult = removed
+historical append/recovery helpers = retained
 ```
 
 Production operator path remains:
@@ -51,10 +52,12 @@ RUN_COMPLETED (evidence only)
 -> explicit POST /api/material-requests/warehouse
 -> immutable Material Request movement
 -> MaterialLedger usage tagged RWI_TX=<transaction_ref>
--> standard physical warehouse CONFIRMED writeoff
+-> managed physical warehouse PENDING/CONFIRMED evidence
 ```
 
-The bounded `/api/material-requests/movements` read path returns immutable movement JSON directly. New RUN_WIRE rows already expose exact `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id + material_class + diameter`; no additional report join/full-log scan is required.
+Current exact completion/spool/session/run/duplicate safety is owned by `RunWireIssueCoordinator`. Historical `WarehouseStore::recoverPendingWriteOff()` is not a new mutation entrypoint: it only reconciles already-durable old PENDING state from exact persisted BEFORE/AFTER spool evidence and retained append helpers.
+
+The bounded `/api/material-requests/movements` read path returns immutable movement JSON directly. New RUN_WIRE rows expose exact `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id + material_class + diameter`; no additional report join/full-log scan is required.
 
 Public compatibility boundary remains:
 
@@ -65,23 +68,25 @@ replacement = /api/material-requests/warehouse
 GET /api/warehouse/write-offs -> preserved history/coverage
 ```
 
-Latest verified checkpoint-129 evidence:
+Latest verified checkpoint-130 evidence:
 
 ```text
-b2f7f13f88bf2a5e489999fdf318523fc1fcdf46  legacy support type narrowing
-071e55923ead09264a801c250e8807a17823eba1  mandatory private-type contract
-ESP32 Build #1572   32963035385 / SUCCESS
-CMP Tests #3551     32963113298 / SUCCESS
+e9ebd56a0317a7aecf87d4e6fd49e5a3433c22fd  declarations/result removed
+2a0bde9954edbfb712336c38c677d70d405b0332  direct implementations removed
+6f355a7aa5b2071477b3a9bd8ac387d96abf0e13  final host contract alignment
+ESP32 Build #1574   32963503796 / SUCCESS
+CMP Tests #3563     32964152182 / SUCCESS
 ```
 
-Checkpoint: `129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md`.
+Checkpoint: `130_WAREHOUSE_DEAD_DIRECT_WRITEOFF_REMOVAL_2026-08-26.md`.
 
 ## Current NEXT
 
-1. Continue compile-proven removal/narrowing of dead legacy warehouse helpers only where deterministic recovery does not depend on them.
-2. Keep direct immutable movement fields as the preferred bounded RUN_WIRE report source.
-3. Do not add redundant full-log scans or duplicate cross-log joins.
-4. Continue software/integrity optimization before final hardware E2E.
+1. Continue compile-proven removal/narrowing of warehouse helpers only where historical deterministic recovery/history do not depend on them.
+2. Keep `appendWriteOffRecord`, `appendKgFirstWriteOffRecord`, movement codecs and startup recovery while persisted historical records/PENDING can exist.
+3. Keep direct immutable movement fields as preferred bounded RUN_WIRE report source.
+4. Do not add redundant full-log scans or duplicate cross-log joins.
+5. Continue software/integrity optimization before final hardware E2E.
 
 ## Safety invariants
 

@@ -4,6 +4,50 @@
 
 namespace CM
 {
+bool RepairRegistry::loadRepairIdentity(uint32_t repairId,
+                                        RepairIdentity& identity,
+                                        bool& found) const
+{
+    identity = RepairIdentity();
+    found = false;
+    if (!ready() || repairId == 0UL) return false;
+    if (!m_storage.exists(RepairsPath)) return true;
+
+    File file = m_storage.open(RepairsPath, FILE_READ);
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        uint32_t candidateId = 0UL;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "repair_id", candidateId) || candidateId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        if (candidateId != repairId) continue;
+        if (found ||
+            !findUnsigned(line, "client_id", identity.clientId) || identity.clientId == 0UL ||
+            !findUnsigned(line, "motor_id", identity.motorId) || identity.motorId == 0UL)
+        {
+            file.close();
+            return false;
+        }
+        identity.repairId = candidateId;
+        found = true;
+    }
+
+    file.close();
+    return true;
+}
+
 bool RepairRegistry::appendClientByIdJson(String& json,
                                           uint32_t clientId,
                                           bool& found) const

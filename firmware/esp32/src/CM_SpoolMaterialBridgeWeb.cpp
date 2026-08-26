@@ -4,8 +4,58 @@ namespace CM
 {
 void SpoolMaterialBridgeWeb::begin()
 {
+    m_server.on("/api/warehouse/spool-material-bridges", HTTP_GET,
+                [this]() { handleLookup(); });
     m_server.on("/api/warehouse/spool-material-bridges", HTTP_POST,
                 [this]() { handleCreate(); });
+}
+
+void SpoolMaterialBridgeWeb::handleLookup()
+{
+    if (!m_bridges.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"spool_material_bridge_unavailable\"}");
+        return;
+    }
+
+    uint32_t spoolId = 0UL;
+    if (!parseUnsigned(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_spool_id\"}");
+        return;
+    }
+
+    SpoolMaterialBridge bridge;
+    bool found = false;
+    if (!m_bridges.loadBySpool(spoolId, bridge, found))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"spool_bridge_read_failed\"}");
+        return;
+    }
+    if (!found)
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"spool_bridge_not_found\"}");
+        return;
+    }
+
+    String response = F("{\"bridge_id\":");
+    response += bridge.bridgeId;
+    response += F(",\"spool_id\":");
+    response += bridge.spoolId;
+    response += F(",\"warehouse_item_id\":");
+    response += bridge.warehouseItemId;
+    response += F(",\"wire_type\":\"");
+    response += bridge.wireType;
+    response += F("\",\"diameter_hundredths_mm\":");
+    response += bridge.diameterHundredthsMm;
+    response += F(",\"linked_at\":\"");
+    response += bridge.linkedAt;
+    response += F("\",\"stock_mutated\":false}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void SpoolMaterialBridgeWeb::handleCreate()

@@ -4,13 +4,6 @@
 namespace CM
 {
 bool WarehouseStore::loadActiveSpoolIdentity(uint32_t spoolId,
-                                              ActiveWireSpoolIdentity& identity) const
-{
-    bool found = false;
-    return loadActiveSpoolIdentity(spoolId, identity, found) && found;
-}
-
-bool WarehouseStore::loadActiveSpoolIdentity(uint32_t spoolId,
                                               ActiveWireSpoolIdentity& identity,
                                               bool& found) const
 {

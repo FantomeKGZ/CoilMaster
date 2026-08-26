@@ -32,9 +32,11 @@ for (const forbidden of [
 }
 
 for (const required of [
-  'constexpr uint8_t CoverageBatchSize = WarehouseMovementCoverageMaxTargets;',
+  'constexpr uint8_t CoverageBatchSize = 32U;',
+  'static_assert(CoverageBatchSize == WarehouseMovementCoverageMaxTargets,',
+  'using CoverageTarget = WarehouseMovementCoverageTarget;',
   'bool movementIntegrityValidated = false;',
-  'WarehouseMovementCoverageTarget targets[CoverageBatchSize];',
+  'CoverageTarget targets[CoverageBatchSize];',
   '? WarehouseMovementIntegrityAudit::checkCoverageBatch(',
   ': confirmedWriteOffBatch(storage, repairId, targets, targetCount);',
   'movementIntegrityValidated = true;'
@@ -56,7 +58,7 @@ for (const required of [
   'bool accumulateCoverageRecord(const WarehouseWriteOffRecord& record,',
   'record.repairId != repairId',
   'record.spoolId != target.spoolId',
-  'record.sourceRunId != target.sourceRunId',
+  'record.sourceRunId != target.runId',
   'coverageTargets != nullptr &&',
   '!accumulateCoverageRecord(record, repairId,',
   'if (!confirmedProvenanceUnique(storage, Path)) return false;',

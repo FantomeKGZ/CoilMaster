@@ -47,40 +47,17 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 107 Material Request append-only lifecycle + backup/integrity
 108 Warehouse pending transaction persistence + stable-backup guard
 109 Crash-safe Material Request warehouse coordinator
+110 Material Request production runtime/Web API
 ```
 
-Checkpoint 109 evidence:
+Latest verification:
 
 ```text
-CMP run 32925574132 / SUCCESS
-CMP run 32925599254 / SUCCESS
+CMP 32926200712 / SUCCESS
+ESP32 Build 32926237400 / SUCCESS
 ```
 
-Coordinator guarantees:
-
-```text
-operator confirmation
--> pending marker
--> immutable movement
--> MaterialLedger mutation
--> dual evidence verification
--> pending clear
-```
-
-Recovery:
-
-```text
-neither -> safe retry/no-op
-movement only -> complete ledger
-ledger only -> fail-closed
-both -> clear pending
-```
-
-`CORRECTION` persists `ADD|REMOVE`; `RUN_WIRE` is ISSUE/KG-only with exact session/run provenance.
-
-## Block 110 — Material Request runtime/Web API — IN PROGRESS
-
-Implemented routes:
+Material Request production API:
 
 ```text
 POST /api/material-requests
@@ -92,61 +69,26 @@ POST /api/material-requests/status
 POST /api/material-requests/warehouse
 ```
 
-Rules:
-
-- request creation derives `client_id + motor_id` server-side from `repair_id`;
-- repair must exist and be OPEN to create a request;
-- warehouse mutation requires `confirmed=true`;
-- Web does not accept material pricing;
-- warehouse mutation routes only through `MaterialRequestWarehouseCoordinator`;
-- request stores/coordinator recover before routes are registered;
-- lifecycle transitions remain explicit and separate;
-- `RUN_COMPLETED` remains non-mutating.
-
-Verification at last update:
-
-```text
-runtime bootstrap ESP32 Build 32926105448 / SUCCESS
-API safety CMP 32926200712 / pending/running
-integrated production ESP32 Build 32926237400 / pending/running
-```
-
-Do not mark block 110 GREEN until both current integrated checks succeed.
+Server derives client/motor from repair; warehouse actions require explicit confirmation, accept no client-supplied price and mutate stock only through the crash-safe coordinator.
 
 ## Current NEXT
 
-1. Close checkpoint 110 after integrated CMP + ESP32 GREEN.
-2. Implement immutable delivery event/store/API:
-
-```text
-repair completed != delivered
-DELIVERED records repair_id + client_id + motor_id + delivered_at
-```
-
-3. Implement append-only payment/correction journal/API:
-
-```text
-payment -> client_id + repair_id + amount + timestamp + method
-correction -> separate event, never destructive edit
-```
-
-4. Add repair/client balance readers combining priced repair totals and payment journal.
-5. Begin Motor Web redesign:
-   - separate `motor-new.html`;
-   - archive-style `motors.html`;
-   - versioned WORKING/STARTING winding data in `motor-details.html`;
-   - direct job send from motor card without physical auto-start.
-6. Client Web redesign:
-   - separate `client-new.html`;
-   - `client-details.html` with motors, repairs, material requests, payments and delivery history.
-7. Cash UI after payment/costing contracts are stable.
-8. Coordinated spool -> material-request wire migration only after job/writeoff/finalization/backup/report/Web contracts are updated together.
-9. Final full software regression + backup/restore.
-10. Full two-board hardware E2E acceptance.
+1. Immutable delivery event/store/API.
+2. Delivery is separate from repair completion and payment.
+3. Delivery record keeps exact `repair_id + client_id + motor_id + delivered_at` and optional comment.
+4. Only CLOSED repair may be delivered; zero balance is NOT a persistence requirement.
+5. Include delivery journal in backup/export + CRM integrity.
+6. Then append-only payment/correction journal/API and client/repair balance readers.
+7. Motor Web redesign: separate `motor-new.html`, archive-style catalog, versioned WORKING/STARTING details and direct send without physical auto-start.
+8. Client Web redesign: separate `client-new.html`, client card with motors, repairs, material requests, payments and delivery history.
+9. Cash UI after payment/costing contracts stabilize.
+10. Coordinated spool -> Material Request migration only after job/writeoff/finalization/backup/report/Web contracts are updated together.
+11. Final software regression + backup/restore.
+12. Full two-board hardware E2E.
 
 ## Warehouse/catalog contract
 
-Existing `MaterialLedger` remains authoritative generic catalog.
+`MaterialLedger` remains authoritative generic catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -156,27 +98,11 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-Current Material Request movement units:
-
-```text
-KG | L | PCS | M | M2
-```
-
-`RUN_WIRE` remains ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
+`RUN_WIRE` remains ISSUE/KG-only with exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` remains non-mutating.
 
 ## Wire migration rule
 
-Current exact `spool_id` contract remains authoritative until coordinated migration across:
-
-```text
-job/writeoff
-material-request movement
-costing/finalization
-backup/integrity/reports
-Web/tests
-```
-
-Future run-linked wire issue remains manual and keeps exact session/run provenance.
+Current exact `spool_id` contract remains authoritative until coordinated migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
 
 ## Safety invariants
 
@@ -196,15 +122,4 @@ Future run-linked wire issue remains manual and keeps exact session/run provenan
 
 ## Documentation discipline
 
-Synchronize after each meaningful block:
-
-```text
-95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md when relevant
-06_ACTIVE_WORK_AND_NEXT_STEPS.md
-01_CURRENT_STATE.md
-90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
-00_READ_FIRST.md when entrypoint/read order changes
-```
-
-Create numbered checkpoint with exact commits + CI evidence for each major store/API block.
+Synchronize after each meaningful block: 95, 101 when relevant, 06, 01, 90; update 00 when read order changes. Create a numbered checkpoint with exact CI evidence for every major store/API block.

@@ -9,15 +9,16 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **133**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse lookup APIs now preserve explicit fail-closed result channels for repair existence, spool existence, wire catalogue count and price configuration.
+GREEN through checkpoint **134**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse lookup APIs are fail-closed, obsolete direct writeoff code is removed, and warehouse summary no longer performs a duplicate manual full parse of `movements.ndjson`.
 
 ## Latest GREEN state
 
 ```text
 130 direct legacy Store mutation implementations removed
-131 repairExists(id) wrapper removed -> repairExists(id, found)
-132 spool identity/count-only catalogue wrappers removed -> explicit found/count
-133 loadWarehousePrice(price) removed from public API -> explicit configured form public
+131 repair lookup -> explicit found
+132 spool identity + wire catalogue -> explicit found/count
+133 warehouse price public read -> explicit configured
+134 warehouse summary -> authoritative movement audit + aggregation in one primary codec pass
 ```
 
 Production RUN_WIRE path remains:
@@ -30,31 +31,24 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Public price read boundary:
+Checkpoint 134 preserves global exact-run provenance uniqueness. Only the redundant summary parser/pass was removed; bounded provenance verification remains fail-closed.
+
+The old one-argument `loadWarehousePrice(WarehousePrice&)` declaration and implementation are now fully removed. Public price reads use only `loadWarehousePrice(price, configured)`.
+
+Latest verified checkpoint-134 evidence:
 
 ```text
-bool loadWarehousePrice(price, configured)
-false                   = storage/integrity failure
-true + configured=false = valid store, price not configured
+e734ad77ee232a9ed17b1118179e1ffd96666cc5  final source
+ESP32 Build #1585   32967638219 / SUCCESS
+CMP Tests #3594     32967638259 / SUCCESS
 ```
 
-The old one-argument wrapper remains private implementation-only for now; no production caller can use it.
-
-Latest verified checkpoint-133 evidence:
-
-```text
-fe0992219e50800e0dbf181b365d5788f76fc445  price wrapper private
-70f987ba58becb1d43ff744bc4ceb02c9cedc0bf  explicit configured-form contract
-ESP32 Build #1580   32966647349 / SUCCESS
-CMP Tests #3584     32966706823 / SUCCESS
-```
-
-Checkpoint: `133_WAREHOUSE_PRICE_LOOKUP_VISIBILITY_2026-08-26.md`.
+Checkpoint: `134_WAREHOUSE_MOVEMENT_SUMMARY_SINGLE_PASS_2026-08-26.md`.
 
 ## Current NEXT
 
-1. Audit warehouse summary for duplicate full `movements.ndjson` passes.
-2. Merge validation + summary aggregation only if fail-closed movement integrity remains identical.
+1. Audit MaterialLedger/runtime for duplicate full-log validation + read passes.
+2. Reuse existing validated preflight outputs only where semantics remain fail-closed.
 3. No automatic production-data rotation/deletion/truncation and no premature DB migration.
 4. Preserve historical recovery/history and atomic RUN_WIRE safety.
 

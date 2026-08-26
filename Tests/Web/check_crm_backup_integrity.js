@@ -10,6 +10,7 @@ const deliveryAudit = fs.readFileSync('firmware/esp32/src/CM_RepairDeliveryInteg
 const repairWeb = fs.readFileSync('firmware/esp32/src/CM_RepairRegistryWeb.cpp', 'utf8');
 const cashStoreHeader = fs.readFileSync('firmware/esp32/src/CM_CashPaymentStore.h', 'utf8');
 const cashStore = fs.readFileSync('firmware/esp32/src/CM_CashPaymentStore.cpp', 'utf8');
+const cashLookup = fs.readFileSync('firmware/esp32/src/CM_CashPaymentStoreLookup.cpp', 'utf8');
 const cashWeb = fs.readFileSync('firmware/esp32/src/CM_CashPaymentWeb.cpp', 'utf8');
 const cashAudit = fs.readFileSync('firmware/esp32/src/CM_CashPaymentIntegrityAudit.cpp', 'utf8');
 const materialWeb = fs.readFileSync('firmware/esp32/src/CM_MaterialLedgerWeb.cpp', 'utf8');
@@ -68,26 +69,40 @@ must(deliveryAudit, 'RepairLifecycle::isOpen', 'delivery CLOSED repair audit');
 must(deliveryAudit, 'repairOpen', 'delivery open-state fail-closed audit');
 
 must(cashStoreHeader, '/data/workshop/repair-payments.ndjson', 'cash journal path');
+must(cashStoreHeader, 'CashClientTotals', 'cash client totals contract');
+must(cashStoreHeader, 'eventBelongsToRepair', 'correction repair identity lookup contract');
+must(cashStoreHeader, 'totalsForClient', 'client payment totals contract');
 must(cashStore, 'FILE_APPEND', 'append-only cash evidence');
 must(cashStore, 'kind == "PAYMENT"', 'payment kind');
 must(cashStore, 'kind == "CORRECTION"', 'correction kind');
 must(cashStore, 'direction == "ADD" || direction == "SUBTRACT"', 'correction directions');
-must(cashStore, 'if (subtracted > added) return false;', 'non-negative paid total invariant');
-if (cashStore.includes('client_price_minor')) {
+must(cashStore, 'if (subtracted > added) return false;', 'non-negative repair paid total invariant');
+must(cashLookup, 'CashPaymentStore::eventBelongsToRepair', 'correction exact repair lookup');
+must(cashLookup, 'currentRepair == repairId && currentClient == clientId', 'correction repair/client match');
+must(cashLookup, 'CashPaymentStore::totalsForClient', 'single-pass client totals');
+must(cashLookup, 'if (subtracted > added) return false;', 'non-negative client paid total invariant');
+if (cashStore.includes('client_price_minor') || cashLookup.includes('client_price_minor')) {
   throw new Error('cash journal must not duplicate authoritative repair price');
 }
 
 must(cashWeb, '"/api/payments"', 'payment API');
 must(cashWeb, '"/api/payments/balance"', 'balance API');
+must(cashWeb, 'exactly_one_balance_filter_required', 'repair/client balance selector');
 must(cashWeb, 'explicit_confirmation_required', 'payment explicit confirmation');
 must(cashWeb, 'm_repairs.loadRepairIdentity', 'server-derived payment client identity');
 must(cashWeb, 'm_costing.load(repairId, pricing)', 'authoritative repair price read');
 must(cashWeb, 'event.currency != pricing.currency', 'payment currency guard');
+must(cashWeb, 'eventBelongsToRepair(event.correctsEventId', 'correction target repair guard');
+must(cashWeb, 'correction_reference_repair_mismatch_or_missing', 'correction mismatch rejection');
 must(cashWeb, 'correction_exceeds_paid_total', 'subtract correction lower bound');
+must(cashWeb, 'sendClientBalance', 'client aggregate balance');
+must(cashWeb, 'appendRepairsPageJson', 'bounded authoritative client repair paging');
+must(cashWeb, 'totalsForClient(clientId, paid)', 'single-pass client payment aggregation');
 must(cashWeb, 'charged_minor', 'charged balance field');
 must(cashWeb, 'paid_minor', 'paid balance field');
 must(cashWeb, 'debt_minor', 'debt balance field');
 must(cashWeb, 'credit_minor', 'credit balance field');
+must(cashWeb, 'repair_count', 'client repair count field');
 if (cashWeb.includes('repairIsOpen')) {
   throw new Error('payments must remain possible after repair close/delivery');
 }
@@ -95,9 +110,9 @@ if (cashWeb.includes('repairIsOpen')) {
 must(cashAudit, 'CashPaymentStore::Path', 'cash audit journal source');
 must(cashAudit, 'identity.clientId != clientId', 'cash repair/client identity audit');
 must(cashAudit, 'pricing.currency != currency', 'cash pricing currency audit');
-must(cashAudit, '!payments.eventExists(correctsId)', 'cash correction reference audit');
+must(cashAudit, 'payments.eventBelongsToRepair(correctsId, repairId, clientId, belongs)', 'cash correction same-repair audit');
 if (cashAudit.includes('storage.remove(')) {
-  throw new Error('cash integrity audit must be read-only');
+  throw new Error('cash integrity audit must not delete data');
 }
 
 must(materialWeb, 'static CashPaymentStore cashPayments(SD);', 'cash payment production store');

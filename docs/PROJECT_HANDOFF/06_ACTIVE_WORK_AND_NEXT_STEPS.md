@@ -18,9 +18,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 ```text
 95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 120
+## GREEN foundation through checkpoint 121
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -28,45 +29,66 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 118 append-only spool_id <-> warehouse_item_id bridge + bounded integrity + backup/export
 119 backward-compatible MaterialLedger wire metadata + exact bridge metadata validation
 120 explicit operator-only runtime spool-material bridge creation
+121 atomic explicit-operator RUN_WIRE ISSUE across Material Request + MaterialLedger + exact physical spool
 ```
 
-Latest verified on final checkpoint-120 tree `fa651e3e50a25df9489db24b6c71bd853171a9b8`:
+Latest verified source/test evidence:
 
 ```text
-CMP Protocol Tests 32944119683 / SUCCESS
-ESP32 Build         32944119688 / SUCCESS
+source commit        db643d33cd5327556429e71f3734864c484d2f40
+final test commit    7e73e9016c690e3ec65dfacfe3a80328b05a2148
+ESP32 Build #1551    32951550134 / SUCCESS
+CMP Tests #3475      32951582879 / SUCCESS
 ```
 
-Checkpoint 120: `120_OPERATOR_SPOOL_MATERIAL_BRIDGE_WEB_2026-08-26.md`.
+Checkpoint 121: `121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md`.
 
-## Current active queue — crash-safe run-linked RUN_WIRE migration
+## Checkpoint 121 transaction boundary
 
-The physical spool ↔ MaterialLedger identity bridge is now available through an explicit operator-only POST. Bridge creation appends identity evidence only and does not mutate either stock domain.
+RUN_WIRE is no longer allowed through the generic Ledger-only path. The explicit operator route requires:
+
+```text
+confirmed=true
+movement_kind=ISSUE
+source_kind=RUN_WIRE
+unit=KG
+material_request_id
+repair_id
+warehouse_item_id
+source_session_id + source_run_id
+exact spool_id
+CU|AL + exact diameter
+actual consumed grams
+```
+
+One durable high-level pending freezes exact identity, before/after spool weight and costing. Recovery verifies Material Request movement, Ledger `RWI_TX` usage, standard warehouse CONFIRMED writeoff and exact spool state. Impossible ordering fails closed.
+
+Backup/restore is blocked while RUN_WIRE pending/tmp recovery intent exists.
+
+## Current active queue — operator/report completion
 
 Next coherent block:
 
-1. Inspect existing `MaterialLedger` usage/adjustment transaction semantics and current Material Request warehouse coordinator before choosing the mutation owner.
-2. Design one crash-safe explicit-operator transaction for run-linked wire ISSUE; do not perform two independent writes without pending/recovery evidence.
-3. Require exact `material_request_id + source_session_id + source_run_id`.
-4. Preserve exact physical `spool_id` provenance through the authoritative spool-material bridge.
-5. Preserve exact `CU|AL + diameter` identity and actual consumed weight.
-6. Keep `RUN_COMPLETED` strictly non-mutating.
-7. Integrate movement/costing/finalization/backup/integrity/reports/Web/tests coherently before retiring any old exact-spool production requirement.
+1. Audit current Web operator surfaces that can perform or suggest exact-spool writeoff and Material Request warehouse ISSUE.
+2. Add a bounded operator path for the new atomic RUN_WIRE ISSUE without any automatic action on `RUN_COMPLETED`.
+3. Show/retain exact `material_request_id + source_session_id + source_run_id + spool_id + warehouse_item_id` provenance in read/report surfaces.
+4. Verify costing/finalization/report consumers continue to use standard confirmed physical writeoff evidence and do not double-count MaterialLedger usage.
+5. Add contract tests for duplicate/double-accounting prevention across old direct exact-spool and new RUN_WIRE paths.
+6. Keep the legacy direct exact-spool writeoff available until this operator/report transition is fully GREEN.
+7. Continue software optimization/integrity work before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
 RUN_COMPLETED -> non-mutating
-explicit operator warehouse ISSUE
-material_request_id
-source_session_id + source_run_id
-exact physical spool provenance via bridge
-CU/AL + actual consumed weight
-manual confirmation
-crash-safe pending/recovery
+operator reviews completed run
+operator chooses exact Material Request / exact bridged spool
+explicit atomic RUN_WIRE ISSUE
+one physical confirmed writeoff evidence
+one MaterialLedger usage evidence
+one Material Request movement evidence
+reports/costing/finalization remain consistent
 ```
-
-Current exact-spool writeoff/finalization remains authoritative until this coordinated transition is fully GREEN end-to-end.
 
 ## Safety invariants
 
@@ -79,9 +101,11 @@ Current exact-spool writeoff/finalization remains authoritative until this coord
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
 - warehouse ISSUE requires explicit operator action;
+- exact spool/session/run provenance cannot be inferred or weakened;
 - cash events never mutate machine/warehouse state;
 - cancellation/operator abort never erases immutable evidence;
 - restore operator-only, transactional, fail-closed;
+- backup/restore blocks on unfinished RUN_WIRE transaction;
 - no automatic production-data deletion/truncation.
 
 ## Documentation discipline

@@ -65,6 +65,35 @@ requireText(coordinator, 'spoolStateMatches', 'exact before/after recovery evide
 requireText(coordinator, '!movementFound && (ledgerFound || warehouseFound || spoolAtAfter)', 'fail-closed impossible ordering');
 requireText(coordinator, 'movementFound && !ledgerFound && (warehouseFound || spoolAtAfter)', 'fail-closed ledger ordering');
 
+// RUN_WIRE must not begin with one MaterialLedger price and later commit a
+// different physical warehouse price. buildPending runs before pending.save.
+const buildPendingStart = coordinator.indexOf('bool RunWireIssueCoordinator::buildPending(');
+const appendMovementStart = coordinator.indexOf('bool RunWireIssueCoordinator::appendMaterialRequestMovement(', buildPendingStart);
+const buildPendingBody = coordinator.slice(buildPendingStart, appendMovementStart);
+for (const text of [
+  'm_warehouse.loadWarehousePrice(warehousePrice, warehousePriceConfigured)',
+  'warehousePrice.currency != item.currency',
+  'conversion.requestUnitCostMinor > 0xFFFFFFFFULL',
+  'warehousePrice.pricePerKgMinor !=',
+  'static_cast<uint32_t>(conversion.requestUnitCostMinor)'
+]) {
+  requireText(buildPendingBody, text, `pre-pending price convergence ${text}`);
+}
+requireText(coordinator, 'if (!buildPending(requestedMovement, spoolId, pending) ||', 'price-checked build before pending');
+requireText(coordinator, '!m_pending.save(pending)', 'pending persisted only after build');
+
+const physicalStart = coordinator.indexOf('bool RunWireIssueCoordinator::executePhysicalPhases(');
+const movementEvidenceStart = coordinator.indexOf('bool RunWireIssueCoordinator::movementEvidenceExists(', physicalStart);
+const physicalBody = coordinator.slice(physicalStart, movementEvidenceStart);
+for (const text of [
+  'm_warehouse.loadWarehousePrice(warehousePrice, warehousePriceConfigured)',
+  'warehousePrice.currency != pending.currency',
+  'pending.unitCostMinor > 0xFFFFFFFFULL',
+  'warehousePrice.pricePerKgMinor != static_cast<uint32_t>(pending.unitCostMinor)'
+]) {
+  requireText(physicalBody, text, `recovery/physical price convergence ${text}`);
+}
+
 requireText(managedWarehouse, 'appendKgFirstWriteOffRecord', 'existing append-only warehouse evidence');
 requireText(managedWarehouse, '"PENDING"', 'subordinate warehouse pending phase');
 requireText(managedWarehouse, '"CONFIRMED"', 'subordinate warehouse confirmed phase');
@@ -91,9 +120,8 @@ requireText(runtime, 'SpoolMaterialBridgeStore spoolMaterialBridges', 'runtime b
 requireText(runtime, 'RunWireIssueCoordinator runWire', 'runtime dedicated coordinator');
 requireText(runtime, '!runWire.begin()', 'runtime fail-closed recovery gate');
 
-// RWI_TX is system-owned accounting provenance. A direct operator call to the
-// generic MaterialLedger usage endpoint must not be able to spoof this prefix
-// and make ordinary material usage disappear from RepairCosting.
+// RWI_TX is system-owned accounting provenance. Generic material usage and the
+// compatibility direct writeoff endpoint must not be able to spoof it.
 for (const text of [
   'const String usageComment=m_server.arg("comment")',
   'usageComment.indexOf(F("RWI_TX="))==0',
@@ -102,6 +130,14 @@ for (const text of [
   'usage.comment=usageComment'
 ]) {
   requireText(materialWeb, text, `reserved RUN_WIRE ledger provenance guard ${text}`);
+}
+for (const text of [
+  'const String operatorComment = m_server.arg("comment")',
+  'operatorComment.indexOf(F("RWI_TX=")) == 0',
+  'reserved_writeoff_comment_prefix',
+  'operation.comment = operatorComment'
+]) {
+  requireText(directWriteoffWeb, text, `reserved RUN_WIRE warehouse provenance guard ${text}`);
 }
 
 // Compatibility direct writeoff and atomic RUN_WIRE must share the same exact
@@ -158,13 +194,17 @@ for (const text of [
   'reference.sourceRunId',
   'reference.consumedGrams',
   'reference.ledgerQuantityMilli',
+  'reference.unitCostMinor',
   'reference.materialClass',
   'reference.diameterHundredthsMm',
+  'price_per_unit_minor',
+  'record.pricePerKgMinor != static_cast<uint32_t>(reference.unitCostMinor)',
   'metrics.movementCount == metrics.ledgerEvidenceCount',
   'metrics.movementCount == metrics.warehouseEvidenceCount'
 ]) {
   requireText(accountingAudit, text, `cross-log RUN_WIRE accounting contract ${text}`);
 }
+requireText(accountingAudit, 'reference.unitCostMinor / 1000ULL', 'Ledger gram price from immutable KG price');
 requireText(accountingAudit, 'extractRunWireTag', 'system RWI transaction tag parser');
 requireText(accountingAudit, 'RWI_TX=', 'cross-log transaction marker');
 requireText(accountingAudit, 'matches > 1U', 'exact bridge duplicate rejection');
@@ -173,4 +213,4 @@ requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evide
 requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
 requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; accounting provenance is exact across Material Request, MaterialLedger, immutable spool/bridge, and warehouse CONFIRMED evidence.');
+console.log('RUN_WIRE ISSUE transaction contracts: OK; accounting identity, system provenance and one KG wire price converge across Material Request, MaterialLedger and warehouse CONFIRMED evidence.');

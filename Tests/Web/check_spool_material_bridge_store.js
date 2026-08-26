@@ -6,6 +6,7 @@ const header = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMater
 const source = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMaterialBridgeStore.cpp'), 'utf8');
 const writeoff = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp'), 'utf8');
 const warehouseHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseStore.h'), 'utf8');
+const repairValidation = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseRepairValidation.cpp'), 'utf8');
 const writeoffStore = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOff.cpp'), 'utf8');
 const writeoffRecovery = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp'), 'utf8');
 const runWire = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp'), 'utf8');
@@ -56,7 +57,6 @@ for (const token of [
   'handleListWriteOffs()'
 ]) must(writeoff, token, 'legacy writeoff hard deprecation');
 
-// Historical direct journal shape remains private only for startup recovery.
 const classStart = warehouseHeader.indexOf('class WarehouseStore');
 const privateStart = warehouseHeader.indexOf('\nprivate:', classStart);
 const confirmedType = warehouseHeader.indexOf('struct ConfirmedSpoolWriteOff', classStart);
@@ -72,8 +72,15 @@ for (const token of ['SpoolWriteOffResult', 'confirmSpoolWriteOff(', 'confirmKgF
   mustNot(writeoffStore, token, 'dead direct-writeoff implementation');
 }
 
-// Recovery still closes historical direct PENDING records deterministically;
-// the append helper remains internal and no new direct entrypoint is restored.
+// Repair reference lookup must preserve a separate read-success result and found
+// result. The ambiguous convenience bool wrapper is intentionally removed.
+must(warehouseHeader, 'bool repairExists(uint32_t repairId,bool& found) const;', 'fail-closed repair lookup API');
+must(repairValidation, 'bool WarehouseStore::repairExists(uint32_t repairId, bool& found) const', 'fail-closed repair lookup implementation');
+must(repairValidation, 'found = false;', 'repair lookup initializes found');
+must(repairValidation, 'return false;', 'repair lookup read failure remains explicit');
+mustNot(warehouseHeader, 'bool repairExists(uint32_t repairId) const;', 'ambiguous repair lookup wrapper');
+mustNot(repairValidation, 'bool WarehouseStore::repairExists(uint32_t repairId) const', 'ambiguous repair lookup implementation');
+
 for (const token of [
   'pending.mode == WarehouseWriteOffMode::LegacySpool',
   'ConfirmedSpoolWriteOff operation;',
@@ -99,4 +106,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: public legacy POST and dead direct Store entrypoints are removed, historical recovery helpers remain deterministic, and atomic RUN_WIRE exact-spool/run safety stays authoritative.');
+console.log('Spool material bridge foundation contracts OK: dead direct writeoff surfaces stay removed, repair lookup is fail-closed, historical recovery remains deterministic, and atomic RUN_WIRE exact-spool/run safety stays authoritative.');

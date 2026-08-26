@@ -268,6 +268,21 @@ bool RunWireIssueCoordinator::buildPending(
         return false;
     }
 
+    // Atomic RUN_WIRE must have one price authority. MaterialLedger stores the
+    // wire item's price per gram while the physical warehouse movement/costing
+    // stores price per kg. Their exact KG-equivalent values must agree before
+    // any high-level pending intent is persisted.
+    WarehousePrice warehousePrice;
+    bool warehousePriceConfigured = false;
+    if (!m_warehouse.loadWarehousePrice(warehousePrice, warehousePriceConfigured) ||
+        !warehousePriceConfigured || warehousePrice.currency != item.currency ||
+        conversion.requestUnitCostMinor > 0xFFFFFFFFULL ||
+        warehousePrice.pricePerKgMinor !=
+            static_cast<uint32_t>(conversion.requestUnitCostMinor))
+    {
+        return false;
+    }
+
     ActiveWireSpoolIdentity spool;
     bool spoolFound = false;
     if (!m_warehouse.loadActiveSpoolIdentity(spoolId, spool, spoolFound) ||
@@ -387,6 +402,19 @@ bool RunWireIssueCoordinator::applyLedger(
 bool RunWireIssueCoordinator::executePhysicalPhases(
     const RunWireIssuePending& pending)
 {
+    // The warehouse price may change after pending persistence (including across
+    // reboot). Never commit physical/costing evidence with a different price
+    // than the immutable Material Request / Ledger transaction already carries.
+    WarehousePrice warehousePrice;
+    bool warehousePriceConfigured = false;
+    if (!m_warehouse.loadWarehousePrice(warehousePrice, warehousePriceConfigured) ||
+        !warehousePriceConfigured || warehousePrice.currency != pending.currency ||
+        pending.unitCostMinor > 0xFFFFFFFFULL ||
+        warehousePrice.pricePerKgMinor != static_cast<uint32_t>(pending.unitCostMinor))
+    {
+        return false;
+    }
+
     KgFirstWriteOff operation;
     operation.spoolId = pending.spoolId;
     operation.repairId = pending.repairId;

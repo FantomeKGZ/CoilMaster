@@ -24,69 +24,67 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           p = Path('firmware/esp32/src/CM_MaterialLedger.cpp')
           s = p.read_text()
-
           anchor1 = '    if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;\n'
           insert1 = '''    if (material.hasWireMetadata)
-    {
-        if (material.unit != MaterialUnit::Gram ||
-            (material.wireType != "CU" && material.wireType != "AL") ||
-            material.diameterHundredthsMm == 0U)
-        {
-            return false;
-        }
-    }
-    else if (material.wireType.length() != 0U || material.diameterHundredthsMm != 0U)
-    {
-        return false;
-    }
+              {
+                  if (material.unit != MaterialUnit::Gram ||
+                      (material.wireType != "CU" && material.wireType != "AL") ||
+                      material.diameterHundredthsMm == 0U)
+                  {
+                      return false;
+                  }
+              }
+              else if (material.wireType.length() != 0U || material.diameterHundredthsMm != 0U)
+              {
+                  return false;
+              }
 
-'''
+          '''
+          insert1 = insert1.replace('              ', '    ')
           if s.count(anchor1) != 1:
               raise SystemExit(f'nextId anchor count={s.count(anchor1)}')
           s = s.replace(anchor1, insert1 + anchor1, 1)
-
           anchor2 = '    line += F("\\\",\\\"status\\\":\\\"ACTIVE\\\"");\n'
           insert2 = '''    if (material.hasWireMetadata)
-    {
-        line += F(",\\\"wire_type\\\":\\\""); line += material.wireType; line += '\"';
-        line += F(",\\\"diameter_hundredths_mm\\\":"); line += material.diameterHundredthsMm;
-    }
-'''
+              {
+                  line += F(",\\\"wire_type\\\":\\\""); line += material.wireType; line += '\"';
+                  line += F(",\\\"diameter_hundredths_mm\\\":"); line += material.diameterHundredthsMm;
+              }
+          '''
+          insert2 = insert2.replace('              ', '    ')
           if s.count(anchor2) != 1:
               raise SystemExit(f'ACTIVE serialization anchor count={s.count(anchor2)}')
           s = s.replace(anchor2, anchor2 + insert2, 1)
-
           anchor3 = '        if (status != "ACTIVE") continue;\n'
           insert3 = '''        const bool hasWireType = line.indexOf(F("\\\"wire_type\\\":")) >= 0;
-        const bool hasDiameter = line.indexOf(F("\\\"diameter_hundredths_mm\\\":")) >= 0;
-        if (hasWireType != hasDiameter)
-        {
-            file.close();
-            return false;
-        }
-        if (hasWireType)
-        {
-            String wireType;
-            uint32_t diameter = 0UL;
-            if (unit != "GRAM" ||
-                !findString(line, "wire_type", wireType) ||
-                (wireType != "CU" && wireType != "AL") ||
-                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-                diameter == 0UL || diameter > 65535UL)
-            {
-                file.close();
-                return false;
-            }
-        }
+              const bool hasDiameter = line.indexOf(F("\\\"diameter_hundredths_mm\\\":")) >= 0;
+              if (hasWireType != hasDiameter)
+              {
+                  file.close();
+                  return false;
+              }
+              if (hasWireType)
+              {
+                  String wireType;
+                  uint32_t diameter = 0UL;
+                  if (unit != "GRAM" ||
+                      !findString(line, "wire_type", wireType) ||
+                      (wireType != "CU" && wireType != "AL") ||
+                      !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                      diameter == 0UL || diameter > 65535UL)
+                  {
+                      file.close();
+                      return false;
+                  }
+              }
 
-'''
+          '''
+          insert3 = insert3.replace('              ', '        ')
           if s.count(anchor3) != 1:
               raise SystemExit(f'ACTIVE list anchor count={s.count(anchor3)}')
           s = s.replace(anchor3, insert3 + anchor3, 1)
-
           p.write_text(s)
           PY
           git diff --check

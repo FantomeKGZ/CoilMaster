@@ -9,15 +9,11 @@ function read(relative) {
 }
 
 function requireText(relative, source, text, description) {
-  if (!source.includes(text)) {
-    failures.push(relative + ': ' + description);
-  }
+  if (!source.includes(text)) failures.push(relative + ': ' + description);
 }
 
 function requireAbsent(relative, source, pattern, description) {
-  if (pattern.test(source)) {
-    failures.push(relative + ': ' + description);
-  }
+  if (pattern.test(source)) failures.push(relative + ': ' + description);
 }
 
 function walkText(directory, extensions) {
@@ -33,31 +29,27 @@ function walkText(directory, extensions) {
 const arduinoPath = 'firmware/arduino/src/main.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_JobRecovery.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
+const writeOffStorePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
+const runWirePath = 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp';
 const restorePath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
 const webAuditPath = 'Tests/Web/check_web_assets.js';
 
 const arduino = read(arduinoPath);
 const recovery = read(recoveryPath);
 const writeOff = read(writeOffPath);
+const writeOffStore = read(writeOffStorePath);
+const runWire = read(runWirePath);
 const restore = read(restorePath);
 const webAudit = read(webAuditPath);
 
-// Physical START authority belongs to Arduino and remains a debounced physical input.
-requireText(arduinoPath, arduino,
-  'if (startButton.pollPressed(nowMs))',
+requireText(arduinoPath, arduino, 'if (startButton.pollPressed(nowMs))',
   'physical START button polling contract missing');
-requireText(arduinoPath, arduino,
-  'event.action = CM::InputAction::StartOrResume;',
+requireText(arduinoPath, arduino, 'event.action = CM::InputAction::StartOrResume;',
   'physical START no longer maps to StartOrResume');
-requireText(arduinoPath, arduino,
-  'machine.resetToHome();',
+requireText(arduinoPath, arduino, 'machine.resetToHome();',
   'boot must return the winding state machine to HOME');
 
-// SSR authority belongs to Arduino. ESP32/Web must not gain a direct SSR driver path.
-// Hall calibration may grant the Arduino-local motor permit, but physical START and
-// Arduino state remain the only production authority for energizing the SSR.
-requireText(arduinoPath, arduino,
-  'CM::SsrController ssr(CM::Pins::Ssr, true);',
+requireText(arduinoPath, arduino, 'CM::SsrController ssr(CM::Pins::Ssr, true);',
   'Arduino SSR controller ownership missing');
 requireText(arduinoPath, arduino,
   'ssr.update(machine.state(),\n               simulationMode(),\n               hallCalibration.motorPermit());',
@@ -73,8 +65,6 @@ for (const file of walkText(esp32SourceRoot, new Set(['.cpp', '.h']))) {
     'forbidden automatic start/resume/writeoff action detected on ESP32');
 }
 
-// Recovery remains operator-controlled after reboot. Assert the actual state-machine
-// policy rather than a presentation-only JSON string that may be refactored away.
 for (const text of [
   'mayAutoQueue(false)',
   'mayAutoResume(false)',
@@ -84,65 +74,62 @@ for (const text of [
   'recovery.disposition = JobRecoveryDisposition::ManualReviewRequired;',
   'recovery.mayCreateNewJob = false;'
 ]) {
-  requireText(recoveryPath, recovery, text,
-    'fail-closed reboot recovery policy missing: ' + text);
+  requireText(recoveryPath, recovery, text, 'fail-closed reboot recovery policy missing: ' + text);
 }
 
-// Wire writeoff is always manual and tied to exact completed source-run provenance.
-// Both current KG_FIRST and legacy weight-before/after paths require the exact immutable
-// selected spool; historical unallocated data remains read/recovery compatibility only.
-for (const field of ['spool_id', 'source_session_id', 'source_run_id', 'writeoff_mode']) {
-  requireText(writeOffPath, writeOff, '"' + field + '"',
-    'required manual writeoff field ' + field + ' missing');
+// Only atomic Material Request RUN_WIRE is publicly mutable. The old warehouse
+// POST is explicitly gone (410); GET history remains. Exact spool/session/run
+// checks are still mandatory in the atomic coordinator and retained low-level
+// store/recovery implementation.
+for (const text of [
+  '"/api/warehouse/write-offs", HTTP_POST',
+  'm_server.send(410',
+  'legacy_writeoff_post_disabled',
+  'write_performed',
+  'replacement',
+  '/api/material-requests/warehouse',
+  '"/api/warehouse/write-offs", HTTP_GET',
+  'handleListWriteOffs()'
+]) {
+  requireText(writeOffPath, writeOff, text, 'legacy writeoff deprecation contract missing: ' + text);
 }
-requireText(writeOffPath, writeOff,
-  'const bool kgFirst = hasMode && m_server.arg("writeoff_mode") == "KG_FIRST";',
-  'explicit kg-first manual writeoff mode missing');
-requireText(writeOffPath, writeOff,
-  'spool_id_required_for_kg_first',
-  'kg-first writeoff no longer requires an exact spool_id');
-requireText(writeOffPath, writeOff,
-  'selection.repairId != repairId || selection.spoolId != spoolId',
-  'writeoff no longer preserves repair linkage and mandatory exact spool match');
-requireText(writeOffPath, writeOff,
-  'WindingSessionCompletionAudit::check(m_store.storage(), sourceSessionId, sourceRunId)',
-  'writeoff no longer verifies the exact source run completion');
-requireText(writeOffPath, writeOff,
-  'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)',
-  'duplicate source-run writeoff guard missing');
-requireText(writeOffPath, writeOff,
-  'operation.sourceSessionId = sourceSessionId;',
-  'writeoff operation lost source_session_id binding');
-requireText(writeOffPath, writeOff,
-  'operation.sourceRunId = sourceRunId;',
-  'writeoff operation lost source_run_id binding');
+if (writeOff.includes('handleConfirmWriteOff')) {
+  failures.push(writeOffPath + ': retired legacy mutation handler returned');
+}
+for (const text of [
+  'JobSpoolSelectionStore::loadReadOnly',
+  'selection.spoolId != spoolId',
+  'WindingSessionCompletionAudit::check',
+  'm_warehouse.confirmedWriteOffForSourceRun',
+  'm_pending.save(pending)'
+]) {
+  requireText(runWirePath, runWire, text, 'atomic exact-spool/source-run writeoff guard missing: ' + text);
+}
+for (const text of [
+  'WindingSessionCompletionAudit::check',
+  'confirmedWriteOffForSourceRun(operation.sourceSessionId',
+  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
+  'alreadyConfirmed'
+]) {
+  requireText(writeOffStorePath, writeOffStore, text, 'retained low-level writeoff safety missing: ' + text);
+}
 
-// Restore apply remains explicit, transactional and fail-closed across reboot evidence.
-requireText(restorePath, restore,
-  'm_server.arg("confirmed") != F("APPLY")',
+requireText(restorePath, restore, 'm_server.arg("confirmed") != F("APPLY")',
   'explicit APPLY confirmation contract missing');
-requireText(restorePath, restore,
-  'm_storage.exists(ApplyJournalPath) ||',
+requireText(restorePath, restore, 'm_storage.exists(ApplyJournalPath) ||',
   'persisted apply journal lock missing');
-requireText(restorePath, restore,
-  'm_storage.exists(ApplyResultMarkerPath)',
+requireText(restorePath, restore, 'm_storage.exists(ApplyResultMarkerPath)',
   'persisted apply result lock missing');
-requireText(restorePath, restore,
-  'const bool runtimeApplyActive =',
+requireText(restorePath, restore, 'const bool runtimeApplyActive =',
   'runtime/stale apply distinction missing');
-requireText(restorePath, restore,
-  'WAITING_RESTORE_CLEANUP',
+requireText(restorePath, restore, 'WAITING_RESTORE_CLEANUP',
   'scheduled backup stale-restore wait state missing');
-requireText(restorePath, restore,
-  'auto_resume=0',
+requireText(restorePath, restore, 'auto_resume=0',
   'restore result must explicitly prohibit auto-resume');
 
-// Keep executable desktop + mobile motor-import validation in the standard web audit.
-requireText(webAuditPath, webAudit,
-  "auditMotorImport('desktop/motor-import.html');",
+requireText(webAuditPath, webAudit, "auditMotorImport('desktop/motor-import.html');",
   'desktop motor-import executable audit missing');
-requireText(webAuditPath, webAudit,
-  "auditMotorImport('mobile/motor-import.html');",
+requireText(webAuditPath, webAudit, "auditMotorImport('mobile/motor-import.html');",
   'mobile motor-import executable audit missing');
 
 if (failures.length) {
@@ -150,4 +137,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Release safety contracts OK: physical START, Arduino SSR authority, Hall calibration permit, fail-closed reboot recovery, no automatic start/resume/writeoff action, mandatory exact-spool and exact source-run manual writeoff provenance, transactional restore lock, and motor-import audits.');
+console.log('Release safety contracts OK: physical START and SSR remain Arduino-owned, reboot is fail-closed, legacy writeoff POST is 410-disabled, atomic RUN_WIRE preserves exact spool/run provenance, no automatic deduction exists, and restore stays transactional.');

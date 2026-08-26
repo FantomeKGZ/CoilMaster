@@ -25,7 +25,7 @@ for (const token of [
   'file.flush()',
   'if (!loadBySpool(source.spoolId, existing, found) || found) return false;',
   'bridge.wireType == "CU" || bridge.wireType == "AL"',
-  'linkedAt.length() >= 10U && linkedAt.length() <= 32U',
+  'bridge.linkedAt.length() >= 10U && bridge.linkedAt.length() <= 32U',
   'FlatJsonObjectValidator::valid(line)',
   'parsed.bridgeId <= previousId'
 ]) must(source, token, 'bridge store');

@@ -217,8 +217,15 @@ bool RepairRegistry::addRepair(const NewRepair& repair, uint32_t& repairId)
 {
     repairId = 0UL;
     if (!ready() || repair.clientId == 0UL || repair.motorId == 0UL ||
-        repair.receivedAt.length() < 10U ||
-        !clientExists(repair.clientId) || !motorExists(repair.motorId) ||
+        repair.receivedAt.length() < 10U)
+    {
+        return false;
+    }
+
+    bool clientFound = false;
+    bool motorFound = false;
+    if (!clientExists(repair.clientId, clientFound) || !clientFound ||
+        !motorExists(repair.motorId, motorFound) || !motorFound ||
         !nextId(RepairsPath, "repair_id", repairId))
     {
         return false;
@@ -268,8 +275,13 @@ bool RepairRegistry::closeRepair(uint32_t repairId,
                                  bool& alreadyClosed)
 {
     alreadyClosed = false;
-    if (!ready() || repairId == 0UL || closedAt.length() < 10U ||
-        !idExists(RepairsPath, "repair_id", repairId))
+    if (!ready() || repairId == 0UL || closedAt.length() < 10U)
+    {
+        return false;
+    }
+
+    bool repairFound = false;
+    if (!idExists(RepairsPath, "repair_id", repairId, repairFound) || !repairFound)
     {
         return false;
     }
@@ -309,21 +321,25 @@ bool RepairRegistry::closeRepair(uint32_t repairId,
     return true;
 }
 
-bool RepairRegistry::clientExists(uint32_t clientId) const
+bool RepairRegistry::clientExists(uint32_t clientId, bool& found) const
 {
-    return idExists(ClientsPath, "client_id", clientId);
+    return idExists(ClientsPath, "client_id", clientId, found);
 }
 
-bool RepairRegistry::motorExists(uint32_t motorId) const
+bool RepairRegistry::motorExists(uint32_t motorId, bool& found) const
 {
-    return idExists(MotorsPath, "motor_id", motorId);
+    return idExists(MotorsPath, "motor_id", motorId, found);
 }
 
 bool RepairRegistry::idExists(const char* path,
                               const char* key,
-                              uint32_t id) const
+                              uint32_t id,
+                              bool& found) const
 {
-    if (!ready() || id == 0UL || !m_storage.exists(path)) return false;
+    found = false;
+    if (!ready() || id == 0UL) return false;
+    if (!m_storage.exists(path)) return true;
+
     File file = m_storage.open(path, FILE_READ);
     if (!prepareNdjson(file))
     {
@@ -350,7 +366,8 @@ bool RepairRegistry::idExists(const char* path,
         }
     }
     file.close();
-    return matches == 1U;
+    found = matches == 1U;
+    return true;
 }
 
 String RepairRegistry::normalizePhone(const String& phone)

@@ -952,6 +952,7 @@ void handleCreateJob()
         String catalogProgram;
         if (!jobLinkageResolver.resolveWithProgram(linkage.repairId,
                                                    linkage.motorId,
+                                                   job.type,
                                                    resolved,
                                                    catalogProgram))
         {

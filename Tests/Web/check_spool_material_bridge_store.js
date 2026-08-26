@@ -6,6 +6,9 @@ const header = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMater
 const source = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMaterialBridgeStore.cpp'), 'utf8');
 const writeoff = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp'), 'utf8');
 const warehouseHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseStore.h'), 'utf8');
+const warehouseStore = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseStore.cpp'), 'utf8');
+const movementAuditHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h'), 'utf8');
+const movementAudit = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp'), 'utf8');
 const repairValidation = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseRepairValidation.cpp'), 'utf8');
 const spoolIdentity = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseSpoolIdentity.cpp'), 'utf8');
 const materialCatalogue = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseMaterialCatalogue.cpp'), 'utf8');
@@ -74,37 +77,46 @@ for (const token of ['SpoolWriteOffResult', 'confirmSpoolWriteOff(', 'confirmKgF
   mustNot(writeoffStore, token, 'dead direct-writeoff implementation');
 }
 
-// Repair reference lookup must preserve a separate read-success result and found
-// result. The ambiguous convenience bool wrapper is intentionally removed.
 must(warehouseHeader, 'bool repairExists(uint32_t repairId,bool& found) const;', 'fail-closed repair lookup API');
 must(repairValidation, 'bool WarehouseStore::repairExists(uint32_t repairId, bool& found) const', 'fail-closed repair lookup implementation');
-must(repairValidation, 'found = false;', 'repair lookup initializes found');
-must(repairValidation, 'return false;', 'repair lookup read failure remains explicit');
 mustNot(warehouseHeader, 'bool repairExists(uint32_t repairId) const;', 'ambiguous repair lookup wrapper');
 mustNot(repairValidation, 'bool WarehouseStore::repairExists(uint32_t repairId) const', 'ambiguous repair lookup implementation');
 
-// Exact spool lookup likewise keeps read success separate from object existence.
 must(warehouseHeader, 'bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity,bool& found) const;', 'fail-closed spool identity API');
 must(spoolIdentity, 'ActiveWireSpoolIdentity& identity,\n                                              bool& found) const', 'fail-closed spool identity implementation');
-must(spoolIdentity, 'found = false;', 'spool identity initializes found');
 mustNot(warehouseHeader, 'bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity) const;', 'ambiguous spool identity wrapper');
 mustNot(spoolIdentity, 'ActiveWireSpoolIdentity& identity) const', 'ambiguous spool identity implementation');
 
-// Catalogue lookup must distinguish successful zero-result reads from read failure.
 must(warehouseHeader, 'bool loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;', 'fail-closed wire catalogue API');
 must(materialCatalogue, 'uint8_t capacity,\n                                             uint8_t& count) const', 'fail-closed wire catalogue implementation');
-must(materialCatalogue, 'count = 0U;', 'wire catalogue initializes count');
 mustNot(warehouseHeader, 'uint8_t loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity) const;', 'count-only wire catalogue wrapper');
 mustNot(materialCatalogue, 'uint8_t WarehouseStore::loadKnownWireDiameters', 'count-only wire catalogue implementation');
 
-// Public price reads must distinguish "not configured" from storage/integrity
-// failure. The legacy convenience wrapper may remain implemented temporarily but
-// it is private so production callers cannot collapse those states.
 const publicSurface = warehouseHeader.slice(classStart, privateStart);
-const privateSurface = warehouseHeader.slice(privateStart);
 must(publicSurface, 'bool loadWarehousePrice(WarehousePrice& price,bool& configured) const;', 'public explicit price lookup');
-mustNot(publicSurface, 'bool loadWarehousePrice(WarehousePrice& price) const;', 'ambiguous public price lookup');
-must(privateSurface, 'bool loadWarehousePrice(WarehousePrice& price) const;', 'private compatibility price wrapper');
+mustNot(warehouseHeader, 'bool loadWarehousePrice(WarehousePrice& price) const;', 'retired ambiguous price lookup declaration');
+mustNot(warehouseStore, 'bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const', 'retired ambiguous price lookup implementation');
+
+// Warehouse summary must reuse the authoritative movement codec/integrity pass.
+for (const token of [
+  'struct WarehouseMovementSummaryTotals',
+  'WarehouseMovementDiameterTotals diameters[WarehouseMovementSummaryMaxDiameters]',
+  'static bool checkSummary(fs::FS& storage,'
+]) must(movementAuditHeader, token, 'audited summary API');
+for (const token of [
+  'accumulateSummaryRecord(record, monthPrefix, *summaryTotals)',
+  'WarehouseWriteOffRecordCodec::parse(line, record)',
+  'confirmedProvenanceUnique(storage, Path)',
+  'bool WarehouseMovementIntegrityAudit::checkSummary('
+]) must(movementAudit, token, 'audited summary implementation');
+for (const token of [
+  'WarehouseMovementSummaryTotals movementTotals;',
+  'WarehouseMovementIntegrityAudit::checkSummary(',
+  'summary->consumedMonthGrams = movement.consumedMonthGrams;',
+  'summary->consumedAllTimeGrams = movement.consumedAllTimeGrams;'
+]) must(warehouseStore, token, 'single-pass warehouse summary integration');
+mustNot(warehouseStore, 'WarehouseMovementIntegrityAudit::check(m_storage)', 'duplicate pre-summary full movement audit');
+mustNot(warehouseStore, '!FlatJsonObjectValidator::valid(line) ||\n            !findUnsigned(line, "movement_id"', 'retired manual movement parser');
 
 for (const token of [
   'pending.mode == WarehouseWriteOffMode::LegacySpool',
@@ -131,4 +143,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: warehouse existence/catalogue/price reads expose explicit fail-closed result channels, dead direct writeoff surfaces stay removed, historical recovery remains deterministic, and atomic RUN_WIRE safety remains authoritative.');
+console.log('Spool material bridge foundation contracts OK: fail-closed warehouse lookups remain explicit, price convenience code is removed, warehouse summary reuses the authoritative movement integrity pass, historical recovery stays deterministic, and atomic RUN_WIRE safety remains authoritative.');

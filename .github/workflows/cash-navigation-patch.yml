@@ -1,51 +1,13 @@
-name: Guarded Cash Navigation Patch
+name: Archived Cash Navigation Patch
 
 on:
-  push:
-    branches: [cmp-protocol-v1]
-    paths:
-      - '.github/workflows/cash-navigation-patch.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-      - name: Guard current web blobs
-        run: |
-          test "$(git hash-object firmware/esp32/web/desktop/index.html)" = "c0a12d36995860b8c56ca20b9d866c1047516d65"
-          test "$(git hash-object firmware/esp32/web/desktop/client-details.html)" = "6924333c6a7b1746bfeb50a99bc0232e7faaf741"
-      - name: Add cash navigation
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('firmware/esp32/web/desktop/index.html')
-          s=p.read_text()
-          old='<a href="/desktop/costing.html">💰 Калькуляция</a><a href="/desktop/reports.html">📈 Отчёты</a>'
-          new='<a href="/desktop/costing.html">💰 Калькуляция</a><a href="/desktop/cash.html">💵 Касса</a><a href="/desktop/reports.html">📈 Отчёты</a>'
-          assert s.count(old)==1
-          p.write_text(s.replace(old,new,1))
-
-          p=Path('firmware/esp32/web/desktop/client-details.html')
-          s=p.read_text()
-          old='<a id="newRepair" class="action" href="/desktop/repairs.html">+ Новый ремонт</a>'
-          new=old+'<a id="cashLink" class="action" href="/desktop/cash.html">Касса клиента</a>'
-          assert s.count(old)==1
-          s=s.replace(old,new,1)
-          old2="$('newRepair').href='/desktop/repairs.html?client_id='+encodeURIComponent(c.client_id)"
-          new2=old2+";$('cashLink').href='/desktop/cash.html?client_id='+encodeURIComponent(c.client_id)"
-          assert s.count(old2)==1
-          p.write_text(s.replace(old2,new2,1))
-          PY
-      - name: Commit patch
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add firmware/esp32/web/desktop/index.html firmware/esp32/web/desktop/client-details.html
-          git commit -m "feat(web): expose dedicated cash navigation"
-          git push origin HEAD:cmp-protocol-v1
+      - run: echo "Archived one-shot helper; no repository mutations."

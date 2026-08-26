@@ -171,7 +171,13 @@ bool resolveMaterialReferences(fs::FS& storage,
                 return false;
             }
             String unit;
-            if (!findString(line, "unit", unit) || unit != "GRAM")
+            String wireType;
+            uint32_t diameter = 0UL;
+            if (!findString(line, "unit", unit) || unit != "GRAM" ||
+                !findString(line, "wire_type", wireType) ||
+                wireType != reference.wireType ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                diameter != reference.diameterHundredthsMm)
             {
                 file.close();
                 return false;

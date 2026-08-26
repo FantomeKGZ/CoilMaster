@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/127_RUN_WIRE_PERSISTED_SPOOL_INTEGRITY_2026-08-26.md
 docs/PROJECT_HANDOFF/126_RUN_WIRE_READ_PROVENANCE_AND_LEGACY_POST_DEPRECATION_2026-08-26.md
 docs/PROJECT_HANDOFF/125_RUN_WIRE_PRICE_PROVENANCE_CONVERGENCE_2026-08-26.md
 docs/PROJECT_HANDOFF/124_RUN_WIRE_CROSS_LOG_INTEGRITY_2026-08-26.md
@@ -37,17 +38,15 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **126**.
+Latest GREEN foundation = checkpoint **127**.
 
-Latest verified checkpoint-126 evidence:
+Latest verified checkpoint-127 evidence:
 
 ```text
-movement spool schema     261e76c372e954885ee3975d845e47e608354bbc
-immutable spool derivation 95b025271a799bcf7c175be386c33044c8c4d2b7
-legacy POST hard boundary e4d4e5acd5a08101ae5a6cc29943c228d822bb75
-final acceptance contract 21f3212d80c61ccaef2225140bfc5c5528577e47
-ESP32 Build #1569         32960764524 / SUCCESS
-CMP Protocol Tests #3535  32961372178 / SUCCESS
+persisted spool audit     6965bd716ac9f4d3970bc750a8e8933b7b6fffd0
+mandatory contract        38883ae01493622d1bc98fc179fb9d9eb571ddcf
+ESP32 Build #1570         32961925117 / SUCCESS
+CMP Protocol Tests #3541  32961999553 / SUCCESS
 ```
 
 ## Current migration state
@@ -62,19 +61,19 @@ CMP Protocol Tests #3535  32961372178 / SUCCESS
 124 bounded cross-log RUN_WIRE integrity
 125 one KG wire price + reserved system accounting provenance
 126 direct exact spool provenance in new RUN_WIRE movements + legacy POST 410 deprecation
+127 optional persisted spool_id is cross-checked against immutable selection in the existing bounded audit pass
 ```
 
-New RUN_WIRE Material Request movement records expose exact `spool_id` directly. The store derives it from immutable `JobSpoolSelection`; callers cannot substitute another spool. Historical records without this field remain valid and are resolved through the immutable selection.
+New RUN_WIRE movement `spool_id` cannot disagree with immutable `JobSpoolSelection`. Historical movements without the field remain valid and use the immutable selection as authority. No additional full movement-log scan was added.
 
-Public `POST /api/warehouse/write-offs` is permanently fail-closed with HTTP 410 and replacement `/api/material-requests/warehouse`. `GET /api/warehouse/write-offs` remains for history/coverage, and low-level warehouse recovery remains intact.
+Public `POST /api/warehouse/write-offs` remains permanently fail-closed with HTTP 410. GET/history and deterministic low-level recovery remain intact.
 
 ## Immediate NEXT
 
-1. Extend `RunWireAccountingIntegrityAudit` to validate directly persisted `spool_id` when present, while accepting historical RUN_WIRE movements without it.
-2. Keep the audit bounded; do not add redundant full-log scans.
-3. Continue bounded read/report provenance improvements.
-4. Review whether low-level legacy writeoff APIs can be narrowed further without breaking history/recovery.
-5. Continue software work before final two-board hardware E2E.
+1. Review bounded read/report surfaces for places where direct transaction provenance avoids ambiguous reconstruction.
+2. Reuse existing cross-log/read batches; do not add redundant full-log scans.
+3. Review whether retained low-level legacy writeoff APIs can be narrowed to managed/recovery-only use without breaking history/recovery.
+4. Continue software/integrity optimization before final two-board hardware E2E.
 
 ## Material safety
 

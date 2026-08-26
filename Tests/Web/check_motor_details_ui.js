@@ -28,6 +28,18 @@ if (!desktopDetails.includes('versionNextCursor') || !desktopDetails.includes("l
 if (!desktopDetails.includes('Web-действия никогда не включают SSR автоматически')) {
   failures.push('desktop/motor-details.html: explicit Web/SSR safety wording missing');
 }
+for (const token of ['/api/repairs/as-received', 'source_repair_id', 'При поступлении / после ремонта', 'snapshot_present', 'findVersionForRepair']) {
+  if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing AS_RECEIVED comparison contract ${token}`);
+}
+if (!desktopDetails.includes('limit:"24"') || !desktopDetails.includes('invalid_paging_cursor')) {
+  failures.push('desktop/motor-details.html: repair-version comparison must use bounded cursor paging');
+}
+if (!desktopDetails.includes('Legacy-ремонт: immutable AS_RECEIVED snapshot отсутствует')) {
+  failures.push('desktop/motor-details.html: legacy repair without snapshot is not distinguished from corruption');
+}
+if (!desktopDetails.includes('Текущая карточка выше не подменяет исторический результат ремонта')) {
+  failures.push('desktop/motor-details.html: current winding must not substitute missing historical repair result');
+}
 
 for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
   const source = fs.readFileSync(path.join(webRoot, relative), 'utf8');
@@ -44,6 +56,7 @@ if (!registryHeader.includes('0UL,\n                                     statusF
 if (!registryPage.includes('lineMotorId != motorId')) failures.push('CM_RepairRegistryPage.cpp: exact motor_id repair filter missing');
 if (!lookupHeader.includes('handleMotorRepairs')) failures.push('CM_RepairRegistryLookupWeb.h: motor repair handler missing');
 if (!lookupSource.includes('/api/motors/repairs')) failures.push('CM_RepairRegistryLookupWeb.cpp: motor repair endpoint missing');
+if (!lookupSource.includes('/api/repairs/as-received')) failures.push('CM_RepairRegistryLookupWeb.cpp: AS_RECEIVED endpoint missing');
 if (!lookupSource.includes('appendRepairsPageJson(response,\n                                          0UL,\n                                          motorId')) failures.push('CM_RepairRegistryLookupWeb.cpp: endpoint does not use exact motor_id paging');
 if (!lookupSource.includes('MaxListPageSize')) failures.push('CM_RepairRegistryLookupWeb.cpp: motor repair endpoint is not bounded');
 
@@ -52,4 +65,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor details contracts OK: exact motor/repair lookups, versioned WORKING/STARTING display, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');
+console.log('Motor details contracts OK: versioned roles, immutable AS_RECEIVED comparison, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');

@@ -179,7 +179,6 @@ private:
                                 const String& currencyAfter,
                                 const String& auditLine);
     bool usageExists(uint32_t usageId) const;
-    bool adjustmentExists(uint32_t adjustmentId) const;
     bool repairExists(uint32_t repairId) const;
     bool readStockQuantity(uint32_t materialId, uint32_t& quantityMilli) const;
     bool readMaterialState(uint32_t materialId,

@@ -25,9 +25,11 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 125_RUN_WIRE_PRICE_PROVENANCE_CONVERGENCE_2026-08-26.md
 126_RUN_WIRE_READ_PROVENANCE_AND_LEGACY_POST_DEPRECATION_2026-08-26.md
 127_RUN_WIRE_PERSISTED_SPOOL_INTEGRITY_2026-08-26.md
+128_WAREHOUSE_LEGACY_DIRECT_API_NARROWING_2026-08-26.md
+129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 127
+## GREEN foundation through checkpoint 129
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -42,15 +44,17 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 125 one KG wire price + reserved system RWI_TX provenance
 126 direct exact spool provenance in new immutable RUN_WIRE movement + public legacy writeoff POST hard-disabled
 127 persisted spool_id cross-checked against immutable selection in existing bounded audit pass
+128 legacy direct Store mutation methods moved behind private API
+129 legacy direct request/result support types moved behind private API; movement read already exposes direct RUN_WIRE provenance
 ```
 
-Latest verified checkpoint-127 evidence:
+Latest verified checkpoint-129 evidence:
 
 ```text
-6965bd716ac9f4d3970bc750a8e8933b7b6fffd0  persisted spool cross-log audit
-38883ae01493622d1bc98fc179fb9d9eb571ddcf  mandatory contract
-ESP32 Build #1570   32961925117 / SUCCESS
-CMP Tests #3541     32961999553 / SUCCESS (68/68 mandatory host steps)
+b2f7f13f88bf2a5e489999fdf318523fc1fcdf46  legacy support type narrowing
+071e55923ead09264a801c250e8807a17823eba1  private-type contract
+ESP32 Build #1572   32963035385 / SUCCESS
+CMP Tests #3551     32963113298 / SUCCESS
 ```
 
 ## Current RUN_WIRE production/read boundary
@@ -66,7 +70,7 @@ explicit operator RUN_WIRE ISSUE
 -> cross-log integrity requires exact one-to-one correlation
 ```
 
-New movement `spool_id` is derived from immutable session selection at write time and independently cross-checked against the same immutable selection during bounded accounting integrity. Historic RUN_WIRE movements without the field remain valid and continue using immutable selection as authority.
+The bounded `/api/material-requests/movements` read path returns immutable movement JSON directly. New movement rows already include exact request/transaction/item/session/run/spool/material/diameter provenance; historic rows without `spool_id` remain compatible through immutable selection validation.
 
 Public mutation boundary remains:
 
@@ -76,25 +80,32 @@ GET  /api/warehouse/write-offs -> preserved history/coverage
 POST /api/material-requests/warehouse -> authoritative explicit RUN_WIRE mutation
 ```
 
-## Current active queue — bounded reports / internal API narrowing
+Internal narrowing now also means:
+
+```text
+confirmSpoolWriteOff / confirmKgFirstWriteOff -> private
+ConfirmedSpoolWriteOff / SpoolWriteOffResult -> private
+KgFirstWriteOff + managed RUN_WIRE methods -> public production surface
+```
+
+## Current active queue — dead helper removal / bounded provenance
 
 Next coherent block:
 
-1. Audit read/report surfaces for any remaining ambiguous reconstruction of RUN_WIRE transaction identity.
-2. Prefer already persisted `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id + CU/AL + diameter` instead of new joins where available.
-3. Reuse existing bounded stores/cross-log batches; do not add another full-log scan.
-4. Inspect callers of low-level `WarehouseStore::confirmSpoolWriteOff` and `confirmKgFirstWriteOff` now that public legacy POST is disabled.
-5. If only managed RUN_WIRE/recovery paths remain, narrow low-level API visibility/semantics without breaking deterministic startup recovery or historical GET.
-6. Continue software optimization/integrity before mandatory final two-board hardware E2E.
+1. Audit whether the two private direct mutation methods are now entirely dead and can be removed while keeping `appendWriteOffRecord` for deterministic legacy recovery.
+2. Preserve `appendKgFirstWriteOffRecord`, `appendWriteOffRecord`, movement codec and startup recovery as long as historical pending reconciliation depends on them.
+3. Prefer direct immutable movement provenance for reports; do not add another full-log scan or duplicate bridge join.
+4. Narrow other warehouse helpers only when ESP32 compilation and mandatory contracts prove no current caller.
+5. Continue software optimization/integrity before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
-bounded reports use direct immutable provenance where available
-no ambiguous transaction joins
-no extra full-log scan
-public legacy POST stays disabled
-low-level compatibility surface no broader than required by managed/recovery code
+no unnecessary legacy mutation code
+historical recovery remains deterministic
+bounded reports use persisted provenance
+no redundant scans
+public legacy POST remains disabled
 ```
 
 ## Safety invariants

@@ -15,11 +15,11 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 ## Current phase
 
-Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 126: atomic RUN_WIRE has authoritative operator UI, single-count costing, bounded cross-log integrity, one agreed KG price, direct exact-spool read provenance for new movements, and the legacy public writeoff POST is fail-closed disabled.
+Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 127: atomic RUN_WIRE has authoritative operator UI, single-count costing, bounded cross-log integrity, one agreed KG price, direct exact-spool read provenance, hard-disabled legacy public writeoff POST, and persisted spool identity is verified against immutable session selection without another log pass.
 
 ## Latest GREEN migration state
 
-Checkpoints 118–126 establish:
+Checkpoints 118–127 establish:
 
 ```text
 spool_id <-> warehouse_item_id + CU/AL + exact diameter
@@ -36,23 +36,25 @@ one agreed KG wire price
 reserved RWI_TX system provenance
 direct spool_id in new immutable RUN_WIRE movements
 legacy public writeoff POST = HTTP 410
+persisted spool_id == immutable JobSpoolSelection when field exists
+historic spool-less RUN_WIRE movement remains compatible
 ```
 
-Production operator path:
+Production operator path remains:
 
 ```text
 RUN_COMPLETED (evidence only)
 -> operator selects exact DRAFT/ISSUED Material Request
 -> immutable session spool + ACTIVE spool + exact bridge
 -> explicit POST /api/material-requests/warehouse
--> Material Request movement including direct exact spool_id for new writes
+-> immutable Material Request movement
 -> MaterialLedger usage tagged RWI_TX=<transaction_ref>
 -> standard physical warehouse CONFIRMED writeoff
 ```
 
-`MaterialRequestMovementStore` derives the new RUN_WIRE `spool_id` from immutable `JobSpoolSelection` and rejects a conflicting caller-provided spool. Historic movements without `spool_id` remain readable and continue to resolve through immutable session selection.
+Checkpoint 127 adds no new full movement-log scan. The existing bounded movement pass detects optional persisted `spool_id`; immutable selection resolution rejects any mismatch before bridge/Ledger/warehouse evidence is trusted.
 
-Public compatibility boundary:
+Public compatibility boundary remains:
 
 ```text
 POST /api/warehouse/write-offs -> 410 legacy_writeoff_post_disabled
@@ -61,29 +63,23 @@ replacement = /api/material-requests/warehouse
 GET /api/warehouse/write-offs -> preserved history/coverage
 ```
 
-Low-level warehouse writeoff/recovery code remains because atomic RUN_WIRE and historical startup reconciliation still require deterministic physical evidence handling.
-
-Latest verified checkpoint-126 evidence:
+Latest verified checkpoint-127 evidence:
 
 ```text
-261e76c372e954885ee3975d845e47e608354bbc  movement spool schema
-95b025271a799bcf7c175be386c33044c8c4d2b7  immutable spool derivation/serialization
-e4d4e5acd5a08101ae5a6cc29943c228d822bb75  hard legacy POST boundary cleanup
-21f3212d80c61ccaef2225140bfc5c5528577e47  final acceptance contract
-ESP32 Build #1569   32960764524 / SUCCESS
-CMP Tests #3535     32961372178 / SUCCESS
+6965bd716ac9f4d3970bc750a8e8933b7b6fffd0  persisted spool cross-log audit
+38883ae01493622d1bc98fc179fb9d9eb571ddcf  mandatory contract
+ESP32 Build #1570   32961925117 / SUCCESS
+CMP Tests #3541     32961999553 / SUCCESS (68/68 mandatory host steps)
 ```
 
-Checkpoint: `126_RUN_WIRE_READ_PROVENANCE_AND_LEGACY_POST_DEPRECATION_2026-08-26.md`.
+Checkpoint: `127_RUN_WIRE_PERSISTED_SPOOL_INTEGRITY_2026-08-26.md`.
 
 ## Current NEXT
 
-1. Extend `RunWireAccountingIntegrityAudit` so a directly persisted RUN_WIRE `spool_id`, when present, must equal immutable session selection.
-2. Preserve backward compatibility for historical movements without `spool_id`.
-3. Keep cross-log validation bounded; do not introduce another full-log scan.
-4. Continue bounded read/report provenance improvements.
-5. Review internal legacy writeoff API surface without breaking recovery/history compatibility.
-6. Continue software work before final hardware E2E.
+1. Review bounded read/report surfaces for places where direct transaction provenance avoids ambiguous joins.
+2. Reuse existing batches/read APIs and avoid redundant full-log scans.
+3. Review internal low-level legacy writeoff APIs for safe narrowing to managed/recovery-only use while preserving deterministic history/recovery.
+4. Continue software/integrity optimization before final hardware E2E.
 
 ## Safety invariants
 

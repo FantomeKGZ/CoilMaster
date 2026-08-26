@@ -134,6 +134,8 @@ void MaterialLedgerWeb::handleUsage()
     if(!m_ledger.ready()){m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}");return;}
     uint32_t repairId=0UL,materialId=0UL,quantity=0UL;
     if(!parseUnsigned(m_server,"repair_id",1UL,0xFFFFFFFFUL,repairId)||!parseUnsigned(m_server,"material_id",1UL,0xFFFFFFFFUL,materialId)||!parseUnsigned(m_server,"quantity_milli",1UL,0xFFFFFFFFUL,quantity)||!m_server.hasArg("timestamp")||m_server.arg("timestamp").length()<10U){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_usage_fields\"}");return;}
+    const String usageComment=m_server.arg("comment");
+    if(usageComment.indexOf(F("RWI_TX="))==0){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"reserved_usage_comment_prefix\",\"write_performed\":false}");return;}
     bool repairFound=false;
     if(!m_ledger.repairExists(repairId,repairFound))
     {
@@ -174,7 +176,7 @@ void MaterialLedgerWeb::handleUsage()
         error+=F("\",\"supported_currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\",\"write_performed\":false}");
         m_server.send(409,"application/json; charset=utf-8",error);return;
     }
-    RepairMaterialUsage usage;usage.repairId=repairId;usage.materialId=materialId;usage.quantityMilli=quantity;usage.timestamp=m_server.arg("timestamp");usage.comment=m_server.arg("comment");RepairMaterialUsageResult result;
+    RepairMaterialUsage usage;usage.repairId=repairId;usage.materialId=materialId;usage.quantityMilli=quantity;usage.timestamp=m_server.arg("timestamp");usage.comment=usageComment;RepairMaterialUsageResult result;
     if(!m_ledger.confirmUsage(usage,result))
     {
         if(!m_ledger.ready())

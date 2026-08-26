@@ -40,10 +40,4 @@ bool RepairCosting::repairExists(uint32_t repairId, bool& found) const
     file.close();
     return true;
 }
-
-bool RepairCosting::repairExists(uint32_t repairId) const
-{
-    bool found = false;
-    return repairExists(repairId, found) && found;
-}
 }

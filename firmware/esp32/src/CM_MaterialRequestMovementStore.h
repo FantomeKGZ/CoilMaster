@@ -23,16 +23,20 @@ struct NewMaterialRequestMovement
     String createdAt;
     String comment;
 
-    // Required together only for RUN_WIRE.
+    // Required together only for newly persisted RUN_WIRE movements.
+    // Historic RUN_WIRE records may not have spool_id; read/integrity code must
+    // remain backward-compatible by resolving their immutable session selection.
     uint32_t sourceSessionId;
     uint32_t sourceRunId;
+    uint32_t spoolId;
     String materialClass;    // CU | AL for RUN_WIRE
     uint16_t wireDiameterHundredthsMm;
 
     NewMaterialRequestMovement()
         : materialRequestId(0UL), repairId(0UL), warehouseItemId(0UL),
           quantityMilliUnits(0UL), unitCostMinor(0ULL), costAmountMinor(0ULL),
-          sourceSessionId(0UL), sourceRunId(0UL), wireDiameterHundredthsMm(0U)
+          sourceSessionId(0UL), sourceRunId(0UL), spoolId(0UL),
+          wireDiameterHundredthsMm(0U)
     {
     }
 };

@@ -1,6 +1,7 @@
 #include "CM_MaterialRequestMovementStore.h"
 
 #include "CM_FlatJsonObjectValidator.h"
+#include "CM_JobSpoolSelectionStore.h"
 
 namespace CM
 {
@@ -61,6 +62,26 @@ bool MaterialRequestMovementStore::append(const NewMaterialRequestMovement& move
     if (!ready() || !validMovement(movement) || !nextMovementId(movementId))
         return false;
 
+    uint32_t persistedSpoolId = movement.spoolId;
+    if (movement.sourceKind == "RUN_WIRE")
+    {
+        JobSpoolSelection selection;
+        bool selectionFound = false;
+        if (!JobSpoolSelectionStore::loadReadOnly(m_storage,
+                                                  movement.sourceSessionId,
+                                                  selection,
+                                                  selectionFound) ||
+            !selectionFound || selection.spoolId == 0UL ||
+            selection.repairId != movement.repairId ||
+            selection.wireType != movement.materialClass ||
+            selection.diameterHundredthsMm != movement.wireDiameterHundredthsMm ||
+            (persistedSpoolId != 0UL && persistedSpoolId != selection.spoolId))
+        {
+            return false;
+        }
+        persistedSpoolId = selection.spoolId;
+    }
+
     File file = m_storage.open(Path, FILE_APPEND);
     if (!file)
     {
@@ -94,7 +115,7 @@ bool MaterialRequestMovementStore::append(const NewMaterialRequestMovement& move
     {
         line += F(",\"source_session_id\":"); line += movement.sourceSessionId;
         line += F(",\"source_run_id\":"); line += movement.sourceRunId;
-        line += F(",\"spool_id\":"); line += movement.spoolId;
+        line += F(",\"spool_id\":"); line += persistedSpoolId;
         line += F(",\"material_class\":\""); line += movement.materialClass;
         line += F("\",\"wire_diameter_hundredths_mm\":");
         line += movement.wireDiameterHundredthsMm;
@@ -254,7 +275,6 @@ bool MaterialRequestMovementStore::validMovement(
     {
         return movement.movementKind == "ISSUE" &&
                movement.sourceSessionId > 0UL && movement.sourceRunId > 0UL &&
-               movement.spoolId > 0UL &&
                (movement.materialClass == "CU" || movement.materialClass == "AL") &&
                movement.wireDiameterHundredthsMm > 0U &&
                movement.wireDiameterHundredthsMm <= 500U &&

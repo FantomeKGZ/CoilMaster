@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **138**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary is single-pass, MaterialLedger public lookups are explicitly fail-closed, dead private ledger helpers are removed, and RepairCosting repair identity validation no longer uses an ambiguous bool wrapper.
+GREEN through checkpoint **139**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and the first finalization write-off coverage batch reuse authoritative movement validation, MaterialLedger public lookups are explicitly fail-closed, dead private ledger helpers are removed, and RepairCosting repair identity validation no longer uses an ambiguous bool wrapper.
 
 ## Latest GREEN state
 
@@ -23,6 +23,7 @@ GREEN through checkpoint **138**. Atomic RUN_WIRE is the only current wire mutat
 136 dead adjustmentExists full-log helper removed
 137 one-arg MaterialLedger repair + dead usageExists/restoreQuantity removed
 138 RepairCosting one-arg repair wrapper removed; load() uses explicit found
+139 first bounded finalization coverage batch fused with authoritative movement pairing/provenance audit
 ```
 
 Production RUN_WIRE path remains:
@@ -35,25 +36,26 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-`RepairCosting::savePricing()` still reuses `load()` and does not perform a duplicate repair identity scan. `load()` now rejects both repair reference read/integrity failure and `found=false` explicitly before costing scans.
+Checkpoint 139 keeps the checkpoint-55 fixed 32-target RAM bound. For the first winding-history batch, exact run/spool coverage is collected during the same authoritative movement pass that validates PENDING/CONFIRMED pairing and global confirmed provenance uniqueness. Later history pages keep the bounded lightweight movement scan. The former standalone movement-integrity pre-scan is removed.
 
-Latest verified checkpoint-138 evidence:
+Latest verified checkpoint-139 evidence:
 
 ```text
-3c62d73d3cbd24fe08013cee63a59a8353af3e50  final RepairCosting source
-959f8d283e1669f083d9361b11af9a194154fee4  single-pass/fail-closed contract
-ESP32 Build #1595   32973529504 / SUCCESS
-CMP Tests #3622     32973582094 / SUCCESS
+0e4896e0139ac8b7f79effb02d644e42dd057d22  final source
+1d78995c5cd203cbfadbaf67aa03b48a813a5ca0  final contract
+ESP32 Build #1602   32979299677 / SUCCESS
+CMP Tests #3635     32979340004 / SUCCESS
 ```
 
-Checkpoint: `138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md`.
+Checkpoint: `139_FINALIZATION_WRITEOFF_FIRST_BATCH_FUSED_AUDIT_2026-08-26.md`.
 
 ## Current NEXT
 
-1. Continue bounded runtime/read-helper audit for dead scans or ambiguous bool APIs.
-2. Preserve single-pass costing ownership and Web HTTP preflight semantics.
-3. No automatic production-data rotation/deletion/truncation and no premature DB migration.
-4. Preserve historical recovery/history and atomic RUN_WIRE safety.
+1. Continue bounded audit of growing append-only readers for concrete redundant full scans.
+2. Reuse authoritative parsers/audits where possible; keep fixed-size RAM bounds.
+3. Preserve single-pass costing ownership and Web HTTP preflight semantics.
+4. No automatic production-data rotation/deletion/truncation and no premature DB migration.
+5. Preserve historical recovery/history and atomic RUN_WIRE safety.
 
 ## Safety invariants
 

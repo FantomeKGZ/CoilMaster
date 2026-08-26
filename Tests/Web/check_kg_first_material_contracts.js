@@ -14,7 +14,9 @@ function requireText(relative, source, text, description) {
 
 const quantityPath = 'firmware/esp32/src/CM_KgQuantity.h';
 const recordPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecord.h';
+const storeHeaderPath = 'firmware/esp32/src/CM_WarehouseStore.h';
 const storePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
+const managedPath = 'firmware/esp32/src/CM_WarehouseRunWireManaged.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const recoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
 const coveragePath = 'firmware/esp32/src/CM_WireWriteOffCoverageAudit.cpp';
@@ -29,7 +31,9 @@ const desktopPath = 'firmware/esp32/web/desktop/writeoff.html';
 const mobilePath = 'firmware/esp32/web/mobile/writeoff.html';
 const quantity = read(quantityPath);
 const record = read(recordPath);
+const storeHeader = read(storeHeaderPath);
 const store = read(storePath);
+const managed = read(managedPath);
 const writeOff = read(writeOffPath);
 const recovery = read(recoveryPath);
 const coverage = read(coveragePath);
@@ -51,190 +55,112 @@ for (const forbidden of ['toFloat(', 'atof(', 'strtod(', 'double ', 'float ']) {
 }
 
 for (const text of [
-  'WarehouseWriteOffMode::KgFirst',
-  '"writeoff_mode"',
-  'mode != "KG_FIRST"',
-  'stockMode == "SPOOL"',
-  'stockMode == "UNALLOCATED"',
+  'WarehouseWriteOffMode::KgFirst', '"writeoff_mode"', 'mode != "KG_FIRST"',
+  'stockMode == "SPOOL"', 'stockMode == "UNALLOCATED"',
   '!record.hasSourceSessionId || !record.hasSourceRunId',
   'record.diameterHundredthsMm == 0U || !record.hasWireType',
-  'parsedGrams != record.massGrams',
-  'KgQuantity::canonicalKg(parsedGrams) != record.quantityKg',
+  'parsedGrams != record.massGrams', 'KgQuantity::canonicalKg(parsedGrams) != record.quantityKg',
   '!record.hasSpoolId && !record.hasWeights'
-]) {
-  requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
-}
+]) requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
 
-// The public legacy mutation URL is retired. GET history remains on the same URL,
-// while kg-first persistence/recovery remains internal for managed RUN_WIRE and
-// historical records.
 for (const text of [
-  '"/api/warehouse/write-offs", HTTP_POST',
-  'm_server.send(410',
-  'legacy_writeoff_post_disabled',
-  'write_performed',
-  'replacement',
-  '/api/material-requests/warehouse',
-  '"/api/warehouse/write-offs", HTTP_GET',
-  'handleListWriteOffs()'
-]) {
-  requireText(writeOffPath, writeOff, text, 'legacy writeoff deprecation/history contract missing: ' + text);
-}
+  '"/api/warehouse/write-offs", HTTP_POST', 'm_server.send(410', 'legacy_writeoff_post_disabled',
+  'write_performed', 'replacement', '/api/material-requests/warehouse',
+  '"/api/warehouse/write-offs", HTTP_GET', 'handleListWriteOffs()'
+]) requireText(writeOffPath, writeOff, text, 'legacy writeoff deprecation/history contract missing: ' + text);
 for (const forbidden of [
-  'handleConfirmWriteOff()',
-  'm_server.arg("writeoff_mode") == "KG_FIRST"',
-  'confirmKgFirstWriteOff(operation, result)',
-  'confirmSpoolWriteOff(operation, result)'
+  'handleConfirmWriteOff()', 'm_server.arg("writeoff_mode") == "KG_FIRST"',
+  'confirmKgFirstWriteOff(operation, result)', 'confirmSpoolWriteOff(operation, result)'
 ]) {
   if (writeOff.includes(forbidden)) failures.push(writeOffPath + ': public legacy mutation implementation returned: ' + forbidden);
 }
 
-for (const text of [
-  'bool WarehouseStore::confirmKgFirstWriteOff',
-  'WindingSessionCompletionAudit::check',
-  'alreadyConfirmed',
-  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
-  'operation.consumedGrams >= identity.currentWeightGrams',
-  'appendKgFirstWriteOffRecord',
-  'writeoff_mode',
-  'KG_FIRST',
-  'UNALLOCATED'
-]) {
-  requireText(storePath, store, text, 'kg-first store invariant missing: ' + text);
+// Current kg-first physical evidence belongs to managed atomic RUN_WIRE. The old
+// direct Store entrypoint/result are deleted; journal append/recovery compatibility stays.
+for (const forbidden of ['confirmKgFirstWriteOff(', 'confirmSpoolWriteOff(', 'SpoolWriteOffResult']) {
+  if (storeHeader.includes(forbidden) || store.includes(forbidden)) {
+    failures.push(storePath + ': dead direct writeoff implementation returned: ' + forbidden);
+  }
 }
-
 for (const text of [
-  'WarehouseWriteOffStockMode::Unallocated',
-  '"ABORTED"',
-  'currentWeight == pending.weightBeforeGrams',
-  'currentWeight == pending.weightAfterGrams'
-]) {
-  requireText(recoveryPath, recovery, text, 'kg-first recovery invariant missing: ' + text);
-}
-
-requireText(coveragePath, coverage, '\\"event\\":\\"RUN_COMPLETED\\"',
-  'finalization coverage no longer anchors to completed runs');
+  'bool WarehouseStore::prepareManagedRunWireWriteOff',
+  'bool WarehouseStore::applyManagedRunWireSpoolWeight',
+  'bool WarehouseStore::confirmManagedRunWireWriteOff',
+  'appendKgFirstWriteOffRecord', '"PENDING"', '"CONFIRMED"',
+  'identity.currentWeightGrams == weightAfterGrams', 'identity.currentWeightGrams != weightBeforeGrams'
+]) requireText(managedPath, managed, text, 'managed kg-first invariant missing: ' + text);
 for (const text of [
-  'record.mode == WarehouseWriteOffMode::LegacySpool',
-  'record.spoolId != target.spoolId',
-  'if (!record.hasSourceRunId) return false;',
-  'matches = record.sourceRunId == target.runId;',
-  'record.stockMode == WarehouseWriteOffStockMode::Unallocated',
-  'record.sourceRunId != target.runId',
-  'selectionCatalog == ReadOnlyCatalogCheck::Missing',
-  'if (!selectionFound)',
+  'bool WarehouseStore::appendKgFirstWriteOffRecord', 'writeoff_mode', 'KG_FIRST', 'UNALLOCATED'
+]) requireText(storePath, store, text, 'kg-first journal append invariant missing: ' + text);
+for (const text of [
+  'WarehouseWriteOffStockMode::Unallocated', '"ABORTED"',
+  'currentWeight == pending.weightBeforeGrams', 'currentWeight == pending.weightAfterGrams',
+  'appendKgFirstWriteOffRecord(pending.movementId'
+]) requireText(recoveryPath, recovery, text, 'kg-first recovery invariant missing: ' + text);
+
+requireText(coveragePath, coverage, '\\"event\\":\\"RUN_COMPLETED\\"', 'finalization coverage no longer anchors to completed runs');
+for (const text of [
+  'record.mode == WarehouseWriteOffMode::LegacySpool', 'record.spoolId != target.spoolId',
+  'if (!record.hasSourceRunId) return false;', 'matches = record.sourceRunId == target.runId;',
+  'record.stockMode == WarehouseWriteOffStockMode::Unallocated', 'record.sourceRunId != target.runId',
+  'selectionCatalog == ReadOnlyCatalogCheck::Missing', 'if (!selectionFound)',
   'return WireWriteOffCoverageCheck::IntegrityFailed;'
-]) {
-  requireText(coveragePath, coverage, text, 'finalization exact-run/selection coverage guard missing: ' + text);
-}
+]) requireText(coveragePath, coverage, text, 'finalization exact-run/selection coverage guard missing: ' + text);
 for (const text of [
-  'constexpr uint8_t CoverageBatchSize = 32U;',
-  'CoverageTarget targets[CoverageBatchSize];',
+  'constexpr uint8_t CoverageBatchSize = 32U;', 'CoverageTarget targets[CoverageBatchSize];',
   'confirmedWriteOffBatch(storage, repairId, targets, targetCount)',
   'history.appendHistoryJson(0UL, repairId, cursor, CoverageBatchSize',
   'for (uint8_t i = 0U; i < targetCount; ++i)'
-]) {
-  requireText(coveragePath, coverage, text, 'batched finalization coverage guard missing: ' + text);
-}
+]) requireText(coveragePath, coverage, text, 'batched finalization coverage guard missing: ' + text);
 for (const forbidden of [
   'if (selectionCatalog == ReadOnlyCatalogCheck::Missing) continue;',
-  'if (!selectionFound) continue;',
-  'bool confirmedWriteOffExists('
-]) {
-  if (coverage.includes(forbidden)) failures.push(coveragePath + ': closure coverage bypass returned: ' + forbidden);
-}
+  'if (!selectionFound) continue;', 'bool confirmedWriteOffExists('
+]) if (coverage.includes(forbidden)) failures.push(coveragePath + ': closure coverage bypass returned: ' + forbidden);
 
 for (const text of [
-  'struct WarehouseMovementRepairTotals',
-  'static bool checkRepair(fs::FS& storage',
-  'uint64_t wireCostMinor',
-  'uint32_t copperWireGrams',
-  'uint16_t wireLineCount'
-]) {
-  requireText(movementAuditHeaderPath, movementAuditHeader, text, 'movement repair aggregation API missing: ' + text);
-}
+  'struct WarehouseMovementRepairTotals', 'static bool checkRepair(fs::FS& storage',
+  'uint64_t wireCostMinor', 'uint32_t copperWireGrams', 'uint16_t wireLineCount'
+]) requireText(movementAuditHeaderPath, movementAuditHeader, text, 'movement repair aggregation API missing: ' + text);
 for (const text of [
-  'accumulateRepairRecord(record, repairId, *totals)',
-  'record.status != "CONFIRMED" || record.repairId != repairId',
-  '(product + 500ULL) / 1000ULL',
-  'totals.currency != record.currency',
-  'record.wireType == "CU"',
-  'record.wireType == "AL"'
-]) {
-  requireText(movementAuditPath, movementAudit, text, 'single-pass repair wire aggregation guard missing: ' + text);
-}
+  'accumulateRepairRecord(record, repairId, *totals)', 'record.status != "CONFIRMED" || record.repairId != repairId',
+  '(product + 500ULL) / 1000ULL', 'totals.currency != record.currency',
+  'record.wireType == "CU"', 'record.wireType == "AL"'
+]) requireText(movementAuditPath, movementAudit, text, 'single-pass repair wire aggregation guard missing: ' + text);
 for (const text of [
-  'WarehouseMovementRepairTotals wireTotals;',
-  'WarehouseMovementIntegrityAudit::checkRepair(m_storage, repairId, wireTotals)',
-  'summary.wireCostMinor = wireTotals.wireCostMinor;',
-  'summary.copperWireGrams = wireTotals.copperWireGrams;',
+  'WarehouseMovementRepairTotals wireTotals;', 'WarehouseMovementIntegrityAudit::checkRepair(m_storage, repairId, wireTotals)',
+  'summary.wireCostMinor = wireTotals.wireCostMinor;', 'summary.copperWireGrams = wireTotals.copperWireGrams;',
   'bool currencySet = wireTotals.currencySet;'
-]) {
-  requireText(costingPath, costing, text, 'costing must consume audited movement totals: ' + text);
-}
+]) requireText(costingPath, costing, text, 'costing must consume audited movement totals: ' + text);
 for (const forbidden of [
-  'WarehouseWriteOffRecordCodec::parse(line, record)',
-  'm_storage.open(WireMovementsPath, FILE_READ)',
-  '#include "CM_WarehouseWriteOffRecord.h"',
-  'pendingSpoolId',
-  '!findUnsigned(line, "spool_id", spoolId)',
-  '!findUnsigned(line, "weight_before_g", before)',
+  'WarehouseWriteOffRecordCodec::parse(line, record)', 'm_storage.open(WireMovementsPath, FILE_READ)',
+  '#include "CM_WarehouseWriteOffRecord.h"', 'pendingSpoolId',
+  '!findUnsigned(line, "spool_id", spoolId)', '!findUnsigned(line, "weight_before_g", before)',
   '!findUnsigned(line, "weight_after_g", after)'
-]) {
-  if (costing.includes(forbidden)) failures.push(costingPath + ': redundant/legacy wire costing scan returned: ' + forbidden);
-}
+]) if (costing.includes(forbidden)) failures.push(costingPath + ': redundant/legacy wire costing scan returned: ' + forbidden);
 
 for (const text of [
-  'constexpr uint8_t BatchSize = 32U;',
-  'ProvenanceEntry batch[BatchSize];',
-  'while (outer.available() && batchCount < BatchSize)',
-  'for (uint8_t index = 0U; index < batchCount; ++index)',
-  'provenanceConflicts(batch[index], candidate)',
-  'candidate.sourceRunId == entry.sourceRunId'
-]) {
-  requireText(movementAuditPath, movementAudit, text, 'batched provenance audit guard missing: ' + text);
-}
-if (movementAudit.includes('candidate.movementId == record.movementId')) {
-  failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
-}
+  'constexpr uint8_t BatchSize = 32U;', 'ProvenanceEntry batch[BatchSize];',
+  'while (outer.available() && batchCount < BatchSize)', 'for (uint8_t index = 0U; index < batchCount; ++index)',
+  'provenanceConflicts(batch[index], candidate)', 'candidate.sourceRunId == entry.sourceRunId'
+]) requireText(movementAuditPath, movementAudit, text, 'batched provenance audit guard missing: ' + text);
+if (movementAudit.includes('candidate.movementId == record.movementId')) failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
 
 for (const text of [
-  '#include "CM_WarehouseWriteOffRecord.h"',
-  'constexpr uint8_t ReferenceBatchSize = 32U;',
-  'WarehouseWriteOffRecordCodec::parse(line, record)',
-  'repairReferences[repairCount].id = record.repairId;',
-  'if (record.hasSpoolId)',
-  'spoolReferences[spoolCount].id = record.spoolId;',
-  'validateReferenceBatch(storage,',
-  'resolveReferences(storage, RepairsPath, "repair_id"',
+  '#include "CM_WarehouseWriteOffRecord.h"', 'constexpr uint8_t ReferenceBatchSize = 32U;',
+  'WarehouseWriteOffRecordCodec::parse(line, record)', 'repairReferences[repairCount].id = record.repairId;',
+  'if (record.hasSpoolId)', 'spoolReferences[spoolCount].id = record.spoolId;',
+  'validateReferenceBatch(storage,', 'resolveReferences(storage, RepairsPath, "repair_id"',
   'resolveReferences(storage, SpoolsPath, "spool_id"'
-]) {
-  requireText(warehousePersistencePath, warehousePersistence, text, 'kg-first backup warehouse audit guard missing: ' + text);
-}
-for (const forbidden of [
-  'bool idExists(',
-  '!idExists(storage, SpoolsPath',
-  '!idExists(storage, RepairsPath'
-]) {
+]) requireText(warehousePersistencePath, warehousePersistence, text, 'kg-first backup warehouse audit guard missing: ' + text);
+for (const forbidden of ['bool idExists(', '!idExists(storage, SpoolsPath', '!idExists(storage, RepairsPath']) {
   if (warehousePersistence.includes(forbidden)) failures.push(warehousePersistencePath + ': legacy per-record backup reference audit returned: ' + forbidden);
 }
 
-for (const text of [
-  'query.validateAll()',
-  'WindingJournalTransitionAudit::validate(storage, sessionId, runId, completed)',
-  'return completed',
-]) {
+for (const text of ['query.validateAll()', 'WindingJournalTransitionAudit::validate(storage, sessionId, runId, completed)', 'return completed']) {
   requireText(completionAuditPath, completionAudit, text, 'two-pass completion audit guard missing: ' + text);
 }
-if (completionAudit.includes('appendHistoryJson(') || completionAudit.includes('pageContainsCompletedRun')) {
-  failures.push(completionAuditPath + ': redundant third winding-journal scan returned');
-}
-for (const text of [
-  'bool* completed',
-  'targetRunId == 0UL || runId == targetRunId',
-  'sessionId == targetSessionId',
-  'return validateInternal(storage, sessionId, runId, &completed);'
-]) {
+if (completionAudit.includes('appendHistoryJson(') || completionAudit.includes('pageContainsCompletedRun')) failures.push(completionAuditPath + ': redundant third winding-journal scan returned');
+for (const text of ['bool* completed', 'targetRunId == 0UL || runId == targetRunId', 'sessionId == targetSessionId', 'return validateInternal(storage, sessionId, runId, &completed);']) {
   requireText(transitionAuditPath, transitionAudit, text, 'transition completion evidence guard missing: ' + text);
 }
 
@@ -248,43 +174,23 @@ for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]])
 }
 
 for (const text of [
-  "'/api/material-requests/warehouse'",
-  "confirmed:'true'",
-  "material_request_id:selectedMaterialRequestId",
-  "warehouse_item_id:String(spoolBridge.warehouse_item_id)",
-  "quantity_milli_units:String(quantity.grams)",
-  "movement_kind:'ISSUE'",
-  "source_kind:'RUN_WIRE'",
-  "unit:'KG'",
-  "source_session_id:sourceSessionId",
-  "source_run_id:sourceRunId",
-  "spool_id:String(activeSpool.spool_id)",
-  "wire_diameter_hundredths_mm:String(activeSpool.diameter_hundredths_mm)",
-  "material_class:String(activeSpool.material_class)",
-  "'/api/warehouse/spool-material-bridges?spool_id='",
-  "'/api/material-requests?'+q",
-  "'/api/material-requests/status?material_request_id='",
-  "status.status==='DRAFT'||status.status==='ISSUED'",
-  "event.event!=='RUN_COMPLETED'",
-  "found.material_class==='CU'||found.material_class==='AL'",
+  "'/api/material-requests/warehouse'", "confirmed:'true'", "material_request_id:selectedMaterialRequestId",
+  "warehouse_item_id:String(spoolBridge.warehouse_item_id)", "quantity_milli_units:String(quantity.grams)",
+  "movement_kind:'ISSUE'", "source_kind:'RUN_WIRE'", "unit:'KG'", "source_session_id:sourceSessionId",
+  "source_run_id:sourceRunId", "spool_id:String(activeSpool.spool_id)",
+  "wire_diameter_hundredths_mm:String(activeSpool.diameter_hundredths_mm)", "material_class:String(activeSpool.material_class)",
+  "'/api/warehouse/spool-material-bridges?spool_id='", "'/api/material-requests?'+q",
+  "'/api/material-requests/status?material_request_id='", "status.status==='DRAFT'||status.status==='ISSUED'",
+  "event.event!=='RUN_COMPLETED'", "found.material_class==='CU'||found.material_class==='AL'",
   "менять provenance после RUN_COMPLETED нельзя"
-]) {
-  requireText(controllerPath, controller, text, 'atomic RUN_WIRE UI controller contract missing: ' + text);
-}
+]) requireText(controllerPath, controller, text, 'atomic RUN_WIRE UI controller contract missing: ' + text);
 for (const forbidden of [
-  "jsonFetch('/api/warehouse/write-offs',{method:'POST'",
-  "writeoff_mode:'KG_FIRST'",
-  "quantity_kg:quantity.kg",
-  "body.set('diameter_hundredths_mm'",
-  "body.set('wire_type'",
-  'Используйте списание без привязки',
-  '<option value="UNALLOCATED">'
-]) {
-  if (controller.includes(forbidden)) failures.push(controllerPath + ': production operator UI must not use legacy/direct writeoff path: ' + forbidden);
-}
+  "jsonFetch('/api/warehouse/write-offs',{method:'POST'", "writeoff_mode:'KG_FIRST'", "quantity_kg:quantity.kg",
+  "body.set('diameter_hundredths_mm'", "body.set('wire_type'", 'Используйте списание без привязки', '<option value="UNALLOCATED">'
+]) if (controller.includes(forbidden)) failures.push(controllerPath + ': production operator UI must not use legacy/direct writeoff path: ' + forbidden);
 
 for (const forbidden of ['automaticWriteOff(', 'autoWriteOff(', 'writeOffOnRunCompleted(']) {
-  if (store.includes(forbidden) || writeOff.includes(forbidden) || recovery.includes(forbidden) || coverage.includes(forbidden) || controller.includes(forbidden)) {
+  if (store.includes(forbidden) || managed.includes(forbidden) || writeOff.includes(forbidden) || recovery.includes(forbidden) || coverage.includes(forbidden) || controller.includes(forbidden)) {
     failures.push('kg-first migration introduced automatic write-off hook: ' + forbidden);
   }
 }
@@ -293,5 +199,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-
-console.log('KG-first material contracts OK: atomic RUN_WIRE is the only public mutation path, legacy writeoff POST is 410-disabled, GET/history plus store/recovery compatibility remain intact, exact kg/provenance/costing audits remain authoritative, and RUN_COMPLETED never deducts automatically.');
+console.log('KG-first material contracts OK: managed atomic RUN_WIRE owns current kg-first mutation, dead direct Store entrypoints stay removed, legacy POST is 410-disabled, historical recovery and audited costing remain intact, and RUN_COMPLETED never deducts automatically.');

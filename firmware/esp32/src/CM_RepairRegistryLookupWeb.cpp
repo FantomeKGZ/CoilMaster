@@ -26,6 +26,26 @@ void appendSearchPageMetadata(String& response,
     else response += F("null");
     response += '}';
 }
+
+bool resolveMotor(RepairRegistry& registry,
+                  WebServer& server,
+                  uint32_t motorId)
+{
+    bool found = false;
+    if (!registry.motorExists(motorId, found))
+    {
+        server.send(500, "application/json; charset=utf-8",
+                    "{\"error\":\"motor_lookup_integrity_failed\"}");
+        return false;
+    }
+    if (!found)
+    {
+        server.send(404, "application/json; charset=utf-8",
+                    "{\"error\":\"motor_not_found\"}");
+        return false;
+    }
+    return true;
+}
 }
 
 RepairRegistryLookupWeb::RepairRegistryLookupWeb(WebServer& server,
@@ -154,12 +174,7 @@ void RepairRegistryLookupWeb::handleMotorRepairs()
                       "{\"error\":\"invalid_motor_id\"}");
         return;
     }
-    if (!m_registry.motorExists(motorId))
-    {
-        m_server.send(404, "application/json; charset=utf-8",
-                      "{\"error\":\"motor_not_found\"}");
-        return;
-    }
+    if (!resolveMotor(m_registry, m_server, motorId)) return;
 
     uint32_t cursor = 0UL;
     uint32_t parsedLimit = 20UL;
@@ -242,12 +257,7 @@ void RepairRegistryLookupWeb::handleMotorWindingLatest()
                       "{\"error\":\"invalid_motor_id\"}");
         return;
     }
-    if (!m_registry.motorExists(motorId))
-    {
-        m_server.send(404, "application/json; charset=utf-8",
-                      "{\"error\":\"motor_not_found\"}");
-        return;
-    }
+    if (!resolveMotor(m_registry, m_server, motorId)) return;
 
     String item;
     item.reserve(960U);
@@ -285,12 +295,7 @@ void RepairRegistryLookupWeb::handleMotorWindingVersions()
                       "{\"error\":\"invalid_motor_id\"}");
         return;
     }
-    if (!m_registry.motorExists(motorId))
-    {
-        m_server.send(404, "application/json; charset=utf-8",
-                      "{\"error\":\"motor_not_found\"}");
-        return;
-    }
+    if (!resolveMotor(m_registry, m_server, motorId)) return;
 
     uint32_t cursor = 0UL;
     uint32_t parsedLimit = 12UL;

@@ -71,6 +71,24 @@ bool MaterialLedger::loadActiveMaterialState(uint32_t materialId,
             }
         }
 
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+        const bool hasDiameter = line.indexOf(F("\"diameter_hundredths_mm\":")) >= 0;
+        String wireType;
+        uint32_t diameter = 0UL;
+        if (hasWireType != hasDiameter ||
+            (hasWireType &&
+             (!findString(line, "wire_type", wireType) ||
+              (wireType != "CU" && wireType != "AL") ||
+              !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+              diameter == 0UL || diameter > 65535UL ||
+              parsedUnit != MaterialUnit::Gram)))
+        {
+            file.close();
+            state = MaterialItemState();
+            found = false;
+            return false;
+        }
+
         if (currentId != materialId) continue;
         if (found || status != "ACTIVE")
         {
@@ -86,6 +104,12 @@ bool MaterialLedger::loadActiveMaterialState(uint32_t materialId,
         state.stockQuantityMilli = stock;
         state.pricePerUnitMinor = price;
         state.currency = storedCurrency;
+        state.hasWireMetadata = hasWireType;
+        if (hasWireType)
+        {
+            state.wireType = wireType;
+            state.diameterHundredthsMm = static_cast<uint16_t>(diameter);
+        }
     }
 
     file.close();

@@ -54,92 +54,49 @@ Authoritative design:
 113 Motor Web catalog-only + separate create + versioned motor card
 114 Motor AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 115 Client Web catalog-only + dedicated create + read-only CRM card
+116 Dedicated Cash Web UI + append-only writes + exact BigInt minor units + navigation
 ```
 
 Latest verified:
 
 ```text
-CMP Protocol Tests 32936343060 / SUCCESS
-ESP32 Build         32934092563 / SUCCESS  # latest firmware-source evidence from checkpoint 114
+CMP Protocol Tests 32938179528 / SUCCESS
+ESP32 Build         32936718747 / SUCCESS
 ```
 
-## Motor Web — GREEN
+## Web/CRM status — GREEN
 
-Desktop Motor Web provides catalog-only browsing, separate creation, versioned WORKING/STARTING, multi-conductor history, immutable AS_RECEIVED comparison and safe navigation to the existing linked-job path. Server owns exact role/program/repeat/spool validation. Physical START remains local-only.
+Motor, Client and Cash Web blocks are closed. `cash.html` is separate from `costing.html`; payment history is append-only and never controls machine, SSR, warehouse or delivery. Client↔motor relation stays historical through repair identity.
 
-Checkpoint: `114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md`.
+## Current mandatory work — coordinated wire accounting migration
 
-## Client Web — GREEN
+Do not partially remove current exact `spool_id` requirements.
 
-Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`.
-
-Desktop Client Web now provides:
-
-- catalog-only `clients.html`;
-- separate `client-new.html`;
-- `client-details.html?client_id=...`;
-- client identity/contact/comment;
-- motors resolved through exact repair history rather than permanent motor ownership;
-- bounded open/closed repair history;
-- immutable delivery state/date;
-- charged/paid/debt/credit;
-- bounded append-only payment history;
-- no payment/delivery/machine/material mutation from client card;
-- no duplicate inline client creation in repairs page.
-
-## Material Request / warehouse
-
-Production routes remain explicit and crash-safe. `RUN_COMPLETED` is non-mutating. Warehouse stock changes only through operator-confirmed Material Request ISSUE/RETURN/CORRECTION. Current exact spool production contract remains authoritative.
-
-## Delivery
+First map every current owner:
 
 ```text
-/data/workshop/repair-deliveries.ndjson
-GET/POST /api/repairs/delivery
+job preparation / JobSpoolSelection
+manual writeoff API/UI
+warehouse/material mutation
+source_session_id + source_run_id provenance
+repair costing/material usage
+finalization preflight
+backup/export/integrity
+reports
+Web/tests
 ```
 
-Only CLOSED repair may be delivered. Delivery is immutable and intentionally not blocked by debt.
-
-## Cash / payments backend
-
-```text
-/data/workshop/repair-payments.ndjson
-PAYMENT -> ADD
-CORRECTION -> ADD | SUBTRACT
-```
-
-Routes:
-
-```text
-GET  /api/payments?repair_id=...
-GET  /api/payments?client_id=...
-POST /api/payments
-GET  /api/payments/balance?repair_id=...
-GET  /api/payments/balance?client_id=...
-```
-
-Cash is append-only. Repair pricing remains authoritative for charge; cash does not duplicate price.
-
-## Current mandatory work
-
-1. Dedicated `cash.html` using checkpoint 112 APIs.
-2. Keep `costing.html` for cost/price/margin only.
-3. Cash UI must support exact repair/client context, balances, full/partial/multiple payments, append-only corrections, debt/credit and explicit confirmation; no destructive edits/deletes.
-4. Coordinated spool -> Material Request wire migration only across all affected contracts together.
-5. Full software regression/backup/restore.
-6. Final two-board hardware E2E.
-
-## Wire accounting target
+Then design and implement one coherent compatibility transition to:
 
 ```text
 RUN_COMPLETED -> never auto-deducts
 operator explicitly confirms warehouse ISSUE
 material_request_id
-source_session_id + source_run_id for run-linked wire
-CU/AL + actual weight
+source_session_id + source_run_id for RUN_WIRE
+CU/AL + actual consumed weight
 ```
 
-Current exact `spool_id` requirements remain until the whole chain is migrated coherently.
+Material Request `RUN_WIRE` remains ISSUE/KG-only. New linked writeoff must never silently omit provenance or gain legacy permission to skip an already selected spool before the coordinated transition is complete.
 
 ## Safety invariants
 
@@ -170,9 +127,9 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/116_CASH_WEB_UI_2026-08-26.md
 docs/PROJECT_HANDOFF/115_CLIENT_WEB_CRM_2026-08-26.md
 docs/PROJECT_HANDOFF/114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md
-docs/PROJECT_HANDOFF/113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md
 docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/111_REPAIR_DELIVERY_STORE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
@@ -185,5 +142,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 115 Client Web GREEN: CMP 32936343060 SUCCESS. Motor Web checkpoint 114 firmware build remains ESP32 32934092563 SUCCESS. Clients catalog/create/details закрыты; client card показывает motors through repair history, open/closed repairs, delivery state/date, charged/paid/debt/credit and append-only payment history; repairs page больше не создаёт клиента inline. Следующий блок: dedicated cash.html on checkpoint 112 APIs. costing.html оставить только costing/pricing. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 116 Cash Web GREEN: CMP 32938179528 SUCCESS, ESP32 32936718747 SUCCESS. Motor/Client/Cash Web закрыты. Следующий блок — coordinated exact-spool -> Material Request RUN_WIRE accounting migration. Сначала составить forensic owner map всех current spool/writeoff/finalization/backup/report/Web contracts; ничего не ослаблять частично. RUN_COMPLETED ничего автоматически не списывает; physical START local-only; Arduino owns SSR.
 ```

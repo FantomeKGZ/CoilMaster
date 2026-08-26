@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '../..');
 const header = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMaterialBridgeStore.h'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMaterialBridgeStore.cpp'), 'utf8');
 const writeoff = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp'), 'utf8');
+const warehouseHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseStore.h'), 'utf8');
 const writeoffStore = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOff.cpp'), 'utf8');
 const runWire = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp'), 'utf8');
 const failures = [];
@@ -57,6 +58,20 @@ for (const token of [
   'handleListWriteOffs()'
 ]) must(writeoff, token, 'legacy writeoff hard deprecation');
 
+// Legacy direct-writeoff request/result support types are recovery-only details.
+// KgFirstWriteOff remains public because managed atomic RUN_WIRE uses it.
+const classStart = warehouseHeader.indexOf('class WarehouseStore');
+const privateStart = warehouseHeader.indexOf('\nprivate:', classStart);
+const confirmedType = warehouseHeader.indexOf('struct ConfirmedSpoolWriteOff', classStart);
+const resultType = warehouseHeader.indexOf('struct SpoolWriteOffResult', classStart);
+const publicKgFirst = warehouseHeader.indexOf('struct KgFirstWriteOff');
+if (classStart < 0 || privateStart < 0 || confirmedType <= privateStart || resultType <= privateStart) {
+  failures.push('warehouse header: legacy direct-writeoff support types must remain private');
+}
+if (publicKgFirst < 0 || publicKgFirst >= classStart) {
+  failures.push('warehouse header: managed RUN_WIRE KgFirstWriteOff type must remain public');
+}
+
 for (const token of [
   'WindingSessionCompletionAudit::check',
   'confirmedWriteOffForSourceRun(operation.sourceSessionId',
@@ -74,4 +89,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: append-only bounded identity audit; public legacy writeoff POST is retired and exact-spool/run safety remains atomic/store-authoritative.');
+console.log('Spool material bridge foundation contracts OK: append-only bounded identity audit; public legacy writeoff POST is retired, legacy support types are private, and exact-spool/run safety remains atomic/store-authoritative.');

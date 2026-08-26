@@ -7,6 +7,11 @@ namespace CM
 {
 namespace
 {
+constexpr const char* RunWirePendingPath =
+    "/data/workshop/run-wire-issue.pending.json";
+constexpr const char* RunWirePendingTempPath =
+    "/data/workshop/run-wire-issue.pending.tmp";
+
 bool addChecked64(uint64_t& target, uint64_t value)
 {
     if (target > 0xFFFFFFFFFFFFFFFFULL - value) return false;
@@ -35,6 +40,24 @@ bool storageDirectoryReady(fs::FS& storage, const char* path)
     probe.close();
     return directory;
 }
+
+bool classifyRunWireManagedUsage(const String& comment, bool& managed)
+{
+    managed = false;
+    if (comment.indexOf(F("RWI_TX=")) != 0) return true;
+
+    const int separator = comment.indexOf(';');
+    if (separator < 0) return false;
+    const String transactionRef = comment.substring(7, separator);
+    if (transactionRef.length() < 8U || transactionRef.length() > 80U ||
+        transactionRef.indexOf(F("RWI-")) != 0)
+    {
+        return false;
+    }
+
+    managed = true;
+    return true;
+}
 }
 
 RepairCosting::RepairCosting(fs::FS& storage) : m_storage(storage), m_ready(false) {}
@@ -58,6 +81,14 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
     summary = RepairCostSummary();
     summary.repairId = repairId;
     if (!ready() || repairId == 0UL || !repairExists(repairId)) return false;
+
+    // Never publish a mixed snapshot while the high-level RUN_WIRE owner may
+    // still have MaterialLedger evidence without the matching physical writeoff.
+    if (m_storage.exists(RunWirePendingPath) ||
+        m_storage.exists(RunWirePendingTempPath))
+    {
+        return false;
+    }
 
     // Validate the whole movement journal authoritatively and aggregate this
     // repair's confirmed wire records during that same first pass. Provenance
@@ -127,8 +158,23 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
                 return false;
             }
 
+            bool runWireManaged = false;
+            if (hasComment &&
+                !classifyRunWireManagedUsage(comment, runWireManaged))
+            {
+                file.close();
+                return false;
+            }
+
             if (lineRepairId == repairId)
             {
+                // RUN_WIRE has two durable accounting views by design:
+                // MaterialLedger stock evidence and the standard confirmed
+                // physical warehouse writeoff. Wire cost is authoritative in
+                // WarehouseMovementIntegrityAudit, so do not count the tagged
+                // ledger usage a second time as generic material cost.
+                if (runWireManaged) continue;
+
                 if (!addChecked64(summary.materialCostMinor, lineCost) ||
                     summary.materialLineCount == 0xFFFFU ||
                     !acceptCurrency(currency, summary.currency, currencySet))

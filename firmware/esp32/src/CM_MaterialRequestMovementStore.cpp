@@ -69,7 +69,7 @@ bool MaterialRequestMovementStore::append(const NewMaterialRequestMovement& move
     }
 
     String line;
-    line.reserve(1020U);
+    line.reserve(1050U);
     line = F("{\"movement_id\":"); line += movementId;
     line += F(",\"material_request_id\":"); line += movement.materialRequestId;
     line += F(",\"repair_id\":"); line += movement.repairId;
@@ -94,6 +94,7 @@ bool MaterialRequestMovementStore::append(const NewMaterialRequestMovement& move
     {
         line += F(",\"source_session_id\":"); line += movement.sourceSessionId;
         line += F(",\"source_run_id\":"); line += movement.sourceRunId;
+        line += F(",\"spool_id\":"); line += movement.spoolId;
         line += F(",\"material_class\":\""); line += movement.materialClass;
         line += F("\",\"wire_diameter_hundredths_mm\":");
         line += movement.wireDiameterHundredthsMm;
@@ -253,6 +254,7 @@ bool MaterialRequestMovementStore::validMovement(
     {
         return movement.movementKind == "ISSUE" &&
                movement.sourceSessionId > 0UL && movement.sourceRunId > 0UL &&
+               movement.spoolId > 0UL &&
                (movement.materialClass == "CU" || movement.materialClass == "AL") &&
                movement.wireDiameterHundredthsMm > 0U &&
                movement.wireDiameterHundredthsMm <= 500U &&
@@ -261,7 +263,7 @@ bool MaterialRequestMovementStore::validMovement(
 
     if (movement.sourceKind != "MANUAL_MATERIAL") return false;
     return movement.sourceSessionId == 0UL && movement.sourceRunId == 0UL &&
-           movement.materialClass.length() == 0U &&
+           movement.spoolId == 0UL && movement.materialClass.length() == 0U &&
            movement.wireDiameterHundredthsMm == 0U;
 }
 

@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/126_RUN_WIRE_READ_PROVENANCE_AND_LEGACY_POST_DEPRECATION_2026-08-26.md
 docs/PROJECT_HANDOFF/125_RUN_WIRE_PRICE_PROVENANCE_CONVERGENCE_2026-08-26.md
 docs/PROJECT_HANDOFF/124_RUN_WIRE_CROSS_LOG_INTEGRITY_2026-08-26.md
 docs/PROJECT_HANDOFF/123_RUN_WIRE_ACCOUNTING_CONVERGENCE_2026-08-26.md
@@ -36,22 +37,17 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **125**.
+Latest GREEN foundation = checkpoint **126**.
 
-Latest verified checkpoint-125 evidence:
+Latest verified checkpoint-126 evidence:
 
 ```text
-price coordinator        74a92901262a060b203ea1b1a3cc3313537ce51a
-price cross-log audit    84dabb9920cf60ca8cd8745b16a3e97e9093f50b
-warehouse tag guard      4f20cc928723a0c3dd873741260ebed07d8690f5
-final contracts          c799c74f3f8f4c6cbcd538ea662e3c86fe039304
-ESP32 Build #1562        32960004843 / SUCCESS
-ESP32 Build #1563        32960173338 / SUCCESS
-ESP32 Build #1564        32960269882 / SUCCESS
-CMP Protocol Tests #3514 32960004874 / SUCCESS
-CMP Protocol Tests #3515 32960173324 / SUCCESS
-CMP Protocol Tests #3516 32960270010 / SUCCESS
-CMP Protocol Tests #3517 32960329745 / SUCCESS
+movement spool schema     261e76c372e954885ee3975d845e47e608354bbc
+immutable spool derivation 95b025271a799bcf7c175be386c33044c8c4d2b7
+legacy POST hard boundary e4d4e5acd5a08101ae5a6cc29943c228d822bb75
+final acceptance contract 21f3212d80c61ccaef2225140bfc5c5528577e47
+ESP32 Build #1569         32960764524 / SUCCESS
+CMP Protocol Tests #3535  32961372178 / SUCCESS
 ```
 
 ## Current migration state
@@ -65,18 +61,19 @@ CMP Protocol Tests #3517 32960329745 / SUCCESS
 123 costing/finalization accounting converged: RUN_WIRE counted once
 124 bounded cross-log RUN_WIRE integrity
 125 one KG wire price + reserved system accounting provenance
+126 direct exact spool provenance in new RUN_WIRE movements + legacy POST 410 deprecation
 ```
 
-Production operator route remains explicit and manual. Completed atomic evidence must agree on identity, quantity, timestamp, currency and price across Material Request, MaterialLedger and warehouse CONFIRMED records.
+New RUN_WIRE Material Request movement records expose exact `spool_id` directly. The store derives it from immutable `JobSpoolSelection`; callers cannot substitute another spool. Historical records without this field remain valid and are resolved through the immutable selection.
 
-`RWI_TX=` is system-owned and is rejected by generic MaterialLedger usage and compatibility warehouse-writeoff Web input.
+Public `POST /api/warehouse/write-offs` is permanently fail-closed with HTTP 410 and replacement `/api/material-requests/warehouse`. `GET /api/warehouse/write-offs` remains for history/coverage, and low-level warehouse recovery remains intact.
 
 ## Immediate NEXT
 
-1. Audit every remaining caller of mutating `POST /api/warehouse/write-offs`.
-2. If production has no remaining caller, disable the generic mutating Web route while preserving GET/history and internal warehouse recovery/store code.
-3. Preserve fault/recovery tests that exercise store-level transaction semantics without requiring a public legacy mutation path.
-4. Continue bounded read/report provenance work where useful.
+1. Extend `RunWireAccountingIntegrityAudit` to validate directly persisted `spool_id` when present, while accepting historical RUN_WIRE movements without it.
+2. Keep the audit bounded; do not add redundant full-log scans.
+3. Continue bounded read/report provenance improvements.
+4. Review whether low-level legacy writeoff APIs can be narrowed further without breaking history/recovery.
 5. Continue software work before final two-board hardware E2E.
 
 ## Material safety

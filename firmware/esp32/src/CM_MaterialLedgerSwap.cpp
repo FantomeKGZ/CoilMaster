@@ -171,3 +171,4 @@ bool MaterialLedger::replaceMaterialsFileFromTemp()
 
     return true;
 }
+}

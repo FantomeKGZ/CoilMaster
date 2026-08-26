@@ -35,6 +35,9 @@ public:
     bool confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;
     bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
     bool confirmKgFirstWriteOff(const KgFirstWriteOff& operation,SpoolWriteOffResult& result);
+    bool prepareManagedRunWireWriteOff(const KgFirstWriteOff& operation,uint32_t& movementId);
+    bool applyManagedRunWireSpoolWeight(uint32_t spoolId,uint32_t weightBeforeGrams,uint32_t weightAfterGrams,uint16_t diameterHundredthsMm,const String& wireType);
+    bool confirmManagedRunWireWriteOff(uint32_t movementId,const KgFirstWriteOff& operation,uint32_t weightBeforeGrams,uint32_t weightAfterGrams);
     bool appendConfirmedWriteOffsPageJson(String& json,uint32_t repairId,uint32_t cursor,uint8_t limit,uint16_t& appendedCount,uint16_t& totalMatchingCount,uint32_t& nextCursor,bool& hasMore,uint32_t& totalConsumedGrams,uint64_t& totalConsumedValueMinor,WriteOffMaterialTotals& materialTotals) const;
     bool setWarehousePrice(const WarehousePrice& price);
     bool loadWarehousePrice(WarehousePrice& price) const;

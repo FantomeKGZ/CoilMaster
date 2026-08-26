@@ -56,16 +56,47 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 110 Material Request production runtime/Web API
 111 Immutable repair delivery store/API + backup/integrity
 112 Append-only cash/payment journal + repair/client balance API + backup/integrity
+113 Motor Web catalog-only + separate creation + versioned working card
+114 Immutable AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 ```
 
-Latest checkpoint 112 evidence:
+Latest checkpoint 114 evidence:
 
 ```text
-CMP Protocol Tests 32928743465 / SUCCESS
-ESP32 Build         32928706196 / SUCCESS
+CMP Protocol Tests 32934323481 / SUCCESS
+ESP32 Build         32934092563 / SUCCESS
 ```
 
-The ESP32 run is on `eac97f9c59fdd0a7ca3e53c73ad4748aa0d1933e`, the last production-source cash commit. Current later commits only update host regression/docs.
+The ESP32 run is on production-source commit `da5d7271ba69e373599360550e81e1cf860f7a1a`, after the guarded `main.cpp` role/repeat integration. Later commits only tighten Web/host regressions and documentation.
+
+## Motor Web — SOFTWARE GREEN
+
+Desktop Motor Web now has:
+
+- catalog-only `/desktop/motors.html`;
+- separate `/desktop/motor-new.html`;
+- `/desktop/motor-details.html` with current WORKING/STARTING version and bounded version history;
+- canonical multi-conductor display;
+- immutable `AS_RECEIVED` vs exact after-repair version comparison using `source_repair_id`;
+- explicit legacy fallback rather than pretending missing historical evidence exists;
+- safe OPEN-repair links to `/desktop/winding-job.html?repair_id=...&role=working|starting`;
+- CLOSED repairs do not expose role send links.
+
+Linked production job validation is server-owned:
+
+```text
+repair -> exact motor -> OPEN
+latest winding version
+  -> exact role
+  -> exact program
+  -> exact repeat_target
+exact spool selection
+snapshot -> state -> spool selection -> DELIVERING -> UART
+```
+
+Legacy motor fallback authorizes WORKING only. Versionless STARTING fails closed. Present but malformed legacy repeat data also fails closed. `winding-job.html` treats program and repeat target as readonly convenience data and the server revalidates both before persistence/UART.
+
+Physical START remains local-only and Web never controls SSR.
 
 ## Material / warehouse model
 
@@ -150,17 +181,14 @@ Backup includes repair deliveries and repair payments, with fail-closed integrit
 
 ## Current NEXT
 
-1. Motor Web redesign:
-   - separate `motor-new.html`;
-   - archive-style `motors.html`;
-   - versioned WORKING/STARTING data in `motor-details.html`;
-   - direct job send reusing existing safety, never physical auto-start.
-2. Client Web redesign:
+1. Client Web redesign:
    - separate `client-new.html`;
    - catalog-only `clients.html`;
-   - `client-details.html` with motors, repairs, material requests, payments/balance and delivery history.
-3. Dedicated `cash.html`; keep `costing.html` for cost/price/margin only.
-4. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report/Web/tests are changed coherently.
+   - `client-details.html` with motors through repair history, open/closed repairs, material requests, payments/balance and delivery history;
+   - remove duplicated inline client creation from repair intake and leave a link/button to `client-new.html`.
+2. Dedicated `cash.html`; keep `costing.html` for cost/price/margin only.
+3. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report/Web/tests are changed coherently.
+4. Full Web/backend regression + backup/restore, then two-board hardware E2E.
 
 ## Wire migration
 
@@ -201,4 +229,4 @@ Not complete. Full two-board E2E remains mandatory after CRM/material/writeoff c
 
 ## Documentation rule
 
-Synchronize 95/101/06/01/90 and update 00 when read order changes. Major persistence/API blocks receive numbered checkpoints with exact commit and CI evidence.
+Synchronize 95/101/06/01/90 and update 00 when read order changes. Major persistence/API/UI blocks receive numbered checkpoints with exact commit and CI evidence.

@@ -153,7 +153,15 @@ void AutonomousWindingWeb::handleAssign()
                       "{\"error\":\"invalid_assignment_role\"}");
         return;
     }
-    if (!m_registry.motorExists(motorId))
+
+    bool motorFound = false;
+    if (!m_registry.motorExists(motorId, motorFound))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_lookup_integrity_failed\"}");
+        return;
+    }
+    if (!motorFound)
     {
         m_server.send(404, "application/json; charset=utf-8",
                       "{\"error\":\"motor_not_found\"}");

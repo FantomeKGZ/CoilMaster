@@ -1,0 +1,206 @@
+name: One-shot repair delivery integrity patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/repair-delivery-integrity-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch repair delivery backup integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          CRM=firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp
+          BACKUP=firmware/esp32/src/CM_BackupExportWeb.cpp
+          test "$(git hash-object "$CRM")" = "3deef06b40a80ee987aee65c4661d44c3f7b929e"
+          test "$(git hash-object "$BACKUP")" = "cedbc04f39244976c3c9d1c94eca8d499070c85f"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp')
+          s = p.read_text()
+          s = s.replace('#include "CM_FlatJsonObjectValidator.h"\n', '#include "CM_FlatJsonObjectValidator.h"\n#include "CM_RepairLifecycle.h"\n', 1)
+          anchor = '''constexpr const char* MaterialRequestStatusPath =
+              "/data/workshop/material-request-status.ndjson";
+'''
+          replacement = anchor + '''constexpr const char* RepairDeliveriesPath =
+              "/data/workshop/repair-deliveries.ndjson";
+'''
+          assert anchor in s and 'RepairDeliveriesPath' not in s
+          s = s.replace(anchor, replacement, 1)
+
+          marker = '''bool validateRequestStatuses(fs::FS& storage)
+          {'''
+          assert marker in s
+          delivery_code = r'''bool repairDeliveryIdentityMatches(fs::FS& storage,
+                                             uint32_t repairId,
+                                             uint32_t clientId,
+                                             uint32_t motorId)
+          {
+              if (!storage.exists(RepairsPath)) return false;
+              File file = storage.open(RepairsPath, FILE_READ);
+              if (!prepareNdjson(file))
+              {
+                  if (file) file.close();
+                  return false;
+              }
+              bool found = false;
+              while (file.available())
+              {
+                  const String line = file.readStringUntil('\n');
+                  if (line.length() == 0U) continue;
+                  uint32_t candidateRepairId = 0UL;
+                  if (!FlatJsonObjectValidator::valid(line) ||
+                      !findUnsigned(line, "repair_id", candidateRepairId) ||
+                      candidateRepairId == 0UL)
+                  {
+                      file.close();
+                      return false;
+                  }
+                  if (candidateRepairId != repairId) continue;
+                  uint32_t candidateClientId = 0UL, candidateMotorId = 0UL;
+                  if (found ||
+                      !findUnsigned(line, "client_id", candidateClientId) ||
+                      !findUnsigned(line, "motor_id", candidateMotorId) ||
+                      candidateClientId != clientId || candidateMotorId != motorId)
+                  {
+                      file.close();
+                      return false;
+                  }
+                  found = true;
+              }
+              file.close();
+              return found;
+          }
+
+          bool repairDeliveryUnique(fs::FS& storage, uint32_t repairId)
+          {
+              File file = storage.open(RepairDeliveriesPath, FILE_READ);
+              if (!prepareNdjson(file))
+              {
+                  if (file) file.close();
+                  return false;
+              }
+              uint8_t matches = 0U;
+              while (file.available())
+              {
+                  const String line = file.readStringUntil('\n');
+                  if (line.length() == 0U) continue;
+                  uint32_t candidate = 0UL;
+                  if (!FlatJsonObjectValidator::valid(line) ||
+                      !findUnsigned(line, "repair_id", candidate) || candidate == 0UL)
+                  {
+                      file.close();
+                      return false;
+                  }
+                  if (candidate == repairId && ++matches > 1U)
+                  {
+                      file.close();
+                      return false;
+                  }
+              }
+              file.close();
+              return matches == 1U;
+          }
+
+          bool validateRepairDeliveries(fs::FS& storage, uint32_t& count)
+          {
+              count = 0UL;
+              if (!storage.exists(RepairDeliveriesPath)) return true;
+              File file = storage.open(RepairDeliveriesPath, FILE_READ);
+              if (!prepareNdjson(file))
+              {
+                  if (file) file.close();
+                  return false;
+              }
+              uint32_t previousId = 0UL;
+              while (file.available())
+              {
+                  const String line = file.readStringUntil('\n');
+                  if (line.length() == 0U) continue;
+                  uint32_t deliveryId = 0UL, repairId = 0UL, clientId = 0UL, motorId = 0UL;
+                  String deliveredAt;
+                  if (!FlatJsonObjectValidator::valid(line) ||
+                      !findUnsigned(line, "delivery_id", deliveryId) || deliveryId == 0UL ||
+                      deliveryId <= previousId ||
+                      !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+                      !findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
+                      !findUnsigned(line, "motor_id", motorId) || motorId == 0UL ||
+                      !findString(line, "delivered_at", deliveredAt) ||
+                      deliveredAt.length() < 10U || deliveredAt.length() > 32U ||
+                      !repairDeliveryIdentityMatches(storage, repairId, clientId, motorId) ||
+                      !repairDeliveryUnique(storage, repairId))
+                  {
+                      file.close();
+                      return false;
+                  }
+                  bool repairOpen = false;
+                  if (!RepairLifecycle::isOpen(storage, repairId, repairOpen) || repairOpen)
+                  {
+                      file.close();
+                      return false;
+                  }
+                  if (line.indexOf(F("\"comment\":")) >= 0)
+                  {
+                      String comment;
+                      if (!findString(line, "comment", comment) || comment.length() > 500U)
+                      {
+                          file.close();
+                          return false;
+                      }
+                  }
+                  previousId = deliveryId;
+                  if (!increment(count))
+                  {
+                      file.close();
+                      return false;
+                  }
+              }
+              file.close();
+              return true;
+          }
+
+          '''
+          s = s.replace(marker, delivery_code + marker, 1)
+          old = '''           validateRequests(storage, metrics.materialRequestRecordCount) &&
+                     validateMovements(storage, metrics.materialRequestMovementRecordCount) &&
+                     validateRequestStatuses(storage);'''
+          new = '''           validateRequests(storage, metrics.materialRequestRecordCount) &&
+                     validateMovements(storage, metrics.materialRequestMovementRecordCount) &&
+                     validateRequestStatuses(storage) &&
+                     validateRepairDeliveries(storage, metrics.repairDeliveryRecordCount);'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          p = Path('firmware/esp32/src/CM_BackupExportWeb.cpp')
+          s = p.read_text()
+          anchor = '    uint32_t materialRequestMovementRecordCount = 0UL;\n'
+          assert anchor in s
+          s = s.replace(anchor, anchor + '    uint32_t repairDeliveryRecordCount = 0UL;\n', 1)
+          anchor = '    {"material-request-status", "/data/workshop/material-request-status.ndjson", "application/x-ndjson", "material-request-status.ndjson"},\n'
+          assert anchor in s
+          s = s.replace(anchor, anchor + '    {"repair-deliveries", "/data/workshop/repair-deliveries.ndjson", "application/x-ndjson", "repair-deliveries.ndjson"},\n', 1)
+          anchor = '    metrics.materialRequestMovementRecordCount = crmMetrics.materialRequestMovementRecordCount;\n'
+          assert anchor in s
+          s = s.replace(anchor, anchor + '    metrics.repairDeliveryRecordCount = crmMetrics.repairDeliveryRecordCount;\n', 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$CRM" "$BACKUP"
+          git commit -m 'feat(backup): audit and export repair delivery evidence'
+          git push origin HEAD:cmp-protocol-v1

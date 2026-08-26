@@ -13,6 +13,7 @@ function bodyBetween(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
+const header = fs.readFileSync('firmware/esp32/src/CM_MaterialLedger.h', 'utf8');
 const ledger = fs.readFileSync('firmware/esp32/src/CM_MaterialLedger.cpp', 'utf8');
 const adjustment = fs.readFileSync('firmware/esp32/src/CM_MaterialAdjustment.cpp', 'utf8');
 
@@ -22,6 +23,16 @@ const confirm = bodyBetween(
   'bool MaterialLedger::ensureDirectories()'
 );
 
+if (!confirm.includes('bool repairFound = false;')) {
+  fail('confirmUsage must keep an explicit repair found result');
+}
+if (!confirm.includes('repairExists(usage.repairId, repairFound)') ||
+    !confirm.includes('!repairFound')) {
+  fail('confirmUsage must use the fail-closed repair lookup form');
+}
+if (confirm.includes('repairExists(usage.repairId)')) {
+  fail('confirmUsage must not collapse repair read failure into not-found');
+}
 if (!confirm.includes('readMaterialState(usage.materialId, stockBefore, price, currency)')) {
   fail('confirmUsage must use one authoritative material-state preflight scan');
 }
@@ -36,6 +47,35 @@ if (!confirm.includes('currency != "KGS"')) {
 }
 if (!confirm.includes('rewriteQuantity(usage.materialId, usage.quantityMilli,')) {
   fail('confirmUsage must retain the mutation/transaction rewrite pass');
+}
+
+for (const forbidden of [
+  'bool usageExists(uint32_t usageId) const;',
+  'bool restoreQuantity(uint32_t materialId, uint32_t quantityMilli);'
+]) {
+  if (header.includes(forbidden)) fail(`retired MaterialLedger helper declaration returned: ${forbidden}`);
+}
+for (const forbidden of [
+  'bool MaterialLedger::usageExists(uint32_t usageId) const',
+  'bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli)'
+]) {
+  if (ledger.includes(forbidden)) fail(`retired MaterialLedger helper implementation returned: ${forbidden}`);
+}
+
+const recovery = bodyBetween(
+  ledger,
+  'bool MaterialLedger::recoverPendingUsage()',
+  'bool MaterialLedger::writePendingUsage('
+);
+for (const required of [
+  'bool usageAlreadyDurable = false;',
+  'if (usageAlreadyDurable) return m_storage.remove(UsagePendingPath);',
+  'if (!readStockQuantity(materialId, currentStock)) return false;',
+  'if (currentStock == stockBefore)',
+  'if (currentStock != stockAfter) return false;',
+  'if (!appendUsageLine(usageLine)) return false;'
+]) {
+  if (!recovery.includes(required)) fail(`usage recovery invariant missing after helper cleanup: ${required}`);
 }
 
 const state = bodyBetween(
@@ -58,4 +98,4 @@ for (const required of [
   if (!state.includes(required)) fail(`readMaterialState lost fail-closed contract: ${required}`);
 }
 
-console.log('PASS: material usage preflight is single-pass and fail-closed');
+console.log('PASS: material usage preflight remains fail-closed, repair existence is explicit, recovery stays deterministic, and retired private full-log helpers remain removed');

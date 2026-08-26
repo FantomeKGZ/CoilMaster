@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/131_WAREHOUSE_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
 docs/PROJECT_HANDOFF/130_WAREHOUSE_DEAD_DIRECT_WRITEOFF_REMOVAL_2026-08-26.md
 docs/PROJECT_HANDOFF/129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md
 docs/PROJECT_HANDOFF/128_WAREHOUSE_LEGACY_DIRECT_API_NARROWING_2026-08-26.md
@@ -41,16 +42,17 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **130**.
+Latest GREEN foundation = checkpoint **131**.
 
-Latest verified checkpoint-130 evidence:
+Latest verified checkpoint-131 evidence:
 
 ```text
-declaration/result removal     e9ebd56a0317a7aecf87d4e6fd49e5a3433c22fd
-implementation removal         2a0bde9954edbfb712336c38c677d70d405b0332
-final contract alignment       6f355a7aa5b2071477b3a9bd8ac387d96abf0e13
-ESP32 Build #1574              32963503796 / SUCCESS
-CMP Protocol Tests #3563       32964152182 / SUCCESS
+repair lookup declaration cleanup  6ccdec084001faabf25eaf5b28177d8f7e89a7d5
+repair lookup implementation       279fc281b42a559f89f911e9f0b2758ccd02e8ff
+fail-closed lookup contract        d848ce45eb35c7f2bba817d6de1efd0c4f4a02bd
+ESP32 Build #1576                  32964609675 / SUCCESS
+CMP Protocol Tests #3570           32964670388 / SUCCESS
+CMP Protocol Tests #3571           32964882464 / SUCCESS
 ```
 
 ## Current migration state
@@ -69,15 +71,16 @@ CMP Protocol Tests #3563       32964152182 / SUCCESS
 128 legacy direct Store writeoff methods private-only
 129 legacy direct request/result support types private-only
 130 dead direct Store mutation methods/result removed; deterministic historical recovery helpers retained
+131 ambiguous repairExists(id) convenience wrapper removed; only fail-closed repairExists(id, found) remains
 ```
 
-Public `POST /api/warehouse/write-offs` remains permanently fail-closed with HTTP 410. Current production wire mutation is atomic RUN_WIRE only. Historical GET and reboot reconciliation remain compatible through retained append helpers/codecs; the obsolete direct Store mutation entrypoints no longer exist.
+Public `POST /api/warehouse/write-offs` remains permanently fail-closed with HTTP 410. Current production wire mutation is atomic RUN_WIRE only. Historical GET and reboot reconciliation remain compatible through retained append helpers/codecs. Warehouse repair lookup no longer collapses storage/read failure into the same boolean as "not found".
 
 ## Immediate NEXT
 
-1. Continue compile-proven cleanup of warehouse helpers only where deterministic recovery/history do not depend on them.
-2. Keep `appendWriteOffRecord`, `appendKgFirstWriteOffRecord`, movement codec and startup recovery while historical persisted PENDING/history can exist.
-3. Prefer direct immutable transaction fields already returned by `/api/material-requests/movements`.
+1. Audit overloads `loadActiveSpoolIdentity`, `loadWarehousePrice`, and `loadKnownWireDiameters`; remove only unused/ambiguous convenience forms proven dead by ESP32 compilation.
+2. Keep managed RUN_WIRE, GET/history, integrity, backup and deterministic recovery dependencies intact.
+3. Prefer fail-closed APIs that expose `found/configured/count` separately from I/O success.
 4. Do not add redundant full-log scans or duplicate cross-log joins.
 5. Continue software optimization/integrity before final two-board hardware E2E.
 

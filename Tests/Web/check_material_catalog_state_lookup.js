@@ -20,17 +20,13 @@ const classStart = header.indexOf('class MaterialLedger');
 const privateStart = header.indexOf('\nprivate:', classStart);
 if (classStart < 0 || privateStart < 0) throw new Error('MaterialLedger class/private boundary missing');
 const publicSurface = header.slice(classStart, privateStart);
-const privateSurface = header.slice(privateStart);
 
 must(publicSurface,
   'bool repairExists(uint32_t repairId, bool& found) const;',
   'public fail-closed repair lookup');
-mustNot(publicSurface,
+mustNot(header,
   'bool repairExists(uint32_t repairId) const;',
-  'ambiguous public repair lookup');
-must(privateSurface,
-  'bool repairExists(uint32_t repairId) const;',
-  'temporary private repair compatibility wrapper');
+  'ambiguous repair lookup wrapper');
 
 must(publicSurface,
   'bool loadActiveMaterialState(uint32_t materialId,\n                                 MaterialItemState& state,\n                                 bool& found) const;',
@@ -68,8 +64,8 @@ must(repairRef,
   'bool MaterialLedger::repairExists(uint32_t repairId, bool& found) const',
   'fail-closed repair implementation');
 must(repairRef, 'found = false;', 'repair lookup initializes found');
-must(repairRef,
-  'return repairExists(repairId, found) && found;',
-  'private compatibility wrapper delegates to explicit lookup');
+mustNot(repairRef,
+  'bool MaterialLedger::repairExists(uint32_t repairId) const',
+  'ambiguous repair lookup implementation');
 
-console.log('Material catalog active-state lookup contracts OK: public repair/state/currency reads preserve explicit found results; dead material convenience wrappers are removed and the remaining repair compatibility wrapper is private-only.');
+console.log('Material catalog active-state lookup contracts OK: repair/state/currency reads preserve explicit found results and all ambiguous convenience wrappers remain removed.');

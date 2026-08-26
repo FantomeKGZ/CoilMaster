@@ -24,6 +24,8 @@ struct RunWireReference
     uint32_t warehouseItemId;
     uint32_t sourceSessionId;
     uint32_t sourceRunId;
+    bool hasPersistedSpoolId;
+    uint32_t persistedSpoolId;
     uint32_t spoolId;
     uint32_t consumedGrams;
     uint32_t ledgerQuantityMilli;
@@ -38,9 +40,10 @@ struct RunWireReference
 
     RunWireReference()
         : repairId(0UL), warehouseItemId(0UL), sourceSessionId(0UL),
-          sourceRunId(0UL), spoolId(0UL), consumedGrams(0UL),
-          ledgerQuantityMilli(0UL), unitCostMinor(0ULL), costAmountMinor(0ULL),
-          diameterHundredthsMm(0U), ledgerMatches(0U), warehouseMatches(0U)
+          sourceRunId(0UL), hasPersistedSpoolId(false), persistedSpoolId(0UL),
+          spoolId(0UL), consumedGrams(0UL), ledgerQuantityMilli(0UL),
+          unitCostMinor(0ULL), costAmountMinor(0ULL), diameterHundredthsMm(0U),
+          ledgerMatches(0U), warehouseMatches(0U)
     {
     }
 };
@@ -186,7 +189,9 @@ bool resolveImmutableSpoolAndBridge(fs::FS& storage, RunWireReference& reference
         !found || selection.repairId != reference.repairId ||
         selection.spoolId == 0UL ||
         selection.wireType != reference.materialClass ||
-        selection.diameterHundredthsMm != reference.diameterHundredthsMm)
+        selection.diameterHundredthsMm != reference.diameterHundredthsMm ||
+        (reference.hasPersistedSpoolId &&
+         reference.persistedSpoolId != selection.spoolId))
     {
         return false;
     }
@@ -491,6 +496,20 @@ bool checkMovements(fs::FS& storage, uint32_t& movementCount)
             file.close();
             return false;
         }
+
+        const String spoolMarker = F("\"spool_id\":");
+        const int spoolPosition = line.indexOf(spoolMarker);
+        if (spoolPosition >= 0)
+        {
+            if (!findUnsigned(line, "spool_id", reference.persistedSpoolId) ||
+                reference.persistedSpoolId == 0UL)
+            {
+                file.close();
+                return false;
+            }
+            reference.hasPersistedSpoolId = true;
+        }
+
         reference.diameterHundredthsMm = static_cast<uint16_t>(diameter);
         reference.ledgerQuantityMilli = reference.consumedGrams * 1000UL;
 

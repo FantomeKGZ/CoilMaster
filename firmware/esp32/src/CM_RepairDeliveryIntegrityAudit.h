@@ -9,6 +9,7 @@ namespace CM
 class RepairDeliveryIntegrityAudit
 {
 public:
+    // Backup-time read-only validation of immutable delivery evidence.
     static bool check(fs::FS& storage);
     static bool check(fs::FS& storage, uint32_t& recordCount);
 };

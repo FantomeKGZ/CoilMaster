@@ -161,7 +161,7 @@ bool accumulateCoverageRecord(const WarehouseWriteOffRecord& record,
     for (uint8_t index = 0U; index < targetCount; ++index)
     {
         WarehouseMovementCoverageTarget& target = targets[index];
-        if (record.sourceSessionId != target.sourceSessionId) continue;
+        if (record.sourceSessionId != target.sessionId) continue;
         if (record.repairId != repairId) return false;
 
         bool matches = false;
@@ -169,11 +169,11 @@ bool accumulateCoverageRecord(const WarehouseWriteOffRecord& record,
         {
             if (!record.hasSpoolId || record.spoolId != target.spoolId) return false;
             if (!record.hasSourceRunId) return false;
-            matches = record.sourceRunId == target.sourceRunId;
+            matches = record.sourceRunId == target.runId;
         }
         else
         {
-            if (!record.hasSourceRunId || record.sourceRunId != target.sourceRunId)
+            if (!record.hasSourceRunId || record.sourceRunId != target.runId)
                 continue;
             if (record.stockMode == WarehouseWriteOffStockMode::Spool)
             {
@@ -319,8 +319,8 @@ bool checkInternalWithSummary(fs::FS& storage,
     }
     for (uint8_t index = 0U; index < coverageTargetCount; ++index)
     {
-        if (coverageTargets[index].sourceSessionId == 0UL ||
-            coverageTargets[index].sourceRunId == 0UL ||
+        if (coverageTargets[index].sessionId == 0UL ||
+            coverageTargets[index].runId == 0UL ||
             coverageTargets[index].spoolId == 0UL)
         {
             return false;

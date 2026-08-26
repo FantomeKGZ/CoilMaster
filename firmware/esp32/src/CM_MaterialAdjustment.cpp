@@ -337,32 +337,6 @@ bool MaterialLedger::writePendingAdjustment(uint32_t adjustmentId,
     return true;
 }
 
-bool MaterialLedger::adjustmentExists(uint32_t adjustmentId) const
-{
-    if (!m_storage.exists(AdjustmentsPath)) return false;
-    File file = m_storage.open(AdjustmentsPath, FILE_READ);
-    if (!file) return false;
-    uint32_t previousId = 0UL;
-    bool found = false;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        uint32_t existing = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "adjustment_id", existing) || existing == 0UL ||
-            existing <= previousId)
-        {
-            file.close();
-            return false;
-        }
-        previousId = existing;
-        if (existing == adjustmentId) found = true;
-    }
-    file.close();
-    return found;
-}
-
 bool MaterialLedger::readMaterialState(uint32_t materialId,
                                        uint32_t& stockQuantityMilli,
                                        uint32_t& pricePerUnitMinor,

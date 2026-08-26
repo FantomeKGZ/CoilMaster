@@ -1,0 +1,86 @@
+name: Guarded Spool Bridge Runtime Patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/guarded-spool-bridge-runtime-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+
+      - name: Verify exact blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object firmware/esp32/src/CM_WarehouseWeb.cpp)" = "986a59fd02977cab132ce5e16ccf26e442ddeaf6"
+          test "$(git hash-object .github/workflows/cmp-protocol-tests.yml)" = "d4fce6feac4be80640a68d789073a21819d316b4"
+
+      - name: Apply exact patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected exactly one anchor, got {count}")
+              return text.replace(old, new, 1)
+
+          path = Path('firmware/esp32/src/CM_WarehouseWeb.cpp')
+          text = path.read_text()
+          text = replace_once(
+              text,
+              '#include "CM_MaterialLedgerWeb.h"\n',
+              '#include "CM_MaterialLedgerWeb.h"\n#include "CM_SpoolMaterialBridgeWeb.h"\n',
+              'bridge include')
+          text = replace_once(
+              text,
+              '    static MaterialLedger materialLedger(SD);\n    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);\n\n    materialLedger.begin();\n',
+              '    static MaterialLedger materialLedger(SD);\n    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);\n    static SpoolMaterialBridgeStore spoolMaterialBridgeStore(SD);\n    static SpoolMaterialBridgeWeb spoolMaterialBridgeWeb(m_server, m_store, materialLedger, spoolMaterialBridgeStore);\n\n    materialLedger.begin();\n    spoolMaterialBridgeStore.begin();\n',
+              'bridge bootstrap')
+          text = replace_once(
+              text,
+              '    materialLedgerWeb.begin();\n',
+              '    materialLedgerWeb.begin();\n    spoolMaterialBridgeWeb.begin();\n',
+              'bridge route begin')
+          path.write_text(text)
+
+          path = Path('.github/workflows/cmp-protocol-tests.yml')
+          text = path.read_text()
+          anchor = '''      - name: Audit MaterialLedger wire metadata
+        if: always()
+        run: node Tests/Web/check_material_wire_metadata.js
+'''
+          replacement = anchor + '''
+      - name: Audit operator spool-material bridge API
+        if: always()
+        run: node Tests/Web/check_spool_material_bridge_web.js
+'''
+          text = replace_once(text, anchor, replacement, 'CMP bridge audit step')
+          path.write_text(text)
+          PY
+
+      - name: Commit guarded integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "FantomeKGZ"
+          git config user.email "deadgrog@gmail.com"
+          git add firmware/esp32/src/CM_WarehouseWeb.cpp .github/workflows/cmp-protocol-tests.yml
+          git diff --cached --check
+          git commit -m "feat(warehouse): register operator spool bridge API"
+          git push origin HEAD:cmp-protocol-v1

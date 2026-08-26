@@ -229,12 +229,16 @@ bool JobLinkageResolver::resolveLegacyWorkingProgram(uint32_t requestedMotorId,
         String canonicalProgram;
         String status;
         uint32_t parsedRepeatTarget = 1UL;
-        const bool hasRepeatTarget = findUnsigned(line, "repeat_target", parsedRepeatTarget);
+        const bool repeatTargetPresent = line.indexOf(F("\"repeat_target\":")) >= 0;
+        const bool hasValidRepeatTarget = repeatTargetPresent &&
+            findUnsigned(line, "repeat_target", parsedRepeatTarget);
         if (found ||
             !findString(line, "coil_program", candidateProgram) ||
             !WindingProgramParser::canonicalize(candidateProgram, canonicalProgram) ||
             (findString(line, "status", status) && status != "ACTIVE") ||
-            (hasRepeatTarget && (parsedRepeatTarget == 0UL || parsedRepeatTarget > 0xFFFFUL)))
+            (repeatTargetPresent && !hasValidRepeatTarget) ||
+            (hasValidRepeatTarget &&
+             (parsedRepeatTarget == 0UL || parsedRepeatTarget > 0xFFFFUL)))
         {
             file.close();
             linkage = JobLinkage();

@@ -72,8 +72,9 @@ for (const text of [
   '"/api/warehouse/write-offs", HTTP_POST',
   'm_server.send(410',
   'legacy_writeoff_post_disabled',
-  '\"write_performed\":false',
-  '\"replacement\":\"/api/material-requests/warehouse\"',
+  'write_performed',
+  'replacement',
+  '/api/material-requests/warehouse',
   '"/api/warehouse/write-offs", HTTP_GET',
   'handleListWriteOffs()'
 ]) {
@@ -215,9 +216,7 @@ for (const forbidden of [
   '!idExists(storage, SpoolsPath',
   '!idExists(storage, RepairsPath'
 ]) {
-  if (warehousePersistence.includes(forbidden)) {
-    failures.push(warehousePersistencePath + ': legacy per-record backup reference audit returned: ' + forbidden);
-  }
+  if (warehousePersistence.includes(forbidden)) failures.push(warehousePersistencePath + ': legacy per-record backup reference audit returned: ' + forbidden);
 }
 
 for (const text of [

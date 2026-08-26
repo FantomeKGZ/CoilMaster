@@ -45,8 +45,7 @@ for (const text of [
   requireText(storePath, store, text, 'startup fail-closed recovery ordering missing: ' + text);
 }
 
-// A reboot after UNALLOCATED PENDING can never invent a confirmed deduction:
-// there was no durable stock mutation that could prove confirmation.
+// A reboot after historical UNALLOCATED PENDING can never invent a confirmed deduction.
 for (const text of [
   'WarehouseWriteOffStockMode::Unallocated',
   'No stock mutation ever occurs for UNALLOCATED',
@@ -55,9 +54,7 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'UNALLOCATED reboot recovery guard missing: ' + text);
 }
 
-// A spool-backed interrupted transaction is resolved only from durable spool
-// state. BEFORE means no mutation -> ABORTED; AFTER means mutation happened -> CONFIRMED;
-// any third weight is ambiguous and must fail recovery rather than guessing.
+// A spool-backed interrupted transaction is resolved only from durable spool state.
 for (const text of [
   'currentWeight == pending.weightBeforeGrams',
   'currentWeight == pending.weightAfterGrams',
@@ -68,20 +65,27 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'spool reboot recovery proof missing: ' + text);
 }
 
-// Legacy/direct HTTP writes remain fail-closed for compatibility callers. The
-// production operator UI no longer posts here; its atomic RUN_WIRE path is
-// checked below and by the kg-first/material contract test.
+// Public direct mutation is formally retired. Old clients receive an explicit
+// non-mutating 410 while GET history/coverage remains registered.
 for (const text of [
-  'warehouse_unavailable',
-  'repair_closed',
-  'winding_history_unavailable',
-  'winding_history_integrity_failed',
-  'source_run_not_completed',
-  'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)',
-  'source_run_already_written_off',
-  'write_performed\\\":false'
+  '"/api/warehouse/write-offs", HTTP_POST',
+  'm_server.send(410',
+  'legacy_writeoff_post_disabled',
+  '\"write_performed\":false',
+  '\"replacement\":\"/api/material-requests/warehouse\"',
+  '"/api/warehouse/write-offs", HTTP_GET',
+  'handleListWriteOffs()'
 ]) {
-  requireText(writeoffPath, writeoff, text, 'write-off HTTP fault guard missing: ' + text);
+  requireText(writeoffPath, writeoff, text, 'legacy POST deprecation contract missing: ' + text);
+}
+for (const forbidden of [
+  'handleConfirmWriteOff()',
+  'confirmKgFirstWriteOff(operation, result)',
+  'confirmSpoolWriteOff(operation, result)',
+  'source_run_already_written_off'
+]) {
+  requireAbsent(writeoffPath, writeoff, forbidden,
+    'retired public mutation implementation must stay absent: ' + forbidden);
 }
 
 // Duplicate protection is exact-run only. A session can legitimately contain
@@ -106,7 +110,6 @@ requireText(storeHeaderPath, storeHeader,
   'public duplicate lookup must require source_session_id + source_run_id');
 
 // The exact-run result must be resolved inside the authoritative movement audit.
-// Do not restore a second complete movements.ndjson scan after the audit.
 for (const text of [
   'static bool checkSourceRun(fs::FS& storage,',
   'uint32_t sourceSessionId,',
@@ -136,26 +139,8 @@ for (const forbidden of [
     'write-off lookup must not restore a post-audit full-file scan: ' + forbidden);
 }
 
-// Every JSON error emitted from the legacy/direct POST handler must explicitly
-// state that no write was performed. GET history errors are outside this contract.
-const postStart = writeoff.indexOf('void WarehouseWeb::handleConfirmWriteOff()');
-if (postStart < 0) {
-  failures.push(writeoffPath + ': POST handler not found');
-} else {
-  const postSource = writeoff.slice(postStart);
-  const errorResponses = [...postSource.matchAll(/"\{\\"error\\":\\"[^\n]+?\}"/g)];
-  if (!errorResponses.length) {
-    failures.push(writeoffPath + ': no POST JSON error responses found');
-  }
-  for (const match of errorResponses) {
-    if (!match[0].includes('write_performed\\\":false')) {
-      failures.push(writeoffPath + ': POST failure missing write_performed:false: ' + match[0]);
-    }
-  }
-}
-
-// Store-level duplicate/completion protection must remain authoritative even if
-// a future compatibility caller bypasses the web handler.
+// Store-level duplicate/completion protection remains authoritative for managed
+// RUN_WIRE and deterministic recovery even though the public legacy POST is gone.
 for (const text of [
   'WindingSessionCompletionAudit::check',
   'confirmedWriteOffForSourceRun(operation.sourceSessionId',
@@ -165,9 +150,8 @@ for (const text of [
   requireText(writeoffStorePath, writeoffStore, text, 'store-level fault guard missing: ' + text);
 }
 
-// Operator UI must route every non-2xx response to the error path and may
-// advance to the next uncovered run only after the atomic Material Request
-// RUN_WIRE endpoint returned successfully with exact movement/spool identity.
+// Operator UI advances only after the atomic Material Request RUN_WIRE endpoint
+// returned successfully with exact movement/spool identity.
 for (const text of [
   "if(!response.ok){const error=new Error(payload.error||('http_'+response.status))",
   "const data=await jsonFetch('/api/material-requests/warehouse'",
@@ -183,8 +167,7 @@ requireAbsent(controllerPath, controller,
   "jsonFetch('/api/warehouse/write-offs',{method:'POST'",
   'production operator UI must not return to legacy/direct write-off POST');
 
-// Safety invariants: recovery and fault handling must never create automatic
-// physical start, automatic resume, or RUN_COMPLETED-triggered material deduction.
+// Safety invariants: recovery and fault handling must never create automatic action.
 for (const forbidden of [
   'automaticWriteOff(',
   'autoWriteOff(',
@@ -203,4 +186,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: legacy compatibility failures remain fail-closed, production operator UI uses atomic RUN_WIRE with exact response identity, exact-run duplicate protection is audit-backed, reboot recovery is deterministic, and no automatic deduction exists.');
+console.log('Write-off fault contracts OK: public legacy POST is hard-disabled with 410, GET/history and deterministic store recovery remain intact, production mutation is atomic RUN_WIRE, exact-run duplicate protection remains audit-backed, and no automatic deduction exists.');

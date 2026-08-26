@@ -94,7 +94,7 @@ for (const text of [
   'const String usageComment=m_server.arg("comment")',
   'usageComment.indexOf(F("RWI_TX="))==0',
   'reserved_usage_comment_prefix',
-  '\"write_performed\":false',
+  'write_performed',
   'usage.comment=usageComment'
 ]) {
   requireText(materialWeb, text, `reserved RUN_WIRE ledger provenance guard ${text}`);

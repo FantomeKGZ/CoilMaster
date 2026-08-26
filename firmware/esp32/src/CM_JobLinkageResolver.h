@@ -4,6 +4,7 @@
 #include <FS.h>
 
 #include "CM_JobSnapshotStore.h"
+#include "CM_MotorWindingVersionStore.h"
 
 namespace CM
 {
@@ -22,11 +23,20 @@ public:
                  uint32_t requestedMotorId,
                  JobLinkage& linkage) const;
 
-    // Resolves the repair->motor linkage and the motor catalogue winding program
-    // from the same persistent workshop dataset. Duplicate motor identifiers,
-    // missing/inactive motors or an empty coil_program fail closed.
+    // Backward-compatible WORKING lookup. New linked-job callers should pass
+    // the requested role explicitly through the overload below.
     bool resolveWithProgram(uint32_t repairId,
                             uint32_t requestedMotorId,
+                            JobLinkage& linkage,
+                            String& coilProgram) const;
+
+    // Resolves repair->motor linkage and the authoritative winding program for
+    // the requested role. The latest winding version wins when present.
+    // Legacy motor.coil_program remains a WORKING-only fallback. STARTING
+    // without a versioned STARTING role fails closed.
+    bool resolveWithProgram(uint32_t repairId,
+                            uint32_t requestedMotorId,
+                            RemoteJobType requestedType,
                             JobLinkage& linkage,
                             String& coilProgram) const;
 
@@ -36,9 +46,14 @@ private:
     static constexpr const char* RepairStatusPath = "/data/workshop/repair-status.ndjson";
 
     fs::FS& m_storage;
+    MotorWindingVersionStore m_windingVersions;
     bool m_ready;
+    bool m_windingVersionsReady;
 
     bool repairIsOpen(uint32_t repairId) const;
+    bool resolveLegacyWorkingProgram(uint32_t requestedMotorId,
+                                     JobLinkage& linkage,
+                                     String& coilProgram) const;
     static bool findUnsigned(const String& line,
                              const char* key,
                              uint32_t& value);

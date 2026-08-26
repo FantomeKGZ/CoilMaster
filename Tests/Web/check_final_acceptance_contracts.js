@@ -22,6 +22,8 @@ const lookupPath = 'firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp';
 const warehousePath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const writeOffStorePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
+const writeOffRecoveryPath = 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp';
+const warehouseHeaderPath = 'firmware/esp32/src/CM_WarehouseStore.h';
 const runWirePath = 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp';
 const backupPath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
 const backupGuardPath = 'firmware/esp32/src/CM_BackupActivityGuard.cpp';
@@ -40,6 +42,8 @@ const lookup = read(lookupPath);
 const warehouse = read(warehousePath);
 const writeOff = read(writeOffPath);
 const writeOffStore = read(writeOffStorePath);
+const writeOffRecovery = read(writeOffRecoveryPath);
+const warehouseHeader = read(warehouseHeaderPath);
 const runWire = read(runWirePath);
 const backup = read(backupPath);
 const backupGuard = read(backupGuardPath);
@@ -53,14 +57,12 @@ const releaseAudit = read(releaseAuditPath);
 const webAudit = read(webAuditPath);
 
 for (const route of ['/api/clients', '/api/motors', '/api/repairs']) {
-  requireText(registryPath, registry, 'm_server.on("' + route + '", HTTP_GET',
-    'required populated-device list route missing: ' + route);
+  requireText(registryPath, registry, 'm_server.on("' + route + '", HTTP_GET', 'required populated-device list route missing: ' + route);
 }
 requireText(registryPath, registry, 'limit = 20U;', 'default bounded registry page size missing');
 requireText(registryPath, registry, 'RepairRegistry::MaxListPageSize', 'registry maximum page-size contract missing');
 for (const route of ['/api/clients/by-id', '/api/motors/by-id', '/api/repairs/by-id']) {
-  requireText(lookupPath, lookup, 'm_server.on("' + route + '", HTTP_GET',
-    'required exact lookup route missing: ' + route);
+  requireText(lookupPath, lookup, 'm_server.on("' + route + '", HTTP_GET', 'required exact lookup route missing: ' + route);
 }
 
 requireText(warehousePath, warehouse, 'm_server.on("/api/warehouse/summary", HTTP_GET', 'warehouse summary route missing');
@@ -82,9 +84,7 @@ for (const text of [
   '"{\\"error\\":\\"network_profile_persistence_failed\\"}"',
   '"{\\"error\\":\\"network_profile_delete_persistence_failed\\"}"',
   '"{\\"error\\":\\"network_manager_reload_failed\\"}"'
-]) {
-  requireText(networkWebPath, networkWeb, text, 'network API error-semantics contract missing: ' + text);
-}
+]) requireText(networkWebPath, networkWeb, text, 'network API error-semantics contract missing: ' + text);
 requireText(networkWebPath, networkWeb, 'm_server.send(m_store.ready() ? 500 : 503,',
   'network persistence failures must distinguish store unavailable from write failure');
 
@@ -107,32 +107,20 @@ for (const text of [
   'const BackupActivityCheck runtime = runtimeCheck();',
   'if (runtime != BackupActivityCheck::Safe)\n        return runtime;',
   'if (!found)\n        return BackupActivityCheck::Safe;'
-]) {
-  requireText(backupGuardPath, backupGuard, text, 'backup activity runtime fail-closed contract missing: ' + text);
-}
+]) requireText(backupGuardPath, backupGuard, text, 'backup activity runtime fail-closed contract missing: ' + text);
 if (backupGuard.includes('runtime == BackupActivityCheck::Unavailable\n            ? BackupActivityCheck::Safe')) {
   failures.push(backupGuardPath + ': unavailable runtime must never be promoted to Safe');
 }
 
 for (const text of [
-  'enum class WindingSessionPersistenceAuditFailure',
-  'TemporaryFilePresent',
-  'InvalidDirectoryEntry',
-  'directoryPreflightMeasured',
-  'directoryPreflightDurationMs'
-]) {
-  requireText(sessionAuditHeaderPath, sessionAuditHeader, text, 'session persistence preflight result contract missing: ' + text);
-}
+  'enum class WindingSessionPersistenceAuditFailure', 'TemporaryFilePresent', 'InvalidDirectoryEntry',
+  'directoryPreflightMeasured', 'directoryPreflightDurationMs'
+]) requireText(sessionAuditHeaderPath, sessionAuditHeader, text, 'session persistence preflight result contract missing: ' + text);
 for (const text of [
-  'directoryContentsCanonical(storage, directories[index])',
-  'isCanonicalTempName(name)',
-  'const uint32_t preflightStartedAtMs = millis();',
-  'validatedMetrics.directoryPreflightMeasured = true;',
-  'JobSnapshotStore snapshots(storage);',
-  'JobSpoolSelectionStore selections(storage);'
-]) {
-  requireText(sessionAuditPath, sessionAudit, text, 'read-only session persistence preflight missing: ' + text);
-}
+  'directoryContentsCanonical(storage, directories[index])', 'isCanonicalTempName(name)',
+  'const uint32_t preflightStartedAtMs = millis();', 'validatedMetrics.directoryPreflightMeasured = true;',
+  'JobSnapshotStore snapshots(storage);', 'JobSpoolSelectionStore selections(storage);'
+]) requireText(sessionAuditPath, sessionAudit, text, 'read-only session persistence preflight missing: ' + text);
 const preflightPos = sessionAudit.indexOf('const uint32_t preflightStartedAtMs = millis();');
 const storeBeginPos = sessionAudit.indexOf('JobSnapshotStore snapshots(storage);');
 if (preflightPos < 0 || storeBeginPos < 0 || preflightPos >= storeBeginPos) {
@@ -140,58 +128,41 @@ if (preflightPos < 0 || storeBeginPos < 0 || preflightPos >= storeBeginPos) {
 }
 
 for (const text of [
-  'windingSessionMetrics.directoryPreflightDurationMs',
-  'windingSessionMetrics.directoryPreflightMeasured',
-  'WindingSessionPersistenceAuditFailure::DirectoryUnavailable',
-  'WindingSessionPersistenceAuditFailure::TemporaryFilePresent',
-  'WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry',
-  'session_directory_unavailable',
-  'session_temp_present',
-  'session_directory_invalid'
-]) {
-  requireText(backupExportPath, backupExport, text, 'backup manifest no longer consumes authoritative session preflight evidence: ' + text);
-}
+  'windingSessionMetrics.directoryPreflightDurationMs', 'windingSessionMetrics.directoryPreflightMeasured',
+  'WindingSessionPersistenceAuditFailure::DirectoryUnavailable', 'WindingSessionPersistenceAuditFailure::TemporaryFilePresent',
+  'WindingSessionPersistenceAuditFailure::InvalidDirectoryEntry', 'session_directory_unavailable',
+  'session_temp_present', 'session_directory_invalid'
+]) requireText(backupExportPath, backupExport, text, 'backup manifest no longer consumes authoritative session preflight evidence: ' + text);
 if (backupExport.includes('scanSessionDirectory(storage, directories[i], 0UL,')) {
   failures.push(backupExportPath + ': duplicate backup-manifest session directory preflight scan detected');
 }
 
-// The production mutation boundary is now atomic RUN_WIRE only. The historical
-// warehouse URL keeps GET history but its POST must return 410 without mutation.
 for (const text of [
-  '"/api/warehouse/write-offs", HTTP_POST',
-  'm_server.send(410',
-  'legacy_writeoff_post_disabled',
-  'write_performed',
-  'replacement',
-  '/api/material-requests/warehouse',
-  '"/api/warehouse/write-offs", HTTP_GET',
-  'handleListWriteOffs()'
-]) {
-  requireText(writeOffPath, writeOff, text, 'legacy writeoff hard-deprecation contract missing: ' + text);
-}
+  '"/api/warehouse/write-offs", HTTP_POST', 'm_server.send(410', 'legacy_writeoff_post_disabled',
+  'write_performed', 'replacement', '/api/material-requests/warehouse',
+  '"/api/warehouse/write-offs", HTTP_GET', 'handleListWriteOffs()'
+]) requireText(writeOffPath, writeOff, text, 'legacy writeoff hard-deprecation contract missing: ' + text);
 if (writeOff.includes('handleConfirmWriteOff')) failures.push(writeOffPath + ': retired public writeoff mutation handler returned');
 
-// Exact manual provenance is enforced by the atomic coordinator before pending
-// persistence; retained low-level store guards keep deterministic recovery safe.
+// Atomic coordinator is the only current writeoff safety owner. Direct Store
+// mutation entrypoints are intentionally absent; legacy startup reconciliation
+// keeps only append helpers and durable before/after proof.
 for (const text of [
-  'requestedMovement.sourceSessionId == 0UL',
-  'requestedMovement.sourceRunId == 0UL',
-  'JobSpoolSelectionStore::loadReadOnly',
-  'selection.spoolId != spoolId',
-  'WindingSessionCompletionAudit::check',
-  'm_warehouse.confirmedWriteOffForSourceRun',
-  'm_pending.save(pending)'
-]) {
-  requireText(runWirePath, runWire, text, 'atomic RUN_WIRE provenance guard missing: ' + text);
+  'requestedMovement.sourceSessionId == 0UL', 'requestedMovement.sourceRunId == 0UL',
+  'JobSpoolSelectionStore::loadReadOnly', 'selection.spoolId != spoolId',
+  'WindingSessionCompletionAudit::check', 'm_warehouse.confirmedWriteOffForSourceRun',
+  'alreadyConfirmed', 'm_pending.save(pending)'
+]) requireText(runWirePath, runWire, text, 'atomic RUN_WIRE provenance guard missing: ' + text);
+for (const forbidden of ['confirmSpoolWriteOff(', 'confirmKgFirstWriteOff(', 'SpoolWriteOffResult']) {
+  if (writeOffStore.includes(forbidden) || warehouseHeader.includes(forbidden)) {
+    failures.push(writeOffStorePath + ': dead legacy direct writeoff surface returned: ' + forbidden);
+  }
 }
 for (const text of [
-  'WindingSessionCompletionAudit::check',
-  'confirmedWriteOffForSourceRun(operation.sourceSessionId',
-  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
-  'alreadyConfirmed'
-]) {
-  requireText(writeOffStorePath, writeOffStore, text, 'retained low-level writeoff guard missing: ' + text);
-}
+  'pending.mode == WarehouseWriteOffMode::LegacySpool', 'ConfirmedSpoolWriteOff operation;',
+  'currentWeight == pending.weightBeforeGrams', 'currentWeight == pending.weightAfterGrams',
+  'appendWriteOffRecord(pending.movementId'
+]) requireText(writeOffRecoveryPath, writeOffRecovery, text, 'historical legacy recovery guard missing: ' + text);
 
 for (const variant of ['desktop', 'mobile']) {
   for (const page of ['settings.html', 'repairs.html', 'motors.html', 'warehouse.html', 'winding-history.html', 'backup.html']) {
@@ -202,17 +173,12 @@ requireText(staticSitePath, staticSite, '/shared/settings-system-diagnostics.js'
 requireText(webAuditPath, webAudit, '/api/system/storage', 'web audit no longer protects microSD diagnostics');
 
 for (const contract of [
-  'physical START button polling contract missing',
-  'direct SSR authority detected on ESP32',
-  'atomic exact-spool/source-run writeoff guard missing',
-  'explicit APPLY confirmation contract missing'
-]) {
-  requireText(releaseAuditPath, releaseAudit, contract, 'release safety audit lost required contract: ' + contract);
-}
+  'physical START button polling contract missing', 'direct SSR authority detected on ESP32',
+  'atomic exact-spool/source-run writeoff guard missing', 'explicit APPLY confirmation contract missing'
+]) requireText(releaseAuditPath, releaseAudit, contract, 'release safety audit lost required contract: ' + contract);
 
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-
-console.log('Final acceptance contracts OK: bounded workshop reads, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, atomic manual exact-run RUN_WIRE, hard-disabled legacy writeoff POST, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded workshop reads, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, atomic manual exact-run RUN_WIRE, removed dead direct writeoff entrypoints, deterministic historical recovery, and desktop/mobile acceptance UI.');

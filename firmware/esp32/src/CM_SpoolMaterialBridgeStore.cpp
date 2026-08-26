@@ -3,6 +3,11 @@
 
 namespace CM
 {
+namespace
+{
+constexpr uint8_t BridgeAuditBatchSize = 24U;
+}
+
 SpoolMaterialBridgeStore::SpoolMaterialBridgeStore(fs::FS& storage)
     : m_storage(storage), m_ready(false)
 {
@@ -124,56 +129,87 @@ bool SpoolMaterialBridgeStore::loadBySpool(uint32_t spoolId,
 
 bool SpoolMaterialBridgeStore::validateAll() const
 {
-    File file = m_storage.open(Path, FILE_READ);
-    if (!file || file.isDirectory())
+    uint32_t batchAfterBridgeId = 0UL;
+    for (;;)
     {
-        if (file) file.close();
-        return false;
-    }
+        uint32_t batchSpoolIds[BridgeAuditBatchSize] = {};
+        uint8_t batchCount = 0U;
+        uint32_t lastBridgeId = batchAfterBridgeId;
 
-    uint32_t previousId = 0UL;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        SpoolMaterialBridge current;
-        if (!parse(line, current) || current.bridgeId <= previousId)
+        File file = m_storage.open(Path, FILE_READ);
+        if (!file || file.isDirectory())
         {
-            file.close();
+            if (file) file.close();
             return false;
         }
-        previousId = current.bridgeId;
+        uint32_t previousId = 0UL;
+        while (file.available())
+        {
+            const String line = file.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            SpoolMaterialBridge current;
+            if (!parse(line, current) || current.bridgeId <= previousId)
+            {
+                file.close();
+                return false;
+            }
+            previousId = current.bridgeId;
+            if (current.bridgeId <= batchAfterBridgeId) continue;
+            if (batchCount >= BridgeAuditBatchSize) break;
+            for (uint8_t i = 0U; i < batchCount; ++i)
+            {
+                if (batchSpoolIds[i] == current.spoolId)
+                {
+                    file.close();
+                    return false;
+                }
+            }
+            batchSpoolIds[batchCount++] = current.spoolId;
+            lastBridgeId = current.bridgeId;
+        }
+        file.close();
 
+        if (batchCount == 0U) return true;
+
+        uint8_t matches[BridgeAuditBatchSize] = {};
         File duplicateScan = m_storage.open(Path, FILE_READ);
         if (!duplicateScan || duplicateScan.isDirectory())
         {
             if (duplicateScan) duplicateScan.close();
-            file.close();
             return false;
         }
-        uint16_t matches = 0U;
+        previousId = 0UL;
         while (duplicateScan.available())
         {
-            const String otherLine = duplicateScan.readStringUntil('\n');
-            if (otherLine.length() == 0U) continue;
-            SpoolMaterialBridge other;
-            if (!parse(otherLine, other))
+            const String line = duplicateScan.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            SpoolMaterialBridge current;
+            if (!parse(line, current) || current.bridgeId <= previousId)
             {
                 duplicateScan.close();
-                file.close();
                 return false;
             }
-            if (other.spoolId == current.spoolId && ++matches > 1U)
+            previousId = current.bridgeId;
+            for (uint8_t i = 0U; i < batchCount; ++i)
             {
-                duplicateScan.close();
-                file.close();
-                return false;
+                if (batchSpoolIds[i] != current.spoolId) continue;
+                if (++matches[i] > 1U)
+                {
+                    duplicateScan.close();
+                    return false;
+                }
             }
         }
         duplicateScan.close();
+        for (uint8_t i = 0U; i < batchCount; ++i)
+        {
+            if (matches[i] != 1U) return false;
+        }
+
+        if (lastBridgeId <= batchAfterBridgeId) return false;
+        batchAfterBridgeId = lastBridgeId;
+        if (batchCount < BridgeAuditBatchSize) return true;
     }
-    file.close();
-    return true;
 }
 
 bool SpoolMaterialBridgeStore::nextBridgeId(uint32_t& bridgeId) const

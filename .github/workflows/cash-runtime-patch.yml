@@ -1,0 +1,48 @@
+name: One-shot cash runtime integration patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/cash-runtime-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch MaterialLedgerWeb cash runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=firmware/esp32/src/CM_MaterialLedgerWeb.cpp
+          EXPECTED=de111f93f09b6b2003c38b5a35d79e5f984f4c8f
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('firmware/esp32/src/CM_MaterialLedgerWeb.cpp')
+          s=p.read_text()
+          a='#include "CM_RepairCostingWeb.h"\n'
+          b=a+'#include "CM_CashPaymentStore.h"\n#include "CM_CashPaymentWeb.h"\n#include "CM_RepairRegistry.h"\n'
+          assert a in s and 'CM_CashPaymentWeb.h' not in s
+          s=s.replace(a,b,1)
+          a='    static RepairCosting repairCosting(SD);\n    static RepairCostingWeb repairCostingWeb(m_server, repairCosting);\n    repairCosting.begin();\n    repairCostingWeb.begin();\n'
+          b='    static RepairCosting repairCosting(SD);\n    static RepairCostingWeb repairCostingWeb(m_server, repairCosting);\n    static RepairRegistry cashRepairRegistry(SD);\n    static CashPaymentStore cashPayments(SD);\n    static CashPaymentWeb cashPaymentWeb(m_server, cashRepairRegistry, repairCosting, cashPayments);\n    repairCosting.begin();\n    repairCostingWeb.begin();\n    if (cashRepairRegistry.begin() && cashPayments.begin()) cashPaymentWeb.begin();\n'
+          assert a in s and 'static CashPaymentStore cashPayments' not in s
+          s=s.replace(a,b,1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$FILE"
+          git commit -m 'feat(cash): register payment runtime API'
+          git push origin HEAD:cmp-protocol-v1

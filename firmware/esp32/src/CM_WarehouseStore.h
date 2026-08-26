@@ -14,9 +14,7 @@ struct WireStockSummary{uint16_t diameterHundredthsMm;uint32_t remainingGrams;ui
 struct NewWireSpool{uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;String wireType;String manufacturer;String supplier;String batch;String storageLocation;String comment;NewWireSpool():diameterHundredthsMm(0U),currentWeightGrams(0UL){}};
 struct ActiveWireSpoolIdentity{uint32_t spoolId;uint16_t diameterHundredthsMm;uint32_t currentWeightGrams;String wireType;ActiveWireSpoolIdentity():spoolId(0UL),diameterHundredthsMm(0U),currentWeightGrams(0UL){}bool isValid()const{return spoolId!=0UL&&diameterHundredthsMm!=0U&&currentWeightGrams!=0UL&&(wireType=="CU"||wireType=="AL");}};
 struct WarehousePrice{uint32_t pricePerKgMinor;String currency;WarehousePrice():pricePerKgMinor(0UL),currency("KGS") {}};
-struct ConfirmedSpoolWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t sourceSessionId;uint32_t sourceRunId;uint32_t weightBeforeGrams;uint32_t weightAfterGrams;String timestamp;String comment;ConfirmedSpoolWriteOff():spoolId(0UL),repairId(0UL),sourceSessionId(0UL),sourceRunId(0UL),weightBeforeGrams(0UL),weightAfterGrams(0UL){}};
 struct KgFirstWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t sourceSessionId;uint32_t sourceRunId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;String wireType;String timestamp;String comment;KgFirstWriteOff():spoolId(0UL),repairId(0UL),sourceSessionId(0UL),sourceRunId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL){}};
-struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;String wireType;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
 struct WriteOffMaterialTotals{uint32_t copperGrams;uint32_t aluminiumGrams;uint32_t unknownGrams;uint64_t copperValueMinor;uint64_t aluminiumValueMinor;uint64_t unknownValueMinor;uint16_t copperCount;uint16_t aluminiumCount;uint16_t unknownCount;WriteOffMaterialTotals():copperGrams(0UL),aluminiumGrams(0UL),unknownGrams(0UL),copperValueMinor(0ULL),aluminiumValueMinor(0ULL),unknownValueMinor(0ULL),copperCount(0U),aluminiumCount(0U),unknownCount(0U){}};
 struct KnownWireDiameter{uint16_t diameterHundredthsMm;uint32_t availableGrams;KnownWireDiameter():diameterHundredthsMm(0U),availableGrams(0UL){}};
 
@@ -50,6 +48,8 @@ public:
     uint32_t totalRemainingGrams() const; uint32_t totalConsumedMonthGrams() const; uint32_t totalConsumedAllTimeGrams() const;
 
 private:
+    struct ConfirmedSpoolWriteOff{uint32_t spoolId;uint32_t repairId;uint32_t sourceSessionId;uint32_t sourceRunId;uint32_t weightBeforeGrams;uint32_t weightAfterGrams;String timestamp;String comment;ConfirmedSpoolWriteOff():spoolId(0UL),repairId(0UL),sourceSessionId(0UL),sourceRunId(0UL),weightBeforeGrams(0UL),weightAfterGrams(0UL){}};
+    struct SpoolWriteOffResult{uint32_t movementId;uint16_t diameterHundredthsMm;uint32_t consumedGrams;uint32_t pricePerKgMinor;String currency;String wireType;SpoolWriteOffResult():movementId(0UL),diameterHundredthsMm(0U),consumedGrams(0UL),pricePerKgMinor(0UL),currency("KGS") {}};
     static constexpr const char* SpoolsPath="/data/warehouse/spools.ndjson";
     static constexpr const char* SpoolsTempPath="/data/warehouse/spools.tmp";
     static constexpr const char* SpoolsBackupPath="/data/warehouse/spools.bak";

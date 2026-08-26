@@ -40,6 +40,16 @@ public:
                             JobLinkage& linkage,
                             String& coilProgram) const;
 
+    // Linked production path: resolves both the exact program and the repeat
+    // target from the same authoritative winding role. Callers must compare
+    // both values before committing immutable job state.
+    bool resolveWithProgramAndRepeat(uint32_t repairId,
+                                     uint32_t requestedMotorId,
+                                     RemoteJobType requestedType,
+                                     JobLinkage& linkage,
+                                     String& coilProgram,
+                                     uint16_t& repeatTarget) const;
+
 private:
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
     static constexpr const char* MotorsPath = "/data/workshop/motors.ndjson";
@@ -53,7 +63,8 @@ private:
     bool repairIsOpen(uint32_t repairId) const;
     bool resolveLegacyWorkingProgram(uint32_t requestedMotorId,
                                      JobLinkage& linkage,
-                                     String& coilProgram) const;
+                                     String& coilProgram,
+                                     uint16_t& repeatTarget) const;
     static bool findUnsigned(const String& line,
                              const char* key,
                              uint32_t& value);

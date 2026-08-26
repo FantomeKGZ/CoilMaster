@@ -20,36 +20,37 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
 ```
 
-## GREEN foundation through checkpoint 118
+## GREEN foundation through checkpoint 119
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
 117 forensic exact-spool -> Material Request owner map
 118 append-only spool_id <-> warehouse_item_id bridge + bounded integrity + backup/export
+119 backward-compatible MaterialLedger wire metadata + exact bridge metadata validation
 ```
 
 Latest verified:
 
 ```text
-CMP Protocol Tests 32939884633 / SUCCESS
-ESP32 Build         32939884635 / SUCCESS
+CMP Protocol Tests 32941574082 / SUCCESS
+ESP32 Build         32941574080 / SUCCESS
 ```
 
-Checkpoint 118: `118_SPOOL_MATERIAL_BRIDGE_PERSISTENCE_2026-08-26.md`.
+Checkpoint 119: `119_MATERIAL_LEDGER_WIRE_METADATA_2026-08-26.md`.
 
-## Current active queue — wire metadata before runtime bridge creation
+## Current active queue — operator-only bridge creation
 
-The bridge persistence layer exists, but no runtime writer is exposed yet.
+MaterialLedger now has authoritative optional wire metadata (`CU|AL` + exact diameter), while old generic records remain valid.
 
 Next coherent block:
 
-1. Extend existing authoritative `MaterialLedger` backward-compatibly with structured wire metadata for wire catalog entries: `CU|AL` + exact diameter.
-2. Preserve all non-wire material records and current unit/cost contracts.
-3. Make spool bridge creation fail closed unless exact physical spool and exact MaterialLedger wire metadata agree.
-4. Only then expose an explicit operator bridge-creation path.
-5. After bridge identity is authoritative, migrate run-linked accounting toward Material Request `RUN_WIRE` with crash-safe transaction/recovery.
-
-Do **not** partially remove old exact-spool writeoff/finalization requirements before the coordinated runtime transition is complete.
+1. Add explicit operator-only spool-material bridge creation.
+2. Require exact active physical `spool_id`.
+3. Require exact active MaterialLedger `warehouse_item_id` with `unit=GRAM` and structured wire metadata.
+4. Require exact CU/AL + diameter agreement between physical spool and MaterialLedger item.
+5. Reject already-bridged spool fail-closed.
+6. Append bridge identity evidence only; do not mutate either stock domain.
+7. Keep existing exact-spool writeoff/finalization authoritative until later coordinated RUN_WIRE migration.
 
 Future run-linked target remains:
 

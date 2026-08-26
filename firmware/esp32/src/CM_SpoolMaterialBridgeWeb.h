@@ -9,6 +9,8 @@
 
 namespace CM
 {
+// Explicit operator identity-link endpoint only. It appends bridge evidence and
+// never performs physical-spool or MaterialLedger stock mutation.
 class SpoolMaterialBridgeWeb
 {
 public:

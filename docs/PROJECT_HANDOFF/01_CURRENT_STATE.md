@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **137**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary is single-pass, MaterialLedger public lookups are explicitly fail-closed, and obsolete private full-log helpers are removed.
+GREEN through checkpoint **138**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary is single-pass, MaterialLedger public lookups are explicitly fail-closed, dead private ledger helpers are removed, and RepairCosting repair identity validation no longer uses an ambiguous bool wrapper.
 
 ## Latest GREEN state
 
@@ -21,7 +21,8 @@ GREEN through checkpoint **137**. Atomic RUN_WIRE is the only current wire mutat
 134 warehouse summary -> one authoritative movement validation/aggregation pass
 135 MaterialLedger public repair/state/currency -> explicit found
 136 dead adjustmentExists full-log helper removed
-137 one-arg repair wrapper + dead usageExists/restoreQuantity helpers removed
+137 one-arg MaterialLedger repair + dead usageExists/restoreQuantity removed
+138 RepairCosting one-arg repair wrapper removed; load() uses explicit found
 ```
 
 Production RUN_WIRE path remains:
@@ -34,23 +35,23 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-`confirmUsage()` now explicitly distinguishes repair-reference read failure from `found=false` before mutation. Usage recovery still uses `readStockQuantity()` for exact BEFORE/AFTER reconciliation; this live recovery helper was intentionally retained.
+`RepairCosting::savePricing()` still reuses `load()` and does not perform a duplicate repair identity scan. `load()` now rejects both repair reference read/integrity failure and `found=false` explicitly before costing scans.
 
-Latest verified checkpoint-137 evidence:
+Latest verified checkpoint-138 evidence:
 
 ```text
-90c732a9caef1d1e4104c9c7374a72f6a8df3811  final MaterialLedger source
-5dc6f1c0303834274d989b8846b53ba34c1f3368  final contracts
-ESP32 Build #1592   32972822029 / SUCCESS
-CMP Tests #3614     32972911974 / SUCCESS
+3c62d73d3cbd24fe08013cee63a59a8353af3e50  final RepairCosting source
+959f8d283e1669f083d9361b11af9a194154fee4  single-pass/fail-closed contract
+ESP32 Build #1595   32973529504 / SUCCESS
+CMP Tests #3622     32973582094 / SUCCESS
 ```
 
-Checkpoint: `137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08-26.md`.
+Checkpoint: `138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md`.
 
 ## Current NEXT
 
 1. Continue bounded runtime/read-helper audit for dead scans or ambiguous bool APIs.
-2. Preserve Web HTTP preflight semantics and mutation-time TOCTOU protection.
+2. Preserve single-pass costing ownership and Web HTTP preflight semantics.
 3. No automatic production-data rotation/deletion/truncation and no premature DB migration.
 4. Preserve historical recovery/history and atomic RUN_WIRE safety.
 

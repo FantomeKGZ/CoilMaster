@@ -19,6 +19,7 @@ struct WarehouseMovementRepairTotals
     uint16_t copperWireLineCount;
     uint16_t aluminiumWireLineCount;
     uint16_t unknownWireLineCount;
+    uint16_t materialLineCount;
     String currency;
     bool currencySet;
 
@@ -34,6 +35,7 @@ struct WarehouseMovementRepairTotals
           copperWireLineCount(0U),
           aluminiumWireLineCount(0U),
           unknownWireLineCount(0U),
+          materialLineCount(0U),
           currencySet(false)
     {
     }
@@ -63,6 +65,19 @@ struct WarehouseMovementSummaryTotals
     WarehouseMovementSummaryTotals() : diameterCount(0U) {}
 };
 
+constexpr uint8_t WarehouseMovementCoverageMaxTargets = 32U;
+
+struct WarehouseMovementCoverageTarget
+{
+    uint32_t sourceSessionId;
+    uint32_t sourceRunId;
+    uint32_t spoolId;
+    bool confirmed;
+
+    WarehouseMovementCoverageTarget()
+        : sourceSessionId(0UL), sourceRunId(0UL), spoolId(0UL), confirmed(false) {}
+};
+
 class WarehouseMovementIntegrityAudit
 {
 public:
@@ -78,5 +93,9 @@ public:
                                uint32_t sourceSessionId,
                                uint32_t sourceRunId,
                                bool& confirmed);
+    static bool checkCoverageBatch(fs::FS& storage,
+                                   uint32_t repairId,
+                                   WarehouseMovementCoverageTarget* targets,
+                                   uint8_t targetCount);
 };
 }

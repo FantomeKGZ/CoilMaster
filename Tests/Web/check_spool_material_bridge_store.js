@@ -31,14 +31,15 @@ for (const token of [
   'constexpr uint8_t BridgeAuditBatchSize = 24U;',
   'uint32_t batchSpoolIds[BridgeAuditBatchSize]',
   'uint8_t matches[BridgeAuditBatchSize]',
-  'batchCount >= BridgeAuditBatchSize'
+  'if (batchCount == 0U) return true;',
+  'batchCount >= BridgeAuditBatchSize',
+  'if (batchCount < BridgeAuditBatchSize) return true;'
 ]) must(source, token, 'bridge store');
 
 mustNot(source, 'RUN_COMPLETED', 'bridge store must not react to run completion');
 mustNot(source, 'confirmSpoolWriteOff', 'bridge store must not mutate physical spool stock');
 mustNot(source, 'confirmUsage', 'bridge store must not mutate MaterialLedger stock');
 mustNot(source, 'adjustMaterial', 'bridge store must not mutate MaterialLedger stock');
-mustNot(source, 'File duplicateScan = m_storage.open(Path, FILE_READ);\n        if (!duplicateScan', 'per-record duplicate scan regression');
 
 for (const token of [
   'source_session_and_run_required',

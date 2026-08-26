@@ -28,7 +28,6 @@ public:
     bool assignLegacySpoolMaterial(uint32_t spoolId,const String& wireType);
     bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity) const;
     bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity,bool& found) const;
-    bool repairExists(uint32_t repairId) const;
     bool repairExists(uint32_t repairId,bool& found) const;
     bool confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;
     bool prepareManagedRunWireWriteOff(const KgFirstWriteOff& operation,uint32_t& movementId);

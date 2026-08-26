@@ -60,7 +60,6 @@ public:
 
     bool begin();
     bool ready() const;
-    bool repairExists(uint32_t repairId) const;
     bool repairExists(uint32_t repairId, bool& found) const;
     bool load(uint32_t repairId, RepairCostSummary& summary) const;
     bool appendPricingRevisionsPageJson(String& json,

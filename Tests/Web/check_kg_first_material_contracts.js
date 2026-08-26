@@ -192,9 +192,6 @@ if (movementAudit.includes('candidate.movementId == record.movementId')) {
   failures.push(movementAuditPath + ': per-record provenance rescan implementation returned');
 }
 
-// Deep backup warehouse persistence must understand historical dual movement
-// schema even though the current POST path is exact-spool only. References are
-// resolved in bounded batches instead of rescanning spool/repair ledgers per line.
 for (const text of [
   '#include "CM_WarehouseWriteOffRecord.h"',
   'constexpr uint8_t ReferenceBatchSize = 32U;',
@@ -238,36 +235,48 @@ for (const text of [
 }
 
 for (const [relative, source] of [[desktopPath, desktop], [mobilePath, mobile]]) {
-  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="allocationMode"', 'value="SPOOL"', 'id="wireType"', 'id="diameterMm"', '/shared/writeoff-spool-suggestion.js']) {
-    requireText(relative, source, text, 'kg-first writeoff UI missing: ' + text);
+  for (const text of ['Количество, кг', 'id="quantityKg"', 'id="materialRequestId"', 'id="materialRequestInfo"', 'id="allocationMode"', 'value="SPOOL"', 'id="wireType"', 'id="diameterMm"', 'Подтвердить RUN_WIRE списание', '/shared/writeoff-spool-suggestion.js']) {
+    requireText(relative, source, text, 'atomic RUN_WIRE writeoff UI missing: ' + text);
   }
   for (const forbidden of ['id="before"', 'id="after"', 'Вес до работы', 'Вес после работы', 'value="UNALLOCATED"']) {
     if (source.includes(forbidden)) failures.push(relative + ': production form exposes obsolete writeoff control: ' + forbidden);
   }
 }
+
 for (const text of [
-  "writeoff_mode:'KG_FIRST'",
-  "quantity_kg:quantity.kg",
+  "'/api/material-requests/warehouse'",
+  "confirmed:'true'",
+  "material_request_id:selectedMaterialRequestId",
+  "warehouse_item_id:String(spoolBridge.warehouse_item_id)",
+  "quantity_milli_units:String(quantity.grams)",
+  "movement_kind:'ISSUE'",
+  "source_kind:'RUN_WIRE'",
+  "unit:'KG'",
   "source_session_id:sourceSessionId",
   "source_run_id:sourceRunId",
-  "if(!activeSpool)throw new Error('immutable_spool_not_active')",
-  "String(activeSpool.spool_id)!==String(selection.spool_id)",
-  "body.set('spool_id',String(activeSpool.spool_id))",
-  "item.spool_id===null||item.spool_id===undefined?'без бухты'",
-  "item.writeoff_mode==='KG_FIRST'",
+  "spool_id:String(activeSpool.spool_id)",
+  "wire_diameter_hundredths_mm:String(activeSpool.diameter_hundredths_mm)",
+  "material_class:String(activeSpool.material_class)",
+  "'/api/warehouse/spool-material-bridges?spool_id='",
+  "'/api/material-requests?'+q",
+  "'/api/material-requests/status?material_request_id='",
+  "status.status==='DRAFT'||status.status==='ISSUED'",
   "event.event!=='RUN_COMPLETED'",
   "found.material_class==='CU'||found.material_class==='AL'",
   "менять provenance после RUN_COMPLETED нельзя"
 ]) {
-  requireText(controllerPath, controller, text, 'kg-first UI controller contract missing: ' + text);
+  requireText(controllerPath, controller, text, 'atomic RUN_WIRE UI controller contract missing: ' + text);
 }
 for (const forbidden of [
+  "jsonFetch('/api/warehouse/write-offs',{method:'POST'",
+  "writeoff_mode:'KG_FIRST'",
+  "quantity_kg:quantity.kg",
   "body.set('diameter_hundredths_mm'",
   "body.set('wire_type'",
   'Используйте списание без привязки',
   '<option value="UNALLOCATED">'
 ]) {
-  if (controller.includes(forbidden)) failures.push(controllerPath + ': production UI must not downgrade immutable spool provenance: ' + forbidden);
+  if (controller.includes(forbidden)) failures.push(controllerPath + ': production operator UI must not use legacy/direct writeoff path: ' + forbidden);
 }
 
 for (const forbidden of ['automaticWriteOff(', 'autoWriteOff(', 'writeOffOnRunCompleted(']) {
@@ -281,4 +290,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, historical dual journal compatibility, exact-spool current POST/UI, batched runtime and backup scans, audited costing, exact-run finalization with mandatory immutable selection evidence, historical unallocated rendering/recovery, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: exact kg accounting, historical dual journal compatibility, atomic operator RUN_WIRE through Material Request, exact bridge/session/run/spool provenance, batched runtime and backup scans, audited costing, exact-run finalization, historical unallocated rendering/recovery, and no automatic RUN_COMPLETED deduction.');

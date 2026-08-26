@@ -950,11 +950,13 @@ void handleCreateJob()
 
         CM::JobLinkage resolved;
         String catalogProgram;
-        if (!jobLinkageResolver.resolveWithProgram(linkage.repairId,
-                                                   linkage.motorId,
-                                                   job.type,
-                                                   resolved,
-                                                   catalogProgram))
+        uint16_t catalogRepeatTarget = 0U;
+        if (!jobLinkageResolver.resolveWithProgramAndRepeat(linkage.repairId,
+                                                            linkage.motorId,
+                                                            job.type,
+                                                            resolved,
+                                                            catalogProgram,
+                                                            catalogRepeatTarget))
         {
             webServer.send(409, "application/json", "{\"error\":\"repair_motor_program_not_found_or_ambiguous\"}");
             return;
@@ -969,6 +971,11 @@ void handleCreateJob()
         if (!sameProgram(job, catalogJob))
         {
             webServer.send(409, "application/json", "{\"error\":\"turns_do_not_match_motor_program\"}");
+            return;
+        }
+        if (job.repeatTarget != catalogRepeatTarget)
+        {
+            webServer.send(409, "application/json", "{\"error\":\"repeat_target_does_not_match_motor_role\"}");
             return;
         }
         linkage = resolved;

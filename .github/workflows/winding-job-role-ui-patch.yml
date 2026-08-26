@@ -1,45 +1,13 @@
-name: Guarded Winding Job Role UI Patch
+name: Archived Winding Job Role UI Patch
 
 on:
-  push:
-    branches: [cmp-protocol-v1]
-    paths:
-      - '.github/workflows/winding-job-role-ui-patch.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-      - name: Guard current winding job blob
-        run: test "$(git hash-object firmware/esp32/web/desktop/winding-job.html)" = "bfbbe06d1f7878715d72953de713ac855efd8677"
-      - name: Patch role-aware linked job UI
-        run: |
-          cat > /tmp/patch.py <<'PY'
-          from pathlib import Path
-          p=Path('firmware/esp32/web/desktop/winding-job.html')
-          s=p.read_text()
-          s=s.replace('<select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select>', '<select id="roleSelect" name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select>', 1)
-          s=s.replace('<input id="repeatTarget" name="repeat_target" type="number" min="1" max="65535" step="1" value="1" required>', '<input id="repeatTarget" name="repeat_target" type="number" min="1" max="65535" step="1" value="1" readonly required>', 1)
-          s=s.replace("let contextReady=false,systemReady=false,spoolReady=false,sending=false;", "let contextReady=false,linkageReady=false,systemReady=false,spoolReady=false,sending=false,windingRoles={working:null,starting:null};", 1)
-          s=s.replace("$('repeatTarget').oninput=updateSend;", "function applyRole(){const role=$('roleSelect').value,selected=windingRoles[role];if(!selected){contextReady=false;$('turns').value='';$('repeatTarget').value='1';$('catalogProgram').textContent='—';$('context').className='note warning';$('context').textContent=(role==='starting'?'STARTING для этого двигателя не зарегистрирована. Подмена на WORKING запрещена.':'Выбранная роль обмотки недоступна.')+' Отправка заблокирована.';updateSend();return}$('turns').value=selected.program;$('repeatTarget').value=String(selected.repeat);$('catalogProgram').textContent=(role==='starting'?'STARTING':'WORKING')+' · '+selected.program+' × '+selected.repeat;contextReady=linkageReady;$('context').className='note ok';$('context').textContent='Выбрана '+(role==='starting'?'STARTING':'WORKING')+'. Программа и число повторов взяты из authoritative winding role и заблокированы от ручного изменения. ESP32 повторно проверит exact role/program/repeat перед сохранением задания и UART.';updateSend()}\n$('roleSelect').onchange=applyRole;", 1)
-          start=s.index('async function loadContext(){')
-          end=s.index('\nfunction failContext', start)
-          new_load="""async function loadContext(){if(!canonical(repairId)){failContext('Некорректный repair_id.');return}try{const rr=await fetch('/api/repairs/by-id?repair_id='+encodeURIComponent(repairId),{cache:'no-store'}),rj=await rr.json();if(!rr.ok)throw new Error(rj.error||'Ремонт недоступен');const repair=rj.item;if(!repair)throw new Error('Ремонт не найден');$('repair').textContent='№'+repair.repair_id;$('title').textContent='Намотка ремонта №'+repair.repair_id;$('historyLink').href='/desktop/winding-history.html?repair_id='+encodeURIComponent(repair.repair_id);if((repair.current_status||repair.status)==='CLOSED'){failContext('Ремонт закрыт. Новая связанная намотка запрещена. История остаётся доступной.');return}if(!canonical(repair.motor_id))throw new Error('Некорректный motor_id');const mr=await fetch('/api/motors/by-id?motor_id='+encodeURIComponent(repair.motor_id),{cache:'no-store'}),mj=await mr.json();if(!mr.ok)throw new Error(mj.error||'Двигатель ремонта недоступен');const motor=mj.item;if(!motor||String(motor.motor_id)!==String(repair.motor_id))throw new Error('Двигатель ремонта не найден');$('motor').textContent=(motor.name||'Двигатель')+' · ID '+motor.motor_id;const wr=await fetch('/api/motors/winding/latest?motor_id='+encodeURIComponent(motor.motor_id),{cache:'no-store'}),wj=await wr.json();if(!wr.ok)throw new Error(wj.error||'Версия обмотки недоступна');if(wj.versioned&&wj.item){const v=wj.item;windingRoles.working={program:String(v.working_program||'').trim(),repeat:Number(v.working_repeat_target)};windingRoles.starting=v.starting_present===true?{program:String(v.starting_program||'').trim(),repeat:Number(v.starting_repeat_target)}:null}else{const legacyProgram=String(motor.coil_program||'').trim();windingRoles.working={program:legacyProgram,repeat:validRepeat(motor.repeat_target)?Number(motor.repeat_target):1};windingRoles.starting=null}if(!windingRoles.working||!windingRoles.working.program||!validRepeat(windingRoles.working.repeat))throw new Error('WORKING программа двигателя недоступна или повреждена');if(windingRoles.starting&&(!windingRoles.starting.program||!validRepeat(windingRoles.starting.repeat)))throw new Error('STARTING программа двигателя недоступна или повреждена');$('roleSelect').querySelector('option[value="starting"]').disabled=!windingRoles.starting;$('repairId').value=String(repair.repair_id);$('motorId').value=String(motor.motor_id);linkageReady=true;const requestedRole=(params.get('role')||'working').toLowerCase();if(requestedRole!=='working'&&requestedRole!=='starting'){failContext('Некорректная роль обмотки.');return}if(requestedRole==='starting'&&!windingRoles.starting){$('roleSelect').value='starting';applyRole();return}$('roleSelect').value=requestedRole;localStorage.setItem('cm-active-repair',String(repair.repair_id));localStorage.setItem('cm-selected-motor',String(motor.motor_id));applyRole()}catch(e){failContext(e.message||'Не удалось загрузить ремонт')}}"""
-          s=s[:start]+new_load+s[end:]
-          s=s.replace("function failContext(text){contextReady=false;", "function failContext(text){linkageReady=false;contextReady=false;", 1)
-          p.write_text(s)
-          PY
-          python3 /tmp/patch.py
-      - name: Commit patch
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add firmware/esp32/web/desktop/winding-job.html
-          git commit -m "feat(web): select linked winding job by role"
-          git push origin HEAD:cmp-protocol-v1
+      - run: echo "One-shot patch already applied; no repository mutation is performed."

@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-26**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 133
+## GREEN foundation through checkpoint 134
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -11,16 +11,16 @@
 128-130 obsolete direct writeoff API/types/implementations narrowed then removed
 131 repair existence lookup made explicitly fail-closed
 132 spool identity and wire catalogue lookups made explicitly fail-closed
-133 public price lookup now requires explicit configured output
+133 public price lookup requires explicit configured output
+134 warehouse movement summary aggregation shares authoritative movement codec/integrity pass
 ```
 
-Verified checkpoint-133 evidence:
+Verified checkpoint-134 evidence:
 
 ```text
-fe0992219e50800e0dbf181b365d5788f76fc445
-70f987ba58becb1d43ff744bc4ceb02c9cedc0bf
-ESP32 Build #1580  32966647349 / SUCCESS
-CMP Tests #3584    32966706823 / SUCCESS
+e734ad77ee232a9ed17b1118179e1ffd96666cc5
+ESP32 Build #1585  32967638219 / SUCCESS
+CMP Tests #3594    32967638259 / SUCCESS
 ```
 
 ## Current production boundary
@@ -33,22 +33,15 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-Public fail-closed warehouse lookup forms:
+Warehouse summary no longer performs a duplicate manual full `movements.ndjson` parser pass. `checkSummary()` validates transaction pairing through `WarehouseWriteOffRecordCodec`, accumulates month/all-time totals, and still runs bounded global confirmed provenance uniqueness.
 
-```text
-repairExists(repairId, found)
-loadActiveSpoolIdentity(spoolId, identity, found)
-loadKnownWireDiameters(type, items, capacity, count)
-loadWarehousePrice(price, configured)
-```
+## Current active queue — MaterialLedger/runtime scan audit
 
-## Current active queue — NDJSON runtime scan optimization
-
-1. Inspect `WarehouseMovementIntegrityAudit` and `WarehouseStore::readMovements` to confirm whether `/api/warehouse/summary` currently performs two complete movement-log passes.
-2. If so, expose validated summary aggregation from the authoritative integrity pass or otherwise remove the duplicate pass without reducing schema/provenance validation.
-3. Check the same pattern for spool scans only after movement optimization is compile/test proven.
-4. Keep diagnostics read-only and keep automatic cleanup/rotation/deletion disabled.
-5. Do not migrate to a DB prematurely.
+1. Inspect `CM_MaterialLedger.cpp`, adjustment/currency/reference helpers and their mandatory contracts for duplicate validated full-log scans.
+2. Respect the existing checkpoint-92 material-usage single-pass preflight; do not duplicate or undo it.
+3. Optimize only a concrete repeated pass where the same authoritative parser can safely return the required evidence/aggregate.
+4. Do not weaken repair-reference, currency, usage or atomic-recovery integrity checks.
+5. Keep diagnostics read-only and automatic cleanup/rotation/deletion disabled; no premature DB migration.
 6. Continue software optimization before mandatory final two-board hardware E2E.
 
 ## Safety invariants

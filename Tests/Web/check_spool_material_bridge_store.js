@@ -5,6 +5,8 @@ const root = path.resolve(__dirname, '../..');
 const header = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMaterialBridgeStore.h'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMaterialBridgeStore.cpp'), 'utf8');
 const writeoff = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp'), 'utf8');
+const writeoffStore = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOff.cpp'), 'utf8');
+const runWire = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp'), 'utf8');
 const failures = [];
 const must = (src, token, label) => { if (!src.includes(token)) failures.push(`${label}: missing ${token}`); };
 const mustNot = (src, token, label) => { if (src.includes(token)) failures.push(`${label}: forbidden ${token}`); };
@@ -41,16 +43,35 @@ mustNot(source, 'confirmSpoolWriteOff', 'bridge store must not mutate physical s
 mustNot(source, 'confirmUsage', 'bridge store must not mutate MaterialLedger stock');
 mustNot(source, 'adjustMaterial', 'bridge store must not mutate MaterialLedger stock');
 
+// The old public warehouse mutation URL is intentionally retired. Its GET history
+// remains available, while exact spool/run guards still exist in atomic RUN_WIRE
+// and the retained low-level store/recovery implementation.
 for (const token of [
-  'source_session_and_run_required',
-  'source_session_spool_mismatch',
-  'source_run_not_completed',
-  'confirmedWriteOffForSourceRun',
-  'spool_id_required_for_kg_first'
-]) must(writeoff, token, 'legacy writeoff safety must remain intact');
+  '"/api/warehouse/write-offs", HTTP_POST',
+  'm_server.send(410',
+  'legacy_writeoff_post_disabled',
+  'write_performed',
+  'replacement',
+  '/api/material-requests/warehouse',
+  '"/api/warehouse/write-offs", HTTP_GET',
+  'handleListWriteOffs()'
+]) must(writeoff, token, 'legacy writeoff hard deprecation');
+
+for (const token of [
+  'WindingSessionCompletionAudit::check',
+  'confirmedWriteOffForSourceRun(operation.sourceSessionId',
+  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
+  'alreadyConfirmed'
+]) must(writeoffStore, token, 'retained low-level exact-run writeoff safety');
+for (const token of [
+  'JobSpoolSelectionStore::loadReadOnly',
+  'selection.spoolId != spoolId',
+  'WindingSessionCompletionAudit::check',
+  'm_warehouse.confirmedWriteOffForSourceRun'
+]) must(runWire, token, 'atomic RUN_WIRE exact-spool safety');
 
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: append-only bounded identity audit only; legacy exact-spool writeoff safety remains unchanged.');
+console.log('Spool material bridge foundation contracts OK: append-only bounded identity audit; public legacy writeoff POST is retired and exact-spool/run safety remains atomic/store-authoritative.');

@@ -138,9 +138,12 @@ bool CashPaymentIntegrityAudit::check(fs::FS& storage, uint32_t& recordCount)
         }
         if (line.indexOf(F("\"corrects_event_id\":")) >= 0)
         {
+            bool belongs = false;
             if (kind != "CORRECTION" ||
                 !findUnsigned(line, "corrects_event_id", correctsId) ||
-                correctsId == 0UL || correctsId >= id || !payments.eventExists(correctsId))
+                correctsId == 0UL || correctsId >= id ||
+                !payments.eventBelongsToRepair(correctsId, repairId, clientId, belongs) ||
+                !belongs)
             {
                 file.close(); return false;
             }

@@ -63,7 +63,6 @@ private:
     bool recoverPendingWriteOff();
     bool recoverConversionSettingsFileSwap() const;
     bool loadConversionSettingsFromPath(const char* path,ConversionSettings& settings) const;
-    bool loadWarehousePrice(WarehousePrice& price) const;
     void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
     bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);

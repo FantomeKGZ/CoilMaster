@@ -1,10 +1,14 @@
 const fs = require('fs');
 
 const source = fs.readFileSync('firmware/esp32/src/CM_MaterialLedgerSwap.cpp', 'utf8');
+const adjustment = fs.readFileSync('firmware/esp32/src/CM_MaterialAdjustment.cpp', 'utf8');
 const header = fs.readFileSync('firmware/esp32/src/CM_MaterialLedger.h', 'utf8');
 
 function requireText(text, needle, message) {
   if (!text.includes(needle)) throw new Error(message);
+}
+function forbidText(text, needle, message) {
+  if (text.includes(needle)) throw new Error(message);
 }
 
 requireText(header, 'bool validateMaterialsFile(const char* path) const;',
@@ -28,4 +32,18 @@ if (backupValidation < 0 || backupRemoval < 0 || backupValidation > backupRemova
   throw new Error('material backup must be validated before it can be discarded');
 }
 
-console.log('Material ledger atomic recovery contracts OK');
+forbidText(header, 'bool adjustmentExists(uint32_t adjustmentId) const;',
+  'dead adjustment existence helper declaration returned');
+forbidText(adjustment, 'bool MaterialLedger::adjustmentExists(uint32_t adjustmentId) const',
+  'dead adjustment existence full-log scan returned');
+for (const token of [
+  'bool MaterialLedger::recoverPendingAdjustment()',
+  'if (durable) return m_storage.remove(AdjustmentPendingPath);',
+  'if (beforeState) return m_storage.remove(AdjustmentPendingPath);',
+  'if (!afterState) return false;',
+  'if (!appendAdjustmentLine(auditLine)) return false;'
+]) {
+  requireText(adjustment, token, `adjustment recovery invariant missing after dead-helper cleanup: ${token}`);
+}
+
+console.log('Material ledger atomic recovery contracts OK: material swap recovery stays fail-closed and the unused adjustmentExists full-log helper remains removed.');

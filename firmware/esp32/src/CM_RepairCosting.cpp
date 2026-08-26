@@ -80,7 +80,10 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
 {
     summary = RepairCostSummary();
     summary.repairId = repairId;
-    if (!ready() || repairId == 0UL || !repairExists(repairId)) return false;
+    if (!ready() || repairId == 0UL) return false;
+
+    bool repairFound = false;
+    if (!repairExists(repairId, repairFound) || !repairFound) return false;
 
     // Never publish a mixed snapshot while the high-level RUN_WIRE owner may
     // still have MaterialLedger evidence without the matching physical writeoff.

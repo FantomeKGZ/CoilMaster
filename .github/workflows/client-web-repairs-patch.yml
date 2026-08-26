@@ -7,7 +7,7 @@ on:
       - '.github/workflows/client-web-repairs-patch.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   patch:
@@ -18,20 +18,27 @@ jobs:
           ref: cmp-protocol-v1
       - name: Guard current repairs blob
         run: test "$(git hash-object firmware/esp32/web/desktop/repairs.html)" = "78cbbd1aaee2fc86e997c7b2b5ffcb2b709ae20d"
-      - name: Inspect client-form references
+      - name: Remove duplicate inline client creation
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          s=Path('firmware/esp32/web/desktop/repairs.html').read_text()
-          needle='clientForm'
-          start=0
-          found=False
-          while True:
-              i=s.find(needle,start)
-              if i<0: break
-              found=True
-              print('--- occurrence ---')
-              print(s[max(0,i-350):min(len(s),i+1200)])
-              start=i+len(needle)
-          assert found
+          p=Path('firmware/esp32/web/desktop/repairs.html')
+          s=p.read_text()
+          old_html='<section class="card"><h2>Добавить клиента</h2><form id="clientForm"><input name="name" placeholder="Имя клиента" required><input name="phone" placeholder="Телефон" required><textarea name="comment" placeholder="Комментарий"></textarea><button class="secondary">Добавить клиента</button></form><div id="clientResult" class="note muted">После добавления клиент автоматически выбирается.</div></section>'
+          new_html='<section class="card"><h2>Клиент</h2><div class="note">Создание клиента вынесено в отдельную карточку. <a class="catalog-link" href="/desktop/client-new.html">+ Новый клиент</a></div></section>'
+          assert s.count(old_html)==1
+          s=s.replace(old_html,new_html,1)
+          start=s.index("$('clientForm').onsubmit=async e=>{")
+          end=s.index('async function createMotor',start)
+          s=s[:start]+s[end:]
+          assert 'clientForm' not in s
+          assert 'clientResult' not in s
+          p.write_text(s)
           PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add firmware/esp32/web/desktop/repairs.html
+          git commit -m "refactor(web): route client creation through dedicated page"
+          git push origin HEAD:cmp-protocol-v1

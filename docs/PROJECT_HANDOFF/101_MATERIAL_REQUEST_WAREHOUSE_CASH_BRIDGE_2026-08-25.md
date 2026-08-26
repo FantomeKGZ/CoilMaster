@@ -2,7 +2,7 @@
 
 Дата обновления: **2026-08-26**  
 Ветка: **`cmp-protocol-v1`**  
-Статус: **APPROVED DESIGN / IMPLEMENTATION IN PROGRESS**
+Статус: **APPROVED DESIGN / IMPLEMENTATION GREEN THROUGH CHECKPOINT 121**
 
 Этот документ дополняет authoritative CRM design `95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md`.
 
@@ -104,8 +104,10 @@ created_at
 source_session_id
 source_run_id
 material_class = CU | AL
-wire_diameter
+wire_diameter_hundredths_mm
 ```
+
+Checkpoint 121 также требует exact physical `spool_id` на operator/API boundary.
 
 ## 5. Warehouse catalog / units
 
@@ -171,22 +173,56 @@ confirm=1
 linked_at
 ```
 
-The server loads authoritative ACTIVE spool and ACTIVE MaterialLedger state. CU/AL and diameter are not accepted as caller authority; exact matching data is derived from the persisted records. Already-bridged spool fails closed.
+The server loads authoritative ACTIVE spool and ACTIVE MaterialLedger state. CU/AL and diameter are not accepted as caller authority; exact matching data is derived from persisted records. Already-bridged spool fails closed.
 
-## 7. Wire accounting integration
+## 7. Wire accounting integration — GREEN checkpoint 121
 
-Target run-linked wire issue:
+`RUN_COMPLETED` remains non-mutating. Actual wire deduction is now an explicit operator transaction:
 
 ```text
-RUN_COMPLETED
-  -> НИЧЕГО автоматически не списывает
-  -> оператор вручную подтверждает фактический расход
-  -> crash-safe warehouse ISSUE
-  -> material_request_id + exact source_session_id + source_run_id
-  -> exact physical spool provenance retained through bridge
+POST /api/material-requests/warehouse
+confirmed=true
+movement_kind=ISSUE
+source_kind=RUN_WIRE
+unit=KG
+material_request_id
+repair_id
+warehouse_item_id
+source_session_id + source_run_id
+spool_id
+material_class=CU|AL
+wire_diameter_hundredths_mm
+quantity_milli_units=<actual consumed grams>
 ```
 
-Current exact-spool backend/writeoff/finalization remains authoritative until the coordinated migration completes end-to-end. Bridge existence alone is not consumption evidence and does not authorize stock mutation.
+The dedicated `RunWireIssueCoordinator` validates exact Material Request ownership, OPEN repair, immutable exact spool selection, exact Completed run, spool-material bridge, ACTIVE MaterialLedger wire metadata, ACTIVE physical spool and duplicate source-run protection.
+
+One authoritative high-level pending owns the cross-store transaction:
+
+```text
+/data/workshop/run-wire-issue.pending.json
+```
+
+Execution order:
+
+```text
+RUN_WIRE pending
+-> immutable Material Request movement
+-> MaterialLedger usage tagged RWI_TX=<transaction_ref>
+-> standard warehouse PENDING
+-> exact physical spool before -> after
+-> standard warehouse CONFIRMED
+-> verify all evidence
+-> clear RUN_WIRE pending
+```
+
+MaterialLedger and Warehouse retain their low-level atomic recovery mechanisms, but they are subordinate storage phases. The RUN_WIRE coordinator is the business-level recovery owner.
+
+Recovery verifies movement evidence, Ledger evidence, standard warehouse confirmed evidence and exact physical spool before/after state. Impossible evidence ordering or unknown weight fails closed.
+
+Because standard warehouse KG_FIRST `CONFIRMED` evidence is retained, existing exact-spool writeoff coverage, costing and finalization continue to see exact `spool_id + source_session_id + source_run_id` provenance.
+
+Backup/restore is blocked while RUN_WIRE pending or temp recovery intent exists.
 
 ## 8. Warehouse responsibilities
 
@@ -200,7 +236,8 @@ Current exact-spool backend/writeoff/finalization remains authoritative until th
 - ISSUE/RETURN/CORRECTION movements;
 - Material Request allocation;
 - stock integrity/audit;
-- physical-spool ↔ generic-item identity bridge.
+- physical-spool ↔ generic-item identity bridge;
+- crash-safe explicit RUN_WIRE ISSUE.
 
 Склад не хранит клиентские платежи.
 
@@ -223,7 +260,7 @@ Cash хранит финансовые события: repair price/charge, paym
 
 ## 11. Current implementation status
 
-SOFTWARE GREEN through checkpoint 120:
+SOFTWARE GREEN through checkpoint 121:
 
 ```text
 103 Material Request identity + movement schema
@@ -236,29 +273,29 @@ SOFTWARE GREEN through checkpoint 120:
 118 append-only spool-material bridge persistence + integrity + backup/export
 119 MaterialLedger structured CU/AL + diameter metadata
 120 explicit operator-only production bridge API
+121 atomic explicit-operator RUN_WIRE ISSUE across Material Request + Ledger + physical spool
 ```
 
-Latest checkpoint-120 evidence on tree `fa651e3e50a25df9489db24b6c71bd853171a9b8`:
+Latest verified evidence:
 
 ```text
-CMP Protocol Tests 32944119683 / SUCCESS
-ESP32 Build         32944119688 / SUCCESS
+source commit        db643d33cd5327556429e71f3734864c484d2f40
+final test commit    7e73e9016c690e3ec65dfacfe3a80328b05a2148
+ESP32 Build #1551    32951550134 / SUCCESS
+CMP Tests #3475      32951582879 / SUCCESS
 ```
 
 ## 12. Current implementation order
 
 Immediate NEXT:
 
-1. inspect current MaterialLedger usage/adjustment mutation and recovery semantics;
-2. inspect current Material Request warehouse coordinator + pending marker;
-3. choose one authoritative crash-safe transaction boundary for `RUN_WIRE` ISSUE;
-4. couple exact Material Request movement evidence to physical/material stock changes without a split-commit crash window;
-5. preserve `material_request_id + source_session_id + source_run_id + physical spool provenance`;
-6. integrate costing/finalization/backup/integrity/reports/Web/tests;
-7. retire old exact-spool production checks only after the coordinated replacement is fully GREEN;
-8. perform final software + hardware acceptance after contracts stabilize.
-
-Do not implement naïve `append movement -> decrement stock` or `decrement stock -> append movement` sequencing without durable pending/recovery evidence.
+1. audit current operator Web surfaces for direct exact-spool writeoff versus atomic RUN_WIRE ISSUE;
+2. make the atomic RUN_WIRE path usable from operator UI without any automatic action on `RUN_COMPLETED`;
+3. audit reporting/costing/finalization for double-accounting risk between standard warehouse CONFIRMED evidence, MaterialLedger usage and Material Request movement;
+4. preserve visible exact `material_request_id + source_session_id + source_run_id + spool_id + warehouse_item_id` provenance;
+5. add duplicate/double-accounting prevention tests across legacy direct writeoff and new RUN_WIRE paths;
+6. keep legacy exact-spool direct writeoff available until the operator/report transition is fully GREEN;
+7. perform final software + hardware acceptance after contracts stabilize.
 
 ## 13. Safety / integrity invariants
 
@@ -267,12 +304,12 @@ Do not implement naïve `append movement -> decrement stock` or `decrement stock
 - `RUN_COMPLETED` never auto-deducts material;
 - physical stock movement requires explicit operator action;
 - bridge creation itself never mutates stock;
-- physical stock mutation and immutable request evidence must recover atomically/fail-closed;
-- run-linked wire ISSUE сохраняет exact `source_session_id + source_run_id`;
-- current exact spool provenance remains mandatory until coordinated migration completes;
+- RUN_WIRE mutation and immutable request evidence recover under one high-level pending owner;
+- run-linked wire ISSUE сохраняет exact `source_session_id + source_run_id + spool_id`;
 - no silent rewrite/delete of issued movements;
 - corrections/returns append-only;
 - restore fail-closed;
+- backup/restore blocks on unfinished RUN_WIRE recovery;
 - no automatic production NDJSON truncation;
 - Arduino physical START / SSR ownership invariants unchanged.
 

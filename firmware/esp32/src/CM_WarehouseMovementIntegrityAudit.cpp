@@ -151,6 +151,52 @@ bool accumulateSummaryRecord(const WarehouseWriteOffRecord& record,
     return true;
 }
 
+bool accumulateCoverageRecord(const WarehouseWriteOffRecord& record,
+                              uint32_t repairId,
+                              WarehouseMovementCoverageTarget* targets,
+                              uint8_t targetCount)
+{
+    if (record.status != "CONFIRMED" || !record.hasSourceSessionId) return true;
+
+    for (uint8_t index = 0U; index < targetCount; ++index)
+    {
+        WarehouseMovementCoverageTarget& target = targets[index];
+        if (record.sourceSessionId != target.sourceSessionId) continue;
+        if (record.repairId != repairId) return false;
+
+        bool matches = false;
+        if (record.mode == WarehouseWriteOffMode::LegacySpool)
+        {
+            if (!record.hasSpoolId || record.spoolId != target.spoolId) return false;
+            if (!record.hasSourceRunId) return false;
+            matches = record.sourceRunId == target.sourceRunId;
+        }
+        else
+        {
+            if (!record.hasSourceRunId || record.sourceRunId != target.sourceRunId)
+                continue;
+            if (record.stockMode == WarehouseWriteOffStockMode::Spool)
+            {
+                if (!record.hasSpoolId || record.spoolId != target.spoolId) return false;
+            }
+            else if (record.stockMode == WarehouseWriteOffStockMode::Unallocated)
+            {
+                if (record.hasSpoolId) return false;
+            }
+            else
+            {
+                return false;
+            }
+            matches = true;
+        }
+
+        if (!matches) continue;
+        if (target.confirmed) return false;
+        target.confirmed = true;
+    }
+    return true;
+}
+
 struct ProvenanceEntry
 {
     uint32_t movementId;
@@ -258,12 +304,29 @@ bool checkInternalWithSummary(fs::FS& storage,
                               WarehouseMovementSummaryTotals* summaryTotals,
                               uint32_t sourceSessionId,
                               uint32_t sourceRunId,
-                              bool* sourceRunConfirmed)
+                              bool* sourceRunConfirmed,
+                              WarehouseMovementCoverageTarget* coverageTargets,
+                              uint8_t coverageTargetCount)
 {
     validatedRecordCount = 0UL;
     if (totals != nullptr) *totals = WarehouseMovementRepairTotals();
     if (summaryTotals != nullptr) *summaryTotals = WarehouseMovementSummaryTotals();
     if (sourceRunConfirmed != nullptr) *sourceRunConfirmed = false;
+    if (coverageTargetCount > WarehouseMovementCoverageMaxTargets ||
+        (coverageTargetCount > 0U && coverageTargets == nullptr))
+    {
+        return false;
+    }
+    for (uint8_t index = 0U; index < coverageTargetCount; ++index)
+    {
+        if (coverageTargets[index].sourceSessionId == 0UL ||
+            coverageTargets[index].sourceRunId == 0UL ||
+            coverageTargets[index].spoolId == 0UL)
+        {
+            return false;
+        }
+        coverageTargets[index].confirmed = false;
+    }
     if (summaryTotals != nullptr &&
         (monthPrefix == nullptr || String(monthPrefix).length() != 7U))
     {
@@ -329,6 +392,13 @@ bool checkInternalWithSummary(fs::FS& storage,
             file.close();
             return false;
         }
+        if (coverageTargets != nullptr &&
+            !accumulateCoverageRecord(record, repairId,
+                                      coverageTargets, coverageTargetCount))
+        {
+            file.close();
+            return false;
+        }
 
         if (sourceRunConfirmed != nullptr && record.status == "CONFIRMED" &&
             record.hasSourceSessionId && record.hasSourceRunId &&
@@ -361,7 +431,7 @@ bool checkInternal(fs::FS& storage,
 {
     return checkInternalWithSummary(storage, validatedRecordCount, repairId, totals,
                                     nullptr, nullptr, sourceSessionId, sourceRunId,
-                                    sourceRunConfirmed);
+                                    sourceRunConfirmed, nullptr, 0U);
 }
 }
 
@@ -384,7 +454,8 @@ bool WarehouseMovementIntegrityAudit::checkSummary(
 {
     uint32_t ignoredRecordCount = 0UL;
     return checkInternalWithSummary(storage, ignoredRecordCount, 0UL, nullptr,
-                                    monthPrefix, &totals, 0UL, 0UL, nullptr);
+                                    monthPrefix, &totals, 0UL, 0UL, nullptr,
+                                    nullptr, 0U);
 }
 
 bool WarehouseMovementIntegrityAudit::checkRepair(
@@ -407,5 +478,22 @@ bool WarehouseMovementIntegrityAudit::checkSourceRun(fs::FS& storage,
     uint32_t ignoredRecordCount = 0UL;
     return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
                          sourceSessionId, sourceRunId, &confirmed);
+}
+
+bool WarehouseMovementIntegrityAudit::checkCoverageBatch(
+    fs::FS& storage,
+    uint32_t repairId,
+    WarehouseMovementCoverageTarget* targets,
+    uint8_t targetCount)
+{
+    if (repairId == 0UL || targetCount > WarehouseMovementCoverageMaxTargets ||
+        (targetCount > 0U && targets == nullptr))
+    {
+        return false;
+    }
+    uint32_t ignoredRecordCount = 0UL;
+    return checkInternalWithSummary(storage, ignoredRecordCount, repairId, nullptr,
+                                    nullptr, nullptr, 0UL, 0UL, nullptr,
+                                    targets, targetCount);
 }
 }

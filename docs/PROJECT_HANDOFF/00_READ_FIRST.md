@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/134_WAREHOUSE_MOVEMENT_SUMMARY_SINGLE_PASS_2026-08-26.md
 docs/PROJECT_HANDOFF/133_WAREHOUSE_PRICE_LOOKUP_VISIBILITY_2026-08-26.md
 docs/PROJECT_HANDOFF/132_WAREHOUSE_FAIL_CLOSED_SPOOL_AND_DIAMETER_LOOKUPS_2026-08-26.md
 docs/PROJECT_HANDOFF/131_WAREHOUSE_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
@@ -44,27 +45,27 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **133**.
+Latest GREEN foundation = checkpoint **134**.
 
-Latest verified checkpoint-133 evidence:
+Latest verified checkpoint-134 evidence:
 
 ```text
-price convenience lookup private  fe0992219e50800e0dbf181b365d5788f76fc445
-explicit price API contract       70f987ba58becb1d43ff744bc4ceb02c9cedc0bf
-ESP32 Build #1580                 32966647349 / SUCCESS
-CMP Protocol Tests #3584          32966706823 / SUCCESS
+final source                       e734ad77ee232a9ed17b1118179e1ffd96666cc5
+ESP32 Build #1585                  32967638219 / SUCCESS
+CMP Protocol Tests #3594           32967638259 / SUCCESS
 ```
 
 ## Current state
 
-Atomic RUN_WIRE remains the only current wire mutation path. Public warehouse reads now keep I/O/integrity success separate from `found`, `count`, and `configured`. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
+Warehouse summary now reuses the authoritative `WarehouseMovementIntegrityAudit` codec/integrity pass to obtain per-diameter month/all-time consumption. The former second manual full parse of `movements.ndjson` is removed. Exact provenance uniqueness remains fail-closed and bounded. The one-argument warehouse price wrapper is also fully removed.
+
+Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
 
 ## Immediate NEXT
 
-1. Audit `/api/warehouse/summary` for duplicate complete passes over `movements.ndjson`.
-2. Reuse one authoritative validated pass for aggregation if integrity semantics can remain identical.
+1. Audit MaterialLedger/runtime for duplicate validated full-log passes before reads/mutations.
+2. Reuse existing one-pass preflight evidence where possible; do not weaken integrity/provenance checks.
 3. Do not add automatic rotation/deletion/truncation or premature DB migration.
-4. Preserve managed RUN_WIRE, GET/history, backup and deterministic historical recovery.
-5. Continue software optimization before final two-board hardware E2E.
+4. Continue software optimization before final two-board hardware E2E.
 
 `RUN_COMPLETED` remains evidence only; no automatic writeoff, START or resume.

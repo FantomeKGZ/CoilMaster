@@ -67,13 +67,13 @@ constexpr uint8_t WarehouseMovementCoverageMaxTargets = 32U;
 
 struct WarehouseMovementCoverageTarget
 {
-    uint32_t sourceSessionId;
-    uint32_t sourceRunId;
+    uint32_t sessionId;
+    uint32_t runId;
     uint32_t spoolId;
     bool confirmed;
 
     WarehouseMovementCoverageTarget()
-        : sourceSessionId(0UL), sourceRunId(0UL), spoolId(0UL), confirmed(false) {}
+        : sessionId(0UL), runId(0UL), spoolId(0UL), confirmed(false) {}
 };
 
 class WarehouseMovementIntegrityAudit

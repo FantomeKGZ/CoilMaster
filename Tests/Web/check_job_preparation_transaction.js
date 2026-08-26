@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
+require('./check_linked_job_winding_role.js');
+
 const root = path.resolve(__dirname, '../..');
 const failures = [];
 function read(relative) { return fs.readFileSync(path.join(root, relative), 'utf8'); }

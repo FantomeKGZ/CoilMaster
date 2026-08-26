@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-26**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 137
+## GREEN foundation through checkpoint 138
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -13,15 +13,16 @@
 135 MaterialLedger public repair/state/currency lookups require explicit found
 136 dead adjustmentExists full-log helper removed
 137 private repair wrapper + dead usageExists/restoreQuantity helpers removed
+138 RepairCosting repair lookup wrapper removed; load() explicit found
 ```
 
-Verified checkpoint-137 evidence:
+Verified checkpoint-138 evidence:
 
 ```text
-90c732a9caef1d1e4104c9c7374a72f6a8df3811
-5dc6f1c0303834274d989b8846b53ba34c1f3368
-ESP32 Build #1592  32972822029 / SUCCESS
-CMP Tests #3614    32972911974 / SUCCESS
+3c62d73d3cbd24fe08013cee63a59a8353af3e50
+959f8d283e1669f083d9361b11af9a194154fee4
+ESP32 Build #1595  32973529504 / SUCCESS
+CMP Tests #3622    32973582094 / SUCCESS
 ```
 
 ## Current production boundary
@@ -34,14 +35,14 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-MaterialLedger now has no ambiguous one-argument repair/state/currency lookup wrappers. Dead private full-log/catalog rewrite helpers are removed; live recovery reads and atomic mutation passes remain intact.
+MaterialLedger and RepairCosting now avoid ambiguous one-argument repair lookup wrappers. `savePricing()` still delegates repair identity validation to `load()` so the pricing write path does not add a duplicate `repairs.ndjson` scan.
 
 ## Current active queue — bounded runtime/API optimization
 
-1. Audit small runtime/read helpers for dead full-log scans, duplicate parsing or bool APIs that collapse read failure with not-found.
-2. Prefer narrow source files; avoid large rewrites unless several proven cleanup items justify one exact replacement.
-3. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
-4. Do not weaken repair-reference, currency, usage, provenance or recovery checks.
+1. Audit small read-only/runtime stores for convenience wrappers that collapse read/integrity failure with missing data.
+2. Audit dead private helpers that scan full NDJSON files without callers.
+3. Prefer narrow source files; do not rewrite critical job/provenance paths merely for API cosmetics.
+4. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
 5. Keep diagnostics read-only; automatic cleanup/rotation/deletion remains disabled; no premature DB migration.
 6. Continue software optimization before mandatory final two-board hardware E2E.
 

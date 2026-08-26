@@ -34,8 +34,6 @@ const movementAuditHeader = read(movementAuditHeaderPath);
 const movementAudit = read(movementAuditPath);
 const controller = read(controllerPath);
 
-// Startup must resolve an interrupted stock-file swap before examining a pending
-// write-off, and readiness must remain false if either recovery stage fails.
 for (const text of [
   'm_ready = ensureDirectories()',
   'if (m_ready) m_ready = recoverSpoolFileSwap()',
@@ -45,7 +43,6 @@ for (const text of [
   requireText(storePath, store, text, 'startup fail-closed recovery ordering missing: ' + text);
 }
 
-// A reboot after historical UNALLOCATED PENDING can never invent a confirmed deduction.
 for (const text of [
   'WarehouseWriteOffStockMode::Unallocated',
   'No stock mutation ever occurs for UNALLOCATED',
@@ -54,7 +51,6 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'UNALLOCATED reboot recovery guard missing: ' + text);
 }
 
-// A spool-backed interrupted transaction is resolved only from durable spool state.
 for (const text of [
   'currentWeight == pending.weightBeforeGrams',
   'currentWeight == pending.weightAfterGrams',
@@ -65,14 +61,15 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'spool reboot recovery proof missing: ' + text);
 }
 
-// Public direct mutation is formally retired. Old clients receive an explicit
-// non-mutating 410 while GET history/coverage remains registered.
+// Public direct mutation is formally retired. Assert semantics rather than the
+// escaping representation of the C++ JSON literal.
 for (const text of [
   '"/api/warehouse/write-offs", HTTP_POST',
   'm_server.send(410',
   'legacy_writeoff_post_disabled',
-  '\"write_performed\":false',
-  '\"replacement\":\"/api/material-requests/warehouse\"',
+  'write_performed',
+  'replacement',
+  '/api/material-requests/warehouse',
   '"/api/warehouse/write-offs", HTTP_GET',
   'handleListWriteOffs()'
 ]) {
@@ -88,8 +85,6 @@ for (const forbidden of [
     'retired public mutation implementation must stay absent: ' + forbidden);
 }
 
-// Duplicate protection is exact-run only. A session can legitimately contain
-// multiple completed runs, each requiring its own explicit manual write-off.
 for (const source of [
   [storeHeaderPath, storeHeader],
   [writeoffLookupPath, writeoffLookup]
@@ -109,7 +104,6 @@ requireText(storeHeaderPath, storeHeader,
   'confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;',
   'public duplicate lookup must require source_session_id + source_run_id');
 
-// The exact-run result must be resolved inside the authoritative movement audit.
 for (const text of [
   'static bool checkSourceRun(fs::FS& storage,',
   'uint32_t sourceSessionId,',
@@ -139,8 +133,6 @@ for (const forbidden of [
     'write-off lookup must not restore a post-audit full-file scan: ' + forbidden);
 }
 
-// Store-level duplicate/completion protection remains authoritative for managed
-// RUN_WIRE and deterministic recovery even though the public legacy POST is gone.
 for (const text of [
   'WindingSessionCompletionAudit::check',
   'confirmedWriteOffForSourceRun(operation.sourceSessionId',
@@ -150,8 +142,6 @@ for (const text of [
   requireText(writeoffStorePath, writeoffStore, text, 'store-level fault guard missing: ' + text);
 }
 
-// Operator UI advances only after the atomic Material Request RUN_WIRE endpoint
-// returned successfully with exact movement/spool identity.
 for (const text of [
   "if(!response.ok){const error=new Error(payload.error||('http_'+response.status))",
   "const data=await jsonFetch('/api/material-requests/warehouse'",
@@ -167,7 +157,6 @@ requireAbsent(controllerPath, controller,
   "jsonFetch('/api/warehouse/write-offs',{method:'POST'",
   'production operator UI must not return to legacy/direct write-off POST');
 
-// Safety invariants: recovery and fault handling must never create automatic action.
 for (const forbidden of [
   'automaticWriteOff(',
   'autoWriteOff(',

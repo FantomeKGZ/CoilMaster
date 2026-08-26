@@ -1,5 +1,6 @@
 #include "CM_WarehousePersistenceIntegrityAudit.h"
 #include "CM_FlatJsonObjectValidator.h"
+#include "CM_SpoolMaterialBridgeIntegrityAudit.h"
 #include "CM_WarehouseWriteOffRecord.h"
 #include <Arduino.h>
 
@@ -300,13 +301,16 @@ bool WarehousePersistenceIntegrityAudit::check(fs::FS& storage,
     metrics = WarehousePersistenceAuditMetrics();
     uint32_t spoolRecordCount = 0UL;
     uint32_t priceRecordCount = 0UL;
+    uint32_t bridgeRecordCount = 0UL;
     if (!checkSpools(storage, spoolRecordCount) ||
-        !checkPrice(storage, priceRecordCount))
+        !checkPrice(storage, priceRecordCount) ||
+        !SpoolMaterialBridgeIntegrityAudit::check(storage, bridgeRecordCount))
     {
         return false;
     }
     metrics.spoolRecordCount = spoolRecordCount;
     metrics.priceRecordCount = priceRecordCount;
+    metrics.spoolMaterialBridgeRecordCount = bridgeRecordCount;
     return true;
 }
 }

@@ -52,32 +52,45 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 112 Cash payment/correction journal + repair/client balance API + backup/integrity
 ```
 
-Latest verification:
+Backend verification:
 
 ```text
 CMP 32928743465 / SUCCESS
 ESP32 Build 32928706196 / SUCCESS
 ```
 
+## Motor Web — Part A GREEN
+
+Checkpoint: `113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md`
+
+Completed:
+
+- desktop `motors.html` is catalog-only;
+- separate `/desktop/motor-new.html` exists;
+- catalog shows phases, WORKING, STARTING and conductor summary;
+- latest version uses `/api/motors/winding/latest`;
+- legacy `coil_program + repeat_target` remains explicit synthesized WORKING;
+- `motor-details.html` shows current version and bounded version history;
+- WORKING/STARTING roles and canonical multi-conductor strings are visible;
+- repair history remains bounded and linked;
+- Web/SSR physical START safety wording remains explicit.
+
+Verification:
+
+```text
+CMP 32932380926 / SUCCESS
+CMP 32932518963 / SUCCESS
+```
+
 ## Current active queue — Web/CRM UI
 
-### 1. Motor Web
+### 1. Finish Motor Web
 
-- `motors.html` becomes catalog-only; remove inline creation form.
-- Create separate `motor-new.html`.
-- Restyle catalog using current `arduino-windings.html` archive pattern.
-- Catalog fields: motor, phases, WORKING program/repeats, STARTING program/repeats, conductor/material summary, actions.
-- 3-phase motor normally shows STARTING `—`.
-- `motor-details.html` becomes the motor working card:
-  - current winding version;
-  - WORKING/STARTING roles;
-  - multi-conductor representation;
-  - version history;
-  - AS_RECEIVED / after rewinding context;
-  - repair links;
-  - direct WORKING/STARTING job-send actions.
-- Direct send reuses existing linked-job safety and never physical auto-start.
-- Legacy single `coil_program + repeat_target` remains readable as synthesized WORKING data.
+1. Add AS_RECEIVED / after-rewind context to the motor card using immutable repair snapshots.
+2. Audit the existing linked-job path before adding direct WORKING/STARTING actions.
+3. Role-aware send must reuse exact repair/motor/spool/snapshot safety and must never create a shortcut around linked-job preflight.
+4. If no safe direct role handoff exists yet, extend the existing linked-job flow rather than POSTing a second job path.
+5. After role-aware job flow regression is GREEN, Motor Web is closed.
 
 ### 2. Client Web
 

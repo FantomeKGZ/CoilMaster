@@ -15,7 +15,7 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 ## Current phase
 
-Workshop Web/CRM redesign.
+Workshop Web/CRM redesign is GREEN through dedicated Cash Web. Active work is now the coordinated wire-accounting migration.
 
 Authoritative design:
 
@@ -59,41 +59,19 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 113 Motor Web catalog-only + separate creation + versioned working card
 114 Immutable AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 115 Client Web catalog-only + dedicated create + read-only CRM card
+116 Dedicated append-only Cash Web UI + BigInt exact money + navigation
 ```
 
 Latest evidence:
 
 ```text
-CMP Protocol Tests 32936343060 / SUCCESS
-ESP32 Build         32934092563 / SUCCESS  # latest firmware-source evidence from checkpoint 114
+CMP Protocol Tests 32938179528 / SUCCESS
+ESP32 Build         32936718747 / SUCCESS
 ```
 
-Checkpoint 115 changed Web/host regression files only; firmware-source evidence therefore remains checkpoint 114.
+## Web/CRM status — GREEN
 
-## Motor Web — SOFTWARE GREEN
-
-Desktop Motor Web now has catalog-only list, separate create page, versioned WORKING/STARTING card/history, AS_RECEIVED comparison, safe role navigation to existing linked-job flow, exact role/program/repeat server validation, exact spool retention, and no Web physical START/SSR shortcut.
-
-## Client Web — SOFTWARE GREEN
-
-Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`.
-
-Desktop Client Web now has:
-
-- catalog-only `/desktop/clients.html` with bounded paging/search;
-- separate `/desktop/client-new.html`;
-- `/desktop/client-details.html?client_id=...`;
-- exact client identity/contact/comment;
-- repair history paged by exact client ID;
-- motors resolved historically from each repair's exact `motor_id`;
-- OPEN/CLOSED state;
-- immutable delivery state/date;
-- client charged / paid / debt / credit;
-- bounded append-only payment history;
-- no client/payment/delivery/machine/material mutation from the client card;
-- no duplicate inline client creation in repair intake.
-
-A physical motor remains independent from current client identity. Client↔motor relationship is historical through repairs; no mutable permanent `client_id` is written into motor identity.
+Motor Web, Client Web and Cash Web are all separated by domain responsibility. Cash uses checkpoint 112 append-only APIs and never owns pricing, warehouse or machine state. Client↔motor relationship remains historical through repair identity.
 
 ## Material / warehouse model
 
@@ -109,46 +87,22 @@ M2  -> SQUARE_METRE x1
 
 Material Request lifecycle remains `DRAFT -> ISSUED -> PRICED -> CLOSED`; warehouse ISSUE/RETURN/CORRECTION are explicit operator actions. `RUN_WIRE` remains ISSUE/KG-only with exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` remains non-mutating.
 
-## Delivery model — GREEN
-
-```text
-/data/workshop/repair-deliveries.ndjson
-GET/POST /api/repairs/delivery
-```
+## Delivery / cash — GREEN
 
 Delivery is immutable and separate from repair CLOSED and from cash balance. Debt does not block delivery.
 
-## Cash/payment model — GREEN backend
-
-Authoritative charge remains `RepairCosting::load()` / `/data/repairs/pricing.ndjson`. Cash never duplicates repair price.
+Cash journal is append-only:
 
 ```text
-/data/workshop/repair-payments.ndjson
 PAYMENT    -> ADD only
 CORRECTION -> ADD | SUBTRACT
 ```
 
-API:
+Dedicated `/desktop/cash.html` performs only explicit payment/correction appends and exact balance/history reads. Minor units are rendered with `BigInt`; no destructive cash edit/delete exists.
 
-```text
-GET  /api/payments?repair_id=...
-GET  /api/payments?client_id=...
-POST /api/payments
-GET  /api/payments/balance?repair_id=...
-GET  /api/payments/balance?client_id=...
-```
+## Current NEXT — coordinated wire migration
 
-Cash is append-only; correction references remain same-repair/client only; SUBTRACT cannot drive paid total below zero.
-
-## Current NEXT
-
-1. Dedicated `cash.html` using checkpoint 112 backend.
-2. Keep `costing.html` strictly for cost/price/margin.
-3. Cash UI: exact repair/client context, charged/paid/debt/credit, full/partial/multiple payments, append-only corrections, explicit confirmation, no edit/delete.
-4. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report/Web/tests are changed coherently.
-5. Full Web/backend regression + backup/restore, then two-board hardware E2E.
-
-## Wire migration
+First map all current exact-spool owners and persistence boundaries. Then design one coherent compatibility transition toward Material Request-owned run-wire ISSUE.
 
 Future contract:
 
@@ -156,11 +110,12 @@ Future contract:
 RUN_COMPLETED -> never auto-deducts
 operator confirms warehouse ISSUE
 material_request_id
-exact source_session_id + source_run_id for wire
+exact source_session_id + source_run_id
 CU/AL + actual consumed weight
+manual confirmation
 ```
 
-Current exact `spool_id` backend/finalization checks remain until coherent migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
+Current exact `spool_id` backend/finalization/writeoff checks remain authoritative until job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests are migrated together.
 
 ## Safety invariants
 

@@ -5,6 +5,7 @@ const source = fs.readFileSync('firmware/esp32/src/CM_RepairRegistryLookupWeb.cp
 const registryHeader = fs.readFileSync('firmware/esp32/src/CM_RepairRegistry.h', 'utf8');
 const registrySource = fs.readFileSync('firmware/esp32/src/CM_RepairRegistry.cpp', 'utf8');
 const autonomousSource = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingWeb.cpp', 'utf8');
+const cashSource = fs.readFileSync('firmware/esp32/src/CM_CashPaymentWeb.cpp', 'utf8');
 const storeHeader = fs.readFileSync('firmware/esp32/src/CM_MotorWindingVersionStore.h', 'utf8');
 const storeSource = fs.readFileSync('firmware/esp32/src/CM_MotorWindingVersionStore.cpp', 'utf8');
 
@@ -63,9 +64,20 @@ for (const required of [
   'if (!motorFound)',
   '"{\\\"error\\\":\\\"motor_not_found\\\"}"'
 ]) must(autonomousSource, required, 'autonomous assignment motor failure/not-found split');
+for (const required of [
+  'bool clientFound = false;',
+  'if (!m_repairs.clientExists(clientId, clientFound))',
+  '"{\\\"error\\\":\\\"client_lookup_integrity_failed\\\"}"',
+  'if (!clientFound)',
+  '"{\\\"error\\\":\\\"client_not_found\\\"}"'
+]) must(cashSource, required, 'cash balance client failure/not-found split');
 
-for (const [label, text] of [['registry lookup Web', source], ['autonomous Web', autonomousSource]]) {
-  if (/motorExists\(motorId\s*\)/.test(text)) throw new Error(`${label}: ambiguous one-arg motorExists returned`);
+for (const [label, text, pattern] of [
+  ['registry lookup Web', source, /motorExists\(motorId\s*\)/],
+  ['autonomous Web', autonomousSource, /motorExists\(motorId\s*\)/],
+  ['cash Web', cashSource, /clientExists\(clientId\s*\)/]
+]) {
+  if (pattern.test(text)) throw new Error(`${label}: ambiguous one-arg registry lookup returned`);
 }
 
 for (const forbidden of [
@@ -75,4 +87,4 @@ for (const forbidden of [
   if (source.includes(forbidden)) throw new Error('lookup endpoints must remain read-only');
 }
 
-console.log('CRM winding/as-received lookup API contract: OK; client/motor existence is fail-closed and Web distinguishes integrity failure from true not-found.');
+console.log('CRM winding/as-received lookup API contract: OK; client/motor existence is fail-closed and Web/cash distinguish integrity failure from true not-found.');

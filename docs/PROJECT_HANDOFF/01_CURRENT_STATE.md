@@ -17,61 +17,45 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 Workshop Web/CRM redesign is GREEN through Cash Web. The coordinated wire-accounting migration is now in progress.
 
-Authoritative design:
-
-```text
-95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
-```
-
 ## Latest GREEN migration state
 
-Checkpoint 117 mapped the current exact-spool owners and found two independent warehouse identities:
-
-```text
-physical spool domain -> spool_id
-MaterialLedger domain -> warehouse_item_id
-```
-
-Checkpoint 118 added the safe persistence bridge:
+Checkpoint 118 established append-only physical-spool ↔ generic-material bridge persistence:
 
 ```text
 spool_id <-> warehouse_item_id + CU/AL + diameter
 /data/warehouse/spool-material-bridges.ndjson
 ```
 
+Checkpoint 119 made MaterialLedger wire identity authoritative without breaking generic materials:
+
+```text
+optional pair on /data/materials/materials.ndjson
+wire_type = CU | AL
+diameter_hundredths_mm = exact diameter
+wire metadata requires unit = GRAM
+```
+
 Properties:
-- append-only;
-- duplicate/conflicting spool mapping fails closed;
-- bounded duplicate audit (24 IDs/batch);
-- cross-reference audit requires exact physical spool match and exact MaterialLedger item;
-- wire-compatible MaterialLedger unit currently must be `GRAM`;
-- bridge is covered by warehouse backup/export/integrity;
-- no runtime bridge-creation API is exposed yet.
+- legacy/generic material records may omit both metadata fields;
+- one-sided/invalid wire metadata fails closed;
+- active material lookup returns structured metadata;
+- swap/recovery and list validation preserve the same contract;
+- bridge integrity now requires exact `GRAM + CU/AL + diameter` match with MaterialLedger;
+- no runtime bridge writer exists yet;
+- existing exact-spool writeoff/finalization remains authoritative.
 
 Latest evidence:
 
 ```text
-CMP Protocol Tests 32939884633 / SUCCESS
-ESP32 Build         32939884635 / SUCCESS
+CMP Protocol Tests 32941574082 / SUCCESS
+ESP32 Build         32941574080 / SUCCESS
 ```
 
 ## Current NEXT
 
-Extend the existing authoritative MaterialLedger backward-compatibly with structured wire metadata (`CU|AL` + exact diameter). Preserve all existing non-wire catalog records and costing/unit contracts. Only after authoritative metadata exists may an explicit operator bridge-creation flow be exposed.
+Add explicit operator-only bridge creation. It must preflight exact active physical spool + exact active MaterialLedger item, require matching `CU|AL + diameter`, reject an already bridged spool, and append identity evidence only. It must not mutate stock or relax current exact-spool writeoff/finalization.
 
-Then migrate run-linked wire accounting coherently toward:
-
-```text
-RUN_COMPLETED -> never auto-deducts
-operator confirms warehouse ISSUE
-material_request_id
-exact source_session_id + source_run_id
-CU/AL + actual consumed weight
-exact physical spool provenance retained through bridge
-```
-
-Current exact `spool_id` backend/finalization/writeoff checks remain authoritative until the runtime transition across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests is complete.
+After that, migrate run-linked wire accounting coherently toward explicit Material Request `RUN_WIRE` ISSUE while preserving exact `source_session_id + source_run_id` and physical spool provenance.
 
 ## Safety invariants
 

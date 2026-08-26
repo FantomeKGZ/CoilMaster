@@ -7,6 +7,7 @@ const source = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMater
 const writeoff = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp'), 'utf8');
 const warehouseHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseStore.h'), 'utf8');
 const writeoffStore = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOff.cpp'), 'utf8');
+const writeoffRecovery = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp'), 'utf8');
 const runWire = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp'), 'utf8');
 const failures = [];
 const must = (src, token, label) => { if (!src.includes(token)) failures.push(`${label}: missing ${token}`); };
@@ -44,9 +45,6 @@ mustNot(source, 'confirmSpoolWriteOff', 'bridge store must not mutate physical s
 mustNot(source, 'confirmUsage', 'bridge store must not mutate MaterialLedger stock');
 mustNot(source, 'adjustMaterial', 'bridge store must not mutate MaterialLedger stock');
 
-// The old public warehouse mutation URL is intentionally retired. Its GET history
-// remains available, while exact spool/run guards still exist in atomic RUN_WIRE
-// and the retained low-level store/recovery implementation.
 for (const token of [
   '"/api/warehouse/write-offs", HTTP_POST',
   'm_server.send(410',
@@ -58,26 +56,38 @@ for (const token of [
   'handleListWriteOffs()'
 ]) must(writeoff, token, 'legacy writeoff hard deprecation');
 
-// Legacy direct-writeoff request/result support types are recovery-only details.
-// KgFirstWriteOff remains public because managed atomic RUN_WIRE uses it.
+// Historical direct journal shape remains private only for startup recovery.
 const classStart = warehouseHeader.indexOf('class WarehouseStore');
 const privateStart = warehouseHeader.indexOf('\nprivate:', classStart);
 const confirmedType = warehouseHeader.indexOf('struct ConfirmedSpoolWriteOff', classStart);
-const resultType = warehouseHeader.indexOf('struct SpoolWriteOffResult', classStart);
 const publicKgFirst = warehouseHeader.indexOf('struct KgFirstWriteOff');
-if (classStart < 0 || privateStart < 0 || confirmedType <= privateStart || resultType <= privateStart) {
-  failures.push('warehouse header: legacy direct-writeoff support types must remain private');
+if (classStart < 0 || privateStart < 0 || confirmedType <= privateStart) {
+  failures.push('warehouse header: legacy ConfirmedSpoolWriteOff support type must remain private');
 }
 if (publicKgFirst < 0 || publicKgFirst >= classStart) {
   failures.push('warehouse header: managed RUN_WIRE KgFirstWriteOff type must remain public');
 }
+for (const token of ['SpoolWriteOffResult', 'confirmSpoolWriteOff(', 'confirmKgFirstWriteOff(']) {
+  mustNot(warehouseHeader, token, 'dead direct-writeoff Store API');
+  mustNot(writeoffStore, token, 'dead direct-writeoff implementation');
+}
 
+// Recovery still closes historical direct PENDING records deterministically;
+// the append helper remains internal and no new direct entrypoint is restored.
 for (const token of [
-  'WindingSessionCompletionAudit::check',
-  'confirmedWriteOffForSourceRun(operation.sourceSessionId',
-  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
-  'alreadyConfirmed'
-]) must(writeoffStore, token, 'retained low-level exact-run writeoff safety');
+  'pending.mode == WarehouseWriteOffMode::LegacySpool',
+  'ConfirmedSpoolWriteOff operation;',
+  'currentWeight == pending.weightBeforeGrams',
+  'currentWeight == pending.weightAfterGrams',
+  'appendWriteOffRecord(pending.movementId'
+]) must(writeoffRecovery, token, 'legacy pending recovery');
+for (const token of [
+  'bool WarehouseStore::appendWriteOffRecord',
+  'bool WarehouseStore::appendKgFirstWriteOffRecord',
+  'bool WarehouseStore::nextMovementId',
+  'bool WarehouseStore::rewriteSpoolWeight'
+]) must(writeoffStore, token, 'retained internal writeoff helper');
+
 for (const token of [
   'JobSpoolSelectionStore::loadReadOnly',
   'selection.spoolId != spoolId',
@@ -89,4 +99,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: append-only bounded identity audit; public legacy writeoff POST is retired, legacy support types are private, and exact-spool/run safety remains atomic/store-authoritative.');
+console.log('Spool material bridge foundation contracts OK: public legacy POST and dead direct Store entrypoints are removed, historical recovery helpers remain deterministic, and atomic RUN_WIRE exact-spool/run safety stays authoritative.');

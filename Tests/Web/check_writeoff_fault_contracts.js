@@ -68,10 +68,9 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'spool reboot recovery proof missing: ' + text);
 }
 
-// HTTP writes must fail closed when warehouse/storage is unavailable, when the
-// repair is closed, when RUN_COMPLETED cannot be proven, or when the exact run
-// already has a confirmed write-off. Error tokens are checked independent of
-// C++ string-literal escaping so the contract follows the JSON semantics.
+// Legacy/direct HTTP writes remain fail-closed for compatibility callers. The
+// production operator UI no longer posts here; its atomic RUN_WIRE path is
+// checked below and by the kg-first/material contract test.
 for (const text of [
   'warehouse_unavailable',
   'repair_closed',
@@ -137,8 +136,8 @@ for (const forbidden of [
     'write-off lookup must not restore a post-audit full-file scan: ' + forbidden);
 }
 
-// Every JSON error emitted from the POST handler must explicitly state that no
-// write was performed. GET history errors are outside this contract.
+// Every JSON error emitted from the legacy/direct POST handler must explicitly
+// state that no write was performed. GET history errors are outside this contract.
 const postStart = writeoff.indexOf('void WarehouseWeb::handleConfirmWriteOff()');
 if (postStart < 0) {
   failures.push(writeoffPath + ': POST handler not found');
@@ -156,7 +155,7 @@ if (postStart < 0) {
 }
 
 // Store-level duplicate/completion protection must remain authoritative even if
-// a future caller bypasses the web handler.
+// a future compatibility caller bypasses the web handler.
 for (const text of [
   'WindingSessionCompletionAudit::check',
   'confirmedWriteOffForSourceRun(operation.sourceSessionId',
@@ -166,18 +165,23 @@ for (const text of [
   requireText(writeoffStorePath, writeoffStore, text, 'store-level fault guard missing: ' + text);
 }
 
-// UI must route every non-2xx response to the error path and may advance to the
-// next uncovered run only after jsonFetch() returned successfully.
+// Operator UI must route every non-2xx response to the error path and may
+// advance to the next uncovered run only after the atomic Material Request
+// RUN_WIRE endpoint returned successfully with exact movement/spool identity.
 for (const text of [
   "if(!response.ok){const error=new Error(payload.error||('http_'+response.status))",
-  "const data=await jsonFetch('/api/warehouse/write-offs'",
-  "setResult('Списано '+kgFromGrams(data.consumed_g)",
+  "const data=await jsonFetch('/api/material-requests/warehouse'",
+  "if(!validId(data.movement_id)||String(data.spool_id)!==String(activeSpool.spool_id))throw new Error('run_wire_response_identity_mismatch')",
+  "setResult('RUN_WIRE: списано '+kgFromGrams(quantity.grams)",
   'await loadHistory(0,true);',
   'await prepareNextRun();',
   "catch(error){\n        setResult('Ошибка: '+error.message,'bad');"
 ]) {
-  requireText(controllerPath, controller, text, 'manual UI fault semantics missing: ' + text);
+  requireText(controllerPath, controller, text, 'manual atomic RUN_WIRE UI fault semantics missing: ' + text);
 }
+requireAbsent(controllerPath, controller,
+  "jsonFetch('/api/warehouse/write-offs',{method:'POST'",
+  'production operator UI must not return to legacy/direct write-off POST');
 
 // Safety invariants: recovery and fault handling must never create automatic
 // physical start, automatic resume, or RUN_COMPLETED-triggered material deduction.
@@ -199,4 +203,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: explicit write_performed:false failures, fail-closed storage/repair/run guards, exact-run-only duplicate protection resolved inside the movement audit, deterministic reboot recovery, and no automatic deduction.');
+console.log('Write-off fault contracts OK: legacy compatibility failures remain fail-closed, production operator UI uses atomic RUN_WIRE with exact response identity, exact-run duplicate protection is audit-backed, reboot recovery is deterministic, and no automatic deduction exists.');

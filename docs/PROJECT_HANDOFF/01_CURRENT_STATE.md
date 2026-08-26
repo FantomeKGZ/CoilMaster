@@ -32,13 +32,13 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> MATERIAL REQUEST
                           -> WAREHOUSE physical movements
                           -> COSTING
-                     -> CASH/PAYMENTS
+                     -> CASH/PAYMENTS/BALANCE
                      -> COMPLETED -> DELIVERED
 ```
 
 Warehouse = physical materials. Cash = money. Material Request bridges repair/warehouse/costing.
 
-## Phase A software GREEN blocks
+## Software GREEN checkpoints
 
 ```text
 97  Motor winding versions
@@ -54,19 +54,22 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 108 Material Request warehouse pending persistence + stable-backup guard
 109 Crash-safe Material Request warehouse coordinator
 110 Material Request production runtime/Web API
+111 Immutable repair delivery store/API + backup/integrity
+112 Append-only cash/payment journal + repair/client balance API + backup/integrity
 ```
 
-Latest block 110 verification:
+Latest checkpoint 112 evidence:
 
 ```text
-CMP run 32926200712 / SUCCESS
-ESP32 Build run 32926237400 / SUCCESS
-runtime bootstrap ESP32 Build 32926105448 / SUCCESS
+CMP Protocol Tests 32928743465 / SUCCESS
+ESP32 Build         32928706196 / SUCCESS
 ```
+
+The ESP32 run is on `eac97f9c59fdd0a7ca3e53c73ad4748aa0d1933e`, the last production-source cash commit. Current later commits only update host regression/docs.
 
 ## Material / warehouse model
 
-Existing `/data/materials/materials.ndjson` and `MaterialLedger` remain the authoritative generic warehouse catalog.
+`/data/materials/materials.ndjson` and `MaterialLedger` remain the authoritative generic warehouse catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -101,43 +104,63 @@ MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-Every movement has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` is non-mutating.
+Every movement has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` remains non-mutating.
 
-Coordinator ordering:
-
-```text
-explicit operator confirmation
--> durable pending marker
--> immutable movement
--> physical MaterialLedger mutation
--> verify both sides
--> clear pending
-```
-
-Recovery is fail-closed on impossible ledger-only evidence. Warehouse mutation is allowed only for DRAFT/ISSUED request tied to an OPEN repair.
-
-## Material Request production API — GREEN
+## Delivery model — GREEN
 
 ```text
-POST /api/material-requests
-GET  /api/material-requests?repair_id=...
-GET  /api/material-requests/item?material_request_id=...
-GET  /api/material-requests/movements?material_request_id=...
-GET  /api/material-requests/status?material_request_id=...
-POST /api/material-requests/status
-POST /api/material-requests/warehouse
+/data/workshop/repair-deliveries.ndjson
+GET/POST /api/repairs/delivery
 ```
 
-Creation derives exact `client_id + motor_id` from authoritative `repair_id`. Warehouse mutation requires `confirmed=true`, does not accept operator-supplied material price and executes only through the coordinator. Stores and transaction recovery initialize before routes are registered.
+Delivery is a separate immutable fact from repair CLOSED. Only a CLOSED repair can be delivered; exact repair/client/motor/time are preserved; one final delivery per repair; balance/debt does not block delivery.
+
+## Cash/payment model — GREEN
+
+Authoritative charge remains `RepairCosting::load()` / `/data/repairs/pricing.ndjson`. Cash never duplicates repair price.
+
+Append-only journal:
+
+```text
+/data/workshop/repair-payments.ndjson
+```
+
+Events:
+
+```text
+PAYMENT    -> ADD only
+CORRECTION -> ADD | SUBTRACT
+```
+
+Correction target must belong to the same repair/client. SUBTRACT cannot drive paid total below zero. Payments remain possible after CLOSED/DELIVERED.
+
+API:
+
+```text
+GET  /api/payments?repair_id=...
+GET  /api/payments?client_id=...
+POST /api/payments
+GET  /api/payments/balance?repair_id=...
+GET  /api/payments/balance?client_id=...
+```
+
+Balances expose charged/paid/debt/credit. Client aggregate charge is calculated by bounded repair paging and authoritative RepairCosting reads; payment aggregate is one pass over the cash journal.
+
+Backup includes repair deliveries and repair payments, with fail-closed integrity audits.
 
 ## Current NEXT
 
-1. Add immutable repair delivery store/API: repair completion and delivery are different facts.
-2. Delivery record keeps exact `repair_id + client_id + motor_id + delivered_at`, with optional comment.
-3. Delivery requires repair CLOSED but must not require balance == 0; a debt warning belongs to future Cash/UI, not the persistence gate.
-4. Then add append-only payments/corrections and client/repair balance reads.
-5. Then Motor Web / Client Web redesign using the new model.
-6. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report contracts are changed together.
+1. Motor Web redesign:
+   - separate `motor-new.html`;
+   - archive-style `motors.html`;
+   - versioned WORKING/STARTING data in `motor-details.html`;
+   - direct job send reusing existing safety, never physical auto-start.
+2. Client Web redesign:
+   - separate `client-new.html`;
+   - catalog-only `clients.html`;
+   - `client-details.html` with motors, repairs, material requests, payments/balance and delivery history.
+3. Dedicated `cash.html`; keep `costing.html` for cost/price/margin only.
+4. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report/Web/tests are changed coherently.
 
 ## Wire migration
 
@@ -166,6 +189,7 @@ Never weaken:
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
 - warehouse ISSUE requires explicit operator action;
+- cash operations never trigger machine or warehouse mutation;
 - run-linked wire movement preserves exact run provenance;
 - cancellation/operator abort preserves immutable evidence;
 - restore operator-only, transactional, fail-closed;

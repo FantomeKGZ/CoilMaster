@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/132_WAREHOUSE_FAIL_CLOSED_SPOOL_AND_DIAMETER_LOOKUPS_2026-08-26.md
 docs/PROJECT_HANDOFF/131_WAREHOUSE_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
 docs/PROJECT_HANDOFF/130_WAREHOUSE_DEAD_DIRECT_WRITEOFF_REMOVAL_2026-08-26.md
 docs/PROJECT_HANDOFF/129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md
@@ -42,17 +43,17 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **131**.
+Latest GREEN foundation = checkpoint **132**.
 
-Latest verified checkpoint-131 evidence:
+Latest verified checkpoint-132 evidence:
 
 ```text
-repair lookup declaration cleanup  6ccdec084001faabf25eaf5b28177d8f7e89a7d5
-repair lookup implementation       279fc281b42a559f89f911e9f0b2758ccd02e8ff
-fail-closed lookup contract        d848ce45eb35c7f2bba817d6de1efd0c4f4a02bd
-ESP32 Build #1576                  32964609675 / SUCCESS
-CMP Protocol Tests #3570           32964670388 / SUCCESS
-CMP Protocol Tests #3571           32964882464 / SUCCESS
+API declarations narrowed         6f0cae00fed57c8e90b6aa977c9658de90dc3070
+spool identity wrapper removed    237dbe93c299ea025f5199266bf78df12960a002
+count-only catalogue removed      60f7a7fa6fbaddc947bb8eb65542ee525108bf32
+fail-closed contracts             7eba027f97ad03b9e37609fd6fa1e07acec257f8
+ESP32 Build #1579                 32966286119 / SUCCESS
+CMP Protocol Tests #3578          32966344439 / SUCCESS
 ```
 
 ## Current migration state
@@ -71,37 +72,16 @@ CMP Protocol Tests #3571           32964882464 / SUCCESS
 128 legacy direct Store writeoff methods private-only
 129 legacy direct request/result support types private-only
 130 dead direct Store mutation methods/result removed; deterministic historical recovery helpers retained
-131 ambiguous repairExists(id) convenience wrapper removed; only fail-closed repairExists(id, found) remains
+131 repairExists(id) convenience wrapper removed; fail-closed repairExists(id, found) retained
+132 ambiguous spool identity and count-only wire catalogue overloads removed; fail-closed found/count forms retained
 ```
-
-Public `POST /api/warehouse/write-offs` remains permanently fail-closed with HTTP 410. Current production wire mutation is atomic RUN_WIRE only. Historical GET and reboot reconciliation remain compatible through retained append helpers/codecs. Warehouse repair lookup no longer collapses storage/read failure into the same boolean as "not found".
 
 ## Immediate NEXT
 
-1. Audit overloads `loadActiveSpoolIdentity`, `loadWarehousePrice`, and `loadKnownWireDiameters`; remove only unused/ambiguous convenience forms proven dead by ESP32 compilation.
-2. Keep managed RUN_WIRE, GET/history, integrity, backup and deterministic recovery dependencies intact.
-3. Prefer fail-closed APIs that expose `found/configured/count` separately from I/O success.
-4. Do not add redundant full-log scans or duplicate cross-log joins.
+1. Narrow the unused `loadWarehousePrice(price)` convenience overload behind private; keep `loadWarehousePrice(price, configured)` public and authoritative.
+2. Remove the private price wrapper implementation later only through an exact safe rewrite of `CM_WarehouseStore.cpp`.
+3. Review NDJSON growth/runtime scan hot spots for bounded optimization without automatic deletion/rotation or premature DB migration.
+4. Preserve managed RUN_WIRE, GET/history, integrity, backup and deterministic historical recovery.
 5. Continue software optimization/integrity before final two-board hardware E2E.
 
-## Material safety
-
-`RUN_COMPLETED` never automatically deducts material. Warehouse mutation requires explicit operator action and exact Material Request / spool / session / run provenance.
-
-## General safety invariants
-
-- physical START local-only;
-- no automatic START between repeats;
-- no auto-resume after reboot;
-- Arduino owns SSR;
-- ESP32/Web never directly control SSR;
-- lost ACK/timeout never proves Arduino idle;
-- final repeat cannot auto-reopen;
-- cancellation/operator abort preserves immutable evidence;
-- restore operator-only, transactional, fail-closed;
-- backup/restore is blocked while RUN_WIRE recovery intent exists;
-- no automatic production deletion/truncation.
-
-## Working discipline
-
-Before modifying an existing file: fetch exact `cmp-protocol-v1` content + current blob SHA. Before a new path: confirm 404. Never claim GREEN without actual CI/build evidence.
+`RUN_COMPLETED` remains evidence only; no automatic writeoff, START or resume is introduced.

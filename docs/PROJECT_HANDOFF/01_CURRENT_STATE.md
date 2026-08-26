@@ -58,45 +58,42 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 112 Append-only cash/payment journal + repair/client balance API + backup/integrity
 113 Motor Web catalog-only + separate creation + versioned working card
 114 Immutable AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
+115 Client Web catalog-only + dedicated create + read-only CRM card
 ```
 
-Latest checkpoint 114 evidence:
+Latest evidence:
 
 ```text
-CMP Protocol Tests 32934323481 / SUCCESS
-ESP32 Build         32934092563 / SUCCESS
+CMP Protocol Tests 32936343060 / SUCCESS
+ESP32 Build         32934092563 / SUCCESS  # latest firmware-source evidence from checkpoint 114
 ```
 
-The ESP32 run is on production-source commit `da5d7271ba69e373599360550e81e1cf860f7a1a`, after the guarded `main.cpp` role/repeat integration. Later commits only tighten Web/host regressions and documentation.
+Checkpoint 115 changed Web/host regression files only; firmware-source evidence therefore remains checkpoint 114.
 
 ## Motor Web — SOFTWARE GREEN
 
-Desktop Motor Web now has:
+Desktop Motor Web now has catalog-only list, separate create page, versioned WORKING/STARTING card/history, AS_RECEIVED comparison, safe role navigation to existing linked-job flow, exact role/program/repeat server validation, exact spool retention, and no Web physical START/SSR shortcut.
 
-- catalog-only `/desktop/motors.html`;
-- separate `/desktop/motor-new.html`;
-- `/desktop/motor-details.html` with current WORKING/STARTING version and bounded version history;
-- canonical multi-conductor display;
-- immutable `AS_RECEIVED` vs exact after-repair version comparison using `source_repair_id`;
-- explicit legacy fallback rather than pretending missing historical evidence exists;
-- safe OPEN-repair links to `/desktop/winding-job.html?repair_id=...&role=working|starting`;
-- CLOSED repairs do not expose role send links.
+## Client Web — SOFTWARE GREEN
 
-Linked production job validation is server-owned:
+Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`.
 
-```text
-repair -> exact motor -> OPEN
-latest winding version
-  -> exact role
-  -> exact program
-  -> exact repeat_target
-exact spool selection
-snapshot -> state -> spool selection -> DELIVERING -> UART
-```
+Desktop Client Web now has:
 
-Legacy motor fallback authorizes WORKING only. Versionless STARTING fails closed. Present but malformed legacy repeat data also fails closed. `winding-job.html` treats program and repeat target as readonly convenience data and the server revalidates both before persistence/UART.
+- catalog-only `/desktop/clients.html` with bounded paging/search;
+- separate `/desktop/client-new.html`;
+- `/desktop/client-details.html?client_id=...`;
+- exact client identity/contact/comment;
+- repair history paged by exact client ID;
+- motors resolved historically from each repair's exact `motor_id`;
+- OPEN/CLOSED state;
+- immutable delivery state/date;
+- client charged / paid / debt / credit;
+- bounded append-only payment history;
+- no client/payment/delivery/machine/material mutation from the client card;
+- no duplicate inline client creation in repair intake.
 
-Physical START remains local-only and Web never controls SSR.
+A physical motor remains independent from current client identity. Client↔motor relationship is historical through repairs; no mutable permanent `client_id` is written into motor identity.
 
 ## Material / warehouse model
 
@@ -110,32 +107,7 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
-Material Request durable data:
-
-```text
-/data/workshop/material-requests.ndjson
-/data/workshop/material-request-movements.ndjson
-/data/workshop/material-request-status.ndjson
-/data/workshop/material-request-warehouse.pending.json
-/data/workshop/material-request-warehouse.pending.tmp
-```
-
-Lifecycle:
-
-```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
-```
-
-Warehouse operations:
-
-```text
-ISSUE | RETURN | CORRECTION
-CORRECTION -> ADD | REMOVE
-MANUAL_MATERIAL | RUN_WIRE
-KG | L | PCS | M | M2
-```
-
-Every movement has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` remains non-mutating.
+Material Request lifecycle remains `DRAFT -> ISSUED -> PRICED -> CLOSED`; warehouse ISSUE/RETURN/CORRECTION are explicit operator actions. `RUN_WIRE` remains ISSUE/KG-only with exact `source_session_id + source_run_id`, CU/AL and diameter. `RUN_COMPLETED` remains non-mutating.
 
 ## Delivery model — GREEN
 
@@ -144,26 +116,17 @@ Every movement has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires e
 GET/POST /api/repairs/delivery
 ```
 
-Delivery is a separate immutable fact from repair CLOSED. Only a CLOSED repair can be delivered; exact repair/client/motor/time are preserved; one final delivery per repair; balance/debt does not block delivery.
+Delivery is immutable and separate from repair CLOSED and from cash balance. Debt does not block delivery.
 
-## Cash/payment model — GREEN
+## Cash/payment model — GREEN backend
 
 Authoritative charge remains `RepairCosting::load()` / `/data/repairs/pricing.ndjson`. Cash never duplicates repair price.
 
-Append-only journal:
-
 ```text
 /data/workshop/repair-payments.ndjson
-```
-
-Events:
-
-```text
 PAYMENT    -> ADD only
 CORRECTION -> ADD | SUBTRACT
 ```
-
-Correction target must belong to the same repair/client. SUBTRACT cannot drive paid total below zero. Payments remain possible after CLOSED/DELIVERED.
 
 API:
 
@@ -175,20 +138,15 @@ GET  /api/payments/balance?repair_id=...
 GET  /api/payments/balance?client_id=...
 ```
 
-Balances expose charged/paid/debt/credit. Client aggregate charge is calculated by bounded repair paging and authoritative RepairCosting reads; payment aggregate is one pass over the cash journal.
-
-Backup includes repair deliveries and repair payments, with fail-closed integrity audits.
+Cash is append-only; correction references remain same-repair/client only; SUBTRACT cannot drive paid total below zero.
 
 ## Current NEXT
 
-1. Client Web redesign:
-   - separate `client-new.html`;
-   - catalog-only `clients.html`;
-   - `client-details.html` with motors through repair history, open/closed repairs, material requests, payments/balance and delivery history;
-   - remove duplicated inline client creation from repair intake and leave a link/button to `client-new.html`.
-2. Dedicated `cash.html`; keep `costing.html` for cost/price/margin only.
-3. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report/Web/tests are changed coherently.
-4. Full Web/backend regression + backup/restore, then two-board hardware E2E.
+1. Dedicated `cash.html` using checkpoint 112 backend.
+2. Keep `costing.html` strictly for cost/price/margin.
+3. Cash UI: exact repair/client context, charged/paid/debt/credit, full/partial/multiple payments, append-only corrections, explicit confirmation, no edit/delete.
+4. Coordinated spool -> Material Request wire migration only after job/writeoff/finalization/backup/report/Web/tests are changed coherently.
+5. Full Web/backend regression + backup/restore, then two-board hardware E2E.
 
 ## Wire migration
 

@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md
 docs/PROJECT_HANDOFF/128_WAREHOUSE_LEGACY_DIRECT_API_NARROWING_2026-08-26.md
 docs/PROJECT_HANDOFF/127_RUN_WIRE_PERSISTED_SPOOL_INTEGRITY_2026-08-26.md
 docs/PROJECT_HANDOFF/126_RUN_WIRE_READ_PROVENANCE_AND_LEGACY_POST_DEPRECATION_2026-08-26.md
@@ -39,15 +40,15 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **128**.
+Latest GREEN foundation = checkpoint **129**.
 
-Latest verified checkpoint-128 evidence:
+Latest verified checkpoint-129 evidence:
 
 ```text
-legacy Store API narrowing da448296a2d9bb5dcad74983ac322aa479d2327b
-private-boundary contract dfa920aa4c5cc116a6506a0d4eb468d542ace6de
-ESP32 Build #1571          32962316063 / SUCCESS
-CMP Protocol Tests #3547   32962445538 / SUCCESS
+legacy support type narrowing b2f7f13f88bf2a5e489999fdf318523fc1fcdf46
+private-type contract          071e55923ead09264a801c250e8807a17823eba1
+ESP32 Build #1572              32963035385 / SUCCESS
+CMP Protocol Tests #3551       32963113298 / SUCCESS
 ```
 
 ## Current migration state
@@ -64,16 +65,17 @@ CMP Protocol Tests #3547   32962445538 / SUCCESS
 126 direct exact spool provenance in new RUN_WIRE movements + legacy POST 410 deprecation
 127 optional persisted spool_id cross-checked against immutable selection in existing bounded audit pass
 128 legacy direct Store writeoff methods private-only; managed RUN_WIRE API remains public
+129 legacy direct request/result support types private-only; bounded movement read already exposes direct RUN_WIRE provenance
 ```
 
-Public `POST /api/warehouse/write-offs` remains permanently fail-closed with HTTP 410. The old direct Store methods are retained only behind `private:` for deterministic compatibility/recovery. Managed atomic RUN_WIRE methods and exact-run duplicate lookup remain public because current production uses them.
+Public `POST /api/warehouse/write-offs` remains permanently fail-closed with HTTP 410. Legacy direct mutation methods and their direct request/result types are private implementation details. Managed atomic RUN_WIRE methods, `KgFirstWriteOff`, and exact-run duplicate lookup remain public because current production uses them.
 
 ## Immediate NEXT
 
-1. Continue bounded read/report provenance review.
-2. Prefer direct immutable transaction fields already persisted by checkpoints 126–127.
-3. Do not add redundant full-log scans.
-4. Narrow/remove additional legacy warehouse helpers only when compile-proven safe and recovery/history remain intact.
+1. Continue compile-proven narrowing/removal of dead legacy warehouse helpers only where recovery does not depend on them.
+2. Prefer direct immutable transaction fields already returned by `/api/material-requests/movements`.
+3. Do not add redundant full-log scans or duplicate cross-log joins.
+4. Keep historical GET/recovery compatibility intact.
 5. Continue software optimization/integrity before final two-board hardware E2E.
 
 ## Material safety

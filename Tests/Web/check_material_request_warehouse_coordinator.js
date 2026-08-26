@@ -64,4 +64,7 @@ if (webSource.includes('price_per_unit_minor') || webSource.includes('unit_cost_
   throw new Error('Material Request warehouse Web must not accept operator-supplied material pricing');
 }
 
+// Keep checkpoint 121 RUN_WIRE atomicity in the existing mandatory CMP step.
+require('./check_run_wire_issue_transaction.js');
+
 console.log('Material Request warehouse coordinator/runtime API contracts OK');

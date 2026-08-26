@@ -10,7 +10,7 @@ namespace
 {
 constexpr const char* SelectionDirectory = "/data/winding-jobs/spool-selection";
 constexpr const char* MovementsPath = "/data/warehouse/movements.ndjson";
-constexpr uint8_t CoverageBatchSize = 32U;
+constexpr uint8_t CoverageBatchSize = WarehouseMovementCoverageMaxTargets;
 
 enum class ReadOnlyCatalogCheck : uint8_t
 {
@@ -26,15 +26,6 @@ struct SelectionIdentity
     uint32_t repairId;
     uint32_t spoolId;
     SelectionIdentity() : sessionId(0UL), repairId(0UL), spoolId(0UL) {}
-};
-
-struct CoverageTarget
-{
-    uint32_t sessionId;
-    uint32_t runId;
-    uint32_t spoolId;
-    bool found;
-    CoverageTarget() : sessionId(0UL), runId(0UL), spoolId(0UL), found(false) {}
 };
 
 String baseNameOf(const String& path)
@@ -201,15 +192,15 @@ bool loadSelectionReadOnly(fs::FS& storage,
 
 bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
                           uint32_t repairId,
-                          CoverageTarget* targets,
+                          WarehouseMovementCoverageTarget* targets,
                           uint8_t targetCount)
 {
     if (record.status != "CONFIRMED" || !record.hasSourceSessionId) return true;
 
     for (uint8_t i = 0U; i < targetCount; ++i)
     {
-        CoverageTarget& target = targets[i];
-        if (record.sourceSessionId != target.sessionId) continue;
+        WarehouseMovementCoverageTarget& target = targets[i];
+        if (record.sourceSessionId != target.sourceSessionId) continue;
 
         if (record.repairId != repairId) return false;
 
@@ -222,11 +213,11 @@ bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
             // not let one ambiguous legacy record cover every run in a repeat
             // session; finalization must remain tied to exact source_run_id.
             if (!record.hasSourceRunId) return false;
-            matches = record.sourceRunId == target.runId;
+            matches = record.sourceRunId == target.sourceRunId;
         }
         else
         {
-            if (!record.hasSourceRunId || record.sourceRunId != target.runId) continue;
+            if (!record.hasSourceRunId || record.sourceRunId != target.sourceRunId) continue;
             if (record.stockMode == WarehouseWriteOffStockMode::Spool)
             {
                 if (!record.hasSpoolId || record.spoolId != target.spoolId) return false;
@@ -243,15 +234,15 @@ bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
         }
 
         if (!matches) continue;
-        if (target.found) return false;
-        target.found = true;
+        if (target.confirmed) return false;
+        target.confirmed = true;
     }
     return true;
 }
 
 bool confirmedWriteOffBatch(fs::FS& storage,
                             uint32_t repairId,
-                            CoverageTarget* targets,
+                            WarehouseMovementCoverageTarget* targets,
                             uint8_t targetCount)
 {
     if (targetCount == 0U) return true;
@@ -309,14 +300,7 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
     if (selectionCatalog == ReadOnlyCatalogCheck::IntegrityFailed)
         return WireWriteOffCoverageCheck::IntegrityFailed;
 
-    if (storage.exists(MovementsPath) && !WarehouseMovementIntegrityAudit::check(storage))
-    {
-        File probe = storage.open(MovementsPath, FILE_READ);
-        if (!probe) return WireWriteOffCoverageCheck::StorageUnavailable;
-        probe.close();
-        return WireWriteOffCoverageCheck::IntegrityFailed;
-    }
-
+    bool movementIntegrityValidated = false;
     uint32_t cursor = 0UL;
     for (;;)
     {
@@ -333,7 +317,7 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
         if (result != WindingJournalQueryResult::Ok)
             return WireWriteOffCoverageCheck::IntegrityFailed;
 
-        CoverageTarget targets[CoverageBatchSize];
+        WarehouseMovementCoverageTarget targets[CoverageBatchSize];
         uint8_t targetCount = 0U;
         int pageCursor = 0;
         uint16_t parsedCount = 0U;
@@ -366,25 +350,32 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
             if (selection.repairId != repairId || targetCount >= CoverageBatchSize)
                 return WireWriteOffCoverageCheck::IntegrityFailed;
 
-            CoverageTarget& target = targets[targetCount++];
-            target.sessionId = sessionId;
-            target.runId = runId;
+            WarehouseMovementCoverageTarget& target = targets[targetCount++];
+            target.sourceSessionId = sessionId;
+            target.sourceRunId = runId;
             target.spoolId = selection.spoolId;
         }
 
         if (parsedCount != count)
             return WireWriteOffCoverageCheck::IntegrityFailed;
 
-        if (!confirmedWriteOffBatch(storage, repairId, targets, targetCount))
+        const bool coverageOk = !movementIntegrityValidated
+            ? WarehouseMovementIntegrityAudit::checkCoverageBatch(
+                  storage, repairId, targets, targetCount)
+            : confirmedWriteOffBatch(storage, repairId, targets, targetCount);
+        if (!coverageOk)
         {
             File probe = storage.open(MovementsPath, FILE_READ);
-            if (!probe) return WireWriteOffCoverageCheck::StorageUnavailable;
-            probe.close();
+            if (!probe && storage.exists(MovementsPath))
+                return WireWriteOffCoverageCheck::StorageUnavailable;
+            if (probe) probe.close();
             return WireWriteOffCoverageCheck::IntegrityFailed;
         }
+        movementIntegrityValidated = true;
+
         for (uint8_t i = 0U; i < targetCount; ++i)
         {
-            if (!targets[i].found)
+            if (!targets[i].confirmed)
                 return WireWriteOffCoverageCheck::WriteOffRequired;
         }
 

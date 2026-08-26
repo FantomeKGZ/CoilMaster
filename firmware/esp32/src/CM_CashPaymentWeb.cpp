@@ -2,6 +2,16 @@
 
 namespace CM
 {
+namespace
+{
+bool addChecked(uint64_t& target, uint64_t value)
+{
+    if (target > 0xFFFFFFFFFFFFFFFFULL - value) return false;
+    target += value;
+    return true;
+}
+}
+
 CashPaymentWeb::CashPaymentWeb(WebServer& server,
                                RepairRegistry& repairs,
                                RepairCosting& costing,
@@ -130,12 +140,31 @@ void CashPaymentWeb::handleCreate()
     }
 
     if ((event.kind != "PAYMENT" && event.kind != "CORRECTION") ||
-        (event.kind == "PAYMENT" && event.direction != "ADD") ||
+        (event.kind == "PAYMENT" &&
+         (event.direction != "ADD" || event.correctsEventId != 0UL)) ||
         (event.kind == "CORRECTION" && event.direction != "ADD" && event.direction != "SUBTRACT") ||
         event.currency != pricing.currency || !validMethod(event.method))
     {
         m_server.send(409, "application/json", "{\"error\":\"payment_contract_mismatch\"}");
         return;
+    }
+
+    if (event.correctsEventId != 0UL)
+    {
+        bool belongs = false;
+        if (!m_payments.eventBelongsToRepair(event.correctsEventId,
+                                             repairId,
+                                             identity.clientId,
+                                             belongs))
+        {
+            m_server.send(500, "application/json", "{\"error\":\"correction_reference_lookup_failed\"}");
+            return;
+        }
+        if (!belongs)
+        {
+            m_server.send(409, "application/json", "{\"error\":\"correction_reference_repair_mismatch_or_missing\"}");
+            return;
+        }
     }
 
     if (event.direction == "SUBTRACT")
@@ -172,13 +201,32 @@ void CashPaymentWeb::handleCreate()
 
 void CashPaymentWeb::handleBalance()
 {
-    uint32_t repairId = 0UL;
-    if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
+    const bool byRepair = m_server.hasArg("repair_id");
+    const bool byClient = m_server.hasArg("client_id");
+    if (byRepair == byClient)
     {
-        m_server.send(400, "application/json", "{\"error\":\"invalid_repair_id\"}");
+        m_server.send(400, "application/json", "{\"error\":\"exactly_one_balance_filter_required\"}");
         return;
     }
-    sendRepairBalance(repairId);
+
+    uint32_t subjectId = 0UL;
+    if (byRepair)
+    {
+        if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, subjectId))
+        {
+            m_server.send(400, "application/json", "{\"error\":\"invalid_repair_id\"}");
+            return;
+        }
+        sendRepairBalance(subjectId);
+        return;
+    }
+
+    if (!parseUnsigned(m_server, "client_id", 1UL, 0xFFFFFFFFUL, subjectId))
+    {
+        m_server.send(400, "application/json", "{\"error\":\"invalid_client_id\"}");
+        return;
+    }
+    sendClientBalance(subjectId);
 }
 
 bool CashPaymentWeb::sendRepairBalance(uint32_t repairId)
@@ -225,6 +273,126 @@ bool CashPaymentWeb::sendRepairBalance(uint32_t repairId)
     return true;
 }
 
+bool CashPaymentWeb::sendClientBalance(uint32_t clientId)
+{
+    if (!m_repairs.clientExists(clientId))
+    {
+        m_server.send(404, "application/json", "{\"error\":\"client_not_found\"}");
+        return false;
+    }
+
+    uint64_t chargedMinor = 0ULL;
+    uint32_t repairCount = 0UL;
+    String currency;
+    bool currencySet = false;
+    CashClientTotals paid;
+    if (!loadClientCharges(clientId, chargedMinor, repairCount, currency, currencySet) ||
+        !m_payments.totalsForClient(clientId, paid))
+    {
+        m_server.send(500, "application/json", "{\"error\":\"client_balance_read_failed\"}");
+        return false;
+    }
+    if (paid.currencySet)
+    {
+        if (currencySet && currency != paid.currency)
+        {
+            m_server.send(409, "application/json", "{\"error\":\"client_balance_currency_mismatch\"}");
+            return false;
+        }
+        if (!currencySet)
+        {
+            currency = paid.currency;
+            currencySet = true;
+        }
+    }
+    if (!currencySet) currency = F("KGS");
+
+    const uint64_t debt = chargedMinor > paid.paidMinor
+        ? chargedMinor - paid.paidMinor : 0ULL;
+    const uint64_t credit = paid.paidMinor > chargedMinor
+        ? paid.paidMinor - chargedMinor : 0ULL;
+
+    String response = F("{\"client_id\":"); response += clientId;
+    response += F(",\"charged_minor\":"); appendUint64(response, chargedMinor);
+    response += F(",\"paid_minor\":"); appendUint64(response, paid.paidMinor);
+    response += F(",\"debt_minor\":"); appendUint64(response, debt);
+    response += F(",\"credit_minor\":"); appendUint64(response, credit);
+    response += F(",\"repair_count\":"); response += repairCount;
+    response += F(",\"payment_event_count\":"); response += paid.eventCount;
+    response += F(",\"currency\":\""); response += jsonEscape(currency); response += F("\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
+    return true;
+}
+
+bool CashPaymentWeb::loadClientCharges(uint32_t clientId,
+                                       uint64_t& chargedMinor,
+                                       uint32_t& repairCount,
+                                       String& currency,
+                                       bool& currencySet)
+{
+    chargedMinor = 0ULL;
+    repairCount = 0UL;
+    currency = String();
+    currencySet = false;
+    uint32_t cursor = 0UL;
+
+    while (true)
+    {
+        String page;
+        page.reserve(8192U);
+        uint16_t pageCount = 0U;
+        uint32_t nextCursor = 0UL;
+        bool hasMore = false;
+        if (!m_repairs.appendRepairsPageJson(page,
+                                             clientId,
+                                             String(),
+                                             cursor,
+                                             RepairRegistry::MaxListPageSize,
+                                             pageCount,
+                                             nextCursor,
+                                             hasMore))
+        {
+            return false;
+        }
+
+        uint32_t repairIds[RepairRegistry::MaxListPageSize] = {};
+        uint8_t idCount = 0U;
+        if (!parseRepairIds(page,
+                            pageCount,
+                            repairIds,
+                            RepairRegistry::MaxListPageSize,
+                            idCount))
+        {
+            return false;
+        }
+
+        for (uint8_t i = 0U; i < idCount; ++i)
+        {
+            RepairCostSummary pricing;
+            if (!m_costing.load(repairIds[i], pricing)) return false;
+            if (!currencySet)
+            {
+                currency = pricing.currency;
+                currencySet = true;
+            }
+            else if (currency != pricing.currency)
+            {
+                return false;
+            }
+            if (!addChecked(chargedMinor, pricing.clientPriceMinor) ||
+                repairCount == 0xFFFFFFFFUL)
+            {
+                return false;
+            }
+            ++repairCount;
+        }
+
+        if (!hasMore) return true;
+        if (nextCursor == 0UL || nextCursor <= cursor) return false;
+        cursor = nextCursor;
+    }
+}
+
 bool CashPaymentWeb::parseUnsigned(WebServer& server, const char* name,
                                    uint32_t minimum, uint32_t maximum,
                                    uint32_t& value)
@@ -262,6 +430,42 @@ bool CashPaymentWeb::parseUnsigned64(WebServer& server, const char* name,
     }
     if (parsed < minimum) return false;
     value = parsed; return true;
+}
+
+bool CashPaymentWeb::parseRepairIds(const String& page,
+                                    uint16_t expectedCount,
+                                    uint32_t* ids,
+                                    uint8_t capacity,
+                                    uint8_t& count)
+{
+    count = 0U;
+    if (expectedCount > capacity) return false;
+    const String marker = F("\"repair_id\":");
+    int searchFrom = 0;
+    while (true)
+    {
+        const int start = page.indexOf(marker, searchFrom);
+        if (start < 0) break;
+        if (count >= capacity) return false;
+        size_t pos = static_cast<size_t>(start) + marker.length();
+        if (pos >= page.length() || !isDigit(page[pos])) return false;
+        uint32_t parsed = 0UL;
+        while (pos < page.length() && isDigit(page[pos]))
+        {
+            const uint8_t digit = static_cast<uint8_t>(page[pos] - '0');
+            if (parsed > (0xFFFFFFFFUL - digit) / 10UL) return false;
+            parsed = parsed * 10UL + digit;
+            ++pos;
+        }
+        if (parsed == 0UL || pos >= page.length() ||
+            (page[pos] != ',' && page[pos] != '}'))
+        {
+            return false;
+        }
+        ids[count++] = parsed;
+        searchFrom = static_cast<int>(pos);
+    }
+    return count == expectedCount;
 }
 
 bool CashPaymentWeb::validTimestamp(const String& value)

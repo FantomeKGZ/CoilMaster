@@ -152,6 +152,14 @@ void WarehouseWeb::handleConfirmWriteOff()
         return;
     }
 
+    const String operatorComment = m_server.arg("comment");
+    if (operatorComment.indexOf(F("RWI_TX=")) == 0)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"reserved_writeoff_comment_prefix\",\"write_performed\":false}");
+        return;
+    }
+
     const bool hasMode = m_server.hasArg("writeoff_mode");
     const bool kgFirst = hasMode && m_server.arg("writeoff_mode") == "KG_FIRST";
     if (hasMode && !kgFirst)
@@ -362,7 +370,7 @@ void WarehouseWeb::handleConfirmWriteOff()
         operation.sourceRunId = sourceRunId;
         operation.consumedGrams = consumedGrams;
         operation.timestamp = timestamp;
-        operation.comment = m_server.arg("comment");
+        operation.comment = operatorComment;
         if (!m_store.confirmKgFirstWriteOff(operation, result))
         {
             if (!m_store.ready())
@@ -384,7 +392,7 @@ void WarehouseWeb::handleConfirmWriteOff()
         operation.weightBeforeGrams = before;
         operation.weightAfterGrams = after;
         operation.timestamp = timestamp;
-        operation.comment = m_server.arg("comment");
+        operation.comment = operatorComment;
         if (!m_store.confirmSpoolWriteOff(operation, result))
         {
             if (!m_store.ready())

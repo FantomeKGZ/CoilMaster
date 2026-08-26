@@ -25,6 +25,7 @@ const coordinator = read('firmware/esp32/src/CM_RunWireIssueCoordinator.cpp');
 const web = read('firmware/esp32/src/CM_MaterialRequestWeb.cpp');
 const managedWarehouse = read('firmware/esp32/src/CM_WarehouseRunWireManaged.cpp');
 const runtime = read('firmware/esp32/src/CM_MaterialRequestRuntime.cpp');
+const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
 
 for (const field of [
   'materialRequestId', 'repairId', 'warehouseItemId',
@@ -86,4 +87,17 @@ requireText(runtime, 'SpoolMaterialBridgeStore spoolMaterialBridges', 'runtime b
 requireText(runtime, 'RunWireIssueCoordinator runWire', 'runtime dedicated coordinator');
 requireText(runtime, '!runWire.begin()', 'runtime fail-closed recovery gate');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK');
+// RWI_TX is system-owned accounting provenance. A direct operator call to the
+// generic MaterialLedger usage endpoint must not be able to spoof this prefix
+// and make ordinary material usage disappear from RepairCosting.
+for (const text of [
+  'const String usageComment=m_server.arg("comment")',
+  'usageComment.indexOf(F("RWI_TX="))==0',
+  'reserved_usage_comment_prefix',
+  '\"write_performed\":false',
+  'usage.comment=usageComment'
+]) {
+  requireText(materialWeb, text, `reserved RUN_WIRE ledger provenance guard ${text}`);
+}
+
+console.log('RUN_WIRE ISSUE transaction contracts: OK; RWI_TX provenance is reserved from direct MaterialLedger usage.');

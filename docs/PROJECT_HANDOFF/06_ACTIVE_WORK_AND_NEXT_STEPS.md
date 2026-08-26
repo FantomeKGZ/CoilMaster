@@ -32,7 +32,7 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> COMPLETED -> DELIVERED
 ```
 
-## GREEN foundation through checkpoint 114
+## GREEN foundation through checkpoint 115
 
 ```text
 97  Motor winding versions
@@ -52,13 +52,14 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 112 Cash payment/correction journal + repair/client balance API + backup/integrity
 113 Motor Web catalog + separate create + versioned card
 114 AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
+115 Client Web catalog-only + dedicated create + read-only CRM card
 ```
 
 Latest verification:
 
 ```text
-CMP 32934323481 / SUCCESS
-ESP32 Build 32934092563 / SUCCESS
+CMP 32936343060 / SUCCESS
+ESP32 Build 32934092563 / SUCCESS  # latest firmware-source evidence from checkpoint 114
 ```
 
 ## Motor Web — CLOSED SOFTWARE GREEN
@@ -77,39 +78,57 @@ Completed:
 - latest winding version authoritative for exact program + repeat target;
 - legacy fallback WORKING-only;
 - STARTING absence fails closed;
-- program and repeat target readonly in linked UI;
 - server revalidates exact role/program/repeat before persistence/UART;
 - exact spool selection remains authoritative;
 - no Web physical START / no direct SSR control.
 
-## Current active queue — Client Web
+## Client Web — CLOSED SOFTWARE GREEN
 
-### 1. Client catalog/create/card
+Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`
 
-- `clients.html` catalog-only; remove creation form.
-- Create `client-new.html`.
-- Create `client-details.html?client_id=...`.
-- Remove duplicated inline client creation from repairs page; leave link/button to `client-new.html`.
-- Client card must show:
-  - identity/contact;
-  - motors brought through repair history;
-  - open/closed repairs;
-  - material-request links where relevant;
-  - charged / paid / debt / credit;
-  - payment history;
-  - completed/delivered status and dates.
-- Motor ownership is historical through repairs; never add mutable `client_id` to permanent physical motor identity.
+Completed:
 
-### 2. Dedicated Cash UI
+- `clients.html` catalog-only with bounded paging;
+- separate `/desktop/client-new.html`;
+- `/desktop/client-details.html?client_id=...`;
+- client identity/contact/comment;
+- motors resolved historically through exact repair `motor_id`;
+- bounded OPEN/CLOSED repair history;
+- immutable delivery state/date reads;
+- charged / paid / debt / credit;
+- bounded append-only payment history;
+- duplicate inline client creation removed from repairs page;
+- client card remains read-only and does not mutate payments/delivery/machine/material state.
 
-- Create `cash.html` using checkpoint 112 APIs.
-- `costing.html` remains cost/price/margin, not payments.
-- Main columns target:
-  `Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус`.
-- Support full/partial/multiple payments, correction, debt and credit display.
-- No destructive payment edits.
+Motor identity stays independent from current client ownership. No mutable permanent `client_id` is embedded into physical motor identity.
 
-### 3. Later coordinated wire migration
+## Current active queue — Dedicated Cash UI
+
+### 1. Create `cash.html`
+
+Use checkpoint 112 backend only; do not create a second payment store.
+
+Target main columns:
+
+```text
+Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус
+```
+
+Required behavior:
+
+- choose exact repair/client context;
+- show repair/client balances;
+- PAYMENT = append-only ADD;
+- CORRECTION = append-only ADD/SUBTRACT;
+- full, partial and multiple payments;
+- debt and credit display;
+- payment remains possible after CLOSED/DELIVERED;
+- delivery must not be blocked by debt;
+- no destructive edit/delete of payment events;
+- explicit confirmation for every write;
+- `costing.html` remains cost/price/margin only.
+
+### 2. Later coordinated wire migration
 
 Do not partially remove exact `spool_id`. Migration must change together:
 
@@ -131,7 +150,7 @@ source_session_id + source_run_id for RUN_WIRE
 CU/AL + actual weight
 ```
 
-### 4. Acceptance
+### 3. Acceptance
 
 - full Web/backend software regression;
 - backup/export/restore integrity;

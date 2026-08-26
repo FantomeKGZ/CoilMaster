@@ -4,6 +4,8 @@
 #include "CM_RepairClosureGuard.h"
 #include "CM_RepairFinalizationGuard.h"
 #include "CM_RepairRegistryLookupWeb.h"
+#include "CM_RepairDeliveryStore.h"
+#include "CM_RepairDeliveryWeb.h"
 #include "CM_MaterialRequestRuntime.h"
 #include "CM_WindingProgramParser.h"
 
@@ -114,11 +116,14 @@ void RepairRegistryWeb::begin()
     static BackupExportWeb backupExportWeb(m_server, SD);
     static RepairRegistryLookupWeb lookupWeb(m_server, m_registry);
     static RepairIntakeCoordinator repairIntake(SD, m_registry);
+    static RepairDeliveryStore deliveryStore(SD);
+    static RepairDeliveryWeb deliveryWeb(m_server, m_registry, deliveryStore);
     m_intake = &repairIntake;
     backupExportWeb.begin();
     lookupWeb.begin();
     m_intake->begin();
     beginMaterialRequestRuntime(m_server, m_registry);
+    if (deliveryStore.begin()) deliveryWeb.begin();
     m_server.on("/api/clients", HTTP_GET, [this]() { handleListClients(); });
     m_server.on("/api/clients", HTTP_POST, [this]() { handleCreateClient(); });
     m_server.on("/api/motors", HTTP_GET, [this]() { handleListMotors(); });

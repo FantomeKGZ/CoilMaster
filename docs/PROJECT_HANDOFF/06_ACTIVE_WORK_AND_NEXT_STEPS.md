@@ -22,9 +22,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md
 123_RUN_WIRE_ACCOUNTING_CONVERGENCE_2026-08-26.md
 124_RUN_WIRE_CROSS_LOG_INTEGRITY_2026-08-26.md
+125_RUN_WIRE_PRICE_PROVENANCE_CONVERGENCE_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 124
+## GREEN foundation through checkpoint 125
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -36,21 +37,26 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 122 desktop/mobile operator writeoff UI migrated to atomic RUN_WIRE ISSUE
 123 RUN_WIRE costing/finalization converged to one authoritative wire-cost count
 124 bounded cross-log integrity for completed RUN_WIRE accounting evidence
+125 one KG wire price + reserved system RWI_TX provenance
 ```
 
-Latest verified checkpoint-124 evidence:
+Latest verified checkpoint-125 evidence:
 
 ```text
-9448c250955664c7e82a5e69ba26a569d3b93fe7  cross-log audit
-EEF4157AC13E09D5636FAA49817BAA5A63CFC794  workshop integration
-63ac31dc37f2542e3879466df9158312ac21a2f6  mandatory contracts
-ESP32 Build #1560   32959482667 / SUCCESS
-ESP32 Build #1561   32959521066 / SUCCESS
-CMP Tests #3507     32959482741 / SUCCESS
-CMP Tests #3509     32959605104 / SUCCESS
+74a92901262a060b203ea1b1a3cc3313537ce51a  coordinator price convergence
+84dabb9920cf60ca8cd8745b16a3e97e9093f50b  persisted price audit
+4f20cc928723a0c3dd873741260ebed07d8690f5  warehouse RWI_TX guard
+c799c74f3f8f4c6cbcd538ea662e3c86fe039304  mandatory contracts
+ESP32 Build #1562   32960004843 / SUCCESS
+ESP32 Build #1563   32960173338 / SUCCESS
+ESP32 Build #1564   32960269882 / SUCCESS
+CMP Tests #3514     32960004874 / SUCCESS
+CMP Tests #3515     32960173324 / SUCCESS
+CMP Tests #3516     32960270010 / SUCCESS
+CMP Tests #3517     32960329745 / SUCCESS
 ```
 
-## Current RUN_WIRE production/accounting boundary
+## Current RUN_WIRE accounting boundary
 
 ```text
 RUN_COMPLETED -> evidence only
@@ -58,41 +64,31 @@ explicit operator RUN_WIRE ISSUE
 -> one Material Request movement
 -> one MaterialLedger stock usage tagged RWI_TX=<transaction_ref>
 -> one physical warehouse CONFIRMED writeoff
+-> one exact KG wire price in all three accounting views
 -> cross-log integrity requires exact one-to-one correlation
 ```
 
-Cross-log agreement includes exact request/repair/item/session/run, immutable spool, spool-material bridge, CU/AL, diameter, consumed grams, Ledger quantity, currency and timestamp. The fixed batch size is 16; there is no unbounded in-memory transaction index.
+The standard warehouse CONFIRMED movement remains the single wire-cost authority for costing/finalization. MaterialLedger stock evidence and Material Request movement must carry the mathematically equivalent price, but are not counted a second time.
 
-Accounting authority remains:
-
-```text
-wire cost = confirmed physical warehouse movement
-generic material cost = ordinary MaterialLedger usage excluding managed RWI_TX usage
-total = wire + generic material + labour
-```
-
-## Current active queue — price/provenance convergence
+## Current active queue — legacy mutation deprecation / report provenance
 
 Next coherent block:
 
-1. Enforce that the MaterialLedger wire item's KG-equivalent price used to create the RUN_WIRE request/usage equals the standard warehouse `price_per_kg_minor` used by physical CONFIRMED writeoff and costing.
-2. Fail before saving the high-level RUN_WIRE pending if the two price authorities disagree, so no partial transaction can be started with split costing semantics.
-3. Reserve `RWI_TX=` on compatibility direct warehouse-writeoff Web comments; only the managed coordinator may create system accounting provenance.
-4. Extend mandatory contracts and cross-log audit to prove price equality where the persisted schemas allow it.
-5. Preserve bounded read/report provenance and standard warehouse CONFIRMED as the single wire-cost authority.
-6. After this is GREEN, review the formal deprecation boundary for legacy mutating POST while preserving GET/history/recovery compatibility.
-7. Continue software optimization/integrity work before mandatory final two-board hardware E2E.
+1. Search all current code and tests for callers of mutating `POST /api/warehouse/write-offs`.
+2. Verify the shared desktop/mobile production controller has no such POST and that atomic `/api/material-requests/warehouse` is the only production operator mutation path.
+3. Separate public Web mutation from store-level compatibility/recovery code: historical GET, append-only records, startup reconciliation and fault tests must remain intact.
+4. If no production caller remains, disable or explicitly reject the generic mutating POST instead of deleting warehouse history/recovery infrastructure.
+5. Update mandatory contracts so production cannot regress to direct writeoff mutation.
+6. Continue bounded read/report provenance work for Material Request transaction identity where useful.
+7. Continue software optimization/integrity before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
-one completed atomic RUN_WIRE
--> one request movement
--> one Ledger usage
--> one physical CONFIRMED writeoff
--> one exact spool/run/material identity
--> one agreed KG wire price
--> one wire cost in costing/finalization
+production operator mutation = atomic RUN_WIRE only
+legacy warehouse GET/history = preserved
+legacy store/recovery evidence = preserved
+generic legacy POST = no production use; formal deprecation only after audited proof
 ```
 
 ## Safety invariants

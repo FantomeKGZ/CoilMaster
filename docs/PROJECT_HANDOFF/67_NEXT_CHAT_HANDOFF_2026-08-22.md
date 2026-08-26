@@ -1,4 +1,4 @@
-# Next chat handoff — CoilMaster cleanup complete — 2026-08-23
+# Next chat handoff — CoilMaster current transfer — 2026-08-26
 
 ## Source of truth
 
@@ -6,64 +6,81 @@
 Repository: FantomeKGZ/CoilMaster
 Branch: cmp-protocol-v1
 main: DO NOT use as source code
+stable pre-CRM: 449570d47649d5f6336a31ee3eed491256e0fb1a
 ```
 
-Before every edit/delete fetch the current file from `cmp-protocol-v1` and use its current blob SHA. Verify a path is absent before creating a new file.
+Before every edit/delete fetch the current file from `cmp-protocol-v1` and use its current blob SHA. Verify a new path is absent before creating it.
 
-## Software cleanup checkpoint
+## Historical cleanup state
 
-**SOFTWARE CLEANUP COMPLETE — 100%.**
+The full repo-level audit and controlled cleanup completed on 2026-08-23. Do not restart broad cleanup without a concrete defect or stale-contract finding.
 
-The latest cleanup implementation/test batch was confirmed GREEN by the operator on **2026-08-23**: the user explicitly reported that all current GitHub Actions are green.
+Stable cleanup evidence remains historical. Current product development after the pre-CRM snapshot lives only on `cmp-protocol-v1`.
 
-Latest implementation/test cleanup commit:
+## Current GREEN product state
+
+CRM/Web foundation is GREEN through checkpoint 116. The wire-accounting migration is GREEN through checkpoint 120:
 
 ```text
-bd64e3cc4ba92a6624aed677d98c1620c165013e
-test(warehouse): guard against duplicate web bootstrap
+117 exact-spool / MaterialLedger owner map
+118 append-only spool_id <-> warehouse_item_id bridge persistence + integrity + backup/export
+119 backward-compatible MaterialLedger CU/AL + exact-diameter metadata
+120 explicit operator-only runtime bridge creation
 ```
 
-Protected implementation fix:
+Checkpoint 120 production route:
 
 ```text
-06a752663504d58ca6908414f8aa8786007c6877
-fix(esp32): remove duplicate warehouse web bootstrap
+POST /api/warehouse/spool-material-bridges
 ```
 
-Later commits in the checkpoint sequence are documentation/status synchronization only.
+The route requires explicit `confirm=1`, an ACTIVE physical spool, an ACTIVE MaterialLedger `GRAM` wire item, and exact CU/AL + diameter agreement. It appends bridge identity evidence only; stock is not mutated.
 
-## Final classification
+Final checkpoint-120 verified tree:
 
 ```text
-DELETE  no remaining proven cleanup candidates
-MERGE   no duplicate authoritative owners remain
-KEEP    reviewed live production/build/test/docs/recovery owners
-REVIEW  none remain in the named cleanup queue
-FIXED   warehouse duplicate Web bootstrap + regression contract
-CI      current Actions confirmed GREEN by operator on 2026-08-23
+fa651e3e50a25df9489db24b6c71bd853171a9b8
+CMP Protocol Tests 32944119683 / SUCCESS
+ESP32 Build         32944119688 / SUCCESS
 ```
 
-Do not restart broad repository cleanup without a concrete new inconsistency, failing test, runtime defect or stale-contract evidence.
+## Current production flow / migration boundary
 
-## Current production flow
+Current production writeoff/finalization still uses the exact immutable physical spool path:
 
 ```text
-client
--> motor
--> OPEN repair
--> costing
--> linked winding
--> exact immutable spool selection
--> immutable snapshot/state
--> UART JOB
--> physical START
--> RUN_STARTED / RUN_COMPLETED
--> explicit manual exact-run exact-spool wire writeoff
--> costing / finalization preflight
--> CLOSED
--> reports
--> backup
+client -> motor -> OPEN repair -> linked winding
+-> exact immutable spool selection -> UART JOB
+-> physical START -> RUN_STARTED / RUN_COMPLETED
+-> explicit manual exact-run exact-spool writeoff
+-> costing/finalization -> CLOSED -> reports -> backup
 ```
+
+Checkpoint 120 does **not** replace this path yet.
+
+Target migration:
+
+```text
+RUN_COMPLETED -> non-mutating
+explicit operator RUN_WIRE ISSUE
+material_request_id
+source_session_id + source_run_id
+exact physical spool provenance through spool-material bridge
+CU/AL + exact diameter
+actual consumed weight
+manual confirmation
+crash-safe pending/recovery
+```
+
+Do not partially remove existing exact-spool writeoff/finalization checks before the coordinated migration is complete across warehouse/material movement, Material Request, costing, finalization, backup/integrity, reports, Web and tests.
+
+## Immediate NEXT
+
+1. Inspect existing `MaterialLedger` usage/adjustment transaction semantics.
+2. Inspect the current Material Request warehouse coordinator and pending/recovery store.
+3. Select one authoritative crash-safe transaction boundary for run-linked wire ISSUE.
+4. Avoid any sequence where physical stock and immutable Material Request evidence can diverge after a crash/reboot.
+5. Preserve exact `material_request_id + source_session_id + source_run_id + spool_id` provenance through the bridge.
 
 ## Non-negotiable safety rules
 
@@ -74,90 +91,29 @@ client
 - ESP32/Web never directly drive SSR;
 - timeout/lost ACK alone never proves Arduino idle;
 - final repeat cannot reopen automatically;
-- `RUN_COMPLETED` never automatically deducts wire;
-- current linked writeoff is exact `source_session_id + source_run_id + immutable spool_id`;
-- historical `UNALLOCATED` is read/audit/recovery compatibility only;
+- `RUN_COMPLETED` never automatically deducts material;
+- warehouse mutation requires explicit operator action;
+- run-linked material evidence preserves exact source session/run;
+- current linked writeoff retains exact immutable spool provenance until migration completes;
 - restore is explicit/operator-only/transactional/fail-closed;
 - reboot never auto-continues restore/apply;
 - no automatic production-data deletion or NDJSON truncation.
 
-## Final owner sweep
-
-The final build-included owner sweep closed the remaining named groups as intentional `KEEP`, including:
-
-- `RepairRegistry` core/lookup/page/search/similarity;
-- `WindingJournalQuery` + `WindingJournalQueryValidation`;
-- `WindingJournalTransitionAudit`;
-- `WindingJournalSnapshotContext`;
-- `RepairCosting` + `RepairCostingValidation`;
-- `AutonomousWindingArchive` core/assign/integrity/page;
-- active `CM_WarehouseLegacySpoolMaterial.cpp` migration owner;
-- `CM_JobSpoolSelectionLookup.cpp`;
-- `CM_WarehouseWriteOffLookup.cpp`;
-- current build-included `Core/` and `Arduino/` owner trees.
-
-No deletion was based only on a filename or empty GitHub search result.
-
-## Warehouse duplicate bootstrap defect — closed
-
-`main.cpp` intentionally calls both:
-
-```text
-warehouseWeb.begin();
-warehouseWeb.beginSpoolList();
-```
-
-Current ownership after `06a7526...`:
-
-```text
-WarehouseWeb::begin()
-  common warehouse/write-off/conductor/settings/material services
-
-WarehouseWeb::beginSpoolList()
-  GET  /api/warehouse/spools
-  POST /api/warehouse/spools/material
-  GET  /api/warehouse/material-summary
-```
-
-Regression `bd64e3c...` is in the already executed `Tests/Web/check_warehouse_spool_list_cleanup.js` and prevents duplicate bootstrap from returning.
-
-## Crash-residue classification — final
-
-```text
-JobStateStore .tmp/.bak        KEEP fail-closed
-JobSpoolSelection .json.tmp    KEEP bounded recovery before UART
-JobSnapshot .json.tmp          KEEP non-authoritative preparation evidence; no auto-promote/resume/delete
-```
-
-These policies remain intentionally different because their durable transaction boundaries differ.
-
 ## Hardware release gate
 
-Hardware E2E is **separate from software cleanup**. For final physical release confidence, targeted two-board ESP32<->Arduino smoke/recovery verification remains the external gate when needed:
-
-- UART job delivery;
-- physical START remains local/physical;
-- repeat behavior;
-- cancel behavior;
-- reboot/no-auto-resume behavior;
-- exact run/session evidence continuity.
-
-Do not infer hardware GREEN from CI. Do not request broad logs unless a concrete hardware-only problem appears.
-
-## Next work
-
-Software cleanup is closed. Continue only from a concrete product/runtime goal, hardware verification result, bug, feature, or documentation contract change. Do not reopen completed cleanup/A–E/provenance/crash-residue audits without new evidence.
+Hardware E2E is separate from software migration. Full two-board verification remains mandatory once the CRM/material/writeoff contracts stabilize; do not infer hardware GREEN from CI.
 
 ## Read first in the next chat
 
 ```text
 /AGENTS.md
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/67_NEXT_CHAT_HANDOFF_2026-08-22.md
+docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/120_OPERATOR_SPOOL_MATERIAL_BRIDGE_WEB_2026-08-26.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/64_RUNTIME_PROVENANCE_AUDIT_2026-08-22.md
-docs/PROJECT_HANDOFF/63_FULL_CODE_AUDIT_2026-08-22.md
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/AI_AGENT/00_START_HERE.md
+docs/AI_AGENT/01_PROJECT_MAP.md
 docs/AI_AGENT/02_CHANGE_ROUTER.md
 docs/AI_AGENT/04_VERIFICATION_MATRIX.md
 ```

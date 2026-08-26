@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/115_CLIENT_WEB_CRM_2026-08-26.md
 docs/PROJECT_HANDOFF/114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md
 docs/PROJECT_HANDOFF/113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md
 docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
@@ -34,7 +35,7 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **114**.
+Latest GREEN foundation = checkpoint **115**.
 
 ## Current GREEN implementation
 
@@ -56,27 +57,28 @@ Latest GREEN foundation = checkpoint **114**.
 112 append-only cash/payment journal + repair/client balance API + backup/integrity
 113 Motor Web catalog-only + separate create page + versioned motor card
 114 immutable AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
+115 Client Web catalog-only + dedicated create + read-only CRM client card
 ```
 
 Latest verified:
 
 ```text
-checkpoint 114 CMP         32934323481 / SUCCESS
+checkpoint 115 CMP         32936343060 / SUCCESS
 checkpoint 114 ESP32 Build 32934092563 / SUCCESS
 ```
 
-ESP32 run is on production-source commit `da5d7271ba69e373599360550e81e1cf860f7a1a`, after the guarded main.cpp role/repeat changes. Later commits only tighten host regressions/docs.
+Checkpoint 115 changes only Web/host regression files. Latest firmware-source build evidence remains checkpoint 114 ESP32 `32934092563` on production-source commit `da5d7271...`.
 
 ## Immediate NEXT
 
-1. Client Web redesign:
-   - `clients.html` catalog-only;
-   - separate `client-new.html`;
-   - `client-details.html` with motors through repair history, open/closed repairs, payments/balance and delivery history;
-   - remove duplicated inline client creation from repair intake and leave navigation to `client-new.html`.
-2. Dedicated `cash.html` using checkpoint 112 APIs; `costing.html` remains costing/pricing, not cash.
+1. Dedicated `cash.html` using checkpoint 112 APIs; `costing.html` remains costing/pricing/margin, not payments.
+2. Cash UI must support repair/client balances, full/partial/multiple payments and append-only corrections; no destructive payment edit/delete.
 3. Coordinated spool -> Material Request wire migration only as one coherent backend/Web/test change.
 4. Full Web/backend regression + backup/restore, then two-board hardware E2E.
+
+## Client / motor identity boundary
+
+Clients and motors stay independent domain identities. A physical motor does not gain mutable permanent `client_id`; client↔motor relation is historical through repair records. Client card reads motors via each repair's exact `motor_id`.
 
 ## Motor linked-job safety
 

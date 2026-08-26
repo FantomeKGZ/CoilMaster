@@ -15,102 +15,61 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 ## Current phase
 
-Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 131: atomic RUN_WIRE is the only current wire mutation path; accounting/provenance is converged and bounded; obsolete direct warehouse mutation code is deleted; repair existence lookup now exposes storage success separately from `found`.
+GREEN through checkpoint 132. Atomic RUN_WIRE is the only current wire mutation path; accounting/provenance is converged and bounded; obsolete direct warehouse mutation code is deleted; repair/spool/catalogue lookups now keep I/O success separate from `found/count`.
 
 ## Latest GREEN migration state
 
-Checkpoints 118–131 establish:
+Checkpoints 118–132 establish:
 
 ```text
-spool_id <-> warehouse_item_id + CU/AL + exact diameter
 explicit operator RUN_WIRE ISSUE
-material_request_id
+exact material_request_id + warehouse_item_id + spool_id
 source_session_id + source_run_id
-exact spool_id
-actual consumed grams
 one durable high-level recovery owner
-one shared desktop/mobile atomic operator controller
 one authoritative wire-cost count
-cross-log exact transaction integrity
-one agreed KG wire price
-reserved RWI_TX system provenance
-direct spool_id in new immutable RUN_WIRE movements
+bounded cross-log exact transaction integrity
 legacy public writeoff POST = HTTP 410
-persisted spool_id == immutable JobSpoolSelection when field exists
-historic spool-less RUN_WIRE movement remains compatible
-legacy direct Store mutation entrypoints = removed
-legacy SpoolWriteOffResult = removed
-historical append/recovery helpers = retained
-ambiguous repairExists(id) wrapper = removed
-fail-closed repairExists(id, found) = authoritative
+historical deterministic recovery retained
+ambiguous repairExists(id) wrapper removed
+ambiguous loadActiveSpoolIdentity(id, identity) wrapper removed
+count-only loadKnownWireDiameters(...) wrapper removed
+fail-closed found/count forms retained
 ```
 
-Production operator path remains:
+Production path remains:
 
 ```text
 RUN_COMPLETED (evidence only)
--> operator selects exact DRAFT/ISSUED Material Request
--> immutable session spool + ACTIVE spool + exact bridge
--> explicit POST /api/material-requests/warehouse
+-> explicit operator Material Request RUN_WIRE ISSUE
 -> immutable Material Request movement
 -> MaterialLedger usage tagged RWI_TX=<transaction_ref>
 -> managed physical warehouse PENDING/CONFIRMED evidence
 ```
 
-Current exact completion/spool/session/run/duplicate safety is owned by `RunWireIssueCoordinator`. Historical `WarehouseStore::recoverPendingWriteOff()` only reconciles already-durable old PENDING state from exact persisted BEFORE/AFTER spool evidence and retained append helpers.
-
-The bounded `/api/material-requests/movements` read path returns immutable movement JSON directly. New RUN_WIRE rows expose exact `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id + material_class + diameter`; no additional report join/full-log scan is required.
-
-Public compatibility boundary remains:
+Latest verified checkpoint-132 evidence:
 
 ```text
-POST /api/warehouse/write-offs -> 410 legacy_writeoff_post_disabled
-write_performed = false
-replacement = /api/material-requests/warehouse
-GET /api/warehouse/write-offs -> preserved history/coverage
+6f0cae00fed57c8e90b6aa977c9658de90dc3070  declarations narrowed
+237dbe93c299ea025f5199266bf78df12960a002  spool identity wrapper removed
+60f7a7fa6fbaddc947bb8eb65542ee525108bf32  count-only catalogue wrapper removed
+7eba027f97ad03b9e37609fd6fa1e07acec257f8  fail-closed contract coverage
+ESP32 Build #1579   32966286119 / SUCCESS
+CMP Tests #3578     32966344439 / SUCCESS
 ```
 
-Latest verified checkpoint-131 evidence:
-
-```text
-6ccdec084001faabf25eaf5b28177d8f7e89a7d5  declaration cleanup
-279fc281b42a559f89f911e9f0b2758ccd02e8ff  implementation cleanup
-d848ce45eb35c7f2bba817d6de1efd0c4f4a02bd  fail-closed lookup contract
-ESP32 Build #1576   32964609675 / SUCCESS
-CMP Tests #3570     32964670388 / SUCCESS
-CMP Tests #3571     32964882464 / SUCCESS
-```
-
-Checkpoint: `131_WAREHOUSE_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md`.
+Checkpoint: `132_WAREHOUSE_FAIL_CLOSED_SPOOL_AND_DIAMETER_LOOKUPS_2026-08-26.md`.
 
 ## Current NEXT
 
-1. Audit `loadActiveSpoolIdentity`, `loadWarehousePrice`, and `loadKnownWireDiameters` overloads; remove only dead/ambiguous convenience forms.
-2. Prefer APIs where storage/read success is distinct from `found/configured/count`.
-3. Preserve managed RUN_WIRE, GET/history, integrity, backup and deterministic historical recovery.
-4. Do not add redundant full-log scans or duplicate cross-log joins.
-5. Continue software/integrity optimization before final hardware E2E.
+1. Narrow unused `loadWarehousePrice(price)` behind private; keep `loadWarehousePrice(price, configured)` public.
+2. Remove the private wrapper later only via exact safe rewrite of the large store source.
+3. Review NDJSON growth/runtime scan hot spots for bounded optimization without automatic deletion/rotation or premature DB migration.
+4. Preserve managed RUN_WIRE, GET/history, integrity, backup and deterministic historical recovery.
 
 ## Safety invariants
 
-Never weaken:
-
-- physical START local-only;
-- no automatic START between repeats;
-- no auto-resume after reboot;
-- Arduino owns SSR;
-- ESP32/Web never directly controls SSR;
-- lost ACK/timeout never proves Arduino idle;
-- final repeat cannot auto-reopen;
-- `RUN_COMPLETED` never automatically deducts material;
-- warehouse ISSUE requires explicit operator action;
-- cash operations never trigger machine or warehouse mutation;
-- run-linked wire movement preserves exact run + spool provenance;
-- cancellation/operator abort preserves immutable evidence;
-- restore operator-only, transactional, fail-closed;
-- backup/restore cannot cross unfinished RUN_WIRE recovery;
-- no automatic production-data deletion/truncation.
+Physical START local-only; no auto-resume; Arduino owns SSR; ESP32/Web never controls SSR directly; `RUN_COMPLETED` never deducts material automatically; exact run/spool provenance remains mandatory; restore remains explicit/operator-only/transactional/fail-closed; no automatic production-data deletion/truncation.
 
 ## Hardware acceptance
 
-Not complete. Full two-board E2E remains mandatory after CRM/material/writeoff/report contracts stabilize.
+Not complete. Full two-board E2E remains mandatory after software stabilization.

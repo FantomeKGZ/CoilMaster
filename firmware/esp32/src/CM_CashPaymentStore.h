@@ -29,6 +29,14 @@ struct CashRepairTotals
     bool currencySet = false;
 };
 
+struct CashClientTotals
+{
+    uint64_t paidMinor = 0ULL;
+    uint32_t eventCount = 0UL;
+    String currency;
+    bool currencySet = false;
+};
+
 class CashPaymentStore
 {
 public:
@@ -41,7 +49,12 @@ public:
     bool ready() const;
     bool append(const NewCashEvent& event, uint32_t& eventId);
     bool eventExists(uint32_t eventId) const;
+    bool eventBelongsToRepair(uint32_t eventId,
+                              uint32_t repairId,
+                              uint32_t clientId,
+                              bool& found) const;
     bool totalsForRepair(uint32_t repairId, CashRepairTotals& totals) const;
+    bool totalsForClient(uint32_t clientId, CashClientTotals& totals) const;
     bool appendRepairPageJson(String& json,
                               uint32_t repairId,
                               uint32_t cursor,

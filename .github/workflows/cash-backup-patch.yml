@@ -1,0 +1,52 @@
+name: One-shot cash backup integration patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/cash-backup-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch cash backup integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=firmware/esp32/src/CM_BackupExportWeb.cpp
+          EXPECTED=ffda9eaeb2cd3a5850c40f21fe00b73461eebe27
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('firmware/esp32/src/CM_BackupExportWeb.cpp')
+          s=p.read_text()
+          a='#include "CM_RepairDeliveryIntegrityAudit.h"\n'
+          b=a+'#include "CM_CashPaymentIntegrityAudit.h"\n'
+          assert a in s and 'CM_CashPaymentIntegrityAudit.h' not in s
+          s=s.replace(a,b,1)
+          a='    {"repair-deliveries", "/data/workshop/repair-deliveries.ndjson", "application/x-ndjson", "repair-deliveries.ndjson"},\n'
+          b=a+'    {"repair-payments", "/data/workshop/repair-payments.ndjson", "application/x-ndjson", "repair-payments.ndjson"},\n'
+          assert a in s and 'repair-payments.ndjson' not in s
+          s=s.replace(a,b,1)
+          a='    uint32_t repairDeliveryRecordCount = 0UL;\n    if (!RepairDeliveryIntegrityAudit::check(storage, repairDeliveryRecordCount))\n        return "repair_delivery_unstable_or_invalid";\n\n'
+          b=a+'    uint32_t cashPaymentRecordCount = 0UL;\n    if (!CashPaymentIntegrityAudit::check(storage, cashPaymentRecordCount))\n        return "cash_payment_unstable_or_invalid";\n\n'
+          assert a in s and 'cash_payment_unstable_or_invalid' not in s
+          s=s.replace(a,b,1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$FILE"
+          git commit -m 'feat(backup): export and audit repair payments'
+          git push origin HEAD:cmp-protocol-v1

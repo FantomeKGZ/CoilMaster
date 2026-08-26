@@ -10,7 +10,10 @@ namespace
 {
 constexpr const char* SelectionDirectory = "/data/winding-jobs/spool-selection";
 constexpr const char* MovementsPath = "/data/warehouse/movements.ndjson";
-constexpr uint8_t CoverageBatchSize = WarehouseMovementCoverageMaxTargets;
+constexpr uint8_t CoverageBatchSize = 32U;
+static_assert(CoverageBatchSize == WarehouseMovementCoverageMaxTargets,
+              "coverage batch sizes must stay aligned");
+using CoverageTarget = WarehouseMovementCoverageTarget;
 
 enum class ReadOnlyCatalogCheck : uint8_t
 {
@@ -192,15 +195,15 @@ bool loadSelectionReadOnly(fs::FS& storage,
 
 bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
                           uint32_t repairId,
-                          WarehouseMovementCoverageTarget* targets,
+                          CoverageTarget* targets,
                           uint8_t targetCount)
 {
     if (record.status != "CONFIRMED" || !record.hasSourceSessionId) return true;
 
     for (uint8_t i = 0U; i < targetCount; ++i)
     {
-        WarehouseMovementCoverageTarget& target = targets[i];
-        if (record.sourceSessionId != target.sourceSessionId) continue;
+        CoverageTarget& target = targets[i];
+        if (record.sourceSessionId != target.sessionId) continue;
 
         if (record.repairId != repairId) return false;
 
@@ -213,11 +216,11 @@ bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
             // not let one ambiguous legacy record cover every run in a repeat
             // session; finalization must remain tied to exact source_run_id.
             if (!record.hasSourceRunId) return false;
-            matches = record.sourceRunId == target.sourceRunId;
+            matches = record.sourceRunId == target.runId;
         }
         else
         {
-            if (!record.hasSourceRunId || record.sourceRunId != target.sourceRunId) continue;
+            if (!record.hasSourceRunId || record.sourceRunId != target.runId) continue;
             if (record.stockMode == WarehouseWriteOffStockMode::Spool)
             {
                 if (!record.hasSpoolId || record.spoolId != target.spoolId) return false;
@@ -242,7 +245,7 @@ bool applyConfirmedRecord(const WarehouseWriteOffRecord& record,
 
 bool confirmedWriteOffBatch(fs::FS& storage,
                             uint32_t repairId,
-                            WarehouseMovementCoverageTarget* targets,
+                            CoverageTarget* targets,
                             uint8_t targetCount)
 {
     if (targetCount == 0U) return true;
@@ -317,7 +320,7 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
         if (result != WindingJournalQueryResult::Ok)
             return WireWriteOffCoverageCheck::IntegrityFailed;
 
-        WarehouseMovementCoverageTarget targets[CoverageBatchSize];
+        CoverageTarget targets[CoverageBatchSize];
         uint8_t targetCount = 0U;
         int pageCursor = 0;
         uint16_t parsedCount = 0U;
@@ -350,9 +353,9 @@ WireWriteOffCoverageCheck WireWriteOffCoverageAudit::check(fs::FS& storage,
             if (selection.repairId != repairId || targetCount >= CoverageBatchSize)
                 return WireWriteOffCoverageCheck::IntegrityFailed;
 
-            WarehouseMovementCoverageTarget& target = targets[targetCount++];
-            target.sourceSessionId = sessionId;
-            target.sourceRunId = runId;
+            CoverageTarget& target = targets[targetCount++];
+            target.sessionId = sessionId;
+            target.runId = runId;
             target.spoolId = selection.spoolId;
         }
 

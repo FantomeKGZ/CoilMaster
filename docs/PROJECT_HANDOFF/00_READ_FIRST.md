@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
 docs/PROJECT_HANDOFF/137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08-26.md
 docs/PROJECT_HANDOFF/136_MATERIAL_LEDGER_DEAD_ADJUSTMENT_HELPER_REMOVAL_2026-08-26.md
 docs/PROJECT_HANDOFF/135_MATERIAL_LEDGER_FAIL_CLOSED_LOOKUPS_2026-08-26.md
@@ -48,28 +49,29 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **137**.
+Latest GREEN foundation = checkpoint **138**.
 
-Latest verified checkpoint-137 evidence:
+Latest verified checkpoint-138 evidence:
 
 ```text
-final MaterialLedger source        90c732a9caef1d1e4104c9c7374a72f6a8df3811
-final contracts                    5dc6f1c0303834274d989b8846b53ba34c1f3368
-ESP32 Build #1592                  32972822029 / SUCCESS
-CMP Protocol Tests #3614           32972911974 / SUCCESS
+final RepairCosting source         3c62d73d3cbd24fe08013cee63a59a8353af3e50
+single-pass/fail-closed contract   959f8d283e1669f083d9361b11af9a194154fee4
+ESP32 Build #1595                  32973529504 / SUCCESS
+CMP Protocol Tests #3622           32973582094 / SUCCESS
 ```
 
 ## Current state
 
-Warehouse summary is single-pass through authoritative movement validation. MaterialLedger repair/state/currency reads expose explicit `found`; all one-argument convenience wrappers are removed. Dead `adjustmentExists`, `usageExists` and `restoreQuantity` helpers are removed while pending usage/adjustment recovery remains fail-closed and deterministic.
+Warehouse summary is single-pass through authoritative movement validation. MaterialLedger and RepairCosting repair/material lookups expose explicit result channels instead of convenience bool wrappers. Dead MaterialLedger full-log/catalog rewrite helpers are removed while deterministic recovery remains intact.
 
 Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
 
 ## Immediate NEXT
 
 1. Continue bounded audit of small runtime/read helpers for dead full-log scans or ambiguous result channels.
-2. Preserve distinct Web HTTP preflight semantics and mutation-time TOCTOU validation.
-3. Do not weaken integrity/provenance checks or add automatic rotation/deletion/truncation.
-4. Continue software optimization before final two-board hardware E2E.
+2. Preserve single-pass costing ownership: `savePricing()` delegates repair validation to `load()`.
+3. Preserve distinct Web HTTP preflight semantics and mutation-time TOCTOU validation.
+4. Do not weaken integrity/provenance checks or add automatic rotation/deletion/truncation.
+5. Continue software optimization before final two-board hardware E2E.
 
 `RUN_COMPLETED` remains evidence only; no automatic writeoff, START or resume.

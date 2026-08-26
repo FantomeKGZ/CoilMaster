@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-25**  
+Дата обновления: **2026-08-26**  
 Repo: `FantomeKGZ/CoilMaster`  
 Source-of-truth: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
@@ -22,19 +22,17 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
+docs/PROJECT_HANDOFF/109_MATERIAL_REQUEST_WAREHOUSE_COORDINATOR_2026-08-26.md
 docs/PROJECT_HANDOFF/108_MATERIAL_REQUEST_WAREHOUSE_PENDING_TRANSACTION_2026-08-25.md
 docs/PROJECT_HANDOFF/107_MATERIAL_REQUEST_LIFECYCLE_2026-08-25.md
 docs/PROJECT_HANDOFF/106_MATERIAL_CATALOG_ADAPTER_AND_LOOKUP_2026-08-25.md
-docs/PROJECT_HANDOFF/105_MATERIAL_CATALOG_SERIALIZATION_FIX_2026-08-25.md
-docs/PROJECT_HANDOFF/104_CRM_BACKUP_INTEGRITY_2026-08-25.md
-docs/PROJECT_HANDOFF/103_MATERIAL_REQUEST_SCHEMA_2026-08-25.md
-docs/PROJECT_HANDOFF/102_TRANSACTIONAL_REPAIR_INTAKE_INTEGRATION_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint 108.
+Latest GREEN foundation = checkpoint **110**.
 
 ## Current GREEN implementation
 
@@ -49,58 +47,31 @@ Latest GREEN foundation = checkpoint 108.
 105 MaterialLedger serialization fix
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request lifecycle + backup/integrity
-108 Material Request warehouse pending persistence + stable-backup guard
+108 warehouse pending transaction + backup guard
+109 crash-safe warehouse coordinator
+110 Material Request production runtime/Web API
 ```
 
-Checkpoint 108 verified:
+Latest verified:
 
 ```text
-ESP32 Build run 32861148982 / SUCCESS
-CMP permanent regression run 32861266055 / SUCCESS
-backup guarded patch run 32861669436 / SUCCESS
+CMP 32926200712 / SUCCESS
+ESP32 Build 32926237400 / SUCCESS
 ```
-
-## Current material contract
-
-`MaterialLedger` is authoritative generic warehouse item catalog.
-
-```text
-KG->GRAM x1000
-L->MILLILITRE x1000
-PCS->PIECE x1
-M->METRE x1
-M2->SQUARE_METRE x1
-```
-
-Material Request lifecycle:
-
-```text
-DRAFT -> ISSUED -> PRICED -> CLOSED
-```
-
-Warehouse pending recovery markers:
-
-```text
-/data/workshop/material-request-warehouse.pending.json
-/data/workshop/material-request-warehouse.pending.tmp
-```
-
-Both block stable backup while unresolved.
 
 ## Immediate NEXT
 
-1. Implement crash-safe `MaterialRequestWarehouseCoordinator`.
-2. Movement evidence first, physical MaterialLedger mutation second.
-3. Use transaction-ref evidence for idempotent reboot recovery.
-4. Explicit ISSUE/RETURN/CORRECTION only; no implicit lifecycle rewrite.
-5. Then bounded runtime/Web APIs for material requests and warehouse operations.
-6. `RUN_COMPLETED` remains non-mutating.
+1. Immutable repair delivery store/API (`repair CLOSED` is not the same as `DELIVERED`).
+2. Delivery stores exact repair/client/motor/time and does not require zero balance.
+3. Backup/integrity coverage for delivery.
+4. Then payment/correction store/API and balances.
+5. Then Motor/Client Web redesign.
 
-## Wire migration rule
+## Material safety
 
-Current exact `spool_id` requirements remain until coordinated migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
+`RUN_COMPLETED` never automatically deducts material. Warehouse mutation requires explicit operator action and goes through Material Request coordinator. Current exact `spool_id` production contract remains until coordinated migration across the whole chain.
 
-## Safety invariants
+## General safety invariants
 
 - physical START local-only;
 - no automatic START between repeats;
@@ -109,9 +80,6 @@ Current exact `spool_id` requirements remain until coordinated migration across 
 - ESP32/Web never directly control SSR;
 - lost ACK/timeout never proves Arduino idle;
 - final repeat cannot auto-reopen;
-- `RUN_COMPLETED` never automatically deducts material;
-- warehouse ISSUE requires explicit operator action;
-- run-linked wire movement preserves exact run provenance;
 - cancellation/operator abort preserves immutable evidence;
 - restore operator-only, transactional, fail-closed;
 - no automatic production deletion/truncation.

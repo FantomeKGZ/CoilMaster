@@ -95,5 +95,9 @@ public:
                                    uint32_t repairId,
                                    WarehouseMovementCoverageTarget* targets,
                                    uint8_t targetCount);
+    static bool readCoverageBatch(fs::FS& storage,
+                                  uint32_t repairId,
+                                  WarehouseMovementCoverageTarget* targets,
+                                  uint8_t targetCount);
 };
 }

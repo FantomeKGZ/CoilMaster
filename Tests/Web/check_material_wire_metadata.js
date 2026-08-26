@@ -72,3 +72,4 @@ if (sourceFiles.includes('RUN_COMPLETED') || sourceFiles.includes('HTTP_START'))
 }
 
 console.log('MaterialLedger wire metadata contract audit passed');
+require('./check_spool_material_bridge_web.js');

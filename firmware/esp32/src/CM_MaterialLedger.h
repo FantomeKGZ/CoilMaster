@@ -26,10 +26,16 @@ struct NewMaterial
     uint32_t pricePerUnitMinor;
     String currency;
     String comment;
+    // Optional pair. Legacy/generic records omit both. When present, both are
+    // required and the material unit must be GRAM.
+    bool hasWireMetadata;
+    String wireType; // CU | AL
+    uint16_t diameterHundredthsMm;
 
     NewMaterial()
         : unit(MaterialUnit::Piece), stockQuantityMilli(0UL),
-          pricePerUnitMinor(0UL), currency("KGS") {}
+          pricePerUnitMinor(0UL), currency("KGS"), hasWireMetadata(false),
+          diameterHundredthsMm(0U) {}
 };
 
 struct MaterialItemState
@@ -39,10 +45,14 @@ struct MaterialItemState
     uint32_t stockQuantityMilli;
     uint32_t pricePerUnitMinor;
     String currency;
+    bool hasWireMetadata;
+    String wireType; // CU | AL
+    uint16_t diameterHundredthsMm;
 
     MaterialItemState()
         : materialId(0UL), unit(MaterialUnit::Piece), stockQuantityMilli(0UL),
-          pricePerUnitMinor(0UL), currency("KGS") {}
+          pricePerUnitMinor(0UL), currency("KGS"), hasWireMetadata(false),
+          diameterHundredthsMm(0U) {}
 };
 
 struct MaterialAdjustment

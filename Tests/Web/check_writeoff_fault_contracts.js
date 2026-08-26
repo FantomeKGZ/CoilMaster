@@ -61,8 +61,6 @@ for (const text of [
   requireText(recoveryPath, recovery, text, 'spool reboot recovery proof missing: ' + text);
 }
 
-// Public direct mutation is formally retired. Assert semantics rather than the
-// escaping representation of the C++ JSON literal.
 for (const text of [
   '"/api/warehouse/write-offs", HTTP_POST',
   'm_server.send(410',
@@ -83,6 +81,34 @@ for (const forbidden of [
 ]) {
   requireAbsent(writeoffPath, writeoff, forbidden,
     'retired public mutation implementation must stay absent: ' + forbidden);
+}
+
+// The old direct Store operations remain implemented for deterministic legacy
+// compatibility/recovery, but must not be callable through the public Store API.
+const privateMarker = '\nprivate:';
+const privatePosition = storeHeader.indexOf(privateMarker);
+if (privatePosition < 0) {
+  failures.push(storeHeaderPath + ': WarehouseStore private boundary missing');
+} else {
+  const publicSurface = storeHeader.slice(0, privatePosition);
+  const privateSurface = storeHeader.slice(privatePosition);
+  for (const method of ['confirmSpoolWriteOff(', 'confirmKgFirstWriteOff(']) {
+    if (publicSurface.includes(method)) {
+      failures.push(storeHeaderPath + ': legacy direct writeoff method leaked into public API: ' + method);
+    }
+    if (!privateSurface.includes(method)) {
+      failures.push(storeHeaderPath + ': retained private legacy recovery method missing: ' + method);
+    }
+  }
+  for (const managed of [
+    'prepareManagedRunWireWriteOff(',
+    'applyManagedRunWireSpoolWeight(',
+    'confirmManagedRunWireWriteOff('
+  ]) {
+    if (!publicSurface.includes(managed)) {
+      failures.push(storeHeaderPath + ': managed RUN_WIRE API must remain public: ' + managed);
+    }
+  }
 }
 
 for (const source of [
@@ -175,4 +201,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: public legacy POST is hard-disabled with 410, GET/history and deterministic store recovery remain intact, production mutation is atomic RUN_WIRE, exact-run duplicate protection remains audit-backed, and no automatic deduction exists.');
+console.log('Write-off fault contracts OK: public legacy POST is 410-disabled, legacy direct Store methods are private-only, managed RUN_WIRE APIs stay public, deterministic recovery/history remain intact, and no automatic deduction exists.');

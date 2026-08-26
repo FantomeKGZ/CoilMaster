@@ -22,6 +22,8 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md
+docs/PROJECT_HANDOFF/113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md
 docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/111_REPAIR_DELIVERY_STORE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
@@ -32,7 +34,7 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **112**.
+Latest GREEN foundation = checkpoint **114**.
 
 ## Current GREEN implementation
 
@@ -52,30 +54,33 @@ Latest GREEN foundation = checkpoint **112**.
 110 Material Request production runtime/Web API
 111 immutable repair delivery store/API + backup/integrity
 112 append-only cash/payment journal + repair/client balance API + backup/integrity
+113 Motor Web catalog-only + separate create page + versioned motor card
+114 immutable AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 ```
 
 Latest verified:
 
 ```text
-checkpoint 112 CMP         32928743465 / SUCCESS
-checkpoint 112 ESP32 Build 32928706196 / SUCCESS
+checkpoint 114 CMP         32934323481 / SUCCESS
+checkpoint 114 ESP32 Build 32934092563 / SUCCESS
 ```
 
-ESP32 run is on the final production-source commit `eac97f9...`; current checkpoint-test HEAD after it changes only host regression/docs.
+ESP32 run is on production-source commit `da5d7271ba69e373599360550e81e1cf860f7a1a`, after the guarded main.cpp role/repeat changes. Later commits only tighten host regressions/docs.
 
 ## Immediate NEXT
 
-1. Motor Web redesign:
-   - `motors.html` catalog-only;
-   - separate `motor-new.html`;
-   - versioned WORKING/STARTING data in `motor-details.html`;
-   - direct job send without physical auto-start.
-2. Client Web redesign:
+1. Client Web redesign:
    - `clients.html` catalog-only;
    - separate `client-new.html`;
-   - `client-details.html` with motors, repairs, payments/balance and delivery history.
-3. Dedicated `cash.html` using checkpoint 112 APIs; `costing.html` remains costing/pricing, not cash.
-4. Coordinated spool -> Material Request wire migration only as one coherent backend/Web/test change.
+   - `client-details.html` with motors through repair history, open/closed repairs, payments/balance and delivery history;
+   - remove duplicated inline client creation from repair intake and leave navigation to `client-new.html`.
+2. Dedicated `cash.html` using checkpoint 112 APIs; `costing.html` remains costing/pricing, not cash.
+3. Coordinated spool -> Material Request wire migration only as one coherent backend/Web/test change.
+4. Full Web/backend regression + backup/restore, then two-board hardware E2E.
+
+## Motor linked-job safety
+
+Motor role buttons only navigate to the existing linked-job preparation page. Latest winding version is authoritative for exact role/program/repeat; legacy fallback is WORKING-only. STARTING without an explicit versioned STARTING role fails closed. Server rechecks exact role/program/repeat and current exact spool selection before immutable job persistence/UART. Physical START remains local-only.
 
 ## Material / cash safety
 

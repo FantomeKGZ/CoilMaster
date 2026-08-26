@@ -9,6 +9,7 @@
 #include "CM_MaterialRequestStore.h"
 #include "CM_MaterialRequestWarehouseCoordinator.h"
 #include "CM_RepairRegistry.h"
+#include "CM_RunWireIssueCoordinator.h"
 
 namespace CM
 {
@@ -21,6 +22,13 @@ public:
                        MaterialRequestMovementStore& movements,
                        MaterialRequestStatusStore& statuses,
                        MaterialRequestWarehouseCoordinator& warehouse);
+    MaterialRequestWeb(WebServer& server,
+                       RepairRegistry& repairs,
+                       MaterialRequestStore& requests,
+                       MaterialRequestMovementStore& movements,
+                       MaterialRequestStatusStore& statuses,
+                       MaterialRequestWarehouseCoordinator& warehouse,
+                       RunWireIssueCoordinator& runWire);
 
     void begin();
 
@@ -47,6 +55,7 @@ private:
     MaterialRequestMovementStore& m_movements;
     MaterialRequestStatusStore& m_statuses;
     MaterialRequestWarehouseCoordinator& m_warehouse;
+    RunWireIssueCoordinator* m_runWire;
 };
 }
 

@@ -2,6 +2,9 @@
 #include <SD.h>
 #include "CM_RepairCosting.h"
 #include "CM_RepairCostingWeb.h"
+#include "CM_CashPaymentStore.h"
+#include "CM_CashPaymentWeb.h"
+#include "CM_RepairRegistry.h"
 #include "CM_RepairLifecycle.h"
 
 namespace CM
@@ -21,8 +24,12 @@ void MaterialLedgerWeb::begin()
     m_server.on("/api/materials/usage", HTTP_POST, [this]() { handleUsage(); });
     static RepairCosting repairCosting(SD);
     static RepairCostingWeb repairCostingWeb(m_server, repairCosting);
+    static RepairRegistry cashRepairRegistry(SD);
+    static CashPaymentStore cashPayments(SD);
+    static CashPaymentWeb cashPaymentWeb(m_server, cashRepairRegistry, repairCosting, cashPayments);
     repairCosting.begin();
     repairCostingWeb.begin();
+    if (cashRepairRegistry.begin() && cashPayments.begin()) cashPaymentWeb.begin();
 }
 
 void MaterialLedgerWeb::handleList()

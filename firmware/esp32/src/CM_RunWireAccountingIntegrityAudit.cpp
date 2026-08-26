@@ -27,6 +27,7 @@ struct RunWireReference
     uint32_t spoolId;
     uint32_t consumedGrams;
     uint32_t ledgerQuantityMilli;
+    uint64_t unitCostMinor;
     uint64_t costAmountMinor;
     String currency;
     String materialClass;
@@ -38,7 +39,7 @@ struct RunWireReference
     RunWireReference()
         : repairId(0UL), warehouseItemId(0UL), sourceSessionId(0UL),
           sourceRunId(0UL), spoolId(0UL), consumedGrams(0UL),
-          ledgerQuantityMilli(0UL), costAmountMinor(0ULL),
+          ledgerQuantityMilli(0UL), unitCostMinor(0ULL), costAmountMinor(0ULL),
           diameterHundredthsMm(0U), ledgerMatches(0U), warehouseMatches(0U)
     {
     }
@@ -229,15 +230,22 @@ bool resolveLedgerBatch(fs::FS& storage, RunWireReference* references, uint8_t c
             RunWireReference& reference = references[index];
             if (transactionRef != reference.transactionRef) continue;
             uint32_t repairId = 0UL, materialId = 0UL, quantity = 0UL;
+            uint32_t pricePerUnitMinor = 0UL;
             uint64_t lineCost = 0ULL;
             String currency, timestamp;
             if (++reference.ledgerMatches > 1U ||
                 !findUnsigned(line, "repair_id", repairId) ||
                 !findUnsigned(line, "material_id", materialId) ||
                 !findUnsigned(line, "quantity_milli", quantity) ||
+                !findUnsigned(line, "price_per_unit_minor", pricePerUnitMinor) ||
                 !findUnsigned64(line, "line_cost_minor", lineCost) ||
                 !findString(line, "currency", currency) ||
                 !findString(line, "timestamp", timestamp) ||
+                reference.unitCostMinor == 0ULL ||
+                (reference.unitCostMinor % 1000ULL) != 0ULL ||
+                reference.unitCostMinor / 1000ULL > 0xFFFFFFFFULL ||
+                pricePerUnitMinor !=
+                    static_cast<uint32_t>(reference.unitCostMinor / 1000ULL) ||
                 repairId != reference.repairId ||
                 materialId != reference.warehouseItemId ||
                 quantity != reference.ledgerQuantityMilli ||
@@ -294,6 +302,9 @@ bool resolveWarehouseBatch(fs::FS& storage, RunWireReference* references, uint8_
             RunWireReference& reference = references[index];
             if (transactionRef != reference.transactionRef) continue;
             if (++reference.warehouseMatches > 1U ||
+                reference.unitCostMinor == 0ULL ||
+                reference.unitCostMinor > 0xFFFFFFFFULL ||
+                record.pricePerKgMinor != static_cast<uint32_t>(reference.unitCostMinor) ||
                 record.mode != WarehouseWriteOffMode::KgFirst ||
                 record.stockMode != WarehouseWriteOffStockMode::Spool ||
                 !record.hasSpoolId || record.spoolId != reference.spoolId ||
@@ -460,6 +471,9 @@ bool checkMovements(fs::FS& storage, uint32_t& movementCount)
             reference.consumedGrams == 0UL ||
             reference.consumedGrams > 0xFFFFFFFFUL / 1000UL ||
             !findString(line, "unit", unit) || unit != "KG" ||
+            !findUnsigned64(line, "unit_cost_minor", reference.unitCostMinor) ||
+            reference.unitCostMinor == 0ULL ||
+            reference.unitCostMinor > 0xFFFFFFFFULL ||
             !findUnsigned64(line, "cost_amount_minor", reference.costAmountMinor) ||
             !findString(line, "currency", reference.currency) ||
             reference.currency != "KGS" ||

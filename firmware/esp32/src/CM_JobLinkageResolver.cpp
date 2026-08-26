@@ -5,7 +5,10 @@
 namespace CM
 {
 JobLinkageResolver::JobLinkageResolver(fs::FS& storage)
-    : m_storage(storage), m_ready(false)
+    : m_storage(storage),
+      m_windingVersions(storage),
+      m_ready(false),
+      m_windingVersionsReady(false)
 {
 }
 
@@ -15,16 +18,20 @@ bool JobLinkageResolver::begin()
     // by RepairRegistry during the same boot, so readiness must not depend on
     // /data already existing when this component starts.
     m_ready = false;
+    m_windingVersionsReady = false;
     File root = m_storage.open("/", FILE_READ);
     if (!root) return false;
     root.close();
+    m_windingVersionsReady = m_windingVersions.begin();
+    if (!m_windingVersionsReady) return false;
     m_ready = true;
     return true;
 }
 
 bool JobLinkageResolver::isReady() const
 {
-    if (!m_ready) return false;
+    if (!m_ready || !m_windingVersionsReady || !m_windingVersions.ready())
+        return false;
     File root = m_storage.open("/", FILE_READ);
     if (!root) return false;
     root.close();
@@ -90,9 +97,81 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
                                             JobLinkage& linkage,
                                             String& coilProgram) const
 {
+    return resolveWithProgram(repairId,
+                              requestedMotorId,
+                              RemoteJobType::Working,
+                              linkage,
+                              coilProgram);
+}
+
+bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
+                                            uint32_t requestedMotorId,
+                                            RemoteJobType requestedType,
+                                            JobLinkage& linkage,
+                                            String& coilProgram) const
+{
     coilProgram = String();
-    if (!resolve(repairId, requestedMotorId, linkage) ||
-        !m_storage.exists(MotorsPath))
+    if (!resolve(repairId, requestedMotorId, linkage))
+    {
+        linkage = JobLinkage();
+        return false;
+    }
+
+    String versionJson;
+    versionJson.reserve(960U);
+    bool versionFound = false;
+    if (!m_windingVersions.appendLatestByMotorJson(versionJson,
+                                                    requestedMotorId,
+                                                    versionFound))
+    {
+        linkage = JobLinkage();
+        return false;
+    }
+
+    if (versionFound)
+    {
+        String candidateProgram;
+        String canonicalProgram;
+        if (requestedType == RemoteJobType::Starting)
+        {
+            if (versionJson.indexOf(F("\"starting_present\":true")) < 0 ||
+                !findString(versionJson, "starting_program", candidateProgram))
+            {
+                linkage = JobLinkage();
+                return false;
+            }
+        }
+        else if (!findString(versionJson, "working_program", candidateProgram))
+        {
+            linkage = JobLinkage();
+            return false;
+        }
+
+        if (!WindingProgramParser::canonicalize(candidateProgram, canonicalProgram))
+        {
+            linkage = JobLinkage();
+            return false;
+        }
+        coilProgram = canonicalProgram;
+        return true;
+    }
+
+    // Legacy motors have only one historical program and therefore authorize
+    // WORKING only. Never infer a STARTING program from legacy coil_program.
+    if (requestedType == RemoteJobType::Starting)
+    {
+        linkage = JobLinkage();
+        return false;
+    }
+    return resolveLegacyWorkingProgram(requestedMotorId, linkage, coilProgram);
+}
+
+bool JobLinkageResolver::resolveLegacyWorkingProgram(uint32_t requestedMotorId,
+                                                      JobLinkage& linkage,
+                                                      String& coilProgram) const
+{
+    coilProgram = String();
+    if (!m_storage.exists(MotorsPath))
     {
         linkage = JobLinkage();
         return false;

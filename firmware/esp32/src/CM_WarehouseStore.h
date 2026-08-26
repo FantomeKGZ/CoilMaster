@@ -33,8 +33,6 @@ public:
     bool repairExists(uint32_t repairId) const;
     bool repairExists(uint32_t repairId,bool& found) const;
     bool confirmedWriteOffForSourceRun(uint32_t sourceSessionId,uint32_t sourceRunId,bool& found) const;
-    bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
-    bool confirmKgFirstWriteOff(const KgFirstWriteOff& operation,SpoolWriteOffResult& result);
     bool prepareManagedRunWireWriteOff(const KgFirstWriteOff& operation,uint32_t& movementId);
     bool applyManagedRunWireSpoolWeight(uint32_t spoolId,uint32_t weightBeforeGrams,uint32_t weightAfterGrams,uint16_t diameterHundredthsMm,const String& wireType);
     bool confirmManagedRunWireWriteOff(uint32_t movementId,const KgFirstWriteOff& operation,uint32_t weightBeforeGrams,uint32_t weightAfterGrams);
@@ -71,6 +69,10 @@ private:
     void clearSummary(); WireStockSummary* findOrCreate(uint16_t diameterHundredthsMm);
     bool readSpools(); bool readMovements(const char* monthPrefix); bool nextSpoolId(uint32_t& id) const; bool nextMovementId(uint32_t& id) const;
     bool rewriteSpoolWeight(uint32_t spoolId,uint32_t expectedWeightGrams,uint32_t newWeightGrams,uint16_t& diameterHundredthsMm,String& wireType);
+    // Legacy direct mutation remains implemented only for internal deterministic
+    // compatibility/recovery. It is intentionally not part of the public Store API.
+    bool confirmSpoolWriteOff(const ConfirmedSpoolWriteOff& operation,SpoolWriteOffResult& result);
+    bool confirmKgFirstWriteOff(const KgFirstWriteOff& operation,SpoolWriteOffResult& result);
     bool appendWriteOffRecord(uint32_t movementId,const ConfirmedSpoolWriteOff& operation,uint16_t diameterHundredthsMm,uint32_t consumedGrams,const WarehousePrice& price,const char* status,const String& wireType);
     bool appendKgFirstWriteOffRecord(uint32_t movementId,const KgFirstWriteOff& operation,uint32_t weightBeforeGrams,uint32_t weightAfterGrams,const WarehousePrice& price,const char* status);
     static bool findUnsigned(const String& line,const char* key,uint32_t& value); static bool findString(const String& line,const char* key,String& value); static String jsonEscape(const String& value);

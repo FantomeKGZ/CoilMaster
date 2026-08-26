@@ -6,6 +6,7 @@
 #include "CM_BackupBusinessDataIntegrityAudit.h"
 #include "CM_CrmPersistenceIntegrityAudit.h"
 #include "CM_RepairDeliveryIntegrityAudit.h"
+#include "CM_CashPaymentIntegrityAudit.h"
 #include "CM_WindingPersistenceIntegrityAudit.h"
 #include "CM_WindingSessionPersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
@@ -100,6 +101,7 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"material-request-movements", "/data/workshop/material-request-movements.ndjson", "application/x-ndjson", "material-request-movements.ndjson"},
     {"material-request-status", "/data/workshop/material-request-status.ndjson", "application/x-ndjson", "material-request-status.ndjson"},
     {"repair-deliveries", "/data/workshop/repair-deliveries.ndjson", "application/x-ndjson", "repair-deliveries.ndjson"},
+    {"repair-payments", "/data/workshop/repair-payments.ndjson", "application/x-ndjson", "repair-payments.ndjson"},
     {"winding-events", "/data/winding-runs/events.ndjson", "application/x-ndjson", "winding-events.ndjson"},
     {"autonomous-winding-events", "/data/autonomous-windings/events.ndjson", "application/x-ndjson", "autonomous-winding-events.ndjson"},
     {"autonomous-winding-assignments", "/data/autonomous-windings/assignments.ndjson", "application/x-ndjson", "autonomous-winding-assignments.ndjson"},
@@ -354,6 +356,10 @@ const char* snapshotStabilityReason(fs::FS& storage,
     uint32_t repairDeliveryRecordCount = 0UL;
     if (!RepairDeliveryIntegrityAudit::check(storage, repairDeliveryRecordCount))
         return "repair_delivery_unstable_or_invalid";
+
+    uint32_t cashPaymentRecordCount = 0UL;
+    if (!CashPaymentIntegrityAudit::check(storage, cashPaymentRecordCount))
+        return "cash_payment_unstable_or_invalid";
 
     AutonomousWindingIntegrityMetrics autonomousMetrics;
     startedAtMs = millis();

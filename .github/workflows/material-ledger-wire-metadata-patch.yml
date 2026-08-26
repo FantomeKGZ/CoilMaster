@@ -28,108 +28,64 @@ jobs:
           p = Path('firmware/esp32/src/CM_MaterialLedger.cpp')
           s = p.read_text()
 
-          old1 = '''    if (!ready() || material.name.length() == 0U ||
-              material.pricePerUnitMinor == 0UL || material.currency != "KGS")
-          {
-              return false;
-          }
+          anchor1 = '    if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;\n'
+          insert1 = '''    if (material.hasWireMetadata)
+    {
+        if (material.unit != MaterialUnit::Gram ||
+            (material.wireType != "CU" && material.wireType != "AL") ||
+            material.diameterHundredthsMm == 0U)
+        {
+            return false;
+        }
+    }
+    else if (material.wireType.length() != 0U || material.diameterHundredthsMm != 0U)
+    {
+        return false;
+    }
 
-          if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;
-          '''
-          old1 = old1.replace('              material', '        material').replace('          {', '    {').replace('              return false;', '        return false;').replace('          }', '    }').replace('          if (!nextId', '    if (!nextId')
-          new1 = '''    if (!ready() || material.name.length() == 0U ||
-              material.pricePerUnitMinor == 0UL || material.currency != "KGS")
-          {
-              return false;
-          }
-          if (material.hasWireMetadata)
-          {
-              if (material.unit != MaterialUnit::Gram ||
-                  (material.wireType != "CU" && material.wireType != "AL") ||
-                  material.diameterHundredthsMm == 0U)
-              {
-                  return false;
-              }
-          }
-          else if (material.wireType.length() != 0U || material.diameterHundredthsMm != 0U)
-          {
-              return false;
-          }
+'''
+          if s.count(anchor1) != 1:
+              raise SystemExit(f'nextId anchor count={s.count(anchor1)}')
+          s = s.replace(anchor1, insert1 + anchor1, 1)
 
-          if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;
-          '''
-          new1 = new1.replace('              material', '        material', 1).replace('          {', '    {', 1).replace('              return false;', '        return false;', 1).replace('          }', '    }', 1).replace('          if (material.hasWireMetadata)', '    if (material.hasWireMetadata)', 1).replace('          else if', '    else if', 1).replace('          if (!nextId', '    if (!nextId', 1)
-          if s.count(old1) != 1:
-              raise SystemExit(f'preflight anchor count={s.count(old1)}')
-          s = s.replace(old1, new1, 1)
+          anchor2 = '    line += F("\\\",\\\"status\\\":\\\"ACTIVE\\\"");\n'
+          insert2 = '''    if (material.hasWireMetadata)
+    {
+        line += F(",\\\"wire_type\\\":\\\""); line += material.wireType; line += '\"';
+        line += F(",\\\"diameter_hundredths_mm\\\":"); line += material.diameterHundredthsMm;
+    }
+'''
+          if s.count(anchor2) != 1:
+              raise SystemExit(f'ACTIVE serialization anchor count={s.count(anchor2)}')
+          s = s.replace(anchor2, anchor2 + insert2, 1)
 
-          old2 = '''    line += F("\\\",\\\"status\\\":\\\"ACTIVE\\\"");
-          if (material.comment.length() > 0U)
-          '''.replace('          if', '    if')
-          new2 = '''    line += F("\\\",\\\"status\\\":\\\"ACTIVE\\\"");
-          if (material.hasWireMetadata)
-          {
-              line += F(",\\\"wire_type\\\":\\\""); line += material.wireType; line += '\"';
-              line += F(",\\\"diameter_hundredths_mm\\\":"); line += material.diameterHundredthsMm;
-          }
-          if (material.comment.length() > 0U)
-          '''
-          new2 = new2.replace('          if', '    if', 1).replace('          {', '    {', 1).replace('              line', '        line', 2).replace('          }', '    }', 1).replace('          if', '    if', 1)
-          if s.count(old2) != 1:
-              raise SystemExit(f'serialization anchor count={s.count(old2)}')
-          s = s.replace(old2, new2, 1)
+          anchor3 = '        if (status != "ACTIVE") continue;\n'
+          insert3 = '''        const bool hasWireType = line.indexOf(F("\\\"wire_type\\\":")) >= 0;
+        const bool hasDiameter = line.indexOf(F("\\\"diameter_hundredths_mm\\\":")) >= 0;
+        if (hasWireType != hasDiameter)
+        {
+            file.close();
+            return false;
+        }
+        if (hasWireType)
+        {
+            String wireType;
+            uint32_t diameter = 0UL;
+            if (unit != "GRAM" ||
+                !findString(line, "wire_type", wireType) ||
+                (wireType != "CU" && wireType != "AL") ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                diameter == 0UL || diameter > 65535UL)
+            {
+                file.close();
+                return false;
+            }
+        }
 
-          old3 = '''        if (line.indexOf(F("\\\"comment\\\":")) >= 0)
-          {
-              String comment;
-              if (!findString(line, "comment", comment))
-              {
-                  file.close();
-                  return false;
-              }
-          }
-
-          if (status != "ACTIVE") continue;
-          '''
-          old3 = old3.replace('          {', '        {', 1).replace('              String', '            String', 1).replace('              if', '            if', 1).replace('              {', '            {', 1).replace('                  file', '                file', 1).replace('                  return', '                return', 1).replace('              }', '            }', 1).replace('          }', '        }', 1).replace('          if (status', '        if (status', 1)
-          new3 = '''        if (line.indexOf(F("\\\"comment\\\":")) >= 0)
-          {
-              String comment;
-              if (!findString(line, "comment", comment))
-              {
-                  file.close();
-                  return false;
-              }
-          }
-
-          const bool hasWireType = line.indexOf(F("\\\"wire_type\\\":")) >= 0;
-          const bool hasDiameter = line.indexOf(F("\\\"diameter_hundredths_mm\\\":")) >= 0;
-          if (hasWireType != hasDiameter)
-          {
-              file.close();
-              return false;
-          }
-          if (hasWireType)
-          {
-              String wireType;
-              uint32_t diameter = 0UL;
-              if (unit != "GRAM" ||
-                  !findString(line, "wire_type", wireType) ||
-                  (wireType != "CU" && wireType != "AL") ||
-                  !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-                  diameter == 0UL || diameter > 65535UL)
-              {
-                  file.close();
-                  return false;
-              }
-          }
-
-          if (status != "ACTIVE") continue;
-          '''
-          new3 = new3.replace('          {', '        {', 1).replace('              String comment', '            String comment', 1).replace('              if (!findString', '            if (!findString', 1).replace('              {', '            {', 1).replace('                  file.close();', '                file.close();', 1).replace('                  return false;', '                return false;', 1).replace('              }', '            }', 1).replace('          }', '        }', 1).replace('          const bool', '        const bool', 2).replace('          if (hasWireType != hasDiameter)', '        if (hasWireType != hasDiameter)', 1).replace('          {', '        {', 1).replace('              file.close();', '            file.close();', 1).replace('              return false;', '            return false;', 1).replace('          }', '        }', 1).replace('          if (hasWireType)', '        if (hasWireType)', 1).replace('          {', '        {', 1).replace('              String wireType;', '            String wireType;', 1).replace('              uint32_t diameter', '            uint32_t diameter', 1).replace('              if (unit', '            if (unit', 1).replace('                  !findString', '                !findString', 1).replace('                  (wireType', '                (wireType', 1).replace('                  !findUnsigned', '                !findUnsigned', 1).replace('                  diameter', '                diameter', 1).replace('              {', '            {', 1).replace('                  file.close();', '                file.close();', 1).replace('                  return false;', '                return false;', 1).replace('              }', '            }', 1).replace('          }', '        }', 1).replace('          if (status', '        if (status', 1)
-          if s.count(old3) != 1:
-              raise SystemExit(f'list anchor count={s.count(old3)}')
-          s = s.replace(old3, new3, 1)
+'''
+          if s.count(anchor3) != 1:
+              raise SystemExit(f'ACTIVE list anchor count={s.count(anchor3)}')
+          s = s.replace(anchor3, insert3 + anchor3, 1)
 
           p.write_text(s)
           PY

@@ -1,0 +1,145 @@
+name: Guarded Material Wire Metadata Patch
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - .github/workflows/material-ledger-wire-metadata-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Verify exact target blob
+        run: |
+          test "$(git rev-parse HEAD:firmware/esp32/src/CM_MaterialLedger.cpp)" = "64eceb25d27365bc02570343fb3aa33ced52d07b"
+      - name: Apply exact metadata patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('firmware/esp32/src/CM_MaterialLedger.cpp')
+          s = p.read_text()
+
+          old1 = '''    if (!ready() || material.name.length() == 0U ||
+              material.pricePerUnitMinor == 0UL || material.currency != "KGS")
+              {
+                  return false;
+              }
+
+              if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;
+          '''
+          new1 = '''    if (!ready() || material.name.length() == 0U ||
+              material.pricePerUnitMinor == 0UL || material.currency != "KGS")
+              {
+                  return false;
+              }
+              if (material.hasWireMetadata)
+              {
+                  if (material.unit != MaterialUnit::Gram ||
+                      (material.wireType != "CU" && material.wireType != "AL") ||
+                      material.diameterHundredthsMm == 0U)
+                  {
+                      return false;
+                  }
+              }
+              else if (material.wireType.length() != 0U || material.diameterHundredthsMm != 0U)
+              {
+                  return false;
+              }
+
+              if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;
+          '''
+          # The source is normally four-space indented; normalize helper literals before matching.
+          old1 = old1.replace('              ', '    ', 1).replace('              {', '    {', 1).replace('                  return false;', '        return false;', 1).replace('              }', '    }', 1).replace('              if (!nextId', '    if (!nextId', 1)
+          new1 = new1.replace('              ', '    ', 1).replace('              {', '    {', 1).replace('                  return false;', '        return false;', 1).replace('              }', '    }', 1).replace('              if (material.hasWireMetadata)', '    if (material.hasWireMetadata)', 1).replace('              else if', '    else if', 1).replace('              if (!nextId', '    if (!nextId', 1)
+          if s.count(old1) != 1:
+              raise SystemExit(f'addMaterial preflight anchor count={s.count(old1)}')
+          s = s.replace(old1, new1, 1)
+
+          old2 = '''    line += F("\\\",\\\"status\\\":\\\"ACTIVE\\\"");
+              if (material.comment.length() > 0U)
+          '''
+          new2 = '''    line += F("\\\",\\\"status\\\":\\\"ACTIVE\\\"");
+              if (material.hasWireMetadata)
+              {
+                  line += F(",\\\"wire_type\\\":\\\""); line += material.wireType; line += '\"';
+                  line += F(",\\\"diameter_hundredths_mm\\\":"); line += material.diameterHundredthsMm;
+              }
+              if (material.comment.length() > 0U)
+          '''
+          old2 = old2.replace('              if', '    if', 1)
+          new2 = new2.replace('              if', '    if', 1).replace('              {', '    {', 1).replace('                  line', '        line', 2).replace('              }', '    }', 1).replace('              if', '    if', 1)
+          if s.count(old2) != 1:
+              raise SystemExit(f'addMaterial serialization anchor count={s.count(old2)}')
+          s = s.replace(old2, new2, 1)
+
+          old3 = '''        if (line.indexOf(F("\\\"comment\\\":")) >= 0)
+                  {
+                      String comment;
+                      if (!findString(line, "comment", comment))
+                      {
+                          file.close();
+                          return false;
+                      }
+                  }
+
+                  if (status != "ACTIVE") continue;
+          '''
+          new3 = '''        if (line.indexOf(F("\\\"comment\\\":")) >= 0)
+                  {
+                      String comment;
+                      if (!findString(line, "comment", comment))
+                      {
+                          file.close();
+                          return false;
+                      }
+                  }
+
+                  const bool hasWireType = line.indexOf(F("\\\"wire_type\\\":")) >= 0;
+                  const bool hasDiameter = line.indexOf(F("\\\"diameter_hundredths_mm\\\":")) >= 0;
+                  if (hasWireType != hasDiameter)
+                  {
+                      file.close();
+                      return false;
+                  }
+                  if (hasWireType)
+                  {
+                      String wireType;
+                      uint32_t diameter = 0UL;
+                      if (unit != "GRAM" ||
+                          !findString(line, "wire_type", wireType) ||
+                          (wireType != "CU" && wireType != "AL") ||
+                          !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                          diameter == 0UL || diameter > 65535UL)
+                      {
+                          file.close();
+                          return false;
+                      }
+                  }
+
+                  if (status != "ACTIVE") continue;
+          '''
+          old3 = old3.replace('                  ', '    ')
+          new3 = new3.replace('                  ', '    ')
+          if s.count(old3) != 1:
+              raise SystemExit(f'list validation anchor count={s.count(old3)}')
+          s = s.replace(old3, new3, 1)
+
+          p.write_text(s)
+          PY
+          git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/esp32/src/CM_MaterialLedger.cpp
+          git diff --cached --quiet && exit 1
+          git commit -m "feat(materials): persist structured wire metadata"
+          git push origin HEAD:cmp-protocol-v1

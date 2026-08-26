@@ -27,13 +27,18 @@ for (const token of [
   'bridge.wireType == "CU" || bridge.wireType == "AL"',
   'bridge.linkedAt.length() >= 10U && bridge.linkedAt.length() <= 32U',
   'FlatJsonObjectValidator::valid(line)',
-  'parsed.bridgeId <= previousId'
+  'parsed.bridgeId <= previousId',
+  'constexpr uint8_t BridgeAuditBatchSize = 24U;',
+  'uint32_t batchSpoolIds[BridgeAuditBatchSize]',
+  'uint8_t matches[BridgeAuditBatchSize]',
+  'batchCount >= BridgeAuditBatchSize'
 ]) must(source, token, 'bridge store');
 
 mustNot(source, 'RUN_COMPLETED', 'bridge store must not react to run completion');
 mustNot(source, 'confirmSpoolWriteOff', 'bridge store must not mutate physical spool stock');
 mustNot(source, 'confirmUsage', 'bridge store must not mutate MaterialLedger stock');
 mustNot(source, 'adjustMaterial', 'bridge store must not mutate MaterialLedger stock');
+mustNot(source, 'File duplicateScan = m_storage.open(Path, FILE_READ);\n        if (!duplicateScan', 'per-record duplicate scan regression');
 
 for (const token of [
   'source_session_and_run_required',
@@ -47,4 +52,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: append-only identity mapping only; legacy exact-spool writeoff safety remains unchanged.');
+console.log('Spool material bridge foundation contracts OK: append-only bounded identity audit only; legacy exact-spool writeoff safety remains unchanged.');

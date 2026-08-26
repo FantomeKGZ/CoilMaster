@@ -14,89 +14,41 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 Вся разработка после snapshot идёт только в `cmp-protocol-v1`. `main` не использовать как source.
 
-## Current architecture
+## Current software state
+
+CRM/Web is GREEN through checkpoint 116. Wire-accounting migration has advanced through:
 
 ```text
-CLIENT -> MOTOR -> REPAIR -> immutable AS_RECEIVED
-                     -> WORKING/STARTING versions/jobs
-                     -> MATERIAL REQUEST
-                          -> WAREHOUSE ISSUE/RETURN/CORRECTION
-                          -> COSTING
-                     -> CASH/PAYMENTS/BALANCE
-                     -> COMPLETED -> DELIVERED
-```
-
-Authoritative design:
-
-```text
-95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
-101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
-```
-
-## Software GREEN checkpoints
-
-```text
-97  Motor winding versions
-98  Repair AS_RECEIVED
-99  Runtime/read API
-100 Repair intake pending transaction
-102 Transactional POST /api/repairs
-103 Material Request schema foundation
-104 CRM backup/export + integrity
-105 MaterialLedger serialization fix
-106 Material Request ↔ MaterialLedger unit adapter + active item lookup
-107 Material Request lifecycle + backup/integrity
-108 Material Request warehouse pending + backup guard
-109 Crash-safe warehouse coordinator
-110 Material Request production runtime/Web API
-111 Immutable repair delivery store/API + backup/integrity
-112 Append-only cash payments/corrections + repair/client balance API + backup/integrity
-113 Motor Web catalog-only + separate create + versioned motor card
-114 Motor AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
-115 Client Web catalog-only + dedicated create + read-only CRM card
-116 Dedicated Cash Web UI + append-only writes + exact BigInt minor units + navigation
+117 forensic exact-spool / MaterialLedger owner map
+118 spool_id <-> warehouse_item_id persistence bridge + bounded integrity + backup/export
 ```
 
 Latest verified:
 
 ```text
-CMP Protocol Tests 32938179528 / SUCCESS
-ESP32 Build         32936718747 / SUCCESS
+CMP Protocol Tests 32939884633 / SUCCESS
+ESP32 Build         32939884635 / SUCCESS
 ```
 
-## Web/CRM status — GREEN
+Checkpoint 118 keeps current runtime safety intact: no bridge writer API, no automatic material mutation, no relaxation of exact-spool writeoff/finalization.
 
-Motor, Client and Cash Web blocks are closed. `cash.html` is separate from `costing.html`; payment history is append-only and never controls machine, SSR, warehouse or delivery. Client↔motor relation stays historical through repair identity.
+## Current mandatory work
 
-## Current mandatory work — coordinated wire accounting migration
-
-Do not partially remove current exact `spool_id` requirements.
-
-First map every current owner:
+Extend authoritative `MaterialLedger` backward-compatibly with structured wire metadata:
 
 ```text
-job preparation / JobSpoolSelection
-manual writeoff API/UI
-warehouse/material mutation
-source_session_id + source_run_id provenance
-repair costing/material usage
-finalization preflight
-backup/export/integrity
-reports
-Web/tests
+wire_type = CU | AL
+diameter_hundredths_mm = exact diameter
 ```
 
-Then design and implement one coherent compatibility transition to:
+Requirements:
+- existing generic/non-wire materials remain valid unchanged;
+- existing integer quantity/cost contracts remain unchanged;
+- bridge creation must later require exact agreement between physical spool metadata and MaterialLedger wire metadata;
+- only explicit operator action may create the bridge;
+- old exact-spool runtime remains authoritative until the coordinated migration is finished.
 
-```text
-RUN_COMPLETED -> never auto-deducts
-operator explicitly confirms warehouse ISSUE
-material_request_id
-source_session_id + source_run_id for RUN_WIRE
-CU/AL + actual consumed weight
-```
-
-Material Request `RUN_WIRE` remains ISSUE/KG-only. New linked writeoff must never silently omit provenance or gain legacy permission to skip an already selected spool before the coordinated transition is complete.
+After that, migrate run-linked wire accounting toward explicit Material Request `RUN_WIRE` ISSUE with exact `material_request_id + source_session_id + source_run_id + physical spool provenance + actual weight`.
 
 ## Safety invariants
 
@@ -109,15 +61,9 @@ Material Request `RUN_WIRE` remains ISSUE/KG-only. New linked writeoff must neve
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never auto-deducts material;
 - warehouse ISSUE requires explicit operator action;
-- cash events never control machine/warehouse state;
-- payment balance does not rewrite delivery/run/material evidence;
 - cancellation/operator abort preserves immutable history;
 - restore operator-only, transactional, fail-closed;
 - no automatic production deletion/truncation.
-
-## Hardware acceptance
-
-Not complete. Full two-board hardware E2E remains mandatory after CRM/material/writeoff contracts stabilize.
 
 ## Read order
 
@@ -127,13 +73,9 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/118_SPOOL_MATERIAL_BRIDGE_PERSISTENCE_2026-08-26.md
+docs/PROJECT_HANDOFF/117_SPOOL_TO_MATERIAL_REQUEST_MIGRATION_MAP_2026-08-26.md
 docs/PROJECT_HANDOFF/116_CASH_WEB_UI_2026-08-26.md
-docs/PROJECT_HANDOFF/115_CLIENT_WEB_CRM_2026-08-26.md
-docs/PROJECT_HANDOFF/114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md
-docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
-docs/PROJECT_HANDOFF/111_REPAIR_DELIVERY_STORE_API_2026-08-26.md
-docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
-docs/PROJECT_HANDOFF/109_MATERIAL_REQUEST_WAREHOUSE_COORDINATOR_2026-08-26.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 this file
@@ -142,5 +84,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 116 Cash Web GREEN: CMP 32938179528 SUCCESS, ESP32 32936718747 SUCCESS. Motor/Client/Cash Web закрыты. Следующий блок — coordinated exact-spool -> Material Request RUN_WIRE accounting migration. Сначала составить forensic owner map всех current spool/writeoff/finalization/backup/report/Web contracts; ничего не ослаблять частично. RUN_COMPLETED ничего автоматически не списывает; physical START local-only; Arduino owns SSR.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 118 GREEN: CMP 32939884633 SUCCESS, ESP32 32939884635 SUCCESS. Есть append-only spool_id <-> warehouse_item_id bridge с bounded integrity и backup/export, но runtime writer ещё не открыт и exact-spool writeoff/finalization не ослаблены. Следующий блок — backward-compatible structured CU/AL + diameter metadata в authoritative MaterialLedger, затем fail-closed operator bridge creation, затем coordinated Material Request RUN_WIRE migration. RUN_COMPLETED ничего автоматически не списывает; physical START local-only; Arduino owns SSR.
 ```

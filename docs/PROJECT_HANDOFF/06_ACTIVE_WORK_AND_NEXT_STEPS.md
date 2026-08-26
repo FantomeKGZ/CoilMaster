@@ -28,9 +28,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 128_WAREHOUSE_LEGACY_DIRECT_API_NARROWING_2026-08-26.md
 129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md
 130_WAREHOUSE_DEAD_DIRECT_WRITEOFF_REMOVAL_2026-08-26.md
+131_WAREHOUSE_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 130
+## GREEN foundation through checkpoint 131
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -48,16 +49,18 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 128 legacy direct Store mutation methods moved behind private API
 129 legacy direct request/result support types moved behind private API
 130 obsolete direct Store mutation methods/result fully removed; historical deterministic append/recovery helpers retained
+131 ambiguous repairExists(id) convenience wrapper removed; only fail-closed repairExists(id, found) remains
 ```
 
-Latest verified checkpoint-130 evidence:
+Latest verified checkpoint-131 evidence:
 
 ```text
-e9ebd56a0317a7aecf87d4e6fd49e5a3433c22fd  declaration/result removal
-2a0bde9954edbfb712336c38c677d70d405b0332  implementation removal
-6f355a7aa5b2071477b3a9bd8ac387d96abf0e13  final contract alignment
-ESP32 Build #1574   32963503796 / SUCCESS
-CMP Tests #3563     32964152182 / SUCCESS
+6ccdec084001faabf25eaf5b28177d8f7e89a7d5  declaration cleanup
+279fc281b42a559f89f911e9f0b2758ccd02e8ff  implementation cleanup
+d848ce45eb35c7f2bba817d6de1efd0c4f4a02bd  fail-closed lookup contract
+ESP32 Build #1576   32964609675 / SUCCESS
+CMP Tests #3570     32964670388 / SUCCESS
+CMP Tests #3571     32964882464 / SUCCESS
 ```
 
 ## Current RUN_WIRE production/read boundary
@@ -82,35 +85,31 @@ GET  /api/warehouse/write-offs -> preserved history/coverage
 POST /api/material-requests/warehouse -> authoritative explicit RUN_WIRE mutation
 ```
 
-Internal boundary after checkpoint 130:
+Warehouse lookup boundary after checkpoint 131:
 
 ```text
-confirmSpoolWriteOff          removed
-confirmKgFirstWriteOff        removed
-SpoolWriteOffResult           removed
-ConfirmedSpoolWriteOff        private legacy recovery shape
-appendWriteOffRecord          retained for historical LEGACY_SPOOL PENDING recovery
-appendKgFirstWriteOffRecord   retained for managed/historical KG_FIRST evidence
-managed RUN_WIRE methods      public production surface
+repairExists(repairId)             removed
+repairExists(repairId, found)      retained; bool = read/integrity success, found = identity existence
 ```
 
-## Current active queue — further bounded cleanup
+## Current active queue — fail-closed overload cleanup
 
-1. Audit remaining warehouse helper visibility/callers; remove or narrow only helpers not needed by current managed RUN_WIRE, GET/history, integrity, backup or deterministic historical recovery.
-2. Preserve historical movement codecs and append/recovery helpers while persisted old history/PENDING can exist.
-3. Prefer direct immutable movement provenance for reports; no new full-log scan or duplicate bridge join.
-4. Review NDJSON growth/runtime scan hot spots for safe bounded optimization without automatic deletion/rotation and without premature DB migration.
-5. Continue software optimization/integrity before mandatory final two-board hardware E2E.
+1. Audit `loadActiveSpoolIdentity` overloads and keep only forms required by production/recovery while preserving explicit `found` where callers must distinguish missing from I/O/integrity failure.
+2. Audit `loadWarehousePrice` overloads and preserve explicit `configured` semantics wherever an unset price differs from storage failure.
+3. Audit `loadKnownWireDiameters` overloads and prefer success + output count rather than a count-only return that can collapse failure and zero results.
+4. Compile-prove every removal with ESP32 Build and mandatory CMP contracts.
+5. Then review NDJSON growth/runtime scan hot spots for bounded optimization without automatic deletion/rotation or premature DB migration.
+6. Continue software optimization/integrity before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
-minimal warehouse mutation surface
+minimal unambiguous warehouse API
+fail-closed absence/configuration semantics
 historical recovery remains deterministic
 bounded reports use persisted provenance
 no duplicate scans
 no automatic data deletion
-public legacy POST remains disabled
 ```
 
 ## Safety invariants

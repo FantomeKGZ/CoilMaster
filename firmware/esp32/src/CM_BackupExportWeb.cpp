@@ -85,6 +85,7 @@ struct SnapshotAuditMetrics
     bool warehousePersistenceRecordCountsMeasured = false;
     uint32_t warehouseSpoolRecordCount = 0UL;
     uint32_t warehousePriceRecordCount = 0UL;
+    uint32_t spoolMaterialBridgeRecordCount = 0UL;
     bool warehouseMovementRecordCountMeasured = false;
     uint32_t warehouseMovementRecordCount = 0UL;
 };
@@ -108,6 +109,7 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"warehouse-spools", "/data/warehouse/spools.ndjson", "application/x-ndjson", "warehouse-spools.ndjson"},
     {"warehouse-movements", "/data/warehouse/movements.ndjson", "application/x-ndjson", "warehouse-movements.ndjson"},
     {"warehouse-price", "/data/warehouse/price.ndjson", "application/x-ndjson", "warehouse-price.ndjson"},
+    {"spool-material-bridges", "/data/warehouse/spool-material-bridges.ndjson", "application/x-ndjson", "spool-material-bridges.ndjson"},
     {"materials", "/data/materials/materials.ndjson", "application/x-ndjson", "materials.ndjson"},
     {"material-usage", "/data/materials/usage.ndjson", "application/x-ndjson", "material-usage.ndjson"},
     {"material-adjustments", "/data/materials/adjustments.ndjson", "application/x-ndjson", "material-adjustments.ndjson"},
@@ -396,6 +398,7 @@ const char* snapshotStabilityReason(fs::FS& storage,
         return "warehouse_persistence_unstable_or_invalid";
     metrics.warehouseSpoolRecordCount = warehouseMetrics.spoolRecordCount;
     metrics.warehousePriceRecordCount = warehouseMetrics.priceRecordCount;
+    metrics.spoolMaterialBridgeRecordCount = warehouseMetrics.spoolMaterialBridgeRecordCount;
     metrics.warehousePersistenceRecordCountsMeasured = true;
 
     if (storage.exists(WarehouseMovementsPath))
@@ -861,6 +864,11 @@ void BackupExportWeb::handleManifest()
         response += F("null");
     else
         response += auditMetrics.warehousePriceRecordCount;
+    response += F(",\"spool_material_bridge_record_count\":");
+    if (!stabilityChecked || !auditMetrics.warehousePersistenceRecordCountsMeasured)
+        response += F("null");
+    else
+        response += auditMetrics.spoolMaterialBridgeRecordCount;
     response += F(",\"warehouse_movement_record_count\":");
     if (!stabilityChecked || !auditMetrics.warehouseMovementRecordCountMeasured)
         response += F("null");

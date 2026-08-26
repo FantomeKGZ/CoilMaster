@@ -17,6 +17,10 @@ bool beginMaterialRequestRuntime(WebServer& server, RepairRegistry& repairs)
     static bool initialized = false;
     static bool registered = false;
 
+    // This is a second runtime facade over the same authoritative MaterialLedger
+    // NDJSON files already used by WarehouseWeb. It does not create a second
+    // catalog. All stores recover synchronously before mutation routes are
+    // registered, so an unresolved pending transaction keeps this feature closed.
     static MaterialLedger ledger(SD);
     static MaterialRequestStore requests(SD);
     static MaterialRequestMovementStore movements(SD);

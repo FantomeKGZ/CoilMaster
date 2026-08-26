@@ -51,16 +51,37 @@ Authoritative design:
 110 Material Request production runtime/Web API
 111 Immutable repair delivery store/API + backup/integrity
 112 Append-only cash payments/corrections + repair/client balance API + backup/integrity
+113 Motor Web catalog-only + separate create + versioned motor card
+114 Motor AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 ```
 
-Latest verified block 112:
+Latest verified block 114:
 
 ```text
-CMP Protocol Tests 32928743465 / SUCCESS
-ESP32 Build         32928706196 / SUCCESS
+CMP Protocol Tests 32934323481 / SUCCESS
+ESP32 Build         32934092563 / SUCCESS
 ```
 
-ESP32 evidence covers final production cash source at `eac97f9...`; the later `8eb8352...` commit changes only permanent host regression.
+ESP32 evidence is on production-source commit `da5d7271ba69e373599360550e81e1cf860f7a1a`, after role-aware `main.cpp` and repeat validation were integrated.
+
+## Motor Web — GREEN
+
+Desktop Motor Web now provides:
+
+- catalog-only `motors.html`;
+- separate `motor-new.html`;
+- current and historical versioned WORKING/STARTING roles;
+- multi-conductor display;
+- immutable AS_RECEIVED vs after-repair comparison;
+- OPEN-repair links to the existing safe linked-job flow with `role=working|starting`;
+- exact server-side role/program/repeat validation;
+- legacy WORKING-only fallback;
+- fail-closed missing STARTING;
+- readonly linked program/repeat in UI;
+- exact spool selection retained;
+- no physical START or direct SSR control from Web.
+
+Checkpoint: `114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md`.
 
 ## Material Request / warehouse
 
@@ -111,18 +132,15 @@ Cash is append-only. Correction references must match the same repair/client. SU
 
 ## Current mandatory work — Web/CRM UI
 
-1. Motor Web:
-   - separate `motor-new.html`;
-   - catalog-only `motors.html` based on archive UI;
-   - `motor-details.html` with versioned WORKING/STARTING, multi-conductor data, history and direct safe job-send.
-2. Client Web:
+1. Client Web:
    - separate `client-new.html`;
    - catalog-only `clients.html`;
-   - `client-details.html` with motors, repairs, materials, payments/balance and delivery history.
-3. Dedicated `cash.html`; `costing.html` remains costing/pricing.
-4. Coordinated spool -> Material Request wire migration only after the UI/domain work and only across all affected contracts together.
-5. Full software regression/backup/restore.
-6. Final two-board hardware E2E.
+   - `client-details.html` with motors through repair history, open/closed repairs, materials, payments/balance and delivery history;
+   - remove duplicated inline client creation from repairs page and leave navigation to the dedicated create page.
+2. Dedicated `cash.html`; `costing.html` remains costing/pricing.
+3. Coordinated spool -> Material Request wire migration only after UI/domain work and only across all affected contracts together.
+4. Full software regression/backup/restore.
+5. Final two-board hardware E2E.
 
 ## Wire accounting target
 
@@ -165,6 +183,8 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md
+docs/PROJECT_HANDOFF/113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md
 docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/111_REPAIR_DELIVERY_STORE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
@@ -177,5 +197,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 112 cash backend GREEN: CMP 32928743465 SUCCESS, ESP32 32928706196 SUCCESS. Delivery checkpoint 111 и Material Request runtime 110 тоже GREEN. Следующий блок: Motor Web redesign — motors.html catalog-only, separate motor-new.html, motor-details versioned WORKING/STARTING with safe direct job send and no physical auto-start. Потом Client Web и cash.html. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 114 Motor Web role-aware flow GREEN: CMP 32934323481 SUCCESS, ESP32 32934092563 SUCCESS. Motor catalog/create/version history/AS_RECEIVED/direct role navigation закрыты; linked job сервер проверяет exact role/program/repeat и exact spool, физический START остаётся только локальным. Следующий блок: Client Web — clients.html catalog-only, separate client-new.html, client-details with motors through repairs, payments/balance and delivery history. Потом cash.html. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
 ```

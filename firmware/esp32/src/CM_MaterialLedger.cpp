@@ -38,6 +38,20 @@ bool MaterialLedger::addMaterial(const NewMaterial& material,
         return false;
     }
 
+    if (material.hasWireMetadata)
+    {
+        if (material.unit != MaterialUnit::Gram ||
+            (material.wireType != "CU" && material.wireType != "AL") ||
+            material.diameterHundredthsMm == 0U)
+        {
+            return false;
+        }
+    }
+    else if (material.wireType.length() != 0U || material.diameterHundredthsMm != 0U)
+    {
+        return false;
+    }
+
     if (!nextId(MaterialsPath, "material_id", assignedMaterialId)) return false;
 
     File file = m_storage.open(MaterialsPath, FILE_APPEND);
@@ -52,6 +66,11 @@ bool MaterialLedger::addMaterial(const NewMaterial& material,
     line += F(",\"price_per_unit_minor\":"); line += material.pricePerUnitMinor;
     line += F(",\"currency\":\""); line += jsonEscape(material.currency);
     line += F("\",\"status\":\"ACTIVE\"");
+    if (material.hasWireMetadata)
+    {
+        line += F(",\"wire_type\":\""); line += material.wireType; line += '"';
+        line += F(",\"diameter_hundredths_mm\":"); line += material.diameterHundredthsMm;
+    }
     if (material.comment.length() > 0U)
     {
         line += F(",\"comment\":\""); line += jsonEscape(material.comment); line += '"';
@@ -154,6 +173,28 @@ bool MaterialLedger::appendMaterialsPageJson(String& json,
                 return false;
             }
         }
+
+        const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
+    const bool hasDiameter = line.indexOf(F("\"diameter_hundredths_mm\":")) >= 0;
+    if (hasWireType != hasDiameter)
+    {
+        file.close();
+        return false;
+    }
+    if (hasWireType)
+    {
+        String wireType;
+        uint32_t diameter = 0UL;
+        if (unit != "GRAM" ||
+            !findString(line, "wire_type", wireType) ||
+            (wireType != "CU" && wireType != "AL") ||
+            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+            diameter == 0UL || diameter > 65535UL)
+        {
+            file.close();
+            return false;
+        }
+    }
 
         if (status != "ACTIVE") continue;
         if (!first) json += ',';

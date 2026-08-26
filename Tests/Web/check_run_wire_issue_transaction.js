@@ -28,6 +28,8 @@ const runtime = read('firmware/esp32/src/CM_MaterialRequestRuntime.cpp');
 const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
 const directWriteoffWeb = read('firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp');
 const directWriteoffStore = read('firmware/esp32/src/CM_WarehouseWriteOff.cpp');
+const directWriteoffRecovery = read('firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp');
+const warehouseHeader = read('firmware/esp32/src/CM_WarehouseStore.h');
 const accountingAudit = read('firmware/esp32/src/CM_RunWireAccountingIntegrityAudit.cpp');
 const workshopAudit = read('firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.cpp');
 const movementHeader = read('firmware/esp32/src/CM_MaterialRequestMovementStore.h');
@@ -160,17 +162,26 @@ if (directWriteoffWeb.includes('handleConfirmWriteOff')) {
   throw new Error('legacy writeoff mutating handler must not remain reachable or defined');
 }
 
-for (const [source, label] of [
-  [coordinator, 'atomic RUN_WIRE'],
-  [directWriteoffStore, 'legacy/direct store']
-]) {
-  requireText(source, 'confirmedWriteOffForSourceRun', `${label} exact-run duplicate lookup`);
-  requireText(source, 'alreadyConfirmed', `${label} exact-run duplicate result`);
+// Atomic RUN_WIRE owns current exact-run safety. Obsolete direct Store mutation
+// entrypoints are gone; only append helpers remain for historical PENDING recovery.
+for (const text of [
+  'confirmedWriteOffForSourceRun',
+  'alreadyConfirmed',
+  'm_warehouse.confirmedWriteOffForSourceRun(requestedMovement.sourceSessionId,',
+  'requestedMovement.sourceRunId,'
+]) requireText(coordinator, text, `atomic exact-run duplicate contract ${text}`);
+for (const forbidden of ['confirmSpoolWriteOff(', 'confirmKgFirstWriteOff(', 'SpoolWriteOffResult']) {
+  if (warehouseHeader.includes(forbidden) || directWriteoffStore.includes(forbidden)) {
+    throw new Error(`dead legacy direct Store surface returned: ${forbidden}`);
+  }
 }
-requireText(coordinator, 'm_warehouse.confirmedWriteOffForSourceRun(requestedMovement.sourceSessionId,', 'atomic exact source-session duplicate key');
-requireText(coordinator, 'requestedMovement.sourceRunId,', 'atomic exact source-run duplicate key');
-requireText(directWriteoffStore, 'confirmedWriteOffForSourceRun(operation.sourceSessionId,', 'direct store exact source-session duplicate key');
-requireText(directWriteoffStore, 'operation.sourceRunId,', 'direct store exact source-run duplicate key');
+for (const text of [
+  'pending.mode == WarehouseWriteOffMode::LegacySpool',
+  'ConfirmedSpoolWriteOff operation;',
+  'currentWeight == pending.weightBeforeGrams',
+  'currentWeight == pending.weightAfterGrams',
+  'appendWriteOffRecord(pending.movementId'
+]) requireText(directWriteoffRecovery, text, `historical direct pending recovery ${text}`);
 
 for (const text of [
   'ReferenceBatchSize = 16U',
@@ -199,9 +210,6 @@ for (const text of [
   requireText(accountingAudit, text, `cross-log RUN_WIRE accounting contract ${text}`);
 }
 
-// Checkpoint 127: direct spool_id is optional only for historical movement lines.
-// If present, it is parsed during the existing movement pass and must match the
-// immutable session selection before bridge/Ledger/warehouse evidence is trusted.
 for (const text of [
   'bool hasPersistedSpoolId;',
   'uint32_t persistedSpoolId;',
@@ -232,4 +240,4 @@ requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evide
 requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
 requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; direct spool provenance is audited in the existing bounded pass, historical spool-less movements remain compatible, and legacy writeoff POST stays fail-closed deprecated.');
+console.log('RUN_WIRE ISSUE transaction contracts: OK; atomic exact-run safety remains authoritative, dead direct Store mutation entrypoints stay removed, historical PENDING recovery remains deterministic, and direct spool provenance stays bounded.');

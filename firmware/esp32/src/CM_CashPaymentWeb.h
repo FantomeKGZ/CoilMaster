@@ -23,6 +23,12 @@ private:
     void handleCreate();
     void handleBalance();
     bool sendRepairBalance(uint32_t repairId);
+    bool sendClientBalance(uint32_t clientId);
+    bool loadClientCharges(uint32_t clientId,
+                           uint64_t& chargedMinor,
+                           uint32_t& repairCount,
+                           String& currency,
+                           bool& currencySet);
 
     static bool parseUnsigned(WebServer& server,
                               const char* name,
@@ -33,6 +39,11 @@ private:
                                 const char* name,
                                 uint64_t minimum,
                                 uint64_t& value);
+    static bool parseRepairIds(const String& page,
+                               uint16_t expectedCount,
+                               uint32_t* ids,
+                               uint8_t capacity,
+                               uint8_t& count);
     static bool validTimestamp(const String& value);
     static bool validMethod(const String& value);
     static String jsonEscape(const String& value);

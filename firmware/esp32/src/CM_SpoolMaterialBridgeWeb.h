@@ -9,8 +9,9 @@
 
 namespace CM
 {
-// Explicit operator identity-link endpoint only. It appends bridge evidence and
-// never performs physical-spool or MaterialLedger stock mutation.
+// Explicit operator identity-link endpoint. POST appends bridge evidence and
+// never mutates stock; GET exposes the immutable spool -> MaterialLedger link
+// required by the explicit RUN_WIRE operator flow.
 class SpoolMaterialBridgeWeb
 {
 public:
@@ -27,6 +28,7 @@ public:
 
 private:
     void handleCreate();
+    void handleLookup();
     static bool parseUnsigned(WebServer& server,
                               const char* name,
                               uint32_t minimum,

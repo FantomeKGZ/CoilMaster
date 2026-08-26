@@ -65,22 +65,27 @@ for (const text of [
   requireText(recordPath, record, text, 'kg-first journal shape guard missing: ' + text);
 }
 
+// The public legacy mutation URL is retired. GET history remains on the same URL,
+// while kg-first persistence/recovery remains internal for managed RUN_WIRE and
+// historical records.
 for (const text of [
-  'm_server.arg("writeoff_mode") == "KG_FIRST"',
-  'KgQuantity::parseGrams(m_server.arg("quantity_kg"), consumedGrams)',
-  'parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId)',
-  'spool_id_required_for_kg_first',
-  'selection.repairId != repairId || selection.spoolId != spoolId',
-  'confirmKgFirstWriteOff(operation, result)',
-  'source_session_id',
-  'source_run_id',
-  'confirmedWriteOffForSourceRun(sourceSessionId, sourceRunId, alreadyConfirmed)',
-  'response += F(",\\\"stock_mode\\\":\\\"SPOOL\\\"")'
+  '"/api/warehouse/write-offs", HTTP_POST',
+  'm_server.send(410',
+  'legacy_writeoff_post_disabled',
+  '\"write_performed\":false',
+  '\"replacement\":\"/api/material-requests/warehouse\"',
+  '"/api/warehouse/write-offs", HTTP_GET',
+  'handleListWriteOffs()'
 ]) {
-  requireText(writeOffPath, writeOff, text, 'active exact-spool kg-first API guard missing: ' + text);
+  requireText(writeOffPath, writeOff, text, 'legacy writeoff deprecation/history contract missing: ' + text);
 }
-for (const forbidden of ['diameter_required_for_unallocated', 'wire_type_required_for_unallocated', '(spoolId != 0UL && selection.spoolId != spoolId)']) {
-  if (writeOff.includes(forbidden)) failures.push(writeOffPath + ': new POST path still exposes legacy unallocated fallback: ' + forbidden);
+for (const forbidden of [
+  'handleConfirmWriteOff()',
+  'm_server.arg("writeoff_mode") == "KG_FIRST"',
+  'confirmKgFirstWriteOff(operation, result)',
+  'confirmSpoolWriteOff(operation, result)'
+]) {
+  if (writeOff.includes(forbidden)) failures.push(writeOffPath + ': public legacy mutation implementation returned: ' + forbidden);
 }
 
 for (const text of [
@@ -290,4 +295,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('KG-first material contracts OK: exact kg accounting, historical dual journal compatibility, atomic operator RUN_WIRE through Material Request, exact bridge/session/run/spool provenance, batched runtime and backup scans, audited costing, exact-run finalization, historical unallocated rendering/recovery, and no automatic RUN_COMPLETED deduction.');
+console.log('KG-first material contracts OK: atomic RUN_WIRE is the only public mutation path, legacy writeoff POST is 410-disabled, GET/history plus store/recovery compatibility remain intact, exact kg/provenance/costing audits remain authoritative, and RUN_COMPLETED never deducts automatically.');

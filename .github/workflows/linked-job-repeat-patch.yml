@@ -1,30 +1,13 @@
-name: Guarded Linked Job Repeat Patch
+name: Archived Linked Job Repeat Patch
 
 on:
-  push:
-    branches: [cmp-protocol-v1]
-    paths:
-      - '.github/workflows/linked-job-repeat-patch.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-      - name: Guard current main blob
-        run: test "$(git hash-object firmware/esp32/src/main.cpp)" = "6b89c8bf17797f2bc46a835a2218c3c7b05748cf"
-      - name: Patch linked repeat validation
-        run: |
-          python3 -c 'from pathlib import Path; p=Path("firmware/esp32/src/main.cpp"); s=p.read_text(); old="CM::JobLinkage resolved;\n        String catalogProgram;\n        if (!jobLinkageResolver.resolveWithProgram(linkage.repairId,\n                                                   linkage.motorId,\n                                                   job.type,\n                                                   resolved,\n                                                   catalogProgram))"; new="CM::JobLinkage resolved;\n        String catalogProgram;\n        uint16_t catalogRepeatTarget = 0U;\n        if (!jobLinkageResolver.resolveWithProgramAndRepeat(linkage.repairId,\n                                                            linkage.motorId,\n                                                            job.type,\n                                                            resolved,\n                                                            catalogProgram,\n                                                            catalogRepeatTarget))"; assert old in s; s=s.replace(old,new,1); old2="if (!sameProgram(job, catalogJob))\n        {\n            webServer.send(409, \"application/json\", \"{\\\"error\\\":\\\"turns_do_not_match_motor_program\\\"}\");\n            return;\n        }"; new2=old2+"\n        if (job.repeatTarget != catalogRepeatTarget)\n        {\n            webServer.send(409, \"application/json\", \"{\\\"error\\\":\\\"repeat_target_does_not_match_motor_role\\\"}\");\n            return;\n        }"; assert old2 in s; p.write_text(s.replace(old2,new2,1))'
-      - name: Commit patch
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add firmware/esp32/src/main.cpp
-          git commit -m "feat(job): validate linked role repeat target"
-          git push origin HEAD:cmp-protocol-v1
+      - run: echo "One-shot patch already applied; no repository mutation is performed."

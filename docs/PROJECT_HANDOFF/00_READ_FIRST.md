@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md
 docs/PROJECT_HANDOFF/121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md
 docs/PROJECT_HANDOFF/120_OPERATOR_SPOOL_MATERIAL_BRIDGE_WEB_2026-08-26.md
 docs/PROJECT_HANDOFF/119_MATERIAL_LEDGER_WIRE_METADATA_2026-08-26.md
@@ -32,57 +33,64 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **121**.
+Latest GREEN foundation = checkpoint **122**.
 
-Latest verified source/test evidence:
+Latest verified checkpoint-122 evidence:
 
 ```text
-source commit        db643d33cd5327556429e71f3734864c484d2f40
-final test commit    7e73e9016c690e3ec65dfacfe3a80328b05a2148
-ESP32 Build #1551    32951550134 / SUCCESS
-CMP Tests #3475      32951582879 / SUCCESS
+operator UI commit       5c28fadd4a3d1ef8de272f677e2b2f53bfc77794
+UI contract commit       10528b23336bebe30208a56e085d3d77aeb19af9
+fault-contract fix       f8d25c1b5fb04bddbd0c2b93fca704f14a7b565f
+ESP32 Build #1555        32954324723 / SUCCESS
+ESP32 Build #1556        32954467677 / SUCCESS
+CMP Protocol Tests #3489 32954794059 / SUCCESS
+Reference #101/#102      32954324914 / 32954467670 / SUCCESS
 ```
 
 ## Current migration state
 
-The exact physical spool ↔ MaterialLedger migration now has a crash-safe operator mutation path:
+The exact physical spool ↔ MaterialLedger migration now has both a crash-safe transaction and the authoritative operator Web path:
 
 ```text
 118 persistence + bounded integrity + backup/export
 119 authoritative backward-compatible MaterialLedger wire metadata
 120 explicit operator-only spool-material bridge creation
 121 explicit operator-only atomic RUN_WIRE ISSUE
+122 desktop/mobile operator writeoff migrated to atomic RUN_WIRE
 ```
 
-RUN_WIRE production route:
+Production operator route:
 
 ```text
-POST /api/material-requests/warehouse
-confirmed=true
-movement_kind=ISSUE
-source_kind=RUN_WIRE
-unit=KG
-spool_id=<exact physical spool>
-source_session_id=<exact session>
-source_run_id=<exact run>
+RUN_COMPLETED (read-only evidence)
+-> exact immutable spool + exact bridge
+-> explicit DRAFT/ISSUED Material Request selection
+-> POST /api/material-requests/warehouse
+   confirmed=true
+   movement_kind=ISSUE
+   source_kind=RUN_WIRE
+   unit=KG
+   material_request_id
+   warehouse_item_id
+   source_session_id + source_run_id
+   exact spool_id
+   CU|AL + exact diameter
+   actual consumed grams
 ```
 
-Checkpoint 121 validates exact immutable spool selection, exact completed run, bridge and ACTIVE MaterialLedger `GRAM + CU/AL + diameter`. One durable RUN_WIRE pending owns recovery across Material Request movement, MaterialLedger usage and standard physical warehouse writeoff evidence.
-
-Existing exact-spool finalization remains strict. The standard physical `CONFIRMED` writeoff evidence is still emitted, so downstream writeoff coverage/costing/finalization does not lose exact run provenance.
+The production shared controller no longer performs mutating POST to `/api/warehouse/write-offs`. That endpoint remains compatibility/history/fault-recovery infrastructure. Existing strict costing/finalization still consumes the standard confirmed physical writeoff evidence emitted by the atomic transaction.
 
 ## Immediate NEXT
 
-1. Audit Material Request / wire reporting and operator UI for the new atomic RUN_WIRE ISSUE.
-2. Surface explicit exact-spool RUN_WIRE ISSUE without creating any automatic `RUN_COMPLETED` mutation.
-3. Keep exact `material_request_id + source_session_id + source_run_id + spool_id` visible in operator/reports evidence.
-4. Preserve bridge CU/AL + diameter and actual consumed weight.
-5. Keep the legacy direct exact-spool writeoff path until the operator/report migration is coherently GREEN.
-6. Continue software work before the final two-board hardware E2E.
+1. Audit costing/finalization/report consumers for double-accounting between MaterialLedger RUN_WIRE usage and standard physical writeoff evidence.
+2. Verify/expose exact `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id` provenance in read/report surfaces.
+3. Add explicit duplicate/double-accounting contract coverage between compatibility direct writeoff and atomic RUN_WIRE.
+4. Review safe formal deprecation boundary for legacy mutating POST without removing historical read compatibility.
+5. Continue software work before the final two-board hardware E2E.
 
 ## Material safety
 
-`RUN_COMPLETED` never automatically deducts material. Warehouse mutation requires explicit operator action. RUN_WIRE now requires exact physical spool/run provenance and a crash-safe high-level pending owner.
+`RUN_COMPLETED` never automatically deducts material. Warehouse mutation requires explicit operator action. RUN_WIRE requires exact Material Request, physical spool/run provenance, bridge identity and a crash-safe high-level pending owner.
 
 ## General safety invariants
 

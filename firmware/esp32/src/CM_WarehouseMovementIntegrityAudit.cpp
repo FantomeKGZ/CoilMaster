@@ -250,18 +250,18 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
     return true;
 }
 
-bool checkInternal(fs::FS& storage,
-                   uint32_t& validatedRecordCount,
-                   uint32_t repairId,
-                   WarehouseMovementRepairTotals* repairTotals,
-                   const char* monthPrefix,
-                   WarehouseMovementSummaryTotals* summaryTotals,
-                   uint32_t sourceSessionId,
-                   uint32_t sourceRunId,
-                   bool* sourceRunConfirmed)
+bool checkInternalWithSummary(fs::FS& storage,
+                              uint32_t& validatedRecordCount,
+                              uint32_t repairId,
+                              WarehouseMovementRepairTotals* totals,
+                              const char* monthPrefix,
+                              WarehouseMovementSummaryTotals* summaryTotals,
+                              uint32_t sourceSessionId,
+                              uint32_t sourceRunId,
+                              bool* sourceRunConfirmed)
 {
     validatedRecordCount = 0UL;
-    if (repairTotals != nullptr) *repairTotals = WarehouseMovementRepairTotals();
+    if (totals != nullptr) *totals = WarehouseMovementRepairTotals();
     if (summaryTotals != nullptr) *summaryTotals = WarehouseMovementSummaryTotals();
     if (sourceRunConfirmed != nullptr) *sourceRunConfirmed = false;
     if (summaryTotals != nullptr &&
@@ -318,8 +318,7 @@ bool checkInternal(fs::FS& storage,
             return false;
         }
 
-        if (repairTotals != nullptr &&
-            !accumulateRepairRecord(record, repairId, *repairTotals))
+        if (totals != nullptr && !accumulateRepairRecord(record, repairId, *totals))
         {
             file.close();
             return false;
@@ -351,20 +350,31 @@ bool checkInternal(fs::FS& storage,
     validatedRecordCount = recordCount;
     return true;
 }
+
+bool checkInternal(fs::FS& storage,
+                   uint32_t& validatedRecordCount,
+                   uint32_t repairId,
+                   WarehouseMovementRepairTotals* totals,
+                   uint32_t sourceSessionId,
+                   uint32_t sourceRunId,
+                   bool* sourceRunConfirmed)
+{
+    return checkInternalWithSummary(storage, validatedRecordCount, repairId, totals,
+                                    nullptr, nullptr, sourceSessionId, sourceRunId,
+                                    sourceRunConfirmed);
+}
 }
 
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
 {
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
-                         nullptr, nullptr, 0UL, 0UL, nullptr);
+    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
                                             uint32_t& validatedRecordCount)
 {
-    return checkInternal(storage, validatedRecordCount, 0UL, nullptr,
-                         nullptr, nullptr, 0UL, 0UL, nullptr);
+    return checkInternal(storage, validatedRecordCount, 0UL, nullptr, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::checkSummary(
@@ -373,8 +383,8 @@ bool WarehouseMovementIntegrityAudit::checkSummary(
     WarehouseMovementSummaryTotals& totals)
 {
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
-                         monthPrefix, &totals, 0UL, 0UL, nullptr);
+    return checkInternalWithSummary(storage, ignoredRecordCount, 0UL, nullptr,
+                                    monthPrefix, &totals, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::checkRepair(
@@ -384,8 +394,7 @@ bool WarehouseMovementIntegrityAudit::checkRepair(
 {
     if (repairId == 0UL) return false;
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, repairId, &totals,
-                         nullptr, nullptr, 0UL, 0UL, nullptr);
+    return checkInternal(storage, ignoredRecordCount, repairId, &totals, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::checkSourceRun(fs::FS& storage,
@@ -397,6 +406,6 @@ bool WarehouseMovementIntegrityAudit::checkSourceRun(fs::FS& storage,
     if (sourceSessionId == 0UL || sourceRunId == 0UL) return false;
     uint32_t ignoredRecordCount = 0UL;
     return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
-                         nullptr, nullptr, sourceSessionId, sourceRunId, &confirmed);
+                         sourceSessionId, sourceRunId, &confirmed);
 }
 }

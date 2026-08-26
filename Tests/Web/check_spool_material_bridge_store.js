@@ -7,6 +7,8 @@ const source = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_SpoolMater
 const writeoff = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp'), 'utf8');
 const warehouseHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseStore.h'), 'utf8');
 const repairValidation = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseRepairValidation.cpp'), 'utf8');
+const spoolIdentity = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseSpoolIdentity.cpp'), 'utf8');
+const materialCatalogue = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseMaterialCatalogue.cpp'), 'utf8');
 const writeoffStore = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOff.cpp'), 'utf8');
 const writeoffRecovery = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp'), 'utf8');
 const runWire = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp'), 'utf8');
@@ -81,6 +83,20 @@ must(repairValidation, 'return false;', 'repair lookup read failure remains expl
 mustNot(warehouseHeader, 'bool repairExists(uint32_t repairId) const;', 'ambiguous repair lookup wrapper');
 mustNot(repairValidation, 'bool WarehouseStore::repairExists(uint32_t repairId) const', 'ambiguous repair lookup implementation');
 
+// Exact spool lookup likewise keeps read success separate from object existence.
+must(warehouseHeader, 'bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity,bool& found) const;', 'fail-closed spool identity API');
+must(spoolIdentity, 'ActiveWireSpoolIdentity& identity,\n                                              bool& found) const', 'fail-closed spool identity implementation');
+must(spoolIdentity, 'found = false;', 'spool identity initializes found');
+mustNot(warehouseHeader, 'bool loadActiveSpoolIdentity(uint32_t spoolId,ActiveWireSpoolIdentity& identity) const;', 'ambiguous spool identity wrapper');
+mustNot(spoolIdentity, 'ActiveWireSpoolIdentity& identity) const', 'ambiguous spool identity implementation');
+
+// Catalogue lookup must distinguish successful zero-result reads from read failure.
+must(warehouseHeader, 'bool loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity,uint8_t& count) const;', 'fail-closed wire catalogue API');
+must(materialCatalogue, 'uint8_t capacity,\n                                             uint8_t& count) const', 'fail-closed wire catalogue implementation');
+must(materialCatalogue, 'count = 0U;', 'wire catalogue initializes count');
+mustNot(warehouseHeader, 'uint8_t loadKnownWireDiameters(const char* wireType,KnownWireDiameter* items,uint8_t capacity) const;', 'count-only wire catalogue wrapper');
+mustNot(materialCatalogue, 'uint8_t WarehouseStore::loadKnownWireDiameters', 'count-only wire catalogue implementation');
+
 for (const token of [
   'pending.mode == WarehouseWriteOffMode::LegacySpool',
   'ConfirmedSpoolWriteOff operation;',
@@ -106,4 +122,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: dead direct writeoff surfaces stay removed, repair lookup is fail-closed, historical recovery remains deterministic, and atomic RUN_WIRE exact-spool/run safety stays authoritative.');
+console.log('Spool material bridge foundation contracts OK: dead direct writeoff surfaces stay removed, repair/spool/catalogue lookups are fail-closed, historical recovery remains deterministic, and atomic RUN_WIRE exact-spool/run safety stays authoritative.');

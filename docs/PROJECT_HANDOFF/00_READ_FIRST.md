@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/124_RUN_WIRE_CROSS_LOG_INTEGRITY_2026-08-26.md
 docs/PROJECT_HANDOFF/123_RUN_WIRE_ACCOUNTING_CONVERGENCE_2026-08-26.md
 docs/PROJECT_HANDOFF/122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md
 docs/PROJECT_HANDOFF/121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md
@@ -34,17 +35,18 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **123**.
+Latest GREEN foundation = checkpoint **124**.
 
-Latest verified checkpoint-123 evidence:
+Latest verified checkpoint-124 evidence:
 
 ```text
-MaterialLedger Web       29e6315c04a3901fd068df60ddc9b9849920d879
-RepairCosting fix        52e0c629fe1f112ceff373b2e83decf20ff76b21
-final contract commit    357a7677f7e91bb2a9812462e0aff8c9d0e15ea4
-ESP32 Build #1557        32955502232 / SUCCESS
-ESP32 Build #1558        32955588907 / SUCCESS
-CMP Protocol Tests #3500 32955968429 / SUCCESS
+cross-log source        9448c250955664c7e82a5e69ba26a569d3b93fe7
+workshop integration    eef4157ac13e09d5636faa49817baa5a63cfc794
+contract coverage       63ac31dc37f2542e3879466df9158312ac21a2f6
+ESP32 Build #1560       32959482667 / SUCCESS
+ESP32 Build #1561       32959521066 / SUCCESS
+CMP Protocol Tests #3507 32959482741 / SUCCESS
+CMP Protocol Tests #3509 32959605104 / SUCCESS
 ```
 
 ## Current migration state
@@ -55,10 +57,11 @@ CMP Protocol Tests #3500 32955968429 / SUCCESS
 120 explicit operator bridge creation
 121 atomic RUN_WIRE transaction/recovery
 122 desktop/mobile operator writeoff migrated to atomic RUN_WIRE
-123 costing/finalization accounting converged: RUN_WIRE is counted once
+123 costing/finalization accounting converged: RUN_WIRE counted once
+124 bounded cross-log RUN_WIRE integrity across request + ledger + physical writeoff
 ```
 
-Production operator route remains:
+Production operator route remains explicit and manual:
 
 ```text
 RUN_COMPLETED (read-only evidence)
@@ -66,25 +69,17 @@ RUN_COMPLETED (read-only evidence)
 -> explicit DRAFT/ISSUED Material Request
 -> explicit atomic RUN_WIRE ISSUE
 -> one Material Request movement
--> one MaterialLedger stock usage tagged RWI_TX
+-> one MaterialLedger usage tagged RWI_TX
 -> one confirmed physical warehouse writeoff
 ```
 
-Accounting authority after checkpoint 123:
-
-```text
-wire cost = confirmed physical warehouse movement
-generic material cost = ordinary MaterialLedger usage excluding system RUN_WIRE usage
-total = wire + generic materials + labour
-```
-
-Costing/finalization fails closed while RUN_WIRE pending/tmp recovery intent exists. Generic `/api/materials/usage` cannot create the reserved `RWI_TX=` prefix.
+Checkpoint 124 additionally requires completed evidence to agree on exact transaction, repair, warehouse item, session/run, physical spool, CU/AL, diameter, consumed quantity, currency and timestamp. In-flight pending/tmp is never guessed by the audit; coordinator recovery remains authoritative.
 
 ## Immediate NEXT
 
-1. Add explicit cross-path contract coverage proving legacy/direct and atomic RUN_WIRE both reject an already-confirmed exact source run.
-2. Strengthen cross-log integrity for `RWI_TX` evidence so managed Ledger usage is accepted only with matching immutable RUN_WIRE transaction evidence.
-3. Keep read/report provenance bounded and avoid a second accounting authority.
+1. Enforce one price authority for atomic RUN_WIRE: MaterialLedger KG-equivalent price must equal the warehouse KG price used by physical writeoff/costing.
+2. Reserve `RWI_TX=` on compatibility direct writeoff comments so generic callers cannot spoof system accounting provenance.
+3. Expose bounded read/report provenance without introducing a second accounting ledger.
 4. Review safe formal deprecation boundary for legacy mutating writeoff POST while preserving historical GET/read compatibility.
 5. Continue software work before final two-board hardware E2E.
 

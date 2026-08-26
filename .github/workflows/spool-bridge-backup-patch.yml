@@ -1,51 +1,13 @@
-name: Guarded Spool Bridge Backup Patch
+name: Archived Spool Bridge Backup Patch
 
 on:
-  push:
-    branches: [cmp-protocol-v1]
-    paths:
-      - '.github/workflows/spool-bridge-backup-patch.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-      - name: Guard current backup source blob
-        run: test "$(git hash-object firmware/esp32/src/CM_BackupExportWeb.cpp)" = "0f35a16a24dfdda2be98f996a49b03cb018a84db"
-      - name: Add spool bridge export and metrics
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('firmware/esp32/src/CM_BackupExportWeb.cpp')
-          s=p.read_text()
-          old='''    uint32_t warehouseSpoolRecordCount = 0UL;\n    uint32_t warehousePriceRecordCount = 0UL;\n    bool warehouseMovementRecordCountMeasured = false;'''
-          new='''    uint32_t warehouseSpoolRecordCount = 0UL;\n    uint32_t warehousePriceRecordCount = 0UL;\n    uint32_t spoolMaterialBridgeRecordCount = 0UL;\n    bool warehouseMovementRecordCountMeasured = false;'''
-          assert s.count(old)==1
-          s=s.replace(old,new,1)
-          old='''    {"warehouse-price", "/data/warehouse/price.ndjson", "application/x-ndjson", "warehouse-price.ndjson"},\n    {"materials", "/data/materials/materials.ndjson", "application/x-ndjson", "materials.ndjson"},'''
-          new='''    {"warehouse-price", "/data/warehouse/price.ndjson", "application/x-ndjson", "warehouse-price.ndjson"},\n    {"spool-material-bridges", "/data/warehouse/spool-material-bridges.ndjson", "application/x-ndjson", "spool-material-bridges.ndjson"},\n    {"materials", "/data/materials/materials.ndjson", "application/x-ndjson", "materials.ndjson"},'''
-          assert s.count(old)==1
-          s=s.replace(old,new,1)
-          old='''    metrics.warehouseSpoolRecordCount = warehouseMetrics.spoolRecordCount;\n    metrics.warehousePriceRecordCount = warehouseMetrics.priceRecordCount;\n    metrics.warehousePersistenceRecordCountsMeasured = true;'''
-          new='''    metrics.warehouseSpoolRecordCount = warehouseMetrics.spoolRecordCount;\n    metrics.warehousePriceRecordCount = warehouseMetrics.priceRecordCount;\n    metrics.spoolMaterialBridgeRecordCount = warehouseMetrics.spoolMaterialBridgeRecordCount;\n    metrics.warehousePersistenceRecordCountsMeasured = true;'''
-          assert s.count(old)==1
-          s=s.replace(old,new,1)
-          old='''    response += F(",\\\"warehouse_movement_record_count\\\":");\n    if (!stabilityChecked || !auditMetrics.warehouseMovementRecordCountMeasured)'''
-          new='''    response += F(",\\\"spool_material_bridge_record_count\\\":");\n    if (!stabilityChecked || !auditMetrics.warehousePersistenceRecordCountsMeasured)\n        response += F("null");\n    else\n        response += auditMetrics.spoolMaterialBridgeRecordCount;\n    response += F(",\\\"warehouse_movement_record_count\\\":");\n    if (!stabilityChecked || !auditMetrics.warehouseMovementRecordCountMeasured)'''
-          assert s.count(old)==1
-          s=s.replace(old,new,1)
-          p.write_text(s)
-          PY
-      - name: Commit patch
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add firmware/esp32/src/CM_BackupExportWeb.cpp
-          git commit -m "feat(backup): export spool material bridge evidence"
-          git push origin HEAD:cmp-protocol-v1
+      - run: echo "Archived one-shot helper; no repository mutations."

@@ -22,17 +22,17 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
+docs/PROJECT_HANDOFF/111_REPAIR_DELIVERY_STORE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
 docs/PROJECT_HANDOFF/109_MATERIAL_REQUEST_WAREHOUSE_COORDINATOR_2026-08-26.md
 docs/PROJECT_HANDOFF/108_MATERIAL_REQUEST_WAREHOUSE_PENDING_TRANSACTION_2026-08-25.md
-docs/PROJECT_HANDOFF/107_MATERIAL_REQUEST_LIFECYCLE_2026-08-25.md
-docs/PROJECT_HANDOFF/106_MATERIAL_CATALOG_ADAPTER_AND_LOOKUP_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **110**.
+Latest GREEN foundation = checkpoint **112**.
 
 ## Current GREEN implementation
 
@@ -50,26 +50,36 @@ Latest GREEN foundation = checkpoint **110**.
 108 warehouse pending transaction + backup guard
 109 crash-safe warehouse coordinator
 110 Material Request production runtime/Web API
+111 immutable repair delivery store/API + backup/integrity
+112 append-only cash/payment journal + repair/client balance API + backup/integrity
 ```
 
 Latest verified:
 
 ```text
-CMP 32926200712 / SUCCESS
-ESP32 Build 32926237400 / SUCCESS
+checkpoint 112 CMP         32928743465 / SUCCESS
+checkpoint 112 ESP32 Build 32928706196 / SUCCESS
 ```
+
+ESP32 run is on the final production-source commit `eac97f9...`; current checkpoint-test HEAD after it changes only host regression/docs.
 
 ## Immediate NEXT
 
-1. Immutable repair delivery store/API (`repair CLOSED` is not the same as `DELIVERED`).
-2. Delivery stores exact repair/client/motor/time and does not require zero balance.
-3. Backup/integrity coverage for delivery.
-4. Then payment/correction store/API and balances.
-5. Then Motor/Client Web redesign.
+1. Motor Web redesign:
+   - `motors.html` catalog-only;
+   - separate `motor-new.html`;
+   - versioned WORKING/STARTING data in `motor-details.html`;
+   - direct job send without physical auto-start.
+2. Client Web redesign:
+   - `clients.html` catalog-only;
+   - separate `client-new.html`;
+   - `client-details.html` with motors, repairs, payments/balance and delivery history.
+3. Dedicated `cash.html` using checkpoint 112 APIs; `costing.html` remains costing/pricing, not cash.
+4. Coordinated spool -> Material Request wire migration only as one coherent backend/Web/test change.
 
-## Material safety
+## Material / cash safety
 
-`RUN_COMPLETED` never automatically deducts material. Warehouse mutation requires explicit operator action and goes through Material Request coordinator. Current exact `spool_id` production contract remains until coordinated migration across the whole chain.
+`RUN_COMPLETED` never automatically deducts material. Warehouse mutation requires explicit operator action through Material Request coordinator. Cash events are append-only and never trigger machine or warehouse actions. Delivery remains independent of zero balance. Current exact `spool_id` production contract remains until coordinated migration across the whole chain.
 
 ## General safety invariants
 

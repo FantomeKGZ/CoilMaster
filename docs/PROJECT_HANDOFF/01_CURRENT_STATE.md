@@ -1,6 +1,6 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-25**  
+Дата обновления: **2026-08-26**  
 Ветка: **`cmp-protocol-v1`**
 
 ## Source of truth / stable baseline
@@ -52,21 +52,21 @@ Warehouse = physical materials. Cash = money. Material Request bridges repair/wa
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request append-only lifecycle + backup/integrity
 108 Material Request warehouse pending persistence + stable-backup guard
+109 Crash-safe Material Request warehouse coordinator
 ```
 
-Checkpoint 108 evidence:
+Checkpoint 109 evidence:
 
 ```text
-implementation head dc73b39e6f7d202d75dae801f5e3413218ca3c0e
-ESP32 Build run 32861148982 / SUCCESS
-CMP run 32861149158 / SUCCESS
-CMP permanent regression run 32861266055 / SUCCESS
-backup guarded patch run 32861669436 / SUCCESS
+CMP run 32925574132 / SUCCESS
+CMP run 32925599254 / SUCCESS
 ```
+
+The earlier one-shot run `32863289280` failed only because GitHub Actions bot lacked permission to push changes to `.github/workflows/*`; permanent coordinator regression was wired directly and passed.
 
 ## Material / warehouse catalog foundation
 
-Existing `/data/materials/materials.ndjson` and `MaterialLedger` are authoritative generic warehouse item catalog. No duplicate catalog.
+Existing `/data/materials/materials.ndjson` and `MaterialLedger` are the authoritative generic warehouse item catalog. No duplicate catalog.
 
 ```text
 KG  -> GRAM x1000
@@ -78,14 +78,14 @@ M2  -> SQUARE_METRE x1
 
 `MaterialLedger::loadActiveMaterialState()` provides ACTIVE item unit/stock/price/currency.
 
-## Material Request current implementation
-
-Durable journals:
+## Material Request durable model
 
 ```text
 /data/workshop/material-requests.ndjson
 /data/workshop/material-request-movements.ndjson
 /data/workshop/material-request-status.ndjson
+/data/workshop/material-request-warehouse.pending.json
+/data/workshop/material-request-warehouse.pending.tmp
 ```
 
 Lifecycle:
@@ -94,38 +94,72 @@ Lifecycle:
 DRAFT -> ISSUED -> PRICED -> CLOSED
 ```
 
-Warehouse pending recovery markers:
-
-```text
-/data/workshop/material-request-warehouse.pending.json
-/data/workshop/material-request-warehouse.pending.tmp
-```
-
-The pending store preserves the exact operator-confirmed transaction intent/cost/provenance and rejects a second in-flight warehouse transaction. Both paths now block stable backup until recovery is resolved.
-
-Movements support:
+Warehouse operations:
 
 ```text
 ISSUE | RETURN | CORRECTION
+CORRECTION -> ADD | REMOVE
 MANUAL_MATERIAL | RUN_WIRE
 KG | L | PCS | M | M2
 ```
 
-`RUN_WIRE` is ISSUE/KG-only in the pending contract and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
+Every immutable movement now has `transaction_ref`. `RUN_WIRE` is ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
+
+Coordinator ordering:
+
+```text
+explicit operator confirmation
+-> durable pending marker
+-> immutable movement
+-> physical MaterialLedger mutation
+-> verify both sides
+-> clear pending
+```
+
+Recovery is fail-closed on impossible ledger-only evidence. Warehouse mutation is allowed only while request status is `DRAFT` or `ISSUED` and the repair is still OPEN.
+
+## Block 110 — runtime/Web API — IN PROGRESS
+
+Implemented files:
+
+```text
+firmware/esp32/src/CM_MaterialRequestWeb.h/.cpp
+firmware/esp32/src/CM_MaterialRequestRuntime.h/.cpp
+```
+
+API routes implemented:
+
+```text
+POST /api/material-requests
+GET  /api/material-requests?repair_id=...
+GET  /api/material-requests/item?material_request_id=...
+GET  /api/material-requests/movements?material_request_id=...
+GET  /api/material-requests/status?material_request_id=...
+POST /api/material-requests/status
+POST /api/material-requests/warehouse
+```
+
+Creation accepts `repair_id`; server derives exact `client_id + motor_id` from authoritative repair identity. Warehouse mutations require `confirmed=true` and route exclusively through `MaterialRequestWarehouseCoordinator`. Web never accepts material price and never calls `MaterialLedger::confirmUsage/adjustMaterial` directly.
+
+Production bootstrap is wired from `RepairRegistryWeb::begin()` after repair-intake initialization. Material Request stores and coordinator recover before mutation routes are registered.
+
+Current verification status:
+
+```text
+CMP runtime/API safety regression run 32926200712 / running at last check
+Integrated production ESP32 Build run 32926237400 / running at last check
+Earlier runtime bootstrap ESP32 Build 32926105448 / SUCCESS
+```
+
+Do not mark block 110 GREEN until both current integrated CMP + ESP32 checks complete successfully.
 
 ## Current NEXT
 
-Implement `MaterialRequestWarehouseCoordinator` with idempotent crash recovery:
-
-```text
-movement evidence first
--> physical MaterialLedger mutation second
--> clear pending only after both durable sides agree
-```
-
-Recovery must safely handle neither/movement-only/both and fail-closed on impossible ledger-only ordering. Lifecycle status changes remain explicit and separate. `RUN_COMPLETED` remains non-mutating.
-
-After coordinator is GREEN, expose bounded request/status/movement/warehouse Web APIs.
+1. Close block 110 after integrated CMP + ESP32 GREEN.
+2. Add immutable delivery event/store/API (`COMPLETED -> DELIVERED` remains separate from payment).
+3. Add payment/correction journal/API and client/repair balance reads.
+4. Then Motor Web / Client Web redesign using the new domain model.
+5. Coordinated spool -> Material Request wire migration only after all job/writeoff/finalization/backup/report contracts are updated together.
 
 ## Wire migration
 

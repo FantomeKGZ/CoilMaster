@@ -175,26 +175,26 @@ bool MaterialLedger::appendMaterialsPageJson(String& json,
         }
 
         const bool hasWireType = line.indexOf(F("\"wire_type\":")) >= 0;
-    const bool hasDiameter = line.indexOf(F("\"diameter_hundredths_mm\":")) >= 0;
-    if (hasWireType != hasDiameter)
-    {
-        file.close();
-        return false;
-    }
-    if (hasWireType)
-    {
-        String wireType;
-        uint32_t diameter = 0UL;
-        if (unit != "GRAM" ||
-            !findString(line, "wire_type", wireType) ||
-            (wireType != "CU" && wireType != "AL") ||
-            !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
-            diameter == 0UL || diameter > 65535UL)
+        const bool hasDiameter = line.indexOf(F("\"diameter_hundredths_mm\":")) >= 0;
+        if (hasWireType != hasDiameter)
         {
             file.close();
             return false;
         }
-    }
+        if (hasWireType)
+        {
+            String wireType;
+            uint32_t diameter = 0UL;
+            if (unit != "GRAM" ||
+                !findString(line, "wire_type", wireType) ||
+                (wireType != "CU" && wireType != "AL") ||
+                !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
+                diameter == 0UL || diameter > 65535UL)
+            {
+                file.close();
+                return false;
+            }
+        }
 
         if (status != "ACTIVE") continue;
         if (!first) json += ',';
@@ -216,7 +216,13 @@ bool MaterialLedger::confirmUsage(const RepairMaterialUsage& usage,
     result = RepairMaterialUsageResult();
     if (!ready() || usage.repairId == 0UL || usage.materialId == 0UL ||
         usage.quantityMilli == 0UL || usage.timestamp.length() < 10U ||
-        !repairExists(usage.repairId) || m_storage.exists(UsagePendingPath))
+        m_storage.exists(UsagePendingPath))
+    {
+        return false;
+    }
+
+    bool repairFound = false;
+    if (!repairExists(usage.repairId, repairFound) || !repairFound)
     {
         return false;
     }
@@ -410,32 +416,6 @@ bool MaterialLedger::writePendingUsage(uint32_t usageId,
     return true;
 }
 
-bool MaterialLedger::usageExists(uint32_t usageId) const
-{
-    if (!m_storage.exists(UsagePath)) return false;
-    File file = m_storage.open(UsagePath, FILE_READ);
-    if (!file) return false;
-    uint32_t previousId = 0UL;
-    bool found = false;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        uint32_t existing = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "usage_id", existing) || existing == 0UL ||
-            existing <= previousId)
-        {
-            file.close();
-            return false;
-        }
-        previousId = existing;
-        if (existing == usageId) found = true;
-    }
-    file.close();
-    return found;
-}
-
 bool MaterialLedger::readStockQuantity(uint32_t materialId,
                                        uint32_t& quantityMilli) const
 {
@@ -574,79 +554,6 @@ bool MaterialLedger::rewriteQuantity(uint32_t materialId,
             int end = start;
             while (end < line.length() && isDigit(line[end])) ++end;
             line = line.substring(0, start) + String(remainingMilli) + line.substring(end);
-            if (!FlatJsonObjectValidator::valid(line))
-            {
-                valid = false;
-                break;
-            }
-            found = true;
-        }
-        if (target.println(line) == 0U) { valid = false; break; }
-    }
-
-    source.close();
-    target.flush();
-    target.close();
-    if (!valid || !found)
-    {
-        m_storage.remove(MaterialsTempPath);
-        return false;
-    }
-    return replaceMaterialsFileFromTemp();
-}
-
-bool MaterialLedger::restoreQuantity(uint32_t materialId, uint32_t quantityMilli)
-{
-    if (!m_storage.exists(MaterialsPath)) return false;
-    File source = m_storage.open(MaterialsPath, FILE_READ);
-    if (!source) return false;
-    m_storage.remove(MaterialsTempPath);
-    File target = m_storage.open(MaterialsTempPath, FILE_WRITE);
-    if (!target) { source.close(); return false; }
-
-    bool found = false;
-    bool valid = true;
-    uint32_t previousId = 0UL;
-    while (source.available())
-    {
-        String line = source.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        uint32_t currentId = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "material_id", currentId) || currentId == 0UL ||
-            currentId <= previousId)
-        {
-            valid = false;
-            break;
-        }
-        previousId = currentId;
-
-        if (currentId == materialId)
-        {
-            if (found)
-            {
-                valid = false;
-                break;
-            }
-            uint32_t stock = 0UL;
-            if (!findUnsigned(line, "stock_quantity_milli", stock) ||
-                stock > 0xFFFFFFFFUL - quantityMilli)
-            {
-                valid = false;
-                break;
-            }
-            const uint32_t restored = stock + quantityMilli;
-            const String marker = F("\"stock_quantity_milli\":");
-            const int markerPos = line.indexOf(marker);
-            if (markerPos < 0)
-            {
-                valid = false;
-                break;
-            }
-            int start = markerPos + marker.length();
-            int end = start;
-            while (end < line.length() && isDigit(line[end])) ++end;
-            line = line.substring(0, start) + String(restored) + line.substring(end);
             if (!FlatJsonObjectValidator::valid(line))
             {
                 valid = false;

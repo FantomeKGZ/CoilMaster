@@ -1,38 +1,13 @@
-name: Guarded Motor Role Links Patch
+name: Archived Motor Role Links Patch
 
 on:
-  push:
-    branches: [cmp-protocol-v1]
-    paths:
-      - '.github/workflows/motor-role-links-patch.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  archived:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: cmp-protocol-v1
-      - name: Guard current motor details blob
-        run: test "$(git hash-object firmware/esp32/web/desktop/motor-details.html)" = "832d38650b495965574d31fea418794c1c25e22e"
-      - name: Add safe role navigation links
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('firmware/esp32/web/desktop/motor-details.html')
-          s=p.read_text()
-          old="+(closed?'Итог ремонта':'Калькуляция')+'</a></div>';const compare="
-          new="+(closed?'Итог ремонта':'Калькуляция')+'</a>'+(closed?'':'<a href=\"/desktop/winding-job.html?repair_id='+encodeURIComponent(x.repair_id)+'&role=working\">Отправить WORKING на станок</a><a href=\"/desktop/winding-job.html?repair_id='+encodeURIComponent(x.repair_id)+'&role=starting\">Отправить STARTING на станок</a>')+'</div>';const compare="
-          assert old in s
-          p.write_text(s.replace(old,new,1))
-          PY
-      - name: Commit patch
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add firmware/esp32/web/desktop/motor-details.html
-          git commit -m "feat(web): link motor roles to safe linked job flow"
-          git push origin HEAD:cmp-protocol-v1
+      - run: echo "One-shot patch already applied; no repository mutation is performed."

@@ -6,6 +6,8 @@
 
 namespace CM
 {
+// Migration foundation only: persistence/integrity evidence. No production
+// runtime writer is registered yet; existing exact-spool writeoff remains authoritative.
 struct SpoolMaterialBridge
 {
     uint32_t bridgeId;

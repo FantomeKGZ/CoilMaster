@@ -32,7 +32,7 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
                      -> COMPLETED -> DELIVERED
 ```
 
-## GREEN foundation through checkpoint 115
+## GREEN foundation through checkpoint 116
 
 ```text
 97  Motor winding versions
@@ -53,108 +53,95 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 113 Motor Web catalog + separate create + versioned card
 114 AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
 115 Client Web catalog-only + dedicated create + read-only CRM card
+116 Dedicated Cash Web UI + append-only payments/corrections + BigInt money rendering + navigation
 ```
 
 Latest verification:
 
 ```text
-CMP 32936343060 / SUCCESS
-ESP32 Build 32934092563 / SUCCESS  # latest firmware-source evidence from checkpoint 114
+CMP 32938179528 / SUCCESS
+ESP32 Build 32936718747 / SUCCESS
 ```
 
 ## Motor Web — CLOSED SOFTWARE GREEN
 
-Checkpoint: `114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md`
+Checkpoint: `114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md`.
 
-Completed:
-
-- desktop `motors.html` catalog-only;
-- separate `/desktop/motor-new.html`;
-- current and historical versioned WORKING/STARTING data;
-- multi-conductor display;
-- immutable `AS_RECEIVED` vs after-repair comparison;
-- safe OPEN-repair links to existing linked-job page;
-- `?role=working|starting` support;
-- latest winding version authoritative for exact program + repeat target;
-- legacy fallback WORKING-only;
-- STARTING absence fails closed;
-- server revalidates exact role/program/repeat before persistence/UART;
-- exact spool selection remains authoritative;
-- no Web physical START / no direct SSR control.
+Exact role/program/repeat/spool remains server-owned; physical START stays local-only.
 
 ## Client Web — CLOSED SOFTWARE GREEN
 
-Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`
+Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`.
+
+Client catalog/create/details are separated; motors are resolved historically through repairs; client card is read-only for cash/delivery/machine/material state.
+
+## Cash Web — CLOSED SOFTWARE GREEN
+
+Checkpoint: `116_CASH_WEB_UI_2026-08-26.md`.
 
 Completed:
 
-- `clients.html` catalog-only with bounded paging;
-- separate `/desktop/client-new.html`;
-- `/desktop/client-details.html?client_id=...`;
-- client identity/contact/comment;
-- motors resolved historically through exact repair `motor_id`;
-- bounded OPEN/CLOSED repair history;
-- immutable delivery state/date reads;
+- dedicated `/desktop/cash.html`;
+- exact repair context and bounded repair/payment reads;
 - charged / paid / debt / credit;
-- bounded append-only payment history;
-- duplicate inline client creation removed from repairs page;
-- client card remains read-only and does not mutate payments/delivery/machine/material state.
-
-Motor identity stays independent from current client ownership. No mutable permanent `client_id` is embedded into physical motor identity.
-
-## Current active queue — Dedicated Cash UI
-
-### 1. Create `cash.html`
-
-Use checkpoint 112 backend only; do not create a second payment store.
-
-Target main columns:
-
-```text
-Дата | Клиент | Двигатель | Ремонт | Начислено | Оплачено | Остаток | Статус
-```
-
-Required behavior:
-
-- choose exact repair/client context;
-- show repair/client balances;
 - PAYMENT = append-only ADD;
 - CORRECTION = append-only ADD/SUBTRACT;
-- full, partial and multiple payments;
-- debt and credit display;
-- payment remains possible after CLOSED/DELIVERED;
-- delivery must not be blocked by debt;
-- no destructive edit/delete of payment events;
+- full/partial/multiple payment model;
 - explicit confirmation for every write;
-- `costing.html` remains cost/price/margin only.
+- no PUT/PATCH/DELETE;
+- correction provenance via `corrects_event_id`;
+- post-CLOSED/post-DELIVERED payments remain allowed;
+- delivery remains independent from debt;
+- exact integer minor-unit input/rendering using `BigInt`;
+- main navigation and client-scoped cash navigation;
+- costing remains separate and never owns cash mutation.
 
-### 2. Later coordinated wire migration
+## Current active queue — coordinated wire accounting migration
 
-Do not partially remove exact `spool_id`. Migration must change together:
+### 1. Forensic owner map first
+
+Before any runtime change, map all current owners of exact spool/run writeoff:
 
 ```text
-job/writeoff
-Material Request movement
-costing/finalization
-backup/integrity/reports
-Web/tests
+job preparation + immutable spool selection
+manual wire writeoff API/UI
+warehouse spool / MaterialLedger mutation
+run provenance source_session_id + source_run_id
+repair costing/material usage
+finalization preflight
+backup/export/integrity
+reports
+Web regressions
 ```
 
-Target remains:
+Do not change any one owner in isolation.
+
+### 2. Target contract
+
+Future run-linked wire accounting target:
 
 ```text
 RUN_COMPLETED -> non-mutating
 operator explicit warehouse ISSUE
 material_request_id
-source_session_id + source_run_id for RUN_WIRE
-CU/AL + actual weight
+source_session_id + source_run_id
+CU/AL
+actual consumed weight
+manual confirmation
 ```
 
-### 3. Acceptance
+Material Request `RUN_WIRE` movement remains ISSUE/KG-only.
 
+### 3. Compatibility rule
+
+Current exact `spool_id` contract stays authoritative until one coherent migration covers all affected owners, persistence/recovery, Web and tests. No partial relaxation, no legacy omission authorization for new linked writeoff.
+
+### 4. Acceptance
+
+- targeted regression for each touched safety boundary;
 - full Web/backend software regression;
 - backup/export/restore integrity;
-- then full two-board hardware E2E.
+- then final two-board hardware E2E.
 
 ## Safety invariants
 
@@ -175,4 +162,4 @@ CU/AL + actual weight
 
 ## Documentation discipline
 
-Synchronize after each meaningful block: 95, 101 when relevant, 06, 01, 90; update 00 when read order changes. Create a numbered checkpoint with exact CI evidence for every major store/API/UI block.
+Synchronize after each meaningful block: 95, 101 when relevant, 06, 01, 90; update 00 when read order changes. Create a numbered checkpoint with exact CI evidence for every major persistence/API/UI block.

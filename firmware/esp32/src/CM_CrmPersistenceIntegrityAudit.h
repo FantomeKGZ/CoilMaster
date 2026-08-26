@@ -12,6 +12,7 @@ struct CrmPersistenceAuditMetrics
     uint32_t asReceivedRecordCount = 0UL;
     uint32_t materialRequestRecordCount = 0UL;
     uint32_t materialRequestMovementRecordCount = 0UL;
+    uint32_t repairDeliveryRecordCount = 0UL;
 };
 
 class CrmPersistenceIntegrityAudit

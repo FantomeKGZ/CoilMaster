@@ -24,9 +24,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 124_RUN_WIRE_CROSS_LOG_INTEGRITY_2026-08-26.md
 125_RUN_WIRE_PRICE_PROVENANCE_CONVERGENCE_2026-08-26.md
 126_RUN_WIRE_READ_PROVENANCE_AND_LEGACY_POST_DEPRECATION_2026-08-26.md
+127_RUN_WIRE_PERSISTED_SPOOL_INTEGRITY_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 126
+## GREEN foundation through checkpoint 127
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -40,17 +41,16 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 124 bounded cross-log integrity for completed RUN_WIRE accounting evidence
 125 one KG wire price + reserved system RWI_TX provenance
 126 direct exact spool provenance in new immutable RUN_WIRE movement + public legacy writeoff POST hard-disabled
+127 persisted spool_id cross-checked against immutable selection in existing bounded audit pass
 ```
 
-Latest verified checkpoint-126 evidence:
+Latest verified checkpoint-127 evidence:
 
 ```text
-261e76c372e954885ee3975d845e47e608354bbc  movement spool schema
-95b025271a799bcf7c175be386c33044c8c4d2b7  immutable spool derivation/serialization
-e4d4e5acd5a08101ae5a6cc29943c228d822bb75  legacy POST hard boundary
-21f3212d80c61ccaef2225140bfc5c5528577e47  final acceptance contract
-ESP32 Build #1569   32960764524 / SUCCESS
-CMP Tests #3535     32961372178 / SUCCESS
+6965bd716ac9f4d3970bc750a8e8933b7b6fffd0  persisted spool cross-log audit
+38883ae01493622d1bc98fc179fb9d9eb571ddcf  mandatory contract
+ESP32 Build #1570   32961925117 / SUCCESS
+CMP Tests #3541     32961999553 / SUCCESS (68/68 mandatory host steps)
 ```
 
 ## Current RUN_WIRE production/read boundary
@@ -59,16 +59,16 @@ CMP Tests #3535     32961372178 / SUCCESS
 RUN_COMPLETED -> evidence only
 explicit operator RUN_WIRE ISSUE
 -> one Material Request movement
-   including direct exact spool_id for new writes
+   new writes carry direct exact spool_id
 -> one MaterialLedger usage tagged RWI_TX=<transaction_ref>
 -> one physical warehouse CONFIRMED writeoff
 -> one exact KG wire price in all accounting views
 -> cross-log integrity requires exact one-to-one correlation
 ```
 
-`MaterialRequestMovementStore` derives RUN_WIRE `spool_id` from immutable session selection and rejects mismatch. Historical RUN_WIRE movements without the new field remain valid/readable through the immutable selection.
+New movement `spool_id` is derived from immutable session selection at write time and independently cross-checked against the same immutable selection during bounded accounting integrity. Historic RUN_WIRE movements without the field remain valid and continue using immutable selection as authority.
 
-Public mutation boundary is now explicit:
+Public mutation boundary remains:
 
 ```text
 POST /api/warehouse/write-offs -> HTTP 410, no write
@@ -76,25 +76,25 @@ GET  /api/warehouse/write-offs -> preserved history/coverage
 POST /api/material-requests/warehouse -> authoritative explicit RUN_WIRE mutation
 ```
 
-## Current active queue — direct spool integrity / bounded reports
+## Current active queue — bounded reports / internal API narrowing
 
 Next coherent block:
 
-1. Extend `RunWireAccountingIntegrityAudit` to parse optional persisted `spool_id` from RUN_WIRE Material Request movement.
-2. When present, require exact equality with immutable `JobSpoolSelection.spoolId` before accepting cross-log evidence.
-3. When absent, preserve historical backward compatibility and resolve spool from immutable selection exactly as today.
-4. Keep fixed batching and existing log-pass count; do not add a new per-record or full-log scan.
-5. Continue bounded read/report provenance improvements for Material Request transaction identity.
-6. Review whether low-level legacy writeoff APIs can be narrowed internally without affecting historical GET/recovery.
-7. Continue software optimization/integrity before mandatory final two-board hardware E2E.
+1. Audit read/report surfaces for any remaining ambiguous reconstruction of RUN_WIRE transaction identity.
+2. Prefer already persisted `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id + CU/AL + diameter` instead of new joins where available.
+3. Reuse existing bounded stores/cross-log batches; do not add another full-log scan.
+4. Inspect callers of low-level `WarehouseStore::confirmSpoolWriteOff` and `confirmKgFirstWriteOff` now that public legacy POST is disabled.
+5. If only managed RUN_WIRE/recovery paths remain, narrow low-level API visibility/semantics without breaking deterministic startup recovery or historical GET.
+6. Continue software optimization/integrity before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
-new RUN_WIRE movement spool_id == immutable session selection spool_id
-historic movement without spool_id -> selection remains authority
+bounded reports use direct immutable provenance where available
+no ambiguous transaction joins
 no extra full-log scan
 public legacy POST stays disabled
+low-level compatibility surface no broader than required by managed/recovery code
 ```
 
 ## Safety invariants

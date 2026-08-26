@@ -23,6 +23,9 @@ let sourceSessionId='';
 let sourceRunId='';
 let selection=null;
 let activeSpool=null;
+let spoolBridge=null;
+let materialRequests=[];
+let selectedMaterialRequestId='';
 let historyCursor=0;
 let historyNextCursor=0;
 let historyHasMore=false;
@@ -39,10 +42,18 @@ function setLifecycle(text,ok){
     $('lifecycle').className=ok?'info':'warning';
     $('lifecycle').textContent=text;
 }
+function canSubmit(){
+    return writable&&validId(sourceSessionId)&&validId(sourceRunId)&&selection&&activeSpool&&spoolBridge&&validId(selectedMaterialRequestId);
+}
+function refreshSubmitState(){
+    if($('submitButton'))$('submitButton').disabled=!canSubmit();
+    if($('materialRequestId'))$('materialRequestId').disabled=!writable||!activeSpool||!spoolBridge||materialRequests.length===0;
+}
 function setFormEnabled(enabled){
     writable=enabled;
-    ['quantityKg','comment','submitButton'].forEach(id=>{const el=$(id);if(el)el.disabled=!enabled});
+    ['quantityKg','comment'].forEach(id=>{const el=$(id);if(el)el.disabled=!enabled});
     refreshAllocationControls();
+    refreshSubmitState();
 }
 function canonicalKg(input){
     const raw=String(input??'').trim().replace(',','.');
@@ -161,9 +172,7 @@ async function findActiveSpool(spoolId){
         if(cursor)q.set('cursor',String(cursor));
         const data=await jsonFetch('/api/warehouse/spools?'+q,{cache:'no-store'});
         const found=(Array.isArray(data.items)?data.items:[]).find(item=>String(item.spool_id)===String(spoolId));
-        if(found){
-            return found.material_class==='CU'||found.material_class==='AL'?found:null;
-        }
+        if(found)return found.material_class==='CU'||found.material_class==='AL'?found:null;
         if(data.has_more!==true)return null;
         const next=Number(data.next_cursor);
         if(!Number.isSafeInteger(next)||next<=cursor)throw new Error('invalid_spool_cursor');
@@ -171,6 +180,89 @@ async function findActiveSpool(spoolId){
     }
     throw new Error('spool_page_limit');
 }
+
+function resetMaterialRequestContext(message='Сначала требуется exact RUN_COMPLETED и immutable бухта.'){
+    spoolBridge=null;
+    materialRequests=[];
+    selectedMaterialRequestId='';
+    if($('materialRequestId')){
+        $('materialRequestId').innerHTML='<option value="">Заявка недоступна</option>';
+        $('materialRequestId').value='';
+        $('materialRequestId').disabled=true;
+    }
+    if($('materialRequestInfo')){
+        $('materialRequestInfo').className='info muted';
+        $('materialRequestInfo').textContent=message;
+    }
+    refreshSubmitState();
+}
+
+async function loadEligibleMaterialRequests(){
+    const requests=[];
+    let cursor=0;
+    for(let page=0;page<4096;page++){
+        const q=new URLSearchParams({repair_id:repairId,limit:'24'});
+        if(cursor)q.set('cursor',String(cursor));
+        const data=await jsonFetch('/api/material-requests?'+q,{cache:'no-store'});
+        for(const item of Array.isArray(data.items)?data.items:[]){
+            if(!item||String(item.repair_id)!==String(repairId)||!validId(item.material_request_id))throw new Error('material_request_identity_mismatch');
+            requests.push(item);
+        }
+        if(data.has_more!==true)break;
+        const next=Number(data.next_cursor);
+        if(!Number.isSafeInteger(next)||next<=cursor)throw new Error('invalid_material_request_cursor');
+        cursor=next;
+        if(page===4095)throw new Error('material_request_page_limit');
+    }
+
+    const eligible=[];
+    for(const request of requests){
+        const requestId=String(request.material_request_id);
+        const status=await jsonFetch('/api/material-requests/status?material_request_id='+encodeURIComponent(requestId),{cache:'no-store'});
+        if(String(status.material_request_id)!==requestId)throw new Error('material_request_status_identity_mismatch');
+        if(status.status==='DRAFT'||status.status==='ISSUED')eligible.push({...request,current_status:status.status});
+    }
+    return eligible.reverse();
+}
+
+async function prepareMaterialRequestContext(){
+    resetMaterialRequestContext('Проверка связи immutable бухты с MaterialLedger…');
+    if(!activeSpool||!selection)throw new Error('run_wire_spool_context_missing');
+
+    const bridge=await jsonFetch('/api/warehouse/spool-material-bridges?spool_id='+encodeURIComponent(activeSpool.spool_id),{cache:'no-store'});
+    if(String(bridge.spool_id)!==String(activeSpool.spool_id)||!validId(bridge.warehouse_item_id)||
+       bridge.wire_type!==activeSpool.material_class||Number(bridge.diameter_hundredths_mm)!==Number(activeSpool.diameter_hundredths_mm))
+        throw new Error('spool_material_bridge_identity_mismatch');
+    spoolBridge=bridge;
+    materialRequests=await loadEligibleMaterialRequests();
+
+    if(!$('materialRequestId'))throw new Error('material_request_control_missing');
+    $('materialRequestId').innerHTML='<option value="">Выберите заявку материалов</option>'+materialRequests.map(item=>'<option value="'+esc(item.material_request_id)+'">Заявка №'+esc(item.material_request_id)+' · '+esc(item.current_status)+' · '+esc(dateLabel(item.created_at))+'</option>').join('');
+    $('materialRequestId').value='';
+    $('materialRequestId').disabled=!writable||materialRequests.length===0;
+
+    if($('materialRequestInfo')){
+        if(materialRequests.length){
+            $('materialRequestInfo').className='info';
+            $('materialRequestInfo').textContent='Бухта №'+activeSpool.spool_id+' связана с MaterialLedger item №'+spoolBridge.warehouse_item_id+'. Выберите DRAFT/ISSUED заявку этого ремонта.';
+        }else{
+            $('materialRequestInfo').className='warning';
+            $('materialRequestInfo').textContent='Для ремонта нет заявки материалов в статусе DRAFT или ISSUED. RUN_WIRE списание заблокировано.';
+        }
+    }
+    refreshSubmitState();
+}
+
+if($('materialRequestId'))$('materialRequestId').onchange=()=>{
+    const value=$('materialRequestId').value;
+    selectedMaterialRequestId=materialRequests.some(item=>String(item.material_request_id)===String(value))?String(value):'';
+    if($('materialRequestInfo')&&selectedMaterialRequestId){
+        const selected=materialRequests.find(item=>String(item.material_request_id)===selectedMaterialRequestId);
+        $('materialRequestInfo').className='info';
+        $('materialRequestInfo').textContent='Заявка №'+selectedMaterialRequestId+' · '+selected.current_status+'; MaterialLedger item №'+spoolBridge.warehouse_item_id+'; бухта №'+activeSpool.spool_id+'.';
+    }
+    refreshSubmitState();
+};
 
 function refreshAllocationControls(){
     const unallocated=$('unallocatedFields');
@@ -195,6 +287,7 @@ function refreshAllocationControls(){
 
 async function prepareNextRun(){
     sourceSessionId='';sourceRunId='';selection=null;activeSpool=null;
+    resetMaterialRequestContext();
     if($('provenance')){$('provenance').className='info muted';$('provenance').textContent='Поиск завершённого прохода, который ещё не покрыт списанием…'}
     try{
         const completed=await loadCompletedRuns();
@@ -202,8 +295,8 @@ async function prepareNextRun(){
         const pending=nextUncoveredRun(completed,coverage);
         if(!pending){
             if($('provenance')){$('provenance').className='info';$('provenance').textContent='Все RUN_COMPLETED этого ремонта уже покрыты ручными списаниями.'}
-            if($('submitButton'))$('submitButton').disabled=true;
             refreshAllocationControls();
+            refreshSubmitState();
             return;
         }
         sourceSessionId=pending.sessionId;
@@ -212,19 +305,24 @@ async function prepareNextRun(){
         if(!selection)throw new Error('spool_selection_missing');
         activeSpool=await findActiveSpool(selection.spool_id);
         if(!activeSpool)throw new Error('immutable_spool_not_active');
-        if(String(activeSpool.spool_id)!==String(selection.spool_id))throw new Error('immutable_spool_identity_mismatch');
+        if(String(activeSpool.spool_id)!==String(selection.spool_id)||
+           (selection.wire_type&&selection.wire_type!==activeSpool.material_class)||
+           (selection.diameter_hundredths_mm&&Number(selection.diameter_hundredths_mm)!==Number(activeSpool.diameter_hundredths_mm)))
+            throw new Error('immutable_spool_identity_mismatch');
         if($('provenance')){
             $('provenance').className='info';
             $('provenance').textContent='Сессия №'+sourceSessionId+' · проход №'+sourceRunId+' · immutable бухта №'+selection.spool_id+'. Списание выполняется только вручную.';
         }
         if(selection.wire_type&&$('wireType'))$('wireType').value=selection.wire_type;
         if(selection.diameter_hundredths_mm&&$('diameterMm'))$('diameterMm').value=(Number(selection.diameter_hundredths_mm)/100).toFixed(2).replace('.',',');
-        if($('submitButton'))$('submitButton').disabled=!writable;
         refreshAllocationControls();
+        await prepareMaterialRequestContext();
+        refreshSubmitState();
     }catch(error){
         refreshAllocationControls();
-        if($('provenance')){$('provenance').className='warning';$('provenance').textContent='Списание заблокировано: '+error.message+'. Проверьте историю намотки и immutable данные.'}
-        if($('submitButton'))$('submitButton').disabled=true;
+        resetMaterialRequestContext('RUN_WIRE заблокирован: '+error.message+'.');
+        if($('provenance')){$('provenance').className='warning';$('provenance').textContent='Списание заблокировано: '+error.message+'. Проверьте историю намотки, immutable бухту, bridge и Material Request.'}
+        refreshSubmitState();
     }
 }
 
@@ -278,17 +376,37 @@ if($('form'))$('form').onsubmit=async event=>{
     if(!writable){setResult('Ремонт закрыт или его состояние не подтверждено. Списание запрещено.','warning');return}
     if(!validId(sourceSessionId)||!validId(sourceRunId)||!selection){setResult('Не найден exact завершённый проход для списания.','bad');return}
     if(!activeSpool||String(activeSpool.spool_id)!==String(selection.spool_id)){setResult('Immutable бухта source session недоступна. Списание заблокировано.','bad');return}
+    if(!spoolBridge||String(spoolBridge.spool_id)!==String(activeSpool.spool_id)||!validId(spoolBridge.warehouse_item_id)){setResult('Нет exact bridge бухты к MaterialLedger. Списание заблокировано.','bad');return}
+    if(!validId(selectedMaterialRequestId)||!materialRequests.some(item=>String(item.material_request_id)===selectedMaterialRequestId)){setResult('Выберите заявку материалов в статусе DRAFT или ISSUED.','bad');return}
     const quantity=canonicalKg($('quantityKg')&&$('quantityKg').value);
     if(!quantity){setResult('Введите количество в кг, до 3 знаков после запятой, например 1,250.','bad');return}
     if(quantity.grams>=Number(activeSpool.current_weight_g)){setResult('Количество должно быть меньше текущего остатка бухты '+kgFromGrams(activeSpool.current_weight_g)+'.','bad');return}
-    const body=new URLSearchParams({writeoff_mode:'KG_FIRST',repair_id:repairId,quantity_kg:quantity.kg,source_session_id:sourceSessionId,source_run_id:sourceRunId,timestamp:new Date().toISOString(),comment:$('comment')?$('comment').value:''});
-    body.set('spool_id',String(activeSpool.spool_id));
+
+    const body=new URLSearchParams({
+        confirmed:'true',
+        material_request_id:selectedMaterialRequestId,
+        repair_id:repairId,
+        warehouse_item_id:String(spoolBridge.warehouse_item_id),
+        quantity_milli_units:String(quantity.grams),
+        movement_kind:'ISSUE',
+        source_kind:'RUN_WIRE',
+        unit:'KG',
+        created_at:new Date().toISOString(),
+        comment:$('comment')?$('comment').value:'',
+        source_session_id:sourceSessionId,
+        source_run_id:sourceRunId,
+        spool_id:String(activeSpool.spool_id),
+        wire_diameter_hundredths_mm:String(activeSpool.diameter_hundredths_mm),
+        material_class:String(activeSpool.material_class)
+    });
+
     if($('submitButton'))$('submitButton').disabled=true;
-    setResult('Сохранение…','muted');
+    if($('materialRequestId'))$('materialRequestId').disabled=true;
+    setResult('Сохранение атомарного RUN_WIRE списания…','muted');
     try{
-        const data=await jsonFetch('/api/warehouse/write-offs',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
-        const where=data.spool_id?(' · бухта №'+data.spool_id):'';
-        setResult('Списано '+kgFromGrams(data.consumed_g)+' на '+money(data.consumed_value_minor||0,data.currency||'KGS')+where+'.','ok');
+        const data=await jsonFetch('/api/material-requests/warehouse',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body});
+        if(!validId(data.movement_id)||String(data.spool_id)!==String(activeSpool.spool_id))throw new Error('run_wire_response_identity_mismatch');
+        setResult('RUN_WIRE: списано '+kgFromGrams(quantity.grams)+' на '+money(data.cost_amount_minor||0,data.currency||'KGS')+' · заявка №'+selectedMaterialRequestId+' · бухта №'+data.spool_id+' · движение №'+data.movement_id+'. Остаток бухты '+kgFromGrams(data.spool_weight_after_g)+'.','ok');
         if($('quantityKg'))$('quantityKg').value='';
         if($('comment'))$('comment').value='';
         await loadHistory(0,true);
@@ -296,12 +414,13 @@ if($('form'))$('form').onsubmit=async event=>{
     }catch(error){
         setResult('Ошибка: '+error.message,'bad');
     }finally{
-        if($('submitButton'))$('submitButton').disabled=!writable||!validId(sourceSessionId)||!validId(sourceRunId)||!activeSpool;
+        refreshSubmitState();
     }
 };
 
 (async()=>{
     setFormEnabled(false);
+    resetMaterialRequestContext('Проверка заявок и связи бухты со складом…');
     await loadLifecycle();
     await loadHistory(0,true);
     await prepareNextRun();

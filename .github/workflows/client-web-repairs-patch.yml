@@ -1,0 +1,41 @@
+name: Guarded Repair Client Form Cleanup
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - '.github/workflows/client-web-repairs-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+      - name: Guard current repairs blob
+        run: test "$(git hash-object firmware/esp32/web/desktop/repairs.html)" = "78cbbd1aaee2fc86e997c7b2b5ffcb2b709ae20d"
+      - name: Remove duplicate inline client creation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('firmware/esp32/web/desktop/repairs.html')
+          s=p.read_text()
+          s2=re.sub(r'<section class="card"><h2>Добавить клиента</h2>.*?</section>', '<section class="card"><h2>Клиент</h2><div class="note">Создание клиента вынесено в отдельную карточку. <a class="catalog-link" href="/desktop/client-new.html">+ Новый клиент</a></div></section>', s, count=1)
+          assert s2 != s
+          s=s2
+          s2=re.sub(r"\$\('clientForm'\)\.onsubmit=async e=>\{.*?\};(?=\$\('motorForm'\)\.onsubmit=)", '', s, count=1)
+          assert s2 != s
+          p.write_text(s2)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add firmware/esp32/web/desktop/repairs.html
+          git commit -m "refactor(web): route client creation through dedicated page"
+          git push origin HEAD:cmp-protocol-v1

@@ -9,7 +9,21 @@ MaterialRequestWeb::MaterialRequestWeb(WebServer& server,
                                        MaterialRequestStatusStore& statuses,
                                        MaterialRequestWarehouseCoordinator& warehouse)
     : m_server(server), m_repairs(repairs), m_requests(requests),
-      m_movements(movements), m_statuses(statuses), m_warehouse(warehouse)
+      m_movements(movements), m_statuses(statuses), m_warehouse(warehouse),
+      m_runWire(nullptr)
+{
+}
+
+MaterialRequestWeb::MaterialRequestWeb(WebServer& server,
+                                       RepairRegistry& repairs,
+                                       MaterialRequestStore& requests,
+                                       MaterialRequestMovementStore& movements,
+                                       MaterialRequestStatusStore& statuses,
+                                       MaterialRequestWarehouseCoordinator& warehouse,
+                                       RunWireIssueCoordinator& runWire)
+    : m_server(server), m_repairs(repairs), m_requests(requests),
+      m_movements(movements), m_statuses(statuses), m_warehouse(warehouse),
+      m_runWire(&runWire)
 {
 }
 
@@ -255,11 +269,6 @@ void MaterialRequestWeb::handleWarehouseAction()
         m_server.send(400, "application/json", "{\"error\":\"explicit_confirmation_required\"}");
         return;
     }
-    if (!m_warehouse.ready())
-    {
-        m_server.send(503, "application/json", "{\"error\":\"material_request_warehouse_unavailable\"}");
-        return;
-    }
 
     NewMaterialRequestMovement movement;
     if (!parseUnsigned(m_server, "material_request_id", 1UL, 0xFFFFFFFFUL,
@@ -283,6 +292,58 @@ void MaterialRequestWeb::handleWarehouseAction()
     movement.createdAt = m_server.arg("created_at");
     movement.comment = m_server.hasArg("comment") ? m_server.arg("comment") : String();
 
+    if (movement.sourceKind == "RUN_WIRE")
+    {
+        uint32_t diameter = 0UL;
+        uint32_t spoolId = 0UL;
+        if (m_runWire == nullptr || !m_runWire->ready())
+        {
+            m_server.send(503, "application/json", "{\"error\":\"run_wire_issue_unavailable\"}");
+            return;
+        }
+        if (movement.movementKind != "ISSUE" || movement.unit != "KG" ||
+            !parseUnsigned(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
+                           movement.sourceSessionId) ||
+            !parseUnsigned(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
+                           movement.sourceRunId) ||
+            !parseUnsigned(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId) ||
+            !parseUnsigned(m_server, "wire_diameter_hundredths_mm", 1UL, 500UL,
+                           diameter) || !m_server.hasArg("material_class"))
+        {
+            m_server.send(400, "application/json", "{\"error\":\"invalid_run_wire_issue\"}");
+            return;
+        }
+        movement.wireDiameterHundredthsMm = static_cast<uint16_t>(diameter);
+        movement.materialClass = m_server.arg("material_class");
+
+        RunWireIssueResult result;
+        if (!m_runWire->execute(movement, spoolId, result))
+        {
+            m_server.send(409, "application/json", "{\"error\":\"run_wire_issue_rejected_or_recovery_required\"}");
+            return;
+        }
+
+        String response = F("{\"movement_id\":");
+        response += result.materialRequestMovementId;
+        response += F(",\"transaction_ref\":\""); response += result.transactionRef;
+        response += F("\",\"remaining_ledger_quantity_milli\":");
+        response += result.remainingLedgerQuantityMilli;
+        response += F(",\"spool_id\":"); response += spoolId;
+        response += F(",\"spool_weight_after_g\":"); response += result.spoolWeightAfterGrams;
+        response += F(",\"unit_cost_minor\":"); appendUint64(response, result.unitCostMinor);
+        response += F(",\"cost_amount_minor\":"); appendUint64(response, result.costAmountMinor);
+        response += F(",\"currency\":\""); response += result.currency;
+        response += F("\"}");
+        m_server.send(200, "application/json; charset=utf-8", response);
+        return;
+    }
+
+    if (!m_warehouse.ready())
+    {
+        m_server.send(503, "application/json", "{\"error\":\"material_request_warehouse_unavailable\"}");
+        return;
+    }
+
     String correctionDirection;
     if (movement.movementKind == "CORRECTION")
     {
@@ -292,23 +353,6 @@ void MaterialRequestWeb::handleWarehouseAction()
             return;
         }
         correctionDirection = m_server.arg("correction_direction");
-    }
-
-    if (movement.sourceKind == "RUN_WIRE")
-    {
-        uint32_t diameter = 0UL;
-        if (!parseUnsigned(m_server, "source_session_id", 1UL, 0xFFFFFFFFUL,
-                           movement.sourceSessionId) ||
-            !parseUnsigned(m_server, "source_run_id", 1UL, 0xFFFFFFFFUL,
-                           movement.sourceRunId) ||
-            !parseUnsigned(m_server, "wire_diameter_hundredths_mm", 1UL, 500UL,
-                           diameter) || !m_server.hasArg("material_class"))
-        {
-            m_server.send(400, "application/json", "{\"error\":\"invalid_run_wire_provenance\"}");
-            return;
-        }
-        movement.wireDiameterHundredthsMm = static_cast<uint16_t>(diameter);
-        movement.materialClass = m_server.arg("material_class");
     }
 
     MaterialRequestWarehouseResult result;

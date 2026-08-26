@@ -1,0 +1,35 @@
+name: One-shot repair delivery backup patch
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - ".github/workflows/repair-delivery-backup-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+          fetch-depth: 0
+      - name: Guard and patch repair delivery backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=firmware/esp32/src/CM_BackupExportWeb.cpp
+          EXPECTED=cedbc04f39244976c3c9d1c94eca8d499070c85f
+          ACTUAL=$(git hash-object "$FILE")
+          test "$ACTUAL" = "$EXPECTED" || { echo "blob changed: $ACTUAL"; exit 1; }
+          python3 -c "from pathlib import Path; p=Path('$FILE'); s=p.read_text(); a='#include \"CM_CrmPersistenceIntegrityAudit.h\"\n'; b=a+'#include \"CM_RepairDeliveryIntegrityAudit.h\"\n'; assert a in s and 'CM_RepairDeliveryIntegrityAudit.h' not in s; s=s.replace(a,b,1); a='    {\"material-request-status\", \"/data/workshop/material-request-status.ndjson\", \"application/x-ndjson\", \"material-request-status.ndjson\"},\n'; b=a+'    {\"repair-deliveries\", \"/data/workshop/repair-deliveries.ndjson\", \"application/x-ndjson\", \"repair-deliveries.ndjson\"},\n'; assert a in s and 'repair-deliveries.ndjson' not in s; s=s.replace(a,b,1); a='    metrics.crmRecordCountsMeasured = true;\n\n    AutonomousWindingIntegrityMetrics autonomousMetrics;\n'; b='    metrics.crmRecordCountsMeasured = true;\n\n    uint32_t repairDeliveryRecordCount = 0UL;\n    if (!RepairDeliveryIntegrityAudit::check(storage, repairDeliveryRecordCount))\n        return \"repair_delivery_unstable_or_invalid\";\n\n    AutonomousWindingIntegrityMetrics autonomousMetrics;\n'; assert a in s; p.write_text(s.replace(a,b,1))"
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$FILE"
+          git commit -m 'feat(backup): export and audit repair deliveries'
+          git push origin HEAD:cmp-protocol-v1

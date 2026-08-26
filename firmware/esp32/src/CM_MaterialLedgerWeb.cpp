@@ -96,7 +96,28 @@ void MaterialLedgerWeb::handleCreate()
     MaterialUnit unit;uint32_t stock=0UL,price=0UL;String currency=m_server.hasArg("currency")?m_server.arg("currency"):String("KGS");currency.trim();currency.toUpperCase();
     if(currency!="KGS"){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"unsupported_currency\",\"supported_currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\"}");return;}
     if(!m_server.hasArg("name")||m_server.arg("name").length()==0U||!parseUnit(m_server.arg("unit"),unit)||!parseUnsigned(m_server,"stock_quantity_milli",0UL,0xFFFFFFFFUL,stock)||!parseUnsigned(m_server,"price_per_unit_minor",1UL,100000000UL,price)){m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_material_fields\"}");return;}
-    NewMaterial material;material.name=m_server.arg("name");material.unit=unit;material.stockQuantityMilli=stock;material.pricePerUnitMinor=price;material.currency=currency;material.comment=m_server.arg("comment");uint32_t materialId=0UL;
+
+    const bool hasWireType=m_server.hasArg("wire_type");
+    const bool hasDiameter=m_server.hasArg("diameter_hundredths_mm");
+    String wireType;
+    uint32_t diameter=0UL;
+    if(hasWireType!=hasDiameter)
+    {
+        m_server.send(400,"application/json; charset=utf-8","{\"error\":\"wire_metadata_pair_required\"}");return;
+    }
+    if(hasWireType)
+    {
+        wireType=m_server.arg("wire_type");wireType.trim();wireType.toUpperCase();
+        if(unit!=MaterialUnit::Gram||(wireType!="CU"&&wireType!="AL")||!parseUnsigned(m_server,"diameter_hundredths_mm",1UL,65535UL,diameter))
+        {
+            m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_wire_metadata\",\"required_unit\":\"GRAM\"}");return;
+        }
+    }
+
+    NewMaterial material;material.name=m_server.arg("name");material.unit=unit;material.stockQuantityMilli=stock;material.pricePerUnitMinor=price;material.currency=currency;material.comment=m_server.arg("comment");
+    material.hasWireMetadata=hasWireType;
+    if(hasWireType){material.wireType=wireType;material.diameterHundredthsMm=static_cast<uint16_t>(diameter);}
+    uint32_t materialId=0UL;
     if(!m_ledger.addMaterial(material,materialId))
     {
         if(!m_ledger.ready())
@@ -105,7 +126,7 @@ void MaterialLedgerWeb::handleCreate()
             m_server.send(500,"application/json; charset=utf-8","{\"error\":\"material_write_failed\"}");
         return;
     }
-    String response=F("{\"created\":true,\"material_id\":");response+=materialId;response+=F(",\"currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\"}");m_server.send(201,"application/json; charset=utf-8",response);
+    String response=F("{\"created\":true,\"material_id\":");response+=materialId;response+=F(",\"currency\":\"KGS\",\"currency_policy\":\"KGS_ONLY\",\"wire_metadata\":");response+=hasWireType?F("true"):F("false");response+='}';m_server.send(201,"application/json; charset=utf-8",response);
 }
 
 void MaterialLedgerWeb::handleUsage()

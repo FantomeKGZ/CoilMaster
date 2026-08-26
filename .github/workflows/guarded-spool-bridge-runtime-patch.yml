@@ -42,34 +42,15 @@ jobs:
 
           path = Path('firmware/esp32/src/CM_WarehouseWeb.cpp')
           text = path.read_text()
-          text = replace_once(
-              text,
-              '#include "CM_MaterialLedgerWeb.h"\n',
-              '#include "CM_MaterialLedgerWeb.h"\n#include "CM_SpoolMaterialBridgeWeb.h"\n',
-              'bridge include')
-          text = replace_once(
-              text,
-              '    static MaterialLedger materialLedger(SD);\n    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);\n\n    materialLedger.begin();\n',
-              '    static MaterialLedger materialLedger(SD);\n    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);\n    static SpoolMaterialBridgeStore spoolMaterialBridgeStore(SD);\n    static SpoolMaterialBridgeWeb spoolMaterialBridgeWeb(m_server, m_store, materialLedger, spoolMaterialBridgeStore);\n\n    materialLedger.begin();\n    spoolMaterialBridgeStore.begin();\n',
-              'bridge bootstrap')
-          text = replace_once(
-              text,
-              '    materialLedgerWeb.begin();\n',
-              '    materialLedgerWeb.begin();\n    spoolMaterialBridgeWeb.begin();\n',
-              'bridge route begin')
+          text = replace_once(text, '#include "CM_MaterialLedgerWeb.h"\n', '#include "CM_MaterialLedgerWeb.h"\n#include "CM_SpoolMaterialBridgeWeb.h"\n', 'bridge include')
+          text = replace_once(text, '    static MaterialLedger materialLedger(SD);\n    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);\n\n    materialLedger.begin();\n', '    static MaterialLedger materialLedger(SD);\n    static MaterialLedgerWeb materialLedgerWeb(m_server, materialLedger);\n    static SpoolMaterialBridgeStore spoolMaterialBridgeStore(SD);\n    static SpoolMaterialBridgeWeb spoolMaterialBridgeWeb(m_server, m_store, materialLedger, spoolMaterialBridgeStore);\n\n    materialLedger.begin();\n    spoolMaterialBridgeStore.begin();\n', 'bridge bootstrap')
+          text = replace_once(text, '    materialLedgerWeb.begin();\n', '    materialLedgerWeb.begin();\n    spoolMaterialBridgeWeb.begin();\n', 'bridge route begin')
           path.write_text(text)
 
           path = Path('.github/workflows/cmp-protocol-tests.yml')
           text = path.read_text()
-          anchor = '''      - name: Audit MaterialLedger wire metadata
-        if: always()
-        run: node Tests/Web/check_material_wire_metadata.js
-'''
-          replacement = anchor + '''
-      - name: Audit operator spool-material bridge API
-        if: always()
-        run: node Tests/Web/check_spool_material_bridge_web.js
-'''
+          anchor = '      - name: Audit MaterialLedger wire metadata\n        if: always()\n        run: node Tests/Web/check_material_wire_metadata.js\n'
+          replacement = anchor + '\n      - name: Audit operator spool-material bridge API\n        if: always()\n        run: node Tests/Web/check_spool_material_bridge_web.js\n'
           text = replace_once(text, anchor, replacement, 'CMP bridge audit step')
           path.write_text(text)
           PY

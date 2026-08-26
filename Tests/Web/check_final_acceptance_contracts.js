@@ -21,6 +21,8 @@ const registryPath = 'firmware/esp32/src/CM_RepairRegistryWeb.cpp';
 const lookupPath = 'firmware/esp32/src/CM_RepairRegistryLookupWeb.cpp';
 const warehousePath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const writeOffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
+const writeOffStorePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
+const runWirePath = 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp';
 const backupPath = 'firmware/esp32/src/CM_RemoteBackupWeb.cpp';
 const backupGuardPath = 'firmware/esp32/src/CM_BackupActivityGuard.cpp';
 const backupExportPath = 'firmware/esp32/src/CM_BackupExportWeb.cpp';
@@ -37,6 +39,8 @@ const registry = read(registryPath);
 const lookup = read(lookupPath);
 const warehouse = read(warehousePath);
 const writeOff = read(writeOffPath);
+const writeOffStore = read(writeOffStorePath);
+const runWire = read(runWirePath);
 const backup = read(backupPath);
 const backupGuard = read(backupGuardPath);
 const backupExport = read(backupExportPath);
@@ -48,43 +52,29 @@ const storage = read(storagePath);
 const releaseAudit = read(releaseAuditPath);
 const webAudit = read(webAuditPath);
 
-// Populated-device data must remain available through bounded list APIs and exact lookups.
 for (const route of ['/api/clients', '/api/motors', '/api/repairs']) {
   requireText(registryPath, registry, 'm_server.on("' + route + '", HTTP_GET',
     'required populated-device list route missing: ' + route);
 }
-requireText(registryPath, registry, 'limit = 20U;',
-  'default bounded registry page size missing');
-requireText(registryPath, registry, 'RepairRegistry::MaxListPageSize',
-  'registry maximum page-size contract missing');
+requireText(registryPath, registry, 'limit = 20U;', 'default bounded registry page size missing');
+requireText(registryPath, registry, 'RepairRegistry::MaxListPageSize', 'registry maximum page-size contract missing');
 for (const route of ['/api/clients/by-id', '/api/motors/by-id', '/api/repairs/by-id']) {
   requireText(lookupPath, lookup, 'm_server.on("' + route + '", HTTP_GET',
     'required exact lookup route missing: ' + route);
 }
 
-// Warehouse visibility and exact linked-spool selection must remain part of production flow.
-requireText(warehousePath, warehouse, 'm_server.on("/api/warehouse/summary", HTTP_GET',
-  'warehouse summary route missing');
-requireText(mainPath, main, 'linked_spool_id_required',
-  'linked winding no longer requires an exact spool_id');
-requireText(mainPath, main, 'loadActiveSpoolIdentity(spoolId, selectedSpool, spoolFound)',
-  'linked winding no longer resolves exact ACTIVE spool identity');
+requireText(warehousePath, warehouse, 'm_server.on("/api/warehouse/summary", HTTP_GET', 'warehouse summary route missing');
+requireText(mainPath, main, 'linked_spool_id_required', 'linked winding no longer requires an exact spool_id');
+requireText(mainPath, main, 'loadActiveSpoolIdentity(spoolId, selectedSpool, spoolFound)', 'linked winding no longer resolves exact ACTIVE spool identity');
 
-// Runtime reboot/recovery contract stays fail-closed and observable.
-requireText(mainPath, main, 'webServer.on("/api/status", HTTP_GET',
-  'runtime status route missing');
-requireText(mainPath, main, 'webServer.on("/api/system/diagnostics", HTTP_GET',
-  'system diagnostics route missing');
-requireText(mainPath, main, 'webServer.on("/api/system/time", HTTP_GET',
-  'system time route missing');
+requireText(mainPath, main, 'webServer.on("/api/status", HTTP_GET', 'runtime status route missing');
+requireText(mainPath, main, 'webServer.on("/api/system/diagnostics", HTTP_GET', 'system diagnostics route missing');
+requireText(mainPath, main, 'webServer.on("/api/system/time", HTTP_GET', 'system time route missing');
 requireText(mainPath, main,
   '\\"automatic_queue_allowed\\":false,\\"automatic_resume_allowed\\":false,\\"automatic_wire_writeoff_allowed\\":false',
   'no-auto-queue/resume/writeoff status contract missing');
-requireText(staticSitePath, staticSite, 'm_server.on("/api/system/network", HTTP_GET',
-  'network status route missing');
+requireText(staticSitePath, staticSite, 'm_server.on("/api/system/network", HTTP_GET', 'network status route missing');
 
-// Network profile API must distinguish bad operator input from device/storage
-// failures, so a healthy request is never reported as a 400 when microSD fails.
 for (const text of [
   '"{\\"error\\":\\"network_profiles_unavailable\\"}"',
   '"{\\"error\\":\\"network_profile_not_found\\"}"',
@@ -93,16 +83,12 @@ for (const text of [
   '"{\\"error\\":\\"network_profile_delete_persistence_failed\\"}"',
   '"{\\"error\\":\\"network_manager_reload_failed\\"}"'
 ]) {
-  requireText(networkWebPath, networkWeb, text,
-    'network API error-semantics contract missing: ' + text);
+  requireText(networkWebPath, networkWeb, text, 'network API error-semantics contract missing: ' + text);
 }
-requireText(networkWebPath, networkWeb,
-  'm_server.send(m_store.ready() ? 500 : 503,',
+requireText(networkWebPath, networkWeb, 'm_server.send(m_store.ready() ? 500 : 503,',
   'network persistence failures must distinguish store unavailable from write failure');
 
-// microSD capacity remains operator-visible and strictly read-only.
-requireText(storagePath, storage, 'm_server.on("/api/system/storage", HTTP_GET',
-  'microSD diagnostics route missing');
+requireText(storagePath, storage, 'm_server.on("/api/system/storage", HTTP_GET', 'microSD diagnostics route missing');
 for (const metric of ['cardSize()', 'totalBytes()', 'usedBytes()', 'automatic_cleanup_allowed\\\":false']) {
   requireText(storagePath, storage, metric, 'microSD diagnostics contract missing: ' + metric);
 }
@@ -110,39 +96,24 @@ for (const forbidden of ['.remove(', '.rename(', 'FILE_WRITE', 'FILE_APPEND']) {
   if (storage.includes(forbidden)) failures.push(storagePath + ': diagnostics must remain read-only: ' + forbidden);
 }
 
-// Fresh backup must retain batch status + read-only inspection, while restore never auto-resumes.
-for (const route of [
-  '/api/backup/remote/batch-status',
-  '/api/backup/remote/inspection',
-  '/api/backup/remote/inspection-status'
-]) {
+for (const route of ['/api/backup/remote/batch-status', '/api/backup/remote/inspection', '/api/backup/remote/inspection-status']) {
   requireText(backupPath, backup, route, 'required backup acceptance route missing: ' + route);
 }
-requireText(backupPath, backup, 'm_server.arg("confirmed") != F("APPLY")',
-  'restore explicit APPLY confirmation missing');
-requireText(backupPath, backup, 'WAITING_RESTORE_CLEANUP',
-  'post-reboot restore cleanup wait-state missing');
-requireText(backupPath, backup, 'auto_resume=0',
-  'restore result no longer explicitly prohibits auto-resume');
+requireText(backupPath, backup, 'm_server.arg("confirmed") != F("APPLY")', 'restore explicit APPLY confirmation missing');
+requireText(backupPath, backup, 'WAITING_RESTORE_CLEANUP', 'post-reboot restore cleanup wait-state missing');
+requireText(backupPath, backup, 'auto_resume=0', 'restore result no longer explicitly prohibits auto-resume');
 
-// Persisted files are an additional safety check, never a substitute for live
-// runtime activity. An unavailable runtime probe must remain Unavailable so a
-// restore/FTP/settings operation cannot be enabled from stale terminal job files.
 for (const text of [
   'const BackupActivityCheck runtime = runtimeCheck();',
   'if (runtime != BackupActivityCheck::Safe)\n        return runtime;',
   'if (!found)\n        return BackupActivityCheck::Safe;'
 ]) {
-  requireText(backupGuardPath, backupGuard, text,
-    'backup activity runtime fail-closed contract missing: ' + text);
+  requireText(backupGuardPath, backupGuard, text, 'backup activity runtime fail-closed contract missing: ' + text);
 }
 if (backupGuard.includes('runtime == BackupActivityCheck::Unavailable\n            ? BackupActivityCheck::Safe')) {
   failures.push(backupGuardPath + ': unavailable runtime must never be promoted to Safe');
 }
 
-// Session persistence must perform one authoritative read-only canonical preflight
-// before any store begin() that could recover a temp file. It exposes failure type
-// and timing so backup manifest can consume this evidence without weakening safety.
 for (const text of [
   'enum class WindingSessionPersistenceAuditFailure',
   'TemporaryFilePresent',
@@ -150,8 +121,7 @@ for (const text of [
   'directoryPreflightMeasured',
   'directoryPreflightDurationMs'
 ]) {
-  requireText(sessionAuditHeaderPath, sessionAuditHeader, text,
-    'session persistence preflight result contract missing: ' + text);
+  requireText(sessionAuditHeaderPath, sessionAuditHeader, text, 'session persistence preflight result contract missing: ' + text);
 }
 for (const text of [
   'directoryContentsCanonical(storage, directories[index])',
@@ -161,8 +131,7 @@ for (const text of [
   'JobSnapshotStore snapshots(storage);',
   'JobSpoolSelectionStore selections(storage);'
 ]) {
-  requireText(sessionAuditPath, sessionAudit, text,
-    'read-only session persistence preflight missing: ' + text);
+  requireText(sessionAuditPath, sessionAudit, text, 'read-only session persistence preflight missing: ' + text);
 }
 const preflightPos = sessionAudit.indexOf('const uint32_t preflightStartedAtMs = millis();');
 const storeBeginPos = sessionAudit.indexOf('JobSnapshotStore snapshots(storage);');
@@ -170,8 +139,6 @@ if (preflightPos < 0 || storeBeginPos < 0 || preflightPos >= storeBeginPos) {
   failures.push(sessionAuditPath + ': session directory preflight must finish before mutable store begin paths');
 }
 
-// Backup manifest must consume that same preflight result instead of scanning the
-// session directories a second time. Keep the existing externally visible reasons.
 for (const text of [
   'windingSessionMetrics.directoryPreflightDurationMs',
   'windingSessionMetrics.directoryPreflightMeasured',
@@ -182,56 +149,65 @@ for (const text of [
   'session_temp_present',
   'session_directory_invalid'
 ]) {
-  requireText(backupExportPath, backupExport, text,
-    'backup manifest no longer consumes authoritative session preflight evidence: ' + text);
+  requireText(backupExportPath, backupExport, text, 'backup manifest no longer consumes authoritative session preflight evidence: ' + text);
 }
 if (backupExport.includes('scanSessionDirectory(storage, directories[i], 0UL,')) {
   failures.push(backupExportPath + ': duplicate backup-manifest session directory preflight scan detected');
 }
 
-// Manual exact-run wire deduction remains the only production path. Both legacy
-// and current KG_FIRST mutations preserve exact spool provenance. Historical
-// unallocated records remain a read/recovery compatibility concern only; the
-// current KG_FIRST POST must require the immutable source-session spool.
-for (const field of ['spool_id', 'source_session_id', 'source_run_id', 'quantity_kg', 'writeoff_mode']) {
-  requireText(writeOffPath, writeOff, '"' + field + '"',
-    'manual writeoff provenance/material field missing: ' + field);
+// The production mutation boundary is now atomic RUN_WIRE only. The historical
+// warehouse URL keeps GET history but its POST must return 410 without mutation.
+for (const text of [
+  '"/api/warehouse/write-offs", HTTP_POST',
+  'm_server.send(410',
+  'legacy_writeoff_post_disabled',
+  'write_performed',
+  'replacement',
+  '/api/material-requests/warehouse',
+  '"/api/warehouse/write-offs", HTTP_GET',
+  'handleListWriteOffs()'
+]) {
+  requireText(writeOffPath, writeOff, text, 'legacy writeoff hard-deprecation contract missing: ' + text);
 }
-requireText(writeOffPath, writeOff, 'm_server.arg("writeoff_mode") == "KG_FIRST"',
-  'explicit kg-first writeoff mode missing');
-requireText(writeOffPath, writeOff, 'spool_id_required_for_kg_first',
-  'current kg-first writeoff no longer requires exact spool_id');
-requireText(writeOffPath, writeOff, 'selection.repairId != repairId || selection.spoolId != spoolId',
-  'current kg-first writeoff no longer validates immutable session spool');
-requireText(writeOffPath, writeOff, 'confirmedWriteOffForSourceRun(sourceSessionId,',
-  'duplicate exact-run writeoff protection missing');
-requireText(writeOffPath, writeOff, 'automatic_wire_writeoff_allowed\\\":false',
-  'manual writeoff response no longer prohibits automatic deduction');
-for (const forbidden of ['diameter_required_for_unallocated', 'wire_type_required_for_unallocated']) {
-  if (writeOff.includes(forbidden)) failures.push(writeOffPath + ': current POST exposes obsolete unallocated fallback: ' + forbidden);
+if (writeOff.includes('handleConfirmWriteOff')) failures.push(writeOffPath + ': retired public writeoff mutation handler returned');
+
+// Exact manual provenance is enforced by the atomic coordinator before pending
+// persistence; retained low-level store guards keep deterministic recovery safe.
+for (const text of [
+  'requestedMovement.sourceSessionId == 0UL',
+  'requestedMovement.sourceRunId == 0UL',
+  'JobSpoolSelectionStore::loadReadOnly',
+  'selection.spoolId != spoolId',
+  'WindingSessionCompletionAudit::check',
+  'm_warehouse.confirmedWriteOffForSourceRun',
+  'm_pending.save(pending)'
+]) {
+  requireText(runWirePath, runWire, text, 'atomic RUN_WIRE provenance guard missing: ' + text);
+}
+for (const text of [
+  'WindingSessionCompletionAudit::check',
+  'confirmedWriteOffForSourceRun(operation.sourceSessionId',
+  'operation.spoolId == 0UL || selection.spoolId != operation.spoolId',
+  'alreadyConfirmed'
+]) {
+  requireText(writeOffStorePath, writeOffStore, text, 'retained low-level writeoff guard missing: ' + text);
 }
 
-// Final operator UI surface must exist in both variants; generic web audit protects syntax/links.
 for (const variant of ['desktop', 'mobile']) {
   for (const page of ['settings.html', 'repairs.html', 'motors.html', 'warehouse.html', 'winding-history.html', 'backup.html']) {
-    requireFile('firmware/esp32/web/' + variant + '/' + page,
-      'required final acceptance UI page missing');
+    requireFile('firmware/esp32/web/' + variant + '/' + page, 'required final acceptance UI page missing');
   }
 }
-requireText(staticSitePath, staticSite, '/shared/settings-system-diagnostics.js',
-  'settings diagnostics helper injection missing');
-requireText(webAuditPath, webAudit, '/api/system/storage',
-  'web audit no longer protects microSD diagnostics');
+requireText(staticSitePath, staticSite, '/shared/settings-system-diagnostics.js', 'settings diagnostics helper injection missing');
+requireText(webAuditPath, webAudit, '/api/system/storage', 'web audit no longer protects microSD diagnostics');
 
-// The dedicated release audit remains the authoritative guard for physical START/SSR ownership.
 for (const contract of [
   'physical START button polling contract missing',
   'direct SSR authority detected on ESP32',
-  'duplicate source-run writeoff guard missing',
+  'atomic exact-spool/source-run writeoff guard missing',
   'explicit APPLY confirmation contract missing'
 ]) {
-  requireText(releaseAuditPath, releaseAudit, contract,
-    'release safety audit lost required contract: ' + contract);
+  requireText(releaseAuditPath, releaseAudit, contract, 'release safety audit lost required contract: ' + contract);
 }
 
 if (failures.length) {
@@ -239,4 +215,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Final acceptance contracts OK: bounded/exact workshop reads, exact linked and writeoff spool identity, diagnostics/storage/network/time, network error semantics, fail-closed live backup activity, backup inspection/session preflight, fail-closed restore, manual exact-run writeoff, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded workshop reads, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, atomic manual exact-run RUN_WIRE, hard-disabled legacy writeoff POST, and desktop/mobile acceptance UI.');

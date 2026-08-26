@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 require('./check_linked_job_winding_role.js');
+require('./check_winding_job_role_ui.js');
 
 const root = path.resolve(__dirname, '../..');
 const failures = [];

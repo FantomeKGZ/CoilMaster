@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **139**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and the first finalization write-off coverage batch reuse authoritative movement validation, MaterialLedger public lookups are explicitly fail-closed, dead private ledger helpers are removed, and RepairCosting repair identity validation no longer uses an ambiguous bool wrapper.
+GREEN through checkpoint **140**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and the first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence now retains a pre-begin directory scan only where `JobSpoolSelectionStore::begin()` may mutate recoverable temp evidence.
 
 ## Latest GREEN state
 
@@ -24,6 +24,7 @@ GREEN through checkpoint **139**. Atomic RUN_WIRE is the only current wire mutat
 137 one-arg MaterialLedger repair + dead usageExists/restoreQuantity removed
 138 RepairCosting one-arg repair wrapper removed; load() uses explicit found
 139 first bounded finalization coverage batch fused with authoritative movement pairing/provenance audit
+140 winding-session preflight limited to mutation-sensitive spool-selection directory
 ```
 
 Production RUN_WIRE path remains:
@@ -36,26 +37,27 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 139 keeps the checkpoint-55 fixed 32-target RAM bound. For the first winding-history batch, exact run/spool coverage is collected during the same authoritative movement pass that validates PENDING/CONFIRMED pairing and global confirmed provenance uniqueness. Later history pages keep the bounded lightweight movement scan. The former standalone movement-integrity pre-scan is removed.
+Checkpoint 140 removes duplicate snapshot/state directory preflight passes. `JobSnapshotStore::begin()` and `JobStateStore::begin()` only ensure existing directories, while their content scans already reject temp/non-canonical entries. `JobSpoolSelectionStore::begin()` can recover a validated temp selection, so its directory keeps the read-only preflight before begin.
 
-Latest verified checkpoint-139 evidence:
+Latest verified checkpoint-140 evidence:
 
 ```text
-0e4896e0139ac8b7f79effb02d644e42dd057d22  final source
-1d78995c5cd203cbfadbaf67aa03b48a813a5ca0  final contract
-ESP32 Build #1602   32979299677 / SUCCESS
-CMP Tests #3635     32979340004 / SUCCESS
+1584672e49288334da531235e3bec9f6a691fc7f  final source
+0e3786c2894cd5b078645ae24ed5ceb3975cb4ea  final contract
+ESP32 Build #1606   32981707495 / SUCCESS
+CMP Tests #3644     32981785788 / SUCCESS
 ```
 
-Checkpoint: `139_FINALIZATION_WRITEOFF_FIRST_BATCH_FUSED_AUDIT_2026-08-26.md`.
+Checkpoint: `140_WINDING_SESSION_SELECTION_ONLY_PREFLIGHT_2026-08-26.md`.
 
 ## Current NEXT
 
 1. Continue bounded audit of growing append-only readers for concrete redundant full scans.
-2. Reuse authoritative parsers/audits where possible; keep fixed-size RAM bounds.
-3. Preserve single-pass costing ownership and Web HTTP preflight semantics.
-4. No automatic production-data rotation/deletion/truncation and no premature DB migration.
-5. Preserve historical recovery/history and atomic RUN_WIRE safety.
+2. Preserve mutation-sensitive preflight only where recovery/begin can modify persisted state.
+3. Reuse authoritative parsers/audits where possible; keep fixed-size RAM bounds.
+4. Preserve single-pass costing ownership and Web HTTP preflight semantics.
+5. No automatic production-data rotation/deletion/truncation and no premature DB migration.
+6. Preserve historical recovery/history and atomic RUN_WIRE safety.
 
 ## Safety invariants
 

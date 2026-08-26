@@ -95,8 +95,10 @@ public:
     bool repairIsOpen(uint32_t repairId, bool& open) const
     {
         open = false;
+        bool repairFound = false;
         if (!ready() || repairId == 0UL ||
-            !idExists(RepairsPath, "repair_id", repairId))
+            !idExists(RepairsPath, "repair_id", repairId, repairFound) ||
+            !repairFound)
         {
             return false;
         }
@@ -133,8 +135,6 @@ public:
                               uint32_t& nextCursor,
                               bool& hasMore) const;
 
-    // Read-only global-search readers. These scan each NDJSON source once from
-    // the supplied cursor and do not alter the legacy list/filter semantics.
     bool appendClientsSearchPageJson(String& json,
                                      const String& query,
                                      uint32_t cursor,
@@ -150,8 +150,6 @@ public:
                                      uint32_t& nextCursor,
                                      bool& hasMore) const;
 
-    // Legacy/client-filtered repair paging remains source-compatible. It
-    // delegates to the extended reader with no motor filter.
     bool appendRepairsPageJson(String& json,
                                uint32_t clientId,
                                const String& statusFilter,
@@ -186,8 +184,8 @@ public:
     bool appendMotorByIdJson(String& json, uint32_t motorId, bool& found) const;
     bool appendRepairByIdJson(String& json, uint32_t repairId, bool& found) const;
 
-    bool clientExists(uint32_t clientId) const;
-    bool motorExists(uint32_t motorId) const;
+    bool clientExists(uint32_t clientId, bool& found) const;
+    bool motorExists(uint32_t motorId, bool& found) const;
 
     static String normalizePhone(const String& phone);
 
@@ -204,7 +202,7 @@ private:
                                    bool* closed,
                                    String* closedAt) const;
     bool nextId(const char* path, const char* key, uint32_t& id) const;
-    bool idExists(const char* path, const char* key, uint32_t id) const;
+    bool idExists(const char* path, const char* key, uint32_t id, bool& found) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);
     static String jsonEscape(const String& value);

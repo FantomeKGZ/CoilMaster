@@ -114,17 +114,13 @@ public:
 
     bool begin();
     bool ready() const;
-    bool repairExists(uint32_t repairId) const;
     bool repairExists(uint32_t repairId, bool& found) const;
-    bool loadActiveMaterialCurrency(uint32_t materialId, String& currency) const;
     bool loadActiveMaterialCurrency(uint32_t materialId,
                                     String& currency,
                                     bool& found) const;
     bool loadActiveMaterialState(uint32_t materialId,
                                  MaterialItemState& state,
                                  bool& found) const;
-    bool loadActiveMaterialState(uint32_t materialId,
-                                 MaterialItemState& state) const;
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);
@@ -184,6 +180,7 @@ private:
                                 const String& auditLine);
     bool usageExists(uint32_t usageId) const;
     bool adjustmentExists(uint32_t adjustmentId) const;
+    bool repairExists(uint32_t repairId) const;
     bool readStockQuantity(uint32_t materialId, uint32_t& quantityMilli) const;
     bool readMaterialState(uint32_t materialId,
                            uint32_t& stockQuantityMilli,

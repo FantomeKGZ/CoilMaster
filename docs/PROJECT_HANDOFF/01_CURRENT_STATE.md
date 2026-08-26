@@ -19,43 +19,62 @@ Workshop Web/CRM redesign is GREEN through Cash Web. The coordinated wire-accoun
 
 ## Latest GREEN migration state
 
-Checkpoint 118 established append-only physical-spool ↔ generic-material bridge persistence:
+Checkpoints 118–120 now establish the physical-spool ↔ generic-material identity boundary:
 
 ```text
-spool_id <-> warehouse_item_id + CU/AL + diameter
+spool_id <-> warehouse_item_id + CU/AL + exact diameter
 /data/warehouse/spool-material-bridges.ndjson
 ```
 
-Checkpoint 119 made MaterialLedger wire identity authoritative without breaking generic materials:
+MaterialLedger wire metadata is backward-compatible:
 
 ```text
-optional pair on /data/materials/materials.ndjson
 wire_type = CU | AL
 diameter_hundredths_mm = exact diameter
 wire metadata requires unit = GRAM
 ```
 
-Properties:
-- legacy/generic material records may omit both metadata fields;
-- one-sided/invalid wire metadata fails closed;
-- active material lookup returns structured metadata;
-- swap/recovery and list validation preserve the same contract;
-- bridge integrity now requires exact `GRAM + CU/AL + diameter` match with MaterialLedger;
-- no runtime bridge writer exists yet;
-- existing exact-spool writeoff/finalization remains authoritative.
-
-Latest evidence:
+Checkpoint 120 adds explicit operator-only runtime creation:
 
 ```text
-CMP Protocol Tests 32941574082 / SUCCESS
-ESP32 Build         32941574080 / SUCCESS
+POST /api/warehouse/spool-material-bridges
+```
+
+Properties:
+- requires `spool_id + warehouse_item_id + confirm=1 + linked_at`;
+- physical spool must exist and be ACTIVE;
+- MaterialLedger item must exist and be ACTIVE;
+- MaterialLedger item must be `GRAM` with structured wire metadata;
+- exact CU/AL + diameter must match between both authoritative records;
+- already-bridged spool is rejected fail-closed;
+- server derives metadata from authoritative records, not caller fields;
+- successful creation appends bridge identity evidence only;
+- response states `stock_mutated:false`;
+- no current writeoff/usage/machine mutation is invoked.
+
+Latest evidence on tree `fa651e3e50a25df9489db24b6c71bd853171a9b8`:
+
+```text
+CMP Protocol Tests 32944119683 / SUCCESS
+ESP32 Build         32944119688 / SUCCESS
 ```
 
 ## Current NEXT
 
-Add explicit operator-only bridge creation. It must preflight exact active physical spool + exact active MaterialLedger item, require matching `CU|AL + diameter`, reject an already bridged spool, and append identity evidence only. It must not mutate stock or relax current exact-spool writeoff/finalization.
+Build the crash-safe explicit-operator run-linked wire accounting migration toward Material Request `RUN_WIRE`. Before coding mutation, inspect existing MaterialLedger usage/adjustment transaction semantics and the current Material Request warehouse coordinator so physical spool mutation, MaterialLedger movement and Material Request evidence cannot diverge across a reboot/crash window.
 
-After that, migrate run-linked wire accounting coherently toward explicit Material Request `RUN_WIRE` ISSUE while preserving exact `source_session_id + source_run_id` and physical spool provenance.
+Target provenance remains:
+
+```text
+material_request_id
+source_session_id + source_run_id
+exact physical spool_id provenance through bridge
+CU/AL + exact diameter
+actual consumed weight
+manual confirmation
+```
+
+Current exact-spool writeoff/finalization remains authoritative until the coordinated transition across movement/costing/finalization/backup/integrity/reports/Web/tests is complete.
 
 ## Safety invariants
 

@@ -49,16 +49,22 @@ Authoritative design:
 108 Material Request warehouse pending + backup guard
 109 Crash-safe warehouse coordinator
 110 Material Request production runtime/Web API
+111 Immutable repair delivery store/API + backup/integrity
+112 Append-only cash payments/corrections + repair/client balance API + backup/integrity
 ```
 
-Latest verified block 110:
+Latest verified block 112:
 
 ```text
-CMP 32926200712 / SUCCESS
-ESP32 Build 32926237400 / SUCCESS
+CMP Protocol Tests 32928743465 / SUCCESS
+ESP32 Build         32928706196 / SUCCESS
 ```
 
-Material Request production routes:
+ESP32 evidence covers final production cash source at `eac97f9...`; the later `8eb8352...` commit changes only permanent host regression.
+
+## Material Request / warehouse
+
+Production routes:
 
 ```text
 POST /api/material-requests
@@ -70,38 +76,53 @@ POST /api/material-requests/status
 POST /api/material-requests/warehouse
 ```
 
-Server derives client/motor from repair; warehouse mutation requires explicit confirmation and coordinator path. Client-supplied material pricing is not accepted.
+Server derives client/motor from repair; stock mutation requires explicit confirmation and crash-safe coordinator. Client-supplied material pricing is not accepted.
 
-## Current work — delivery block
-
-Immutable delivery journal/API is being added:
+## Delivery
 
 ```text
 /data/workshop/repair-deliveries.ndjson
 GET/POST /api/repairs/delivery
 ```
 
-Rules:
+Only CLOSED repair may be delivered. Delivery is immutable, one per repair, preserves exact repair/client/motor/time and is intentionally not blocked by debt.
 
-- delivery requires explicit confirmation;
-- server derives exact `client_id + motor_id` from repair;
-- repair must already be CLOSED;
-- one final delivery per repair;
-- payment/balance does not block persistence of delivery;
-- delivery is exported in backup and validated read-only for repair identity, uniqueness and CLOSED state.
+## Cash / payments
 
-Do not call delivery checkpoint GREEN until current integrated CMP + ESP32 Build finish successfully.
+Authoritative repair charge stays in `RepairCosting`; cash journal does not duplicate price.
 
-## Next after delivery GREEN
+```text
+/data/workshop/repair-payments.ndjson
+PAYMENT -> ADD
+CORRECTION -> ADD | SUBTRACT
+```
 
-1. Append-only payment/correction journal/API.
-2. Repair/client balance readers.
-3. Motor Web redesign with separate create page and versioned winding card.
-4. Client Web redesign with separate create page and motors/repairs/material requests/payments/delivery history.
-5. Cash UI and costing integration.
-6. Coordinated spool -> Material Request wire migration.
-7. Full software regression/backup/restore.
-8. Final two-board hardware E2E.
+Routes:
+
+```text
+GET  /api/payments?repair_id=...
+GET  /api/payments?client_id=...
+POST /api/payments
+GET  /api/payments/balance?repair_id=...
+GET  /api/payments/balance?client_id=...
+```
+
+Cash is append-only. Correction references must match the same repair/client. SUBTRACT cannot make paid total negative. Payment remains possible after CLOSED/DELIVERED. Backup/export/integrity includes both delivery and payment journals.
+
+## Current mandatory work — Web/CRM UI
+
+1. Motor Web:
+   - separate `motor-new.html`;
+   - catalog-only `motors.html` based on archive UI;
+   - `motor-details.html` with versioned WORKING/STARTING, multi-conductor data, history and direct safe job-send.
+2. Client Web:
+   - separate `client-new.html`;
+   - catalog-only `clients.html`;
+   - `client-details.html` with motors, repairs, materials, payments/balance and delivery history.
+3. Dedicated `cash.html`; `costing.html` remains costing/pricing.
+4. Coordinated spool -> Material Request wire migration only after the UI/domain work and only across all affected contracts together.
+5. Full software regression/backup/restore.
+6. Final two-board hardware E2E.
 
 ## Wire accounting target
 
@@ -113,7 +134,7 @@ source_session_id + source_run_id for run-linked wire
 CU/AL + actual weight
 ```
 
-Current `spool_id` requirements remain until the whole chain is migrated coherently.
+Current exact `spool_id` requirements remain until the whole chain is migrated coherently.
 
 ## Safety invariants
 
@@ -126,7 +147,8 @@ Current `spool_id` requirements remain until the whole chain is migrated coheren
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never auto-deducts material;
 - warehouse ISSUE requires explicit operator action;
-- run-linked wire movement preserves exact session/run provenance;
+- cash events never control machine/warehouse state;
+- payment balance does not rewrite delivery/run/material evidence;
 - cancellation/operator abort preserves immutable history;
 - restore operator-only, transactional, fail-closed;
 - no automatic production deletion/truncation.
@@ -143,9 +165,10 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
+docs/PROJECT_HANDOFF/111_REPAIR_DELIVERY_STORE_API_2026-08-26.md
 docs/PROJECT_HANDOFF/110_MATERIAL_REQUEST_RUNTIME_WEB_API_2026-08-26.md
 docs/PROJECT_HANDOFF/109_MATERIAL_REQUEST_WAREHOUSE_COORDINATOR_2026-08-26.md
-docs/PROJECT_HANDOFF/108_MATERIAL_REQUEST_WAREHOUSE_PENDING_TRANSACTION_2026-08-25.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 this file
@@ -154,5 +177,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 110 Material Request production runtime/Web API GREEN: CMP 32926200712 SUCCESS, ESP32 32926237400 SUCCESS. Текущий блок: immutable repair delivery store/API + backup/integrity. Delivery разрешена только после CLOSED ремонта, не зависит от нулевого баланса и хранит exact repair/client/motor/time. После GREEN перейти к append-only payments/corrections and balance readers. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 112 cash backend GREEN: CMP 32928743465 SUCCESS, ESP32 32928706196 SUCCESS. Delivery checkpoint 111 и Material Request runtime 110 тоже GREEN. Следующий блок: Motor Web redesign — motors.html catalog-only, separate motor-new.html, motor-details versioned WORKING/STARTING with safe direct job send and no physical auto-start. Потом Client Web и cash.html. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
 ```

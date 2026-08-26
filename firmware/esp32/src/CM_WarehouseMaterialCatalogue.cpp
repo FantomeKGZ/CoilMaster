@@ -127,12 +127,4 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
 
     return true;
 }
-
-uint8_t WarehouseStore::loadKnownWireDiameters(const char* wireType,
-                                                KnownWireDiameter* items,
-                                                uint8_t capacity) const
-{
-    uint8_t count = 0U;
-    return loadKnownWireDiameters(wireType, items, capacity, count) ? count : 0U;
-}
 }

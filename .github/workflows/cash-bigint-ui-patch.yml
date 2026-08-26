@@ -1,0 +1,42 @@
+name: Guarded Cash BigInt UI Patch
+
+on:
+  push:
+    branches: [cmp-protocol-v1]
+    paths:
+      - '.github/workflows/cash-bigint-ui-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cmp-protocol-v1
+      - name: Guard current cash blob
+        run: test "$(git hash-object firmware/esp32/web/desktop/cash.html)" = "bbc89e179247be1047d4c3c0f598a5c7c9e42559"
+      - name: Make money rendering integer-exact
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('firmware/esp32/web/desktop/cash.html')
+          s=p.read_text()
+          old="const money=(minor,currency)=>{const n=Number(minor);return Number.isFinite(n)?(n/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(currency||'KGS'):'—'};"
+          new="const money=(minor,currency)=>{try{const n=BigInt(String(minor??0)),neg=n<0n,a=neg?-n:n,whole=a/100n,frac=String(a%100n).padStart(2,'0');return(neg?'−':'')+whole.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g,' ') +','+frac+' '+(currency||'KGS')}catch{return'—'}};"
+          assert s.count(old)==1
+          s=s.replace(old,new,1)
+          old2="const debt=b?Number(b.debt_minor||0):null,credit=b?Number(b.credit_minor||0):null,rest=b?(debt>0?money(debt,b.currency):(credit>0?'Переплата '+money(credit,b.currency):money(0,b.currency))):'—';"
+          new2="const debt=b?BigInt(String(b.debt_minor||0)):null,credit=b?BigInt(String(b.credit_minor||0)):null,rest=b?(debt>0n?money(debt,b.currency):(credit>0n?'Переплата '+money(credit,b.currency):money(0,b.currency))):'—';"
+          assert s.count(old2)==1
+          p.write_text(s.replace(old2,new2,1))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add firmware/esp32/web/desktop/cash.html
+          git commit -m "fix(web): keep cash minor-unit rendering exact"
+          git push origin HEAD:cmp-protocol-v1

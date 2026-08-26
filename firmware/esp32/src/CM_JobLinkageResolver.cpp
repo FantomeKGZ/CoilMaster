@@ -72,7 +72,6 @@ bool JobLinkageResolver::resolve(uint32_t repairId,
         }
         if (candidateRepairId != repairId) continue;
 
-        // Duplicate repair identifiers make the source ambiguous and unsafe.
         if (found || !findUnsigned(line, "motor_id", storedMotorId) ||
             storedMotorId == 0UL)
         {
@@ -110,7 +109,24 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
                                             JobLinkage& linkage,
                                             String& coilProgram) const
 {
+    uint16_t ignoredRepeatTarget = 1U;
+    return resolveWithProgramAndRepeat(repairId,
+                                       requestedMotorId,
+                                       requestedType,
+                                       linkage,
+                                       coilProgram,
+                                       ignoredRepeatTarget);
+}
+
+bool JobLinkageResolver::resolveWithProgramAndRepeat(uint32_t repairId,
+                                                     uint32_t requestedMotorId,
+                                                     RemoteJobType requestedType,
+                                                     JobLinkage& linkage,
+                                                     String& coilProgram,
+                                                     uint16_t& repeatTarget) const
+{
     coilProgram = String();
+    repeatTarget = 0U;
     if (!resolve(repairId, requestedMotorId, linkage))
     {
         linkage = JobLinkage();
@@ -132,45 +148,53 @@ bool JobLinkageResolver::resolveWithProgram(uint32_t repairId,
     {
         String candidateProgram;
         String canonicalProgram;
+        uint32_t parsedRepeatTarget = 0UL;
         if (requestedType == RemoteJobType::Starting)
         {
             if (versionJson.indexOf(F("\"starting_present\":true")) < 0 ||
-                !findString(versionJson, "starting_program", candidateProgram))
+                !findString(versionJson, "starting_program", candidateProgram) ||
+                !findUnsigned(versionJson, "starting_repeat_target", parsedRepeatTarget))
             {
                 linkage = JobLinkage();
                 return false;
             }
         }
-        else if (!findString(versionJson, "working_program", candidateProgram))
+        else if (!findString(versionJson, "working_program", candidateProgram) ||
+                 !findUnsigned(versionJson, "working_repeat_target", parsedRepeatTarget))
         {
             linkage = JobLinkage();
             return false;
         }
 
-        if (!WindingProgramParser::canonicalize(candidateProgram, canonicalProgram))
+        if (!WindingProgramParser::canonicalize(candidateProgram, canonicalProgram) ||
+            parsedRepeatTarget == 0UL || parsedRepeatTarget > 0xFFFFUL)
         {
             linkage = JobLinkage();
             return false;
         }
         coilProgram = canonicalProgram;
+        repeatTarget = static_cast<uint16_t>(parsedRepeatTarget);
         return true;
     }
 
-    // Legacy motors have only one historical program and therefore authorize
-    // WORKING only. Never infer a STARTING program from legacy coil_program.
     if (requestedType == RemoteJobType::Starting)
     {
         linkage = JobLinkage();
         return false;
     }
-    return resolveLegacyWorkingProgram(requestedMotorId, linkage, coilProgram);
+    return resolveLegacyWorkingProgram(requestedMotorId,
+                                       linkage,
+                                       coilProgram,
+                                       repeatTarget);
 }
 
 bool JobLinkageResolver::resolveLegacyWorkingProgram(uint32_t requestedMotorId,
                                                       JobLinkage& linkage,
-                                                      String& coilProgram) const
+                                                      String& coilProgram,
+                                                      uint16_t& repeatTarget) const
 {
     coilProgram = String();
+    repeatTarget = 0U;
     if (!m_storage.exists(MotorsPath))
     {
         linkage = JobLinkage();
@@ -204,18 +228,23 @@ bool JobLinkageResolver::resolveLegacyWorkingProgram(uint32_t requestedMotorId,
         String candidateProgram;
         String canonicalProgram;
         String status;
+        uint32_t parsedRepeatTarget = 1UL;
+        const bool hasRepeatTarget = findUnsigned(line, "repeat_target", parsedRepeatTarget);
         if (found ||
             !findString(line, "coil_program", candidateProgram) ||
             !WindingProgramParser::canonicalize(candidateProgram, canonicalProgram) ||
-            (findString(line, "status", status) && status != "ACTIVE"))
+            (findString(line, "status", status) && status != "ACTIVE") ||
+            (hasRepeatTarget && (parsedRepeatTarget == 0UL || parsedRepeatTarget > 0xFFFFUL)))
         {
             file.close();
             linkage = JobLinkage();
             coilProgram = String();
+            repeatTarget = 0U;
             return false;
         }
 
         coilProgram = canonicalProgram;
+        repeatTarget = static_cast<uint16_t>(parsedRepeatTarget);
         found = true;
     }
     file.close();
@@ -224,6 +253,7 @@ bool JobLinkageResolver::resolveLegacyWorkingProgram(uint32_t requestedMotorId,
     {
         linkage = JobLinkage();
         coilProgram = String();
+        repeatTarget = 0U;
         return false;
     }
     return true;

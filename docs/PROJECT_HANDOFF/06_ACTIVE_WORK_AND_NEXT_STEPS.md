@@ -27,9 +27,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 127_RUN_WIRE_PERSISTED_SPOOL_INTEGRITY_2026-08-26.md
 128_WAREHOUSE_LEGACY_DIRECT_API_NARROWING_2026-08-26.md
 129_WAREHOUSE_LEGACY_SUPPORT_TYPES_NARROWING_2026-08-26.md
+130_WAREHOUSE_DEAD_DIRECT_WRITEOFF_REMOVAL_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 129
+## GREEN foundation through checkpoint 130
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -45,16 +46,18 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 126 direct exact spool provenance in new immutable RUN_WIRE movement + public legacy writeoff POST hard-disabled
 127 persisted spool_id cross-checked against immutable selection in existing bounded audit pass
 128 legacy direct Store mutation methods moved behind private API
-129 legacy direct request/result support types moved behind private API; movement read already exposes direct RUN_WIRE provenance
+129 legacy direct request/result support types moved behind private API
+130 obsolete direct Store mutation methods/result fully removed; historical deterministic append/recovery helpers retained
 ```
 
-Latest verified checkpoint-129 evidence:
+Latest verified checkpoint-130 evidence:
 
 ```text
-b2f7f13f88bf2a5e489999fdf318523fc1fcdf46  legacy support type narrowing
-071e55923ead09264a801c250e8807a17823eba1  private-type contract
-ESP32 Build #1572   32963035385 / SUCCESS
-CMP Tests #3551     32963113298 / SUCCESS
+e9ebd56a0317a7aecf87d4e6fd49e5a3433c22fd  declaration/result removal
+2a0bde9954edbfb712336c38c677d70d405b0332  implementation removal
+6f355a7aa5b2071477b3a9bd8ac387d96abf0e13  final contract alignment
+ESP32 Build #1574   32963503796 / SUCCESS
+CMP Tests #3563     32964152182 / SUCCESS
 ```
 
 ## Current RUN_WIRE production/read boundary
@@ -62,17 +65,16 @@ CMP Tests #3551     32963113298 / SUCCESS
 ```text
 RUN_COMPLETED -> evidence only
 explicit operator RUN_WIRE ISSUE
--> one Material Request movement
-   new writes carry direct exact spool_id
+-> one Material Request movement (new rows carry direct exact spool_id)
 -> one MaterialLedger usage tagged RWI_TX=<transaction_ref>
--> one physical warehouse CONFIRMED writeoff
--> one exact KG wire price in all accounting views
--> cross-log integrity requires exact one-to-one correlation
+-> managed physical warehouse PENDING/CONFIRMED writeoff
+-> one exact KG wire price
+-> bounded cross-log one-to-one integrity
 ```
 
-The bounded `/api/material-requests/movements` read path returns immutable movement JSON directly. New movement rows already include exact request/transaction/item/session/run/spool/material/diameter provenance; historic rows without `spool_id` remain compatible through immutable selection validation.
+The bounded `/api/material-requests/movements` read path already exposes request/transaction/item/session/run/spool/material/diameter provenance for new RUN_WIRE rows. Historic rows without `spool_id` remain compatible through immutable selection validation.
 
-Public mutation boundary remains:
+Public mutation boundary:
 
 ```text
 POST /api/warehouse/write-offs -> HTTP 410, no write
@@ -80,31 +82,34 @@ GET  /api/warehouse/write-offs -> preserved history/coverage
 POST /api/material-requests/warehouse -> authoritative explicit RUN_WIRE mutation
 ```
 
-Internal narrowing now also means:
+Internal boundary after checkpoint 130:
 
 ```text
-confirmSpoolWriteOff / confirmKgFirstWriteOff -> private
-ConfirmedSpoolWriteOff / SpoolWriteOffResult -> private
-KgFirstWriteOff + managed RUN_WIRE methods -> public production surface
+confirmSpoolWriteOff          removed
+confirmKgFirstWriteOff        removed
+SpoolWriteOffResult           removed
+ConfirmedSpoolWriteOff        private legacy recovery shape
+appendWriteOffRecord          retained for historical LEGACY_SPOOL PENDING recovery
+appendKgFirstWriteOffRecord   retained for managed/historical KG_FIRST evidence
+managed RUN_WIRE methods      public production surface
 ```
 
-## Current active queue — dead helper removal / bounded provenance
+## Current active queue — further bounded cleanup
 
-Next coherent block:
-
-1. Audit whether the two private direct mutation methods are now entirely dead and can be removed while keeping `appendWriteOffRecord` for deterministic legacy recovery.
-2. Preserve `appendKgFirstWriteOffRecord`, `appendWriteOffRecord`, movement codec and startup recovery as long as historical pending reconciliation depends on them.
-3. Prefer direct immutable movement provenance for reports; do not add another full-log scan or duplicate bridge join.
-4. Narrow other warehouse helpers only when ESP32 compilation and mandatory contracts prove no current caller.
+1. Audit remaining warehouse helper visibility/callers; remove or narrow only helpers not needed by current managed RUN_WIRE, GET/history, integrity, backup or deterministic historical recovery.
+2. Preserve historical movement codecs and append/recovery helpers while persisted old history/PENDING can exist.
+3. Prefer direct immutable movement provenance for reports; no new full-log scan or duplicate bridge join.
+4. Review NDJSON growth/runtime scan hot spots for safe bounded optimization without automatic deletion/rotation and without premature DB migration.
 5. Continue software optimization/integrity before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
-no unnecessary legacy mutation code
+minimal warehouse mutation surface
 historical recovery remains deterministic
 bounded reports use persisted provenance
-no redundant scans
+no duplicate scans
+no automatic data deletion
 public legacy POST remains disabled
 ```
 

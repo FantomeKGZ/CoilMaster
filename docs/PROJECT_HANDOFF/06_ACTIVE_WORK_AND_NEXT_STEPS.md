@@ -20,9 +20,10 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
 121_RUN_WIRE_ISSUE_TRANSACTION_2026-08-26.md
 122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md
+123_RUN_WIRE_ACCOUNTING_CONVERGENCE_2026-08-26.md
 ```
 
-## GREEN foundation through checkpoint 122
+## GREEN foundation through checkpoint 123
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash software blocks
@@ -32,66 +33,60 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 120 explicit operator-only runtime spool-material bridge creation
 121 atomic explicit-operator RUN_WIRE ISSUE across Material Request + MaterialLedger + exact physical spool
 122 desktop/mobile operator writeoff UI migrated to atomic RUN_WIRE ISSUE
+123 RUN_WIRE costing/finalization converged to one authoritative wire-cost count
 ```
 
-Latest verified checkpoint-122 source/test evidence:
+Latest verified checkpoint-123 evidence:
 
 ```text
-operator UI commit       5c28fadd4a3d1ef8de272f677e2b2f53bfc77794
-UI contract commit       10528b23336bebe30208a56e085d3d77aeb19af9
-fault-contract fix       f8d25c1b5fb04bddbd0c2b93fca704f14a7b565f
-CMP Protocol Tests #3489 32954794059 / SUCCESS
+29e6315c04a3901fd068df60ddc9b9849920d879  reserve RWI_TX namespace
+52e0c629fe1f112ceff373b2e83decf20ff76b21  deduplicate RUN_WIRE costing
+357a7677f7e91bb2a9812462e0aff8c9d0e15ea4  final semantic contract
+ESP32 Build #1557   32955502232 / SUCCESS
+ESP32 Build #1558   32955588907 / SUCCESS
+CMP Tests #3500     32955968429 / SUCCESS
 ```
 
-Checkpoint 122: `122_RUN_WIRE_OPERATOR_UI_MIGRATION_2026-08-26.md`.
-
-## Current RUN_WIRE production boundary
-
-`RUN_COMPLETED` remains strictly non-mutating. Manual wire consumption now follows one operator path:
+## Current RUN_WIRE production/accounting boundary
 
 ```text
-operator reviews exact uncovered RUN_COMPLETED
--> immutable source session/run spool
--> exact spool <-> MaterialLedger bridge
--> explicit DRAFT/ISSUED Material Request selection
--> actual consumed kg
--> POST /api/material-requests/warehouse
-   confirmed=true
-   movement_kind=ISSUE
-   source_kind=RUN_WIRE
-   unit=KG
-   material_request_id
-   repair_id
-   warehouse_item_id
-   source_session_id + source_run_id
-   exact spool_id
-   CU|AL + exact diameter
-   actual consumed grams
--> one durable RunWireIssueCoordinator transaction/recovery owner
+RUN_COMPLETED -> evidence only
+explicit operator RUN_WIRE ISSUE
+-> one Material Request movement
+-> one MaterialLedger stock usage tagged RWI_TX=<transaction_ref>
+-> one physical warehouse CONFIRMED writeoff
 ```
 
-The active production UI no longer performs a mutating POST to `/api/warehouse/write-offs`. Legacy warehouse writeoff GET remains authoritative read/history/coverage evidence; the old backend POST stays compatibility-only until formal deprecation is safe.
+Accounting authority:
 
-## Current active queue — accounting/report convergence
+```text
+wire cost = confirmed physical warehouse movement
+generic material cost = ordinary MaterialLedger usage excluding managed RWI_TX usage
+total = wire + generic material + labour
+```
+
+Costing and finalization fail closed while `/data/workshop/run-wire-issue.pending.json` or its temp file exists. Generic `POST /api/materials/usage` rejects the reserved `RWI_TX=` prefix, so operator-created generic material usage cannot impersonate RUN_WIRE managed accounting evidence.
+
+Both mutation paths already query exact `confirmedWriteOffForSourceRun(source_session_id, source_run_id)` before physical deduction, giving a common exact-run duplicate boundary.
+
+## Current active queue — cross-log integrity / legacy boundary
 
 Next coherent block:
 
-1. Audit costing, finalization and report consumers for double-accounting between MaterialLedger RUN_WIRE usage and standard confirmed physical writeoff evidence.
-2. Keep standard confirmed physical spool writeoff as the one consumption evidence used by costing/finalization unless an explicit audited migration says otherwise.
-3. Expose/retain exact `material_request_id + warehouse_item_id + source_session_id + source_run_id + spool_id` provenance in operator/report surfaces where needed.
-4. Add contract coverage that rejects double-counting and rejects any reintroduction of direct legacy mutation from production UI.
-5. Review formal deprecation boundary for legacy direct writeoff POST while preserving historical read compatibility.
+1. Add mandatory contract coverage proving legacy/direct and atomic RUN_WIRE share the same exact-run duplicate evidence and cannot deduct one completed run twice by changing API path.
+2. Strengthen managed `RWI_TX` classification: correlate persisted Ledger usage to immutable RUN_WIRE Material Request/warehouse evidence rather than accepting a syntactically valid tag alone.
+3. Keep the standard warehouse CONFIRMED movement as the only wire consumption/costing authority; do not create a second report ledger.
+4. Preserve bounded read/report provenance for `material_request_id + transaction_ref + warehouse_item_id + source_session_id + source_run_id + spool_id + CU/AL + diameter + grams`.
+5. After cross-log integrity is GREEN, review whether legacy mutating POST can be formally disabled while preserving GET/history/recovery compatibility.
 6. Continue software optimization/integrity work before mandatory final two-board hardware E2E.
 
 Target:
 
 ```text
-RUN_COMPLETED -> non-mutating
-explicit operator RUN_WIRE ISSUE
-one Material Request movement
-one MaterialLedger usage
-one physical confirmed writeoff evidence
-costing/finalization/reporting count consumption once
+one completed run
+-> at most one confirmed physical writeoff
+-> exactly correlated RUN_WIRE transaction evidence when atomic path used
+-> one wire cost in costing/finalization
 ```
 
 ## Safety invariants

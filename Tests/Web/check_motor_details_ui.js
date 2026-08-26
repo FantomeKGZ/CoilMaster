@@ -1,3 +1,4 @@
+require('./check_client_crm_ui.js');
 const fs = require('fs');
 const path = require('path');
 

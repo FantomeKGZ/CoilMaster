@@ -15,11 +15,11 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 ## Current phase
 
-Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 124: atomic RUN_WIRE has the authoritative operator UI, single-count costing semantics and bounded cross-log integrity.
+Workshop Web/CRM redesign is GREEN through Cash Web. Coordinated wire-accounting migration is GREEN through checkpoint 125: atomic RUN_WIRE has authoritative operator UI, single-count costing, bounded cross-log integrity and one agreed KG wire price.
 
 ## Latest GREEN migration state
 
-Checkpoints 118–124 establish:
+Checkpoints 118–125 establish:
 
 ```text
 spool_id <-> warehouse_item_id + CU/AL + exact diameter
@@ -32,6 +32,8 @@ one durable high-level recovery owner
 one shared desktop/mobile atomic operator controller
 one authoritative wire-cost count
 cross-log exact transaction integrity
+one agreed KG wire price
+reserved RWI_TX system provenance
 ```
 
 Production operator path:
@@ -54,49 +56,45 @@ materialCostMinor = ordinary MaterialLedger usage excluding managed RWI_TX usage
 totalCostMinor = wireCostMinor + materialCostMinor + labourCostMinor
 ```
 
-Cross-log integrity after checkpoint 124 requires every completed atomic RUN_WIRE to resolve exactly once across Material Request movement, tagged MaterialLedger usage and tagged warehouse `KG_FIRST / SPOOL / CONFIRMED` evidence. It also revalidates immutable JobSpoolSelection plus exact spool↔warehouse-item bridge. Orphan/duplicate/mismatch fails closed.
-
-Properties:
-- `RUN_COMPLETED` remains strictly non-mutating;
-- explicit operator confirmation remains mandatory;
-- exact Material Request ↔ repair ownership is validated;
-- exact immutable `JobSpoolSelection` is required;
-- exact `source_session_id + source_run_id` must be Completed;
-- exact spool-material bridge is required;
-- ACTIVE physical spool and ACTIVE MaterialLedger wire item must agree on CU/AL + diameter;
-- one `/data/workshop/run-wire-issue.pending.json` owns cross-store recovery;
-- impossible ordering or unknown spool weight fails closed;
-- backup/restore is Busy while RUN_WIRE pending/tmp exists;
-- costing/finalization also fail closed while RUN_WIRE pending/tmp exists;
-- cross-log audit refuses to interpret in-flight pending/tmp;
-- generic MaterialLedger Web usage cannot spoof the reserved `RWI_TX=` prefix;
-- managed RUN_WIRE Ledger usage is not counted twice as generic material cost;
-- standard physical warehouse CONFIRMED movement remains the wire-cost authority;
-- both legacy/direct and atomic RUN_WIRE use exact `confirmedWriteOffForSourceRun(session,run)` duplicate evidence.
-
-Latest verified checkpoint-124 evidence:
+Price authority after checkpoint 125:
 
 ```text
-9448c250955664c7e82a5e69ba26a569d3b93fe7  cross-log audit
-EEF4157AC13E09D5636FAA49817BAA5A63CFC794  workshop integration
-63ac31dc37f2542e3879466df9158312ac21a2f6  mandatory contracts
-ESP32 Build #1560   32959482667 / SUCCESS
-ESP32 Build #1561   32959521066 / SUCCESS
-CMP Tests #3507     32959482741 / SUCCESS
-CMP Tests #3509     32959605104 / SUCCESS
+MaterialLedger price_per_unit_minor (GRAM) * 1000
+= RUN_WIRE Material Request unit_cost_minor (KG)
+= warehouse price_per_kg_minor
 ```
 
-Checkpoint: `124_RUN_WIRE_CROSS_LOG_INTEGRITY_2026-08-26.md`.
+The equality is enforced before the high-level pending is saved, rechecked before physical phases/recovery, and validated in completed cross-log history. Currency must agree as well.
+
+`RWI_TX=` is system-owned. Generic `/api/materials/usage` and compatibility `/api/warehouse/write-offs` operator comments cannot create this prefix.
+
+Latest verified checkpoint-125 evidence:
+
+```text
+74a92901262a060b203ea1b1a3cc3313537ce51a  coordinator price convergence
+84dabb9920cf60ca8cd8745b16a3e97e9093f50b  persisted price audit
+4f20cc928723a0c3dd873741260ebed07d8690f5  warehouse RWI_TX guard
+c799c74f3f8f4c6cbcd538ea662e3c86fe039304  mandatory contracts
+ESP32 Build #1562   32960004843 / SUCCESS
+ESP32 Build #1563   32960173338 / SUCCESS
+ESP32 Build #1564   32960269882 / SUCCESS
+CMP Tests #3514     32960004874 / SUCCESS
+CMP Tests #3515     32960173324 / SUCCESS
+CMP Tests #3516     32960270010 / SUCCESS
+CMP Tests #3517     32960329745 / SUCCESS
+```
+
+Checkpoint: `125_RUN_WIRE_PRICE_PROVENANCE_CONVERGENCE_2026-08-26.md`.
 
 ## Current NEXT
 
-Next software block is price/provenance convergence:
+Audit the compatibility mutating warehouse Web route:
 
-1. require atomic RUN_WIRE MaterialLedger KG-equivalent price to equal the warehouse KG price that will be persisted in physical writeoff/costing;
-2. reserve system `RWI_TX=` namespace on compatibility warehouse-writeoff Web input as well as generic MaterialLedger usage;
-3. extend cross-log audit to price agreement if needed;
-4. expose bounded read/report provenance without creating another accounting authority;
-5. only then review formal deprecation of legacy mutating POST.
+1. find every current caller of `POST /api/warehouse/write-offs`;
+2. distinguish production callers from tests/history/fault-recovery infrastructure;
+3. if no production caller remains, disable the public mutating POST while keeping GET/history and internal store recovery intact;
+4. preserve exact-run duplicate evidence and existing immutable historical records;
+5. continue bounded read/report provenance work before final hardware E2E.
 
 ## Safety invariants
 
@@ -111,7 +109,7 @@ Never weaken:
 - final repeat cannot auto-reopen;
 - `RUN_COMPLETED` never automatically deducts material;
 - warehouse ISSUE requires explicit operator action;
-- cash operations never trigger machine/warehouse mutation;
+- cash operations never trigger machine or warehouse mutation;
 - run-linked wire movement preserves exact run + spool provenance;
 - cancellation/operator abort preserves immutable evidence;
 - restore operator-only, transactional, fail-closed;

@@ -116,13 +116,6 @@ bool MaterialLedger::loadActiveMaterialState(uint32_t materialId,
     return true;
 }
 
-bool MaterialLedger::loadActiveMaterialState(uint32_t materialId,
-                                             MaterialItemState& state) const
-{
-    bool found = false;
-    return loadActiveMaterialState(materialId, state, found) && found;
-}
-
 bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
                                                 String& currency,
                                                 bool& found) const
@@ -133,12 +126,5 @@ bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
     if (!loadActiveMaterialState(materialId, state, found)) return false;
     if (found) currency = state.currency;
     return true;
-}
-
-bool MaterialLedger::loadActiveMaterialCurrency(uint32_t materialId,
-                                                String& currency) const
-{
-    bool found = false;
-    return loadActiveMaterialCurrency(materialId, currency, found) && found;
 }
 }

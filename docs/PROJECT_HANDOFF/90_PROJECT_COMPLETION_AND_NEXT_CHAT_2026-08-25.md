@@ -53,51 +53,43 @@ Authoritative design:
 112 Append-only cash payments/corrections + repair/client balance API + backup/integrity
 113 Motor Web catalog-only + separate create + versioned motor card
 114 Motor AS_RECEIVED comparison + role-aware linked WORKING/STARTING job flow
+115 Client Web catalog-only + dedicated create + read-only CRM card
 ```
 
-Latest verified block 114:
+Latest verified:
 
 ```text
-CMP Protocol Tests 32934323481 / SUCCESS
-ESP32 Build         32934092563 / SUCCESS
+CMP Protocol Tests 32936343060 / SUCCESS
+ESP32 Build         32934092563 / SUCCESS  # latest firmware-source evidence from checkpoint 114
 ```
-
-ESP32 evidence is on production-source commit `da5d7271ba69e373599360550e81e1cf860f7a1a`, after role-aware `main.cpp` and repeat validation were integrated.
 
 ## Motor Web — GREEN
 
-Desktop Motor Web now provides:
-
-- catalog-only `motors.html`;
-- separate `motor-new.html`;
-- current and historical versioned WORKING/STARTING roles;
-- multi-conductor display;
-- immutable AS_RECEIVED vs after-repair comparison;
-- OPEN-repair links to the existing safe linked-job flow with `role=working|starting`;
-- exact server-side role/program/repeat validation;
-- legacy WORKING-only fallback;
-- fail-closed missing STARTING;
-- readonly linked program/repeat in UI;
-- exact spool selection retained;
-- no physical START or direct SSR control from Web.
+Desktop Motor Web provides catalog-only browsing, separate creation, versioned WORKING/STARTING, multi-conductor history, immutable AS_RECEIVED comparison and safe navigation to the existing linked-job path. Server owns exact role/program/repeat/spool validation. Physical START remains local-only.
 
 Checkpoint: `114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md`.
 
+## Client Web — GREEN
+
+Checkpoint: `115_CLIENT_WEB_CRM_2026-08-26.md`.
+
+Desktop Client Web now provides:
+
+- catalog-only `clients.html`;
+- separate `client-new.html`;
+- `client-details.html?client_id=...`;
+- client identity/contact/comment;
+- motors resolved through exact repair history rather than permanent motor ownership;
+- bounded open/closed repair history;
+- immutable delivery state/date;
+- charged/paid/debt/credit;
+- bounded append-only payment history;
+- no payment/delivery/machine/material mutation from client card;
+- no duplicate inline client creation in repairs page.
+
 ## Material Request / warehouse
 
-Production routes:
-
-```text
-POST /api/material-requests
-GET  /api/material-requests?repair_id=...
-GET  /api/material-requests/item?material_request_id=...
-GET  /api/material-requests/movements?material_request_id=...
-GET  /api/material-requests/status?material_request_id=...
-POST /api/material-requests/status
-POST /api/material-requests/warehouse
-```
-
-Server derives client/motor from repair; stock mutation requires explicit confirmation and crash-safe coordinator. Client-supplied material pricing is not accepted.
+Production routes remain explicit and crash-safe. `RUN_COMPLETED` is non-mutating. Warehouse stock changes only through operator-confirmed Material Request ISSUE/RETURN/CORRECTION. Current exact spool production contract remains authoritative.
 
 ## Delivery
 
@@ -106,11 +98,9 @@ Server derives client/motor from repair; stock mutation requires explicit confir
 GET/POST /api/repairs/delivery
 ```
 
-Only CLOSED repair may be delivered. Delivery is immutable, one per repair, preserves exact repair/client/motor/time and is intentionally not blocked by debt.
+Only CLOSED repair may be delivered. Delivery is immutable and intentionally not blocked by debt.
 
-## Cash / payments
-
-Authoritative repair charge stays in `RepairCosting`; cash journal does not duplicate price.
+## Cash / payments backend
 
 ```text
 /data/workshop/repair-payments.ndjson
@@ -128,19 +118,16 @@ GET  /api/payments/balance?repair_id=...
 GET  /api/payments/balance?client_id=...
 ```
 
-Cash is append-only. Correction references must match the same repair/client. SUBTRACT cannot make paid total negative. Payment remains possible after CLOSED/DELIVERED. Backup/export/integrity includes both delivery and payment journals.
+Cash is append-only. Repair pricing remains authoritative for charge; cash does not duplicate price.
 
-## Current mandatory work — Web/CRM UI
+## Current mandatory work
 
-1. Client Web:
-   - separate `client-new.html`;
-   - catalog-only `clients.html`;
-   - `client-details.html` with motors through repair history, open/closed repairs, materials, payments/balance and delivery history;
-   - remove duplicated inline client creation from repairs page and leave navigation to the dedicated create page.
-2. Dedicated `cash.html`; `costing.html` remains costing/pricing.
-3. Coordinated spool -> Material Request wire migration only after UI/domain work and only across all affected contracts together.
-4. Full software regression/backup/restore.
-5. Final two-board hardware E2E.
+1. Dedicated `cash.html` using checkpoint 112 APIs.
+2. Keep `costing.html` for cost/price/margin only.
+3. Cash UI must support exact repair/client context, balances, full/partial/multiple payments, append-only corrections, debt/credit and explicit confirmation; no destructive edits/deletes.
+4. Coordinated spool -> Material Request wire migration only across all affected contracts together.
+5. Full software regression/backup/restore.
+6. Final two-board hardware E2E.
 
 ## Wire accounting target
 
@@ -183,6 +170,7 @@ docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/115_CLIENT_WEB_CRM_2026-08-26.md
 docs/PROJECT_HANDOFF/114_MOTOR_WEB_ROLE_AWARE_LINKED_JOB_2026-08-26.md
 docs/PROJECT_HANDOFF/113_MOTOR_WEB_CATALOG_AND_VERSIONED_CARD_2026-08-26.md
 docs/PROJECT_HANDOFF/112_CASH_PAYMENT_LEDGER_AND_BALANCE_API_2026-08-26.md
@@ -197,5 +185,5 @@ this file
 ## Continuation prompt
 
 ```text
-Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 114 Motor Web role-aware flow GREEN: CMP 32934323481 SUCCESS, ESP32 32934092563 SUCCESS. Motor catalog/create/version history/AS_RECEIVED/direct role navigation закрыты; linked job сервер проверяет exact role/program/repeat и exact spool, физический START остаётся только локальным. Следующий блок: Client Web — clients.html catalog-only, separate client-new.html, client-details with motors through repairs, payments/balance and delivery history. Потом cash.html. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
+Продолжаем CoilMaster. Source-of-truth только cmp-protocol-v1; main не использовать. Checkpoint 115 Client Web GREEN: CMP 32936343060 SUCCESS. Motor Web checkpoint 114 firmware build remains ESP32 32934092563 SUCCESS. Clients catalog/create/details закрыты; client card показывает motors through repair history, open/closed repairs, delivery state/date, charged/paid/debt/credit and append-only payment history; repairs page больше не создаёт клиента inline. Следующий блок: dedicated cash.html on checkpoint 112 APIs. costing.html оставить только costing/pricing. RUN_COMPLETED ничего автоматически не списывает; exact spool contract пока не удалять.
 ```

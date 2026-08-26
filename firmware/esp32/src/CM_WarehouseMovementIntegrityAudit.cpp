@@ -108,6 +108,49 @@ bool accumulateRepairRecord(const WarehouseWriteOffRecord& record,
     return true;
 }
 
+WarehouseMovementDiameterTotals* findOrCreateSummaryDiameter(
+    WarehouseMovementSummaryTotals& totals,
+    uint16_t diameterHundredthsMm)
+{
+    if (diameterHundredthsMm == 0U) return nullptr;
+    for (uint8_t index = 0U; index < totals.diameterCount; ++index)
+    {
+        if (totals.diameters[index].diameterHundredthsMm == diameterHundredthsMm)
+            return &totals.diameters[index];
+    }
+    if (totals.diameterCount >= WarehouseMovementSummaryMaxDiameters)
+        return nullptr;
+
+    WarehouseMovementDiameterTotals& item = totals.diameters[totals.diameterCount++];
+    item = WarehouseMovementDiameterTotals();
+    item.diameterHundredthsMm = diameterHundredthsMm;
+    return &item;
+}
+
+bool accumulateSummaryRecord(const WarehouseWriteOffRecord& record,
+                             const char* monthPrefix,
+                             WarehouseMovementSummaryTotals& totals)
+{
+    if (record.status != "CONFIRMED") return true;
+    if (record.diameterHundredthsMm == 0U || record.massGrams == 0UL)
+        return false;
+
+    WarehouseMovementDiameterTotals* item =
+        findOrCreateSummaryDiameter(totals, record.diameterHundredthsMm);
+    if (item == nullptr ||
+        !addChecked32(item->consumedAllTimeGrams, record.massGrams))
+    {
+        return false;
+    }
+
+    if (record.timestamp.startsWith(monthPrefix) &&
+        !addChecked32(item->consumedMonthGrams, record.massGrams))
+    {
+        return false;
+    }
+    return true;
+}
+
 struct ProvenanceEntry
 {
     uint32_t movementId;
@@ -210,14 +253,22 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
 bool checkInternal(fs::FS& storage,
                    uint32_t& validatedRecordCount,
                    uint32_t repairId,
-                   WarehouseMovementRepairTotals* totals,
+                   WarehouseMovementRepairTotals* repairTotals,
+                   const char* monthPrefix,
+                   WarehouseMovementSummaryTotals* summaryTotals,
                    uint32_t sourceSessionId,
                    uint32_t sourceRunId,
                    bool* sourceRunConfirmed)
 {
     validatedRecordCount = 0UL;
-    if (totals != nullptr) *totals = WarehouseMovementRepairTotals();
+    if (repairTotals != nullptr) *repairTotals = WarehouseMovementRepairTotals();
+    if (summaryTotals != nullptr) *summaryTotals = WarehouseMovementSummaryTotals();
     if (sourceRunConfirmed != nullptr) *sourceRunConfirmed = false;
+    if (summaryTotals != nullptr &&
+        (monthPrefix == nullptr || String(monthPrefix).length() != 7U))
+    {
+        return false;
+    }
 
     constexpr const char* Path = "/data/warehouse/movements.ndjson";
     if (!storage.exists(Path)) return true;
@@ -267,7 +318,14 @@ bool checkInternal(fs::FS& storage,
             return false;
         }
 
-        if (totals != nullptr && !accumulateRepairRecord(record, repairId, *totals))
+        if (repairTotals != nullptr &&
+            !accumulateRepairRecord(record, repairId, *repairTotals))
+        {
+            file.close();
+            return false;
+        }
+        if (summaryTotals != nullptr &&
+            !accumulateSummaryRecord(record, monthPrefix, *summaryTotals))
         {
             file.close();
             return false;
@@ -298,13 +356,25 @@ bool checkInternal(fs::FS& storage,
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage)
 {
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr, 0UL, 0UL, nullptr);
+    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
+                         nullptr, nullptr, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::check(fs::FS& storage,
                                             uint32_t& validatedRecordCount)
 {
-    return checkInternal(storage, validatedRecordCount, 0UL, nullptr, 0UL, 0UL, nullptr);
+    return checkInternal(storage, validatedRecordCount, 0UL, nullptr,
+                         nullptr, nullptr, 0UL, 0UL, nullptr);
+}
+
+bool WarehouseMovementIntegrityAudit::checkSummary(
+    fs::FS& storage,
+    const char* monthPrefix,
+    WarehouseMovementSummaryTotals& totals)
+{
+    uint32_t ignoredRecordCount = 0UL;
+    return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
+                         monthPrefix, &totals, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::checkRepair(
@@ -314,7 +384,8 @@ bool WarehouseMovementIntegrityAudit::checkRepair(
 {
     if (repairId == 0UL) return false;
     uint32_t ignoredRecordCount = 0UL;
-    return checkInternal(storage, ignoredRecordCount, repairId, &totals, 0UL, 0UL, nullptr);
+    return checkInternal(storage, ignoredRecordCount, repairId, &totals,
+                         nullptr, nullptr, 0UL, 0UL, nullptr);
 }
 
 bool WarehouseMovementIntegrityAudit::checkSourceRun(fs::FS& storage,
@@ -326,6 +397,6 @@ bool WarehouseMovementIntegrityAudit::checkSourceRun(fs::FS& storage,
     if (sourceSessionId == 0UL || sourceRunId == 0UL) return false;
     uint32_t ignoredRecordCount = 0UL;
     return checkInternal(storage, ignoredRecordCount, 0UL, nullptr,
-                         sourceSessionId, sourceRunId, &confirmed);
+                         nullptr, nullptr, sourceSessionId, sourceRunId, &confirmed);
 }
 }

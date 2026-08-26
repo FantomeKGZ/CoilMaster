@@ -1,6 +1,6 @@
 # Активная работа и следующие шаги
 
-Дата обновления: **2026-08-25**  
+Дата обновления: **2026-08-26**  
 Ветка: **`cmp-protocol-v1`**
 
 ## Stable baseline
@@ -46,47 +46,103 @@ CLIENT -> MOTOR -> REPAIR -> AS_RECEIVED
 106 Material Request ↔ MaterialLedger unit adapter + active item lookup
 107 Material Request append-only lifecycle + backup/integrity
 108 Warehouse pending transaction persistence + stable-backup guard
+109 Crash-safe Material Request warehouse coordinator
 ```
 
-Checkpoint 108 evidence:
+Checkpoint 109 evidence:
 
 ```text
-ESP32 Build run 32861148982 / SUCCESS
-CMP run 32861149158 / SUCCESS
-CMP permanent regression run 32861266055 / SUCCESS
-backup guarded patch run 32861669436 / SUCCESS
+CMP run 32925574132 / SUCCESS
+CMP run 32925599254 / SUCCESS
 ```
 
-Pending transaction paths:
+Coordinator guarantees:
 
 ```text
-/data/workshop/material-request-warehouse.pending.json
-/data/workshop/material-request-warehouse.pending.tmp
+operator confirmation
+-> pending marker
+-> immutable movement
+-> MaterialLedger mutation
+-> dual evidence verification
+-> pending clear
 ```
 
-Both now block stable backup while transaction recovery is unresolved.
+Recovery:
+
+```text
+neither -> safe retry/no-op
+movement only -> complete ledger
+ledger only -> fail-closed
+both -> clear pending
+```
+
+`CORRECTION` persists `ADD|REMOVE`; `RUN_WIRE` is ISSUE/KG-only with exact session/run provenance.
+
+## Block 110 — Material Request runtime/Web API — IN PROGRESS
+
+Implemented routes:
+
+```text
+POST /api/material-requests
+GET  /api/material-requests?repair_id=...
+GET  /api/material-requests/item?material_request_id=...
+GET  /api/material-requests/movements?material_request_id=...
+GET  /api/material-requests/status?material_request_id=...
+POST /api/material-requests/status
+POST /api/material-requests/warehouse
+```
+
+Rules:
+
+- request creation derives `client_id + motor_id` server-side from `repair_id`;
+- repair must exist and be OPEN to create a request;
+- warehouse mutation requires `confirmed=true`;
+- Web does not accept material pricing;
+- warehouse mutation routes only through `MaterialRequestWarehouseCoordinator`;
+- request stores/coordinator recover before routes are registered;
+- lifecycle transitions remain explicit and separate;
+- `RUN_COMPLETED` remains non-mutating.
+
+Verification at last update:
+
+```text
+runtime bootstrap ESP32 Build 32926105448 / SUCCESS
+API safety CMP 32926200712 / pending/running
+integrated production ESP32 Build 32926237400 / pending/running
+```
+
+Do not mark block 110 GREEN until both current integrated checks succeed.
 
 ## Current NEXT
 
-1. Implement crash-safe `MaterialRequestWarehouseCoordinator`.
-2. Use movement-first + ledger-second ordering with durable `transaction_ref` evidence.
-3. Recovery matrix must distinguish:
+1. Close checkpoint 110 after integrated CMP + ESP32 GREEN.
+2. Implement immutable delivery event/store/API:
 
 ```text
-neither side committed -> safe no-op/retry
-movement only -> complete physical ledger mutation
-ledger only -> impossible ordering / fail-closed
-both committed -> clear pending
+repair completed != delivered
+DELIVERED records repair_id + client_id + motor_id + delivered_at
 ```
 
-4. Support explicit operator `ISSUE`, `RETURN`, `CORRECTION` (`ADD|REMOVE`).
-5. Lifecycle transitions stay explicit; warehouse coordinator must not silently change DRAFT/ISSUED/PRICED/CLOSED.
-6. `RUN_COMPLETED` remains non-mutating.
-7. After coordinator GREEN, expose bounded runtime/Web APIs for request create/read/status/movements and warehouse actions.
-8. Then delivery event/store/API.
-9. Then payment/correction store/API.
-10. Motor Web / Client Web redesign.
-11. Coordinated spool -> material-request wire migration only after all safety contracts are updated together.
+3. Implement append-only payment/correction journal/API:
+
+```text
+payment -> client_id + repair_id + amount + timestamp + method
+correction -> separate event, never destructive edit
+```
+
+4. Add repair/client balance readers combining priced repair totals and payment journal.
+5. Begin Motor Web redesign:
+   - separate `motor-new.html`;
+   - archive-style `motors.html`;
+   - versioned WORKING/STARTING winding data in `motor-details.html`;
+   - direct job send from motor card without physical auto-start.
+6. Client Web redesign:
+   - separate `client-new.html`;
+   - `client-details.html` with motors, repairs, material requests, payments and delivery history.
+7. Cash UI after payment/costing contracts are stable.
+8. Coordinated spool -> material-request wire migration only after job/writeoff/finalization/backup/report/Web contracts are updated together.
+9. Final full software regression + backup/restore.
+10. Full two-board hardware E2E acceptance.
 
 ## Warehouse/catalog contract
 
@@ -100,11 +156,27 @@ M   -> METRE x1
 M2  -> SQUARE_METRE x1
 ```
 
+Current Material Request movement units:
+
+```text
+KG | L | PCS | M | M2
+```
+
 `RUN_WIRE` remains ISSUE/KG-only and requires exact `source_session_id + source_run_id`, CU/AL and diameter.
 
 ## Wire migration rule
 
-Current exact `spool_id` contract remains authoritative until coordinated migration across job/writeoff/request/costing/finalization/backup/integrity/reports/Web/tests.
+Current exact `spool_id` contract remains authoritative until coordinated migration across:
+
+```text
+job/writeoff
+material-request movement
+costing/finalization
+backup/integrity/reports
+Web/tests
+```
+
+Future run-linked wire issue remains manual and keeps exact session/run provenance.
 
 ## Safety invariants
 

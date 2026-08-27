@@ -1,0 +1,71 @@
+name: Arduino RU LCD Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - arduino-ru-lcd-experiment
+    paths:
+      - "firmware/arduino/**"
+      - "Arduino/**"
+      - "Core/**"
+      - "Shared/**"
+      - "platformio.ini"
+      - ".github/workflows/arduino-ru-lcd-build.yml"
+
+jobs:
+  compare-builds:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build normal Uno firmware
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e uno | tee uno-build.log
+
+      - name: Build RU EN Uno firmware
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e uno_ru | tee uno-ru-build.log
+
+      - name: Compare resource usage
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          def usage(path, label):
+              text = Path(path).read_text(encoding='utf-8', errors='replace')
+              line = next((line for line in text.splitlines() if f'{label}:' in line), None)
+              if line is None:
+                  raise SystemExit(f'{path}: {label} usage line missing')
+              match = re.search(r'used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes', line)
+              if match is None:
+                  raise SystemExit(f'{path}: {label} usage numbers missing: {line}')
+              return tuple(map(int, match.groups()))
+
+          print('Arduino Uno RU/EN resource comparison')
+          for label in ('RAM', 'Flash'):
+              normal_used, total = usage('uno-build.log', label)
+              ru_used, ru_total = usage('uno-ru-build.log', label)
+              if total != ru_total:
+                  raise SystemExit(f'{label}: target totals differ')
+              delta = ru_used - normal_used
+              print(
+                  f'{label}: normal={normal_used} RU_EN={ru_used} '
+                  f'delta={delta:+d} headroom={total - ru_used} total={total}'
+              )
+          PY

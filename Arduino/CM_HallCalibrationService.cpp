@@ -157,8 +157,7 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
             return;
         }
 
-        if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
-            sampleBaseline(nowMs);
+        sampleBaseline(nowMs);
         return;
     }
 

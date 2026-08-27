@@ -55,11 +55,16 @@ bool CashPaymentStore::append(const NewCashEvent& event, uint32_t& eventId)
         event.occurredAt.length() < 10U || event.occurredAt.length() > 32U ||
         event.method.length() > 24U || event.comment.length() > 500U ||
         !validKindDirection(event.kind, event.direction) ||
-        (event.kind == "PAYMENT" && event.correctsEventId != 0UL) ||
-        (event.kind == "CORRECTION" && event.correctsEventId != 0UL &&
-         !eventExists(event.correctsEventId)) ||
-        !nextEventId(eventId))
+        (event.kind == "PAYMENT" && event.correctsEventId != 0UL))
     {
+        return false;
+    }
+
+    bool correctionFound = event.correctsEventId == 0UL;
+    if (!analyzeAppendState(event.correctsEventId, eventId, correctionFound) ||
+        !correctionFound)
+    {
+        eventId = 0UL;
         return false;
     }
 
@@ -104,28 +109,6 @@ bool CashPaymentStore::append(const NewCashEvent& event, uint32_t& eventId)
         return false;
     }
     return true;
-}
-
-bool CashPaymentStore::eventExists(uint32_t eventId) const
-{
-    if (!ready() || eventId == 0UL || !m_storage.exists(Path)) return false;
-    File file = m_storage.open(Path, FILE_READ);
-    if (!prepareNdjson(file)) { if (file) file.close(); return false; }
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        uint32_t current = 0UL;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "cash_event_id", current) || current == 0UL)
-        {
-            file.close(); return false;
-        }
-        if (current == eventId) { file.close(); return true; }
-        if (current > eventId) break;
-    }
-    file.close();
-    return false;
 }
 
 bool CashPaymentStore::totalsForRepair(uint32_t repairId, CashRepairTotals& totals) const
@@ -241,24 +224,35 @@ bool CashPaymentStore::ensureDirectory()
     return true;
 }
 
-bool CashPaymentStore::nextEventId(uint32_t& eventId) const
+bool CashPaymentStore::analyzeAppendState(uint32_t correctionEventId,
+                                          uint32_t& eventId,
+                                          bool& correctionFound) const
 {
     eventId = 1UL;
+    correctionFound = correctionEventId == 0UL;
     if (!m_storage.exists(Path)) return true;
+
     File file = m_storage.open(Path, FILE_READ);
     if (!prepareNdjson(file)) { if (file) file.close(); return false; }
+
     uint32_t previous = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+
         uint32_t id = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL || id <= previous)
-        { file.close(); return false; }
+        {
+            file.close();
+            return false;
+        }
         previous = id;
+        if (id == correctionEventId) correctionFound = true;
     }
     file.close();
+
     if (previous == 0xFFFFFFFFUL) return false;
     eventId = previous + 1UL;
     return true;

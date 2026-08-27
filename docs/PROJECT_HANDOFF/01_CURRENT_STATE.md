@@ -9,7 +9,7 @@
 
 ## Current phase
 
-Production behavior подтверждён GREEN through checkpoint **163**. Checkpoint **164** реализован и находится под CI. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
+Production behavior подтверждён GREEN through checkpoint **164**. Текущий следующий software-optimization checkpoint: **165**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
 
 ## Recent optimization checkpoints
 
@@ -57,14 +57,9 @@ CMP Tests #3750    33046851201 / SUCCESS  (checkpoint 162 production)
 ESP32 Build #1643  33046851156 / SUCCESS  (checkpoint 162 production)
 CMP Tests #3756    33047296869 / SUCCESS  (checkpoint 163 production)
 ESP32 Build #1645  33047296953 / SUCCESS  (checkpoint 163 production)
-CMP Tests #3757    33047347514 / SUCCESS  (checkpoint 163 handoff HEAD 93e4432...)
-```
-
-Checkpoint 164 CI started on `e2d84e5a...`:
-
-```text
-CMP Tests #3759    33047621155 / in_progress at first direct check
-ESP32 Build #1647  33047621128 / in_progress at first direct check
+CMP Tests #3757    33047347514 / SUCCESS  (checkpoint 163 handoff)
+CMP Tests #3759    33047621155 / SUCCESS  (checkpoint 164 production)
+ESP32 Build #1647  33047621128 / SUCCESS  (checkpoint 164 production)
 ```
 
 Intermediate ESP32 Build #1642 (`33046801931`) failed on commit `7936b8f9964294cf0164a8e5287cfbfdc19f8c7d`: `evaluateOption()` declaration had been expanded to 10 arguments while two call sites and the definition still used 8. The corrected checkpoint-162 production commit is `18d611e6ee8bb0355deda5f99874b0b9923d576f`, directly verified by CMP #3750 and ESP32 #1643.
@@ -75,9 +70,9 @@ CMP host audit remains 69 mandatory steps.
 
 `ConversionOption` carries an internal `rankingScore`, computed once for each accepted candidate. Bounded top-3 insertion compares cached scores instead of recomputing `optionScore()` for already-selected entries on every candidate. Ranking formula, strict `<` tie behavior and output ordering remain unchanged. Fixed RAM cost is at most 12 bytes across the three returned options; no heap or unbounded storage is introduced. CMP #3756 and ESP32 #1645 directly verify production; CMP #3757 verifies the handoff HEAD.
 
-## Checkpoint 164
+## Checkpoint 164 — GREEN
 
-`ConductorCalculatorWeb::handleCalculate()` previously invoked source-based recommendation search separately for warehouse and standard catalogues, then recalculated source/required areas again for response JSON. `findRecommendedOptionsForArea()` is now public, and the Web handler computes `requiredArea` once per request and reuses that exact value for both recommendation searches and JSON output. `sourceArea` is also cached for response serialization. Conversion formulas, ranking, catalogue selection, HTTP errors and JSON values remain unchanged; no unbounded memory is introduced.
+`ConductorCalculatorWeb::handleCalculate()` computes `requiredArea` once per request and reuses that exact value for warehouse recommendations, standard-catalogue recommendations and response JSON. `sourceArea` is also cached for serialization. Conversion formulas, ranking, catalogue selection, HTTP errors and JSON values remain unchanged. CMP #3759 and ESP32 #1647 directly verify production.
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -93,10 +88,10 @@ CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Confirm CMP #3759 and ESP32 Build #1647 on `e2d84e5a...`; checkpoint 164 is not GREEN until both are directly successful.
-2. Then start checkpoint **165** from current `cmp-protocol-v1` HEAD.
-3. Continue only with measurable runtime/storage/flash wins and fixed-memory behavior.
-4. Preserve complete authoritative validation, HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
+1. Start checkpoint **165** from current `cmp-protocol-v1` HEAD.
+2. Continue only with measurable runtime/storage/flash wins and fixed-memory behavior.
+3. Prefer duplicate read/parse/lookup/calculation elimination while preserving complete authoritative validation.
+4. Preserve HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
 
 ## Hardware acceptance
 

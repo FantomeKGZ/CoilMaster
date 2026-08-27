@@ -25,6 +25,12 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
     File file = m_storage.open(SpoolsPath, FILE_READ);
     if (!file) return false;
 
+    const char* optionalKeys[] = {
+        "manufacturer", "supplier", "batch", "storage_location", "comment"
+    };
+    String optionalMarker;
+    optionalMarker.reserve(24U);
+
     uint32_t previousSpoolId = 0UL;
     while (file.available())
     {
@@ -56,15 +62,15 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
         }
         previousSpoolId = spoolId;
 
-        const char* optionalKeys[] = {
-            "manufacturer", "supplier", "batch", "storage_location", "comment"
-        };
         for (uint8_t keyIndex = 0U;
              keyIndex < sizeof(optionalKeys) / sizeof(optionalKeys[0]);
              ++keyIndex)
         {
-            const String marker = String("\"") + optionalKeys[keyIndex] + F("\":");
-            if (line.indexOf(marker) >= 0 &&
+            optionalMarker.remove(0);
+            optionalMarker += '"';
+            optionalMarker += optionalKeys[keyIndex];
+            optionalMarker += F("\":");
+            if (line.indexOf(optionalMarker) >= 0 &&
                 !findString(line, optionalKeys[keyIndex], optional))
             {
                 file.close();

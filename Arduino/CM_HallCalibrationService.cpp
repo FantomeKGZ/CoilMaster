@@ -5,6 +5,11 @@
 namespace CM
 {
 
+#if CM_LCD_RU_EN
+HallCalibrationState HallCalibrationService::s_displayState = HallCalibrationState::Idle;
+uint32_t HallCalibrationService::s_displayStartedAtMs = 0UL;
+#endif
+
 HallCalibrationResult::HallCalibrationResult()
     : measurementId(0UL)
 {
@@ -23,6 +28,10 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
       m_baselineSamples(0U),
       m_runSamples(0U)
 {
+#if CM_LCD_RU_EN
+    s_displayState = HallCalibrationState::Idle;
+    s_displayStartedAtMs = 0UL;
+#endif
 }
 
 bool HallCalibrationService::arm(uint32_t nowMs)
@@ -36,6 +45,9 @@ bool HallCalibrationService::arm(uint32_t nowMs)
     clearMeasurements();
     m_hall.reset(nowMs);
     m_state = HallCalibrationState::WaitingLocalConfirm;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+#endif
     m_armedAtMs = nowMs;
     m_lastPeerContactMs = nowMs;
     m_lastSampleMs = nowMs;
@@ -52,6 +64,9 @@ bool HallCalibrationService::confirmLocal(uint32_t nowMs)
     if (m_state != HallCalibrationState::WaitingLocalConfirm) return false;
 
     m_state = HallCalibrationState::ArmedWaitingPhysicalStart;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+#endif
     m_lastSampleMs = nowMs;
     return true;
 }
@@ -69,6 +84,10 @@ bool HallCalibrationService::physicalStart(uint32_t nowMs)
     m_runSamples = 0U;
     m_hall.reset(nowMs);
     m_state = HallCalibrationState::Running;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+    s_displayStartedAtMs = nowMs;
+#endif
     return true;
 }
 
@@ -83,6 +102,9 @@ bool HallCalibrationService::beginApplyConfirm(uint32_t measurementId,
         return false;
 
     m_state = HallCalibrationState::WaitingApplyConfirm;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+#endif
     m_applyConfirmAtMs = nowMs;
     m_lastPeerContactMs = nowMs;
     return true;
@@ -93,6 +115,9 @@ void HallCalibrationService::completeApply()
     if (m_state == HallCalibrationState::WaitingApplyConfirm)
     {
         m_state = HallCalibrationState::Completed;
+#if CM_LCD_RU_EN
+        s_displayState = m_state;
+#endif
         m_applyConfirmAtMs = 0UL;
     }
 }
@@ -151,6 +176,9 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
 void HallCalibrationService::abort()
 {
     m_state = HallCalibrationState::Aborted;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+#endif
     m_resultPending = false;
     m_applyConfirmAtMs = 0UL;
 }
@@ -159,6 +187,9 @@ void HallCalibrationService::reset()
 {
     clearMeasurements();
     m_state = HallCalibrationState::Idle;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+#endif
 }
 
 HallCalibrationState HallCalibrationService::state() const
@@ -210,6 +241,18 @@ bool HallCalibrationService::latestResult(HallCalibrationResult& result) const
     return populateResult(result);
 }
 
+#if CM_LCD_RU_EN
+HallCalibrationState HallCalibrationService::displayState()
+{
+    return s_displayState;
+}
+
+uint32_t HallCalibrationService::displayStartedAtMs()
+{
+    return s_displayStartedAtMs;
+}
+#endif
+
 void HallCalibrationService::sampleBaseline(uint32_t nowMs)
 {
     if (m_baselineSamples != 0U &&
@@ -256,6 +299,9 @@ void HallCalibrationService::sampleRunning(uint32_t nowMs)
 void HallCalibrationService::finish(uint32_t nowMs)
 {
     m_state = HallCalibrationState::Completed;
+#if CM_LCD_RU_EN
+    s_displayState = m_state;
+#endif
     m_measurementId = measurementIdentity(nowMs);
     m_resultPending = baselineReady() && m_runSamples != 0U && m_measurementId != 0UL;
 }
@@ -275,6 +321,9 @@ void HallCalibrationService::clearMeasurements()
     m_lastPeerContactMs = 0UL;
     m_applyConfirmAtMs = 0UL;
     m_startedAtMs = 0UL;
+#if CM_LCD_RU_EN
+    s_displayStartedAtMs = 0UL;
+#endif
     m_lastSampleMs = 0UL;
     m_measurementId = 0UL;
     m_baselineSamples = 0U;

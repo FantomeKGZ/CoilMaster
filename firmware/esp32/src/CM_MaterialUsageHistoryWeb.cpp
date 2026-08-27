@@ -15,24 +15,33 @@ void MaterialLedgerWeb::handleUsageHistory()
     uint32_t materialId = 0UL;
     uint32_t parsedLimit = 20UL;
 
-    if (m_server.hasArg("repair_id") && m_server.arg("repair_id").length() > 0U &&
-        !parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
+    const bool hasRepairId = m_server.hasArg("repair_id");
+    const String repairIdSource = hasRepairId
+        ? m_server.arg("repair_id") : String();
+    if (hasRepairId && repairIdSource.length() > 0U &&
+        !parseUnsignedValue(repairIdSource, 1UL, 0xFFFFFFFFUL, repairId))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_repair_id\"}");
         return;
     }
 
-    if (m_server.hasArg("material_id") && m_server.arg("material_id").length() > 0U &&
-        !parseUnsigned(m_server, "material_id", 1UL, 0xFFFFFFFFUL, materialId))
+    const bool hasMaterialId = m_server.hasArg("material_id");
+    const String materialIdSource = hasMaterialId
+        ? m_server.arg("material_id") : String();
+    if (hasMaterialId && materialIdSource.length() > 0U &&
+        !parseUnsignedValue(materialIdSource, 1UL, 0xFFFFFFFFUL, materialId))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_material_id\"}");
         return;
     }
 
-    if (m_server.hasArg("limit") && m_server.arg("limit").length() > 0U &&
-        !parseUnsigned(m_server, "limit", 1UL, MaterialLedger::MaxListPageSize, parsedLimit))
+    const bool hasLimit = m_server.hasArg("limit");
+    const String limitSource = hasLimit ? m_server.arg("limit") : String();
+    if (hasLimit && limitSource.length() > 0U &&
+        !parseUnsignedValue(limitSource, 1UL,
+                            MaterialLedger::MaxListPageSize, parsedLimit))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_limit\"}");
@@ -40,12 +49,15 @@ void MaterialLedgerWeb::handleUsageHistory()
     }
 
     uint32_t cursor = 0UL;
-    if (m_server.hasArg("cursor") &&
-        !parseUnsigned(m_server, "cursor", 0UL, 0xFFFFFFFFUL, cursor))
+    if (m_server.hasArg("cursor"))
     {
-        m_server.send(400, "application/json; charset=utf-8",
-                      "{\"error\":\"invalid_cursor\"}");
-        return;
+        const String cursorSource = m_server.arg("cursor");
+        if (!parseUnsignedValue(cursorSource, 0UL, 0xFFFFFFFFUL, cursor))
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_cursor\"}");
+            return;
+        }
     }
 
     String response = F("{\"items\":[");

@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **145**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. WindingJournal boot and runtime reads are now consolidated to one streamed pass per operation.
+GREEN through checkpoint **146**. Atomic RUN_WIRE is the only current wire mutation path. WindingJournal boot/runtime reads are consolidated, and CashPaymentStore correction append preparation now uses one mutation-time journal pass.
 
 ## Latest GREEN state
 
@@ -30,6 +30,7 @@ GREEN through checkpoint **145**. Atomic RUN_WIRE is the only current wire mutat
 143 autonomous assignment public API narrowed to assignMotorChecked result semantics
 144 WindingJournal runtime save/state reads -> one streamed session-analysis pass
 145 WindingJournal boot schema/context validation -> one combined pass
+146 CashPaymentStore correction lookup + next event id -> one mutation-time pass
 ```
 
 Production RUN_WIRE path remains:
@@ -42,28 +43,29 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 144 removes runtime duplicate full scans of `/data/winding-runs/events.ndjson`. Checkpoint 145 folds boot schema-2 session ordering/context consistency into the existing structure pass. `CM_WindingJournal.cpp` now contains exactly two full journal read sites: combined boot validation and runtime analysis.
+Checkpoint 146 removes the bool-only public `eventExists()` helper and fuses correction-reference existence with monotonic next-id derivation in `analyzeAppendState()`. The Web layer still validates exact repair/client ownership separately before append, preserving HTTP semantics and mutation-time TOCTOU validation.
 
 Latest verified evidence:
 
 ```text
-bbbc53d96e535204e38db7da0fc79f872dd5a19a  final source through 145
-1760a447ffd216976b844a51adb055a5701f16ff  final contract
-ESP32 Build #1620   33035508401 / SUCCESS
-CMP Tests #3681     33035532132 / SUCCESS
+e15222e299ed4736a66d577175cf4e381e29747a  final source through 146
+a96953ab4a51370dcb6402580def7f2de0256011  final mandatory contract/workflow
+ESP32 Build #1622   33035968880 / SUCCESS
+CMP Tests #3687     33035968846 / SUCCESS
+CMP Tests #3689     33036075195 / SUCCESS
 ```
 
-Intermediate CMP #3680 was stale textual-contract failure before the checkpoint-145 contract update.
+CMP host audit count is now 69 mandatory steps; all passed in #3689.
 
-Checkpoint: `145_WINDING_JOURNAL_BOOT_SINGLE_PASS_2026-08-27.md`.
+Checkpoint: `146_CASH_PAYMENT_APPEND_SINGLE_PASS_2026-08-27.md`.
 
 ## Current NEXT
 
-1. Continue bounded audit of other growing append-only stores for concrete same-file duplicate full scans.
-2. Prioritize frequent runtime paths; occasional operator-only scans across different ledgers remain acceptable unless metrics justify indexing.
+1. Continue bounded audit of CRM/material-request/cash append-only stores for remaining same-file duplicate scans.
+2. Keep separate-ledger scans where they protect different integrity domains.
 3. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-4. Preserve single-pass costing ownership, Web HTTP preflight semantics and mutation-time TOCTOU validation.
-5. No automatic production-data rotation/deletion/truncation and no premature DB migration.
+4. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
+5. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
 6. Preserve historical recovery/history and atomic RUN_WIRE safety.
 
 ## Safety invariants

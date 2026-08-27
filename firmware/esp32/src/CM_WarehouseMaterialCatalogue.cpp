@@ -77,17 +77,21 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
         // excluded from material-specific recommendations.
         if (!hasWireType || storedType != requiredType) continue;
 
-        uint8_t index = count;
-        for (uint8_t i = 0U; i < count; ++i)
+        const uint16_t targetDiameter = static_cast<uint16_t>(diameter);
+        uint8_t lower = 0U;
+        uint8_t upper = count;
+        while (lower < upper)
         {
-            if (items[i].diameterHundredthsMm == static_cast<uint16_t>(diameter))
-            {
-                index = i;
-                break;
-            }
+            const uint8_t middle = static_cast<uint8_t>(
+                lower + static_cast<uint8_t>((upper - lower) / 2U));
+            if (items[middle].diameterHundredthsMm < targetDiameter)
+                lower = static_cast<uint8_t>(middle + 1U);
+            else
+                upper = middle;
         }
 
-        if (index == count)
+        uint8_t index = lower;
+        if (index >= count || items[index].diameterHundredthsMm != targetDiameter)
         {
             if (count >= capacity)
             {
@@ -95,7 +99,10 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
                 count = 0U;
                 return false;
             }
-            items[index].diameterHundredthsMm = static_cast<uint16_t>(diameter);
+            for (uint8_t move = count; move > index; --move)
+                items[move] = items[static_cast<uint8_t>(move - 1U)];
+            items[index] = KnownWireDiameter();
+            items[index].diameterHundredthsMm = targetDiameter;
             ++count;
         }
 
@@ -111,19 +118,6 @@ bool WarehouseStore::loadKnownWireDiameters(const char* wireType,
         }
     }
     file.close();
-
-    for (uint8_t i = 0U; i < count; ++i)
-    {
-        for (uint8_t j = static_cast<uint8_t>(i + 1U); j < count; ++j)
-        {
-            if (items[j].diameterHundredthsMm < items[i].diameterHundredthsMm)
-            {
-                const KnownWireDiameter temporary = items[i];
-                items[i] = items[j];
-                items[j] = temporary;
-            }
-        }
-    }
 
     return true;
 }

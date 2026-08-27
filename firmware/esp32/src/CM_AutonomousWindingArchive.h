@@ -83,10 +83,6 @@ public:
                              uint32_t& nextCursor,
                              bool& hasMore) const;
 
-    bool completedTaskExists(uint32_t sessionId,
-                             uint32_t runId,
-                             bool& found) const;
-
     bool assignMotor(uint32_t sessionId,
                      uint32_t runId,
                      uint32_t motorId,
@@ -113,6 +109,9 @@ private:
     static constexpr const char* AssignmentsPath = "/data/autonomous-windings/assignments.ndjson";
 
     bool ensureDirectories();
+    bool completedTaskExists(uint32_t sessionId,
+                             uint32_t runId,
+                             bool& found) const;
     bool loadLastEvent(RemoteWindingEvent& event, bool& found) const;
     bool findEventReplay(const RemoteWindingEvent& event,
                          bool& exactMatch,

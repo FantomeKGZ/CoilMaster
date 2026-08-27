@@ -52,13 +52,13 @@ uint32_t ConductorCalculator::sourceSetAreaMicrometre2(const SourceConductorSet&
 }
 
 uint32_t ConductorCalculator::requiredTargetAreaMicrometre2(
-    const ConductorBundle& source,
+    uint32_t sourceArea,
+    ConductorMaterial sourceMaterial,
     ConductorMaterial targetMaterial,
     const ConversionSettings& settings)
 {
-    const uint32_t sourceArea = bundleAreaMicrometre2(source);
-    if (sourceArea == 0UL || source.material == targetMaterial) return sourceArea;
-    const uint16_t ratio = source.material == ConductorMaterial::Aluminium &&
+    if (sourceArea == 0UL || sourceMaterial == targetMaterial) return sourceArea;
+    const uint16_t ratio = sourceMaterial == ConductorMaterial::Aluminium &&
                                    targetMaterial == ConductorMaterial::Copper
                                ? settings.aluminiumToCopperPermille
                                : settings.copperToAluminiumPermille;
@@ -70,21 +70,21 @@ uint32_t ConductorCalculator::requiredTargetAreaMicrometre2(
 }
 
 uint32_t ConductorCalculator::requiredTargetAreaMicrometre2(
+    const ConductorBundle& source,
+    ConductorMaterial targetMaterial,
+    const ConversionSettings& settings)
+{
+    return requiredTargetAreaMicrometre2(
+        bundleAreaMicrometre2(source), source.material, targetMaterial, settings);
+}
+
+uint32_t ConductorCalculator::requiredTargetAreaMicrometre2(
     const SourceConductorSet& source,
     ConductorMaterial targetMaterial,
     const ConversionSettings& settings)
 {
-    const uint32_t sourceArea = sourceSetAreaMicrometre2(source);
-    if (sourceArea == 0UL || source.material == targetMaterial) return sourceArea;
-    const uint16_t ratio = source.material == ConductorMaterial::Aluminium &&
-                                   targetMaterial == ConductorMaterial::Copper
-                               ? settings.aluminiumToCopperPermille
-                               : settings.copperToAluminiumPermille;
-    if (ratio == 0U) return 0UL;
-    const uint64_t required =
-        (static_cast<uint64_t>(sourceArea) * ratio + 500ULL) / 1000ULL;
-    return required > 0xFFFFFFFFULL ? 0xFFFFFFFFUL
-                                    : static_cast<uint32_t>(required);
+    return requiredTargetAreaMicrometre2(
+        sourceSetAreaMicrometre2(source), source.material, targetMaterial, settings);
 }
 
 bool ConductorCalculator::findBestWarehouseOption(

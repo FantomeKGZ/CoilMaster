@@ -69,3 +69,11 @@ jobs:
                   f'delta={delta:+d} headroom={total - ru_used} total={total}'
               )
           PY
+
+      - name: Report largest RU firmware symbols
+        shell: bash
+        run: |
+          NM="$HOME/.platformio/packages/toolchain-atmelavr/bin/avr-nm"
+          echo "Largest uno_ru symbols (decimal bytes):"
+          "$NM" -C --defined-only --print-size --size-sort --radix=d \
+            .pio/build/uno_ru/firmware.elf | tail -n 50

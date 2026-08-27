@@ -44,9 +44,12 @@ bool HallCalibrationService::arm(uint32_t nowMs)
 
     clearMeasurements();
     m_hall.reset(nowMs);
-    m_state = HallCalibrationState::ArmedWaitingPhysicalStart;
+    // Keep the first protocol reply backward-compatible with the existing
+    // ESP32 ARM handshake. update() promotes this automatically on the next
+    // loop; no keypad confirmation is required from the operator.
+    m_state = HallCalibrationState::WaitingLocalConfirm;
 #if CM_LCD_RU_EN
-    s_displayState = m_state;
+    s_displayState = HallCalibrationState::ArmedWaitingPhysicalStart;
 #endif
     m_armedAtMs = nowMs;
     m_lastPeerContactMs = nowMs;
@@ -148,8 +151,12 @@ void HallCalibrationService::update(uint32_t nowMs, bool safeEnvironment)
         return;
     }
 
-    if (m_state == HallCalibrationState::WaitingLocalConfirm ||
-        m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
+    if (m_state == HallCalibrationState::WaitingLocalConfirm)
+    {
+        (void)confirmLocal(nowMs);
+    }
+
+    if (m_state == HallCalibrationState::ArmedWaitingPhysicalStart)
     {
         if (static_cast<uint32_t>(nowMs - m_armedAtMs) >= ArmedTimeoutMs)
         {

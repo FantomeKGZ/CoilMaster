@@ -48,7 +48,6 @@ public:
     bool begin();
     bool ready() const;
     bool append(const NewCashEvent& event, uint32_t& eventId);
-    bool eventExists(uint32_t eventId) const;
     bool eventBelongsToRepair(uint32_t eventId,
                               uint32_t repairId,
                               uint32_t clientId,
@@ -72,7 +71,9 @@ public:
 
 private:
     bool ensureDirectory();
-    bool nextEventId(uint32_t& eventId) const;
+    bool analyzeAppendState(uint32_t correctionEventId,
+                            uint32_t& eventId,
+                            bool& correctionFound) const;
     bool validateJournal() const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findUnsigned64(const String& line, const char* key, uint64_t& value);

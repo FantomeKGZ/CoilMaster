@@ -122,6 +122,16 @@ void appendUnsigned(char (&line)[DisplayColumns + 1U],
     while (count > 0U && position < DisplayColumns)
         line[position++] = digits[--count];
 }
+
+void appendNumberPair(char (&line)[DisplayColumns + 1U],
+                      uint8_t& position,
+                      uint16_t first,
+                      uint16_t second)
+{
+    appendUnsigned(line, position, first);
+    if (position < DisplayColumns) line[position++] = '/';
+    appendUnsigned(line, position, second);
+}
 }
 
 namespace CM
@@ -282,9 +292,7 @@ void Lcd1602View::buildLines(const UiModel& model,
 #else
             appendFlash(line1, p1, F("VITKI "));
 #endif
-            appendUnsigned(line1, p1, model.coilNumber);
-            appendFlash(line1, p1, F("/"));
-            appendUnsigned(line1, p1, model.coilCount);
+            appendNumberPair(line1, p1, model.coilNumber, model.coilCount);
             if (model.inputDigits > 0U)
             {
 #if CM_LCD_RU_EN
@@ -312,9 +320,7 @@ void Lcd1602View::buildLines(const UiModel& model,
 #else
             appendFlash(line1, p1, F("GOTOV "));
 #endif
-            appendUnsigned(line1, p1, model.coilNumber);
-            appendFlash(line1, p1, F("/"));
-            appendUnsigned(line1, p1, model.coilCount);
+            appendNumberPair(line1, p1, model.coilNumber, model.coilCount);
 #if CM_LCD_RU_EN
             appendFlash(line2, p2, F("A=CTAPT C=P" "\x02" "\x03"));
 #else
@@ -328,17 +334,13 @@ void Lcd1602View::buildLines(const UiModel& model,
 #else
             appendFlash(line1, p1, F("NAMOTKA "));
 #endif
-            appendUnsigned(line1, p1, model.coilNumber);
-            appendFlash(line1, p1, F("/"));
-            appendUnsigned(line1, p1, model.coilCount);
+            appendNumberPair(line1, p1, model.coilNumber, model.coilCount);
 #if CM_LCD_RU_EN
             appendFlash(line2, p2, F("B" "\x01" "TK" "\x01" ":"));
 #else
             appendFlash(line2, p2, F("VITKI:"));
 #endif
-            appendUnsigned(line2, p2, model.currentTurns);
-            appendFlash(line2, p2, F("/"));
-            appendUnsigned(line2, p2, model.targetTurns);
+            appendNumberPair(line2, p2, model.currentTurns, model.targetTurns);
             break;
 
         case UiScreen::Paused:
@@ -347,17 +349,13 @@ void Lcd1602View::buildLines(const UiModel& model,
 #else
             appendFlash(line1, p1, F("PAUZA "));
 #endif
-            appendUnsigned(line1, p1, model.coilNumber);
-            appendFlash(line1, p1, F("/"));
-            appendUnsigned(line1, p1, model.coilCount);
+            appendNumberPair(line1, p1, model.coilNumber, model.coilCount);
 #if CM_LCD_RU_EN
             appendFlash(line2, p2, F("B" "\x02" "TK" "\x02" ":"));
 #else
             appendFlash(line2, p2, F("VITKI:"));
 #endif
-            appendUnsigned(line2, p2, model.currentTurns);
-            appendFlash(line2, p2, F("/"));
-            appendUnsigned(line2, p2, model.targetTurns);
+            appendNumberPair(line2, p2, model.currentTurns, model.targetTurns);
             appendFlash(line2, p2, F(" A=GO"));
             break;
 

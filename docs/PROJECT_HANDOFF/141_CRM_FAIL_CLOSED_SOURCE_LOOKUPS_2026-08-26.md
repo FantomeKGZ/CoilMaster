@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete. Production source is compile-GREEN; final contract revalidation is pending because the first CMP run for the final test commit ended with GitHub Actions `startup_failure` before any job was created.
+GREEN. Production source and final contract are validated by later successful CMP/ESP32 runs after the transient GitHub Actions startup/queue failure cleared.
 
 ## Source changes
 
@@ -35,11 +35,19 @@ No repair intake pending/recovery ordering was changed.
 
 ## Confirmed CI
 
-- ESP32 Build `#1612`, run `32983761012`: SUCCESS on source commit `35ba207a...`
-- CMP Protocol Tests `#3656`, run `32983760884`: SUCCESS on source commit `35ba207a...`; all 68 host audit steps succeeded
-- CMP Protocol Tests `#3657`, run `32983999245`: `startup_failure` on final contract commit `18a0297b...`; GitHub created zero jobs, so this is not a code/test assertion failure
+Original direct evidence:
 
-The next normal CMP-triggering commit must be used to revalidate the final contract before checkpoint 141 is promoted to the canonical GREEN read-order in `00_READ_FIRST.md`, `01_CURRENT_STATE.md`, and `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+- ESP32 Build `#1612`, run `32983761012`: SUCCESS on source commit `35ba207a...`
+- CMP Protocol Tests `#3656`, run `32983760884`: SUCCESS on source commit `35ba207a...`; all mandatory host audits succeeded
+- CMP Protocol Tests `#3657`, run `32983999245`: infrastructure `startup_failure` before any job was created; not a code/test failure
+
+Later revalidation containing the final 141 source + contract:
+
+- CMP Protocol Tests `#3663`, run `33034665166`: SUCCESS
+- ESP32 Build `#1616`, run `33034665123`: build job SUCCESS
+- CMP Protocol Tests `#3664`, run `33034707952`: SUCCESS on later contract-bearing commit
+
+Checkpoint 141 is therefore part of the canonical GREEN foundation.
 
 ## Safety invariants
 

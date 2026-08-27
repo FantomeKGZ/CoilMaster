@@ -18,20 +18,6 @@ uint32_t availableGramsFor(const KnownWireDiameter* known,
     }
     return 0UL;
 }
-
-bool optionAvailableFromWarehouse(const ConversionOption& option,
-                                  const KnownWireDiameter* known,
-                                  uint8_t knownCount)
-{
-    if (!option.valid || option.componentCount == 0U) return false;
-    for (uint8_t index = 0U; index < option.componentCount; ++index)
-    {
-        if (availableGramsFor(known, knownCount,
-                              option.components[index].diameterHundredthsMm) == 0UL)
-            return false;
-    }
-    return true;
-}
 }
 
 ConductorCalculatorWeb::ConductorCalculatorWeb(WebServer& server,
@@ -230,8 +216,19 @@ void ConductorCalculatorWeb::handleCalculate()
     {
         if (i > 0U) response += ',';
         const ConversionOption& option = standardOptions[i];
-        const bool warehouseAvailable = optionAvailableFromWarehouse(
-            option, known, knownCount);
+        uint32_t componentAvailableGrams[MaxConversionComponents] = {};
+        bool warehouseAvailable = option.valid && option.componentCount > 0U;
+        for (uint8_t componentIndex = 0U;
+             componentIndex < option.componentCount;
+             ++componentIndex)
+        {
+            componentAvailableGrams[componentIndex] = availableGramsFor(
+                known, knownCount,
+                option.components[componentIndex].diameterHundredthsMm);
+            if (componentAvailableGrams[componentIndex] == 0UL)
+                warehouseAvailable = false;
+        }
+
         response += F("{\"rank\":"); response += static_cast<uint8_t>(i + 1U);
         response += F(",\"parallel_strands\":"); response += option.targetParallelStrands;
         response += F(",\"target_area_um2\":"); response += option.targetAreaMicrometre2;
@@ -252,8 +249,7 @@ void ConductorCalculatorWeb::handleCalculate()
             response += component.diameterHundredthsMm;
             response += F(",\"parallel_strands\":"); response += component.parallelStrands;
             response += F(",\"available_g\":");
-            response += availableGramsFor(known, knownCount,
-                                          component.diameterHundredthsMm);
+            response += componentAvailableGrams[componentIndex];
             response += '}';
         }
         response += F("]}");

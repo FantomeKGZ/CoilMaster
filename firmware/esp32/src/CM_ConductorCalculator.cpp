@@ -265,6 +265,7 @@ void ConductorCalculator::evaluateOption(
     candidate.availability = firstInStock && secondInStock
                                  ? ConversionAvailability::InStock
                                  : ConversionAvailability::PurchaseRequired;
+    candidate.rankingScore = optionScore(candidate);
     insertRanked(candidate, options);
 }
 
@@ -285,10 +286,10 @@ void ConductorCalculator::insertRanked(
     const ConversionOption& candidate,
     ConversionOption options[MaxRecommendedConversionOptions])
 {
-    const uint32_t candidateScore = optionScore(candidate);
+    const uint32_t candidateScore = candidate.rankingScore;
     for (uint8_t index = 0U; index < MaxRecommendedConversionOptions; ++index)
     {
-        if (!options[index].valid || candidateScore < optionScore(options[index]))
+        if (!options[index].valid || candidateScore < options[index].rankingScore)
         {
             for (uint8_t move = MaxRecommendedConversionOptions - 1U;
                  move > index;

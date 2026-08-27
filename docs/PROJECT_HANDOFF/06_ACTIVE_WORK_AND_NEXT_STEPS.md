@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 140
+## GREEN foundation through checkpoint 143
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -16,24 +16,22 @@
 138 RepairCosting repair lookup wrapper removed; load() explicit found
 139 first bounded finalization coverage batch shares authoritative movement pairing/provenance pass
 140 winding-session preflight kept only for mutation-sensitive spool-selection directory
+141 CRM client/motor existence lookups use explicit found across registry/Web/cash/intake
+142 unused JobSnapshotStore exists helper removed from public API
+143 autonomous assignment public API narrowed to assignMotorChecked result semantics
 ```
 
-Verified checkpoint-140 evidence:
+Verified latest evidence:
 
 ```text
-1584672e49288334da531235e3bec9f6a691fc7f
-0e3786c2894cd5b078645ae24ed5ceb3975cb4ea
-ESP32 Build #1606  32981707495 / SUCCESS
-CMP Tests #3644    32981785788 / SUCCESS
+6f69d0c548303cb9f6920b602cc0d8754deb5d5b
+38e892edc6a45d9540188516d06c6e41c93abd5d
+ESP32 Build #1616  33034665123 / SUCCESS
+CMP Tests #3663    33034665166 / SUCCESS
+CMP Tests #3664    33034707952 / SUCCESS
 ```
 
-## Pending checkpoints 141-142
-
-141 CRM client/motor existence lookups use explicit `found`; final source `35ba207a678547189a550aea9257ed1660d9853a` is verified by ESP32 `#1612` and CMP `#3656`, while the final contract run `#3657` ended in GitHub Actions `startup_failure` before any job was created.
-
-142 moves unused `JobSnapshotStore::exists(sessionId)` out of the public API; source commit `7a2639832f1c2c0225fbe0de0a6d817bfc6ba622`. Its CMP `#3658` and ESP32 `#1613` runs are stuck before job creation (`jobs=[]`) and cannot be force-cancelled because GitHub returns HTTP 409. These infrastructure-blocked runs are neither GREEN nor RED evidence.
-
-Do not promote 141/142 into the canonical GREEN foundation until a later normal CMP/ESP32 execution validates a commit containing those changes.
+Earlier `#3657` startup failure and stuck `#3658/#1613` runs were GitHub Actions infrastructure failures before job execution. Later successful runs above contain and validate checkpoints 141-143.
 
 ## Current production boundary
 
@@ -47,15 +45,15 @@ explicit operator RUN_WIRE ISSUE
 
 Finalization write-off coverage remains fixed at 32 targets per page. Winding-session persistence no longer pre-scans snapshot/state directories before `begin()` because those stores do not recover temp files; their normal content passes validate them once. Spool-selection retains read-only preflight because its `begin()` may promote validated temp evidence.
 
-## Current active queue — bounded growing-file optimization
+## Current active queue — WindingJournal single-pass optimization
 
-1. Highest-value next performance block: `WindingJournal` currently makes multiple full `events.ndjson` passes during one save/session-state operation (duplicate/start/active/highest/completed evidence). Design a single authoritative bounded session-analysis pass when CI execution is available again.
-2. Do not add unbounded vectors or whole-file buffering; session evidence must remain fixed-size/streamed.
-3. Until GitHub Actions can create jobs again, limit writes to low-risk API visibility/dead-helper cleanup and read-only audits; do not perform a large critical journal rewrite without compile/host proof.
-4. Audit remaining append-only readers for concrete duplicate full scans of the same authoritative file.
-5. Prefer returning bounded evidence/aggregates from an existing authoritative parser rather than adding parallel parsers.
-6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
-7. Keep diagnostics read-only; automatic cleanup/rotation/deletion remains disabled; no premature DB migration.
+1. Highest-value next performance block: `WindingJournal::save()` currently scans `/data/winding-runs/events.ndjson` separately for duplicate detection, active-run state, highest run id, matching RUN_STARTED and completed-run count depending on event type.
+2. `loadSessionState()` separately performs active/highest/completed scans of the same growing file.
+3. Design one authoritative streamed session-analysis pass that can return all required bounded evidence for one target session/run.
+4. Preserve exact duplicate/replay semantics, START->COMPLETE transition proof, monotonic run ids, completed-run sequence and immutable session context checks.
+5. Do not use unbounded vectors or whole-file buffering; RAM must remain fixed/bounded.
+6. Keep Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery unchanged.
+7. Keep diagnostics read-only; no automatic cleanup/rotation/deletion/truncation and no premature DB migration.
 8. Continue software optimization before mandatory final two-board hardware E2E.
 
 ## Safety invariants

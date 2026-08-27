@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 164; checkpoint 165 under CI
+## GREEN foundation through checkpoint 165; checkpoint 166 final residual audit
 
 ```text
 148 managed RUN_WIRE removes redundant spool pre-scan
@@ -41,49 +41,36 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 18d611e6ee8bb0355deda5f99874b0b9923d576f  checkpoint 162
 ac5411cc7ad2f279eef655fc3b0e3be3f139b4d0  checkpoint 163
 e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164
-db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 current production HEAD
+db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 current production
 ```
 
 Latest direct verification:
 
 ```text
-CMP Tests #3756    33047296869 / SUCCESS  (checkpoint 163 production)
-ESP32 Build #1645  33047296953 / SUCCESS  (checkpoint 163 production)
-CMP Tests #3757    33047347514 / SUCCESS  (checkpoint 163 handoff)
 CMP Tests #3759    33047621155 / SUCCESS  (checkpoint 164 production)
 ESP32 Build #1647  33047621128 / SUCCESS  (checkpoint 164 production)
-```
-
-Checkpoint 165 verification started on `db642c50...`:
-
-```text
-CMP Tests #3766    33047940015 / in_progress at first direct check
-ESP32 Build #1650  33047940040 / in_progress at first direct check
+CMP Tests #3766    33047940015 / SUCCESS  (checkpoint 165 production)
+ESP32 Build #1650  33047940040 / SUCCESS  (checkpoint 165 production)
+CMP Tests #3767    33048020592 / SUCCESS  (checkpoint 165 handoff HEAD)
 ```
 
 Intermediate ESP32 Build #1642 (`33046801931`) failed on `7936b8f9964294cf0164a8e5287cfbfdc19f8c7d` because the expanded `evaluateOption()` declaration expected 10 arguments while two call sites and the definition still used 8. The corrected checkpoint-162 production commit is `18d611e6ee8bb0355deda5f99874b0b9923d576f`, verified by CMP #3750 + ESP32 #1643.
 
 CMP host audit remains 69 mandatory steps.
 
-## Checkpoint 164 — GREEN
+## Checkpoint 165 — GREEN
 
-`ConductorCalculatorWeb::handleCalculate()` computes `requiredArea` once per request and reuses that exact value for warehouse recommendations, standard-catalogue recommendations and the JSON response; `sourceArea` is cached for serialization. Conversion formulas, ranking, catalogue selection, HTTP errors and JSON values remain unchanged. CMP #3759 and ESP32 #1647 directly verify production.
-
-## Checkpoint 165
-
-The Web handler still had one duplicate source-area pass because `requiredTargetAreaMicrometre2(source, ...)` recalculated `sourceSetAreaMicrometre2(source)` after `sourceArea` had already been cached for JSON. A new area-based overload centralizes the unchanged material-ratio formula. Existing bundle/set overloads delegate to it, while the Web handler passes its already-computed `sourceArea`. The source component set is therefore area-scanned once per request instead of twice. Integer rounding, overflow saturation, material conversion semantics, recommendation ranking and JSON values remain unchanged; no heap or unbounded memory is introduced.
+The Web handler computes `sourceSetAreaMicrometre2(source)` once and passes the cached `sourceArea` to an area-based `requiredTargetAreaMicrometre2()` overload. Existing bundle/set overloads delegate to the same material-ratio formula. The second source-component area scan is removed while integer rounding, overflow saturation, material conversion, recommendation ranking and JSON values remain unchanged. CMP #3766 and ESP32 #1650 directly verify production; CMP #3767 verifies the handoff HEAD.
 
 The NetworkWeb repeated-`arg()` candidate remains lower value and unchanged. The repair-page/status request-wide scan remains rejected because close order is not guaranteed to follow `repair_id`; caching sparse candidates would violate fixed-memory bounds.
 
-## Current active queue — checkpoint 165 verification / 166
+## Current active queue — checkpoint 166 final residual audit
 
-1. Confirm CMP #3766 and ESP32 Build #1650 on `db642c50...`; do not call 165 GREEN until both are directly successful.
-2. Then start checkpoint 166 from current `cmp-protocol-v1` HEAD.
-3. Continue only with measurable runtime/storage/flash wins; no cosmetic refactors with likely code/RAM growth.
-4. Prefer fixed-memory duplicate read/parse/lookup/calculation elimination while preserving complete authoritative validation.
-5. Keep MaterialLedger `confirmUsage()` two-pass safety boundary.
-6. No tail-only replacement of authoritative historical integrity validation.
-7. No unbounded RAM, whole-file buffering, automatic production-data rotation/deletion/truncation, or premature DB/index migration.
+1. Audit current `cmp-protocol-v1` for any remaining measurable duplicate read/parse/lookup/calculation in bounded-memory runtime paths.
+2. Implement only if benefit is meaningful and semantics/safety proof remain unchanged.
+3. If no safe meaningful candidate remains, record software optimization complete instead of forcing cosmetic changes.
+4. Then move to final two-board hardware E2E acceptance.
+5. Keep MaterialLedger `confirmUsage()` two-pass safety boundary; no tail-only historical integrity substitution, unbounded RAM, automatic data deletion/rotation, or premature DB/index migration.
 
 ## Safety invariants
 

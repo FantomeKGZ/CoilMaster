@@ -122,6 +122,11 @@ public:
     static uint32_t sourceSetAreaMicrometre2(const SourceConductorSet& source);
 
     static uint32_t requiredTargetAreaMicrometre2(
+        uint32_t sourceArea,
+        ConductorMaterial sourceMaterial,
+        ConductorMaterial targetMaterial,
+        const ConversionSettings& settings);
+    static uint32_t requiredTargetAreaMicrometre2(
         const ConductorBundle& source,
         ConductorMaterial targetMaterial,
         const ConversionSettings& settings);

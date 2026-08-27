@@ -12,7 +12,6 @@ bool WindingJournal::begin()
 {
     m_ready = ensureDirectories();
     if (m_ready) m_ready = validateJournalStructure();
-    if (m_ready) m_ready = validateJournalSessionContexts();
     return m_ready;
 }
 
@@ -125,6 +124,10 @@ bool WindingJournal::validateJournalStructure() const
     File file = m_fileSystem.open(JournalPath, FILE_READ);
     if (!file) return false;
 
+    uint32_t currentContextSessionId = 0UL;
+    WindingEventContext currentContext;
+    bool haveCurrentContext = false;
+
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
@@ -161,81 +164,35 @@ bool WindingJournal::validateJournalStructure() const
                 file.close();
                 return false;
             }
+
+            if (!haveCurrentContext)
+            {
+                currentContextSessionId = sessionId;
+                currentContext = context;
+                haveCurrentContext = true;
+            }
+            else if (sessionId < currentContextSessionId)
+            {
+                file.close();
+                return false;
+            }
+            else if (sessionId > currentContextSessionId)
+            {
+                currentContextSessionId = sessionId;
+                currentContext = context;
+            }
+            else if (context.jobId != currentContext.jobId ||
+                     context.linked != currentContext.linked ||
+                     context.repairId != currentContext.repairId ||
+                     context.motorId != currentContext.motorId)
+            {
+                file.close();
+                return false;
+            }
         }
 
         if ((eventType == RemoteEventType::RunStarted && completedRuns != 0UL) ||
             (eventType == RemoteEventType::RunCompleted && completedRuns == 0UL))
-        {
-            file.close();
-            return false;
-        }
-    }
-
-    file.close();
-    return true;
-}
-
-bool WindingJournal::validateJournalSessionContexts() const
-{
-    if (!m_fileSystem.exists(JournalPath)) return true;
-
-    File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
-
-    uint32_t currentSessionId = 0UL;
-    WindingEventContext currentContext;
-    bool haveCurrentContext = false;
-
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        uint32_t schemaVersion = 0UL;
-        if (!findUnsigned(line, "schema_version", schemaVersion))
-        {
-            file.close();
-            return false;
-        }
-        if (schemaVersion == 1UL) continue;
-        if (schemaVersion != 2UL)
-        {
-            file.close();
-            return false;
-        }
-
-        uint32_t sessionId = 0UL;
-        WindingEventContext context;
-        if (!findUnsigned(line, "session_id", sessionId) ||
-            sessionId == 0UL || !parseContext(line, context))
-        {
-            file.close();
-            return false;
-        }
-
-        if (!haveCurrentContext)
-        {
-            currentSessionId = sessionId;
-            currentContext = context;
-            haveCurrentContext = true;
-            continue;
-        }
-
-        if (sessionId < currentSessionId)
-        {
-            file.close();
-            return false;
-        }
-
-        if (sessionId > currentSessionId)
-        {
-            currentSessionId = sessionId;
-            currentContext = context;
-            continue;
-        }
-
-        if (context.jobId != currentContext.jobId ||
-            context.linked != currentContext.linked ||
-            context.repairId != currentContext.repairId ||
-            context.motorId != currentContext.motorId)
         {
             file.close();
             return false;

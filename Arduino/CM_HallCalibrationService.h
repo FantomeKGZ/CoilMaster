@@ -69,8 +69,11 @@ public:
 #endif
 
 private:
+    // Keep ADC sampling fast enough to catch narrow Hall peaks, but never try
+    // to stream every sample over the 9600-baud SoftwareSerial link.
     static constexpr uint16_t SampleIntervalMs = 10U;
-    static constexpr uint16_t BaselineSampleIntervalMs = 20U;
+    static constexpr uint16_t RunPublishIntervalMs = 250U;
+    static constexpr uint16_t BaselineSampleIntervalMs = 100U;
     static constexpr uint8_t MinimumBaselineSamples = 8U;
     static constexpr uint32_t ArmedTimeoutMs = 60000UL;
     static constexpr uint32_t ApplyConfirmTimeoutMs = 30000UL;
@@ -80,6 +83,7 @@ private:
 
     void sampleBaseline(uint32_t nowMs);
     void sampleRunning(uint32_t nowMs);
+    void publishRunWindow(uint32_t nowMs);
     void finish(uint32_t nowMs);
     void clearMeasurements();
     bool populateResult(HallCalibrationResult& result) const;
@@ -98,7 +102,10 @@ private:
     uint32_t m_applyConfirmAtMs;
     uint32_t m_startedAtMs;
     uint32_t m_lastSampleMs;
+    uint32_t m_lastPublishMs;
     uint32_t m_measurementId;
+    uint16_t m_runWindowMin;
+    uint16_t m_runWindowMax;
     uint8_t m_baselineSamples;
     uint16_t m_runSamples;
 };

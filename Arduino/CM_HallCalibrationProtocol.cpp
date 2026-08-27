@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <avr/pgmspace.h>
 
+#include "CM_CrcFrameText.h"
 #include "CM_HardwareControlProtocol.h"
-#include "../Shared/CMP1Text/CM_Cmp1Crc.h"
 
 namespace CM
 {
@@ -14,16 +14,9 @@ namespace
 {
 bool appendCrc(char* output, size_t outputSize, int payloadLength)
 {
-    if (output == nullptr || outputSize == 0U || payloadLength <= 0 ||
-        static_cast<size_t>(payloadLength) >= outputSize) return false;
-    const uint16_t crc = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(output), static_cast<size_t>(payloadLength));
-    const int suffixLength = snprintf_P(
-        output + payloadLength,
-        outputSize - static_cast<size_t>(payloadLength),
-        PSTR("|%04X\n"), static_cast<unsigned int>(crc));
-    return suffixLength > 0 &&
-           static_cast<size_t>(payloadLength + suffixLength) < outputSize;
+    if (payloadLength <= 0) return false;
+    return CrcFrameText::append(
+        output, outputSize, static_cast<size_t>(payloadLength));
 }
 
 PGM_P stateNameP(HallCalibrationState state)

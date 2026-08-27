@@ -100,6 +100,7 @@ struct ConversionOption
     uint32_t availableGrams;
     uint8_t componentCount;
     ConversionComponent components[MaxConversionComponents];
+    uint32_t rankingScore;
 
     ConversionOption()
         : valid(false),
@@ -110,7 +111,8 @@ struct ConversionOption
           targetAreaMicrometre2(0UL),
           deviationPermille(0L),
           availableGrams(0UL),
-          componentCount(0U) {}
+          componentCount(0U),
+          rankingScore(0xFFFFFFFFUL) {}
 };
 
 class ConductorCalculator

@@ -65,8 +65,8 @@ private:
     static constexpr uint32_t ArmedTimeoutMs = 60000UL;
     static constexpr uint32_t ApplyConfirmTimeoutMs = 30000UL;
     static constexpr uint32_t PeerTimeoutMs = 3000UL;
-    static constexpr uint32_t RunDurationMs = 5000UL;
-    static constexpr uint32_t AbsoluteRunTimeoutMs = 6500UL;
+    static constexpr uint32_t RunDurationMs = 15000UL;
+    static constexpr uint32_t AbsoluteRunTimeoutMs = 17000UL;
 
     void sampleBaseline(uint32_t nowMs);
     void sampleRunning(uint32_t nowMs);

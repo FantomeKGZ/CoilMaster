@@ -23,8 +23,8 @@
 
   function stateText(state){
     switch(state){
-      case 'WAITING_LOCAL_CONFIRM': return 'Ожидание подтверждения # на Arduino';
-      case 'ARMED_WAITING_START': return 'Ожидание физической START';
+      case 'WAITING_LOCAL_CONFIRM': return 'Подготовка локального запуска на Arduino';
+      case 'ARMED_WAITING_START': return 'Ожидание A или физической START';
       case 'RUNNING': return 'Калибровка выполняется';
       case 'COMPLETED': return 'Калибровка завершена';
       case 'WAITING_APPLY_CONFIRM': return 'Ожидание # для сохранения на Arduino';
@@ -181,11 +181,11 @@
       const name=state.state||'IDLE';
       const pending=!!state.pending;
       if(name==='WAITING_LOCAL_CONFIRM'){
-        setStatus('Команда принята. Подтвердите калибровку клавишей # на Arduino. До подтверждения физическая START не запускает калибровку.','note warn');
+        setStatus('Команда принята. Arduino автоматически готовит локальный запуск и собирает baseline при остановленном двигателе. Дополнительное подтверждение # не требуется.','note warn');
       }else if(name==='ARMED_WAITING_START'){
-        setStatus('Локальное подтверждение принято. Дождитесь готовности baseline и нажмите отдельную физическую START на станке. ESP32 не запускает двигатель.','note warn');
+        setStatus('Дождитесь готовности baseline и запустите тест клавишей A на клавиатуре или отдельной физической START на станке. ESP32 не запускает двигатель.','note warn');
       }else if(name==='RUNNING'){
-        setStatus('Калибровка выполняется. Любая клавиша или повторная START на станке прервёт процедуру.','note ok');
+        setStatus('Калибровка выполняется 15 секунд. Любая клавиша или повторная START на станке прервёт процедуру.','note ok');
       }else if(name==='COMPLETED'){
         setStatus('Калибровка завершена. Проверьте рекомендацию. Кнопка применения только отправит proposal; EEPROM изменится лишь после отдельного # на Arduino.','note ok');
       }else if(name==='WAITING_APPLY_CONFIRM'){

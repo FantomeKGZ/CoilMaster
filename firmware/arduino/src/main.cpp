@@ -403,25 +403,40 @@ bool processRemoteOperatorExitKey(char key)
     return true;
 }
 
+bool startHallCalibrationFromLocalControl(uint32_t nowMs)
+{
+    if (!hallCalibration.baselineReady()) return false;
+
+    if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm &&
+        !hallCalibration.confirmLocal(nowMs))
+    {
+        return false;
+    }
+
+    return hallCalibration.physicalStart(nowMs);
+}
+
 void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
     const char key = keypad.getKey();
     if (key == NO_KEY) return;
-    if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm)
+
+    if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm ||
+        hallCalibration.state() == CM::HallCalibrationState::ArmedWaitingPhysicalStart)
     {
-        if (key == '#')
+        if (key == 'A')
         {
-            const bool confirmed = hallCalibration.confirmLocal(millis());
-            Serial.println(confirmed
-                               ? F("CM_HALL_CAL local_confirm=ACCEPTED")
-                               : F("CM_HALL_CAL local_confirm=REJECTED"));
+            const bool started = startHallCalibrationFromLocalControl(millis());
+            Serial.println(started
+                               ? F("CM_HALL_CAL keypad_start=ACCEPTED")
+                               : F("CM_HALL_CAL keypad_start=BASELINE_NOT_READY"));
         }
         else
         {
             hallCalibration.abort();
             ssr.forceOff();
-            Serial.println(F("CM_HALL_CAL abort=LOCAL_CONFIRM_CANCELLED"));
+            Serial.println(F("CM_HALL_CAL abort=LOCAL_START_CANCELLED"));
         }
         return;
     }
@@ -507,13 +522,6 @@ void processExternalStart(uint32_t nowMs)
 #if CM_FEATURE_EXTERNAL_START
     if (startButton.pollPressed(nowMs))
     {
-        if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm)
-        {
-            ssr.forceOff();
-            Serial.println(F("CM_HALL_CAL physical_start=WAITING_LOCAL_CONFIRM"));
-            return;
-        }
-
         if (hallCalibration.state() == CM::HallCalibrationState::WaitingApplyConfirm)
         {
             ssr.forceOff();
@@ -521,10 +529,10 @@ void processExternalStart(uint32_t nowMs)
             return;
         }
 
-        if (hallCalibration.state() ==
-            CM::HallCalibrationState::ArmedWaitingPhysicalStart)
+        if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm ||
+            hallCalibration.state() == CM::HallCalibrationState::ArmedWaitingPhysicalStart)
         {
-            const bool started = hallCalibration.physicalStart(nowMs);
+            const bool started = startHallCalibrationFromLocalControl(nowMs);
             Serial.println(started
                                ? F("CM_HALL_CAL physical_start=ACCEPTED")
                                : F("CM_HALL_CAL physical_start=BASELINE_NOT_READY"));

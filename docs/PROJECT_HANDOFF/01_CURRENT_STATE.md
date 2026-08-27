@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **150**. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization now covers WindingJournal, CashPaymentStore correction append preparation, Material Request status transitions, managed RUN_WIRE spool mutation, and spool/material bridge append. Checkpoint 150 is a deliberate NO-CHANGE safety boundary for MaterialLedger usage: its two `materials.ndjson` passes are distinct preflight and mutation-time validation phases and must not be fused without a shared writer lock.
+GREEN through checkpoint **151**. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization now covers WindingJournal, CashPaymentStore correction append preparation, Material Request status transitions, managed RUN_WIRE spool mutation, and spool/material bridge append. Checkpoint 150 is a deliberate NO-CHANGE safety boundary for MaterialLedger usage: its two `materials.ndjson` passes are distinct preflight and mutation-time validation phases and must not be fused without a shared writer lock. Checkpoint 151 extends the bounded append-only audit and deliberately makes no production change because the inspected remaining paths do not contain a same-operation duplicate full scan of the same growing NDJSON.
 
 ## Latest GREEN state
 
@@ -26,6 +26,7 @@ GREEN through checkpoint **150**. Atomic RUN_WIRE is the only current wire mutat
 148 managed RUN_WIRE spool mutation removes redundant pre-scan before checked rewrite
 149 SpoolMaterialBridgeStore append duplicate-spool check + next bridge id -> one validated bridge-log pass
 150 MaterialLedger confirmUsage two-pass materials scan retained: preflight + mutation-time revalidation are distinct safety phases; no shared writer lock exists
+151 bounded append-only audit: RepairRegistry, WarehouseStore/WriteOff and autonomous assignment inspected; no safe same-ledger duplicate full-scan candidate found, production source unchanged
 ```
 
 Production RUN_WIRE path remains:
@@ -44,14 +45,18 @@ Checkpoint 149 replaces `loadBySpool() + nextBridgeId()` duplicate full reads of
 
 Checkpoint 150 audits `MaterialLedger::confirmUsage()` and intentionally keeps its two `materials.ndjson` reads. The first pass derives the pre-WAL stock/price/currency snapshot used by `usage.pending`; the later `rewriteQuantity()` pass re-reads the current authoritative file immediately before atomic replacement and derives the committed remaining stock/price/currency from that current state. `adjustMaterial()` is a separate writer with its own pending transaction, and the firmware has no common mutex/semaphore spanning all material writers. Preparing a one-pass temp before WAL would therefore weaken mutation-time TOCTOU protection. No production source change was made for checkpoint 150.
 
+Checkpoint 151 audits the next append-oriented storage paths against the same rule. `RepairRegistry` uses one validated pass of the target client/motor/repair/status ledger per append need, with additional reads only from different registry domains. `WarehouseStore::addSpool()` uses one validated `spools.ndjson` pass to derive the next id before append; warehouse write-off keeps one movement-ledger id/integrity scan plus a separate authoritative spool rewrite, which are different ledgers/phases. `AutonomousWindingArchive::assignMotorChecked()` keeps one completed-event proof plus one assignment-ledger next-id/integrity scan, again different ledgers. No same-operation duplicate full scan of one growing NDJSON was found, so production source is unchanged.
+
 Latest verified evidence:
 
 ```text
-14ea791ca5741e9aec75d00b80e2c523a34a7d82  final production source through 149; unchanged by checkpoint 150
+14ea791ca5741e9aec75d00b80e2c523a34a7d82  final production source through 149; unchanged by checkpoints 150-151
 CMP Tests #3704     33039077049 / SUCCESS
 ESP32 Build #1627   33039077052 / SUCCESS
-CMP Tests #3705     33039186178 / SUCCESS  (handoff record commit 8cb1093...)
-CMP Tests #3706     33039200646 / SUCCESS  (handoff HEAD ee7015f...)
+CMP Tests #3705     33039186178 / SUCCESS
+CMP Tests #3706     33039200646 / SUCCESS
+CMP Tests #3707     33039762821 / SUCCESS  (checkpoint 150 handoff record)
+CMP Tests #3708     33039779059 / SUCCESS  (checkpoint 150 handoff HEAD f2103cf...)
 ```
 
 Previous supporting GREEN evidence:
@@ -68,8 +73,8 @@ CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Continue bounded audit of frequent append-only stores for same-operation duplicate full-file scans.
-2. Do not change stores that already perform only one validated pass.
+1. Continue bounded audit only where a same-operation duplicate full-file scan is demonstrably present; do not force code changes.
+2. Do not change stores that already perform only one validated pass of the target ledger.
 3. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
 4. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
 5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.

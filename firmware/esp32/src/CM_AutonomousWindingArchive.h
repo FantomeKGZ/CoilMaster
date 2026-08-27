@@ -83,15 +83,9 @@ public:
                              uint32_t& nextCursor,
                              bool& hasMore) const;
 
-    bool assignMotor(uint32_t sessionId,
-                     uint32_t runId,
-                     uint32_t motorId,
-                     const String& role,
-                     uint32_t& assignmentId);
-
     // Performs the completed-task lookup and append in one archive operation so
-    // HTTP callers do not scan events.ndjson once before assignMotor() and then
-    // a second time inside it. Result preserves not-found vs integrity semantics.
+    // HTTP callers do not scan events.ndjson once before assignment and then a
+    // second time inside it. Result preserves not-found vs integrity semantics.
     AutonomousWindingAssignResult assignMotorChecked(uint32_t sessionId,
                                                       uint32_t runId,
                                                       uint32_t motorId,
@@ -112,6 +106,11 @@ private:
     bool completedTaskExists(uint32_t sessionId,
                              uint32_t runId,
                              bool& found) const;
+    bool assignMotor(uint32_t sessionId,
+                     uint32_t runId,
+                     uint32_t motorId,
+                     const String& role,
+                     uint32_t& assignmentId);
     bool loadLastEvent(RemoteWindingEvent& event, bool& found) const;
     bool findEventReplay(const RemoteWindingEvent& event,
                          bool& exactMatch,

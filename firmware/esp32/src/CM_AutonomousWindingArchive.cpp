@@ -46,18 +46,68 @@ AutonomousWindingSaveResult AutonomousWindingArchive::save(
         return AutonomousWindingSaveResult::Invalid;
     }
 
+    // One bounded tail read supplies both replay/conflict validation and the
+    // RUN_COMPLETED start_observed bit. Previously these checks each reopened
+    // events.ndjson and parsed the same latest record independently.
+    RemoteWindingEvent latest;
+    bool latestFound = false;
+    if (!loadLastEvent(latest, latestFound))
+        return AutonomousWindingSaveResult::Invalid;
+
     bool duplicate = false;
     bool replayConflict = false;
-    if (!findEventReplay(event, duplicate, replayConflict) || replayConflict)
-        return AutonomousWindingSaveResult::Invalid;
-    if (duplicate) return AutonomousWindingSaveResult::Duplicate;
-
     bool startObserved = event.type == RemoteEventType::RunStarted;
-    if (event.type == RemoteEventType::RunCompleted)
+    if (latestFound)
     {
-        if (!matchingStartExists(event, startObserved))
-            return AutonomousWindingSaveResult::Invalid;
+        if (event.runId < latest.runId ||
+            (event.runId > latest.runId && event.sessionId < latest.sessionId))
+        {
+            replayConflict = true;
+        }
+        else if (event.runId == latest.runId)
+        {
+            if (event.sessionId != latest.sessionId ||
+                event.jobType != latest.jobType ||
+                event.coilCount != latest.coilCount)
+            {
+                replayConflict = true;
+            }
+            else
+            {
+                for (uint8_t index = 0U; index < event.coilCount; ++index)
+                {
+                    if (event.turns[index] != latest.turns[index])
+                    {
+                        replayConflict = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!replayConflict)
+            {
+                if (event.type == latest.type)
+                {
+                    if (event.completedRuns != latest.completedRuns)
+                        replayConflict = true;
+                    else
+                        duplicate = true;
+                }
+                else if (latest.type == RemoteEventType::RunStarted &&
+                         event.type == RemoteEventType::RunCompleted)
+                {
+                    startObserved = true;
+                }
+                else
+                {
+                    replayConflict = true;
+                }
+            }
+        }
     }
+
+    if (replayConflict) return AutonomousWindingSaveResult::Invalid;
+    if (duplicate) return AutonomousWindingSaveResult::Duplicate;
 
     File file = m_storage.open(EventsPath, FILE_APPEND);
     if (!file)

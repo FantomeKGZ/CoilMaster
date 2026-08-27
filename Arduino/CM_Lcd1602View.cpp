@@ -110,17 +110,11 @@ void appendUnsigned(char (&line)[DisplayColumns + 1U],
                     uint8_t& position,
                     uint16_t value)
 {
-    char digits[5];
-    uint8_t count = 0U;
-    do
-    {
-        digits[count++] = static_cast<char>('0' + (value % 10U));
-        value = static_cast<uint16_t>(value / 10U);
-    }
-    while (value != 0U && count < sizeof(digits));
-
-    while (count > 0U && position < DisplayColumns)
-        line[position++] = digits[--count];
+    char digits[6];
+    utoa(value, digits, 10);
+    const char* cursor = digits;
+    while (position < DisplayColumns && *cursor != '\0')
+        line[position++] = *cursor++;
 }
 
 void appendNumberPair(char (&line)[DisplayColumns + 1U],

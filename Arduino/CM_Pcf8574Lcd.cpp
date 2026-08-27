@@ -161,6 +161,15 @@ void Pcf8574Lcd::createChar(uint8_t slot, const uint8_t rows[8])
         (void)write(static_cast<uint8_t>(rows[row] & 0x1FU));
 }
 
+void Pcf8574Lcd::createChar_P(uint8_t slot, const uint8_t rows[8])
+{
+    if (rows == nullptr) return;
+    const uint8_t safeSlot = static_cast<uint8_t>(slot & 0x07U);
+    if (!command(static_cast<uint8_t>(0x40U | (safeSlot << 3U)))) return;
+    for (uint8_t row = 0U; row < 8U; ++row)
+        (void)write(static_cast<uint8_t>(pgm_read_byte(rows + row) & 0x1FU));
+}
+
 void Pcf8574Lcd::print(const char* text)
 {
     if (text == nullptr) return;

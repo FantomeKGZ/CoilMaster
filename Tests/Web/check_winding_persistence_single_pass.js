@@ -65,10 +65,11 @@ for (const removed of [
   'hasRunStart(',
   'loadSessionCompletedRuns(',
   'loadActiveRun(',
-  'loadSessionHighestRunId('
+  'loadSessionHighestRunId(',
+  'validateJournalSessionContexts('
 ]) {
   if (runtimeHeader.includes(removed) || runtimeSource.includes(removed)) {
-    throw new Error(`Winding runtime multi-pass helper returned: ${removed}`);
+    throw new Error(`Winding multi-pass helper returned: ${removed}`);
   }
 }
 for (const text of [
@@ -85,9 +86,25 @@ for (const text of [
 ]) {
   requireText(runtimeSource, text, 'runtime journal single-pass contract');
 }
+
+// Boot full-schema and schema-2 context/session ordering validation must share
+// the same structure pass instead of reopening events.ndjson.
+for (const text of [
+  'uint32_t currentContextSessionId = 0UL;',
+  'WindingEventContext currentContext;',
+  'bool haveCurrentContext = false;',
+  'else if (sessionId < currentContextSessionId)',
+  'else if (sessionId > currentContextSessionId)',
+  'context.jobId != currentContext.jobId',
+  'context.linked != currentContext.linked',
+  'context.repairId != currentContext.repairId',
+  'context.motorId != currentContext.motorId'
+]) {
+  requireText(runtimeSource, text, 'combined boot structure/context validation');
+}
 const journalOpenCount = (runtimeSource.match(/m_fileSystem\.open\(JournalPath, FILE_READ\)/g) || []).length;
-if (journalOpenCount !== 3) {
-  throw new Error(`Expected exactly 3 JournalPath FILE_READ sites (boot structure, boot context, runtime analyzer), got ${journalOpenCount}`);
+if (journalOpenCount !== 2) {
+  throw new Error(`Expected exactly 2 JournalPath FILE_READ sites (combined boot validation + runtime analyzer), got ${journalOpenCount}`);
 }
 
-console.log('Winding persistence single-pass contracts OK: persistence audit shares one scan, and runtime save/session-state evidence now shares one bounded streamed journal analysis pass.');
+console.log('Winding persistence single-pass contracts OK: persistence audit shares one scan; boot schema/context validation shares one scan; runtime save/session-state evidence shares one bounded streamed journal analysis pass.');

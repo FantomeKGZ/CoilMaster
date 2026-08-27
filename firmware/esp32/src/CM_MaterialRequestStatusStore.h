@@ -50,7 +50,10 @@ private:
 
     bool ensureDirectory();
     bool requestExists(uint32_t materialRequestId, bool& found) const;
-    bool nextTransitionId(uint32_t& transitionId) const;
+    bool analyzeStatus(uint32_t materialRequestId,
+                       MaterialRequestStatusState& state,
+                       bool& found,
+                       uint32_t* nextTransitionId) const;
     bool validateStatusFileStructure() const;
 
     static bool findUnsigned(const String& line,

@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-Production behavior is GREEN through checkpoint **152**. Checkpoint **153** is a completed NO-CHANGE linker/flash audit: the now-unused autonomous private replay/start helpers are already dead-stripped by the exact ESP32 toolchain used by CI, so deleting them would be cosmetic source cleanup rather than a measurable firmware optimization. Atomic RUN_WIRE remains the only current wire mutation path. Checkpoint 150 remains a deliberate NO-CHANGE safety boundary for MaterialLedger usage.
+Production behavior is GREEN through checkpoint **152**. Checkpoint **153** is a completed NO-CHANGE linker/flash audit. Checkpoint **154** has a production optimization committed and is under direct CMP + ESP32 verification: autonomous archive task filtering now parses `programQuery` once per page and compares directly against already-parsed event turns instead of rebuilding/parsing program strings for every candidate. Atomic RUN_WIRE remains the only current wire mutation path. Checkpoint 150 remains a deliberate NO-CHANGE safety boundary for MaterialLedger usage.
 
 ## Latest state
 
@@ -29,6 +29,7 @@ Production behavior is GREEN through checkpoint **152**. Checkpoint **153** is a
 151 bounded append-only audit: RepairRegistry, WarehouseStore/WriteOff and autonomous assignment inspected; no safe same-ledger duplicate full-scan candidate found, production source unchanged
 152 AutonomousWindingArchive save: replay/conflict + RUN_COMPLETED start_observed share one loadLastEvent() bounded-tail read
 153 autonomous dead-helper audit: exact ESP32 build uses function/data sections + linker gc-sections, so unused private helpers add no final firmware bytes; NO-CHANGE
+154 autonomous task page filter: parse programQuery once per page and compare numeric turns directly; removes per-candidate program String construction + candidate/query reparsing
 ```
 
 Production RUN_WIRE path remains:
@@ -53,31 +54,41 @@ Checkpoint 152 changes only `AutonomousWindingArchive::save()`. The old RUN_COMP
 
 Checkpoint 153 verifies whether deleting the now-unused private `findEventReplay()` / `matchingStartExists()` implementations would reduce final firmware. ESP32 Build #1628 records PlatformIO `espressif32@7.0.1`, Arduino framework `3.20017.241212+sha.dcc1105b`, and xtensa toolchain `8.4.0+2021r2-patch5`. The exact framework build script at `dcc1105b` compiles with `-ffunction-sections` / `-fdata-sections` and links with `-Wl,--gc-sections`. Because both helpers have no live call sites after checkpoint 152, their sections are already excluded from the linked image. No production source change is justified for flash/runtime optimization; cosmetic cleanup is intentionally deferred.
 
+Checkpoint 154 optimizes `AutonomousWindingArchive::appendTasksPageJson()`. Previously each candidate task created a canonical `programText()` String, reparsed that generated candidate String, and reparsed the same `programQuery` inside `programMatches()`. The page path now parses the query once into a fixed `uint16_t` turns array and compares each already-parsed `RemoteWindingEvent::turns[]` directly with the same numeric tolerance formula. Query grammar, maximum 10 coils / 9999 turns, event record validation, START/COMPLETE pairing, cursor boundaries, assignment resolution and output JSON are unchanged. Production commit: `a2f98cb377873d88d3fd103b6dfdfbabaf28ea65`.
+
 Latest verified evidence:
 
 ```text
 CMP Tests #3711     33041330947 / SUCCESS
 CMP Tests #3712     33041352037 / SUCCESS
-CMP Tests #3713     33041657749 / SUCCESS  (checkpoint 152 production commit 1e831cd...)
-ESP32 Build #1628   33041657768 / SUCCESS  (checkpoint 152 production commit 1e831cd...)
+CMP Tests #3713     33041657749 / SUCCESS
+ESP32 Build #1628   33041657768 / SUCCESS
 CMP Tests #3714     33041705508 / SUCCESS
 CMP Tests #3715     33041725972 / SUCCESS
 CMP Tests #3716     33041762521 / SUCCESS
 CMP Tests #3717     33041783094 / SUCCESS  (checkpoint 152 handoff HEAD dbd6dc5...)
 ```
 
+Checkpoint 154 verification started on `a2f98cb...`:
+
+```text
+CMP Tests #3720     33042574144 / in_progress at last direct check
+ESP32 Build #1629   33042574134 / in_progress at last direct check
+```
+
 Earlier supporting GREEN evidence remains in GitHub Actions history. CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Checkpoint 154: continue only with a measurable runtime/storage/flash candidate from current branch; do not spend a checkpoint deleting dead code that linker GC already removes.
-2. Prefer same-operation duplicate parsing/read elimination or fixed-memory aggregate/tail techniques where historical integrity semantics are preserved.
-3. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
-4. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
-5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
-7. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
-8. Preserve historical recovery/history and atomic RUN_WIRE safety.
+1. Verify CMP #3720 and ESP32 #1629 for production commit `a2f98cb...`; do not call checkpoint 154 GREEN before both are directly confirmed.
+2. If GREEN, mark checkpoint 154 GREEN and continue checkpoint 155 from current branch source.
+3. Continue only with measurable runtime/storage/flash candidates; avoid source-only cleanup already handled by linker GC.
+4. Prefer same-operation duplicate parsing/read elimination or fixed-memory aggregate/tail techniques where historical integrity semantics are preserved.
+5. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
+6. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
+7. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+8. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
+9. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
 
 ## Safety invariants
 

@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 143
+## GREEN foundation through checkpoint 144
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -19,19 +19,18 @@
 141 CRM client/motor existence lookups use explicit found across registry/Web/cash/intake
 142 unused JobSnapshotStore exists helper removed from public API
 143 autonomous assignment public API narrowed to assignMotorChecked result semantics
+144 WindingJournal runtime save/state evidence shares one streamed journal analysis pass
 ```
 
 Verified latest evidence:
 
 ```text
-6f69d0c548303cb9f6920b602cc0d8754deb5d5b
-38e892edc6a45d9540188516d06c6e41c93abd5d
-ESP32 Build #1616  33034665123 / SUCCESS
-CMP Tests #3663    33034665166 / SUCCESS
-CMP Tests #3664    33034707952 / SUCCESS
+baa17db71b3d259d94d22009847c402ae8e6d24c
+b186c085ca58743c77b26da33cbd5d795f126126
+ESP32 Build #1618  33035231152 / SUCCESS
+CMP Tests #3673    33035231146 / SUCCESS
+CMP Tests #3674    33035275493 / SUCCESS
 ```
-
-Earlier `#3657` startup failure and stuck `#3658/#1613` runs were GitHub Actions infrastructure failures before job execution. Later successful runs above contain and validate checkpoints 141-143.
 
 ## Current production boundary
 
@@ -43,16 +42,16 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-Finalization write-off coverage remains fixed at 32 targets per page. Winding-session persistence no longer pre-scans snapshot/state directories before `begin()` because those stores do not recover temp files; their normal content passes validate them once. Spool-selection retains read-only preflight because its `begin()` may promote validated temp evidence.
+Checkpoint 144 replaces runtime WindingJournal multi-pass scans with one fixed-memory streamed analyzer. Exact replay ordering, immutable schema-2 context checks, active-run pairing, monotonic START ids and completed-run evidence remain fail-closed. Boot structure/context validation is intentionally still separate.
 
-## Current active queue — WindingJournal single-pass optimization
+## Current active queue — bounded growing-file optimization
 
-1. Highest-value next performance block: `WindingJournal::save()` currently scans `/data/winding-runs/events.ndjson` separately for duplicate detection, active-run state, highest run id, matching RUN_STARTED and completed-run count depending on event type.
-2. `loadSessionState()` separately performs active/highest/completed scans of the same growing file.
-3. Design one authoritative streamed session-analysis pass that can return all required bounded evidence for one target session/run.
-4. Preserve exact duplicate/replay semantics, START->COMPLETE transition proof, monotonic run ids, completed-run sequence and immutable session context checks.
-5. Do not use unbounded vectors or whole-file buffering; RAM must remain fixed/bounded.
-6. Keep Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery unchanged.
+1. Continue auditing append-only runtime readers for concrete repeated full-file scans after WindingJournal runtime consolidation.
+2. Review the two boot-only WindingJournal scans (`validateJournalStructure` + `validateJournalSessionContexts`) separately. Merge only if one pass can preserve full schema validation, schema-2 session ordering and exact context consistency without introducing parallel parser ownership.
+3. Audit autonomous archive runtime save/assignment paths for repeated `events.ndjson` reads now that public API narrowing is complete.
+4. Prefer authoritative parser/audit reuse over parallel custom parsers.
+5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
 7. Keep diagnostics read-only; no automatic cleanup/rotation/deletion/truncation and no premature DB migration.
 8. Continue software optimization before mandatory final two-board hardware E2E.
 

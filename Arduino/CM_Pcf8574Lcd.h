@@ -19,6 +19,7 @@ public:
     void backlight();
     void clear();
     void setCursor(uint8_t column, uint8_t row);
+    void createChar(uint8_t slot, const uint8_t rows[8]);
     void print(const char* text);
     void print(const __FlashStringHelper* text);
     void print(char value);

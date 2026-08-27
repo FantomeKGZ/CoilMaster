@@ -34,6 +34,8 @@ CMP Tests #3705    33039186178 / SUCCESS
 CMP Tests #3706    33039200646 / SUCCESS
 CMP Tests #3707    33039762821 / SUCCESS
 CMP Tests #3708    33039779059 / SUCCESS
+CMP Tests #3709    33041047723 / SUCCESS
+CMP Tests #3710    33041065259 / SUCCESS  (checkpoint 151 HEAD 3604181...)
 ```
 
 Supporting GREEN evidence:
@@ -68,18 +70,17 @@ Checkpoint 151 continues the bounded append audit without forcing an optimizatio
 
 The generic Material Request warehouse coordinator remains unchanged: its repeated scans are across separate integrity ledgers or distinct pre/post mutation phases and are safety-relevant.
 
-## Current active queue — bounded growing-file optimization
+## Current active queue — checkpoint 152
 
-1. Continue only with mutation paths where a same-operation duplicate full scan of the same growing NDJSON is demonstrably present; do not manufacture a refactor.
-2. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
-3. Skip RepairRegistry, WarehouseStore/WriteOff and autonomous assignment for this exact optimization unless their current branch implementation later changes to duplicate a target-ledger scan.
-4. MaterialRequestStore append has already been checked and performs only one request-log scan.
-5. Keep separate-ledger validation when different files prove different integrity domains.
-6. Prefer explicit result channels over bool-only convenience existence APIs.
-7. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-8. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
-9. Keep diagnostics read-only; no automatic cleanup/rotation/deletion/truncation and no premature DB/index migration.
-10. Continue software optimization before mandatory final two-board hardware E2E.
+1. Audit `AutonomousWindingArchive::save(RUN_COMPLETED)`: current path calls `findEventReplay()` and then `matchingStartExists()`, and both independently call `loadLastEvent()`. This duplicates one bounded tail read of `events.ndjson` in the same save operation.
+2. Refactor only if duplicate/replay/conflict classification and `start_observed` can be derived from the same already-read latest event with identical behavior for: empty archive, new run without observed START, normal START->COMPLETE, duplicate COMPLETE, conflicting same-run payload, and stale run/session ordering.
+3. Keep the 512-byte bounded tail and fail-closed unterminated/oversized-record behavior; no full-file scan or unbounded buffering.
+4. Do not weaken autonomous storage integrity or change the public save result semantics.
+5. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
+6. Keep separate-ledger validation when different files prove different integrity domains.
+7. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
+8. Keep diagnostics read-only; no automatic cleanup/rotation/deletion/truncation and no premature DB/index migration.
+9. Continue software optimization before mandatory final two-board hardware E2E.
 
 ## Safety invariants
 

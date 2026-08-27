@@ -1,5 +1,8 @@
 #include "CM_Lcd1602View.h"
 #include "Config/CM_Features.h"
+#if CM_LCD_RU_EN
+#include "CM_HallCalibrationService.h"
+#endif
 
 #include <Arduino.h>
 #include <string.h>
@@ -165,13 +168,48 @@ void Lcd1602View::render(const UiModel& model)
     traceRenderStage(F("LCD_RENDER_ENTER"));
 #endif
 
-#if CM_LCD_RU_EN
-    prepareRussianGlyphs(model.screen);
-#endif
-
     char line1[Columns + 1U];
     char line2[Columns + 1U];
+
+#if CM_LCD_RU_EN
+    const HallCalibrationState calibrationState = HallCalibrationService::displayState();
+    if (calibrationState == HallCalibrationState::WaitingLocalConfirm)
+    {
+        copyPadded(line1, "HALL TEST");
+        copyPadded(line2, "#=OK B=CANCEL");
+    }
+    else if (calibrationState == HallCalibrationState::ArmedWaitingPhysicalStart)
+    {
+        copyPadded(line1, "HALL TEST READY");
+        copyPadded(line2, "A OR START");
+    }
+    else if (calibrationState == HallCalibrationState::Running)
+    {
+        copyPadded(line1, "HALL TEST RUN");
+        clearLine(line2);
+        uint8_t position = 0U;
+        appendFlash(line2, position, F("LEFT "));
+        const uint32_t elapsed = static_cast<uint32_t>(millis() -
+            HallCalibrationService::displayStartedAtMs());
+        const uint32_t duration = HallCalibrationService::displayRunDurationMs();
+        const uint16_t seconds = static_cast<uint16_t>(
+            elapsed >= duration ? 0UL : (duration - elapsed + 999UL) / 1000UL);
+        appendUnsigned(line2, position, seconds);
+        appendFlash(line2, position, F(" SEC"));
+    }
+    else if (calibrationState == HallCalibrationState::WaitingApplyConfirm)
+    {
+        copyPadded(line1, "SAVE HALL CFG?");
+        copyPadded(line2, "#=YES B=NO");
+    }
+    else
+    {
+        prepareRussianGlyphs(model.screen);
+        buildLines(model, line1, line2);
+    }
+#else
     buildLines(model, line1, line2);
+#endif
 
 #if CM_FEATURE_DIAGNOSTICS
     traceRenderStage(F("LCD_LINES_BUILT"));

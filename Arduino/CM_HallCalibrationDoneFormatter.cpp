@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <avr/pgmspace.h>
 
-#include "../Shared/CMP1Text/CM_Cmp1Crc.h"
+#include "CM_CrcFrameText.h"
 
 namespace CM
 {
@@ -25,17 +25,8 @@ bool formatDone(const HallCalibrationResult& result,
     if (payloadLength <= 0 || static_cast<size_t>(payloadLength) >= outputSize)
         return false;
 
-    const uint16_t crc = Cmp1Crc::calculate(
-        reinterpret_cast<const uint8_t*>(output),
-        static_cast<size_t>(payloadLength));
-    const int suffixLength = snprintf_P(
-        output + payloadLength,
-        outputSize - static_cast<size_t>(payloadLength),
-        PSTR("|%04X\n"),
-        static_cast<unsigned int>(crc));
-
-    return suffixLength > 0 &&
-           static_cast<size_t>(payloadLength + suffixLength) < outputSize;
+    return CrcFrameText::append(
+        output, outputSize, static_cast<size_t>(payloadLength));
 }
 
 } // namespace HallCalibrationProtocol

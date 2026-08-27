@@ -57,6 +57,8 @@ CMP Tests #3705     33039186178 / SUCCESS
 CMP Tests #3706     33039200646 / SUCCESS
 CMP Tests #3707     33039762821 / SUCCESS  (checkpoint 150 handoff record)
 CMP Tests #3708     33039779059 / SUCCESS  (checkpoint 150 handoff HEAD f2103cf...)
+CMP Tests #3709     33041047723 / SUCCESS  (checkpoint 151 handoff record a71446a...)
+CMP Tests #3710     33041065259 / SUCCESS  (checkpoint 151 handoff HEAD 3604181...)
 ```
 
 Previous supporting GREEN evidence:
@@ -73,14 +75,15 @@ CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Continue bounded audit only where a same-operation duplicate full-file scan is demonstrably present; do not force code changes.
-2. Do not change stores that already perform only one validated pass of the target ledger.
-3. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
-4. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
-5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
-7. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
-8. Preserve historical recovery/history and atomic RUN_WIRE safety.
+1. Checkpoint 152: remove the duplicate bounded-tail read in `AutonomousWindingArchive::save(RUN_COMPLETED)` only if replay/conflict classification and `start_observed` can be derived from one `loadLastEvent()` without changing fail-closed semantics.
+2. Continue bounded audit only where a same-operation duplicate read is demonstrably present; do not force code changes.
+3. Do not change stores that already perform only one validated pass of the target ledger.
+4. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
+5. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
+6. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+7. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
+8. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
+9. Preserve historical recovery/history and atomic RUN_WIRE safety.
 
 ## Safety invariants
 

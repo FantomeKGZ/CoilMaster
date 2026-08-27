@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 147
+## GREEN foundation through checkpoint 148
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -18,16 +18,15 @@
 145 WindingJournal boot schema/context validation shares one pass
 146 CashPaymentStore correction existence + next id share one pass
 147 MaterialRequestStatusStore current state + next transition id share one pass
+148 managed RUN_WIRE spool mutation removes redundant pre-scan; checked rewrite owns exact before/after identity in one EOF pass
 ```
 
 Verified latest evidence:
 
 ```text
-a0ec58c552bed883d289fa1e30160f365955a6e1
-6c404070d80532e617174d4621d828cf16a094c0
-ESP32 Build #1624  33036483178 / SUCCESS
-CMP Tests #3695    source commit / SUCCESS
-CMP Tests #3696    33036507740 / SUCCESS
+d7242c05357f11266a202008ca7230f6329f1fc6
+CMP Tests #3701    33038706783 / SUCCESS
+ESP32 Build #1625  33038706784 / SUCCESS
 ```
 
 CMP host audit remains 69 mandatory steps.
@@ -42,12 +41,14 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 147 removes the second full `material-request-status.ndjson` pass from transition persistence. `requestExists()` remains a separate immutable request-catalog read, while `analyzeStatus()` now owns current lifecycle state plus global next transition id.
+Checkpoint 148 removes the extra full `spools.ndjson` read immediately before managed RUN_WIRE spool rewrite. The rewrite pass itself now validates strict spool ordering/schema, exact spool id, ACTIVE state, exact diameter/material, exact immutable before-state or the one allowed idempotent after-state, and continues to EOF before accepting replay or entering the existing temp/backup atomic replacement. Separate preflight, post-mutation CONFIRMED verification, swap recovery and exact source-run provenance remain intact.
+
+The generic Material Request warehouse coordinator was audited at the same boundary: its remaining scans are across distinct integrity ledgers or distinct pre/post mutation phases and must stay separate.
 
 ## Current active queue — bounded growing-file optimization
 
-1. Audit Material Request movement and warehouse coordinator runtime paths for repeated reads of the same append-only file in one operation.
-2. Audit other frequent append-only stores after Material Request; do not force changes where only one scan exists.
+1. Checkpoint 149 candidate confirmed: `SpoolMaterialBridgeStore::append()` currently performs `loadBySpool()` and then `nextBridgeId()` over the same `spool-material-bridges.ndjson`; combine duplicate-spool detection plus global next bridge id into one full validated pass.
+2. Audit other frequent append-only stores after the bridge store; do not force changes where only one scan exists.
 3. Keep separate-ledger validation when separate files prove different integrity domains.
 4. Prefer explicit result channels over bool-only convenience existence APIs.
 5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.

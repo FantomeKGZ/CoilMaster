@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 148
+## GREEN foundation through checkpoint 149
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -19,12 +19,23 @@
 146 CashPaymentStore correction existence + next id share one pass
 147 MaterialRequestStatusStore current state + next transition id share one pass
 148 managed RUN_WIRE spool mutation removes redundant pre-scan; checked rewrite owns exact before/after identity in one EOF pass
+149 SpoolMaterialBridgeStore append combines duplicate-spool detection + next bridge id in one validated bridge-log pass
 ```
 
 Verified latest evidence:
 
 ```text
-d7242c05357f11266a202008ca7230f6329f1fc6
+14ea791ca5741e9aec75d00b80e2c523a34a7d82
+CMP Tests #3704    33039077049 / SUCCESS
+ESP32 Build #1627  33039077052 / SUCCESS
+```
+
+Supporting GREEN evidence:
+
+```text
+CMP Tests #3703    33038913115 / SUCCESS
+ESP32 Build #1626  33038913050 / SUCCESS
+CMP Tests #3702    33038798586 / SUCCESS
 CMP Tests #3701    33038706783 / SUCCESS
 ESP32 Build #1625  33038706784 / SUCCESS
 ```
@@ -41,15 +52,17 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 148 removes the extra full `spools.ndjson` read immediately before managed RUN_WIRE spool rewrite. The rewrite pass itself now validates strict spool ordering/schema, exact spool id, ACTIVE state, exact diameter/material, exact immutable before-state or the one allowed idempotent after-state, and continues to EOF before accepting replay or entering the existing temp/backup atomic replacement. Separate preflight, post-mutation CONFIRMED verification, swap recovery and exact source-run provenance remain intact.
+Checkpoint 148 removes the extra full `spools.ndjson` read immediately before managed RUN_WIRE spool rewrite. The rewrite pass itself keeps strict spool ordering/schema, exact spool id, ACTIVE state, exact diameter/material, exact immutable before-state or the one allowed idempotent after-state, EOF validation, atomic replacement/recovery and post-confirm verification.
 
-The generic Material Request warehouse coordinator was audited at the same boundary: its remaining scans are across distinct integrity ledgers or distinct pre/post mutation phases and must stay separate.
+Checkpoint 149 removes the `loadBySpool() + nextBridgeId()` double full read from `SpoolMaterialBridgeStore::append()`. One private analyzer now provides both duplicate-spool detection and global next id while validating the complete `spool-material-bridges.ndjson`. The read-only `loadBySpool()` path intentionally does not require a next id, so exhausted `bridge_id` space blocks new append fail-closed without corrupting lookup availability.
+
+The generic Material Request warehouse coordinator remains unchanged: its repeated scans are across separate integrity ledgers or distinct pre/post mutation phases and are safety-relevant.
 
 ## Current active queue — bounded growing-file optimization
 
-1. Checkpoint 149 candidate confirmed: `SpoolMaterialBridgeStore::append()` currently performs `loadBySpool()` and then `nextBridgeId()` over the same `spool-material-bridges.ndjson`; combine duplicate-spool detection plus global next bridge id into one full validated pass.
-2. Audit other frequent append-only stores after the bridge store; do not force changes where only one scan exists.
-3. Keep separate-ledger validation when separate files prove different integrity domains.
+1. Audit the next frequent append-only stores for two full reads of the same NDJSON during one mutation; change only confirmed duplicates.
+2. MaterialRequestStore append has already been checked at this boundary and performs only one request-log scan; do not change it for this optimization.
+3. Keep separate-ledger validation when different files prove different integrity domains.
 4. Prefer explicit result channels over bool-only convenience existence APIs.
 5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
 6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.

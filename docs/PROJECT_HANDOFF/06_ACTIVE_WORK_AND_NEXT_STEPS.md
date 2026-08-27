@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 145
+## GREEN foundation through checkpoint 146
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -21,18 +21,20 @@
 143 autonomous assignment public API narrowed to assignMotorChecked result semantics
 144 WindingJournal runtime save/state evidence shares one streamed journal analysis pass
 145 WindingJournal boot schema/context validation shares one combined pass
+146 CashPaymentStore correction existence + next event id share one mutation-time pass
 ```
 
 Verified latest evidence:
 
 ```text
-bbbc53d96e535204e38db7da0fc79f872dd5a19a
-1760a447ffd216976b844a51adb055a5701f16ff
-ESP32 Build #1620  33035508401 / SUCCESS
-CMP Tests #3681    33035532132 / SUCCESS
+e15222e299ed4736a66d577175cf4e381e29747a
+a96953ab4a51370dcb6402580def7f2de0256011
+ESP32 Build #1622  33035968880 / SUCCESS
+CMP Tests #3687    33035968846 / SUCCESS
+CMP Tests #3689    33036075195 / SUCCESS
 ```
 
-Intermediate CMP `#3680` was only the stale textual contract before the checkpoint-145 contract update.
+CMP host audit now has 69 mandatory steps; all passed in #3689.
 
 ## Current production boundary
 
@@ -44,17 +46,17 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-After checkpoints 144-145, `CM_WindingJournal.cpp` has exactly two full reads of the growing event journal: one combined boot schema/context validation pass and one runtime session-analysis pass. Exact replay ordering, immutable schema-2 context checks, active-run pairing, monotonic START ids and completed-run evidence remain fail-closed.
+Checkpoint 146 removes the extra full `repair-payments.ndjson` scan that used to precede next-id allocation for correction events. `eventBelongsToRepair(..., found)` remains a separate Web provenance preflight; `analyzeAppendState()` is the mutation-time TOCTOU check.
 
 ## Current active queue — bounded growing-file optimization
 
-1. Continue auditing other append-only runtime stores for concrete repeated full scans of the same file.
-2. Prioritize frequent mutation/read paths over occasional operator-only scans. Autonomous archive replay/start checks are already bounded tail reads (<=512 bytes), while assignment validation intentionally scans separate events and assignment ledgers.
-3. Audit CRM/cash/material-request append-only mutation paths for avoidable same-file `exists/next-id/validate` rescans.
-4. Prefer authoritative parser/audit reuse over parallel custom parsers.
+1. Continue auditing CRM/material-request/cash append-only runtime stores for repeated reads of the same file in one operation.
+2. Prioritize frequent mutation/read paths over occasional operator-only scans.
+3. Keep separate-ledger validation when separate files prove different integrity domains.
+4. Prefer explicit result channels over bool-only convenience existence APIs.
 5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
 6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
-7. Keep diagnostics read-only; no automatic cleanup/rotation/deletion/truncation and no premature DB migration.
+7. Keep diagnostics read-only; no automatic cleanup/rotation/deletion/truncation and no premature DB/index migration.
 8. Continue software optimization before mandatory final two-board hardware E2E.
 
 ## Safety invariants

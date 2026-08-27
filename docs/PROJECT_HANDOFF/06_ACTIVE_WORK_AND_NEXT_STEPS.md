@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 151
+## GREEN foundation through checkpoint 152
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -22,9 +22,10 @@
 149 SpoolMaterialBridgeStore append combines duplicate-spool detection + next bridge id in one validated bridge-log pass
 150 MaterialLedger usage two-pass materials scan intentionally retained: WAL preflight snapshot and mutation-time authoritative rewrite are distinct safety phases; no shared writer lock exists
 151 RepairRegistry / WarehouseStore+WriteOff / autonomous assignment append audit found no same-ledger duplicate full scan; production source unchanged
+152 AutonomousWindingArchive RUN_COMPLETED replay/start classification reuses one loadLastEvent() bounded-tail read
 ```
 
-Checkpoint 152 production change is committed and under CI verification:
+Production commit for checkpoint 152:
 
 ```text
 1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e  perf(archive): reuse latest event on completion
@@ -33,17 +34,10 @@ Checkpoint 152 production change is committed and under CI verification:
 Verified latest evidence:
 
 ```text
-CMP Tests #3709    33041047723 / SUCCESS
-CMP Tests #3710    33041065259 / SUCCESS
 CMP Tests #3711    33041330947 / SUCCESS
-CMP Tests #3712    33041352037 / SUCCESS  (checkpoint 152 target handoff HEAD 2a33d25...)
-```
-
-Checkpoint 152 verification at last direct check:
-
-```text
-CMP Tests #3713    33041657749 / in_progress
-ESP32 Build #1628  33041657768 / in_progress
+CMP Tests #3712    33041352037 / SUCCESS
+CMP Tests #3713    33041657749 / SUCCESS  (checkpoint 152 production commit 1e831cd...)
+ESP32 Build #1628  33041657768 / SUCCESS  (checkpoint 152 production commit 1e831cd...)
 ```
 
 CMP host audit remains 69 mandatory steps.
@@ -66,15 +60,15 @@ Checkpoint 150 audits `MaterialLedger::confirmUsage()` and deliberately makes no
 
 Checkpoint 151 continues the bounded append audit without forcing an optimization. `RepairRegistry` append operations use one validated pass of their target ledger; client/motor/repair/status lookups that coexist in the same operation are separate registry domains. `WarehouseStore::addSpool()` has one `spools.ndjson` next-id/integrity pass, while write-off has one movement-ledger integrity/id pass plus a separate authoritative spool rewrite. `AutonomousWindingArchive::assignMotorChecked()` has one completed-events proof plus one assignment-ledger next-id/integrity pass. These are not duplicate scans of the same growing file, so production source remains unchanged.
 
-Checkpoint 152 removes the duplicate bounded-tail read in `AutonomousWindingArchive::save(RUN_COMPLETED)`. The save path now calls `loadLastEvent()` once and derives replay/conflict classification and `start_observed` from that same latest record. Behavior is preserved for empty archive, newer completion without observed START, normal START->COMPLETE, duplicate event, conflicting same-run payload and stale run/session ordering. The 512-byte tail bound and fail-closed malformed/unterminated handling remain unchanged. Existing private helper methods are intentionally left in place for this checkpoint to keep the production delta narrow; cleanup is optional only after CI proves the behavioral refactor.
+Checkpoint 152 removes the duplicate bounded-tail read in `AutonomousWindingArchive::save(RUN_COMPLETED)`. The save path now calls `loadLastEvent()` once and derives replay/conflict classification and `start_observed` from that same latest record. Behavior is preserved for empty archive, newer completion without observed START, normal START->COMPLETE, duplicate event, conflicting same-run payload and stale run/session ordering. The 512-byte tail bound and fail-closed malformed/unterminated handling remain unchanged.
 
 The generic Material Request warehouse coordinator remains unchanged: its repeated scans are across separate integrity ledgers or distinct pre/post mutation phases and are safety-relevant.
 
-## Current active queue — checkpoint 152 verification / next bounded audit
+## Current active queue — checkpoint 153
 
-1. Confirm CMP #3713 and ESP32 Build #1628 for commit `1e831cde...`; do not call checkpoint 152 GREEN before direct confirmation.
-2. If GREEN, mark checkpoint 152 GREEN in handoff and continue from current branch source.
-3. Optional cleanup of now-unused private replay/start helper methods is allowed only if it reduces code without changing semantics; otherwise leave them for a later bounded cleanup pass.
+1. Re-fetch current autonomous archive source/header and determine whether the now-unused private `findEventReplay()` / `matchingStartExists()` helpers can be removed for real source/flash benefit; do not remove them merely for cosmetic cleanup.
+2. If compiler/linker already dead-strips them and no meaningful binary benefit exists, close that cleanup as NO-CHANGE and move to the next measurable runtime candidate.
+3. Continue same-operation duplicate-read audit only where measurable/reviewable; do not force refactors.
 4. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
 5. Keep separate-ledger validation when different files prove different integrity domains.
 6. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.

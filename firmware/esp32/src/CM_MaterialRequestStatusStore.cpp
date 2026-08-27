@@ -40,58 +40,7 @@ bool MaterialRequestStatusStore::resolve(uint32_t materialRequestId,
                                          MaterialRequestStatusState& state,
                                          bool& found) const
 {
-    state = MaterialRequestStatusState();
-    state.materialRequestId = materialRequestId;
-    found = false;
-    if (!ready() || materialRequestId == 0UL) return false;
-
-    if (!requestExists(materialRequestId, found)) return false;
-    if (!found) return true;
-    state.status = "DRAFT";
-
-    if (!m_storage.exists(Path)) return true;
-    File file = m_storage.open(Path, FILE_READ);
-    if (!prepareNdjson(file))
-    {
-        if (file) file.close();
-        return false;
-    }
-
-    uint32_t previousTransitionId = 0UL;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-
-        uint32_t transitionId = 0UL;
-        uint32_t requestId = 0UL;
-        String fromStatus;
-        String toStatus;
-        String changedAt;
-        if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "transition_id", transitionId) || transitionId == 0UL ||
-            transitionId <= previousTransitionId ||
-            !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
-            !findString(line, "from_status", fromStatus) ||
-            !findString(line, "to_status", toStatus) ||
-            !findString(line, "changed_at", changedAt) || changedAt.length() < 10U ||
-            changedAt.length() > 32U || !validTransition(fromStatus, toStatus))
-        {
-            file.close();
-            return false;
-        }
-        previousTransitionId = transitionId;
-        if (requestId != materialRequestId) continue;
-        if (fromStatus != state.status || state.transitionCount == 0xFFFFFFFFUL)
-        {
-            file.close();
-            return false;
-        }
-        state.status = toStatus;
-        ++state.transitionCount;
-    }
-    file.close();
-    return true;
+    return analyzeStatus(materialRequestId, state, found, nullptr);
 }
 
 bool MaterialRequestStatusStore::transition(uint32_t materialRequestId,
@@ -108,9 +57,8 @@ bool MaterialRequestStatusStore::transition(uint32_t materialRequestId,
 
     MaterialRequestStatusState state;
     bool found = false;
-    if (!resolve(materialRequestId, state, found) || !found ||
-        !validTransition(state.status, targetStatus) ||
-        !nextTransitionId(transitionId))
+    if (!analyzeStatus(materialRequestId, state, found, &transitionId) || !found ||
+        !validTransition(state.status, targetStatus))
     {
         transitionId = 0UL;
         return false;
@@ -208,10 +156,28 @@ bool MaterialRequestStatusStore::requestExists(uint32_t materialRequestId,
     return true;
 }
 
-bool MaterialRequestStatusStore::nextTransitionId(uint32_t& transitionId) const
+bool MaterialRequestStatusStore::analyzeStatus(
+    uint32_t materialRequestId,
+    MaterialRequestStatusState& state,
+    bool& found,
+    uint32_t* nextTransitionId) const
 {
-    transitionId = 1UL;
-    if (!m_storage.exists(Path)) return true;
+    state = MaterialRequestStatusState();
+    state.materialRequestId = materialRequestId;
+    found = false;
+    if (nextTransitionId != nullptr) *nextTransitionId = 0UL;
+    if (!ready() || materialRequestId == 0UL) return false;
+
+    if (!requestExists(materialRequestId, found)) return false;
+    if (!found) return true;
+    state.status = "DRAFT";
+
+    if (!m_storage.exists(Path))
+    {
+        if (nextTransitionId != nullptr) *nextTransitionId = 1UL;
+        return true;
+    }
+
     File file = m_storage.open(Path, FILE_READ);
     if (!prepareNdjson(file))
     {
@@ -219,24 +185,46 @@ bool MaterialRequestStatusStore::nextTransitionId(uint32_t& transitionId) const
         return false;
     }
 
-    uint32_t previousId = 0UL;
+    uint32_t previousTransitionId = 0UL;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        uint32_t currentId = 0UL;
+
+        uint32_t transitionId = 0UL;
+        uint32_t requestId = 0UL;
+        String fromStatus;
+        String toStatus;
+        String changedAt;
         if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "transition_id", currentId) || currentId == 0UL ||
-            currentId <= previousId)
+            !findUnsigned(line, "transition_id", transitionId) || transitionId == 0UL ||
+            transitionId <= previousTransitionId ||
+            !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
+            !findString(line, "from_status", fromStatus) ||
+            !findString(line, "to_status", toStatus) ||
+            !findString(line, "changed_at", changedAt) || changedAt.length() < 10U ||
+            changedAt.length() > 32U || !validTransition(fromStatus, toStatus))
         {
             file.close();
             return false;
         }
-        previousId = currentId;
+        previousTransitionId = transitionId;
+        if (requestId != materialRequestId) continue;
+        if (fromStatus != state.status || state.transitionCount == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return false;
+        }
+        state.status = toStatus;
+        ++state.transitionCount;
     }
     file.close();
-    if (previousId == 0xFFFFFFFFUL) return false;
-    transitionId = previousId + 1UL;
+
+    if (nextTransitionId != nullptr)
+    {
+        if (previousTransitionId == 0xFFFFFFFFUL) return false;
+        *nextTransitionId = previousTransitionId + 1UL;
+    }
     return true;
 }
 

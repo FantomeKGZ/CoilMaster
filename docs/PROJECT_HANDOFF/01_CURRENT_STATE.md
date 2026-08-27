@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **147**. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization now covers WindingJournal, CashPaymentStore correction append preparation, and Material Request status transitions.
+GREEN through checkpoint **149**. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization now covers WindingJournal, CashPaymentStore correction append preparation, Material Request status transitions, managed RUN_WIRE spool mutation, and spool/material bridge append.
 
 ## Latest GREEN state
 
@@ -23,6 +23,8 @@ GREEN through checkpoint **147**. Atomic RUN_WIRE is the only current wire mutat
 145 WindingJournal boot schema/context -> one combined pass
 146 CashPaymentStore correction lookup + next event id -> one mutation-time pass
 147 MaterialRequestStatusStore state + next transition id -> one status-journal pass
+148 managed RUN_WIRE spool mutation removes redundant pre-scan before checked rewrite
+149 SpoolMaterialBridgeStore append duplicate-spool check + next bridge id -> one validated bridge-log pass
 ```
 
 Production RUN_WIRE path remains:
@@ -35,30 +37,39 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 147 replaces `resolve() + nextTransitionId()` duplicate status-journal reads with private `analyzeStatus()`. Public `resolve(..., found)` remains fail-closed and uses the same analyzer. Immutable request existence still reads the separate request catalog because it proves a separate integrity boundary.
+Checkpoint 148 removes the extra full spool-file pre-scan before managed rewrite while keeping exact before/after identity, EOF validation, atomic replacement/recovery and post-confirm verification.
+
+Checkpoint 149 replaces `loadBySpool() + nextBridgeId()` duplicate full reads of `spool-material-bridges.ndjson` during append with one private validated analyzer pass. Public read-only `loadBySpool()` remains fail-closed and does not become unreadable when the global `bridge_id` space is exhausted; only append fails closed on id exhaustion.
 
 Latest verified evidence:
 
 ```text
-a0ec58c552bed883d289fa1e30160f365955a6e1  final source through 147
-6c404070d80532e617174d4621d828cf16a094c0  final contract
-ESP32 Build #1624   33036483178 / SUCCESS
-CMP Tests #3695     source commit / SUCCESS
-CMP Tests #3696     33036507740 / SUCCESS
+14ea791ca5741e9aec75d00b80e2c523a34a7d82  final source through 149
+CMP Tests #3704     33039077049 / SUCCESS
+ESP32 Build #1627   33039077052 / SUCCESS
+```
+
+Previous supporting GREEN evidence:
+
+```text
+CMP Tests #3703     33038913115 / SUCCESS
+ESP32 Build #1626   33038913050 / SUCCESS
+CMP Tests #3702     33038798586 / SUCCESS
+CMP Tests #3701     33038706783 / SUCCESS
+ESP32 Build #1625   33038706784 / SUCCESS
 ```
 
 CMP host audit remains 69 mandatory steps.
 
-Checkpoint: `147_MATERIAL_REQUEST_STATUS_TRANSITION_SINGLE_PASS_2026-08-27.md`.
-
 ## Current NEXT
 
-1. Audit Material Request movement/coordinator runtime paths for same-file duplicate scans.
-2. Keep separate-ledger scans when they prove different integrity domains.
-3. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-4. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
-5. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
-6. Preserve historical recovery/history and atomic RUN_WIRE safety.
+1. Continue bounded audit of frequent append-only stores for same-operation duplicate full-file scans.
+2. Do not change stores that already perform only one validated pass.
+3. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
+4. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+5. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
+6. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
+7. Preserve historical recovery/history and atomic RUN_WIRE safety.
 
 ## Safety invariants
 

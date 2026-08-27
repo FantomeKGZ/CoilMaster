@@ -20,14 +20,21 @@ void MotorSimilarityWeb::handleLookup()
                       "{\"error\":\"repair_registry_unavailable\"}");
         return;
     }
-    if (!m_server.hasArg("coil_program") ||
-        m_server.arg("coil_program").length() == 0U)
+    if (!m_server.hasArg("coil_program"))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"coil_program_required\"}");
         return;
     }
-    if (!WindingProgramParser::valid(m_server.arg("coil_program")))
+
+    const String coilProgram = m_server.arg("coil_program");
+    if (coilProgram.length() == 0U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"coil_program_required\"}");
+        return;
+    }
+    if (!WindingProgramParser::valid(coilProgram))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_coil_program\"}");
@@ -38,7 +45,7 @@ void MotorSimilarityWeb::handleLookup()
     candidate.name = m_server.arg("name");
     candidate.model = m_server.arg("model");
     candidate.manufacturer = m_server.arg("manufacturer");
-    candidate.coilProgram = m_server.arg("coil_program");
+    candidate.coilProgram = coilProgram;
 
     String response = F("{\"items\":[");
     response.reserve(4096U);

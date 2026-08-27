@@ -9,7 +9,7 @@
 
 ## Current phase
 
-Production behavior подтверждён GREEN through checkpoint **165**. Текущий следующий software-optimization checkpoint: **166 / финальный остаточный аудит**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
+Production behavior подтверждён GREEN through checkpoint **165**. Checkpoint **166** закрыт как финальный residual audit **NO-CHANGE**: безопасных и достаточно значимых software-оптимизаций больше не найдено. **Software optimization complete. Следующий обязательный этап — full two-board Arduino + ESP32 hardware E2E acceptance.**
 
 ## Recent optimization checkpoints
 
@@ -32,6 +32,7 @@ Production behavior подтверждён GREEN through checkpoint **165**. Т�
 163 recommendation top-3 caches rankingScore; existing scores are not recalculated per candidate
 164 calculator Web request reuses one required target area for warehouse + standard searches + JSON
 165 required target area derives from already-cached sourceArea; removes second source-component area pass
+166 final residual audit -> NO-CHANGE; remaining candidates are cosmetic/low-value or require extra helper/flash complexity
 ```
 
 Production commits:
@@ -49,7 +50,7 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 18d611e6ee8bb0355deda5f99874b0b9923d576f  checkpoint 162
 ac5411cc7ad2f279eef655fc3b0e3be3f139b4d0  checkpoint 163
 e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164
-db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 current production
+db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 final production code
 ```
 
 ## Latest verified CI evidence
@@ -72,6 +73,10 @@ CMP host audit remains 69 mandatory steps.
 
 `ConductorCalculatorWeb::handleCalculate()` now computes `sourceSetAreaMicrometre2(source)` once. The already-cached `sourceArea` is passed to the area-based `requiredTargetAreaMicrometre2()` overload, removing the second source-component scan. Existing bundle/set overloads delegate to the same unchanged material-ratio formula. Integer rounding, overflow saturation, ranking and JSON semantics are unchanged. CMP #3766 and ESP32 #1650 directly verify production; CMP #3767 verifies the handoff HEAD.
 
+## Checkpoint 166 — NO-CHANGE / software optimization complete
+
+Final residual audit reviewed the remaining obvious bounded runtime candidates. `NetworkWeb::handleSave()` still has only isolated repeated `WebServer::arg()` retrievals for optional `id`/`password`; `WarehouseWeb::handleListSpools()` similarly repeats the optional diameter request value before delegating to the shared server-based parser. Removing these would save only a few request-string retrievals while requiring extra local/helper code and likely flash growth. No remaining candidate justifies another production change. Previously rejected safety-sensitive multi-pass scans remain intentionally unchanged.
+
 ## Safety / integrity boundaries that remain intentionally unchanged
 
 - No automatic physical START, repeat START or resume.
@@ -86,11 +91,12 @@ CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Run checkpoint **166** as a final residual software audit from current `cmp-protocol-v1` HEAD.
-2. Only implement another change if it has a measurable runtime/storage/flash benefit and fixed-memory behavior.
-3. If no safe meaningful candidate remains, record software optimization complete and move to final two-board hardware E2E acceptance.
-4. Preserve complete authoritative validation, HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
+1. Freeze software optimization at checkpoint **166 NO-CHANGE** unless hardware E2E exposes a concrete defect.
+2. Perform full two-board Arduino + ESP32 hardware E2E acceptance.
+3. Verify the production flow end to end, including physical START ownership, run lifecycle, recovery/fail-closed behavior, exact-spool provenance and manual RUN_WIRE write-off.
+4. Record measured Uno/ESP32 build/runtime evidence and any hardware findings in PROJECT_HANDOFF.
+5. After hardware E2E passes, prepare final release-completion checkpoint.
 
 ## Hardware acceptance
 
-Full two-board E2E remains mandatory after software stabilization.
+**Now required.** Full two-board Arduino + ESP32 E2E is the remaining acceptance gate before final project completion.

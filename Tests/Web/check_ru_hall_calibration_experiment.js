@@ -18,7 +18,7 @@ const lcdView = read('Arduino/CM_Lcd1602View.cpp');
 
 mustContain(serviceHeader, 'RunDurationMs = 15000UL', 'RU Hall duration');
 mustContain(serviceHeader, 'AbsoluteRunTimeoutMs = 17000UL', 'RU Hall timeout guard');
-mustContain(serviceHeader, 'PeerTimeoutMs = 3000UL', 'RU Hall peer fail-closed guard');
+mustContain(serviceHeader, 'PeerTimeoutMs = 10000UL', 'RU Hall peer fail-closed guard');
 mustContain(serviceHeader, 'SampleIntervalMs = 10U', 'RU Hall fast ADC sampling');
 mustContain(serviceHeader, 'RunPublishIntervalMs = 250U', 'RU Hall UART publish throttle');
 mustContain(serviceHeader, 'BaselineSampleIntervalMs = 100U', 'RU Hall baseline UART throttle');

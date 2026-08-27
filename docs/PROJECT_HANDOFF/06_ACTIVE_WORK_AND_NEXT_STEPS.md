@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 152
+## GREEN production foundation through checkpoint 152; checkpoint 153 NO-CHANGE audit closed
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -23,9 +23,10 @@
 150 MaterialLedger usage two-pass materials scan intentionally retained: WAL preflight snapshot and mutation-time authoritative rewrite are distinct safety phases; no shared writer lock exists
 151 RepairRegistry / WarehouseStore+WriteOff / autonomous assignment append audit found no same-ledger duplicate full scan; production source unchanged
 152 AutonomousWindingArchive RUN_COMPLETED replay/start classification reuses one loadLastEvent() bounded-tail read
+153 dead autonomous helper audit: compiler function/data sections + linker gc-sections already strip unused helpers; NO-CHANGE
 ```
 
-Production commit for checkpoint 152:
+Production commit for checkpoint 152 remains:
 
 ```text
 1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e  perf(archive): reuse latest event on completion
@@ -36,8 +37,12 @@ Verified latest evidence:
 ```text
 CMP Tests #3711    33041330947 / SUCCESS
 CMP Tests #3712    33041352037 / SUCCESS
-CMP Tests #3713    33041657749 / SUCCESS  (checkpoint 152 production commit 1e831cd...)
-ESP32 Build #1628  33041657768 / SUCCESS  (checkpoint 152 production commit 1e831cd...)
+CMP Tests #3713    33041657749 / SUCCESS
+ESP32 Build #1628  33041657768 / SUCCESS
+CMP Tests #3714    33041705508 / SUCCESS
+CMP Tests #3715    33041725972 / SUCCESS
+CMP Tests #3716    33041762521 / SUCCESS
+CMP Tests #3717    33041783094 / SUCCESS  (checkpoint 152 handoff HEAD dbd6dc5...)
 ```
 
 CMP host audit remains 69 mandatory steps.
@@ -62,13 +67,15 @@ Checkpoint 151 continues the bounded append audit without forcing an optimizatio
 
 Checkpoint 152 removes the duplicate bounded-tail read in `AutonomousWindingArchive::save(RUN_COMPLETED)`. The save path now calls `loadLastEvent()` once and derives replay/conflict classification and `start_observed` from that same latest record. Behavior is preserved for empty archive, newer completion without observed START, normal START->COMPLETE, duplicate event, conflicting same-run payload and stale run/session ordering. The 512-byte tail bound and fail-closed malformed/unterminated handling remain unchanged.
 
+Checkpoint 153 checks the remaining now-unused private `findEventReplay()` / `matchingStartExists()` helpers instead of deleting them blindly. ESP32 Build #1628 records `espressif32@7.0.1`, Arduino framework `3.20017.241212+sha.dcc1105b`, and xtensa toolchain `8.4.0+2021r2-patch5`. The exact `platformio-build-esp32.py` at framework commit `dcc1105b` applies `-ffunction-sections`, `-fdata-sections`, and linker `-Wl,--gc-sections`. With no live call sites, the helpers do not contribute to the linked firmware image. Deleting them would only reduce source text, so checkpoint 153 is deliberately NO-CHANGE.
+
 The generic Material Request warehouse coordinator remains unchanged: its repeated scans are across separate integrity ledgers or distinct pre/post mutation phases and are safety-relevant.
 
-## Current active queue — checkpoint 153
+## Current active queue — checkpoint 154
 
-1. Re-fetch current autonomous archive source/header and determine whether the now-unused private `findEventReplay()` / `matchingStartExists()` helpers can be removed for real source/flash benefit; do not remove them merely for cosmetic cleanup.
-2. If compiler/linker already dead-strips them and no meaningful binary benefit exists, close that cleanup as NO-CHANGE and move to the next measurable runtime candidate.
-3. Continue same-operation duplicate-read audit only where measurable/reviewable; do not force refactors.
+1. Find the next measurable runtime/storage/flash candidate from current `cmp-protocol-v1`; do not spend optimization checkpoints on source-only cleanup already handled by linker GC.
+2. Prefer repeated same-operation parsing/read elimination in frequently executed paths, or bounded tail/aggregate techniques where full historical validation is not part of the operation's integrity contract.
+3. Do not convert authoritative historical integrity scans to tail-only reads merely for speed.
 4. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
 5. Keep separate-ledger validation when different files prove different integrity domains.
 6. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.

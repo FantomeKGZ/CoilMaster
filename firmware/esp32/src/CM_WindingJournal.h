@@ -73,7 +73,6 @@ private:
 
     bool ensureDirectories();
     bool validateJournalStructure() const;
-    bool validateJournalSessionContexts() const;
 
     // One streamed pass over the growing journal. For a save request it also
     // validates immutable schema-2 context, exact replay identity and matching

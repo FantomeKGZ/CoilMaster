@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 157; checkpoint 158 under CI
+## GREEN foundation through checkpoint 158; checkpoint 159 under CI
 
 ```text
 148 managed RUN_WIRE removes redundant spool pre-scan
@@ -17,6 +17,7 @@
 156 motor similarity Web handler reuses one coil_program request String
 157 Material History optional query values fetched once and parsed from local String values
 158 Material adjustment optional quantity/price values fetched once and parsed from local String values
+159 standard conductor recommendations reuse one warehouse availability lookup per component
 ```
 
 Production commits:
@@ -27,49 +28,48 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 415394d162de0f1c83e433cbbea3db94833b3162  checkpoint 155
 78b41d38abdf89b9e72a02eea37edcd346c9610f  checkpoint 156
 491fcf965fe573f91eb29bc99f6513017f3f5b1a  checkpoint 157
-0596ae9ff473503bd1d21aeda0c6c4da0f2ba0da  checkpoint 158 current production HEAD
+0596ae9ff473503bd1d21aeda0c6c4da0f2ba0da  checkpoint 158
+93d858c83b3f63932d6c2809df585a017a74a6b6  checkpoint 159 current production HEAD
 ```
 
 Latest direct verification:
 
 ```text
-CMP Tests #3729    33043230389 / SUCCESS  (checkpoint 156 production)
-ESP32 Build #1631  33043230391 / SUCCESS  (checkpoint 156 production)
-CMP Tests #3730    33043322437 / SUCCESS  (checkpoint 156 handoff)
-CMP Tests #3731    33043838202 / SUCCESS
-ESP32 Build #1632  33043838247 / SUCCESS
-CMP Tests #3732    33043859931 / SUCCESS
-ESP32 Build #1633  33043860032 / SUCCESS
 CMP Tests #3733    33043881805 / SUCCESS  (checkpoint 157 production)
 ESP32 Build #1634  33043881890 / SUCCESS  (checkpoint 157 production)
-CMP Tests #3734    33043911946 / SUCCESS  (checkpoint 157 handoff HEAD be8a4a3...)
+CMP Tests #3734    33043911946 / SUCCESS  (checkpoint 157 handoff)
+CMP Tests #3735    33044295465 / SUCCESS  (checkpoint 158 production)
+ESP32 Build #1635  33044295425 / SUCCESS  (checkpoint 158 production)
+CMP Tests #3736    33044341585 / SUCCESS  (checkpoint 158 handoff HEAD e4aa9c1...)
 ```
 
-Checkpoint 158 verification started on `0596ae9f...`:
+Checkpoint 159 verification started on `93d858c8...`:
 
 ```text
-CMP Tests #3735    33044295465 / in_progress at last direct check
-ESP32 Build #1635  33044295425 / in_progress at last direct check
+CMP Tests #3739    33044747417 / in_progress at last direct check
+ESP32 Build #1638  33044747467 / in_progress at last direct check
 ```
 
 CMP host audit remains 69 mandatory steps.
 
-## Checkpoint 157
-
-Material adjustment-history and usage-history handlers now fetch each optional query value once and parse the already-held `String` through shared `parseUnsignedValue()`. Optional empty `repair_id` / `material_id` / `limit` preserve previous default semantics; present-but-empty cursor remains invalid. These are read-only paths. CMP #3733 and ESP32 #1634 directly verify the production commit, so checkpoint 157 is GREEN.
-
 ## Checkpoint 158
 
-`MaterialLedgerWeb::handleAdjust()` previously fetched `add_quantity_milli` and `new_price_per_unit_minor` once to test for an empty optional value and then fetched them again inside `parseUnsigned()`. It now fetches each optional value once and parses that local `String` via the already-existing `parseUnsignedValue()` helper. HTTP behavior is preserved: absent/empty optional values remain zero/no-change, malformed non-empty values remain `400`, and the existing `no_adjustment_requested` rule remains unchanged. `adjustMaterial()`, WAL ordering, mutation-time revalidation, recovery, pricing semantics and RUN_WIRE paths are untouched.
+`MaterialLedgerWeb::handleAdjust()` fetches `add_quantity_milli` and `new_price_per_unit_minor` once and parses those already-held values through the shared `parseUnsignedValue()` path. Optional empty values keep their previous no-change semantics; malformed non-empty values remain `400`. `adjustMaterial()`, WAL ordering, mutation-time revalidation, recovery and RUN_WIRE are unchanged. CMP #3735 and ESP32 #1635 directly verify the production commit, so checkpoint 158 is GREEN.
+
+## Checkpoint 159
+
+The standard conductor recommendation response previously performed two linear warehouse-diameter searches per recommended component: once through `optionAvailableFromWarehouse()` to derive `warehouse_available`, and again while emitting each component's `available_g`. The current path performs one `availableGramsFor()` lookup per component into fixed `uint32_t[MaxConversionComponents]` storage, derives `warehouse_available` from those same values, and reuses them for JSON output. Maximum storage remains two fixed entries. Recommendation ranking, target-area/deviation calculations, warehouse catalogue loading, standard catalogue contents, response field order and HTTP behavior remain unchanged.
+
+A proposed warehouse spool query parser refactor was rejected before checkpoint 159 because it would have added helper code for one filter and risked increasing flash. The temporary declaration commit was immediately reverted; the branch source after `174cc477...` is identical to the prior warehouse source.
 
 The larger repair-page/status candidate remains intentionally unchanged. Repairs may close out of `repair_id` order, so lockstep `repairs.ndjson` + `repair-status.ndjson` streaming is invalid. A request-wide status scan would require unbounded retained candidates when matches are sparse, violating the fixed-memory rule.
 
-## Current active queue — checkpoint 158 verification / 159
+## Current active queue — checkpoint 159 verification / 160
 
-1. Confirm CMP #3735 and ESP32 Build #1635 on `0596ae9f...`; checkpoint 158 is not GREEN until both are directly successful.
-2. If GREEN, mark checkpoint 158 GREEN and start checkpoint 159 from current `cmp-protocol-v1` HEAD.
-3. Continue only with measurable runtime/storage/flash candidates; do not force cosmetic refactors.
-4. Prefer same-operation duplicate parsing/read elimination or bounded fixed-memory aggregate/tail techniques where historical integrity semantics remain intact.
+1. Confirm CMP #3739 and ESP32 Build #1638 on `93d858c8...`; checkpoint 159 is not GREEN until both are directly successful.
+2. If GREEN, mark checkpoint 159 GREEN and start checkpoint 160 from current `cmp-protocol-v1` HEAD.
+3. Continue only with measurable runtime/storage/flash candidates; do not force cosmetic refactors or helpers that increase linked flash for negligible benefit.
+4. Prefer same-operation duplicate parsing/read/lookup elimination or bounded fixed-memory aggregate/tail techniques where historical integrity semantics remain intact.
 5. Do not replace authoritative historical integrity scans with tail-only shortcuts.
 6. Keep MaterialLedger `confirmUsage()` two-pass unless a future common writer lock spans preflight through atomic swap with equivalent recovery proof.
 7. Keep separate-ledger validation for different integrity domains or distinct mutation phases.

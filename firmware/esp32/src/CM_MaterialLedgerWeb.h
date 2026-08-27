@@ -26,6 +26,10 @@ private:
                               uint32_t minimum,
                               uint32_t maximum,
                               uint32_t& value);
+    static bool parseUnsignedValue(const String& source,
+                                   uint32_t minimum,
+                                   uint32_t maximum,
+                                   uint32_t& value);
     static bool parseUnit(const String& source, MaterialUnit& unit);
 
     WebServer& m_server;

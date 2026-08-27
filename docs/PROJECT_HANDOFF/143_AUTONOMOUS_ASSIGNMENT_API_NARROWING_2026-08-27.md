@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and contract update complete. CI validation is pending because GitHub Actions is currently failing to create jobs for new workflow runs in this repository. Infrastructure-blocked runs are not treated as GREEN or RED evidence.
+GREEN.
 
 ## Source changes
 
@@ -21,7 +21,7 @@ Source commits:
 
 ## Contract
 
-Existing mandatory `Tests/Web/check_arduino_archive_ui.js` now checks that:
+Existing mandatory `Tests/Web/check_arduino_archive_ui.js` checks that:
 
 - `assignMotorChecked()` remains in the public API;
 - `CM_AutonomousWindingWeb.cpp` uses the checked result API;
@@ -31,11 +31,15 @@ Contract commit:
 
 `38e892edc6a45d9540188516d06c6e41c93abd5d`
 
+## Confirmed CI
+
+- CMP Protocol Tests `#3663`, run `33034665166`: SUCCESS on final source commit `6f69d0c5...`
+- ESP32 Build `#1616`, run `33034665123`: build job SUCCESS on final source commit `6f69d0c5...`
+- CMP Protocol Tests `#3664`, run `33034707952`: SUCCESS on final contract commit `38e892ed...`
+
 ## Related performance audit
 
-A separate read-only audit identified `WindingJournal` as the next high-value growing-file optimization target. Current `save()` and `loadSessionState()` can perform multiple full scans of `/data/winding-runs/events.ndjson` for duplicate/start/active/highest/completed evidence. Future work should replace these with one authoritative streamed/bounded session-analysis pass, without whole-file buffering or unbounded RAM.
-
-Large journal rewrites should wait until ESP32/CMP CI can execute jobs again.
+`WindingJournal` remains the next high-value growing-file optimization target. Current `save()` and `loadSessionState()` can perform multiple full scans of `/data/winding-runs/events.ndjson` for duplicate/start/active/highest/completed evidence. The next implementation should replace those repeated reads with one authoritative streamed/bounded session-analysis pass, without whole-file buffering or unbounded RAM.
 
 ## Safety invariants
 

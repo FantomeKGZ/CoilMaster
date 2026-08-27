@@ -3,38 +3,34 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 146
+## GREEN foundation through checkpoint 147
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
 117-127 exact-spool bridge + atomic RUN_WIRE + accounting/provenance convergence
-128-130 obsolete direct writeoff API/types/implementations removed
-131-134 warehouse fail-closed reads + single-pass movement summary
-135 MaterialLedger public repair/state/currency lookups require explicit found
-136 dead adjustmentExists full-log helper removed
-137 private repair wrapper + dead usageExists/restoreQuantity helpers removed
-138 RepairCosting repair lookup wrapper removed; load() explicit found
-139 first bounded finalization coverage batch shares authoritative movement pairing/provenance pass
-140 winding-session preflight kept only for mutation-sensitive spool-selection directory
-141 CRM client/motor existence lookups use explicit found across registry/Web/cash/intake
-142 unused JobSnapshotStore exists helper removed from public API
-143 autonomous assignment public API narrowed to assignMotorChecked result semantics
-144 WindingJournal runtime save/state evidence shares one streamed journal analysis pass
-145 WindingJournal boot schema/context validation shares one combined pass
-146 CashPaymentStore correction existence + next event id share one mutation-time pass
+128-138 legacy writeoff cleanup + warehouse/material/costing fail-closed reads
+139 finalization write-off coverage shares authoritative movement audit
+140 winding-session preflight limited to mutation-sensitive spool selection
+141 CRM client/motor existence lookups use explicit found
+142 unused JobSnapshotStore exists helper removed
+143 autonomous assignment public API narrowed
+144 WindingJournal runtime evidence shares one streamed pass
+145 WindingJournal boot schema/context validation shares one pass
+146 CashPaymentStore correction existence + next id share one pass
+147 MaterialRequestStatusStore current state + next transition id share one pass
 ```
 
 Verified latest evidence:
 
 ```text
-e15222e299ed4736a66d577175cf4e381e29747a
-a96953ab4a51370dcb6402580def7f2de0256011
-ESP32 Build #1622  33035968880 / SUCCESS
-CMP Tests #3687    33035968846 / SUCCESS
-CMP Tests #3689    33036075195 / SUCCESS
+a0ec58c552bed883d289fa1e30160f365955a6e1
+6c404070d80532e617174d4621d828cf16a094c0
+ESP32 Build #1624  33036483178 / SUCCESS
+CMP Tests #3695    source commit / SUCCESS
+CMP Tests #3696    33036507740 / SUCCESS
 ```
 
-CMP host audit now has 69 mandatory steps; all passed in #3689.
+CMP host audit remains 69 mandatory steps.
 
 ## Current production boundary
 
@@ -46,12 +42,12 @@ explicit operator RUN_WIRE ISSUE
 -> managed physical warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 146 removes the extra full `repair-payments.ndjson` scan that used to precede next-id allocation for correction events. `eventBelongsToRepair(..., found)` remains a separate Web provenance preflight; `analyzeAppendState()` is the mutation-time TOCTOU check.
+Checkpoint 147 removes the second full `material-request-status.ndjson` pass from transition persistence. `requestExists()` remains a separate immutable request-catalog read, while `analyzeStatus()` now owns current lifecycle state plus global next transition id.
 
 ## Current active queue — bounded growing-file optimization
 
-1. Continue auditing CRM/material-request/cash append-only runtime stores for repeated reads of the same file in one operation.
-2. Prioritize frequent mutation/read paths over occasional operator-only scans.
+1. Audit Material Request movement and warehouse coordinator runtime paths for repeated reads of the same append-only file in one operation.
+2. Audit other frequent append-only stores after Material Request; do not force changes where only one scan exists.
 3. Keep separate-ledger validation when separate files prove different integrity domains.
 4. Prefer explicit result channels over bool-only convenience existence APIs.
 5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.

@@ -9,9 +9,9 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **151**. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization now covers WindingJournal, CashPaymentStore correction append preparation, Material Request status transitions, managed RUN_WIRE spool mutation, and spool/material bridge append. Checkpoint 150 is a deliberate NO-CHANGE safety boundary for MaterialLedger usage: its two `materials.ndjson` passes are distinct preflight and mutation-time validation phases and must not be fused without a shared writer lock. Checkpoint 151 extends the bounded append-only audit and deliberately makes no production change because the inspected remaining paths do not contain a same-operation duplicate full scan of the same growing NDJSON.
+GREEN through checkpoint **151**. Checkpoint 152 production change is committed and under CI verification. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization covers WindingJournal, CashPaymentStore correction append preparation, Material Request status transitions, managed RUN_WIRE spool mutation, spool/material bridge append, and now the autonomous RUN_COMPLETED bounded-tail path. Checkpoint 150 remains a deliberate NO-CHANGE safety boundary for MaterialLedger usage.
 
-## Latest GREEN state
+## Latest state
 
 ```text
 139 finalization write-off coverage batch fused with authoritative movement audit
@@ -27,6 +27,7 @@ GREEN through checkpoint **151**. Atomic RUN_WIRE is the only current wire mutat
 149 SpoolMaterialBridgeStore append duplicate-spool check + next bridge id -> one validated bridge-log pass
 150 MaterialLedger confirmUsage two-pass materials scan retained: preflight + mutation-time revalidation are distinct safety phases; no shared writer lock exists
 151 bounded append-only audit: RepairRegistry, WarehouseStore/WriteOff and autonomous assignment inspected; no safe same-ledger duplicate full-scan candidate found, production source unchanged
+152 AutonomousWindingArchive save: replay/conflict + RUN_COMPLETED start_observed now share one loadLastEvent() bounded-tail read
 ```
 
 Production RUN_WIRE path remains:
@@ -47,43 +48,36 @@ Checkpoint 150 audits `MaterialLedger::confirmUsage()` and intentionally keeps i
 
 Checkpoint 151 audits the next append-oriented storage paths against the same rule. `RepairRegistry` uses one validated pass of the target client/motor/repair/status ledger per append need, with additional reads only from different registry domains. `WarehouseStore::addSpool()` uses one validated `spools.ndjson` pass to derive the next id before append; warehouse write-off keeps one movement-ledger id/integrity scan plus a separate authoritative spool rewrite, which are different ledgers/phases. `AutonomousWindingArchive::assignMotorChecked()` keeps one completed-event proof plus one assignment-ledger next-id/integrity scan, again different ledgers. No same-operation duplicate full scan of one growing NDJSON was found, so production source is unchanged.
 
+Checkpoint 152 changes only `AutonomousWindingArchive::save()`. The old RUN_COMPLETED path called `findEventReplay()` and then `matchingStartExists()`, and both reopened `events.ndjson` and parsed the same latest record through `loadLastEvent()`. The save path now loads that latest bounded tail once and derives stale-order rejection, same-run identity/turn conflict, duplicate classification and the `start_observed` flag from the same immutable in-memory latest event. Empty archive and a newer completion without an observed START still preserve `start_observed=0`; matching START->COMPLETE produces `start_observed=1`; duplicate/conflict result semantics remain unchanged. The existing 512-byte tail bound and fail-closed malformed/unterminated handling remain unchanged. Production commit: `1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e`.
+
 Latest verified evidence:
 
 ```text
-14ea791ca5741e9aec75d00b80e2c523a34a7d82  final production source through 149; unchanged by checkpoints 150-151
-CMP Tests #3704     33039077049 / SUCCESS
-ESP32 Build #1627   33039077052 / SUCCESS
-CMP Tests #3705     33039186178 / SUCCESS
-CMP Tests #3706     33039200646 / SUCCESS
-CMP Tests #3707     33039762821 / SUCCESS  (checkpoint 150 handoff record)
-CMP Tests #3708     33039779059 / SUCCESS  (checkpoint 150 handoff HEAD f2103cf...)
 CMP Tests #3709     33041047723 / SUCCESS  (checkpoint 151 handoff record a71446a...)
 CMP Tests #3710     33041065259 / SUCCESS  (checkpoint 151 handoff HEAD 3604181...)
+CMP Tests #3711     33041330947 / SUCCESS  (checkpoint 151 GREEN record b43e0c8...)
+CMP Tests #3712     33041352037 / SUCCESS  (checkpoint 152 target handoff HEAD 2a33d25...)
 ```
 
-Previous supporting GREEN evidence:
+Checkpoint 152 verification currently started on production commit `1e831cde...`:
 
 ```text
-CMP Tests #3703     33038913115 / SUCCESS
-ESP32 Build #1626   33038913050 / SUCCESS
-CMP Tests #3702     33038798586 / SUCCESS
-CMP Tests #3701     33038706783 / SUCCESS
-ESP32 Build #1625   33038706784 / SUCCESS
+CMP Tests #3713     33041657749 / in_progress at last direct check
+ESP32 Build #1628   33041657768 / in_progress at last direct check
 ```
 
-CMP host audit remains 69 mandatory steps.
+Earlier supporting GREEN evidence remains in GitHub Actions history. CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Checkpoint 152: remove the duplicate bounded-tail read in `AutonomousWindingArchive::save(RUN_COMPLETED)` only if replay/conflict classification and `start_observed` can be derived from one `loadLastEvent()` without changing fail-closed semantics.
-2. Continue bounded audit only where a same-operation duplicate read is demonstrably present; do not force code changes.
-3. Do not change stores that already perform only one validated pass of the target ledger.
-4. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
-5. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
-6. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-7. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
-8. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
-9. Preserve historical recovery/history and atomic RUN_WIRE safety.
+1. Verify CMP #3713 and ESP32 #1628 for production commit `1e831cde...`; do not call checkpoint 152 GREEN before both required checks are confirmed.
+2. If GREEN, continue bounded runtime optimization from current branch source; do not force refactors.
+3. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
+4. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
+5. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
+7. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
+8. Preserve historical recovery/history and atomic RUN_WIRE safety.
 
 ## Safety invariants
 

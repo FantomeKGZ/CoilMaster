@@ -119,7 +119,7 @@ void ConductorCalculatorWeb::handleCalculate()
 
     const uint32_t sourceArea = ConductorCalculator::sourceSetAreaMicrometre2(source);
     const uint32_t requiredArea = ConductorCalculator::requiredTargetAreaMicrometre2(
-        source, targetMaterial, settings);
+        sourceArea, sourceMaterial, targetMaterial, settings);
 
     KnownWireDiameter known[WarehouseMaxDiameters];
     const char* targetWireType = materialText(targetMaterial);

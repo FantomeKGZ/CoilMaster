@@ -160,12 +160,16 @@ uint8_t ConductorCalculator::findRecommendedOptionsForArea(
     {
         const WireCandidate& first = candidates[firstIndex];
         if (!first.catalogKnown || first.diameterHundredthsMm == 0U) continue;
+        const uint32_t firstSingleArea =
+            singleWireAreaMicrometre2(first.diameterHundredthsMm);
+        if (firstSingleArea == 0UL) continue;
 
         for (uint8_t firstStrands = 1U;
              firstStrands <= settings.maxTargetStrands;
              ++firstStrands)
         {
-            evaluateOption(first, firstStrands, nullptr, 0U, targetMaterial,
+            evaluateOption(first, firstSingleArea, firstStrands,
+                           nullptr, 0UL, 0U, targetMaterial,
                            requiredArea, settings.allowedDeviationPermille, options);
         }
 
@@ -177,6 +181,9 @@ uint8_t ConductorCalculator::findRecommendedOptionsForArea(
         {
             const WireCandidate& second = candidates[secondIndex];
             if (!second.catalogKnown || second.diameterHundredthsMm == 0U) continue;
+            const uint32_t secondSingleArea =
+                singleWireAreaMicrometre2(second.diameterHundredthsMm);
+            if (secondSingleArea == 0UL) continue;
 
             for (uint8_t firstStrands = 1U;
                  firstStrands < settings.maxTargetStrands;
@@ -188,7 +195,8 @@ uint8_t ConductorCalculator::findRecommendedOptionsForArea(
                      secondStrands <= maximumSecond;
                      ++secondStrands)
                 {
-                    evaluateOption(first, firstStrands, &second, secondStrands,
+                    evaluateOption(first, firstSingleArea, firstStrands,
+                                   &second, secondSingleArea, secondStrands,
                                    targetMaterial, requiredArea,
                                    settings.allowedDeviationPermille, options);
                 }
@@ -203,21 +211,21 @@ uint8_t ConductorCalculator::findRecommendedOptionsForArea(
 
 void ConductorCalculator::evaluateOption(
     const WireCandidate& first,
+    uint32_t firstSingleArea,
     uint8_t firstStrands,
     const WireCandidate* second,
+    uint32_t secondSingleArea,
     uint8_t secondStrands,
     ConductorMaterial targetMaterial,
     uint32_t requiredArea,
     uint16_t allowedDeviationPermille,
     ConversionOption options[MaxRecommendedConversionOptions])
 {
-    const uint64_t firstArea = static_cast<uint64_t>(
-                                   singleWireAreaMicrometre2(first.diameterHundredthsMm)) *
-                               firstStrands;
+    const uint64_t firstArea = static_cast<uint64_t>(firstSingleArea) * firstStrands;
     const uint64_t secondArea = second == nullptr
                                     ? 0ULL
-                                    : static_cast<uint64_t>(singleWireAreaMicrometre2(
-                                          second->diameterHundredthsMm)) * secondStrands;
+                                    : static_cast<uint64_t>(secondSingleArea) *
+                                          secondStrands;
     const uint64_t combined64 = firstArea + secondArea;
     if (combined64 == 0ULL || combined64 > 0xFFFFFFFFULL) return;
 

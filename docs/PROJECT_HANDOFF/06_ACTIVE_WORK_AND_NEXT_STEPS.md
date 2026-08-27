@@ -3,109 +3,77 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN production foundation through checkpoint 154; checkpoint 155 under CI
+## GREEN foundation through checkpoint 155; checkpoint 156 under ESP32 verification
 
 ```text
-97-116 CRM / Material Request / Motor / Client / Cash
-117-127 exact-spool bridge + atomic RUN_WIRE + accounting/provenance convergence
-128-138 legacy writeoff cleanup + warehouse/material/costing fail-closed reads
-139 finalization write-off coverage shares authoritative movement audit
-140 winding-session preflight limited to mutation-sensitive spool selection
-141 CRM client/motor existence lookups use explicit found
-142 unused JobSnapshotStore exists helper removed
-143 autonomous assignment public API narrowed
-144 WindingJournal runtime evidence shares one streamed pass
-145 WindingJournal boot schema/context validation shares one pass
-146 CashPaymentStore correction existence + next id share one pass
-147 MaterialRequestStatusStore current state + next transition id share one pass
-148 managed RUN_WIRE spool mutation removes redundant pre-scan; checked rewrite owns exact before/after identity in one EOF pass
-149 SpoolMaterialBridgeStore append combines duplicate-spool detection + next bridge id in one validated bridge-log pass
-150 MaterialLedger usage two-pass materials scan intentionally retained: WAL preflight snapshot and mutation-time authoritative rewrite are distinct safety phases; no shared writer lock exists
-151 RepairRegistry / WarehouseStore+WriteOff / autonomous assignment append audit found no same-ledger duplicate full scan; production source unchanged
-152 AutonomousWindingArchive RUN_COMPLETED replay/start classification reuses one loadLastEvent() bounded-tail read
-153 dead autonomous helper audit: compiler function/data sections + linker gc-sections already strip unused helpers; NO-CHANGE
-154 autonomous archive page query parsed once; candidate filtering compares already-parsed numeric turns directly
-155 RepairRegistry motor similarity parses candidate once and each persisted winding program once
+148 managed RUN_WIRE removes redundant spool pre-scan
+149 spool/material bridge append -> one validated bridge-log pass
+150 MaterialLedger confirmUsage two-pass retained as safety boundary
+151 remaining append audit -> no safe same-ledger duplicate full scan
+152 autonomous save -> one bounded-tail latest-event read
+153 dead-helper linker audit -> NO-CHANGE; linker GC already strips them
+154 autonomous task query parsed once per page
+155 motor similarity candidate parsed once; each stored winding program parsed once
+156 motor similarity Web handler reuses one coil_program request String
 ```
 
 Production commits:
 
 ```text
-1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e  checkpoint 152: reuse latest event on completion
-a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154: parse task query once per page
-415394d162de0f1c83e433cbbea3db94833b3162  checkpoint 155: parse similarity programs once
+1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e  checkpoint 152
+a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
+415394d162de0f1c83e433cbbea3db94833b3162  checkpoint 155
+78b41d38abdf89b9e72a02eea37edcd346c9610f  checkpoint 156
 ```
 
-Verified latest evidence:
+Latest direct verification:
 
 ```text
-CMP Tests #3711    33041330947 / SUCCESS
-CMP Tests #3712    33041352037 / SUCCESS
-CMP Tests #3713    33041657749 / SUCCESS
-ESP32 Build #1628  33041657768 / SUCCESS
-CMP Tests #3714    33041705508 / SUCCESS
-CMP Tests #3715    33041725972 / SUCCESS
-CMP Tests #3716    33041762521 / SUCCESS
-CMP Tests #3717    33041783094 / SUCCESS
-CMP Tests #3718    33042461751 / SUCCESS
-CMP Tests #3719    33042491867 / SUCCESS
 CMP Tests #3720    33042574144 / SUCCESS
 ESP32 Build #1629  33042574134 / SUCCESS
 CMP Tests #3721    33042622904 / SUCCESS
 CMP Tests #3722    33042647618 / SUCCESS
 CMP Tests #3723    33042699795 / SUCCESS
 CMP Tests #3724    33042727200 / SUCCESS
-```
-
-Checkpoint 155 direct verification at last check:
-
-```text
-CMP Tests #3725    33043013899 / queued
-ESP32 Build #1630  33043013882 / queued
+CMP Tests #3725    33043013899 / SUCCESS  (checkpoint 155 production commit)
+ESP32 Build #1630  33043013882 / SUCCESS  (checkpoint 155 production commit)
+CMP Tests #3729    33043230389 / SUCCESS  (checkpoint 156 production commit)
+ESP32 Build #1631  33043230391 / in_progress at last direct check
 ```
 
 CMP host audit remains 69 mandatory steps.
 
-## Current production boundary
+## Checkpoint 155
 
-```text
-RUN_COMPLETED -> evidence only
-explicit operator RUN_WIRE ISSUE
--> one immutable Material Request movement
--> one MaterialLedger RWI_TX usage
--> managed physical warehouse PENDING/CONFIRMED
-```
+`RepairRegistry::appendSimilarMotorsJson()` previously validated each persisted `coil_program` and then reparsed it in `equivalent()`. The unchanged candidate program was also reparsed for every motor. The current path parses the candidate once into fixed `uint16_t[10]`, parses each stored program once, and compares count/turn values directly. Parser grammar/limits, malformed-record fail-closed behavior, identity scoring, counts, truncation and JSON output are unchanged.
 
-Checkpoint 148 removes the extra full `spools.ndjson` read immediately before managed RUN_WIRE spool rewrite. The rewrite pass itself keeps strict spool ordering/schema, exact spool id, ACTIVE state, exact diameter/material, exact immutable before-state or the one allowed idempotent after-state, EOF validation, atomic replacement/recovery and post-confirm verification.
+## Checkpoint 156
 
-Checkpoint 149 removes the `loadBySpool() + nextBridgeId()` double full read from `SpoolMaterialBridgeStore::append()`. One private analyzer now provides both duplicate-spool detection and global next id while validating the complete `spool-material-bridges.ndjson`. The read-only `loadBySpool()` path intentionally does not require a next id, so exhausted `bridge_id` space blocks new append fail-closed without corrupting lookup availability.
+`MotorSimilarityWeb::handleLookup()` previously called `m_server.arg("coil_program")` repeatedly for empty checking, parser validation and candidate construction. It now checks argument presence first, fetches the value once into `const String coilProgram`, then reuses that same value. Existing HTTP behavior remains unchanged:
 
-Checkpoint 150 audits `MaterialLedger::confirmUsage()` and deliberately makes no production source change. The first `materials.ndjson` pass establishes the stock/price/currency snapshot written into `usage.pending`; after the WAL is durable, `rewriteQuantity()` re-reads the authoritative current material file and derives the actual before/after values immediately before atomic replacement. `adjustMaterial()` is an independent writer with its own pending transaction, and there is no common mutex/semaphore covering all material mutations. Fusing these phases into one pre-WAL prepared temp would weaken TOCTOU protection and is therefore rejected.
+- missing/empty program -> `400 coil_program_required`;
+- malformed program -> `400 invalid_coil_program`;
+- registry failure -> `500 similarity_lookup_failed`.
 
-Checkpoint 151 continues the bounded append audit without forcing an optimization. `RepairRegistry` append operations use one validated pass of their target ledger; client/motor/repair/status lookups that coexist in the same operation are separate registry domains. `WarehouseStore::addSpool()` has one `spools.ndjson` next-id/integrity pass, while write-off has one movement-ledger integrity/id pass plus a separate authoritative spool rewrite. `AutonomousWindingArchive::assignMotorChecked()` has one completed-events proof plus one assignment-ledger next-id/integrity pass. These are not duplicate scans of the same growing file, so production source remains unchanged.
+The larger repair-page/status candidate was audited but intentionally not changed. Repairs may close out of `repair_id` order, so a lockstep `repairs.ndjson` + `repair-status.ndjson` stream is not valid. Collapsing repeated batch status scans into one request-wide scan would require retaining an unbounded candidate set when status-filter matches are sparse, violating the fixed-memory rule.
 
-Checkpoint 152 removes the duplicate bounded-tail read in `AutonomousWindingArchive::save(RUN_COMPLETED)`. The save path now calls `loadLastEvent()` once and derives replay/conflict classification and `start_observed` from that same latest record. Behavior is preserved for empty archive, newer completion without observed START, normal START->COMPLETE, duplicate event, conflicting same-run payload and stale run/session ordering. The 512-byte tail bound and fail-closed malformed/unterminated handling remain unchanged.
+## Current active queue — checkpoint 156 verification / 157
 
-Checkpoint 153 checks the remaining now-unused private `findEventReplay()` / `matchingStartExists()` helpers instead of deleting them blindly. ESP32 Build #1628 records `espressif32@7.0.1`, Arduino framework `3.20017.241212+sha.dcc1105b`, and xtensa toolchain `8.4.0+2021r2-patch5`. The exact `platformio-build-esp32.py` at framework commit `dcc1105b` applies `-ffunction-sections`, `-fdata-sections`, and linker `-Wl,--gc-sections`. With no live call sites, the helpers do not contribute to the linked firmware image. Deleting them would only reduce source text, so checkpoint 153 is deliberately NO-CHANGE.
-
-Checkpoint 154 optimizes the live autonomous archive page/filter path. The old filter built `programText(task.event)` for every candidate and then `programMatches()` parsed both that generated String and the unchanged `programQuery` again. The new path parses `programQuery` once before the events scan into a fixed `uint16_t[MaxCoils]` buffer and compares each already-parsed event directly using the same percentage tolerance formula. It preserves the query grammar/limits, full event validation, START/COMPLETE pairing, cursor boundary checks, bounded page storage, assignment resolution and JSON output. CMP #3720 and ESP32 #1629 directly verify the production commit.
-
-Checkpoint 155 optimizes the live motor-similarity scan. Before the change, `candidate.coilProgram` was parsed once by `valid()` and then again for every motor by `equivalent()`, while each stored `coil_program` was parsed once by `valid()` and a second time by `equivalent()`. The new path parses the candidate once, parses each stored program exactly once, then compares fixed-size numeric arrays. Parser limits/grammar, fail-closed handling of malformed stored records, same-program counts, identity scoring, truncation behavior and emitted JSON remain unchanged.
-
-The generic Material Request warehouse coordinator remains unchanged: its repeated scans are across separate integrity ledgers or distinct pre/post mutation phases and are safety-relevant.
-
-## Current active queue — checkpoint 155 verification / 156
-
-1. Confirm CMP #3725 and ESP32 Build #1630 on `415394d...`; checkpoint 155 is not GREEN until both are directly successful.
-2. If GREEN, mark checkpoint 155 GREEN and begin checkpoint 156 from current branch source.
-3. Continue only with measurable runtime/storage/flash candidates; do not spend optimization checkpoints on source-only cleanup already removed by linker GC.
-4. Prefer repeated same-operation parsing/read elimination in live paths or fixed-memory aggregate/tail techniques where historical integrity is not weakened.
-5. Do not convert authoritative historical integrity scans to tail-only reads merely for speed.
-6. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
-7. Keep separate-ledger validation when different files prove different integrity domains.
-8. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-9. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery; no automatic cleanup/rotation/deletion/truncation or premature DB/index migration.
+1. Confirm ESP32 Build #1631 on `78b41d38...`; do not call checkpoint 156 GREEN before direct success.
+2. After #1631 SUCCESS, mark checkpoint 156 GREEN and begin checkpoint 157 from the then-current `cmp-protocol-v1` HEAD.
+3. Continue only with measurable runtime/storage/flash candidates; do not force cosmetic refactors.
+4. Prefer same-operation duplicate parsing/read elimination or bounded fixed-memory aggregate/tail techniques where historical integrity semantics remain intact.
+5. Do not replace authoritative historical integrity scans with tail-only shortcuts.
+6. Keep MaterialLedger `confirmUsage()` two-pass unless a future common writer lock spans preflight through atomic swap with equivalent recovery proof.
+7. Keep separate-ledger validation for different integrity domains or distinct mutation phases.
+8. Keep fixed-size RAM; no whole-file buffering or unbounded vectors.
+9. Preserve HTTP preflight semantics, mutation-time TOCTOU validation, exact-spool provenance, deterministic recovery and all existing safety invariants.
+10. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
 
 ## Safety invariants
 
-No automatic physical START/repeat START/resume/writeoff; Arduino owns SSR; lost ACK never proves idle; exact Material Request/item/spool/session/run provenance stays mandatory; historical recovery remains deterministic; restore stays operator-only and fail-closed; no automatic production-data deletion/truncation.
+No automatic physical START/repeat START/resume/writeoff. Arduino owns SSR. ESP32/Web never controls SSR directly. Lost ACK never proves idle. Exact Material Request/item/spool/session/run provenance remains mandatory. Historical recovery stays deterministic. Restore stays operator-only and fail-closed.
+
+## Hardware acceptance
+
+Full two-board E2E remains mandatory after software stabilization.

@@ -19,6 +19,9 @@ const lcdView = read('Arduino/CM_Lcd1602View.cpp');
 mustContain(serviceHeader, 'RunDurationMs = 15000UL', 'RU Hall duration');
 mustContain(serviceHeader, 'AbsoluteRunTimeoutMs = 17000UL', 'RU Hall timeout guard');
 mustContain(serviceHeader, 'PeerTimeoutMs = 3000UL', 'RU Hall peer fail-closed guard');
+mustContain(serviceHeader, 'SampleIntervalMs = 10U', 'RU Hall fast ADC sampling');
+mustContain(serviceHeader, 'RunPublishIntervalMs = 250U', 'RU Hall UART publish throttle');
+mustContain(serviceHeader, 'BaselineSampleIntervalMs = 100U', 'RU Hall baseline UART throttle');
 
 mustContain(serviceCpp, 'm_state = HallCalibrationState::WaitingLocalConfirm;', 'ARM compatibility state');
 mustContain(serviceCpp, 's_displayState = HallCalibrationState::ArmedWaitingPhysicalStart;', 'RU LCD immediate ready state');
@@ -26,6 +29,10 @@ mustContain(serviceCpp, 'if (m_state == HallCalibrationState::WaitingLocalConfir
 mustContain(serviceCpp, '(void)confirmLocal(nowMs);', 'automatic local-confirm bridge');
 mustContain(serviceCpp, '!baselineReady()', 'physical start baseline interlock');
 mustContain(serviceCpp, 'return m_state == HallCalibrationState::Running;', 'motor permit only while running');
+mustContain(serviceCpp, 'if (raw < m_runWindowMin) m_runWindowMin = raw;', 'RU Hall window minimum capture');
+mustContain(serviceCpp, 'if (raw > m_runWindowMax) m_runWindowMax = raw;', 'RU Hall window maximum capture');
+mustContain(serviceCpp, 'publishRunWindow(nowMs);', 'RU Hall decimated UART publish');
+mustContain(serviceCpp, 'm_runWindowMax != m_runWindowMin', 'RU Hall avoid duplicate extrema frame');
 
 mustContain(arduinoMain, 'startHallCalibrationFromLocalControl', 'shared local Hall start helper');
 mustContain(arduinoMain, "if (key == 'A')", 'keypad A Hall start');

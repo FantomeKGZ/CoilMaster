@@ -1,6 +1,6 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-26**  
+Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
 ## Source of truth
@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **140**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and the first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence now retains a pre-begin directory scan only where `JobSpoolSelectionStore::begin()` may mutate recoverable temp evidence.
+GREEN through checkpoint **143**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and the first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence retains a pre-begin directory scan only where `JobSpoolSelectionStore::begin()` may mutate recoverable temp evidence.
 
 ## Latest GREEN state
 
@@ -25,6 +25,9 @@ GREEN through checkpoint **140**. Atomic RUN_WIRE is the only current wire mutat
 138 RepairCosting one-arg repair wrapper removed; load() uses explicit found
 139 first bounded finalization coverage batch fused with authoritative movement pairing/provenance audit
 140 winding-session preflight limited to mutation-sensitive spool-selection directory
+141 CRM client/motor existence -> explicit found across registry/Web/cash/intake
+142 JobSnapshotStore exists helper removed from public API
+143 autonomous assignment public API narrowed to assignMotorChecked result semantics
 ```
 
 Production RUN_WIRE path remains:
@@ -37,24 +40,27 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 140 removes duplicate snapshot/state directory preflight passes. `JobSnapshotStore::begin()` and `JobStateStore::begin()` only ensure existing directories, while their content scans already reject temp/non-canonical entries. `JobSpoolSelectionStore::begin()` can recover a validated temp selection, so its directory keeps the read-only preflight before begin.
+Checkpoint 140 removes duplicate snapshot/state directory preflight passes. Checkpoint 141 prevents CRM read/integrity failure from becoming false not-found. Checkpoint 142 hides an unused snapshot convenience helper. Checkpoint 143 keeps only the checked autonomous assignment result path public; bool-only assignment and completed-task lookup remain internal.
 
-Latest verified checkpoint-140 evidence:
+Latest verified evidence:
 
 ```text
-1584672e49288334da531235e3bec9f6a691fc7f  final source
-0e3786c2894cd5b078645ae24ed5ceb3975cb4ea  final contract
-ESP32 Build #1606   32981707495 / SUCCESS
-CMP Tests #3644     32981785788 / SUCCESS
+6f69d0c548303cb9f6920b602cc0d8754deb5d5b  final source through 143
+38e892edc6a45d9540188516d06c6e41c93abd5d  final contract
+ESP32 Build #1616   33034665123 / SUCCESS
+CMP Tests #3663     33034665166 / SUCCESS
+CMP Tests #3664     33034707952 / SUCCESS
 ```
 
-Checkpoint: `140_WINDING_SESSION_SELECTION_ONLY_PREFLIGHT_2026-08-26.md`.
+Earlier `#3657` startup failure and stuck `#3658/#1613` runs were GitHub Actions infrastructure failures before normal job execution; later successful runs above contain and validate checkpoints 141-143.
+
+Checkpoint: `143_AUTONOMOUS_ASSIGNMENT_API_NARROWING_2026-08-27.md`.
 
 ## Current NEXT
 
-1. Continue bounded audit of growing append-only readers for concrete redundant full scans.
-2. Preserve mutation-sensitive preflight only where recovery/begin can modify persisted state.
-3. Reuse authoritative parsers/audits where possible; keep fixed-size RAM bounds.
+1. `WindingJournal` is the highest-value remaining growing-file hot spot: `save()` and `loadSessionState()` can perform several full scans of `events.ndjson` for session evidence.
+2. Replace those repeated reads with one authoritative streamed/bounded session-analysis pass while preserving duplicate/replay, active-run, highest-run, completed-run and session-context integrity semantics.
+3. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
 4. Preserve single-pass costing ownership and Web HTTP preflight semantics.
 5. No automatic production-data rotation/deletion/truncation and no premature DB migration.
 6. Preserve historical recovery/history and atomic RUN_WIRE safety.

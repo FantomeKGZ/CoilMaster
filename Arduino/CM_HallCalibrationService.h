@@ -77,7 +77,7 @@ private:
     static constexpr uint8_t MinimumBaselineSamples = 8U;
     static constexpr uint32_t ArmedTimeoutMs = 60000UL;
     static constexpr uint32_t ApplyConfirmTimeoutMs = 30000UL;
-    static constexpr uint32_t PeerTimeoutMs = 3000UL;
+    static constexpr uint32_t PeerTimeoutMs = 10000UL;
     static constexpr uint32_t RunDurationMs = 15000UL;
     static constexpr uint32_t AbsoluteRunTimeoutMs = 17000UL;
 

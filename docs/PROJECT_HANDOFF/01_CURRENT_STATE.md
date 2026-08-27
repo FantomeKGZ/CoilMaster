@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **144**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. Winding runtime journal state/transition evidence now shares one streamed pass over the growing event log.
+GREEN through checkpoint **145**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. WindingJournal boot and runtime reads are now consolidated to one streamed pass per operation.
 
 ## Latest GREEN state
 
@@ -29,6 +29,7 @@ GREEN through checkpoint **144**. Atomic RUN_WIRE is the only current wire mutat
 142 JobSnapshotStore exists helper removed from public API
 143 autonomous assignment public API narrowed to assignMotorChecked result semantics
 144 WindingJournal runtime save/state reads -> one streamed session-analysis pass
+145 WindingJournal boot schema/context validation -> one combined pass
 ```
 
 Production RUN_WIRE path remains:
@@ -41,24 +42,25 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 144 removes runtime duplicate full scans of `/data/winding-runs/events.ndjson`: new RUN_STARTED/RUN_COMPLETED persistence and `loadSessionState()` obtain active/highest/completed/replay/start/context evidence in one bounded streamed pass. Boot structure and cross-session-context audits remain separate and fail closed.
+Checkpoint 144 removes runtime duplicate full scans of `/data/winding-runs/events.ndjson`. Checkpoint 145 folds boot schema-2 session ordering/context consistency into the existing structure pass. `CM_WindingJournal.cpp` now contains exactly two full journal read sites: combined boot validation and runtime analysis.
 
 Latest verified evidence:
 
 ```text
-baa17db71b3d259d94d22009847c402ae8e6d24c  final source through 144
-b186c085ca58743c77b26da33cbd5d795f126126  final contract
-ESP32 Build #1618   33035231152 / SUCCESS
-CMP Tests #3673     33035231146 / SUCCESS
-CMP Tests #3674     33035275493 / SUCCESS
+bbbc53d96e535204e38db7da0fc79f872dd5a19a  final source through 145
+1760a447ffd216976b844a51adb055a5701f16ff  final contract
+ESP32 Build #1620   33035508401 / SUCCESS
+CMP Tests #3681     33035532132 / SUCCESS
 ```
 
-Checkpoint: `144_WINDING_JOURNAL_RUNTIME_SINGLE_PASS_2026-08-27.md`.
+Intermediate CMP #3680 was stale textual-contract failure before the checkpoint-145 contract update.
+
+Checkpoint: `145_WINDING_JOURNAL_BOOT_SINGLE_PASS_2026-08-27.md`.
 
 ## Current NEXT
 
-1. Continue bounded audit of append-only runtime readers for remaining concrete duplicate full scans.
-2. Audit boot-only WindingJournal structure/context passes separately; combine only if one authoritative pass can preserve the same startup integrity semantics.
+1. Continue bounded audit of other growing append-only stores for concrete same-file duplicate full scans.
+2. Prioritize frequent runtime paths; occasional operator-only scans across different ledgers remain acceptable unless metrics justify indexing.
 3. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
 4. Preserve single-pass costing ownership, Web HTTP preflight semantics and mutation-time TOCTOU validation.
 5. No automatic production-data rotation/deletion/truncation and no premature DB migration.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete; CI evidence is pending because GitHub Actions runs `#3658` and `#1613` are stuck before job creation (`jobs=[]`). These runs are infrastructure-blocked and are not treated as GREEN or RED evidence.
+GREEN. The original `#3658/#1613` runs were stuck in GitHub Actions before job creation, but later successful CMP/ESP32 runs validated commits containing this source change.
 
 ## Source change
 
@@ -16,13 +16,21 @@ Source commit:
 
 No immutable snapshot format, job/session identity validation, recovery ordering, UART behavior, physical START behavior, SSR ownership, or material write-off semantics changed.
 
-## CI state
+## CI evidence
 
-- CMP Protocol Tests `#3658`, run `32984867504`: stuck `queued`; GitHub reports no jobs.
-- ESP32 Build `#1613`, run `32985063037`: stuck `queued`; GitHub reports no jobs.
-- Force-cancel returns HTTP 409 (`Cannot cancel a workflow run that has not been queued yet.`), confirming an Actions orchestration inconsistency rather than a test assertion failure.
+Original blocked runs:
 
-Checkpoint 142 must not be promoted to canonical GREEN until a later normal CMP/ESP32 run validates a commit containing `7a263983...`.
+- CMP Protocol Tests `#3658`, run `32984867504`: stuck before job creation
+- ESP32 Build `#1613`, run `32985063037`: stuck before job creation
+- force-cancel returned HTTP 409; these were infrastructure-blocked and are not used as RED evidence
+
+Later revalidation containing checkpoint 142:
+
+- CMP Protocol Tests `#3663`, run `33034665166`: SUCCESS
+- ESP32 Build `#1616`, run `33034665123`: build job SUCCESS
+- CMP Protocol Tests `#3664`, run `33034707952`: SUCCESS
+
+Checkpoint 142 is therefore part of the canonical GREEN foundation.
 
 ## Next bounded software priority
 
@@ -30,9 +38,7 @@ Read-only audit identified a real growing-file hot spot in `WindingJournal`:
 
 - `save()` can scan `events.ndjson` separately for duplicate detection, active run, highest run and completed-run count;
 - `loadSessionState()` separately scans the same file for active/highest/completed state;
-- future optimization should return bounded session evidence from one authoritative pass rather than adding another parser or unbounded buffering.
-
-Do not start that large journal rewrite while CI infrastructure is unable to execute jobs; keep the design queued and continue only low-risk review/narrowing until compile/host verification is available again.
+- next optimization should return bounded session evidence from one authoritative streamed pass rather than adding another parser or unbounded buffering.
 
 ## Safety invariants
 

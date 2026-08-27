@@ -4,6 +4,10 @@
 #include "CM_Pcf8574Lcd.h"
 #include "../Core/CM_UiModel.h"
 
+#ifndef CM_LCD_RU_EN
+#define CM_LCD_RU_EN 0
+#endif
+
 namespace CM
 {
 
@@ -33,6 +37,11 @@ private:
                     char (&line1)[Columns + 1U],
                     char (&line2)[Columns + 1U]) const;
 
+#if CM_LCD_RU_EN
+    void prepareRussianGlyphs(UiScreen screen);
+    void loadRussianGlyph(uint8_t slot, const uint8_t* bitmap);
+#endif
+
     static void clearLine(char (&line)[Columns + 1U]);
     static void copyPadded(char (&destination)[Columns + 1U],
                            const char* source);
@@ -47,6 +56,10 @@ private:
     bool m_hasLastLine1;
     bool m_hasLastLine2;
     bool m_initialized;
+#if CM_LCD_RU_EN
+    UiScreen m_russianGlyphScreen;
+    bool m_hasRussianGlyphScreen;
+#endif
 };
 
 } // namespace CM

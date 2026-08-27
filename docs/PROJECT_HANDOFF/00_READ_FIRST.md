@@ -22,6 +22,7 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/146_CASH_PAYMENT_APPEND_SINGLE_PASS_2026-08-27.md
 docs/PROJECT_HANDOFF/145_WINDING_JOURNAL_BOOT_SINGLE_PASS_2026-08-27.md
 docs/PROJECT_HANDOFF/144_WINDING_JOURNAL_RUNTIME_SINGLE_PASS_2026-08-27.md
 docs/PROJECT_HANDOFF/143_AUTONOMOUS_ASSIGNMENT_API_NARROWING_2026-08-27.md
@@ -56,34 +57,35 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **145**.
+Latest GREEN foundation = checkpoint **146**.
 
 Latest verified evidence:
 
 ```text
-final source through 145             bbbc53d96e535204e38db7da0fc79f872dd5a19a
-final contract                       1760a447ffd216976b844a51adb055a5701f16ff
-ESP32 Build #1620                    33035508401 / SUCCESS
-CMP Protocol Tests #3681             33035532132 / SUCCESS
+final source through 146             e15222e299ed4736a66d577175cf4e381e29747a
+final mandatory contract/workflow    a96953ab4a51370dcb6402580def7f2de0256011
+ESP32 Build #1622                    33035968880 / SUCCESS
+CMP Protocol Tests #3687             33035968846 / SUCCESS
+CMP Protocol Tests #3689             33036075195 / SUCCESS
 ```
 
-Intermediate CMP #3680 failed only because the previous textual contract still expected three WindingJournal FILE_READ sites before the checkpoint-145 contract update.
+CMP host audit now has **69 mandatory steps**, including the new cash payment single-pass contract; all 69 passed in #3689.
 
 ## Current state
 
-`CM_WindingJournal.cpp` now has exactly two full `events.ndjson` read sites: one combined boot schema/context validation pass and one runtime session-analysis pass. Runtime `save()`/`loadSessionState()` no longer reopen the journal for separate duplicate/active/highest/completed/start checks.
+`CM_WindingJournal.cpp` has one combined boot validation pass and one runtime analysis pass. `CashPaymentStore::append()` now derives optional correction existence plus next `cash_event_id` in one mutation-time scan instead of `eventExists()` + `nextEventId()` rescans.
 
-CRM client/motor existence lookups expose explicit `found` result channels. `JobSnapshotStore::exists()` is no longer public. Autonomous assignment exposes `assignMotorChecked()` publicly while bool-only assignment and completed-task lookup are internal.
+Cash Web still performs exact repair/client correction provenance preflight through `eventBelongsToRepair(..., found)`; mutation-time TOCTOU revalidation remains fail-closed. Cash stays append-only and cannot control SSR, jobs or warehouse state.
 
-Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
+Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
 
 ## Immediate NEXT
 
-1. Continue bounded audit of growing append-only stores outside WindingJournal for concrete same-file duplicate scans.
-2. Prioritize runtime mutation/read hot paths over occasional operator-only full validation.
-3. Preserve exact replay/provenance/integrity semantics and fixed RAM bounds.
-4. Do not add whole-file buffering, unbounded vectors or premature persisted high-water/index state without measured need.
-5. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
-6. No automatic rotation/deletion/truncation; continue software optimization before final two-board hardware E2E.
+1. Continue bounded audit of CRM/material-request/cash append-only stores for other concrete same-file duplicate scans.
+2. Prioritize frequent runtime mutation/read hot paths; keep separate-ledger integrity scans where they prove different invariants.
+3. Preserve explicit Web HTTP preflight semantics and mutation-time TOCTOU validation.
+4. Keep fixed RAM bounds; no whole-file buffering or unbounded vectors.
+5. Do not add automatic rotation/deletion/truncation or premature persisted indexes without measured need.
+6. Continue software optimization before final two-board hardware E2E.
 
 `RUN_COMPLETED` remains evidence only; no automatic writeoff, START or resume.

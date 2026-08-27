@@ -186,10 +186,7 @@ void Lcd1602View::invalidate()
 #if CM_LCD_RU_EN
 void Lcd1602View::loadRussianGlyph(uint8_t slot, const uint8_t* bitmap)
 {
-    uint8_t rows[8];
-    for (uint8_t row = 0U; row < 8U; ++row)
-        rows[row] = pgm_read_byte(bitmap + row);
-    m_lcd.createChar(slot, rows);
+    m_lcd.createChar_P(slot, bitmap);
 }
 
 void Lcd1602View::prepareRussianGlyphs(UiScreen screen)

@@ -57,7 +57,7 @@ bool SpoolMaterialBridgeStore::append(const NewSpoolMaterialBridge& source,
 
     SpoolMaterialBridge existing;
     bool found = false;
-    if (!analyzeBySpool(source.spoolId, existing, found, bridgeId) ||
+    if (!analyzeBySpool(source.spoolId, existing, found, &bridgeId) ||
         found || bridgeId == 0UL)
     {
         return false;
@@ -94,18 +94,17 @@ bool SpoolMaterialBridgeStore::loadBySpool(uint32_t spoolId,
                                            SpoolMaterialBridge& bridge,
                                            bool& found) const
 {
-    uint32_t nextBridgeId = 0UL;
-    return analyzeBySpool(spoolId, bridge, found, nextBridgeId);
+    return analyzeBySpool(spoolId, bridge, found, nullptr);
 }
 
 bool SpoolMaterialBridgeStore::analyzeBySpool(uint32_t spoolId,
                                               SpoolMaterialBridge& bridge,
                                               bool& found,
-                                              uint32_t& nextBridgeId) const
+                                              uint32_t* nextBridgeId) const
 {
     bridge = SpoolMaterialBridge();
     found = false;
-    nextBridgeId = 0UL;
+    if (nextBridgeId != nullptr) *nextBridgeId = 0UL;
     if (!m_ready || spoolId == 0UL) return false;
 
     File file = m_storage.open(Path, FILE_READ);
@@ -137,8 +136,11 @@ bool SpoolMaterialBridgeStore::analyzeBySpool(uint32_t spoolId,
     }
     file.close();
 
-    if (previousId == 0xFFFFFFFFUL) return false;
-    nextBridgeId = previousId + 1UL;
+    if (nextBridgeId != nullptr)
+    {
+        if (previousId == 0xFFFFFFFFUL) return false;
+        *nextBridgeId = previousId + 1UL;
+    }
     return true;
 }
 

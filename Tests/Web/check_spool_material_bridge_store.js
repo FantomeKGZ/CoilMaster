@@ -33,12 +33,14 @@ for (const token of [
 for (const token of [
   'FILE_APPEND',
   'file.flush()',
-  'analyzeBySpool(source.spoolId, existing, found, bridgeId)',
+  'analyzeBySpool(source.spoolId, existing, found, &bridgeId)',
+  'return analyzeBySpool(spoolId, bridge, found, nullptr);',
   'bridge.wireType == "CU" || bridge.wireType == "AL"',
   'bridge.linkedAt.length() >= 10U && bridge.linkedAt.length() <= 32U',
   'FlatJsonObjectValidator::valid(line)',
   'parsed.bridgeId <= previousId',
-  'nextBridgeId = previousId + 1UL;',
+  'if (nextBridgeId != nullptr)',
+  '*nextBridgeId = previousId + 1UL;',
   'constexpr uint8_t BridgeAuditBatchSize = 24U;',
   'uint32_t batchSpoolIds[BridgeAuditBatchSize]',
   'uint8_t matches[BridgeAuditBatchSize]',
@@ -58,11 +60,19 @@ if (appendStart < 0 || loadStart < 0 || analyzeStart < 0 || validateStart < 0) {
   const appendBody = source.slice(appendStart, loadStart);
   mustNot(appendBody, 'loadBySpool(', 'append must use shared analyzer directly');
   mustNot(appendBody, 'nextBridgeId(', 'append must not perform a second id scan');
+  const loadBody = source.slice(loadStart, analyzeStart);
+  must(loadBody, 'return analyzeBySpool(spoolId, bridge, found, nullptr);',
+    'read-only lookup must not require an allocatable next bridge id');
   const analyzeBody = source.slice(analyzeStart, validateStart);
   const opens = (analyzeBody.match(/m_storage\.open\(Path, FILE_READ\)/g) || []).length;
   if (opens !== 1) failures.push(`bridge store: append analyzer must open bridge log once, found ${opens}`);
   must(analyzeBody, 'if (found)', 'single-pass duplicate target spool rejection');
-  must(analyzeBody, 'if (previousId == 0xFFFFFFFFUL) return false;', 'single-pass bridge id overflow guard');
+  const optionalNext = analyzeBody.lastIndexOf('if (nextBridgeId != nullptr)');
+  const overflowGuard = analyzeBody.lastIndexOf('if (previousId == 0xFFFFFFFFUL) return false;');
+  const assignNext = analyzeBody.lastIndexOf('*nextBridgeId = previousId + 1UL;');
+  if (optionalNext < 0 || overflowGuard < optionalNext || assignNext < overflowGuard) {
+    failures.push('bridge store: id overflow must fail only when append requests nextBridgeId');
+  }
 }
 
 mustNot(source, 'RUN_COMPLETED', 'bridge store must not react to run completion');
@@ -116,7 +126,6 @@ must(publicSurface, 'bool loadWarehousePrice(WarehousePrice& price,bool& configu
 mustNot(warehouseHeader, 'bool loadWarehousePrice(WarehousePrice& price) const;', 'retired ambiguous price lookup declaration');
 mustNot(warehouseStore, 'bool WarehouseStore::loadWarehousePrice(WarehousePrice& price) const', 'retired ambiguous price lookup implementation');
 
-// Warehouse summary must reuse the authoritative movement codec/integrity pass.
 for (const token of [
   'struct WarehouseMovementSummaryTotals',
   'WarehouseMovementDiameterTotals diameters[WarehouseMovementSummaryMaxDiameters]',
@@ -162,4 +171,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: append duplicate-spool detection and next bridge id now share one validated pass; fail-closed warehouse lookups, deterministic recovery, and atomic RUN_WIRE safety remain authoritative.');
+console.log('Spool material bridge foundation contracts OK: append duplicate-spool detection and next bridge id share one validated pass; read-only lookup remains independent of id exhaustion; deterministic recovery and atomic RUN_WIRE safety remain authoritative.');

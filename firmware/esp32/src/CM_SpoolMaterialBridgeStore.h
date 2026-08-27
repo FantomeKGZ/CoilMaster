@@ -62,7 +62,7 @@ public:
 
 private:
     bool ensureDirectory();
-    bool analyzeBySpool(uint32_t spoolId,SpoolMaterialBridge& bridge,bool& found,uint32_t& nextBridgeId) const;
+    bool analyzeBySpool(uint32_t spoolId,SpoolMaterialBridge& bridge,bool& found,uint32_t* nextBridgeId) const;
     static bool validNew(const NewSpoolMaterialBridge& bridge);
     static bool parse(const String& line, SpoolMaterialBridge& bridge);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);

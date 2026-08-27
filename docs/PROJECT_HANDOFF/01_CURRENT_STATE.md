@@ -9,7 +9,7 @@
 
 ## Current phase
 
-Production behavior подтверждён GREEN through checkpoint **159**. Текущий следующий software-optimization checkpoint: **160**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
+Production behavior подтверждён GREEN through checkpoint **160**. Текущий следующий software-optimization checkpoint: **161**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
 
 ## Recent optimization checkpoints
 
@@ -26,6 +26,7 @@ Production behavior подтверждён GREEN through checkpoint **159**. Т�
 157 material adjustment/usage history optional query values fetched once
 158 material adjustment optional quantity/price values fetched once
 159 standard conductor recommendations reuse one warehouse availability lookup per component
+160 calculator warehouse diameter lookup -> binary search over sorted fixed catalogue
 ```
 
 Production commits:
@@ -38,33 +39,26 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 491fcf965fe573f91eb29bc99f6513017f3f5b1a  checkpoint 157
 0596ae9ff473503bd1d21aeda0c6c4da0f2ba0da  checkpoint 158
 93d858c83b3f63932d6c2809df585a017a74a6b6  checkpoint 159
+1efb3c35947c77fb79b5cc7a24f0c07c5dcab67c  checkpoint 160
 ```
 
 ## Latest verified CI evidence
 
 ```text
-CMP Tests #3733    33043881805 / SUCCESS  (checkpoint 157 production)
-ESP32 Build #1634  33043881890 / SUCCESS  (checkpoint 157 production)
-CMP Tests #3734    33043911946 / SUCCESS  (checkpoint 157 handoff)
-CMP Tests #3735    33044295465 / SUCCESS  (checkpoint 158 production)
-ESP32 Build #1635  33044295425 / SUCCESS  (checkpoint 158 production)
-CMP Tests #3736    33044341585 / SUCCESS  (checkpoint 158 handoff)
-CMP Tests #3737    33044584477 / SUCCESS
-ESP32 Build #1636  33044584489 / SUCCESS
-CMP Tests #3738    33044637015 / SUCCESS
-ESP32 Build #1637  33044637005 / SUCCESS
 CMP Tests #3739    33044747417 / SUCCESS  (checkpoint 159 production)
 ESP32 Build #1638  33044747467 / SUCCESS  (checkpoint 159 production)
-CMP Tests #3740    33044798103 / SUCCESS  (checkpoint 159 handoff HEAD c64dbc4...)
+CMP Tests #3740    33044798103 / SUCCESS  (checkpoint 159 handoff)
+CMP Tests #3741    33045115444 / SUCCESS
+CMP Tests #3742    33045201841 / SUCCESS  (checkpoint 160 production)
+ESP32 Build #1639  33045201854 / SUCCESS  (checkpoint 160 production)
+CMP Tests #3743    33045247125 / SUCCESS  (checkpoint 160 handoff HEAD a0066b8...)
 ```
 
 CMP host audit remains 69 mandatory steps.
 
-## Checkpoint 159
+## Checkpoint 160
 
-`ConductorCalculatorWeb` standard recommendations previously searched the loaded warehouse diameters twice per recommendation component: once for `warehouse_available`, then again for emitted `available_g`. The path now performs one `availableGramsFor()` lookup per component into fixed `uint32_t[MaxConversionComponents]` storage and reuses the same values for both availability and JSON output. Maximum extra fixed storage is two `uint32_t` values. Ranking, area/deviation math, catalogue data, response field order and HTTP behavior are unchanged.
-
-A warehouse query-parser helper experiment before checkpoint 159 was reverted because it risked linked-flash growth for negligible benefit. Source after `174cc477...` returned to the pre-experiment warehouse implementation.
+`WarehouseStore::loadKnownWireDiameters()` validates the entire spool catalogue and sorts the returned fixed `KnownWireDiameter[]` ascending by `diameterHundredthsMm`. `ConductorCalculatorWeb::availableGramsFor()` now uses bounded binary search instead of a linear scan. No new heap allocation or fixed array was added; a missing diameter still returns zero. Recommendation ranking, area/deviation calculations, warehouse totals and JSON semantics are unchanged. CMP #3742 and ESP32 #1639 directly verify the production commit; CMP #3743 verifies the handoff HEAD.
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -80,7 +74,7 @@ A warehouse query-parser helper experiment before checkpoint 159 was reverted be
 
 ## Current NEXT
 
-1. Start checkpoint **160** from current `cmp-protocol-v1` HEAD.
+1. Start checkpoint **161** from current `cmp-protocol-v1` HEAD.
 2. Continue only with measurable runtime/storage/flash wins; reject cosmetic helpers or refactors with likely flash/RAM cost.
 3. Prefer duplicate same-operation parsing/read/lookup elimination with fixed RAM and unchanged fail-closed semantics.
 4. Preserve HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.

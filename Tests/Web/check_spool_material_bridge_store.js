@@ -33,11 +33,12 @@ for (const token of [
 for (const token of [
   'FILE_APPEND',
   'file.flush()',
-  'if (!loadBySpool(source.spoolId, existing, found) || found) return false;',
+  'analyzeBySpool(source.spoolId, existing, found, bridgeId)',
   'bridge.wireType == "CU" || bridge.wireType == "AL"',
   'bridge.linkedAt.length() >= 10U && bridge.linkedAt.length() <= 32U',
   'FlatJsonObjectValidator::valid(line)',
   'parsed.bridgeId <= previousId',
+  'nextBridgeId = previousId + 1UL;',
   'constexpr uint8_t BridgeAuditBatchSize = 24U;',
   'uint32_t batchSpoolIds[BridgeAuditBatchSize]',
   'uint8_t matches[BridgeAuditBatchSize]',
@@ -45,6 +46,24 @@ for (const token of [
   'batchCount >= BridgeAuditBatchSize',
   'if (batchCount < BridgeAuditBatchSize) return true;'
 ]) must(source, token, 'bridge store');
+
+mustNot(source, 'bool SpoolMaterialBridgeStore::nextBridgeId(', 'retired second bridge append scan');
+const appendStart = source.indexOf('bool SpoolMaterialBridgeStore::append(');
+const loadStart = source.indexOf('bool SpoolMaterialBridgeStore::loadBySpool(', appendStart);
+const analyzeStart = source.indexOf('bool SpoolMaterialBridgeStore::analyzeBySpool(', loadStart);
+const validateStart = source.indexOf('bool SpoolMaterialBridgeStore::validateAll()', analyzeStart);
+if (appendStart < 0 || loadStart < 0 || analyzeStart < 0 || validateStart < 0) {
+  failures.push('bridge store: single-pass append boundaries missing');
+} else {
+  const appendBody = source.slice(appendStart, loadStart);
+  mustNot(appendBody, 'loadBySpool(', 'append must use shared analyzer directly');
+  mustNot(appendBody, 'nextBridgeId(', 'append must not perform a second id scan');
+  const analyzeBody = source.slice(analyzeStart, validateStart);
+  const opens = (analyzeBody.match(/m_storage\.open\(Path, FILE_READ\)/g) || []).length;
+  if (opens !== 1) failures.push(`bridge store: append analyzer must open bridge log once, found ${opens}`);
+  must(analyzeBody, 'if (found)', 'single-pass duplicate target spool rejection');
+  must(analyzeBody, 'if (previousId == 0xFFFFFFFFUL) return false;', 'single-pass bridge id overflow guard');
+}
 
 mustNot(source, 'RUN_COMPLETED', 'bridge store must not react to run completion');
 mustNot(source, 'confirmSpoolWriteOff', 'bridge store must not mutate physical spool stock');
@@ -143,4 +162,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: fail-closed warehouse lookups remain explicit, price convenience code is removed, warehouse summary reuses the authoritative movement integrity pass, historical recovery stays deterministic, and atomic RUN_WIRE safety remains authoritative.');
+console.log('Spool material bridge foundation contracts OK: append duplicate-spool detection and next bridge id now share one validated pass; fail-closed warehouse lookups, deterministic recovery, and atomic RUN_WIRE safety remain authoritative.');

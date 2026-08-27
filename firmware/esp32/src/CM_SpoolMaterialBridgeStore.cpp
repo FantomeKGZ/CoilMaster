@@ -57,9 +57,11 @@ bool SpoolMaterialBridgeStore::append(const NewSpoolMaterialBridge& source,
 
     SpoolMaterialBridge existing;
     bool found = false;
-    if (!loadBySpool(source.spoolId, existing, found) || found) return false;
-
-    if (!nextBridgeId(bridgeId) || bridgeId == 0UL) return false;
+    if (!analyzeBySpool(source.spoolId, existing, found, bridgeId) ||
+        found || bridgeId == 0UL)
+    {
+        return false;
+    }
 
     String line;
     line.reserve(256U);
@@ -92,8 +94,18 @@ bool SpoolMaterialBridgeStore::loadBySpool(uint32_t spoolId,
                                            SpoolMaterialBridge& bridge,
                                            bool& found) const
 {
+    uint32_t nextBridgeId = 0UL;
+    return analyzeBySpool(spoolId, bridge, found, nextBridgeId);
+}
+
+bool SpoolMaterialBridgeStore::analyzeBySpool(uint32_t spoolId,
+                                              SpoolMaterialBridge& bridge,
+                                              bool& found,
+                                              uint32_t& nextBridgeId) const
+{
     bridge = SpoolMaterialBridge();
     found = false;
+    nextBridgeId = 0UL;
     if (!m_ready || spoolId == 0UL) return false;
 
     File file = m_storage.open(Path, FILE_READ);
@@ -124,6 +136,9 @@ bool SpoolMaterialBridgeStore::loadBySpool(uint32_t spoolId,
         found = true;
     }
     file.close();
+
+    if (previousId == 0xFFFFFFFFUL) return false;
+    nextBridgeId = previousId + 1UL;
     return true;
 }
 
@@ -210,34 +225,6 @@ bool SpoolMaterialBridgeStore::validateAll() const
         batchAfterBridgeId = lastBridgeId;
         if (batchCount < BridgeAuditBatchSize) return true;
     }
-}
-
-bool SpoolMaterialBridgeStore::nextBridgeId(uint32_t& bridgeId) const
-{
-    bridgeId = 1UL;
-    File file = m_storage.open(Path, FILE_READ);
-    if (!file || file.isDirectory())
-    {
-        if (file) file.close();
-        return false;
-    }
-    uint32_t previousId = 0UL;
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        SpoolMaterialBridge parsed;
-        if (!parse(line, parsed) || parsed.bridgeId <= previousId)
-        {
-            file.close();
-            return false;
-        }
-        previousId = parsed.bridgeId;
-    }
-    file.close();
-    if (previousId == 0xFFFFFFFFUL) return false;
-    bridgeId = previousId + 1UL;
-    return true;
 }
 
 bool SpoolMaterialBridgeStore::parse(const String& line, SpoolMaterialBridge& bridge)

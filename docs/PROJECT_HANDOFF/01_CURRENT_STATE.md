@@ -9,7 +9,7 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **143**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and the first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence retains a pre-begin directory scan only where `JobSpoolSelectionStore::begin()` may mutate recoverable temp evidence.
+GREEN through checkpoint **144**. Atomic RUN_WIRE is the only current wire mutation path. Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. Winding runtime journal state/transition evidence now shares one streamed pass over the growing event log.
 
 ## Latest GREEN state
 
@@ -28,6 +28,7 @@ GREEN through checkpoint **143**. Atomic RUN_WIRE is the only current wire mutat
 141 CRM client/motor existence -> explicit found across registry/Web/cash/intake
 142 JobSnapshotStore exists helper removed from public API
 143 autonomous assignment public API narrowed to assignMotorChecked result semantics
+144 WindingJournal runtime save/state reads -> one streamed session-analysis pass
 ```
 
 Production RUN_WIRE path remains:
@@ -40,28 +41,26 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 140 removes duplicate snapshot/state directory preflight passes. Checkpoint 141 prevents CRM read/integrity failure from becoming false not-found. Checkpoint 142 hides an unused snapshot convenience helper. Checkpoint 143 keeps only the checked autonomous assignment result path public; bool-only assignment and completed-task lookup remain internal.
+Checkpoint 144 removes runtime duplicate full scans of `/data/winding-runs/events.ndjson`: new RUN_STARTED/RUN_COMPLETED persistence and `loadSessionState()` obtain active/highest/completed/replay/start/context evidence in one bounded streamed pass. Boot structure and cross-session-context audits remain separate and fail closed.
 
 Latest verified evidence:
 
 ```text
-6f69d0c548303cb9f6920b602cc0d8754deb5d5b  final source through 143
-38e892edc6a45d9540188516d06c6e41c93abd5d  final contract
-ESP32 Build #1616   33034665123 / SUCCESS
-CMP Tests #3663     33034665166 / SUCCESS
-CMP Tests #3664     33034707952 / SUCCESS
+baa17db71b3d259d94d22009847c402ae8e6d24c  final source through 144
+b186c085ca58743c77b26da33cbd5d795f126126  final contract
+ESP32 Build #1618   33035231152 / SUCCESS
+CMP Tests #3673     33035231146 / SUCCESS
+CMP Tests #3674     33035275493 / SUCCESS
 ```
 
-Earlier `#3657` startup failure and stuck `#3658/#1613` runs were GitHub Actions infrastructure failures before normal job execution; later successful runs above contain and validate checkpoints 141-143.
-
-Checkpoint: `143_AUTONOMOUS_ASSIGNMENT_API_NARROWING_2026-08-27.md`.
+Checkpoint: `144_WINDING_JOURNAL_RUNTIME_SINGLE_PASS_2026-08-27.md`.
 
 ## Current NEXT
 
-1. `WindingJournal` is the highest-value remaining growing-file hot spot: `save()` and `loadSessionState()` can perform several full scans of `events.ndjson` for session evidence.
-2. Replace those repeated reads with one authoritative streamed/bounded session-analysis pass while preserving duplicate/replay, active-run, highest-run, completed-run and session-context integrity semantics.
+1. Continue bounded audit of append-only runtime readers for remaining concrete duplicate full scans.
+2. Audit boot-only WindingJournal structure/context passes separately; combine only if one authoritative pass can preserve the same startup integrity semantics.
 3. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-4. Preserve single-pass costing ownership and Web HTTP preflight semantics.
+4. Preserve single-pass costing ownership, Web HTTP preflight semantics and mutation-time TOCTOU validation.
 5. No automatic production-data rotation/deletion/truncation and no premature DB migration.
 6. Preserve historical recovery/history and atomic RUN_WIRE safety.
 

@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 164; checkpoint 165 next
+## GREEN foundation through checkpoint 164; checkpoint 165 under CI
 
 ```text
 148 managed RUN_WIRE removes redundant spool pre-scan
@@ -23,6 +23,7 @@
 162 conductor recommendation search reuses precomputed single-wire areas across strand combinations
 163 recommendation top-3 caches rankingScore; existing scores are no longer recalculated per candidate
 164 calculator Web request reuses one required target area for warehouse + standard searches + JSON
+165 required target area derives from already-cached sourceArea; removes second source-component area pass
 ```
 
 Production commits:
@@ -39,14 +40,13 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 317273ac74e6e67208e9a94330b615bb3ba1ba08  checkpoint 161
 18d611e6ee8bb0355deda5f99874b0b9923d576f  checkpoint 162
 ac5411cc7ad2f279eef655fc3b0e3be3f139b4d0  checkpoint 163
-e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164 current production
+e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164
+db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 current production HEAD
 ```
 
 Latest direct verification:
 
 ```text
-CMP Tests #3750    33046851201 / SUCCESS  (checkpoint 162 production)
-ESP32 Build #1643  33046851156 / SUCCESS  (checkpoint 162 production)
 CMP Tests #3756    33047296869 / SUCCESS  (checkpoint 163 production)
 ESP32 Build #1645  33047296953 / SUCCESS  (checkpoint 163 production)
 CMP Tests #3757    33047347514 / SUCCESS  (checkpoint 163 handoff)
@@ -54,28 +54,36 @@ CMP Tests #3759    33047621155 / SUCCESS  (checkpoint 164 production)
 ESP32 Build #1647  33047621128 / SUCCESS  (checkpoint 164 production)
 ```
 
+Checkpoint 165 verification started on `db642c50...`:
+
+```text
+CMP Tests #3766    33047940015 / in_progress at first direct check
+ESP32 Build #1650  33047940040 / in_progress at first direct check
+```
+
 Intermediate ESP32 Build #1642 (`33046801931`) failed on `7936b8f9964294cf0164a8e5287cfbfdc19f8c7d` because the expanded `evaluateOption()` declaration expected 10 arguments while two call sites and the definition still used 8. The corrected checkpoint-162 production commit is `18d611e6ee8bb0355deda5f99874b0b9923d576f`, verified by CMP #3750 + ESP32 #1643.
 
 CMP host audit remains 69 mandatory steps.
-
-## Checkpoint 163 — GREEN
-
-`ConversionOption` carries an internal `rankingScore`, computed once when a candidate is finalized and copied during bounded top-3 shifts. `insertRanked()` compares cached scores instead of recomputing `optionScore()` for already-selected entries. Ranking formula, strict `<` tie behavior and output ordering remain unchanged. Fixed RAM cost is at most 12 bytes across top-3; no heap or unbounded storage is introduced. CMP #3756 and ESP32 #1645 directly verify production; CMP #3757 verifies the handoff HEAD.
 
 ## Checkpoint 164 — GREEN
 
 `ConductorCalculatorWeb::handleCalculate()` computes `requiredArea` once per request and reuses that exact value for warehouse recommendations, standard-catalogue recommendations and the JSON response; `sourceArea` is cached for serialization. Conversion formulas, ranking, catalogue selection, HTTP errors and JSON values remain unchanged. CMP #3759 and ESP32 #1647 directly verify production.
 
+## Checkpoint 165
+
+The Web handler still had one duplicate source-area pass because `requiredTargetAreaMicrometre2(source, ...)` recalculated `sourceSetAreaMicrometre2(source)` after `sourceArea` had already been cached for JSON. A new area-based overload centralizes the unchanged material-ratio formula. Existing bundle/set overloads delegate to it, while the Web handler passes its already-computed `sourceArea`. The source component set is therefore area-scanned once per request instead of twice. Integer rounding, overflow saturation, material conversion semantics, recommendation ranking and JSON values remain unchanged; no heap or unbounded memory is introduced.
+
 The NetworkWeb repeated-`arg()` candidate remains lower value and unchanged. The repair-page/status request-wide scan remains rejected because close order is not guaranteed to follow `repair_id`; caching sparse candidates would violate fixed-memory bounds.
 
-## Current active queue — checkpoint 165
+## Current active queue — checkpoint 165 verification / 166
 
-1. Start checkpoint 165 from current `cmp-protocol-v1` HEAD.
-2. Continue only with measurable runtime/storage/flash wins; no cosmetic refactors with likely code/RAM growth.
-3. Prefer fixed-memory duplicate read/parse/lookup/calculation elimination while preserving complete authoritative validation.
-4. Keep MaterialLedger `confirmUsage()` two-pass safety boundary.
-5. No tail-only replacement of authoritative historical integrity validation.
-6. No unbounded RAM, whole-file buffering, automatic production-data rotation/deletion/truncation, or premature DB/index migration.
+1. Confirm CMP #3766 and ESP32 Build #1650 on `db642c50...`; do not call 165 GREEN until both are directly successful.
+2. Then start checkpoint 166 from current `cmp-protocol-v1` HEAD.
+3. Continue only with measurable runtime/storage/flash wins; no cosmetic refactors with likely code/RAM growth.
+4. Prefer fixed-memory duplicate read/parse/lookup/calculation elimination while preserving complete authoritative validation.
+5. Keep MaterialLedger `confirmUsage()` two-pass safety boundary.
+6. No tail-only replacement of authoritative historical integrity validation.
+7. No unbounded RAM, whole-file buffering, automatic production-data rotation/deletion/truncation, or premature DB/index migration.
 
 ## Safety invariants
 

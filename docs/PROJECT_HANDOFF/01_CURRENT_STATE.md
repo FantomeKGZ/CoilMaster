@@ -9,7 +9,7 @@
 
 ## Current phase
 
-Production behavior подтверждён GREEN through checkpoint **164**. Текущий следующий software-optimization checkpoint: **165**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
+Production behavior подтверждён GREEN through checkpoint **165**. Текущий следующий software-optimization checkpoint: **166 / финальный остаточный аудит**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
 
 ## Recent optimization checkpoints
 
@@ -31,6 +31,7 @@ Production behavior подтверждён GREEN through checkpoint **164**. Т�
 162 recommendation search reuses precomputed single-wire areas across strand combinations
 163 recommendation top-3 caches rankingScore; existing scores are not recalculated per candidate
 164 calculator Web request reuses one required target area for warehouse + standard searches + JSON
+165 required target area derives from already-cached sourceArea; removes second source-component area pass
 ```
 
 Production commits:
@@ -47,32 +48,29 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 317273ac74e6e67208e9a94330b615bb3ba1ba08  checkpoint 161
 18d611e6ee8bb0355deda5f99874b0b9923d576f  checkpoint 162
 ac5411cc7ad2f279eef655fc3b0e3be3f139b4d0  checkpoint 163
-e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164 current production
+e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164
+db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 current production
 ```
 
 ## Latest verified CI evidence
 
 ```text
-CMP Tests #3750    33046851201 / SUCCESS  (checkpoint 162 production)
-ESP32 Build #1643  33046851156 / SUCCESS  (checkpoint 162 production)
 CMP Tests #3756    33047296869 / SUCCESS  (checkpoint 163 production)
 ESP32 Build #1645  33047296953 / SUCCESS  (checkpoint 163 production)
-CMP Tests #3757    33047347514 / SUCCESS  (checkpoint 163 handoff)
 CMP Tests #3759    33047621155 / SUCCESS  (checkpoint 164 production)
 ESP32 Build #1647  33047621128 / SUCCESS  (checkpoint 164 production)
+CMP Tests #3766    33047940015 / SUCCESS  (checkpoint 165 production)
+ESP32 Build #1650  33047940040 / SUCCESS  (checkpoint 165 production)
+CMP Tests #3767    33048020592 / SUCCESS  (checkpoint 165 handoff HEAD)
 ```
 
 Intermediate ESP32 Build #1642 (`33046801931`) failed on commit `7936b8f9964294cf0164a8e5287cfbfdc19f8c7d`: `evaluateOption()` declaration had been expanded to 10 arguments while two call sites and the definition still used 8. The corrected checkpoint-162 production commit is `18d611e6ee8bb0355deda5f99874b0b9923d576f`, directly verified by CMP #3750 and ESP32 #1643.
 
 CMP host audit remains 69 mandatory steps.
 
-## Checkpoint 163 — GREEN
+## Checkpoint 165 — GREEN
 
-`ConversionOption` carries an internal `rankingScore`, computed once for each accepted candidate. Bounded top-3 insertion compares cached scores instead of recomputing `optionScore()` for already-selected entries on every candidate. Ranking formula, strict `<` tie behavior and output ordering remain unchanged. Fixed RAM cost is at most 12 bytes across the three returned options; no heap or unbounded storage is introduced. CMP #3756 and ESP32 #1645 directly verify production; CMP #3757 verifies the handoff HEAD.
-
-## Checkpoint 164 — GREEN
-
-`ConductorCalculatorWeb::handleCalculate()` computes `requiredArea` once per request and reuses that exact value for warehouse recommendations, standard-catalogue recommendations and response JSON. `sourceArea` is also cached for serialization. Conversion formulas, ranking, catalogue selection, HTTP errors and JSON values remain unchanged. CMP #3759 and ESP32 #1647 directly verify production.
+`ConductorCalculatorWeb::handleCalculate()` now computes `sourceSetAreaMicrometre2(source)` once. The already-cached `sourceArea` is passed to the area-based `requiredTargetAreaMicrometre2()` overload, removing the second source-component scan. Existing bundle/set overloads delegate to the same unchanged material-ratio formula. Integer rounding, overflow saturation, ranking and JSON semantics are unchanged. CMP #3766 and ESP32 #1650 directly verify production; CMP #3767 verifies the handoff HEAD.
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -88,10 +86,10 @@ CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Start checkpoint **165** from current `cmp-protocol-v1` HEAD.
-2. Continue only with measurable runtime/storage/flash wins and fixed-memory behavior.
-3. Prefer duplicate read/parse/lookup/calculation elimination while preserving complete authoritative validation.
-4. Preserve HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
+1. Run checkpoint **166** as a final residual software audit from current `cmp-protocol-v1` HEAD.
+2. Only implement another change if it has a measurable runtime/storage/flash benefit and fixed-memory behavior.
+3. If no safe meaningful candidate remains, record software optimization complete and move to final two-board hardware E2E acceptance.
+4. Preserve complete authoritative validation, HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
 
 ## Hardware acceptance
 

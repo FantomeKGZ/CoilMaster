@@ -5,6 +5,10 @@
 
 #include "CM_HallTurnSource.h"
 
+#ifndef CM_LCD_RU_EN
+#define CM_LCD_RU_EN 0
+#endif
+
 namespace CM
 {
 
@@ -58,6 +62,12 @@ public:
     bool takeResult(HallCalibrationResult& result);
     bool latestResult(HallCalibrationResult& result) const;
 
+#if CM_LCD_RU_EN
+    static HallCalibrationState displayState();
+    static uint32_t displayStartedAtMs();
+    static constexpr uint32_t displayRunDurationMs() { return RunDurationMs; }
+#endif
+
 private:
     static constexpr uint16_t SampleIntervalMs = 10U;
     static constexpr uint16_t BaselineSampleIntervalMs = 20U;
@@ -74,6 +84,11 @@ private:
     void clearMeasurements();
     bool populateResult(HallCalibrationResult& result) const;
     uint32_t measurementIdentity(uint32_t completedAtMs) const;
+
+#if CM_LCD_RU_EN
+    static HallCalibrationState s_displayState;
+    static uint32_t s_displayStartedAtMs;
+#endif
 
     HallTurnSource& m_hall;
     HallCalibrationState m_state;

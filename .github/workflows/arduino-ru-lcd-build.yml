@@ -7,9 +7,11 @@ on:
       - arduino-ru-lcd-experiment
     paths:
       - "firmware/arduino/**"
+      - "firmware/esp32/web/shared/settings-hall-calibration.js"
       - "Arduino/**"
       - "Core/**"
       - "Shared/**"
+      - "Tests/Web/check_ru_hall_calibration_experiment.js"
       - "platformio.ini"
       - ".github/workflows/arduino-ru-lcd-build.yml"
 
@@ -20,6 +22,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Audit RU Hall calibration experiment contracts
+        run: node Tests/Web/check_ru_hall_calibration_experiment.js
 
       - name: Set up Python
         uses: actions/setup-python@v5

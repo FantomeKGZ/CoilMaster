@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN production foundation through checkpoint 154
+## GREEN production foundation through checkpoint 154; checkpoint 155 under CI
 
 ```text
 97-116 CRM / Material Request / Motor / Client / Cash
@@ -25,6 +25,7 @@
 152 AutonomousWindingArchive RUN_COMPLETED replay/start classification reuses one loadLastEvent() bounded-tail read
 153 dead autonomous helper audit: compiler function/data sections + linker gc-sections already strip unused helpers; NO-CHANGE
 154 autonomous archive page query parsed once; candidate filtering compares already-parsed numeric turns directly
+155 RepairRegistry motor similarity parses candidate once and each persisted winding program once
 ```
 
 Production commits:
@@ -32,6 +33,7 @@ Production commits:
 ```text
 1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e  checkpoint 152: reuse latest event on completion
 a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154: parse task query once per page
+415394d162de0f1c83e433cbbea3db94833b3162  checkpoint 155: parse similarity programs once
 ```
 
 Verified latest evidence:
@@ -45,8 +47,21 @@ CMP Tests #3714    33041705508 / SUCCESS
 CMP Tests #3715    33041725972 / SUCCESS
 CMP Tests #3716    33041762521 / SUCCESS
 CMP Tests #3717    33041783094 / SUCCESS
-CMP Tests #3720    33042574144 / SUCCESS  (checkpoint 154 production commit a2f98cb...)
-ESP32 Build #1629  33042574134 / SUCCESS  (checkpoint 154 production commit a2f98cb...)
+CMP Tests #3718    33042461751 / SUCCESS
+CMP Tests #3719    33042491867 / SUCCESS
+CMP Tests #3720    33042574144 / SUCCESS
+ESP32 Build #1629  33042574134 / SUCCESS
+CMP Tests #3721    33042622904 / SUCCESS
+CMP Tests #3722    33042647618 / SUCCESS
+CMP Tests #3723    33042699795 / SUCCESS
+CMP Tests #3724    33042727200 / SUCCESS
+```
+
+Checkpoint 155 direct verification at last check:
+
+```text
+CMP Tests #3725    33043013899 / queued
+ESP32 Build #1630  33043013882 / queued
 ```
 
 CMP host audit remains 69 mandatory steps.
@@ -75,19 +90,21 @@ Checkpoint 153 checks the remaining now-unused private `findEventReplay()` / `ma
 
 Checkpoint 154 optimizes the live autonomous archive page/filter path. The old filter built `programText(task.event)` for every candidate and then `programMatches()` parsed both that generated String and the unchanged `programQuery` again. The new path parses `programQuery` once before the events scan into a fixed `uint16_t[MaxCoils]` buffer and compares each already-parsed event directly using the same percentage tolerance formula. It preserves the query grammar/limits, full event validation, START/COMPLETE pairing, cursor boundary checks, bounded page storage, assignment resolution and JSON output. CMP #3720 and ESP32 #1629 directly verify the production commit.
 
+Checkpoint 155 optimizes the live motor-similarity scan. Before the change, `candidate.coilProgram` was parsed once by `valid()` and then again for every motor by `equivalent()`, while each stored `coil_program` was parsed once by `valid()` and a second time by `equivalent()`. The new path parses the candidate once, parses each stored program exactly once, then compares fixed-size numeric arrays. Parser limits/grammar, fail-closed handling of malformed stored records, same-program counts, identity scoring, truncation behavior and emitted JSON remain unchanged.
+
 The generic Material Request warehouse coordinator remains unchanged: its repeated scans are across separate integrity ledgers or distinct pre/post mutation phases and are safety-relevant.
 
-## Current active queue — checkpoint 155
+## Current active queue — checkpoint 155 verification / 156
 
-1. Continue from current `cmp-protocol-v1` with the next measurable runtime/storage/flash candidate.
-2. Continue only with measurable runtime/storage/flash candidates; do not spend optimization checkpoints on source-only cleanup already removed by linker GC.
-3. Prefer repeated same-operation parsing/read elimination in live paths or fixed-memory aggregate/tail techniques where historical integrity is not weakened.
-4. Do not convert authoritative historical integrity scans to tail-only reads merely for speed.
-5. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
-6. Keep separate-ledger validation when different files prove different integrity domains.
-7. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-8. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery; no automatic cleanup/rotation/deletion/truncation or premature DB/index migration.
-9. Continue software optimization before mandatory final two-board hardware E2E.
+1. Confirm CMP #3725 and ESP32 Build #1630 on `415394d...`; checkpoint 155 is not GREEN until both are directly successful.
+2. If GREEN, mark checkpoint 155 GREEN and begin checkpoint 156 from current branch source.
+3. Continue only with measurable runtime/storage/flash candidates; do not spend optimization checkpoints on source-only cleanup already removed by linker GC.
+4. Prefer repeated same-operation parsing/read elimination in live paths or fixed-memory aggregate/tail techniques where historical integrity is not weakened.
+5. Do not convert authoritative historical integrity scans to tail-only reads merely for speed.
+6. Skip MaterialLedger `confirmUsage()` for 2->1 optimization unless a future architecture adds one common material-writer lock spanning preflight through atomic swap and proves equivalent recovery semantics.
+7. Keep separate-ledger validation when different files prove different integrity domains.
+8. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+9. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery; no automatic cleanup/rotation/deletion/truncation or premature DB/index migration.
 
 ## Safety invariants
 

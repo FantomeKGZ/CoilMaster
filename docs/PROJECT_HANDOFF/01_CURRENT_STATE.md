@@ -9,9 +9,9 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-Production behavior is GREEN through checkpoint **154**. Checkpoint 153 is a completed NO-CHANGE linker/flash audit. Checkpoint 154 is directly verified by CMP + ESP32: autonomous archive task filtering parses `programQuery` once per page and compares directly against already-parsed event turns instead of rebuilding/parsing program strings for every candidate. Atomic RUN_WIRE remains the only current wire mutation path. Checkpoint 150 remains a deliberate NO-CHANGE safety boundary for MaterialLedger usage.
+Production behavior is GREEN through checkpoint **154**. Checkpoint 153 is a completed NO-CHANGE linker/flash audit. Checkpoint **155** has a production runtime optimization committed and is under direct CMP + ESP32 verification: motor-similarity matching now parses the candidate winding program once and each persisted motor program once instead of reparsing both through `valid() + equivalent()` for every motor. Atomic RUN_WIRE remains the only current wire mutation path. Checkpoint 150 remains a deliberate NO-CHANGE safety boundary for MaterialLedger usage.
 
-## Latest GREEN state
+## Latest state
 
 ```text
 139 finalization write-off coverage batch fused with authoritative movement audit
@@ -30,6 +30,7 @@ Production behavior is GREEN through checkpoint **154**. Checkpoint 153 is a com
 152 AutonomousWindingArchive save: replay/conflict + RUN_COMPLETED start_observed share one loadLastEvent() bounded-tail read
 153 autonomous dead-helper audit: exact ESP32 build uses function/data sections + linker gc-sections, so unused private helpers add no final firmware bytes; NO-CHANGE
 154 autonomous task page filter: parse programQuery once per page and compare numeric turns directly; removes per-candidate program String construction + candidate/query reparsing
+155 motor similarity: candidate winding program parsed once, each persisted program parsed once; removes per-motor duplicate validation/equivalence reparsing
 ```
 
 Production RUN_WIRE path remains:
@@ -56,6 +57,8 @@ Checkpoint 153 verifies whether deleting the now-unused private `findEventReplay
 
 Checkpoint 154 optimizes `AutonomousWindingArchive::appendTasksPageJson()`. Previously each candidate task created a canonical `programText()` String, reparsed that generated candidate String, and reparsed the same `programQuery` inside `programMatches()`. The page path now parses the query once into a fixed `uint16_t` turns array and compares each already-parsed `RemoteWindingEvent::turns[]` directly with the same numeric tolerance formula. Query grammar, maximum 10 coils / 9999 turns, event record validation, START/COMPLETE pairing, cursor boundaries, assignment resolution and output JSON are unchanged. Production commit: `a2f98cb377873d88d3fd103b6dfdfbabaf28ea65`.
 
+Checkpoint 155 optimizes `RepairRegistry::appendSimilarMotorsJson()`. Previously the candidate program was validated once, then `WindingProgramParser::equivalent()` reparsed that unchanged candidate for every persisted motor; each persisted `coil_program` was also parsed once by `valid()` and again by `equivalent()`. The path now parses the candidate once into fixed `uint16_t[10]`, parses each persisted program once, and compares count/turn values directly. Parser grammar and bounds remain identical, malformed persisted programs still fail closed, identity scoring/output JSON are unchanged, and no whole-file buffering is introduced. Production commit: `415394d162de0f1c83e433cbbea3db94833b3162`.
+
 Latest verified evidence:
 
 ```text
@@ -67,22 +70,36 @@ CMP Tests #3714     33041705508 / SUCCESS
 CMP Tests #3715     33041725972 / SUCCESS
 CMP Tests #3716     33041762521 / SUCCESS
 CMP Tests #3717     33041783094 / SUCCESS
+CMP Tests #3718     33042461751 / SUCCESS
+CMP Tests #3719     33042491867 / SUCCESS
 CMP Tests #3720     33042574144 / SUCCESS  (checkpoint 154 production commit a2f98cb...)
 ESP32 Build #1629   33042574134 / SUCCESS  (checkpoint 154 production commit a2f98cb...)
+CMP Tests #3721     33042622904 / SUCCESS
+CMP Tests #3722     33042647618 / SUCCESS
+CMP Tests #3723     33042699795 / SUCCESS
+CMP Tests #3724     33042727200 / SUCCESS
+```
+
+Checkpoint 155 verification started on `415394d...`:
+
+```text
+CMP Tests #3725     33043013899 / queued at last direct check
+ESP32 Build #1630   33043013882 / queued at last direct check
 ```
 
 Earlier supporting GREEN evidence remains in GitHub Actions history. CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Checkpoint 155: continue from current `cmp-protocol-v1` with the next measurable runtime/storage/flash candidate.
-2. Continue only with measurable runtime/storage/flash candidates; avoid source-only cleanup already handled by linker GC.
-3. Prefer same-operation duplicate parsing/read elimination or fixed-memory aggregate/tail techniques where historical integrity semantics are preserved.
-4. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
-5. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
-6. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
-7. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
-8. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
+1. Verify CMP #3725 and ESP32 Build #1630 for production commit `415394d...`; do not call checkpoint 155 GREEN before both are directly confirmed.
+2. If GREEN, mark checkpoint 155 GREEN and continue checkpoint 156 from current branch source.
+3. Continue only with measurable runtime/storage/flash candidates; avoid source-only cleanup already handled by linker GC.
+4. Prefer same-operation duplicate parsing/read elimination or fixed-memory aggregate/tail techniques where historical integrity semantics are preserved.
+5. Keep separate-ledger scans when they prove different integrity domains or distinct pre/post mutation phases.
+6. Keep MaterialLedger usage two-pass unless a future design introduces one shared writer lock spanning preflight through atomic swap and proves equivalent crash recovery.
+7. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
+8. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation and exact-spool provenance.
+9. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
 
 ## Safety invariants
 

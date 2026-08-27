@@ -39,7 +39,6 @@ private:
 
 #if CM_LCD_RU_EN
     void prepareRussianGlyphs(UiScreen screen);
-    void loadRussianGlyph(uint8_t slot, const uint8_t* bitmap);
 #endif
 
     static void clearLine(char (&line)[Columns + 1U]);

@@ -35,6 +35,25 @@ bool sameProgram(const RemoteWindingEvent& left,
     }
     return true;
 }
+
+bool programMatchesQuery(const RemoteWindingEvent& candidate,
+                         const uint16_t* queryTurns,
+                         uint8_t queryCount,
+                         uint8_t tolerancePercent)
+{
+    if (queryTurns == nullptr || candidate.coilCount != queryCount)
+        return false;
+
+    for (uint8_t index = 0U; index < queryCount; ++index)
+    {
+        const uint32_t a = candidate.turns[index];
+        const uint32_t b = queryTurns[index];
+        const uint32_t difference = a > b ? a - b : b - a;
+        if (difference * 100UL > b * static_cast<uint32_t>(tolerancePercent))
+            return false;
+    }
+    return true;
+}
 }
 
 bool AutonomousWindingArchive::appendTasksPageJson(
@@ -56,8 +75,15 @@ bool AutonomousWindingArchive::appendTasksPageJson(
     {
         return false;
     }
-    if (programQuery.length() > 0U &&
-        !WindingProgramParser::valid(programQuery))
+
+    const bool hasProgramQuery = programQuery.length() > 0U;
+    uint16_t queryTurns[RemoteWindingEvent::MaxCoils] = {};
+    uint8_t queryCount = 0U;
+    if (hasProgramQuery &&
+        !WindingProgramParser::parse(programQuery,
+                                     queryTurns,
+                                     RemoteWindingEvent::MaxCoils,
+                                     queryCount))
     {
         return false;
     }
@@ -210,9 +236,11 @@ bool AutonomousWindingArchive::appendTasksPageJson(
             return false;
         }
 
-        const String program = programText(task.event);
-        if (programQuery.length() > 0U &&
-            !programMatches(program, programQuery, tolerancePercent))
+        if (hasProgramQuery &&
+            !programMatchesQuery(task.event,
+                                 queryTurns,
+                                 queryCount,
+                                 tolerancePercent))
         {
             continue;
         }

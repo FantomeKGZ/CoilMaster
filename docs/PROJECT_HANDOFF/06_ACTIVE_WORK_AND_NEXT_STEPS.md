@@ -1,6 +1,6 @@
 # Активная работа и следующие шаги
 
-Дата обновления: **2026-08-26**  
+Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
 ## GREEN foundation through checkpoint 140
@@ -27,6 +27,14 @@ ESP32 Build #1606  32981707495 / SUCCESS
 CMP Tests #3644    32981785788 / SUCCESS
 ```
 
+## Pending checkpoints 141-142
+
+141 CRM client/motor existence lookups use explicit `found`; final source `35ba207a678547189a550aea9257ed1660d9853a` is verified by ESP32 `#1612` and CMP `#3656`, while the final contract run `#3657` ended in GitHub Actions `startup_failure` before any job was created.
+
+142 moves unused `JobSnapshotStore::exists(sessionId)` out of the public API; source commit `7a2639832f1c2c0225fbe0de0a6d817bfc6ba622`. Its CMP `#3658` and ESP32 `#1613` runs are stuck before job creation (`jobs=[]`) and cannot be force-cancelled because GitHub returns HTTP 409. These infrastructure-blocked runs are neither GREEN nor RED evidence.
+
+Do not promote 141/142 into the canonical GREEN foundation until a later normal CMP/ESP32 execution validates a commit containing those changes.
+
 ## Current production boundary
 
 ```text
@@ -41,13 +49,14 @@ Finalization write-off coverage remains fixed at 32 targets per page. Winding-se
 
 ## Current active queue — bounded growing-file optimization
 
-1. Audit remaining append-only readers for concrete duplicate full scans of the same authoritative file.
-2. Distinguish mutation-sensitive preflight from read-only validation; do not retain duplicate pre-scans where `begin()` cannot change persisted data.
-3. Prefer returning bounded evidence/aggregates from an existing authoritative parser rather than adding parallel parsers.
-4. Preserve fixed-size RAM batches; do not replace them with unbounded vectors or whole-file buffering.
-5. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
-6. Keep diagnostics read-only; automatic cleanup/rotation/deletion remains disabled; no premature DB migration.
-7. Continue software optimization before mandatory final two-board hardware E2E.
+1. Highest-value next performance block: `WindingJournal` currently makes multiple full `events.ndjson` passes during one save/session-state operation (duplicate/start/active/highest/completed evidence). Design a single authoritative bounded session-analysis pass when CI execution is available again.
+2. Do not add unbounded vectors or whole-file buffering; session evidence must remain fixed-size/streamed.
+3. Until GitHub Actions can create jobs again, limit writes to low-risk API visibility/dead-helper cleanup and read-only audits; do not perform a large critical journal rewrite without compile/host proof.
+4. Audit remaining append-only readers for concrete duplicate full scans of the same authoritative file.
+5. Prefer returning bounded evidence/aggregates from an existing authoritative parser rather than adding parallel parsers.
+6. Preserve Web HTTP preflight semantics, mutation-time TOCTOU validation, costing ownership and deterministic recovery.
+7. Keep diagnostics read-only; automatic cleanup/rotation/deletion remains disabled; no premature DB migration.
+8. Continue software optimization before mandatory final two-board hardware E2E.
 
 ## Safety invariants
 

@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-26**  
+Дата обновления: **2026-08-27**  
 Repo: `FantomeKGZ/CoilMaster`  
 Source-of-truth: **`cmp-protocol-v1`**. `main` для исходников не использовать.
 
@@ -22,6 +22,9 @@ this file
 docs/PROJECT_HANDOFF/96_STABLE_MAIN_SNAPSHOT_BEFORE_CRM_2026-08-25.md
 docs/PROJECT_HANDOFF/95_WEB_CRM_MOTOR_CLIENT_CASH_REDESIGN_2026-08-25.md
 docs/PROJECT_HANDOFF/101_MATERIAL_REQUEST_WAREHOUSE_CASH_BRIDGE_2026-08-25.md
+docs/PROJECT_HANDOFF/143_AUTONOMOUS_ASSIGNMENT_API_NARROWING_2026-08-27.md
+docs/PROJECT_HANDOFF/142_JOB_SNAPSHOT_EXISTS_VISIBILITY_2026-08-27.md
+docs/PROJECT_HANDOFF/141_CRM_FAIL_CLOSED_SOURCE_LOOKUPS_2026-08-26.md
 docs/PROJECT_HANDOFF/140_WINDING_SESSION_SELECTION_ONLY_PREFLIGHT_2026-08-26.md
 docs/PROJECT_HANDOFF/139_FINALIZATION_WRITEOFF_FIRST_BATCH_FUSED_AUDIT_2026-08-26.md
 docs/PROJECT_HANDOFF/138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
@@ -51,28 +54,33 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/90_PROJECT_COMPLETION_AND_NEXT_CHAT_2026-08-25.md
 ```
 
-Latest GREEN foundation = checkpoint **140**.
+Latest GREEN foundation = checkpoint **143**.
 
-Latest verified checkpoint-140 evidence:
+Latest verified evidence:
 
 ```text
-final source                       1584672e49288334da531235e3bec9f6a691fc7f
-final contract                     0e3786c2894cd5b078645ae24ed5ceb3975cb4ea
-ESP32 Build #1606                  32981707495 / SUCCESS
-CMP Protocol Tests #3644           32981785788 / SUCCESS
+final source through 143             6f69d0c548303cb9f6920b602cc0d8754deb5d5b
+final contract                       38e892edc6a45d9540188516d06c6e41c93abd5d
+ESP32 Build #1616                    33034665123 / SUCCESS
+CMP Protocol Tests #3663             33034665166 / SUCCESS
+CMP Protocol Tests #3664             33034707952 / SUCCESS
 ```
+
+The earlier `#3657` startup failure and stuck `#3658/#1613` runs were GitHub Actions infrastructure failures before job execution; later successful runs above validate commits containing checkpoints 141-143.
 
 ## Current state
 
-Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence now keeps the read-only pre-begin directory preflight only for spool-selection, the only session store whose `begin()` may promote recoverable temp evidence. Snapshot/state directories are validated once in their normal content pass, removing two redundant directory scans.
+CRM client/motor existence lookups expose explicit `found` result channels. `JobSnapshotStore::exists()` is no longer public. Autonomous assignment exposes `assignMotorChecked()` publicly while the bool-only assignment path and completed-task lookup are internal.
 
-MaterialLedger and RepairCosting repair/material lookups expose explicit result channels instead of convenience bool wrappers. Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
+Warehouse summary and first finalization write-off coverage batch reuse authoritative movement validation. Winding-session persistence keeps the read-only pre-begin directory preflight only for spool-selection, the only session store whose `begin()` may promote recoverable temp evidence.
+
+Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical GET/recovery compatibility remains intact.
 
 ## Immediate NEXT
 
-1. Continue audit of growing append-only readers for concrete redundant full scans, preserving fixed-size batches.
-2. Preserve mutation-sensitive preflight only where a `begin()` or recovery path can actually modify persisted state.
-3. Prefer authoritative parser/audit reuse rather than parallel custom parsers.
+1. Optimize `WindingJournal` repeated full scans of `/data/winding-runs/events.ndjson` by designing one authoritative streamed/bounded session-analysis pass.
+2. Preserve duplicate/replay, exact run transition, session context, highest-run and completed-run integrity semantics.
+3. Do not add unbounded vectors or whole-file buffering.
 4. Preserve distinct Web HTTP preflight semantics and mutation-time TOCTOU validation.
 5. Do not weaken integrity/provenance checks or add automatic rotation/deletion/truncation.
 6. Continue software optimization before final two-board hardware E2E.

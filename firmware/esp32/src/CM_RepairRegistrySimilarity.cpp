@@ -16,7 +16,16 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
     returnedCount = 0U;
     itemsTruncated = false;
     if (!ready()) return false;
-    if (!WindingProgramParser::valid(candidate.coilProgram)) return false;
+
+    uint16_t candidateTurns[10] = {};
+    uint8_t candidateCoilCount = 0U;
+    if (!WindingProgramParser::parse(candidate.coilProgram,
+                                     candidateTurns,
+                                     10U,
+                                     candidateCoilCount))
+    {
+        return false;
+    }
     if (!m_storage.exists(MotorsPath)) return true;
 
     String candidateName = candidate.name;
@@ -56,14 +65,35 @@ bool RepairRegistry::appendSimilarMotorsJson(String& json,
             !findString(line, "coil_program", program) ||
             !findString(line, "name", name) ||
             !findString(line, "model", model) ||
-            !findString(line, "manufacturer", manufacturer) ||
-            !WindingProgramParser::valid(program))
+            !findString(line, "manufacturer", manufacturer))
         {
             file.close();
             return false;
         }
-        if (!WindingProgramParser::equivalent(program, candidate.coilProgram))
-            continue;
+
+        uint16_t programTurns[10] = {};
+        uint8_t programCoilCount = 0U;
+        if (!WindingProgramParser::parse(program,
+                                         programTurns,
+                                         10U,
+                                         programCoilCount))
+        {
+            file.close();
+            return false;
+        }
+        if (programCoilCount != candidateCoilCount) continue;
+
+        bool sameProgram = true;
+        for (uint8_t index = 0U; index < programCoilCount; ++index)
+        {
+            if (programTurns[index] != candidateTurns[index])
+            {
+                sameProgram = false;
+                break;
+            }
+        }
+        if (!sameProgram) continue;
+
         if (sameProgramCount == 0xFFFFU)
         {
             file.close();

@@ -21,20 +21,22 @@ void MaterialLedgerWeb::handleAdjust()
         return;
     }
 
-    if (m_server.hasArg("add_quantity_milli") &&
-        m_server.arg("add_quantity_milli").length() > 0U &&
-        !parseUnsigned(m_server, "add_quantity_milli", 0UL, 0xFFFFFFFFUL,
-                       addQuantity))
+    const String addQuantityText = m_server.hasArg("add_quantity_milli")
+                                       ? m_server.arg("add_quantity_milli")
+                                       : String();
+    if (addQuantityText.length() > 0U &&
+        !parseUnsignedValue(addQuantityText, 0UL, 0xFFFFFFFFUL, addQuantity))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_add_quantity\"}");
         return;
     }
 
-    if (m_server.hasArg("new_price_per_unit_minor") &&
-        m_server.arg("new_price_per_unit_minor").length() > 0U &&
-        !parseUnsigned(m_server, "new_price_per_unit_minor", 0UL, 100000000UL,
-                       newPrice))
+    const String newPriceText = m_server.hasArg("new_price_per_unit_minor")
+                                    ? m_server.arg("new_price_per_unit_minor")
+                                    : String();
+    if (newPriceText.length() > 0U &&
+        !parseUnsignedValue(newPriceText, 0UL, 100000000UL, newPrice))
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_new_price\"}");

@@ -152,6 +152,13 @@ public:
         const WireCandidate* candidates,
         uint8_t candidateCount,
         ConversionOption options[MaxRecommendedConversionOptions]);
+    static uint8_t findRecommendedOptionsForArea(
+        uint32_t requiredArea,
+        ConductorMaterial targetMaterial,
+        const ConversionSettings& settings,
+        const WireCandidate* candidates,
+        uint8_t candidateCount,
+        ConversionOption options[MaxRecommendedConversionOptions]);
 
 private:
     static uint32_t singleWireAreaMicrometre2(uint16_t diameterHundredthsMm);
@@ -168,13 +175,6 @@ private:
                                uint32_t requiredArea,
                                uint16_t allowedDeviationPermille,
                                ConversionOption options[MaxRecommendedConversionOptions]);
-    static uint8_t findRecommendedOptionsForArea(
-        uint32_t requiredArea,
-        ConductorMaterial targetMaterial,
-        const ConversionSettings& settings,
-        const WireCandidate* candidates,
-        uint8_t candidateCount,
-        ConversionOption options[MaxRecommendedConversionOptions]);
 };
 }
 

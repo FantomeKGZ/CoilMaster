@@ -38,70 +38,50 @@ JournalSaveResult WindingJournal::save(const RemoteWindingEvent& event,
         return JournalSaveResult::InvalidTransition;
     }
 
-    if (!sessionContextMatches(event.sessionId, context))
-        return JournalSaveResult::InvalidTransition;
-
-    if (event.type == RemoteEventType::RunStarted && event.completedRuns != 0U)
-        return JournalSaveResult::InvalidTransition;
-
-    // A replay is idempotent only when the persisted event semantics match
-    // exactly. Same session/run/type with a different completed_runs value must
-    // continue through transition validation and fail closed rather than being
-    // treated as a harmless duplicate.
-    bool duplicateFound = false;
-    if (!containsRunEvent(event.sessionId,
-                          event.runId,
-                          event.type,
-                          event.completedRuns,
-                          duplicateFound))
+    if ((event.type == RemoteEventType::RunStarted && event.completedRuns != 0U) ||
+        (event.type == RemoteEventType::RunCompleted && event.completedRuns == 0U))
     {
         return JournalSaveResult::InvalidTransition;
     }
+
+    WindingSessionState state;
+    bool duplicateFound = false;
+    bool runStartFound = false;
+    if (!analyzeSession(event.sessionId,
+                        event.runId,
+                        event.type,
+                        event.completedRuns,
+                        &context,
+                        state,
+                        duplicateFound,
+                        runStartFound))
+    {
+        return JournalSaveResult::InvalidTransition;
+    }
+
+    // Exact replay remains idempotent. analyzeSession keeps scanning schema-2
+    // context after finding it so context corruption cannot be hidden by replay.
     if (duplicateFound)
         return JournalSaveResult::Duplicate;
 
     if (event.type == RemoteEventType::RunStarted)
     {
-        uint32_t activeRunId = 0UL;
-        bool activeRunFound = false;
-        if (!loadActiveRun(event.sessionId, activeRunId, activeRunFound) ||
-            activeRunFound)
-        {
+        if (state.activeRunFound || event.runId <= state.highestRunId)
             return JournalSaveResult::InvalidTransition;
-        }
-
-        uint32_t highestRunId = 0UL;
-        if (!loadSessionHighestRunId(event.sessionId, highestRunId) ||
-            event.runId <= highestRunId)
+    }
+    else if (event.type == RemoteEventType::RunCompleted)
+    {
+        if (!runStartFound || !state.activeRunFound ||
+            state.activeRunId != event.runId ||
+            state.completedRuns == 0xFFFFU ||
+            event.completedRuns != static_cast<uint16_t>(state.completedRuns + 1U))
         {
             return JournalSaveResult::InvalidTransition;
         }
     }
-
-    if (event.type == RemoteEventType::RunCompleted)
+    else
     {
-        bool runStartFound = false;
-        if (!hasRunStart(event.sessionId, event.runId, runStartFound) ||
-            !runStartFound || event.completedRuns == 0U)
-        {
-            return JournalSaveResult::InvalidTransition;
-        }
-
-        uint32_t activeRunId = 0UL;
-        bool activeRunFound = false;
-        if (!loadActiveRun(event.sessionId, activeRunId, activeRunFound) ||
-            !activeRunFound || activeRunId != event.runId)
-        {
-            return JournalSaveResult::InvalidTransition;
-        }
-
-        uint16_t previousCompletedRuns = 0U;
-        if (!loadSessionCompletedRuns(event.sessionId, previousCompletedRuns) ||
-            previousCompletedRuns == 0xFFFFU ||
-            event.completedRuns != static_cast<uint16_t>(previousCompletedRuns + 1U))
-        {
-            return JournalSaveResult::InvalidTransition;
-        }
+        return JournalSaveResult::InvalidTransition;
     }
 
     return appendRecord(event, context)
@@ -116,29 +96,16 @@ bool WindingJournal::loadSessionState(uint32_t sessionId,
     state.sessionId = sessionId;
     if (!isReady() || sessionId == 0UL) return false;
 
-    uint32_t activeRunId = 0UL;
-    bool activeRunFound = false;
-    uint32_t highestRunId = 0UL;
-    uint16_t completedRuns = 0U;
-    if (!loadActiveRun(sessionId, activeRunId, activeRunFound) ||
-        !loadSessionHighestRunId(sessionId, highestRunId) ||
-        !loadSessionCompletedRuns(sessionId, completedRuns))
-    {
-        return false;
-    }
-
-    if ((activeRunFound && (activeRunId == 0UL || activeRunId > highestRunId)) ||
-        (!activeRunFound && activeRunId != 0UL))
-    {
-        return false;
-    }
-
-    state.activeRunId = activeRunId;
-    state.highestRunId = highestRunId;
-    state.completedRuns = completedRuns;
-    state.activeRunFound = activeRunFound;
-    state.journalConsistent = true;
-    return true;
+    bool ignoredExactEvent = false;
+    bool ignoredRunStart = false;
+    return analyzeSession(sessionId,
+                          0UL,
+                          RemoteEventType::None,
+                          0U,
+                          nullptr,
+                          state,
+                          ignoredExactEvent,
+                          ignoredRunStart);
 }
 
 bool WindingJournal::ensureDirectories()
@@ -279,15 +246,42 @@ bool WindingJournal::validateJournalSessionContexts() const
     return true;
 }
 
-bool WindingJournal::sessionContextMatches(
+bool WindingJournal::analyzeSession(
     uint32_t sessionId,
-    const WindingEventContext& context) const
+    uint32_t targetRunId,
+    RemoteEventType targetType,
+    uint16_t targetCompletedRuns,
+    const WindingEventContext* expectedContext,
+    WindingSessionState& state,
+    bool& exactEventFound,
+    bool& targetRunStartFound) const
 {
-    if (sessionId == 0UL || !context.isValid()) return false;
-    if (!m_fileSystem.exists(JournalPath)) return true;
+    state = WindingSessionState();
+    state.sessionId = sessionId;
+    exactEventFound = false;
+    targetRunStartFound = false;
+
+    if (sessionId == 0UL ||
+        (expectedContext != nullptr && !expectedContext->isValid()))
+    {
+        return false;
+    }
+
+    if (!m_fileSystem.exists(JournalPath))
+    {
+        state.journalConsistent = true;
+        return true;
+    }
 
     File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
+    if (!file || file.isDirectory())
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    bool stateValid = true;
+    bool duplicateSeen = false;
 
     while (file.available())
     {
@@ -298,205 +292,56 @@ bool WindingJournal::sessionContextMatches(
             file.close();
             return false;
         }
-        if (schemaVersion == 1UL) continue;
-        if (schemaVersion != 2UL)
+
+        // The old save path performed the complete immutable-context scan before
+        // duplicate detection. Once an exact replay is known, preserve that
+        // behavior by validating only the remaining schema/context fields; the
+        // old duplicate scan would have stopped at the replay and would not have
+        // parsed unrelated later event fields.
+        if (duplicateSeen)
         {
-            file.close();
-            return false;
-        }
-
-        uint32_t lineSessionId = 0UL;
-        if (!findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId == 0UL)
-        {
-            file.close();
-            return false;
-        }
-
-        if (lineSessionId > sessionId)
-        {
-            file.close();
-            return false;
-        }
-        if (lineSessionId != sessionId)
-            continue;
-
-        WindingEventContext existing;
-        if (!parseContext(line, existing) ||
-            existing.jobId != context.jobId ||
-            existing.linked != context.linked ||
-            existing.repairId != context.repairId ||
-            existing.motorId != context.motorId)
-        {
-            file.close();
-            return false;
-        }
-    }
-
-    file.close();
-    return true;
-}
-
-bool WindingJournal::containsRunEvent(uint32_t sessionId,
-                                      uint32_t runId,
-                                      RemoteEventType type,
-                                      uint16_t completedRuns,
-                                      bool& found) const
-{
-    found = false;
-    if (!m_fileSystem.exists(JournalPath)) return true;
-    File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
-
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        uint32_t schemaVersion = 0UL;
-        uint32_t lineSessionId = 0UL;
-        uint32_t lineRunId = 0UL;
-        uint32_t lineCompletedRuns = 0UL;
-        uint32_t uptimeMs = 0UL;
-        RemoteEventType lineType = RemoteEventType::None;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            (schemaVersion != 1UL && schemaVersion != 2UL) ||
-            !findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId == 0UL ||
-            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
-            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
-            lineCompletedRuns > 0xFFFFUL ||
-            !findUnsigned(line, "uptime_ms", uptimeMs) ||
-            !parseEvent(line, lineType))
-        {
-            file.close();
-            return false;
-        }
-
-        if (schemaVersion == 2UL)
-        {
-            WindingEventContext context;
-            if (!parseContext(line, context))
+            if (schemaVersion == 1UL) continue;
+            if (schemaVersion != 2UL)
             {
                 file.close();
                 return false;
             }
-        }
 
-        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
-            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
-        {
-            file.close();
-            return false;
-        }
-
-        if (lineSessionId == sessionId &&
-            lineRunId == runId &&
-            lineType == type &&
-            lineCompletedRuns == completedRuns)
-        {
-            found = true;
-            file.close();
-            return true;
-        }
-    }
-
-    file.close();
-    return true;
-}
-
-bool WindingJournal::hasRunStart(uint32_t sessionId,
-                                 uint32_t runId,
-                                 bool& found) const
-{
-    return containsRunEvent(sessionId,
-                            runId,
-                            RemoteEventType::RunStarted,
-                            0U,
-                            found);
-}
-
-bool WindingJournal::loadSessionCompletedRuns(uint32_t sessionId,
-                                              uint16_t& completedRuns) const
-{
-    completedRuns = 0U;
-    if (!m_fileSystem.exists(JournalPath)) return true;
-    File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
-
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        uint32_t schemaVersion = 0UL;
-        uint32_t lineSessionId = 0UL;
-        uint32_t lineRunId = 0UL;
-        uint32_t lineCompletedRuns = 0UL;
-        uint32_t uptimeMs = 0UL;
-        RemoteEventType lineType = RemoteEventType::None;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            (schemaVersion != 1UL && schemaVersion != 2UL) ||
-            !findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId == 0UL ||
-            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
-            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
-            lineCompletedRuns > 0xFFFFUL ||
-            !findUnsigned(line, "uptime_ms", uptimeMs) ||
-            !parseEvent(line, lineType))
-        {
-            file.close();
-            return false;
-        }
-
-        if (schemaVersion == 2UL)
-        {
-            WindingEventContext context;
-            if (!parseContext(line, context))
+            uint32_t lineSessionId = 0UL;
+            WindingEventContext lineContext;
+            if (!findUnsigned(line, "session_id", lineSessionId) ||
+                lineSessionId == 0UL || !parseContext(line, lineContext))
             {
                 file.close();
                 return false;
             }
-        }
 
-        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
-            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
-        {
-            file.close();
-            return false;
-        }
-
-        if (lineSessionId != sessionId ||
-            lineType != RemoteEventType::RunCompleted)
-        {
+            if (expectedContext != nullptr)
+            {
+                if (lineSessionId > sessionId)
+                {
+                    file.close();
+                    return false;
+                }
+                if (lineSessionId == sessionId &&
+                    (lineContext.jobId != expectedContext->jobId ||
+                     lineContext.linked != expectedContext->linked ||
+                     lineContext.repairId != expectedContext->repairId ||
+                     lineContext.motorId != expectedContext->motorId))
+                {
+                    file.close();
+                    return false;
+                }
+            }
             continue;
         }
 
-        const uint16_t candidate = static_cast<uint16_t>(lineCompletedRuns);
-        if (candidate > completedRuns) completedRuns = candidate;
-    }
-
-    file.close();
-    return true;
-}
-
-bool WindingJournal::loadActiveRun(uint32_t sessionId,
-                                   uint32_t& runId,
-                                   bool& found) const
-{
-    runId = 0UL;
-    found = false;
-    if (!m_fileSystem.exists(JournalPath)) return true;
-    File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
-
-    while (file.available())
-    {
-        const String line = file.readStringUntil('\n');
-        uint32_t schemaVersion = 0UL;
         uint32_t lineSessionId = 0UL;
         uint32_t lineRunId = 0UL;
         uint32_t lineCompletedRuns = 0UL;
         uint32_t uptimeMs = 0UL;
         RemoteEventType lineType = RemoteEventType::None;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            (schemaVersion != 1UL && schemaVersion != 2UL) ||
+        if ((schemaVersion != 1UL && schemaVersion != 2UL) ||
             !findUnsigned(line, "session_id", lineSessionId) ||
             lineSessionId == 0UL ||
             !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
@@ -509,14 +354,11 @@ bool WindingJournal::loadActiveRun(uint32_t sessionId,
             return false;
         }
 
-        if (schemaVersion == 2UL)
+        WindingEventContext lineContext;
+        if (schemaVersion == 2UL && !parseContext(line, lineContext))
         {
-            WindingEventContext context;
-            if (!parseContext(line, context))
-            {
-                file.close();
-                return false;
-            }
+            file.close();
+            return false;
         }
 
         if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
@@ -524,99 +366,91 @@ bool WindingJournal::loadActiveRun(uint32_t sessionId,
         {
             file.close();
             return false;
+        }
+
+        if (expectedContext != nullptr && schemaVersion == 2UL)
+        {
+            if (lineSessionId > sessionId)
+            {
+                file.close();
+                return false;
+            }
+            if (lineSessionId == sessionId &&
+                (lineContext.jobId != expectedContext->jobId ||
+                 lineContext.linked != expectedContext->linked ||
+                 lineContext.repairId != expectedContext->repairId ||
+                 lineContext.motorId != expectedContext->motorId))
+            {
+                file.close();
+                return false;
+            }
+        }
+
+        const bool exactTarget = targetType != RemoteEventType::None &&
+            targetRunId != 0UL &&
+            lineSessionId == sessionId &&
+            lineRunId == targetRunId &&
+            lineType == targetType &&
+            lineCompletedRuns == targetCompletedRuns;
+        if (exactTarget)
+        {
+            exactEventFound = true;
+            duplicateSeen = true;
+            continue;
         }
 
         if (lineSessionId != sessionId) continue;
 
+        if (lineType == RemoteEventType::RunStarted &&
+            targetRunId != 0UL && lineRunId == targetRunId)
+        {
+            targetRunStartFound = true;
+        }
+
+        // Transition-state errors are remembered instead of immediately
+        // returning so a later exact replay keeps the previous Duplicate
+        // semantics. If no replay is found, the operation still fails closed.
+        if (!stateValid) continue;
+
         if (lineType == RemoteEventType::RunStarted)
         {
-            if (found)
+            if (state.activeRunFound || lineRunId <= state.highestRunId)
             {
-                file.close();
-                return false;
+                stateValid = false;
+                continue;
             }
-            runId = lineRunId;
-            found = true;
+            state.activeRunId = lineRunId;
+            state.activeRunFound = true;
+            state.highestRunId = lineRunId;
         }
         else
         {
-            if (!found || runId != lineRunId)
+            if (!state.activeRunFound || state.activeRunId != lineRunId)
             {
-                file.close();
-                return false;
+                stateValid = false;
+                continue;
             }
-            runId = 0UL;
-            found = false;
+            state.activeRunId = 0UL;
+            state.activeRunFound = false;
+            const uint16_t candidate = static_cast<uint16_t>(lineCompletedRuns);
+            if (candidate > state.completedRuns)
+                state.completedRuns = candidate;
         }
     }
 
     file.close();
-    return true;
-}
 
-bool WindingJournal::loadSessionHighestRunId(uint32_t sessionId,
-                                             uint32_t& highestRunId) const
-{
-    highestRunId = 0UL;
-    if (!m_fileSystem.exists(JournalPath)) return true;
-    File file = m_fileSystem.open(JournalPath, FILE_READ);
-    if (!file) return false;
-
-    while (file.available())
+    if (exactEventFound)
+        return true;
+    if (!stateValid ||
+        (state.activeRunFound &&
+         (state.activeRunId == 0UL || state.activeRunId > state.highestRunId)) ||
+        (!state.activeRunFound && state.activeRunId != 0UL))
     {
-        const String line = file.readStringUntil('\n');
-        uint32_t schemaVersion = 0UL;
-        uint32_t lineSessionId = 0UL;
-        uint32_t lineRunId = 0UL;
-        uint32_t lineCompletedRuns = 0UL;
-        uint32_t uptimeMs = 0UL;
-        RemoteEventType lineType = RemoteEventType::None;
-        if (!findUnsigned(line, "schema_version", schemaVersion) ||
-            (schemaVersion != 1UL && schemaVersion != 2UL) ||
-            !findUnsigned(line, "session_id", lineSessionId) ||
-            lineSessionId == 0UL ||
-            !findUnsigned(line, "run_id", lineRunId) || lineRunId == 0UL ||
-            !findUnsigned(line, "completed_runs", lineCompletedRuns) ||
-            lineCompletedRuns > 0xFFFFUL ||
-            !findUnsigned(line, "uptime_ms", uptimeMs) ||
-            !parseEvent(line, lineType))
-        {
-            file.close();
-            return false;
-        }
-
-        if (schemaVersion == 2UL)
-        {
-            WindingEventContext context;
-            if (!parseContext(line, context))
-            {
-                file.close();
-                return false;
-            }
-        }
-
-        if ((lineType == RemoteEventType::RunStarted && lineCompletedRuns != 0UL) ||
-            (lineType == RemoteEventType::RunCompleted && lineCompletedRuns == 0UL))
-        {
-            file.close();
-            return false;
-        }
-
-        if (lineSessionId != sessionId ||
-            lineType != RemoteEventType::RunStarted)
-        {
-            continue;
-        }
-
-        if (lineRunId <= highestRunId)
-        {
-            file.close();
-            return false;
-        }
-        highestRunId = lineRunId;
+        return false;
     }
 
-    file.close();
+    state.journalConsistent = true;
     return true;
 }
 

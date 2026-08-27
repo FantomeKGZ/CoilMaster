@@ -74,23 +74,19 @@ private:
     bool ensureDirectories();
     bool validateJournalStructure() const;
     bool validateJournalSessionContexts() const;
-    bool sessionContextMatches(uint32_t sessionId,
-                               const WindingEventContext& context) const;
-    bool containsRunEvent(uint32_t sessionId,
-                          uint32_t runId,
-                          RemoteEventType type,
-                          uint16_t completedRuns,
-                          bool& found) const;
-    bool hasRunStart(uint32_t sessionId,
-                     uint32_t runId,
-                     bool& found) const;
-    bool loadSessionCompletedRuns(uint32_t sessionId,
-                                  uint16_t& completedRuns) const;
-    bool loadActiveRun(uint32_t sessionId,
-                       uint32_t& runId,
-                       bool& found) const;
-    bool loadSessionHighestRunId(uint32_t sessionId,
-                                 uint32_t& highestRunId) const;
+
+    // One streamed pass over the growing journal. For a save request it also
+    // validates immutable schema-2 context, exact replay identity and matching
+    // RUN_STARTED evidence. For a state read targetRunId/type remain zero/None.
+    bool analyzeSession(uint32_t sessionId,
+                        uint32_t targetRunId,
+                        RemoteEventType targetType,
+                        uint16_t targetCompletedRuns,
+                        const WindingEventContext* expectedContext,
+                        WindingSessionState& state,
+                        bool& exactEventFound,
+                        bool& targetRunStartFound) const;
+
     bool appendRecord(const RemoteWindingEvent& event,
                       const WindingEventContext& context);
     static bool parseContext(const String& line,

@@ -9,7 +9,7 @@
 
 ## Current phase
 
-Production behavior подтверждён GREEN through checkpoint **160**. Текущий следующий software-optimization checkpoint: **161**. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
+Production behavior подтверждён GREEN through checkpoint **160**. Checkpoint **161** реализован и находится под CI. Hardware E2E пока не требуется; продолжается repo-reviewable software optimization.
 
 ## Recent optimization checkpoints
 
@@ -27,6 +27,7 @@ Production behavior подтверждён GREEN through checkpoint **160**. Т�
 158 material adjustment optional quantity/price values fetched once
 159 standard conductor recommendations reuse one warehouse availability lookup per component
 160 calculator warehouse diameter lookup -> binary search over sorted fixed catalogue
+161 warehouse catalogue stays sorted during scan -> binary lookup + bounded insertion, no final O(N^2) sort
 ```
 
 Production commits:
@@ -40,6 +41,7 @@ a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 0596ae9ff473503bd1d21aeda0c6c4da0f2ba0da  checkpoint 158
 93d858c83b3f63932d6c2809df585a017a74a6b6  checkpoint 159
 1efb3c35947c77fb79b5cc7a24f0c07c5dcab67c  checkpoint 160
+317273ac74e6e67208e9a94330b615bb3ba1ba08  checkpoint 161 current production
 ```
 
 ## Latest verified CI evidence
@@ -54,11 +56,22 @@ ESP32 Build #1639  33045201854 / SUCCESS  (checkpoint 160 production)
 CMP Tests #3743    33045247125 / SUCCESS  (checkpoint 160 handoff HEAD a0066b8...)
 ```
 
+Checkpoint 161 CI started on `317273ac...`:
+
+```text
+CMP Tests #3744    33046624931 / in_progress at first direct check
+ESP32 Build #1640  33046624904 / in_progress at first direct check
+```
+
 CMP host audit remains 69 mandatory steps.
 
-## Checkpoint 160
+## Checkpoint 160 — GREEN
 
-`WarehouseStore::loadKnownWireDiameters()` validates the entire spool catalogue and sorts the returned fixed `KnownWireDiameter[]` ascending by `diameterHundredthsMm`. `ConductorCalculatorWeb::availableGramsFor()` now uses bounded binary search instead of a linear scan. No new heap allocation or fixed array was added; a missing diameter still returns zero. Recommendation ranking, area/deviation calculations, warehouse totals and JSON semantics are unchanged. CMP #3742 and ESP32 #1639 directly verify the production commit; CMP #3743 verifies the handoff HEAD.
+`WarehouseStore::loadKnownWireDiameters()` validates the entire spool catalogue and returns the fixed `KnownWireDiameter[]` sorted ascending by `diameterHundredthsMm`. `ConductorCalculatorWeb::availableGramsFor()` now uses bounded binary search instead of a linear scan. No new heap allocation or fixed array was added; a missing diameter still returns zero. Recommendation ranking, area/deviation calculations, warehouse totals and JSON semantics are unchanged. CMP #3742 and ESP32 #1639 directly verify the production commit; CMP #3743 verifies the handoff HEAD.
+
+## Checkpoint 161
+
+`WarehouseStore::loadKnownWireDiameters()` previously linearly searched the discovered diameter list for each material-matching spool, then performed a separate quadratic sort after the full spool scan. The function now maintains its fixed output array in ascending diameter order while reading: lower-bound lookup uses binary search, existing diameters aggregate in place, and new diameters are inserted with bounded in-array shifting. The final O(N^2) sort is removed. Full-file validation, monotonically increasing spool-id checks, material validation, legacy-record exclusion, ACTIVE-only quantity aggregation, overflow protection, capacity fail-closed behavior and output ordering are preserved. No unbounded RAM or whole-file buffering is introduced.
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -74,10 +87,10 @@ CMP host audit remains 69 mandatory steps.
 
 ## Current NEXT
 
-1. Start checkpoint **161** from current `cmp-protocol-v1` HEAD.
-2. Continue only with measurable runtime/storage/flash wins; reject cosmetic helpers or refactors with likely flash/RAM cost.
-3. Prefer duplicate same-operation parsing/read/lookup elimination with fixed RAM and unchanged fail-closed semantics.
-4. Preserve HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
+1. Confirm CMP #3744 and ESP32 Build #1640 on `317273ac...`; checkpoint 161 is not GREEN until both are directly successful.
+2. Then start checkpoint **162** from current `cmp-protocol-v1` HEAD.
+3. Continue only with measurable runtime/storage/flash wins; reject cosmetic helpers or refactors with likely flash/RAM cost.
+4. Preserve complete authoritative validation, HTTP preflight behavior, mutation-time TOCTOU checks, exact-spool provenance and deterministic recovery.
 
 ## Hardware acceptance
 

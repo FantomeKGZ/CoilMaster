@@ -117,25 +117,21 @@ bool WarehouseStore::applyManagedRunWireSpoolWeight(
         return false;
     }
 
-    ActiveWireSpoolIdentity identity;
-    bool found = false;
-    if (!loadActiveSpoolIdentity(spoolId, identity, found) || !found ||
-        !identity.isValid() || identity.diameterHundredthsMm != diameterHundredthsMm ||
-        identity.wireType != wireType)
-    {
-        return false;
-    }
-
-    // Idempotent recovery: the authoritative transaction may be replayed after
-    // the spool mutation was already made durable but before final evidence.
-    if (identity.currentWeightGrams == weightAfterGrams) return true;
-    if (identity.currentWeightGrams != weightBeforeGrams) return false;
-
     uint16_t resolvedDiameter = 0U;
     String resolvedWireType;
+    // One mutation-time spool pass now owns exact before-state validation and
+    // idempotent replay detection. It still scans to EOF before either accepting
+    // an already-applied after-state or entering the atomic temp/backup swap.
+    // Contract preserved from the former pre-read:
+    // identity.currentWeightGrams == weightAfterGrams is an accepted replay;
+    // identity.currentWeightGrams != weightBeforeGrams is rejected unless it is
+    // that exact after-state.
     return rewriteSpoolWeight(spoolId,
                               weightBeforeGrams,
                               weightAfterGrams,
+                              diameterHundredthsMm,
+                              wireType,
+                              true,
                               resolvedDiameter,
                               resolvedWireType) &&
            resolvedDiameter == diameterHundredthsMm && resolvedWireType == wireType;

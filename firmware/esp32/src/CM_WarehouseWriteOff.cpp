@@ -70,8 +70,34 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
                                          uint16_t& diameterHundredthsMm,
                                          String& wireType)
 {
+    return rewriteSpoolWeight(spoolId,
+                              expectedWeightGrams,
+                              newWeightGrams,
+                              0U,
+                              String(),
+                              false,
+                              diameterHundredthsMm,
+                              wireType);
+}
+
+bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
+                                         uint32_t expectedWeightGrams,
+                                         uint32_t newWeightGrams,
+                                         uint16_t expectedDiameterHundredthsMm,
+                                         const String& expectedWireType,
+                                         bool allowAlreadyApplied,
+                                         uint16_t& diameterHundredthsMm,
+                                         String& wireType)
+{
     diameterHundredthsMm = 0U;
     wireType = String();
+    if (spoolId == 0UL || expectedWeightGrams == 0UL || newWeightGrams == 0UL ||
+        (expectedWireType.length() > 0U &&
+         expectedWireType != "CU" && expectedWireType != "AL"))
+    {
+        return false;
+    }
+
     File source = m_storage.open(SpoolsPath, FILE_READ);
     if (!source) return false;
 
@@ -85,6 +111,7 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
 
     bool found = false;
     bool valid = true;
+    bool alreadyApplied = false;
     uint32_t previousId = 0UL;
     while (source.available())
     {
@@ -101,7 +128,7 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
             !findUnsigned(line, "current_weight_g", currentWeight) ||
             !findUnsigned(line, "diameter_hundredths_mm", diameter) ||
             diameter == 0UL || diameter > 0xFFFFUL ||
-            !findString(line, "status", status) ||
+            !findString(line, "status", status) || status.length() == 0U ||
             !findString(line, "wire_type", currentWireType) ||
             (currentWireType != "CU" && currentWireType != "AL"))
         {
@@ -110,35 +137,74 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
         }
         previousId = currentId;
 
+        const char* optionalFields[] = {
+            "manufacturer", "supplier", "batch", "storage_location", "comment"
+        };
+        for (uint8_t index = 0U;
+             index < sizeof(optionalFields) / sizeof(optionalFields[0]);
+             ++index)
+        {
+            const String marker = String("\"") + optionalFields[index] + F("\":");
+            if (line.indexOf(marker) >= 0)
+            {
+                String optional;
+                if (!findString(line, optionalFields[index], optional))
+                {
+                    valid = false;
+                    break;
+                }
+            }
+        }
+        if (!valid) break;
+
         if (currentId == spoolId)
         {
-            if (found || currentWeight != expectedWeightGrams || status != "ACTIVE")
+            if (found || status != "ACTIVE" ||
+                (expectedDiameterHundredthsMm != 0U &&
+                 diameter != expectedDiameterHundredthsMm) ||
+                (expectedWireType.length() > 0U && currentWireType != expectedWireType))
             {
                 valid = false;
                 break;
             }
 
-            const String marker = F("\"current_weight_g\":");
-            const int valueStart = line.indexOf(marker);
-            if (valueStart < 0)
+            const bool atBefore = currentWeight == expectedWeightGrams;
+            const bool atAfter = allowAlreadyApplied && currentWeight == newWeightGrams;
+            if (!atBefore && !atAfter)
             {
                 valid = false;
                 break;
             }
-            int digitsStart = valueStart + marker.length();
-            int digitsEnd = digitsStart;
-            while (digitsEnd < line.length() && isDigit(line[digitsEnd])) ++digitsEnd;
-            line = line.substring(0, digitsStart) + String(newWeightGrams) +
-                   line.substring(digitsEnd);
 
-            uint32_t verifiedWeight = 0UL;
-            if (!FlatJsonObjectValidator::valid(line) ||
-                !findUnsigned(line, "current_weight_g", verifiedWeight) ||
-                verifiedWeight != newWeightGrams)
+            if (atBefore)
             {
-                valid = false;
-                break;
+                const String marker = F("\"current_weight_g\":");
+                const int valueStart = line.indexOf(marker);
+                if (valueStart < 0)
+                {
+                    valid = false;
+                    break;
+                }
+                int digitsStart = valueStart + marker.length();
+                int digitsEnd = digitsStart;
+                while (digitsEnd < line.length() && isDigit(line[digitsEnd])) ++digitsEnd;
+                line = line.substring(0, digitsStart) + String(newWeightGrams) +
+                       line.substring(digitsEnd);
+
+                uint32_t verifiedWeight = 0UL;
+                if (!FlatJsonObjectValidator::valid(line) ||
+                    !findUnsigned(line, "current_weight_g", verifiedWeight) ||
+                    verifiedWeight != newWeightGrams)
+                {
+                    valid = false;
+                    break;
+                }
             }
+            else
+            {
+                alreadyApplied = true;
+            }
+
             diameterHundredthsMm = static_cast<uint16_t>(diameter);
             wireType = currentWireType;
             found = true;
@@ -159,6 +225,14 @@ bool WarehouseStore::rewriteSpoolWeight(uint32_t spoolId,
     {
         m_storage.remove(SpoolsTempPath);
         return false;
+    }
+
+    if (alreadyApplied)
+    {
+        // Replay is accepted only after the complete authoritative spool file
+        // was validated. No rename is needed because the exact after-state is
+        // already durable; discard the redundant temp copy.
+        return m_storage.remove(SpoolsTempPath);
     }
 
     return replaceSpoolsFileFromTemp();

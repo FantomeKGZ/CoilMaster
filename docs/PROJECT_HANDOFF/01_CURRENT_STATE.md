@@ -9,28 +9,20 @@ Working source only `cmp-protocol-v1`; `main` для исходников не �
 
 ## Current phase
 
-GREEN through checkpoint **146**. Atomic RUN_WIRE is the only current wire mutation path. WindingJournal boot/runtime reads are consolidated, and CashPaymentStore correction append preparation now uses one mutation-time journal pass.
+GREEN through checkpoint **147**. Atomic RUN_WIRE is the only current wire mutation path. Growing-file runtime optimization now covers WindingJournal, CashPaymentStore correction append preparation, and Material Request status transitions.
 
 ## Latest GREEN state
 
 ```text
-130 direct legacy Store mutation implementations removed
-131 warehouse repair lookup -> explicit found
-132 warehouse spool identity + wire catalogue -> explicit found/count
-133 warehouse price public read -> explicit configured
-134 warehouse summary -> one authoritative movement validation/aggregation pass
-135 MaterialLedger public repair/state/currency -> explicit found
-136 dead adjustmentExists full-log helper removed
-137 one-arg MaterialLedger repair + dead usageExists/restoreQuantity removed
-138 RepairCosting one-arg repair wrapper removed; load() uses explicit found
-139 first bounded finalization coverage batch fused with authoritative movement pairing/provenance audit
+139 finalization write-off coverage batch fused with authoritative movement audit
 140 winding-session preflight limited to mutation-sensitive spool-selection directory
-141 CRM client/motor existence -> explicit found across registry/Web/cash/intake
+141 CRM client/motor existence -> explicit found
 142 JobSnapshotStore exists helper removed from public API
-143 autonomous assignment public API narrowed to assignMotorChecked result semantics
-144 WindingJournal runtime save/state reads -> one streamed session-analysis pass
-145 WindingJournal boot schema/context validation -> one combined pass
+143 autonomous assignment public API narrowed
+144 WindingJournal runtime save/state -> one streamed pass
+145 WindingJournal boot schema/context -> one combined pass
 146 CashPaymentStore correction lookup + next event id -> one mutation-time pass
+147 MaterialRequestStatusStore state + next transition id -> one status-journal pass
 ```
 
 Production RUN_WIRE path remains:
@@ -43,26 +35,26 @@ RUN_COMPLETED (evidence only)
 -> managed warehouse PENDING/CONFIRMED
 ```
 
-Checkpoint 146 removes the bool-only public `eventExists()` helper and fuses correction-reference existence with monotonic next-id derivation in `analyzeAppendState()`. The Web layer still validates exact repair/client ownership separately before append, preserving HTTP semantics and mutation-time TOCTOU validation.
+Checkpoint 147 replaces `resolve() + nextTransitionId()` duplicate status-journal reads with private `analyzeStatus()`. Public `resolve(..., found)` remains fail-closed and uses the same analyzer. Immutable request existence still reads the separate request catalog because it proves a separate integrity boundary.
 
 Latest verified evidence:
 
 ```text
-e15222e299ed4736a66d577175cf4e381e29747a  final source through 146
-a96953ab4a51370dcb6402580def7f2de0256011  final mandatory contract/workflow
-ESP32 Build #1622   33035968880 / SUCCESS
-CMP Tests #3687     33035968846 / SUCCESS
-CMP Tests #3689     33036075195 / SUCCESS
+a0ec58c552bed883d289fa1e30160f365955a6e1  final source through 147
+6c404070d80532e617174d4621d828cf16a094c0  final contract
+ESP32 Build #1624   33036483178 / SUCCESS
+CMP Tests #3695     source commit / SUCCESS
+CMP Tests #3696     33036507740 / SUCCESS
 ```
 
-CMP host audit count is now 69 mandatory steps; all passed in #3689.
+CMP host audit remains 69 mandatory steps.
 
-Checkpoint: `146_CASH_PAYMENT_APPEND_SINGLE_PASS_2026-08-27.md`.
+Checkpoint: `147_MATERIAL_REQUEST_STATUS_TRANSITION_SINGLE_PASS_2026-08-27.md`.
 
 ## Current NEXT
 
-1. Continue bounded audit of CRM/material-request/cash append-only stores for remaining same-file duplicate scans.
-2. Keep separate-ledger scans where they protect different integrity domains.
+1. Audit Material Request movement/coordinator runtime paths for same-file duplicate scans.
+2. Keep separate-ledger scans when they prove different integrity domains.
 3. Keep fixed-size RAM bounds; no whole-file buffering or unbounded vectors.
 4. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
 5. No automatic production-data rotation/deletion/truncation and no premature DB/index migration.

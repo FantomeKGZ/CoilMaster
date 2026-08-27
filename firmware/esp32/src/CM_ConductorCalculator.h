@@ -157,8 +157,10 @@ private:
     static void insertRanked(const ConversionOption& candidate,
                              ConversionOption options[MaxRecommendedConversionOptions]);
     static void evaluateOption(const WireCandidate& first,
+                               uint32_t firstSingleArea,
                                uint8_t firstStrands,
                                const WireCandidate* second,
+                               uint32_t secondSingleArea,
                                uint8_t secondStrands,
                                ConductorMaterial targetMaterial,
                                uint32_t requiredArea,

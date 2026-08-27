@@ -24,7 +24,10 @@ HallCalibrationService::HallCalibrationService(HallTurnSource& hall)
       m_applyConfirmAtMs(0UL),
       m_startedAtMs(0UL),
       m_lastSampleMs(0UL),
+      m_lastPublishMs(0UL),
       m_measurementId(0UL),
+      m_runWindowMin(1023U),
+      m_runWindowMax(0U),
       m_baselineSamples(0U),
       m_runSamples(0U)
 {
@@ -84,6 +87,9 @@ bool HallCalibrationService::physicalStart(uint32_t nowMs)
 
     m_startedAtMs = nowMs;
     m_lastSampleMs = nowMs;
+    m_lastPublishMs = nowMs;
+    m_runWindowMin = 1023U;
+    m_runWindowMax = 0U;
     m_runSamples = 0U;
     m_hall.reset(nowMs);
     m_state = HallCalibrationState::Running;
@@ -284,26 +290,52 @@ void HallCalibrationService::sampleBaseline(uint32_t nowMs)
 
 void HallCalibrationService::sampleRunning(uint32_t nowMs)
 {
-    if (m_runSamples != 0U &&
-        static_cast<uint32_t>(nowMs - m_lastSampleMs) < SampleIntervalMs)
-    {
+    if (static_cast<uint32_t>(nowMs - m_lastSampleMs) < SampleIntervalMs)
         return;
-    }
 
     (void)m_hall.pollTurn(nowMs);
     const uint16_t raw = m_hall.rawValue();
-    const uint16_t sequence = m_runSamples;
-    if (m_runSamples < 0xFFFFU) ++m_runSamples;
-    (void)HallCalibrationRawBridge::publish(
-        HallCalibrationSamplePhase::Run,
-        raw,
-        sequence,
-        static_cast<uint32_t>(nowMs - m_startedAtMs));
+    if (raw < m_runWindowMin) m_runWindowMin = raw;
+    if (raw > m_runWindowMax) m_runWindowMax = raw;
     m_lastSampleMs = nowMs;
+
+    if (static_cast<uint32_t>(nowMs - m_lastPublishMs) >= RunPublishIntervalMs)
+        publishRunWindow(nowMs);
+}
+
+void HallCalibrationService::publishRunWindow(uint32_t nowMs)
+{
+    if (m_runWindowMin > m_runWindowMax) return;
+
+    const uint32_t elapsedMs = static_cast<uint32_t>(nowMs - m_startedAtMs);
+    if (m_runSamples < 0xFFFFU)
+    {
+        (void)HallCalibrationRawBridge::publish(
+            HallCalibrationSamplePhase::Run,
+            m_runWindowMin,
+            m_runSamples,
+            elapsedMs);
+        ++m_runSamples;
+    }
+
+    if (m_runWindowMax != m_runWindowMin && m_runSamples < 0xFFFFU)
+    {
+        (void)HallCalibrationRawBridge::publish(
+            HallCalibrationSamplePhase::Run,
+            m_runWindowMax,
+            m_runSamples,
+            elapsedMs);
+        ++m_runSamples;
+    }
+
+    m_runWindowMin = 1023U;
+    m_runWindowMax = 0U;
+    m_lastPublishMs = nowMs;
 }
 
 void HallCalibrationService::finish(uint32_t nowMs)
 {
+    publishRunWindow(nowMs);
     m_state = HallCalibrationState::Completed;
 #if CM_LCD_RU_EN
     s_displayState = m_state;
@@ -331,7 +363,10 @@ void HallCalibrationService::clearMeasurements()
     s_displayStartedAtMs = 0UL;
 #endif
     m_lastSampleMs = 0UL;
+    m_lastPublishMs = 0UL;
     m_measurementId = 0UL;
+    m_runWindowMin = 1023U;
+    m_runWindowMax = 0U;
     m_baselineSamples = 0U;
     m_runSamples = 0U;
 }

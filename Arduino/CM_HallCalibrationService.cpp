@@ -44,7 +44,7 @@ bool HallCalibrationService::arm(uint32_t nowMs)
 
     clearMeasurements();
     m_hall.reset(nowMs);
-    m_state = HallCalibrationState::WaitingLocalConfirm;
+    m_state = HallCalibrationState::ArmedWaitingPhysicalStart;
 #if CM_LCD_RU_EN
     s_displayState = m_state;
 #endif

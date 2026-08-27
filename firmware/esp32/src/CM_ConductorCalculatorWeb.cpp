@@ -11,12 +11,23 @@ uint32_t availableGramsFor(const KnownWireDiameter* known,
                            uint16_t diameterHundredthsMm)
 {
     if (known == nullptr || diameterHundredthsMm == 0U) return 0UL;
-    for (uint8_t index = 0U; index < knownCount; ++index)
+
+    uint8_t lower = 0U;
+    uint8_t upper = knownCount;
+    while (lower < upper)
     {
-        if (known[index].diameterHundredthsMm == diameterHundredthsMm)
-            return known[index].availableGrams;
+        const uint8_t middle = static_cast<uint8_t>(
+            lower + static_cast<uint8_t>((upper - lower) / 2U));
+        if (known[middle].diameterHundredthsMm < diameterHundredthsMm)
+            lower = static_cast<uint8_t>(middle + 1U);
+        else
+            upper = middle;
     }
-    return 0UL;
+
+    return lower < knownCount &&
+                   known[lower].diameterHundredthsMm == diameterHundredthsMm
+               ? known[lower].availableGrams
+               : 0UL;
 }
 }
 
@@ -159,8 +170,7 @@ void ConductorCalculatorWeb::handleCalculate()
         if (i > 0U) response += ',';
         response += F("{\"diameter_hundredths_mm\":");
         response += source.components[i].diameterHundredthsMm;
-        response += F(",\"parallel_strands\":");
-        response += source.components[i].parallelStrands;
+        response += F(",\"parallel_strands\":"); response += source.components[i].parallelStrands;
         response += '}';
     }
     response += F("],\"source_area_um2\":");

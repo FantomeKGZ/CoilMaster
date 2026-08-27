@@ -117,6 +117,10 @@ void ConductorCalculatorWeb::handleCalculate()
         return;
     }
 
+    const uint32_t sourceArea = ConductorCalculator::sourceSetAreaMicrometre2(source);
+    const uint32_t requiredArea = ConductorCalculator::requiredTargetAreaMicrometre2(
+        source, targetMaterial, settings);
+
     KnownWireDiameter known[WarehouseMaxDiameters];
     const char* targetWireType = materialText(targetMaterial);
     uint8_t knownCount = 0U;
@@ -147,16 +151,16 @@ void ConductorCalculatorWeb::handleCalculate()
     ConversionOption options[MaxRecommendedConversionOptions];
     const uint8_t optionCount = knownCount == 0U
         ? 0U
-        : ConductorCalculator::findRecommendedOptions(
-              source, targetMaterial, settings,
+        : ConductorCalculator::findRecommendedOptionsForArea(
+              requiredArea, targetMaterial, settings,
               warehouseCandidates, knownCount, options);
 
     WireCandidate standardCandidates[StandardWireMaxDiameters];
     const uint8_t standardCandidateCount = StandardWireCatalogue::load(
         targetMaterial, standardCandidates, StandardWireMaxDiameters);
     ConversionOption standardOptions[MaxRecommendedConversionOptions];
-    const uint8_t standardOptionCount = ConductorCalculator::findRecommendedOptions(
-        source, targetMaterial, settings,
+    const uint8_t standardOptionCount = ConductorCalculator::findRecommendedOptionsForArea(
+        requiredArea, targetMaterial, settings,
         standardCandidates, standardCandidateCount, standardOptions);
 
     String response;
@@ -174,9 +178,9 @@ void ConductorCalculatorWeb::handleCalculate()
         response += '}';
     }
     response += F("],\"source_area_um2\":");
-    response += ConductorCalculator::sourceSetAreaMicrometre2(source);
+    response += sourceArea;
     response += F(",\"required_target_area_um2\":");
-    response += ConductorCalculator::requiredTargetAreaMicrometre2(source, targetMaterial, settings);
+    response += requiredArea;
     response += F(",\"catalogue_material\":\""); response += targetWireType;
     response += F("\",\"catalogue_diameter_count\":"); response += knownCount;
     response += F(",\"standard_catalogue_basis\":\""); response += StandardWireCatalogue::basis();

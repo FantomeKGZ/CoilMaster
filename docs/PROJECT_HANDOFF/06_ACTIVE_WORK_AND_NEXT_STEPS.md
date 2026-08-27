@@ -3,7 +3,7 @@
 Дата обновления: **2026-08-27**  
 Ветка: **`cmp-protocol-v1`**
 
-## GREEN foundation through checkpoint 155; checkpoint 156 under ESP32 verification
+## GREEN foundation through checkpoint 156; checkpoint 157 under CI
 
 ```text
 148 managed RUN_WIRE removes redundant spool pre-scan
@@ -15,6 +15,7 @@
 154 autonomous task query parsed once per page
 155 motor similarity candidate parsed once; each stored winding program parsed once
 156 motor similarity Web handler reuses one coil_program request String
+157 Material History optional query values fetched once and parsed from local String values
 ```
 
 Production commits:
@@ -24,43 +25,37 @@ Production commits:
 a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
 415394d162de0f1c83e433cbbea3db94833b3162  checkpoint 155
 78b41d38abdf89b9e72a02eea37edcd346c9610f  checkpoint 156
+491fcf965fe573f91eb29bc99f6513017f3f5b1a  checkpoint 157 current production HEAD
 ```
 
 Latest direct verification:
 
 ```text
-CMP Tests #3720    33042574144 / SUCCESS
-ESP32 Build #1629  33042574134 / SUCCESS
-CMP Tests #3721    33042622904 / SUCCESS
-CMP Tests #3722    33042647618 / SUCCESS
-CMP Tests #3723    33042699795 / SUCCESS
-CMP Tests #3724    33042727200 / SUCCESS
-CMP Tests #3725    33043013899 / SUCCESS  (checkpoint 155 production commit)
-ESP32 Build #1630  33043013882 / SUCCESS  (checkpoint 155 production commit)
-CMP Tests #3729    33043230389 / SUCCESS  (checkpoint 156 production commit)
-ESP32 Build #1631  33043230391 / in_progress at last direct check
+CMP Tests #3725    33043013899 / SUCCESS  (checkpoint 155 production)
+ESP32 Build #1630  33043013882 / SUCCESS  (checkpoint 155 production)
+CMP Tests #3729    33043230389 / SUCCESS  (checkpoint 156 production)
+ESP32 Build #1631  33043230391 / SUCCESS  (checkpoint 156 production)
+CMP Tests #3730    33043322437 / SUCCESS  (checkpoint 156 handoff HEAD 61151ea...)
+CMP Tests #3733    33043881805 / in_progress at last direct check (checkpoint 157 production)
+ESP32 Build #1634  33043881890 / in_progress at last direct check (checkpoint 157 production)
 ```
 
 CMP host audit remains 69 mandatory steps.
 
-## Checkpoint 155
-
-`RepairRegistry::appendSimilarMotorsJson()` previously validated each persisted `coil_program` and then reparsed it in `equivalent()`. The unchanged candidate program was also reparsed for every motor. The current path parses the candidate once into fixed `uint16_t[10]`, parses each stored program once, and compares count/turn values directly. Parser grammar/limits, malformed-record fail-closed behavior, identity scoring, counts, truncation and JSON output are unchanged.
-
 ## Checkpoint 156
 
-`MotorSimilarityWeb::handleLookup()` previously called `m_server.arg("coil_program")` repeatedly for empty checking, parser validation and candidate construction. It now checks argument presence first, fetches the value once into `const String coilProgram`, then reuses that same value. Existing HTTP behavior remains unchanged:
+`MotorSimilarityWeb::handleLookup()` now fetches `coil_program` once and reuses it for required/validation/candidate construction. Existing HTTP behavior is unchanged: missing/empty -> `400 coil_program_required`; malformed -> `400 invalid_coil_program`; registry failure -> `500 similarity_lookup_failed`. CMP #3729 and ESP32 #1631 directly verify the production commit, so checkpoint 156 is GREEN.
 
-- missing/empty program -> `400 coil_program_required`;
-- malformed program -> `400 invalid_coil_program`;
-- registry failure -> `500 similarity_lookup_failed`.
+## Checkpoint 157
 
-The larger repair-page/status candidate was audited but intentionally not changed. Repairs may close out of `repair_id` order, so a lockstep `repairs.ndjson` + `repair-status.ndjson` stream is not valid. Collapsing repeated batch status scans into one request-wide scan would require retaining an unbounded candidate set when status-filter matches are sparse, violating the fixed-memory rule.
+`MaterialLedgerWeb` adjustment-history and usage-history handlers previously fetched optional `material_id`, `repair_id` and `limit` query strings once for empty checks and then fetched them again inside `parseUnsigned()`. The current path adds one shared `parseUnsignedValue(const String&)` implementation, fetches each optional query value once, and parses the already-held String. Cursor behavior remains strict: present-but-empty cursor is still invalid. Optional empty `repair_id` / `material_id` / `limit` keep their previous default/absent semantics. These are read-only history endpoints; material mutation, TOCTOU, WAL and RUN_WIRE paths are unchanged.
 
-## Current active queue — checkpoint 156 verification / 157
+The larger repair-page/status candidate remains intentionally unchanged. Repairs may close out of `repair_id` order, so lockstep `repairs.ndjson` + `repair-status.ndjson` streaming is invalid. A request-wide status scan would require unbounded retained candidates when matches are sparse, violating the fixed-memory rule.
 
-1. Confirm ESP32 Build #1631 on `78b41d38...`; do not call checkpoint 156 GREEN before direct success.
-2. After #1631 SUCCESS, mark checkpoint 156 GREEN and begin checkpoint 157 from the then-current `cmp-protocol-v1` HEAD.
+## Current active queue — checkpoint 157 verification / 158
+
+1. Confirm CMP #3733 and ESP32 Build #1634 on `491fcf96...`; checkpoint 157 is not GREEN until both are directly successful.
+2. If GREEN, mark checkpoint 157 GREEN and start checkpoint 158 from current `cmp-protocol-v1` HEAD.
 3. Continue only with measurable runtime/storage/flash candidates; do not force cosmetic refactors.
 4. Prefer same-operation duplicate parsing/read elimination or bounded fixed-memory aggregate/tail techniques where historical integrity semantics remain intact.
 5. Do not replace authoritative historical integrity scans with tail-only shortcuts.

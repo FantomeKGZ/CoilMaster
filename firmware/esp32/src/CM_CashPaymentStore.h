@@ -32,7 +32,9 @@ struct CashRepairTotals
 struct CashClientTotals
 {
     uint64_t paidMinor = 0ULL;
+    uint64_t prepaymentMinor = 0ULL;
     uint32_t eventCount = 0UL;
+    uint32_t prepaymentEventCount = 0UL;
     String currency;
     bool currencySet = false;
 };

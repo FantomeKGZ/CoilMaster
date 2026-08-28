@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search);
 const repairId=params.get('repair_id')||localStorage.getItem('cm-active-repair')||'';
 const validId=value=>/^[1-9]\d*$/.test(String(value||''));
-const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 const kgFromGrams=value=>(Number(value||0)/1000).toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})+' кг';
 const diameterLabel=value=>(Number(value||0)/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' мм';
 const money=(value,currency='KGS')=>(Number(value||0)/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(currency==='KGS'?'сом':currency);
@@ -166,19 +166,18 @@ async function loadSelection(sessionId){
 }
 
 async function findActiveSpool(spoolId){
-    let cursor=0;
-    for(let page=0;page<4096;page++){
-        const q=new URLSearchParams({material:'ALL',limit:'32'});
-        if(cursor)q.set('cursor',String(cursor));
-        const data=await jsonFetch('/api/warehouse/spools?'+q,{cache:'no-store'});
-        const found=(Array.isArray(data.items)?data.items:[]).find(item=>String(item.spool_id)===String(spoolId));
-        if(found)return found.material_class==='CU'||found.material_class==='AL'?found:null;
-        if(data.has_more!==true)return null;
-        const next=Number(data.next_cursor);
-        if(!Number.isSafeInteger(next)||next<=cursor)throw new Error('invalid_spool_cursor');
-        cursor=next;
-    }
-    throw new Error('spool_page_limit');
+    if(!validId(spoolId))throw new Error('invalid_spool_id');
+    const response=await fetch('/api/warehouse/spools/by-id?spool_id='+encodeURIComponent(spoolId),{cache:'no-store'});
+    let payload={};
+    try{payload=await response.json()}catch(_){throw new Error('spool_identity_invalid_response')}
+    if(response.status===404)return null;
+    if(!response.ok)throw new Error(payload.error||'spool_identity_read_failed');
+    if(String(payload.spool_id)!==String(spoolId)||payload.status!=='ACTIVE'||
+       (payload.material_class!=='CU'&&payload.material_class!=='AL')||
+       !Number.isSafeInteger(Number(payload.diameter_hundredths_mm))||Number(payload.diameter_hundredths_mm)<=0||
+       !Number.isSafeInteger(Number(payload.current_weight_g))||Number(payload.current_weight_g)<=0)
+        throw new Error('active_spool_identity_mismatch');
+    return payload;
 }
 
 function resetMaterialRequestContext(message='Сначала требуется exact RUN_COMPLETED и immutable бухта.'){

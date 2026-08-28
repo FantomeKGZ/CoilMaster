@@ -104,6 +104,14 @@ public:
         {
             return false;
         }
+        return repairStatusIsOpen(repairId, open);
+    }
+
+    // Caller must already have validated the repair through an authoritative
+    // repairs.ndjson lookup in the same operation. This reads only status state.
+    bool repairStatusIsOpen(uint32_t repairId, bool& open) const
+    {
+        open = false;
         bool closed = false;
         String closedAt;
         if (!repairClosed(repairId, closed, closedAt)) return false;

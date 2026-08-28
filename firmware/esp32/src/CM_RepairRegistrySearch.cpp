@@ -72,28 +72,38 @@ bool RepairRegistry::appendClientsSearchPageJson(String& json,
     bool first = true;
     while (file.available() && count < limit)
     {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
+        const String baseLine = file.readStringUntil('\n');
+        if (baseLine.length() == 0U) continue;
+        uint32_t clientId = 0UL;
+        if (!FlatJsonObjectValidator::valid(baseLine) ||
+            !findUnsigned(baseLine, "client_id", clientId) || clientId == 0UL)
         {
             file.close();
             return false;
         }
 
-        uint32_t clientId = 0UL;
-        String name;
-        String phone;
-        String normalized;
-        String comment;
-        if (!findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
-            !findString(line, "name", name) ||
-            !findString(line, "phone", phone) ||
-            !findString(line, "phone_normalized", normalized))
+        String effectiveLine = baseLine;
+        String revision;
+        bool revisionFound = false;
+        if (!latestClientRevisionLine(clientId, revision, revisionFound))
         {
             file.close();
             return false;
         }
-        findString(line, "comment", comment);
+        if (revisionFound) effectiveLine = revision;
+
+        String name;
+        String phone;
+        String normalized;
+        String comment;
+        if (!findString(effectiveLine, "name", name) ||
+            !findString(effectiveLine, "phone", phone) ||
+            !findString(effectiveLine, "phone_normalized", normalized))
+        {
+            file.close();
+            return false;
+        }
+        findString(effectiveLine, "comment", comment);
 
         String searchable;
         searchable.reserve(name.length() + phone.length() + normalized.length() +
@@ -111,7 +121,7 @@ bool RepairRegistry::appendClientsSearchPageJson(String& json,
 
         if (!first) json += ',';
         first = false;
-        json += line;
+        json += effectiveLine;
         ++count;
     }
 

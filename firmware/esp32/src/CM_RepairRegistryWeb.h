@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <WebServer.h>
+#include "CM_ClientRevisionWeb.h"
 #include "CM_RepairIntakeCoordinator.h"
 #include "CM_RepairRegistry.h"
 
@@ -29,6 +30,7 @@ private:
 
     WebServer& m_server;
     RepairRegistry& m_registry;
+    ClientRevisionWeb m_clientRevisionWeb{m_server, m_registry};
     RepairIntakeCoordinator* m_intake;
 };
 }

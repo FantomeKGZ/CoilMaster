@@ -55,7 +55,7 @@ requireText(shared, "return Number.isInteger(value) && value > 0 ? value : '—'
 
 for (const needle of ['appendCompletedWebJobsPageJson(','assignCompletedWebJobMotorChecked(','WebAssignmentsPath']) requireText(archiveHeader, needle, 'completed web job archive API');
 for (const needle of ['m_server.on("/api/autonomous-windings/web-completed", HTTP_GET','m_server.on("/api/autonomous-windings/web-completed/assign", HTTP_POST','explicit_confirmation_required','assignCompletedWebJobMotorChecked(']) requireText(archiveWeb, needle, 'completed web job web API');
-for (const needle of ['JobExecutionState::ProgramCompleted','JobDeliveryState::Accepted','state.completedRuns != snapshot.repeatTarget','JobStateStore::readPersisted','JobSnapshotStore::readPersisted','WebJobPageItem selected[MaxTaskPageSize + 1U]','snapshot.linkage.linked','source\\\":\\\"ESP32_JOB']) requireText(completedProjection, needle, 'completed web job projection');
+for (const needle of ['JobExecutionState::ProgramCompleted','JobDeliveryState::Accepted','state.completedRuns != snapshot.repeatTarget','JobStateStore::readPersisted','JobSnapshotStore::readPersisted','WebJobPageItem selected[MaxTaskPageSize + 1U]','snapshot.linkage.linked','source\\\":\\\"ESP32_JOB','exactAssignmentFound','exactMotorId == motorId && exactRole == role','return AutonomousWindingAssignResult::Invalid','if (assignmentFound[index])']) requireText(completedProjection, needle, 'completed web job projection/linkage');
 if (completedProjection.includes('std::vector') || completedProjection.includes('readString()')) throw new Error('completed web job projection must not introduce unbounded collection or whole-directory buffering');
 if (completedProjection.includes('EventsPath') || completedProjection.includes('WindingJournal')) throw new Error('completed web job projection must not copy or rewrite physical RUN evidence');
 requireText(stateRead, '/data/winding-jobs/state/session-', 'read-only job state path');
@@ -73,4 +73,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; completed ESP32 jobs are projected read-only without copied RUN evidence, current completed task is cleared only in display, compact operator numbering keeps exact Session/Run in details, and source-specific linkage stays explicit.');
+console.log('Arduino archive UI contracts OK; completed ESP32 jobs are projected read-only without copied RUN evidence, current completed task is cleared only in display, compact operator numbering keeps exact Session/Run in details, and ESP32_JOB linkage is first-write-only with idempotent identical replay.');

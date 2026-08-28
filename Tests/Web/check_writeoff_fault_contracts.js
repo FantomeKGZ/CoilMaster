@@ -20,6 +20,7 @@ const storeHeaderPath = 'firmware/esp32/src/CM_WarehouseStore.h';
 const writeoffPath = 'firmware/esp32/src/CM_WarehouseWriteOffWeb.cpp';
 const writeoffStorePath = 'firmware/esp32/src/CM_WarehouseWriteOff.cpp';
 const writeoffLookupPath = 'firmware/esp32/src/CM_WarehouseWriteOffLookup.cpp';
+const spoolWebPath = 'firmware/esp32/src/CM_WarehouseSpoolWeb.cpp';
 const runWirePath = 'firmware/esp32/src/CM_RunWireIssueCoordinator.cpp';
 const movementAuditHeaderPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.h';
 const movementAuditPath = 'firmware/esp32/src/CM_WarehouseMovementIntegrityAudit.cpp';
@@ -31,6 +32,7 @@ const storeHeader = read(storeHeaderPath);
 const writeoff = read(writeoffPath);
 const writeoffStore = read(writeoffStorePath);
 const writeoffLookup = read(writeoffLookupPath);
+const spoolWeb = read(spoolWebPath);
 const runWire = read(runWirePath);
 const movementAuditHeader = read(movementAuditHeaderPath);
 const movementAudit = read(movementAuditPath);
@@ -113,6 +115,26 @@ for (const text of [
   'alreadyConfirmed', 'JobSpoolSelectionStore::loadReadOnly', 'selection.spoolId != spoolId'
 ]) requireText(runWirePath, runWire, text, 'atomic RUN_WIRE fault guard missing: ' + text);
 
+// RUN_WIRE immutable spool resolution must stay exact/read-only. One spool_id is
+// resolved through the authoritative by-id store path; the browser must not page
+// the entire active-spool catalogue or infer/substitute another spool.
+for (const text of [
+  '"/api/warehouse/spools/by-id", HTTP_GET', 'handleGetActiveSpool()',
+  'm_store.loadActiveSpoolIdentity(spoolId, identity, found)',
+  'identity.spoolId != spoolId', '"active_spool_not_found"'
+]) requireText(spoolWebPath, spoolWeb, text, 'authoritative active-spool by-id contract missing: ' + text);
+for (const text of [
+  "fetch('/api/warehouse/spools/by-id?spool_id='+encodeURIComponent(spoolId)",
+  'if(response.status===404)return null;',
+  "throw new Error('active_spool_identity_mismatch')"
+]) requireText(controllerPath, controller, text, 'RUN_WIRE exact active-spool lookup missing: ' + text);
+requireAbsent(controllerPath, controller,
+  "jsonFetch('/api/warehouse/spools?'",
+  'RUN_WIRE immutable spool lookup must not page the active-spool catalogue');
+requireAbsent(controllerPath, controller,
+  "new URLSearchParams({material:'ALL',limit:'32'})",
+  'RUN_WIRE immutable spool lookup must not rebuild catalogue paging');
+
 for (const text of [
   "if(!response.ok){const error=new Error(payload.error||('http_'+response.status))",
   "const data=await jsonFetch('/api/material-requests/warehouse'",
@@ -138,4 +160,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Write-off fault contracts OK: public legacy POST and dead direct Store entrypoints are removed, managed RUN_WIRE owns current exact-run safety, deterministic historical recovery/helpers remain intact, and no automatic deduction exists.');
+console.log('Write-off fault contracts OK: public legacy POST and dead direct Store entrypoints are removed, managed RUN_WIRE owns current exact-run safety, immutable spool resolution uses authoritative by-id lookup, deterministic historical recovery/helpers remain intact, and no automatic deduction exists.');

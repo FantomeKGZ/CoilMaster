@@ -20,7 +20,7 @@ must(header,'static constexpr uint8_t MaxBatchSize = 24U;','fixed status batch b
 must(header,'bool resolveBatch(const uint32_t* materialRequestIds,','bounded status resolver');
 must(web,'/api/material-requests/status-batch','status batch endpoint');
 must(web,'m_statuses.resolveBatch(ids, count, states, found)','batch endpoint authoritative resolver');
-must(prefetch,"url.pathname==='/api/material-requests'",'bounded request page interception');
+must(prefetch,"url.pathname!=='/api/material-requests'",'bounded request page interception guard');
 must(prefetch,"'/api/material-requests/status-batch?ids='+encodeURIComponent(ids.join(','))",'one batch status read per page');
 must(prefetch,"url.pathname==='/api/material-requests/status'",'legacy per-item status cache compatibility');
 must(prefetch,'statusCache.has(id)','local status cache lookup');

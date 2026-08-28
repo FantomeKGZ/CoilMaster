@@ -27,6 +27,7 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 ```text
 /AGENTS.md
 this file
+docs/PROJECT_HANDOFF/152_RUN_WIRE_MATERIAL_REQUEST_STATUS_BATCH_2026-08-28.md
 docs/PROJECT_HANDOFF/151_REPAIR_MATERIAL_SOFTWARE_ACCEPTANCE_2026-08-28.md
 docs/PROJECT_HANDOFF/150_MATERIAL_FAIL_CLOSED_UX_2026-08-28.md
 docs/PROJECT_HANDOFF/149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md
@@ -48,40 +49,33 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 
 ## Latest GREEN code checkpoint
 
-Repair-material fail-closed operator UX is GREEN. Append-only generic corrections and RUN_WIRE operator provenance were re-audited and confirmed already authoritative.
+RUN_WIRE Material Request status preflight no longer performs N+1 server-side status scans. A bounded max-24 batch resolver performs one request-journal scan plus one status-journal scan per page while preserving global ordering and exact per-request lifecycle-chain validation.
 
 ```text
-runtime/UI code SHA                    28343cb20cc5d75c748c38881d8705fd8505d182
-ESP32 Build #1700                     run 33164496835 / SUCCESS
-Arduino RU LCD Build #124             run 33164496837 / SUCCESS
-final host-contract SHA               eff0cb8a7e0365cf6184aa81694d9e277037116d
-CMP Protocol Tests #3867              run 33164535872 / SUCCESS
+runtime/UI code SHA                    104f319e1cb8e466a229c0d40876b35aac6ded86
+ESP32 Build #1708                     run 33167009269 / SUCCESS
+Arduino RU LCD Build #132             run 33167009264 / SUCCESS
+final host-contract SHA               17c7c43058802f44d5f0b26d0da301190e792ebd
+CMP Protocol Tests #3885              run 33167039155 / SUCCESS
 ```
 
-After those code/test SHAs only handoff/docs commits were added.
+See `152_RUN_WIRE_MATERIAL_REQUEST_STATUS_BATCH_2026-08-28.md`.
 
 ## Current state
 
-The core software block from `07_REPAIR_MATERIAL_WRITEOFF_PLAN.md` is accepted complete for accounting/integrity. See `151_REPAIR_MATERIAL_SOFTWARE_ACCEPTANCE_2026-08-28.md`.
+The repair-material software accounting/integrity block is accepted complete; see checkpoint 151. Generic material usage/corrections remain append-only, idempotent and fail-closed. RUN_WIRE remains a separate manual exact-safe warehouse path.
 
-Generic repair-material usage keeps one explicit/manual mutation path with operation-id idempotency, authoritative stock/price preflight, persisted cost snapshots, final mutation-time TOCTOU/WAL and fail-closed recovery.
+RUN_WIRE status batching is read-only optimization only. Exact `source_session_id + source_run_id + spool_id`, explicit `confirmed=true`, dedicated `/api/material-requests/warehouse`, and `RUN_COMPLETED` evidence-only semantics are unchanged.
 
-Append-only generic material corrections have exact source-usage provenance, bounded history, integrity/backup coverage and net RepairCosting. Confirmed usage is never edited/deleted. RUN_WIRE is not corrected through the generic path.
-
-RUN_WIRE remains a separate exact-safe warehouse path with manual confirmation and exact `spool_id + source_session_id + source_run_id`. `RUN_COMPLETED` remains evidence only.
-
-A convenience `material_not_found -> catalog/create` link is non-blocking UX polish only; automatic material creation is forbidden. A frequently-used-material shortcut is intentionally not implemented because no bounded/read-only aggregation API exists and a full growing-NDJSON scan/new favourites state is not justified.
-
-Client PREPAYMENT remains separate from repair debt/costing and is never auto-applied.
+Client edits remain append-only revisions. Client PREPAYMENT remains separate from repair debt/costing and is never auto-applied.
 
 ## Immediate NEXT
 
-1. Do not reopen the repair-material accounting/integrity block without a new concrete requirement.
-2. Continue repo-reviewable software optimization/audit in `arduino-ru-lcd-experiment` using the current tree and existing handoff queue.
-3. Prefer bounded single-pass/fused reads only when they do not combine different integrity domains or weaken fail-closed semantics.
-4. Preserve append-only history, fixed RAM bounds and streamed growing-NDJSON reads.
-5. No automatic rotation/deletion/truncation and no premature DB/index migration.
-6. Hardware Arduino+ESP32 E2E for repair-material flow remains a separate final acceptance gate when hardware testing resumes.
-7. Do not move experiment commits to `cmp-protocol-v1` without explicit approval.
+1. Continue repo-reviewable repeated-scan/performance audit in `arduino-ru-lcd-experiment`.
+2. First candidate: exact RUN_WIRE spool lookup — verify whether Web still walks the whole paged spool catalogue for one immutable `spool_id` and whether an existing authoritative by-id backend lookup can replace it safely.
+3. Prefer bounded/single-pass reads only when integrity domains remain separate and fail-closed semantics are preserved.
+4. Keep fixed RAM bounds; no whole-file buffering, unbounded vectors, automatic rotation/deletion/truncation or premature DB/index migration.
+5. Hardware Arduino+ESP32 E2E remains a separate final gate.
+6. Do not move experiment commits to `cmp-protocol-v1` without explicit approval.
 
 `RUN_COMPLETED` remains evidence only; no automatic wire writeoff, physical START or resume.

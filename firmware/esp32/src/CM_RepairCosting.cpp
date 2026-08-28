@@ -2,6 +2,7 @@
 #include "CM_FlatJsonObjectValidator.h"
 #include "CM_RepairLifecycle.h"
 #include "CM_WarehouseMovementIntegrityAudit.h"
+#include "CM_MaterialUsageCorrectionIntegrityAudit.h"
 
 namespace CM
 {
@@ -190,6 +191,67 @@ bool RepairCosting::load(uint32_t repairId, RepairCostSummary& summary) const
         }
         file.close();
     }
+
+    // Usage corrections are append-only stock-return evidence. Validate their
+    // exact source usage provenance first, then apply only the persisted
+    // correction cost snapshot to generic material costing. RUN_WIRE sources
+    // are rejected by the correction integrity audit and wire costing remains
+    // authoritative in WarehouseMovementIntegrityAudit.
+    if (!MaterialUsageCorrectionIntegrityAudit::check(m_storage)) return false;
+    if (m_storage.exists(MaterialAdjustmentsPath))
+    {
+        File file = m_storage.open(MaterialAdjustmentsPath, FILE_READ);
+        if (!file || file.isDirectory())
+        {
+            if (file) file.close();
+            return false;
+        }
+        uint32_t previousAdjustmentId = 0UL;
+        while (file.available())
+        {
+            const String line = file.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            uint32_t adjustmentId = 0UL;
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "adjustment_id", adjustmentId) ||
+                adjustmentId == 0UL || adjustmentId <= previousAdjustmentId)
+            {
+                file.close();
+                return false;
+            }
+            previousAdjustmentId = adjustmentId;
+
+            if (line.indexOf(F("\"correction_source_usage_id\":")) < 0)
+                continue;
+
+            uint32_t correctionRepairId = 0UL;
+            uint64_t correctionCost = 0ULL;
+            String currencyAfter;
+            if (!findUnsigned(line, "correction_repair_id", correctionRepairId) ||
+                correctionRepairId == 0UL ||
+                !findUnsigned64(line, "correction_line_cost_minor", correctionCost) ||
+                correctionCost == 0ULL ||
+                !findString(line, "currency_after", currencyAfter) ||
+                currencyAfter != "KGS")
+            {
+                file.close();
+                return false;
+            }
+            if (correctionRepairId != repairId) continue;
+            if (!addChecked64(summary.materialCorrectionCostMinor, correctionCost) ||
+                summary.materialCorrectionLineCount == 0xFFFFU ||
+                !acceptCurrency(currencyAfter, summary.currency, currencySet))
+            {
+                file.close();
+                return false;
+            }
+            ++summary.materialCorrectionLineCount;
+        }
+        file.close();
+    }
+    if (summary.materialCorrectionCostMinor > summary.materialCostMinor)
+        return false;
+    summary.materialCostMinor -= summary.materialCorrectionCostMinor;
 
     if (m_storage.exists(PricingPath))
     {

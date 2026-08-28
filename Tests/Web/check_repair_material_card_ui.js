@@ -120,7 +120,13 @@ must(materialLedger, 'rewriteQuantity(usage.materialId, usage.quantityMilli,', '
 must(usageHistoryWeb, 'appendUsageHistoryPageJson(', 'bounded server-side usage history');
 must(costingWeb, 'summary.materialCostMinor', 'server authoritative material cost');
 
-must(runWire, 'm_ledger.confirmUsage(usage, usageResult)', 'RUN_WIRE still uses dedicated coordinator ledger phase');
+const runWireApplyStart = runWire.indexOf('bool RunWireIssueCoordinator::applyLedger(');
+const runWirePhysicalStart = runWire.indexOf('bool RunWireIssueCoordinator::executePhysicalPhases(', runWireApplyStart);
+if (runWireApplyStart < 0 || runWirePhysicalStart < 0 || runWirePhysicalStart <= runWireApplyStart) {
+  throw new Error('RUN_WIRE dedicated ledger phase boundaries missing');
+}
+const runWireApply = runWire.slice(runWireApplyStart, runWirePhysicalStart);
+must(runWireApply, 'm_ledger.confirmUsage(usage, result)', 'RUN_WIRE still uses dedicated coordinator ledger phase');
 mustNot(runWire, 'MaterialUsageIdempotency', 'generic idempotency must not replace RUN_WIRE exact-run protection');
 must(runWire, 'confirmedWriteOffForSourceRun', 'RUN_WIRE exact source-run duplicate protection remains');
 

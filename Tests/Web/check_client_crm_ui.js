@@ -11,11 +11,13 @@ const mustNot = (src, token, label) => { if (src.includes(token)) failures.push(
 const clientsPath = 'firmware/esp32/web/desktop/clients.html';
 const newPath = 'firmware/esp32/web/desktop/client-new.html';
 const detailsPath = 'firmware/esp32/web/desktop/client-details.html';
+const mobileDetailsPath = 'firmware/esp32/web/mobile/client-details.html';
 const repairsPath = 'firmware/esp32/web/desktop/repairs.html';
 
 const clients = read(clientsPath);
 const clientNew = read(newPath);
 const details = read(detailsPath);
+const mobileDetails = read(mobileDetailsPath);
 const repairs = read(repairsPath);
 
 must(clients, '/desktop/client-new.html', 'clients catalog');
@@ -41,17 +43,26 @@ for (const token of [
   'charged_minor',
   'paid_minor',
   'debt_minor',
-  'credit_minor',
-  'x.kind||x.event_type||x.type',
-  'const item=j.item||j.delivery||j',
+  'prepayment_minor',
   "limit:'12'",
   "limit:'20'",
   'invalid_repair_cursor',
   'invalid_payment_cursor'
 ]) must(details, token, 'client details');
 
-must(details, 'Выдача двигателя не зависит от нулевого баланса', 'delivery/cash independence');
-mustNot(details, "method:'POST'", 'client details must remain read-only');
+// Client detail is now the authoritative CRM edit/prepayment surface. The
+// catalog remains read-only; writes are explicit, append-only and scoped here.
+for (const [label, source] of [['desktop client details', details], ['mobile client details', mobileDetails]]) {
+  must(source, '/api/clients/update', `${label} edit endpoint`);
+  must(source, "kind:'PREPAYMENT'", `${label} prepayment kind`);
+  must(source, "confirmed:'true'", `${label} explicit prepayment confirmation`);
+  must(source, 'Зачислить предоплату', `${label} prepayment action`);
+  must(source, 'автоматически не засчитывается', `${label} no automatic repair offset wording`);
+}
+
+must(details, 'Баланс ремонтов рассчитывается из authoritative стоимости', 'repair costing remains independent from prepayment');
+must(details, 'Предоплата', 'separate prepayment balance label');
+must(details, 'const item=j.item||j.delivery||j', 'delivery state remains independent and explicit');
 
 must(repairs, '/desktop/client-new.html', 'repair client-create navigation');
 mustNot(repairs, 'clientForm', 'repair page duplicate client form');
@@ -61,4 +72,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Client CRM UI contracts OK: catalog-only clients, dedicated creation, bounded read-only client details, historical motor linkage, append-only cash reads, and independent delivery state.');
+console.log('Client CRM UI contracts OK: catalog-only browsing, dedicated creation, append-only client editing, bounded repair/payment history, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');

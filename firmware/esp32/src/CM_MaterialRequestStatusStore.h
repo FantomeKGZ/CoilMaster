@@ -23,6 +23,7 @@ class MaterialRequestStatusStore
 {
 public:
     static constexpr const char* Path = "/data/workshop/material-request-status.ndjson";
+    static constexpr uint8_t MaxBatchSize = 24U;
 
     explicit MaterialRequestStatusStore(fs::FS& storage);
 
@@ -34,6 +35,13 @@ public:
     bool resolve(uint32_t materialRequestId,
                  MaterialRequestStatusState& state,
                  bool& found) const;
+
+    // Resolves one bounded page with one request-journal scan and one status-journal scan.
+    // Duplicate/zero ids or malformed/inconsistent journal evidence fail closed.
+    bool resolveBatch(const uint32_t* materialRequestIds,
+                      uint8_t count,
+                      MaterialRequestStatusState* states,
+                      bool* found) const;
 
     bool transition(uint32_t materialRequestId,
                     const String& targetStatus,

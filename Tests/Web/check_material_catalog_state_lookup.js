@@ -10,6 +10,12 @@ function must(text, needle, label) {
 function mustNot(text, needle, label) {
   if (text.includes(needle)) throw new Error(`forbidden ${label}: ${needle}`);
 }
+function mustMatch(text, pattern, label) {
+  if (!pattern.test(text)) throw new Error(`missing ${label}: ${pattern}`);
+}
+function mustNotMatch(text, pattern, label) {
+  if (pattern.test(text)) throw new Error(`forbidden ${label}: ${pattern}`);
+}
 
 must(header, 'struct MaterialItemState', 'material state struct');
 must(header, 'MaterialUnit unit;', 'state unit');
@@ -28,23 +34,23 @@ mustNot(header,
   'bool repairExists(uint32_t repairId) const;',
   'ambiguous repair lookup wrapper');
 
-must(publicSurface,
-  'bool loadActiveMaterialState(uint32_t materialId,\n                                 MaterialItemState& state,\n                                 bool& found) const;',
+mustMatch(publicSurface,
+  /bool\s+loadActiveMaterialState\s*\(\s*uint32_t\s+materialId\s*,\s*MaterialItemState&\s+state\s*,\s*bool&\s+found\s*\)\s*const\s*;/,
   'public fail-closed state lookup');
-must(publicSurface,
-  'bool loadActiveMaterialCurrency(uint32_t materialId,\n                                    String& currency,\n                                    bool& found) const;',
+mustMatch(publicSurface,
+  /bool\s+loadActiveMaterialCurrency\s*\(\s*uint32_t\s+materialId\s*,\s*String&\s+currency\s*,\s*bool&\s+found\s*\)\s*const\s*;/,
   'public fail-closed currency lookup');
-mustNot(header,
-  'bool loadActiveMaterialState(uint32_t materialId,\n                                 MaterialItemState& state) const;',
+mustNotMatch(header,
+  /bool\s+loadActiveMaterialState\s*\(\s*uint32_t\s+materialId\s*,\s*MaterialItemState&\s+state\s*\)\s*const\s*;/,
   'ambiguous material-state wrapper');
-mustNot(header,
-  'bool loadActiveMaterialCurrency(uint32_t materialId, String& currency) const;',
+mustNotMatch(header,
+  /bool\s+loadActiveMaterialCurrency\s*\(\s*uint32_t\s+materialId\s*,\s*String&\s+currency\s*\)\s*const\s*;/,
   'ambiguous material-currency wrapper');
-mustNot(source,
-  'MaterialItemState& state) const\n{',
+mustNotMatch(source,
+  /bool\s+MaterialLedger::loadActiveMaterialState\s*\(\s*uint32_t\s+materialId\s*,\s*MaterialItemState&\s+state\s*\)\s*const\s*\{/,
   'ambiguous material-state implementation');
-mustNot(source,
-  'String& currency) const\n{',
+mustNotMatch(source,
+  /bool\s+MaterialLedger::loadActiveMaterialCurrency\s*\(\s*uint32_t\s+materialId\s*,\s*String&\s+currency\s*\)\s*const\s*\{/,
   'ambiguous material-currency implementation');
 
 must(source, 'bool parseMaterialUnit(const String& value, MaterialUnit& unit)', 'canonical unit parser');

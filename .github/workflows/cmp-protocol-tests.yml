@@ -111,6 +111,10 @@ jobs:
         if: always()
         run: node Tests/Web/check_material_request_status_store.js
 
+      - name: Audit RUN_WIRE Material Request status batching
+        if: always()
+        run: node Tests/Web/check_run_wire_material_request_status_batch.js
+
       - name: Audit Material Request lifecycle backup coverage
         if: always()
         run: node Tests/Web/check_material_request_status_backup.js

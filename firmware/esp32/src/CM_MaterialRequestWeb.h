@@ -38,6 +38,7 @@ private:
     void handleListByRepair();
     void handleMovements();
     void handleStatus();
+    void handleStatusBatch();
     void handleTransition();
     void handleWarehouseAction();
 

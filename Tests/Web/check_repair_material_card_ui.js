@@ -5,6 +5,9 @@ const desktopRepairs = read('firmware/esp32/web/desktop/repairs.html');
 const mobileRepairs = read('firmware/esp32/web/mobile/repairs.html');
 const desktopMaterials = read('firmware/esp32/web/desktop/materials.html');
 const mobileMaterials = read('firmware/esp32/web/mobile/materials.html');
+const desktopWriteoff = read('firmware/esp32/web/desktop/writeoff.html');
+const mobileWriteoff = read('firmware/esp32/web/mobile/writeoff.html');
+const writeoffShared = read('firmware/esp32/web/shared/writeoff-spool-suggestion.js');
 const materialHeader = read('firmware/esp32/src/CM_MaterialLedger.h');
 const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
 const materialLedger = read('firmware/esp32/src/CM_MaterialLedger.cpp');
@@ -24,6 +27,8 @@ function mustNot(source, token, label) {
 
 must(desktopRepairs, '/desktop/materials.html?repair_id=', 'desktop repair card material entry');
 must(mobileRepairs, '/mobile/materials.html?repair_id=', 'mobile repair card material entry');
+must(desktopMaterials, "'/desktop/writeoff.html?repair_id='+encodeURIComponent(repairId)", 'desktop materials exact repair RUN_WIRE entry');
+must(mobileMaterials, "'/mobile/writeoff.html?repair_id='+encodeURIComponent(repairId)", 'mobile materials exact repair RUN_WIRE entry');
 
 for (const [label, page] of [
   ['desktop materials', desktopMaterials],
@@ -68,6 +73,13 @@ for (const [label, page] of [
   must(page, 'проверьте новые данные и подтвердите списание ещё раз', `${label} stale preview manual reconfirm UX`);
   must(page, 'тот же идентификатор операции', `${label} ambiguous outcome same-operation guidance`);
   must(page, 'Не меняйте строку операции', `${label} transport error same-operation guidance`);
+  must(page, 'id="runWireLink"', `${label} visible RUN_WIRE entry`);
+  must(page, 'Провод RUN_WIRE', `${label} RUN_WIRE section`);
+  must(page, 'RUN_COMPLETED сам по себе ничего не списывает', `${label} no automatic RUN_COMPLETED writeoff warning`);
+  mustNot(page, '/api/material-requests/warehouse', `${label} must not duplicate RUN_WIRE mutation endpoint`);
+  mustNot(page, 'source_session_id:', `${label} must not construct RUN_WIRE source session`);
+  mustNot(page, 'source_run_id:', `${label} must not construct RUN_WIRE source run`);
+  mustNot(page, 'spool_id:String(', `${label} must not construct RUN_WIRE spool provenance`);
   const ambiguousStart = page.indexOf("if(r.status===409&&j.error==='usage_not_committed')");
   const ambiguousEnd = page.indexOf("if(r.status===404&&j.error==='repair_not_found')", ambiguousStart);
   if (ambiguousStart < 0 || ambiguousEnd < 0 || ambiguousEnd <= ambiguousStart) {
@@ -83,6 +95,22 @@ for (const [label, page] of [
   mustNot(page, '/api/warehouse/write-offs', `${label} legacy direct writeoff route`);
   mustNot(page, 'localStorage.setItem("materialCost"', `${label} duplicated costing persistence`);
 }
+
+must(desktopWriteoff, '/shared/writeoff-spool-suggestion.js', 'desktop dedicated RUN_WIRE workflow script');
+must(mobileWriteoff, '/shared/writeoff-spool-suggestion.js', 'mobile dedicated RUN_WIRE workflow script');
+must(writeoffShared, '/api/winding-history?repair_id=', 'RUN_WIRE completed-run evidence lookup');
+must(writeoffShared, '/api/warehouse/write-offs?', 'RUN_WIRE exact coverage lookup');
+must(writeoffShared, '/api/jobs/spool-selection?session_id=', 'RUN_WIRE immutable spool selection lookup');
+must(writeoffShared, '/api/warehouse/spool-material-bridges?spool_id=', 'RUN_WIRE exact spool bridge lookup');
+must(writeoffShared, '/api/material-requests?', 'RUN_WIRE repair material-request lookup');
+must(writeoffShared, '/api/material-requests/status?', 'RUN_WIRE material-request status lookup');
+must(writeoffShared, "confirmed:'true'", 'RUN_WIRE explicit operator confirmation');
+must(writeoffShared, "source_kind:'RUN_WIRE'", 'RUN_WIRE dedicated source kind');
+must(writeoffShared, 'source_session_id:sourceSessionId', 'RUN_WIRE exact source session request');
+must(writeoffShared, 'source_run_id:sourceRunId', 'RUN_WIRE exact source run request');
+must(writeoffShared, 'spool_id:String(activeSpool.spool_id)', 'RUN_WIRE immutable spool request');
+must(writeoffShared, '/api/material-requests/warehouse', 'RUN_WIRE dedicated mutation endpoint');
+mustNot(writeoffShared, '/api/materials/usage', 'RUN_WIRE UI must not use generic material usage endpoint');
 
 must(materialHeader, 'static constexpr uint8_t MaxSearchLength = 48U;', 'bounded material search length');
 must(materialHeader, 'const String& search,', 'search overload contract');
@@ -164,4 +192,4 @@ must(runWireApply, 'm_ledger.confirmUsage(usage, result)', 'RUN_WIRE still uses 
 mustNot(runWire, 'MaterialUsageIdempotency', 'generic idempotency must not replace RUN_WIRE exact-run protection');
 must(runWire, 'confirmedWriteOffForSourceRun', 'RUN_WIRE exact source-run duplicate protection remains');
 
-console.log('Repair material card contracts OK: bounded search/history/costing, generic idempotency, stale-preview reconfirmation, ambiguous-outcome same-operation retry and final MaterialLedger TOCTOU remain protected without changing dedicated RUN_WIRE exact-run safety.');
+console.log('Repair material card contracts OK: generic material safety is preserved, RUN_WIRE is visible from the same repair-material surface but remains on its dedicated exact-provenance coordinator path.');

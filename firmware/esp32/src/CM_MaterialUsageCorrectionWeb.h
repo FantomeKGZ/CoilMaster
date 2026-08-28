@@ -14,6 +14,7 @@ public:
     void begin();
 
 private:
+    void handleGet();
     void handlePost();
     static bool parseUnsigned(WebServer& server,
                               const char* name,

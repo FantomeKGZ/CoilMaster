@@ -3,7 +3,10 @@
 namespace CM
 {
 ClientRevisionWeb::ClientRevisionWeb(WebServer& server, RepairRegistry& registry)
-    : m_server(server), m_registry(registry) {}
+    : m_server(server), m_registry(registry)
+{
+    begin();
+}
 
 void ClientRevisionWeb::begin()
 {

@@ -110,6 +110,7 @@ class MaterialLedger
 {
 public:
     static constexpr uint8_t MaxListPageSize = 32U;
+    static constexpr uint8_t MaxSearchLength = 48U;
     explicit MaterialLedger(fs::FS& storage);
 
     bool begin();
@@ -125,6 +126,13 @@ public:
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);
     bool appendMaterialsPageJson(String& json,
+                                 uint32_t cursor,
+                                 uint8_t limit,
+                                 uint16_t& count,
+                                 uint32_t& nextCursor,
+                                 bool& hasMore) const;
+    bool appendMaterialsPageJson(String& json,
+                                 const String& search,
                                  uint32_t cursor,
                                  uint8_t limit,
                                  uint16_t& count,

@@ -5,10 +5,58 @@ namespace CM
 void WarehouseWeb::beginSpoolList()
 {
     m_server.on("/api/warehouse/spools", HTTP_GET, [this]() { handleListSpools(); });
+    m_server.on("/api/warehouse/spools/by-id", HTTP_GET,
+                [this]() { handleGetActiveSpool(); });
     m_server.on("/api/warehouse/spools/material", HTTP_POST,
                 [this]() { handleAssignLegacySpoolMaterial(); });
     m_server.on("/api/warehouse/material-summary", HTTP_GET,
                 [this]() { handleMaterialSummary(); });
+}
+
+void WarehouseWeb::handleGetActiveSpool()
+{
+    if (!m_store.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"warehouse_unavailable\"}");
+        return;
+    }
+
+    uint32_t spoolId = 0UL;
+    if (!parseUnsignedArg(m_server, "spool_id", 1UL, 0xFFFFFFFFUL, spoolId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_spool_id\"}");
+        return;
+    }
+
+    ActiveWireSpoolIdentity identity;
+    bool found = false;
+    if (!m_store.loadActiveSpoolIdentity(spoolId, identity, found))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"spool_identity_read_failed\"}");
+        return;
+    }
+    if (!found)
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"active_spool_not_found\"}");
+        return;
+    }
+    if (!identity.isValid() || identity.spoolId != spoolId)
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"spool_identity_invalid\"}");
+        return;
+    }
+
+    String response = F("{\"spool_id\":"); response += identity.spoolId;
+    response += F(",\"diameter_hundredths_mm\":"); response += identity.diameterHundredthsMm;
+    response += F(",\"current_weight_g\":"); response += identity.currentWeightGrams;
+    response += F(",\"material_class\":\""); response += identity.wireType;
+    response += F("\",\"status\":\"ACTIVE\"}");
+    m_server.send(200, "application/json; charset=utf-8", response);
 }
 
 void WarehouseWeb::handleAssignLegacySpoolMaterial()

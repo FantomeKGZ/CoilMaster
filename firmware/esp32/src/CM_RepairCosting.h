@@ -65,6 +65,9 @@ public:
     bool ready() const;
     bool repairExists(uint32_t repairId, bool& found) const;
     bool load(uint32_t repairId, RepairCostSummary& summary) const;
+    // Read-only fast path for callers that have already completed one
+    // authoritative full RepairsPath validation and exact-ID proof.
+    bool loadKnownRepair(uint32_t repairId, RepairCostSummary& summary) const;
     bool appendPricingRevisionsPageJson(String& json,
                                         uint32_t repairId,
                                         uint32_t cursor,

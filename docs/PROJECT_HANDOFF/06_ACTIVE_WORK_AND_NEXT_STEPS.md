@@ -87,6 +87,33 @@ Semantics:
 - no mutation/POST from prefetch;
 - exact manual RUN_WIRE session/run/spool provenance is unchanged.
 
+### Unified autonomous/Web completed-job archive lifecycle — GREEN
+
+Checkpoint 153 closes the experiment-side completed Web/ESP32 job projection/linkage lifecycle without changing physical-run ownership or exact provenance.
+
+Final runtime/backup HEAD before handoff update:
+
+```text
+a23d681a58670866f281191e7d1be6c5915d11f9
+CMP Protocol Tests #3920 run 33174170271 / SUCCESS
+ESP32 Build #1734         run 33174170232 / SUCCESS
+Arduino RU LCD #158       run 33174170231 / SUCCESS
+```
+
+Semantics:
+
+- long monotonic Arduino `session_id/run_id` remain authoritative 32-bit IDs for EEPROM recovery, UART and exact provenance;
+- archive UI shows a short row number (`№1`, `№2`, ...) while exact Session/Run remain available in Info/details and are used for linkage;
+- completed Web/ESP32 jobs are projected into the common autonomous archive as `ESP32_JOB` without copying or fabricating physical RUN evidence;
+- local autonomous runs remain `ARDUINO_LOCAL`;
+- `ESP32_JOB` exact Session/Run linkage is first-write-only: same motor/role replay is idempotent, different motor/role is rejected;
+- duplicate exact linkage in persisted data is fail-closed;
+- append-only `/data/autonomous-windings/web-assignments.ndjson` participates in autonomous archive integrity validation;
+- `web-assignments.ndjson` is included in backup/restore whitelist as `autonomous-winding-web-assignments`;
+- no reset/reuse of historical Session/Run counters, no weakening of recovery/provenance.
+
+Intermediate CMP failures #3909-#3916 were contract-test corrections during implementation; the final branch state is covered by consecutive GREEN #3917-#3920 and final runtime builds above.
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.

@@ -24,7 +24,7 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}input,se
 <aside><h1>CoilMaster</h1><a href="/desktop/">🏠 Главная</a><a href="/desktop/repairs.html">🧰 Ремонты</a><a href="/desktop/motors.html">📊 Двигатели</a><a class="active" href="/desktop/arduino-windings.html">🔌 Arduino архив</a><a href="/desktop/warehouse.html">📦 Склад</a><a href="/desktop/reports.html">📈 Отчёты</a><a href="/desktop/settings.html">⚙️ Настройки</a><div class="switch"><a href="/mobile/arduino-windings.html" onclick="localStorage.setItem('cm-ui-version','mobile')">📱 Мобильная версия</a></div></aside>
 <main>
 <h2>Arduino архив намоток</h2>
-<p class="muted">Компактный архив физических RUN. Выбор и привязка меняют только linkage; RUN_STARTED/RUN_COMPLETED и recovered evidence остаются immutable.</p>
+<p class="muted">Общий архив завершённых задач Arduino: автономные RUN и завершённые задания, отправленные с ESP32/Web. Источники остаются раздельными; RUN evidence не копируется и не изменяется.</p>
 <section class="card">
 <div class="controls">
 <div><label for="program">Программа</label><input id="program" placeholder="Например 38/38"></div>
@@ -58,11 +58,12 @@ label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}input,se
 <h3 style="margin:0">Задачи Arduino</h3>
 <button id="historyScan" class="secondary" style="width:auto">Посчитать историю программ</button>
 </div>
-<p class="muted">Исторический счёт по программе вычисляется полным bounded page scan только по запросу, чтобы обычная загрузка не сканировала весь NDJSON.</p>
+<p class="muted">Исторический счёт по программе вычисляется bounded page scan по обоим источникам только по запросу.</p>
 <div id="items" class="table-wrap"><div class="note">Загрузка…</div></div>
 <button id="more" class="secondary footer-action" hidden>Показать ещё</button>
 </section>
 </main></div>
+<script src="/shared/completed-web-job-archive-bridge.js"></script>
 <script src="/shared/arduino-windings-archive.js"></script>
 </body>
 </html>

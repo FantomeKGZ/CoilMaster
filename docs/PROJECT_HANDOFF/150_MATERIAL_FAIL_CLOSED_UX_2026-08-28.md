@@ -40,7 +40,7 @@ Shared controller `firmware/esp32/web/shared/material-usage-corrections.js` об
 Для доказанных pre-mutation no-write результатов:
 
 - `invalid_material_preview`;
-- `material_not_found`;
+- `material_not_found`.
 
 UI использует существующий stale-preview путь: сбрасывает старый id, перечитывает каталог и требует нового ручного выбора/подтверждения.
 
@@ -73,6 +73,45 @@ CM_MaterialUsageCorrectionWeb.cpp
 
 Поэтому повторно реализовывать correction ledger нельзя.
 
+## Operator visibility audit
+
+### Generic usage / corrections
+
+Карточка уже показывает:
+
+- исходный `usage_id`, material id, quantity, persisted unit-price snapshot, line cost, timestamp/comment;
+- отдельную correction history, где каждая запись содержит exact `source_usage_id`, returned quantity, correction line cost и timestamp/comment;
+- общий authoritative net material cost через `RepairCosting`, включая отдельную сумму/count append-only corrections.
+
+Mutation-time `correctUsage()` уже вычисляет cumulative corrected quantity и `remainingCorrectableQuantityMilli` по exact source usage. Делать второй read API с повторным полным scan только ради постоянного per-row net label сейчас нецелесообразно. Точный remaining correction по выбранной операции остаётся authoritative на сервере и возвращается при over-correction/duplicate replay.
+
+### RUN_WIRE
+
+Отдельный `writeoff-spool-suggestion.js` уже показывает оператору exact provenance без смешивания ledgers:
+
+```text
+active pending run:
+source_session_id + source_run_id + immutable spool_id
+
+history row:
+movement_id + spool_id + mass/value + source_session_id + source_run_id
+```
+
+Legacy movement без `source_run_id` явно маркируется как legacy и не маскируется под exact current provenance. Current RUN_WIRE submit остаётся ручным и содержит exact session/run/spool/diameter/material identity.
+
+Новый RUN_WIRE history API или перенос его в generic correction ledger не нужен.
+
+### Missing material navigation
+
+Существующие безопасные страницы подтверждены:
+
+```text
+/desktop/material-catalog.html -> /desktop/material-new.html
+/mobile/material-catalog.html  -> /mobile/material-new.html
+```
+
+То есть при `material_not_found` можно позже добавить только явную ссылку «Открыть каталог / Создать материал». Автоматически создавать материал нельзя. Это UX-polish, не integrity blocker.
+
 ## Verification — GREEN
 
 ```text
@@ -94,14 +133,14 @@ completed / success
 
 ## Следующий реальный software audit
 
-Не создавать новые ledgers. Проверить только operator visibility в единой карточке «Материалы ремонта»:
+Core accounting/integrity material flow считать закрытым на текущем software checkpoint. Не создавать новые ledgers.
 
-1. может ли оператор из одной карточки однозначно сопоставить generic usage с его append-only correction history и увидеть net quantity/cost;
-2. достаточно ли видна отдельная RUN_WIRE provenance/history без смешивания warehouse и generic ledgers;
-3. есть ли конкретное действие при `material_not_found`/отсутствующей складской позиции (переход в существующий склад/создание позиции, только если текущий workflow это безопасно разрешает);
-4. быстрый список часто используемых/подходящих позиций добавлять только если его можно построить bounded/read-only без нового дублирующего состояния.
+Оставшийся порядок:
 
-Hardware E2E остаётся финальным отдельным gate после software-аудита.
+1. небольшой UX-polish `material_not_found` -> явная desktop/mobile навигация к существующему material catalog/create workflow;
+2. отдельно проверить, нужен ли bounded/read-only shortcut часто используемых материалов; не добавлять новый persisted favourites/state без необходимости;
+3. после этого перейти к общему software acceptance audit по material plan;
+4. hardware Arduino+ESP32 E2E оставить финальным отдельным gate.
 
 ## Safety invariants
 

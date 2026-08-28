@@ -96,6 +96,17 @@ bool RepairRegistry::appendMotorByIdJson(String& json,
 {
     found = false;
     if (!ready() || motorId == 0UL) return false;
+
+    String revision;
+    bool revisionFound = false;
+    if (!latestMotorRevisionLine(motorId, revision, revisionFound)) return false;
+    if (revisionFound)
+    {
+        json += revision;
+        found = true;
+        return true;
+    }
+
     if (!m_storage.exists(MotorsPath)) return true;
 
     File file = m_storage.open(MotorsPath, FILE_READ);

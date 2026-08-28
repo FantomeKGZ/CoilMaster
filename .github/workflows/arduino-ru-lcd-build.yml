@@ -14,6 +14,7 @@ on:
       - "Shared/**"
       - "Tests/Web/check_ru_hall_calibration_experiment.js"
       - "Tests/Web/check_motor_edit_ui.js"
+      - "Tests/Web/check_crud_page_separation.js"
       - "platformio.ini"
       - ".github/workflows/arduino-ru-lcd-build.yml"
 
@@ -30,6 +31,9 @@ jobs:
 
       - name: Audit editable motor card contracts
         run: node Tests/Web/check_motor_edit_ui.js
+
+      - name: Audit separated CRUD page contracts
+        run: node Tests/Web/check_crud_page_separation.js
 
       - name: Set up Python
         uses: actions/setup-python@v5

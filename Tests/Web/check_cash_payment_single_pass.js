@@ -134,10 +134,10 @@ requireText(webPath, web,
   'bool repairsValidated = false;',
   'client balance must track one full repair-journal validation per request');
 requireText(webPath, web,
-  'if (!repairsValidated)',
+  'if (idCount > 0U && !repairsValidated)',
   'client balance must gate authoritative validation before known-repair loads');
 requireText(webPath, web,
-  'if (!m_costing.repairExists(repairIds[i], found) || !found) return false;',
+  'if (!m_costing.repairExists(repairIds[0], repairFound) || !repairFound)',
   'client balance must perform the authoritative repair-journal validation');
 requireText(webPath, web,
   'repairsValidated = true;',

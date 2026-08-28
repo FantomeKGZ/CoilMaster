@@ -175,20 +175,55 @@ Semantics:
 
 The repair-scoped Material Request list path was also checked in this block: it already performs one bounded request page scan and uses the existing batch status path, so no speculative change was made there.
 
+### Material Request Warehouse known-request status reuse — GREEN
+
+Checkpoint 156 removes the next confirmed duplicate full `material-requests.ndjson` pass from a fresh generic Material Request warehouse mutation.
+
+Runtime code:
+
+```text
+e9756e7c176fac6030c6adea68519695804b47e3
+CMP Protocol Tests #3934 run 33182699055 / SUCCESS
+ESP32 Build #1740         run 33182699044 / SUCCESS
+```
+
+Final regression contract:
+
+```text
+59f20bc192bd09a5012441aafec84fe726bec2cc
+CMP Protocol Tests #3935 run 33183113778 / SUCCESS
+```
+
+Semantics:
+
+- fresh `MaterialRequestWarehouseCoordinator::buildPending()` first performs authoritative exact `requestMatchesRepair()` through `MaterialRequestStore::appendByIdJson()`;
+- after that exact request + repair proof, the lifecycle gate scans only `material-request-status.ndjson` and no longer asks `MaterialRequestStatusStore::resolve()` to re-scan `material-requests.ndjson` for existence;
+- status-only lookup still validates global monotonic transition ids, canonical transitions, timestamp bounds and the exact request lifecycle chain fail-closed;
+- only `DRAFT`/`ISSUED` remain eligible for warehouse mutation;
+- recovery intentionally remains stricter: `requestAllowsWarehouseMutation()` still uses the normal `m_statuses.resolve()` path and therefore revalidates request existence before replaying a movement-only pending transaction;
+- no cache/index/DB, whole-file buffering or unbounded collection was added;
+- movement-first WAL ordering, pending recovery, repair-open gate, authoritative material state, unit/cost conversion and mutation-time ledger checks are unchanged;
+- RUN_WIRE continues through its dedicated exact-safe coordinator and is not weakened or merged with the generic warehouse path;
+- regression contract explicitly prevents fresh `buildPending()` from returning to the general existence-scanning resolver while requiring recovery to retain it.
+
+The adjacent Material Request status-transition Web flow was audited after this block. It directly delegates one transition request to `MaterialRequestStatusStore::transition()` and does not perform a separate exact-request read first, so there is no same-request duplicate request-journal pass to remove there.
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
 2. Continue repo-reviewable repeated-scan/performance audit; do not reopen already accepted material accounting without a concrete requirement.
-3. Audit remaining Material Request/Warehouse/Repair exact-id/list/server flows one block at a time and change only a confirmed repeated growing-journal pass.
-4. Material Request create duplicate Repair scan is already removed by checkpoint 155; do not weaken the generic exact-existence guard for unrelated callers.
-5. RUN_WIRE status prefetch is already bounded: max 24 ids/page and one batch status resolution; do not replace it with per-item server scans.
-6. Prefer existing authoritative exact/batch APIs over new state/indexes.
-7. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
-8. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-9. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-10. Verify actual CMP/ESP32 CI after each completed code block and update PROJECT_HANDOFF.
-11. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
-12. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+3. Check remaining Material Request movement/history, Repair and Warehouse exact-id/list/server flows one block at a time; change only a confirmed repeated growing-journal pass in the same request/operation.
+4. Material Request create duplicate Repair scan is already removed by checkpoint 155; generic exact-existence guards for unrelated callers remain intact.
+5. Fresh generic Material Request Warehouse duplicate request-journal scan is removed by checkpoint 156; recovery must keep its independent request-existence validation.
+6. Material Request status transition was audited NO-CHANGE after checkpoint 156: it has no preceding duplicate exact-request lookup.
+7. RUN_WIRE status prefetch remains bounded: max 24 ids/page and one batch status resolution; do not replace it with per-item server scans.
+8. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
+9. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
+10. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
+11. No automatic production rotation/deletion/truncation and no premature DB/index migration.
+12. Verify actual CMP/ESP32 CI after each completed code block and update PROJECT_HANDOFF.
+13. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
+14. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

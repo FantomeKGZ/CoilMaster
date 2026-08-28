@@ -65,6 +65,7 @@ private:
                               uint32_t repairId,
                               bool& found) const;
     bool requestAllowsWarehouseMutation(uint32_t materialRequestId) const;
+    bool knownRequestAllowsWarehouseMutation(uint32_t materialRequestId) const;
 
     static bool isRemoveMutation(const MaterialRequestWarehousePending& pending);
     static String taggedComment(const String& transactionRef,

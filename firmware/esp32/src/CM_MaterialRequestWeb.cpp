@@ -34,6 +34,8 @@ void MaterialRequestWeb::begin()
     m_server.on("/api/material-requests/item", HTTP_GET, [this]() { handleGetById(); });
     m_server.on("/api/material-requests/movements", HTTP_GET, [this]() { handleMovements(); });
     m_server.on("/api/material-requests/status", HTTP_GET, [this]() { handleStatus(); });
+    m_server.on("/api/material-requests/status-batch", HTTP_GET,
+                [this]() { handleStatusBatch(); });
     m_server.on("/api/material-requests/status", HTTP_POST, [this]() { handleTransition(); });
     m_server.on("/api/material-requests/warehouse", HTTP_POST,
                 [this]() { handleWarehouseAction(); });
@@ -229,6 +231,95 @@ void MaterialRequestWeb::handleStatus()
     String response = F("{\"material_request_id\":"); response += requestId;
     response += F(",\"status\":\""); response += state.status;
     response += F("\",\"transition_count\":"); response += state.transitionCount;
+    response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void MaterialRequestWeb::handleStatusBatch()
+{
+    if (!m_server.hasArg("ids"))
+    {
+        m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+        return;
+    }
+    const String text = m_server.arg("ids");
+    if (text.length() == 0U || text.length() > 263U)
+    {
+        m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+        return;
+    }
+
+    uint32_t ids[MaterialRequestStatusStore::MaxBatchSize];
+    uint8_t count = 0U;
+    size_t start = 0U;
+    while (start < text.length())
+    {
+        if (count >= MaterialRequestStatusStore::MaxBatchSize)
+        {
+            m_server.send(400, "application/json", "{\"error\":\"material_request_status_batch_too_large\"}");
+            return;
+        }
+        const int comma = text.indexOf(',', start);
+        const size_t end = comma < 0 ? text.length() : static_cast<size_t>(comma);
+        if (end <= start)
+        {
+            m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+            return;
+        }
+        const String token = text.substring(start, end);
+        uint32_t parsed = 0UL;
+        if (token.length() == 0U || (token.length() > 1U && token[0] == '0'))
+        {
+            m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+            return;
+        }
+        for (size_t i = 0U; i < token.length(); ++i)
+        {
+            if (token[i] < '0' || token[i] > '9')
+            {
+                m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+                return;
+            }
+            const uint8_t digit = static_cast<uint8_t>(token[i] - '0');
+            if (parsed > (0xFFFFFFFFUL - digit) / 10UL)
+            {
+                m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+                return;
+            }
+            parsed = parsed * 10UL + digit;
+        }
+        if (parsed == 0UL)
+        {
+            m_server.send(400, "application/json", "{\"error\":\"invalid_material_request_ids\"}");
+            return;
+        }
+        ids[count++] = parsed;
+        if (comma < 0) break;
+        start = end + 1U;
+    }
+
+    MaterialRequestStatusState states[MaterialRequestStatusStore::MaxBatchSize];
+    bool found[MaterialRequestStatusStore::MaxBatchSize];
+    if (!m_statuses.resolveBatch(ids, count, states, found))
+    {
+        m_server.send(500, "application/json", "{\"error\":\"material_request_status_batch_read_failed\"}");
+        return;
+    }
+
+    String response = F("{\"items\":[");
+    for (uint8_t i = 0U; i < count; ++i)
+    {
+        if (i > 0U) response += ',';
+        response += F("{\"material_request_id\":"); response += ids[i];
+        response += F(",\"found\":"); response += found[i] ? F("true") : F("false");
+        if (found[i])
+        {
+            response += F(",\"status\":\""); response += states[i].status;
+            response += F("\",\"transition_count\":"); response += states[i].transitionCount;
+        }
+        response += '}';
+    }
+    response += F("],\"count\":"); response += count;
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
 }

@@ -9,8 +9,11 @@ const materialHeader = read('firmware/esp32/src/CM_MaterialLedger.h');
 const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
 const materialLedger = read('firmware/esp32/src/CM_MaterialLedger.cpp');
 const materialSearch = read('firmware/esp32/src/CM_MaterialCatalogSearch.cpp');
+const idempotencyHeader = read('firmware/esp32/src/CM_MaterialUsageIdempotency.h');
+const idempotency = read('firmware/esp32/src/CM_MaterialUsageIdempotency.cpp');
 const usageHistoryWeb = read('firmware/esp32/src/CM_MaterialUsageHistoryWeb.cpp');
 const costingWeb = read('firmware/esp32/src/CM_RepairCostingWeb.cpp');
+const runWire = read('firmware/esp32/src/CM_RunWireIssueCoordinator.cpp');
 
 function must(source, token, label) {
   if (!source.includes(token)) throw new Error(`${label}: missing ${token}`);
@@ -48,6 +51,15 @@ for (const [label, page] of [
   must(page, 'repairWritable', `${label} repair lifecycle gate`);
   must(page, 'Недостаточно материала', `${label} insufficient-stock precheck UX`);
   must(page, 'line_cost_source', `${label} persisted price snapshot response check`);
+  must(page, 'pendingOperationId', `${label} retry operation state`);
+  must(page, 'crypto.getRandomValues', `${label} strong operation id generation`);
+  must(page, 'operation_id:pendingOperationId', `${label} operation id request`);
+  must(page, 'if(!pendingOperationId)pendingOperationId=newOperationId()', `${label} operation id reused across retry`);
+  must(page, "$('quantity').oninput=resetOperationId", `${label} quantity change resets operation id`);
+  must(page, "$('comment').oninput=resetOperationId", `${label} comment change resets operation id`);
+  must(page, 'duplicate_replay===true', `${label} duplicate replay UX`);
+  must(page, 'operation_id_conflict', `${label} operation collision UX`);
+  must(page, 'cleanUsageComment', `${label} system idempotency tag hidden from history`);
   must(page, 'Promise.all([load(0,true),loadUsageHistory(0,true),loadCosting()])', `${label} post-write authoritative refresh`);
   mustNot(page, 'name="material_id"', `${label} manual material id input`);
   mustNot(page, 'id="materialId"', `${label} manual material id field`);
@@ -72,10 +84,37 @@ must(materialSearch, 'diameterText', 'wire diameter search');
 mustNot(materialSearch, 'std::vector', 'unbounded material result vector');
 mustNot(materialSearch, 'readString()', 'whole-file material buffering');
 
+must(idempotencyHeader, 'MinOperationIdLength = 16U', 'minimum operation id length');
+must(idempotencyHeader, 'MaxOperationIdLength = 64U', 'maximum operation id length');
+must(idempotency, 'while (file.available())', 'streaming usage replay scan');
+must(idempotency, 'FlatJsonObjectValidator::valid(line)', 'usage replay structural validation');
+must(idempotency, 'usageId <= previousUsageId', 'usage replay monotonic ID validation');
+must(idempotency, 'if (replay.found)', 'duplicate operation-id fail-closed guard');
+must(idempotency, 'replay.payloadMatches = storedRepairId == repairId &&', 'exact replay payload match');
+must(idempotency, 'MU_TX=', 'generic usage transaction tag');
+mustNot(idempotency, 'std::vector', 'unbounded replay storage');
+mustNot(idempotency, 'readString()', 'whole-file replay buffering');
+
+must(materialWeb, '!m_server.hasArg("operation_id")', 'generic operation id required');
+must(materialWeb, 'MaterialUsageIdempotency::lookup(SD,operationId,repairId,materialId,quantity,replay)', 'replay lookup before mutation');
+must(materialWeb, 'operation_id_conflict', 'operation id collision response');
+must(materialWeb, '\"duplicate_replay\":true', 'duplicate replay response');
+must(materialWeb, '\"write_performed\":false', 'duplicate replay no-write response');
+must(materialWeb, 'MaterialUsageIdempotency::taggedComment(operationId,usageComment)', 'durable idempotency evidence');
+const replayLookupPos = materialWeb.indexOf('MaterialUsageIdempotency::lookup(');
+const confirmPos = materialWeb.indexOf('m_ledger.confirmUsage(usage,result)');
+if (replayLookupPos < 0 || confirmPos < 0 || replayLookupPos >= confirmPos) {
+  throw new Error('generic usage idempotency lookup must execute before MaterialLedger mutation');
+}
+
 must(materialWeb, 'm_ledger.confirmUsage(usage,result)', 'material route authoritative ledger mutation');
 must(materialLedger, 'readMaterialState(usage.materialId, stockBefore, price, currency)', 'authoritative preflight reread');
 must(materialLedger, 'rewriteQuantity(usage.materialId, usage.quantityMilli,', 'mutation-time stock rewrite/TOCTOU boundary');
 must(usageHistoryWeb, 'appendUsageHistoryPageJson(', 'bounded server-side usage history');
 must(costingWeb, 'summary.materialCostMinor', 'server authoritative material cost');
 
-console.log('Repair material card contracts OK: desktop/mobile use bounded server-side warehouse search plus authoritative MaterialLedger history/costing while preserving the existing mutation and TOCTOU boundaries.');
+must(runWire, 'm_ledger.confirmUsage(usage, usageResult)', 'RUN_WIRE still uses dedicated coordinator ledger phase');
+mustNot(runWire, 'MaterialUsageIdempotency', 'generic idempotency must not replace RUN_WIRE exact-run protection');
+must(runWire, 'confirmedWriteOffForSourceRun', 'RUN_WIRE exact source-run duplicate protection remains');
+
+console.log('Repair material card contracts OK: bounded search/history/costing and generic retry idempotency are protected without changing MaterialLedger TOCTOU or dedicated RUN_WIRE exact-run safety.');

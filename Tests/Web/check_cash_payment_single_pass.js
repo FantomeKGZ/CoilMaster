@@ -7,6 +7,8 @@ const sourcePath = 'firmware/esp32/src/CM_CashPaymentStore.cpp';
 const lookupPath = 'firmware/esp32/src/CM_CashPaymentStoreLookup.cpp';
 const integrityPath = 'firmware/esp32/src/CM_CashPaymentIntegrityAudit.cpp';
 const webPath = 'firmware/esp32/src/CM_CashPaymentWeb.cpp';
+const costingHeaderPath = 'firmware/esp32/src/CM_RepairCosting.h';
+const costingSourcePath = 'firmware/esp32/src/CM_RepairCosting.cpp';
 const desktopPath = 'firmware/esp32/web/desktop/client-details.html';
 const mobilePath = 'firmware/esp32/web/mobile/client-details.html';
 
@@ -15,6 +17,8 @@ const source = fs.readFileSync(path.join(root, sourcePath), 'utf8');
 const lookup = fs.readFileSync(path.join(root, lookupPath), 'utf8');
 const integrity = fs.readFileSync(path.join(root, integrityPath), 'utf8');
 const web = fs.readFileSync(path.join(root, webPath), 'utf8');
+const costingHeader = fs.readFileSync(path.join(root, costingHeaderPath), 'utf8');
+const costingSource = fs.readFileSync(path.join(root, costingSourcePath), 'utf8');
 const desktop = fs.readFileSync(path.join(root, desktopPath), 'utf8');
 const mobile = fs.readFileSync(path.join(root, mobilePath), 'utf8');
 const failures = [];
@@ -111,6 +115,40 @@ requireText(webPath, web,
   'const uint64_t debt = chargedMinor > paid.paidMinor',
   'client repair debt must remain based on repair payments only');
 
+// Client-balance costing may reuse repair ids only after this request has done
+// one authoritative full repairs.ndjson validation. Generic and mutation paths
+// must keep the normal exact repairExists() guard.
+requireText(costingHeaderPath, costingHeader,
+  'bool loadKnownRepair(uint32_t repairId, RepairCostSummary& summary) const;',
+  'known-repair read-only costing path missing');
+requireText(costingSourcePath, costingSource,
+  'if (!repairExists(repairId, repairFound) || !repairFound) return false;',
+  'generic costing load must retain authoritative repair existence validation');
+requireText(costingSourcePath, costingSource,
+  'return loadKnownRepair(repairId, summary);',
+  'generic costing load must delegate only after repair existence validation');
+requireText(costingSourcePath, costingSource,
+  'bool RepairCosting::loadKnownRepair(uint32_t repairId, RepairCostSummary& summary) const',
+  'known-repair costing implementation missing');
+requireText(webPath, web,
+  'bool repairsValidated = false;',
+  'client balance must track one full repair-journal validation per request');
+requireText(webPath, web,
+  'if (!repairsValidated)',
+  'client balance must gate authoritative validation before known-repair loads');
+requireText(webPath, web,
+  'if (!m_costing.repairExists(repairIds[i], found) || !found) return false;',
+  'client balance must perform the authoritative repair-journal validation');
+requireText(webPath, web,
+  'repairsValidated = true;',
+  'client balance must mark the repair journal validated only after success');
+requireText(webPath, web,
+  'if (!m_costing.loadKnownRepair(repairIds[i], pricing)) return false;',
+  'client balance must reuse already validated repair identities');
+forbidText(webPath, web,
+  'if (!m_costing.load(repairIds[i], pricing)) return false;',
+  'client balance must not repeat full repairs.ndjson validation for every repair');
+
 for (const [relative, body] of [[desktopPath, desktop], [mobilePath, mobile]]) {
   requireText(relative, body, '/api/clients/update',
     'client card must expose append-only client editing');
@@ -129,4 +167,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Cash payment contracts OK: single-pass correction provenance remains intact; client PREPAYMENT is ADD-only, repair_id=0, separately totaled, client-validated, and exposed with desktop/mobile edit + prepayment UI without automatic repair offset.');
+console.log('Cash payment contracts OK: correction/prepayment invariants remain intact; client balance validates repairs.ndjson once per request before reusing known repair ids for costing.');

@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search);
 const repairId=params.get('repair_id')||localStorage.getItem('cm-active-repair')||'';
 const validId=value=>/^[1-9]\d*$/.test(String(value||''));
-const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const kgFromGrams=value=>(Number(value||0)/1000).toLocaleString('ru-RU',{minimumFractionDigits:3,maximumFractionDigits:3})+' кг';
 const diameterLabel=value=>(Number(value||0)/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' мм';
 const money=(value,currency='KGS')=>(Number(value||0)/100).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(currency==='KGS'?'сом':currency);

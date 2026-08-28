@@ -8,6 +8,7 @@ const mobileMaterials = read('firmware/esp32/web/mobile/materials.html');
 const desktopWriteoff = read('firmware/esp32/web/desktop/writeoff.html');
 const mobileWriteoff = read('firmware/esp32/web/mobile/writeoff.html');
 const writeoffShared = read('firmware/esp32/web/shared/writeoff-spool-suggestion.js');
+const correctionShared = read('firmware/esp32/web/shared/material-usage-corrections.js');
 const materialHeader = read('firmware/esp32/src/CM_MaterialLedger.h');
 const materialWeb = read('firmware/esp32/src/CM_MaterialLedgerWeb.cpp');
 const materialLedger = read('firmware/esp32/src/CM_MaterialLedger.cpp');
@@ -76,6 +77,7 @@ for (const [label, page] of [
   must(page, 'id="runWireLink"', `${label} visible RUN_WIRE entry`);
   must(page, 'Провод RUN_WIRE', `${label} RUN_WIRE section`);
   must(page, 'RUN_COMPLETED сам по себе ничего не списывает', `${label} no automatic RUN_COMPLETED writeoff warning`);
+  must(page, '/shared/material-usage-corrections.js', `${label} shared append-only correction controller`);
   mustNot(page, '/api/material-requests/warehouse', `${label} must not duplicate RUN_WIRE mutation endpoint`);
   mustNot(page, 'source_session_id:', `${label} must not construct RUN_WIRE source session`);
   mustNot(page, 'source_run_id:', `${label} must not construct RUN_WIRE source run`);
@@ -94,6 +96,37 @@ for (const [label, page] of [
   mustNot(page, 'id="materialId"', `${label} manual material id field`);
   mustNot(page, '/api/warehouse/write-offs', `${label} legacy direct writeoff route`);
   mustNot(page, 'localStorage.setItem("materialCost"', `${label} duplicated costing persistence`);
+}
+
+must(correctionShared, 'Коррекции списаний', 'correction UI section');
+must(correctionShared, 'Исходное подтверждённое списание не редактируется и не удаляется', 'immutable source usage warning');
+must(correctionShared, "new URLSearchParams({repair_id:repairId,limit:'20'})", 'bounded correction source history');
+must(correctionShared, "fetch('/api/materials/usage?'+q", 'bounded source usage GET');
+must(correctionShared, "fetch('/api/materials/usage/corrections?'+q", 'bounded correction history GET');
+must(correctionShared, "fetch('/api/materials/usage/corrections',{method:'POST'", 'explicit correction POST');
+must(correctionShared, 'pendingCorrectionOperationId', 'correction retry operation state');
+must(correctionShared, 'crypto.getRandomValues', 'strong correction operation id');
+must(correctionShared, 'operation_id:pendingCorrectionOperationId', 'correction operation id request');
+must(correctionShared, 'if(!pendingCorrectionOperationId)pendingCorrectionOperationId=operationId()', 'same correction operation reused across retry');
+must(correctionShared, "$('correctionUsage').onchange=()=>{resetCorrectionOperationId();renderSourceInfo()}", 'source change resets correction operation id');
+must(correctionShared, "$('correctionQuantity').oninput=resetCorrectionOperationId", 'quantity change resets correction operation id');
+must(correctionShared, "$('correctionComment').oninput=resetCorrectionOperationId", 'comment change resets correction operation id');
+must(correctionShared, "String(x&&x.comment||'').indexOf('RWI_TX=')===0", 'RUN_WIRE source UI exclusion');
+must(correctionShared, "j.error==='run_wire_correction_forbidden'", 'authoritative RUN_WIRE correction rejection');
+must(correctionShared, "j.error==='usage_over_correction'", 'authoritative over-correction handling');
+must(correctionShared, "j.source_cost_policy==='PERSISTED_USAGE_SNAPSHOT'", 'persisted source cost validation');
+must(correctionShared, 'j.source_usage_immutable===true', 'source usage immutable validation');
+must(correctionShared, "j.correction_history==='APPEND_ONLY'", 'append-only correction response validation');
+must(correctionShared, 'material_correction_cost_minor', 'server correction cost total display');
+must(correctionShared, 'material_correction_line_count', 'server correction count display');
+must(correctionShared, 'Неоднозначный результат:', 'ambiguous correction result UX');
+must(correctionShared, 'повтор отправит тот же correction operation_id', 'same-id ambiguous correction retry guidance');
+const correctionCatch = correctionShared.indexOf("catch(err){result.className='bad';result.textContent='Неоднозначный результат:");
+const correctionFinally = correctionShared.indexOf("finally{$('correctionSubmit').disabled=!writable}", correctionCatch);
+if (correctionCatch < 0 || correctionFinally < 0) throw new Error('correction ambiguous catch boundaries missing');
+mustNot(correctionShared.slice(correctionCatch, correctionFinally), 'resetCorrectionOperationId()', 'ambiguous correction outcome preserves operation id');
+for (const forbidden of ['/api/material-requests/warehouse','source_session_id:','source_run_id:','spool_id:String(','method:\'DELETE\'','method:\'PUT\'']) {
+  mustNot(correctionShared, forbidden, `correction UI must not contain ${forbidden}`);
 }
 
 must(desktopWriteoff, '/shared/writeoff-spool-suggestion.js', 'desktop dedicated RUN_WIRE workflow script');
@@ -192,4 +225,4 @@ must(runWireApply, 'm_ledger.confirmUsage(usage, result)', 'RUN_WIRE still uses 
 mustNot(runWire, 'MaterialUsageIdempotency', 'generic idempotency must not replace RUN_WIRE exact-run protection');
 must(runWire, 'confirmedWriteOffForSourceRun', 'RUN_WIRE exact source-run duplicate protection remains');
 
-console.log('Repair material card contracts OK: generic material safety is preserved, RUN_WIRE is visible from the same repair-material surface but remains on its dedicated exact-provenance coordinator path.');
+console.log('Repair material card contracts OK: generic material safety, append-only generic corrections and dedicated exact-provenance RUN_WIRE remain separated and fail-closed.');

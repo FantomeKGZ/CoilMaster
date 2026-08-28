@@ -21,6 +21,8 @@ public:
 private:
     void handleList();
     void handleAssign();
+    void handleCompletedWebJobsList();
+    void handleCompletedWebJobAssign();
     static bool parseCanonicalUint32(const String& text, uint32_t& value);
 
     WebServer& m_server;

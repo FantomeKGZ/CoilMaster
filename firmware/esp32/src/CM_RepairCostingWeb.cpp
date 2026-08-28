@@ -61,7 +61,7 @@ void RepairCostingWeb::handlePricingHistory()
     }
 
     RepairCostSummary current;
-    if (!m_costing.load(repairId, current))
+    if (!m_costing.loadKnownRepair(repairId, current))
     {
         if (!m_costing.ready())
         {
@@ -190,7 +190,7 @@ void RepairCostingWeb::handleGet()
     }
 
     RepairCostSummary summary;
-    if (!m_costing.load(repairId, summary))
+    if (!m_costing.loadKnownRepair(repairId, summary))
     {
         if (!m_costing.ready())
         {
@@ -337,7 +337,7 @@ void RepairCostingWeb::handleSavePricing()
     }
 
     RepairCostSummary current;
-    if (!m_costing.load(repairId, current))
+    if (!m_costing.loadKnownRepair(repairId, current))
     {
         if (!m_costing.ready())
         {

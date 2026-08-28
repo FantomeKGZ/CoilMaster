@@ -254,8 +254,7 @@ bool MaterialLedger::correctUsage(const MaterialUsageCorrection& correction,
         }
         const uint64_t expectedCost =
             (static_cast<uint64_t>(operationQuantity) * sourcePrice + 500ULL) / 1000ULL;
-        if (operationLineCost != expectedCost || correctedTotal > sourceQuantity)
-            return false;
+        if (operationLineCost != expectedCost || correctedTotal > sourceQuantity) return false;
         MaterialItemState current;
         bool currentFound = false;
         if (!loadActiveMaterialState(sourceMaterialId, current, currentFound) || !currentFound ||
@@ -272,8 +271,7 @@ bool MaterialLedger::correctUsage(const MaterialUsageCorrection& correction,
     if (correctedTotal > sourceQuantity ||
         correction.quantityMilli > sourceQuantity - static_cast<uint32_t>(correctedTotal))
     {
-        result.remainingCorrectableQuantityMilli =
-            sourceQuantity - static_cast<uint32_t>(correctedTotal);
+        result.remainingCorrectableQuantityMilli = sourceQuantity - static_cast<uint32_t>(correctedTotal);
         result.status = MaterialUsageCorrectionStatus::OverCorrection;
         return true;
     }
@@ -282,24 +280,140 @@ bool MaterialLedger::correctUsage(const MaterialUsageCorrection& correction,
         (static_cast<uint64_t>(correction.quantityMilli) * sourcePrice + 500ULL) / 1000ULL;
     if (correctionCost == 0ULL || correctionCost > sourceLineCost) return false;
 
-    MaterialAdjustment adjustment;
-    adjustment.materialId = sourceMaterialId;
-    adjustment.addQuantityMilli = correction.quantityMilli;
-    adjustment.newPricePerUnitMinor = 0UL;
-    adjustment.currency = sourceCurrency;
-    adjustment.timestamp = correction.timestamp;
-    adjustment.comment = correction.comment;
-    adjustment.correctionSourceUsageId = correction.sourceUsageId;
-    adjustment.correctionRepairId = correction.repairId;
-    adjustment.correctionQuantityMilli = correction.quantityMilli;
-    adjustment.correctionLineCostMinor = correctionCost;
-    adjustment.correctionOperationId = correction.operationId;
+    uint32_t stockBefore = 0UL, currentPrice = 0UL;
+    String currentCurrency;
+    if (!readMaterialState(sourceMaterialId, stockBefore, currentPrice, currentCurrency) ||
+        currentCurrency != sourceCurrency)
+        return false;
+    const uint64_t stockAfter64 = static_cast<uint64_t>(stockBefore) + correction.quantityMilli;
+    if (stockAfter64 > 0xFFFFFFFFULL) return false;
+    const uint32_t stockAfter = static_cast<uint32_t>(stockAfter64);
 
-    MaterialAdjustmentResult adjustmentResult;
-    if (!adjustMaterial(adjustment, adjustmentResult)) return false;
+    uint32_t adjustmentId = 0UL;
+    if (!nextId(AdjustmentsPath, "adjustment_id", adjustmentId)) return false;
 
-    result.adjustmentId = adjustmentResult.adjustmentId;
-    result.stockQuantityMilli = adjustmentResult.stockQuantityMilli;
+    char costText[24];
+    snprintf(costText, sizeof(costText), "%llu",
+             static_cast<unsigned long long>(correctionCost));
+    String auditLine;
+    auditLine.reserve(640U);
+    auditLine = F("{\"adjustment_id\":"); auditLine += adjustmentId;
+    auditLine += F(",\"material_id\":"); auditLine += sourceMaterialId;
+    auditLine += F(",\"type\":\"ADJUSTMENT\",\"status\":\"CONFIRMED\"");
+    auditLine += F(",\"added_quantity_milli\":"); auditLine += correction.quantityMilli;
+    auditLine += F(",\"stock_before_milli\":"); auditLine += stockBefore;
+    auditLine += F(",\"stock_after_milli\":"); auditLine += stockAfter;
+    auditLine += F(",\"price_before_minor\":"); auditLine += currentPrice;
+    auditLine += F(",\"price_after_minor\":"); auditLine += currentPrice;
+    auditLine += F(",\"currency_before\":\""); auditLine += jsonEscape(currentCurrency);
+    auditLine += F("\",\"currency_after\":\""); auditLine += jsonEscape(currentCurrency);
+    auditLine += F("\",\"timestamp\":\""); auditLine += jsonEscape(correction.timestamp); auditLine += '"';
+    auditLine += F(",\"correction_source_usage_id\":"); auditLine += correction.sourceUsageId;
+    auditLine += F(",\"correction_repair_id\":"); auditLine += correction.repairId;
+    auditLine += F(",\"correction_quantity_milli\":"); auditLine += correction.quantityMilli;
+    auditLine += F(",\"correction_line_cost_minor\":"); auditLine += costText;
+    auditLine += F(",\"correction_operation_id\":\"");
+    auditLine += jsonEscape(correction.operationId); auditLine += '"';
+    if (correction.comment.length() > 0U)
+    {
+        auditLine += F(",\"comment\":\""); auditLine += jsonEscape(correction.comment); auditLine += '"';
+    }
+    auditLine += F("}\n");
+
+    if (!writePendingAdjustment(adjustmentId, sourceMaterialId, stockBefore, stockAfter,
+                                currentPrice, currentPrice, currentCurrency, currentCurrency,
+                                auditLine))
+        return false;
+
+    File source = m_storage.open(MaterialsPath, FILE_READ);
+    if (!source)
+    {
+        if (ready()) m_storage.remove(AdjustmentPendingPath);
+        return false;
+    }
+    m_storage.remove(MaterialsTempPath);
+    File target = m_storage.open(MaterialsTempPath, FILE_WRITE);
+    if (!target)
+    {
+        source.close();
+        if (ready()) m_storage.remove(AdjustmentPendingPath);
+        return false;
+    }
+
+    bool materialFound = false;
+    bool valid = true;
+    uint32_t previousMaterialId = 0UL;
+    while (source.available())
+    {
+        String line = source.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+        uint32_t materialId = 0UL, stock = 0UL, price = 0UL;
+        String currency, status;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "material_id", materialId) || materialId == 0UL ||
+            materialId <= previousMaterialId ||
+            !findUnsigned(line, "stock_quantity_milli", stock) ||
+            !findUnsigned(line, "price_per_unit_minor", price) || price == 0UL ||
+            !findString(line, "currency", currency) || currency.length() != 3U ||
+            !findString(line, "status", status))
+        {
+            valid = false;
+            break;
+        }
+        previousMaterialId = materialId;
+        if (materialId == sourceMaterialId)
+        {
+            if (materialFound || status != "ACTIVE" || stock != stockBefore ||
+                price != currentPrice || currency != currentCurrency)
+            {
+                valid = false;
+                break;
+            }
+            line = replaceUnsigned(line, "stock_quantity_milli", stockAfter);
+            uint32_t verifiedStock = 0UL;
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "stock_quantity_milli", verifiedStock) ||
+                verifiedStock != stockAfter)
+            {
+                valid = false;
+                break;
+            }
+            materialFound = true;
+        }
+        if (target.println(line) == 0U)
+        {
+            valid = false;
+            break;
+        }
+    }
+    source.close();
+    target.flush();
+    target.close();
+    if (!valid || !materialFound)
+    {
+        m_storage.remove(MaterialsTempPath);
+        m_storage.remove(AdjustmentPendingPath);
+        return false;
+    }
+
+    if (!replaceMaterialsFileFromTemp())
+    {
+        if (ready()) m_storage.remove(AdjustmentPendingPath);
+        return false;
+    }
+    if (!appendAdjustmentLine(auditLine))
+    {
+        m_ready = false;
+        return false;
+    }
+    if (!m_storage.remove(AdjustmentPendingPath))
+    {
+        m_ready = false;
+        return false;
+    }
+
+    result.adjustmentId = adjustmentId;
+    result.stockQuantityMilli = stockAfter;
     result.correctionLineCostMinor = correctionCost;
     result.remainingCorrectableQuantityMilli =
         sourceQuantity - static_cast<uint32_t>(correctedTotal) - correction.quantityMilli;

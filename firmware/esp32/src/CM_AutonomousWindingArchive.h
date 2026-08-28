@@ -51,10 +51,12 @@ struct AutonomousWindingIntegrityMetrics
     uint32_t startedRecordCount;
     uint32_t completedRecordCount;
     uint32_t assignmentRecordCount;
+    uint32_t webAssignmentRecordCount;
 
     AutonomousWindingIntegrityMetrics()
         : eventRecordCount(0UL), startedRecordCount(0UL),
-          completedRecordCount(0UL), assignmentRecordCount(0UL)
+          completedRecordCount(0UL), assignmentRecordCount(0UL),
+          webAssignmentRecordCount(0UL)
     {
     }
 };
@@ -71,9 +73,6 @@ public:
 
     AutonomousWindingSaveResult save(const RemoteWindingEvent& event);
 
-    // Cursor is a byte offset into append-only events.ndjson and must point to a
-    // logical task boundary. The returned cursor always starts the next task and
-    // never splits RUN_STARTED/RUN_COMPLETED for one run.
     bool appendTasksPageJson(String& json,
                              const String& programQuery,
                              uint8_t tolerancePercent,
@@ -83,9 +82,6 @@ public:
                              uint32_t& nextCursor,
                              bool& hasMore) const;
 
-    // Read-only projection of completed ESP32-origin jobs. It derives rows from
-    // persisted JobStateStore + immutable JobSnapshotStore; it does not copy or
-    // rewrite RUN evidence. Cursor is the last returned session_id.
     bool appendCompletedWebJobsPageJson(String& json,
                                         uint32_t cursorSessionId,
                                         uint8_t limit,
@@ -93,17 +89,12 @@ public:
                                         uint32_t& nextCursorSessionId,
                                         bool& hasMore) const;
 
-    // Performs the completed-task lookup and append in one archive operation so
-    // HTTP callers do not scan events.ndjson once before assignment and then a
-    // second time inside it. Result preserves not-found vs integrity semantics.
     AutonomousWindingAssignResult assignMotorChecked(uint32_t sessionId,
                                                       uint32_t runId,
                                                       uint32_t motorId,
                                                       const String& role,
                                                       uint32_t& assignmentId);
 
-    // Manual linkage for an unlinked completed ESP32-origin job. Immutable jobs
-    // already linked to a repair/motor cannot be reassigned through this path.
     AutonomousWindingAssignResult assignCompletedWebJobMotorChecked(
         uint32_t sessionId,
         uint32_t runId,
@@ -111,8 +102,6 @@ public:
         const String& role,
         uint32_t& assignmentId);
 
-    // Read-only authoritative audit used both at boot and by backup/deep-integrity
-    // checks. It never creates directories or mutates persisted archive data.
     static bool validateStorage(fs::FS& storage,
                                 AutonomousWindingIntegrityMetrics& metrics);
 

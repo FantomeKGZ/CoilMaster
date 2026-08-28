@@ -2,6 +2,7 @@
 #include "CM_FlatJsonObjectValidator.h"
 #include "CM_WorkshopPersistenceIntegrityAudit.h"
 #include "CM_RepairPricingIntegrityAudit.h"
+#include "CM_MaterialUsageCorrectionIntegrityAudit.h"
 #include <Arduino.h>
 
 namespace CM
@@ -409,7 +410,8 @@ bool MaterialPersistenceIntegrityAudit::checkMaterialDomain(
     uint32_t adjustmentRecordCount = 0UL;
     if (!checkMaterials(storage, materialRecordCount) ||
         !checkUsage(storage, usageRecordCount) ||
-        !checkAdjustments(storage, adjustmentRecordCount))
+        !checkAdjustments(storage, adjustmentRecordCount) ||
+        !MaterialUsageCorrectionIntegrityAudit::check(storage))
     {
         return false;
     }

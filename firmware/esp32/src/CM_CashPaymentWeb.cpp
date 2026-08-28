@@ -84,17 +84,83 @@ void CashPaymentWeb::handleCreate()
         m_server.send(400, "application/json", "{\"error\":\"explicit_confirmation_required\"}");
         return;
     }
-    if (!m_repairs.ready() || !m_costing.ready() || !m_payments.ready())
+    if (!m_repairs.ready() || !m_payments.ready())
+    {
+        m_server.send(503, "application/json", "{\"error\":\"cash_runtime_unavailable\"}");
+        return;
+    }
+
+    const String requestedKind = m_server.hasArg("kind") ? m_server.arg("kind") : String("PAYMENT");
+    const bool prepayment = requestedKind == "PREPAYMENT";
+    uint64_t amountMinor = 0ULL;
+    if (!parseUnsigned64(m_server, "amount_minor", 1ULL, amountMinor) ||
+        !m_server.hasArg("occurred_at") || !validTimestamp(m_server.arg("occurred_at")))
+    {
+        m_server.send(400, "application/json", "{\"error\":\"invalid_payment_request\"}");
+        return;
+    }
+
+    if (prepayment)
+    {
+        uint32_t clientId = 0UL;
+        if (m_server.hasArg("repair_id") || m_server.hasArg("corrects_event_id") ||
+            !parseUnsigned(m_server, "client_id", 1UL, 0xFFFFFFFFUL, clientId) ||
+            (m_server.hasArg("direction") && m_server.arg("direction") != "ADD"))
+        {
+            m_server.send(409, "application/json", "{\"error\":\"prepayment_contract_mismatch\"}");
+            return;
+        }
+        bool clientFound = false;
+        if (!m_repairs.clientExists(clientId, clientFound))
+        {
+            m_server.send(500, "application/json", "{\"error\":\"client_lookup_integrity_failed\"}");
+            return;
+        }
+        if (!clientFound)
+        {
+            m_server.send(404, "application/json", "{\"error\":\"client_not_found\"}");
+            return;
+        }
+
+        NewCashEvent event;
+        event.repairId = 0UL;
+        event.clientId = clientId;
+        event.kind = F("PREPAYMENT");
+        event.direction = F("ADD");
+        event.amountMinor = amountMinor;
+        event.currency = m_server.hasArg("currency") ? m_server.arg("currency") : String("KGS");
+        event.occurredAt = m_server.arg("occurred_at");
+        event.method = m_server.hasArg("method") ? m_server.arg("method") : String("CASH");
+        event.comment = m_server.hasArg("comment") ? m_server.arg("comment") : String();
+        if (event.currency.length() != 3U || !validMethod(event.method))
+        {
+            m_server.send(409, "application/json", "{\"error\":\"prepayment_contract_mismatch\"}");
+            return;
+        }
+
+        uint32_t eventId = 0UL;
+        if (!m_payments.append(event, eventId))
+        {
+            m_server.send(500, "application/json", "{\"error\":\"payment_write_failed\"}");
+            return;
+        }
+        String response = F("{\"cash_event_id\":"); response += eventId;
+        response += F(",\"repair_id\":0,\"client_id\":"); response += clientId;
+        response += F(",\"kind\":\"PREPAYMENT\",\"direction\":\"ADD\",\"amount_minor\":");
+        appendUint64(response, event.amountMinor);
+        response += F(",\"currency\":\""); response += jsonEscape(event.currency); response += F("\"}");
+        m_server.send(201, "application/json; charset=utf-8", response);
+        return;
+    }
+
+    if (!m_costing.ready())
     {
         m_server.send(503, "application/json", "{\"error\":\"cash_runtime_unavailable\"}");
         return;
     }
 
     uint32_t repairId = 0UL;
-    uint64_t amountMinor = 0ULL;
-    if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId) ||
-        !parseUnsigned64(m_server, "amount_minor", 1ULL, amountMinor) ||
-        !m_server.hasArg("occurred_at") || !validTimestamp(m_server.arg("occurred_at")))
+    if (!parseUnsigned(m_server, "repair_id", 1UL, 0xFFFFFFFFUL, repairId))
     {
         m_server.send(400, "application/json", "{\"error\":\"invalid_payment_request\"}");
         return;
@@ -123,7 +189,7 @@ void CashPaymentWeb::handleCreate()
     NewCashEvent event;
     event.repairId = repairId;
     event.clientId = identity.clientId;
-    event.kind = m_server.hasArg("kind") ? m_server.arg("kind") : String("PAYMENT");
+    event.kind = requestedKind;
     event.direction = event.kind == "PAYMENT"
         ? String("ADD")
         : (m_server.hasArg("direction") ? m_server.arg("direction") : String());
@@ -321,10 +387,12 @@ bool CashPaymentWeb::sendClientBalance(uint32_t clientId)
     String response = F("{\"client_id\":"); response += clientId;
     response += F(",\"charged_minor\":"); appendUint64(response, chargedMinor);
     response += F(",\"paid_minor\":"); appendUint64(response, paid.paidMinor);
+    response += F(",\"prepayment_minor\":"); appendUint64(response, paid.prepaymentMinor);
     response += F(",\"debt_minor\":"); appendUint64(response, debt);
     response += F(",\"credit_minor\":"); appendUint64(response, credit);
     response += F(",\"repair_count\":"); response += repairCount;
     response += F(",\"payment_event_count\":"); response += paid.eventCount;
+    response += F(",\"prepayment_event_count\":"); response += paid.prepaymentEventCount;
     response += F(",\"currency\":\""); response += jsonEscape(currency); response += F("\"}");
     m_server.send(200, "application/json; charset=utf-8", response);
     return true;

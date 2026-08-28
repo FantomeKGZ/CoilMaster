@@ -100,3 +100,4 @@ for (const required of [
 
 console.log('PASS: material usage preflight remains fail-closed, repair existence is explicit, recovery stays deterministic, and retired private full-log helpers remain removed');
 require('./check_repair_material_card_ui.js');
+require('./check_material_usage_correction_contracts.js');

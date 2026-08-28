@@ -74,7 +74,7 @@ void MaterialRequestWeb::handleCreate()
         return;
     }
     bool open = false;
-    if (!m_repairs.repairIsOpen(repairId, open))
+    if (!m_repairs.repairStatusIsOpen(repairId, open))
     {
         m_server.send(500, "application/json", "{\"error\":\"repair_status_lookup_failed\"}");
         return;

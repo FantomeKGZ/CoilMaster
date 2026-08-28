@@ -68,15 +68,48 @@ arduino-ru-lcd-experiment    28c7917a906bc9b15736369e8986d0e0c354ab8c
 compare                      identical / ahead=0 / behind=0
 ```
 
-So all changes that existed in `arduino-ru-lcd-experiment` through `28c7917a906bc9b15736369e8986d0e0c354ab8c`, including the new repair-material plan, are now present in `cmp-protocol-v1`.
+So all changes that existed in `arduino-ru-lcd-experiment` through `28c7917a906bc9b15736369e8986d0e0c354ab8c`, including the new repair-material plan, are present in `cmp-protocol-v1`.
 
-Immediately after the fast-forward, production CMP Protocol Tests #3772 / run `33141922657` completed **FAILURE** on the same SHA. Build/test core steps passed, but three contract audits failed:
+Production CMP Protocol Tests #3772 / run `33141922657` completed **FAILURE** on production SHA `28c7917a906bc9b15736369e8986d0e0c354ab8c`. Configure/build/ctest passed. Four actual failing audit steps were identified from the job result/logs:
 
 1. `Audit motor schema UI contracts`;
 2. `Audit motor details and repair history contracts`;
-3. `Audit Hall calibration safety contracts`.
+3. `Audit Hall calibration safety contracts`;
+4. `Audit Hall raw migration ownership`.
 
-Therefore the transferred production state must **not** be called GREEN yet. These three concrete regressions are the first priority in the next work session. Do not revert the whole transfer blindly; inspect the failing contract scripts and the current branch files to distinguish intentional experiment/UI evolution from real safety/schema regressions.
+Read-only comparison with current experiment behavior proved these were stale contract assertions, not a reason to roll back the transferred runtime:
+
+- motor CRUD had intentionally moved to dedicated create/edit pages, while old assertions still expected inline catalog/repair quick-add fields;
+- motor role UI had intentionally localized WORKING/STARTING labels while exact `role=working` / `role=starting` navigation remained intact;
+- Hall experiment intentionally starts calibration motor motion only from local keypad `A` or the physical START input after baseline readiness, while EEPROM apply still requires separate local `#` confirmation and Web has no motor-start/SSR endpoint;
+- Uno compact completion intentionally delegates CRC append to shared `CrcFrameText::append`, while the old ownership audit required the previous direct `Cmp1Crc::calculate` literal.
+
+Only contract tests were aligned; Hall/SSR runtime safety was not weakened. Fix commits in `arduino-ru-lcd-experiment`:
+
+```text
+bb4aa5c58b173f015df0b8a3971a28a4ece62d9c  motor schema audit -> dedicated CRUD pages
+c73cf2164ccbc3c9c7c232d6778789037704ddb9  motor details audit -> localized role UI
+6ac4de83ba95659a679a0dc171517f9f08aa61d1  Hall safety audit -> local A/physical START experiment contract
+9b239f30e991876b77ec2f8f972d9c82b7616872  Hall raw migration audit -> shared CRC formatter
+```
+
+A CI coverage gap was also closed: `CMP Protocol Tests` push trigger now includes `arduino-ru-lcd-experiment` in addition to production, while `main` remains excluded. Commit:
+
+```text
+ea56a53e67500cbee019321542446107e0bc316d  ci: run CMP contract suite on experiment branch
+```
+
+Direct verification of this experiment checkpoint:
+
+```text
+CMP Protocol Tests #3773
+run 33147497236
+SHA ea56a53e67500cbee019321542446107e0bc316d
+status completed
+conclusion success
+```
+
+All four previously failing audit steps completed `success` in #3773, as did Configure / Build / Test and the rest of the CMP host audit suite. This establishes a GREEN **experiment checkpoint** for the repaired contracts. It does **not** change production: `cmp-protocol-v1` remains at `28c7917a906bc9b15736369e8986d0e0c354ab8c` until a separate explicit transfer request.
 
 ## New active software block — repair materials and write-off
 
@@ -99,13 +132,12 @@ The new block covers:
 
 ## Current execution order
 
-1. Continue work only in `arduino-ru-lcd-experiment` from the synchronized production snapshot.
-2. Inspect and resolve the three CMP #3772 contract failures without weakening safety invariants.
-3. Re-run/verify relevant CI; do not declare the synchronized baseline GREEN before confirmed success.
-4. Then perform a read-only audit of MaterialLedger, Warehouse, Repair costing, RUN_WIRE APIs and desktop/mobile UI.
-5. Produce the exact current data-flow map and minimum extension points.
-6. Implement the repair-material plan in small checkpoints with tests and handoff updates.
-7. Do not copy further experiment commits into `cmp-protocol-v1` until a new explicit transfer is agreed.
+1. Continue work only in `arduino-ru-lcd-experiment`.
+2. Perform the planned read-only audit of MaterialLedger, Warehouse/spool storage, Repair costing, RUN_WIRE, material request/catalog, related APIs, desktop/mobile UI and backup/integrity coverage.
+3. Produce the exact current data-flow map `warehouse/material/spool -> selection -> repair/run -> confirmation -> ledger -> costing -> history/backup` and identify reusable authoritative components.
+4. Implement the minimum safe first repair-material checkpoint without creating a parallel ledger.
+5. Verify relevant CI and update PROJECT_HANDOFF after each completed checkpoint.
+6. Do not copy further experiment commits into `cmp-protocol-v1` until a new explicit transfer is agreed.
 
 ## Safety invariants
 

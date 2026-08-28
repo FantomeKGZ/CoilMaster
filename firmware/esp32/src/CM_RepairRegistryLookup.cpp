@@ -24,7 +24,6 @@ bool RepairRegistry::loadRepairIdentity(uint32_t repairId,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-
         uint32_t candidateId = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "repair_id", candidateId) || candidateId == 0UL)
@@ -43,7 +42,6 @@ bool RepairRegistry::loadRepairIdentity(uint32_t repairId,
         identity.repairId = candidateId;
         found = true;
     }
-
     file.close();
     return true;
 }
@@ -54,24 +52,31 @@ bool RepairRegistry::appendClientByIdJson(String& json,
 {
     found = false;
     if (!ready() || clientId == 0UL) return false;
-    if (!m_storage.exists(ClientsPath)) return true;
 
+    String revision;
+    bool revisionFound = false;
+    if (!latestClientRevisionLine(clientId, revision, revisionFound)) return false;
+    if (revisionFound)
+    {
+        json += revision;
+        found = true;
+        return true;
+    }
+
+    if (!m_storage.exists(ClientsPath)) return true;
     File file = m_storage.open(ClientsPath, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
         return false;
     }
-
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-
         uint32_t candidateId = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "client_id", candidateId) ||
-            candidateId == 0UL)
+            !findUnsigned(line, "client_id", candidateId) || candidateId == 0UL)
         {
             file.close();
             return false;
@@ -85,7 +90,6 @@ bool RepairRegistry::appendClientByIdJson(String& json,
         json += line;
         found = true;
     }
-
     file.close();
     return true;
 }
@@ -106,25 +110,20 @@ bool RepairRegistry::appendMotorByIdJson(String& json,
         found = true;
         return true;
     }
-
     if (!m_storage.exists(MotorsPath)) return true;
-
     File file = m_storage.open(MotorsPath, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
         return false;
     }
-
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-
         uint32_t candidateId = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "motor_id", candidateId) ||
-            candidateId == 0UL)
+            !findUnsigned(line, "motor_id", candidateId) || candidateId == 0UL)
         {
             file.close();
             return false;
@@ -138,7 +137,6 @@ bool RepairRegistry::appendMotorByIdJson(String& json,
         json += line;
         found = true;
     }
-
     file.close();
     return true;
 }
@@ -150,24 +148,20 @@ bool RepairRegistry::appendRepairByIdJson(String& json,
     found = false;
     if (!ready() || repairId == 0UL) return false;
     if (!m_storage.exists(RepairsPath)) return true;
-
     File file = m_storage.open(RepairsPath, FILE_READ);
     if (!file || file.isDirectory())
     {
         if (file) file.close();
         return false;
     }
-
     String matchedLine;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-
         uint32_t candidateId = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
-            !findUnsigned(line, "repair_id", candidateId) ||
-            candidateId == 0UL)
+            !findUnsigned(line, "repair_id", candidateId) || candidateId == 0UL)
         {
             file.close();
             return false;
@@ -182,13 +176,11 @@ bool RepairRegistry::appendRepairByIdJson(String& json,
         found = true;
     }
     file.close();
-
     if (!found) return true;
 
     bool closed = false;
     String closedAt;
     if (!repairClosed(repairId, closed, closedAt)) return false;
-
     if (matchedLine.length() == 0U || matchedLine[matchedLine.length() - 1U] != '}')
         return false;
     matchedLine.remove(matchedLine.length() - 1U);
@@ -201,10 +193,7 @@ bool RepairRegistry::appendRepairByIdJson(String& json,
         matchedLine += jsonEscape(closedAt);
         matchedLine += '"';
     }
-    else
-    {
-        matchedLine += F("null");
-    }
+    else matchedLine += F("null");
     matchedLine += '}';
     json += matchedLine;
     return true;

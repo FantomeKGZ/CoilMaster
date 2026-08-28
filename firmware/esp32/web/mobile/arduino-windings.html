@@ -14,13 +14,14 @@ nav{position:fixed;bottom:0;left:0;right:0;display:grid;grid-template-columns:re
 <body data-view="mobile">
 <header><a href="/mobile/more.html">← Ещё</a><b style="float:right">🔌 Arduino</b></header>
 <main>
-<section class="card"><h2>Arduino архив</h2><p class="muted">Компактный список физических RUN. Linkage не изменяет RUN history.</p><div class="grid"><input id="program" placeholder="Программа, например 38/38"><input id="tolerance" type="number" min="0" max="50" value="20"></div><button id="search">Поиск ± %</button><button id="all" class="secondary">Показать все</button><div id="state" class="note">Загрузка…</div></section>
+<section class="card"><h2>Arduino архив</h2><p class="muted">Общий список автономных RUN Arduino и завершённых заданий ESP32/Web. Источники остаются раздельными; RUN history не изменяется.</p><div class="grid"><input id="program" placeholder="Программа, например 38/38"><input id="tolerance" type="number" min="0" max="50" value="20"></div><button id="search">Поиск ± %</button><button id="all" class="secondary">Показать все</button><div id="state" class="note">Загрузка…</div></section>
 <section class="card"><h3>Групповые действия <span id="selectedCount" class="muted">(0)</span></h3><select id="motorSelect"><option value="">Загрузка двигателей…</option></select><select id="role"><option value="WORKING">Рабочая</option><option value="STARTING">Пусковая</option><option value="AUXILIARY">Дополнительная</option></select><div class="bulk-actions"><button id="bulkAssign" class="assign" disabled>Привязать</button><button id="selectCompleted" class="secondary">Все завершённые</button><button id="clearSelection" class="secondary">Снять выбор</button><button id="historyScan" class="secondary">Счёт истории</button></div>
 <div class="create-grid"><input id="newMaker" placeholder="Производитель"><input id="newModel" placeholder="Модель"><input id="newPhases" type="number" min="1" max="16" placeholder="Фазы"><input id="newSlots" type="number" min="1" max="999" placeholder="Пазы"><input id="newRepeat" type="number" min="1" max="65535" value="1"><span></span></div>
 <div class="bulk-actions"><button id="createSelected" disabled>Создать из выбранных</button><button id="combineSelected" disabled>Объединить программы</button></div><div id="bulkState" class="muted mini" style="margin-top:8px">Можно выбирать только завершённые записи для linkage.</div></section>
-<section class="card"><h3>Задачи Arduino</h3><p class="muted mini">Исторический счёт появляется после полного bounded page scan по кнопке «Счёт истории».</p><div id="items">Загрузка…</div><button id="more" class="secondary" hidden>Показать ещё</button></section>
+<section class="card"><h3>Задачи Arduino</h3><p class="muted mini">Исторический счёт выполняет bounded page scan по обоим источникам.</p><div id="items">Загрузка…</div><button id="more" class="secondary" hidden>Показать ещё</button></section>
 </main>
 <nav><a href="/mobile/"><b>🏠</b>Главная</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
+<script src="/shared/completed-web-job-archive-bridge.js"></script>
 <script src="/shared/arduino-windings-archive.js"></script>
 </body>
 </html>

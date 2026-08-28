@@ -81,6 +81,40 @@ struct MaterialAdjustmentResult
           pricePerUnitMinor(0UL), currency("KGS") {}
 };
 
+struct MaterialUsageCorrection
+{
+    uint32_t sourceUsageId;
+    uint32_t repairId;
+    uint32_t quantityMilli;
+    String operationId;
+    String timestamp;
+    String comment;
+
+    MaterialUsageCorrection()
+        : sourceUsageId(0UL), repairId(0UL), quantityMilli(0UL) {}
+};
+
+struct MaterialUsageCorrectionResult
+{
+    uint32_t adjustmentId;
+    uint32_t sourceUsageId;
+    uint32_t repairId;
+    uint32_t materialId;
+    uint32_t correctedQuantityMilli;
+    uint32_t remainingCorrectableQuantityMilli;
+    uint32_t stockQuantityMilli;
+    uint32_t unitPriceMinor;
+    uint64_t correctionLineCostMinor;
+    String currency;
+    bool duplicateReplay;
+
+    MaterialUsageCorrectionResult()
+        : adjustmentId(0UL), sourceUsageId(0UL), repairId(0UL), materialId(0UL),
+          correctedQuantityMilli(0UL), remainingCorrectableQuantityMilli(0UL),
+          stockQuantityMilli(0UL), unitPriceMinor(0UL), correctionLineCostMinor(0ULL),
+          currency("KGS"), duplicateReplay(false) {}
+};
+
 struct RepairMaterialUsage
 {
     uint32_t repairId;
@@ -125,6 +159,8 @@ public:
     bool addMaterial(const NewMaterial& material, uint32_t& assignedMaterialId);
     bool adjustMaterial(const MaterialAdjustment& adjustment,
                         MaterialAdjustmentResult& result);
+    bool correctUsage(const MaterialUsageCorrection& correction,
+                      MaterialUsageCorrectionResult& result);
     bool appendMaterialsPageJson(String& json,
                                  uint32_t cursor,
                                  uint8_t limit,

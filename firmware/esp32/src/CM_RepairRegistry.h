@@ -88,6 +88,7 @@ public:
     bool ready() const;
 
     bool addClient(const NewClient& client, uint32_t& clientId);
+    bool updateClient(uint32_t clientId, const NewClient& client);
     bool addMotor(const NewMotor& motor, uint32_t& motorId);
     bool updateMotor(uint32_t motorId, const NewMotor& motor);
     bool addRepair(const NewRepair& repair, uint32_t& repairId);
@@ -192,6 +193,7 @@ public:
 
 private:
     static constexpr const char* ClientsPath = "/data/workshop/clients.ndjson";
+    static constexpr const char* ClientRevisionsPath = "/data/workshop/client-revisions.ndjson";
     static constexpr const char* MotorsPath = "/data/workshop/motors.ndjson";
     static constexpr const char* MotorRevisionsPath = "/data/workshop/motor-revisions.ndjson";
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
@@ -203,6 +205,9 @@ private:
                                    uint8_t repairCount,
                                    bool* closed,
                                    String* closedAt) const;
+    bool latestClientRevisionLine(uint32_t clientId,
+                                  String& line,
+                                  bool& found) const;
     bool latestMotorRevisionLine(uint32_t motorId,
                                  String& line,
                                  bool& found) const;

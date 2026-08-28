@@ -18,9 +18,14 @@ bool prepareNdjson(File& file)
 
 bool validKindDirection(const String& kind, const String& direction)
 {
-    if (kind == "PAYMENT") return direction == "ADD";
+    if (kind == "PAYMENT" || kind == "PREPAYMENT") return direction == "ADD";
     if (kind == "CORRECTION") return direction == "ADD" || direction == "SUBTRACT";
     return false;
+}
+
+bool validRepairScope(const String& kind, uint32_t repairId)
+{
+    return kind == "PREPAYMENT" ? repairId == 0UL : repairId != 0UL;
 }
 
 bool addChecked(uint64_t& target, uint64_t value)
@@ -50,12 +55,14 @@ bool CashPaymentStore::ready() const
 bool CashPaymentStore::append(const NewCashEvent& event, uint32_t& eventId)
 {
     eventId = 0UL;
-    if (!ready() || event.repairId == 0UL || event.clientId == 0UL ||
+    if (!ready() || event.clientId == 0UL ||
         event.amountMinor == 0ULL || event.currency.length() != 3U ||
         event.occurredAt.length() < 10U || event.occurredAt.length() > 32U ||
         event.method.length() > 24U || event.comment.length() > 500U ||
         !validKindDirection(event.kind, event.direction) ||
-        (event.kind == "PAYMENT" && event.correctsEventId != 0UL))
+        !validRepairScope(event.kind, event.repairId) ||
+        ((event.kind == "PAYMENT" || event.kind == "PREPAYMENT") &&
+         event.correctsEventId != 0UL))
     {
         return false;
     }
@@ -129,17 +136,17 @@ bool CashPaymentStore::totalsForRepair(uint32_t repairId, CashRepairTotals& tota
         String kind, direction, currency, occurredAt;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL || id <= previousId ||
-            !findUnsigned(line, "repair_id", lineRepair) || lineRepair == 0UL ||
+            !findUnsigned(line, "repair_id", lineRepair) ||
             !findUnsigned64(line, "amount_minor", amount) || amount == 0ULL ||
             !findString(line, "kind", kind) || !findString(line, "direction", direction) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !findString(line, "occurred_at", occurredAt) || occurredAt.length() < 10U ||
-            !validKindDirection(kind, direction))
+            !validKindDirection(kind, direction) || !validRepairScope(kind, lineRepair))
         {
             file.close(); return false;
         }
         previousId = id;
-        if (lineRepair != repairId) continue;
+        if (kind == "PREPAYMENT" || lineRepair != repairId) continue;
         if (!totals.currencySet) { totals.currency = currency; totals.currencySet = true; }
         else if (totals.currency != currency) { file.close(); return false; }
         if (totals.eventCount == 0xFFFFFFFFUL) { file.close(); return false; }
@@ -169,12 +176,15 @@ bool CashPaymentStore::appendRepairPageJson(String& json, uint32_t repairId,
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t id = 0UL, lineRepair = 0UL;
+        String kind, direction;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL || id <= previousId ||
-            !findUnsigned(line, "repair_id", lineRepair) || lineRepair == 0UL)
+            !findUnsigned(line, "repair_id", lineRepair) ||
+            !findString(line, "kind", kind) || !findString(line, "direction", direction) ||
+            !validKindDirection(kind, direction) || !validRepairScope(kind, lineRepair))
         { file.close(); return false; }
         previousId = id;
-        if (id <= cursor || lineRepair != repairId) continue;
+        if (kind == "PREPAYMENT" || id <= cursor || lineRepair != repairId) continue;
         if (count >= limit) { hasMore = true; break; }
         if (count > 0U) json += ',';
         json += line;
@@ -200,10 +210,14 @@ bool CashPaymentStore::appendClientPageJson(String& json, uint32_t clientId,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        uint32_t id = 0UL, lineClient = 0UL;
+        uint32_t id = 0UL, lineClient = 0UL, lineRepair = 0UL;
+        String kind, direction;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL || id <= previousId ||
-            !findUnsigned(line, "client_id", lineClient) || lineClient == 0UL)
+            !findUnsigned(line, "client_id", lineClient) || lineClient == 0UL ||
+            !findUnsigned(line, "repair_id", lineRepair) ||
+            !findString(line, "kind", kind) || !findString(line, "direction", direction) ||
+            !validKindDirection(kind, direction) || !validRepairScope(kind, lineRepair))
         { file.close(); return false; }
         previousId = id;
         if (id <= cursor || lineClient != clientId) continue;
@@ -272,16 +286,17 @@ bool CashPaymentStore::validateJournal() const
         String kind, direction, currency, occurredAt, value;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL || id <= previousId ||
-            !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+            !findUnsigned(line, "repair_id", repairId) ||
             !findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
             !findUnsigned64(line, "amount_minor", amount) || amount == 0ULL ||
             !findString(line, "kind", kind) || !findString(line, "direction", direction) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !findString(line, "occurred_at", occurredAt) || occurredAt.length() < 10U ||
-            occurredAt.length() > 32U || !validKindDirection(kind, direction))
+            occurredAt.length() > 32U || !validKindDirection(kind, direction) ||
+            !validRepairScope(kind, repairId))
         { file.close(); return false; }
         const bool hasCorrects = line.indexOf(F("\"corrects_event_id\":")) >= 0;
-        if ((kind == "PAYMENT" && hasCorrects) ||
+        if (((kind == "PAYMENT" || kind == "PREPAYMENT") && hasCorrects) ||
             (hasCorrects && (!findUnsigned(line, "corrects_event_id", corrects) ||
                              corrects == 0UL || corrects >= id)))
         { file.close(); return false; }

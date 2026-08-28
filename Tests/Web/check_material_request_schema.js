@@ -4,6 +4,8 @@ const requestHeader = fs.readFileSync('firmware/esp32/src/CM_MaterialRequestStor
 const requestSource = fs.readFileSync('firmware/esp32/src/CM_MaterialRequestStore.cpp', 'utf8');
 const movementHeader = fs.readFileSync('firmware/esp32/src/CM_MaterialRequestMovementStore.h', 'utf8');
 const movementSource = fs.readFileSync('firmware/esp32/src/CM_MaterialRequestMovementStore.cpp', 'utf8');
+const repairHeader = fs.readFileSync('firmware/esp32/src/CM_RepairRegistry.h', 'utf8');
+const requestWeb = fs.readFileSync('firmware/esp32/src/CM_MaterialRequestWeb.cpp', 'utf8');
 
 function must(text, needle, label) {
   if (!text.includes(needle)) throw new Error(`missing ${label}: ${needle}`);
@@ -16,6 +18,17 @@ must(requestHeader, 'uint32_t motorId;', 'motor provenance');
 must(requestSource, '\\"initial_status\\":\\"DRAFT\\"', 'immutable draft creation');
 must(requestSource, 'FILE_APPEND', 'append-only request persistence');
 must(requestSource, 'material_request_id', 'monotonic request identity');
+
+must(repairHeader, 'bool repairStatusIsOpen(uint32_t repairId, bool& open) const', 'known-repair status-only lookup');
+must(requestWeb, 'm_repairs.loadRepairIdentity(repairId, identity, found)', 'authoritative repair identity lookup');
+must(requestWeb, 'm_repairs.repairStatusIsOpen(repairId, open)', 'status-only lookup after validated repair');
+const createStart = requestWeb.indexOf('void MaterialRequestWeb::handleCreate()');
+const createEnd = requestWeb.indexOf('void MaterialRequestWeb::handleGetById()', createStart);
+if (createStart < 0 || createEnd < 0) throw new Error('material request create handler not found');
+const createHandler = requestWeb.slice(createStart, createEnd);
+if (createHandler.includes('m_repairs.repairIsOpen(repairId, open)')) {
+  throw new Error('material request create must not rescan repairs.ndjson after loadRepairIdentity');
+}
 
 must(movementHeader, '/data/workshop/material-request-movements.ndjson', 'movement store path');
 must(movementHeader, 'String transactionRef;', 'transaction provenance');

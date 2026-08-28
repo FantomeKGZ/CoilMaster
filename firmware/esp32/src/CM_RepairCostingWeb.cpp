@@ -233,12 +233,13 @@ void RepairCostingWeb::handleGet()
     }
 
     String response;
-    response.reserve(1540U);
+    response.reserve(1760U);
     response = F("{\"repair_id\":"); response += repairId;
     response += F(",\"repair_status\":\""); response += repairOpen ? F("OPEN") : F("CLOSED");
     response += F("\",\"pricing_writable\":"); response += repairOpen ? F("true") : F("false");
     response += F(",\"wire_line_count\":"); response += summary.wireLineCount;
     response += F(",\"material_line_count\":"); response += summary.materialLineCount;
+    response += F(",\"material_correction_line_count\":"); response += summary.materialCorrectionLineCount;
     response += F(",\"wire_cost_minor\":"); appendUInt64(response, summary.wireCostMinor);
     response += F(",\"wire_materials\":{");
     response += F("\"CU\":{\"consumed_g\":"); response += summary.copperWireGrams;
@@ -256,6 +257,8 @@ void RepairCostingWeb::handleGet()
     response += F(",\"wire_material_counts_match_wire_count\":");
     response += materialWireLines == summary.wireLineCount ? F("true") : F("false");
     response += F(",\"material_cost_minor\":"); appendUInt64(response, summary.materialCostMinor);
+    response += F(",\"material_correction_cost_minor\":"); appendUInt64(response, summary.materialCorrectionCostMinor);
+    response += F(",\"material_cost_source\":\"CONFIRMED_USAGE_MINUS_APPEND_ONLY_CORRECTIONS\"");
     response += F(",\"labour_cost_minor\":"); appendUInt64(response, summary.labourCostMinor);
     response += F(",\"total_cost_minor\":"); appendUInt64(response, summary.totalCostMinor);
     response += F(",\"cost_components_match_total\":");

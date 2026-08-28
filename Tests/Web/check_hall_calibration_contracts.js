@@ -46,14 +46,15 @@ mustContain(shared, "CAL_URL+'/apply'", 'shared calibration controller');
 mustContain(shared, 'measurement_id', 'shared calibration controller');
 mustContain(shared, 'WAITING_LOCAL_CONFIRM', 'shared calibration controller');
 mustContain(shared, 'WAITING_APPLY_CONFIRM', 'shared calibration controller');
-mustContain(shared, 'Подтвердите калибровку клавишей # на Arduino', 'shared calibration controller');
+mustContain(shared, 'Дополнительное подтверждение # не требуется', 'shared calibration controller');
+mustContain(shared, 'A на клавиатуре или отдельной физической START', 'shared calibration controller');
 mustContain(shared, 'Для записи параметров в EEPROM нажмите # на Arduino', 'shared calibration controller');
 mustContain(shared, 'START не подтверждает сохранение', 'shared calibration controller');
 mustContain(shared, 'result_available', 'shared calibration controller');
 mustContain(shared, 'recommendation_valid', 'shared calibration controller');
 mustContain(shared, 'recommended_direction', 'shared calibration controller');
 mustNotContain(shared, "HALL_URL+'/settings'", 'shared calibration controller');
-mustNotContain(shared, '/start', 'shared calibration controller');
+mustNotContain(shared, "CAL_URL+'/start'", 'shared calibration controller');
 mustNotContain(shared, '/ssr', 'shared calibration controller');
 
 mustContain(webCpp, '/api/hardware/hall/calibration/apply', 'ESP32 Hall web API');
@@ -146,10 +147,12 @@ mustNotContain(calibrationProtocolCpp, 'bool parseDecimal16', 'Arduino Hall cali
 mustContain(arduinoMain, 'HallCalibrationState::WaitingLocalConfirm', 'Arduino runtime');
 mustContain(arduinoMain, 'HallCalibrationState::WaitingApplyConfirm', 'Arduino runtime');
 mustContain(arduinoMain, "key == '#'", 'Arduino runtime');
+mustContain(arduinoMain, 'startHallCalibrationFromLocalControl', 'Arduino runtime');
+mustContain(arduinoMain, "if (key == 'A')", 'Arduino runtime');
 mustContain(arduinoMain, 'confirmLocal', 'Arduino runtime');
-mustContain(arduinoMain, 'local_confirm=ACCEPTED', 'Arduino runtime');
-mustContain(arduinoMain, 'physical_start=WAITING_LOCAL_CONFIRM', 'Arduino runtime');
 mustContain(arduinoMain, 'physical_start=WAITING_APPLY_CONFIRM', 'Arduino runtime');
+mustContain(arduinoMain, 'hallCalibration.motorPermit()', 'Arduino runtime');
+mustContain(arduinoMain, 'ssr.forceOff();', 'Arduino runtime');
 mustContain(arduinoMain, 'StageHallCalibrationProposal', 'Arduino runtime');
 mustContain(arduinoMain, 'measured.measurementId != request.measurementId', 'Arduino runtime');
 mustContain(arduinoMain, 'hallCalibration.beginApplyConfirm(request.measurementId, nowMs)', 'Arduino runtime');
@@ -170,8 +173,10 @@ mustContain(hardwareSettingsHeader, 'crc', 'Arduino hardware settings EEPROM sch
 
 mustContain(calibrationHeader, 'WaitingLocalConfirm', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'WaitingApplyConfirm', 'Arduino Hall calibration service');
-mustContain(calibrationHeader, 'PeerTimeoutMs = 3000UL', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'PeerTimeoutMs = 10000UL', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'ApplyConfirmTimeoutMs = 30000UL', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'RunDurationMs = 15000UL', 'Arduino Hall calibration service');
+mustContain(calibrationHeader, 'AbsoluteRunTimeoutMs = 17000UL', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'beginApplyConfirm', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'measurementId', 'Arduino Hall calibration service');
 mustContain(calibrationHeader, 'measurementIdentity(uint32_t completedAtMs)', 'Arduino Hall calibration service');
@@ -181,6 +186,7 @@ mustContain(calibrationCpp, 'result.measurementId = m_measurementId', 'Arduino H
 mustContain(calibrationCpp, 'nowMs - m_lastPeerContactMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, '>= PeerTimeoutMs', 'Arduino Hall calibration service');
 mustContain(calibrationCpp, 'ApplyConfirmTimeoutMs', 'Arduino Hall calibration service');
+mustContain(calibrationCpp, 'AbsoluteRunTimeoutMs', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'recommendedThreshold', 'Arduino Hall calibration service');
 mustNotContain(calibrationCpp, 'recommendedHysteresis', 'Arduino Hall calibration service');
 
@@ -191,7 +197,7 @@ mustContain(calibrationProtocolCpp, '!settings.isValid()', 'Arduino Hall calibra
 mustContain(calibrationProtocolCpp, 'return formatDone(result, output, outputSize);', 'Arduino Hall compact completion TX');
 mustNotContain(calibrationProtocolCpp, 'CMP1|CAL_RESULT|', 'Arduino Hall legacy completion TX');
 mustContain(calibrationDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Arduino Hall compact completion protocol');
-mustContain(calibrationDoneFormatter, 'Cmp1Crc::calculate', 'Arduino Hall compact completion protocol');
+mustContain(calibrationDoneFormatter, 'CrcFrameText::append', 'Arduino Hall compact completion protocol');
 mustNotContain(calibrationDoneFormatter, 'StartOrResume', 'Arduino Hall compact completion safety');
 mustNotContain(calibrationDoneFormatter, 'digitalWrite', 'Arduino Hall compact completion safety');
 
@@ -213,12 +219,20 @@ if (webArmHandler < 0 || webArmAccepted < 0 || webArmDrain < 0 || webArmClear < 
   throw new Error('ESP32 Hall Web: accepted ARM must drain stale result before exposing the new calibration cycle');
 }
 
-const localConfirmBranch = arduinoMain.indexOf('HallCalibrationState::WaitingLocalConfirm');
-const firstConfirmKey = arduinoMain.indexOf("key == '#'", localConfirmBranch);
-const physicalStartBranch = arduinoMain.indexOf('void processExternalStart');
-if (localConfirmBranch < 0 || firstConfirmKey < 0 || physicalStartBranch < 0 ||
-    !(localConfirmBranch < firstConfirmKey && firstConfirmKey < physicalStartBranch)) {
-  throw new Error('Arduino Hall calibration runtime: CAL_ARM must require local # before physical START');
+const localStartHelper = arduinoMain.indexOf('bool startHallCalibrationFromLocalControl');
+const baselineGuard = arduinoMain.indexOf('if (!hallCalibration.baselineReady()) return false;', localStartHelper);
+const localBridge = arduinoMain.indexOf('hallCalibration.confirmLocal(nowMs)', baselineGuard);
+const localPhysicalStart = arduinoMain.indexOf('hallCalibration.physicalStart(nowMs)', localBridge);
+const keypadA = arduinoMain.indexOf("if (key == 'A')", localPhysicalStart);
+const keypadStart = arduinoMain.indexOf('startHallCalibrationFromLocalControl(millis())', keypadA);
+const physicalStartBranch = arduinoMain.indexOf('void processExternalStart', keypadStart);
+const physicalStartCall = arduinoMain.indexOf('startHallCalibrationFromLocalControl(nowMs)', physicalStartBranch);
+if (localStartHelper < 0 || baselineGuard < 0 || localBridge < 0 || localPhysicalStart < 0 ||
+    keypadA < 0 || keypadStart < 0 || physicalStartBranch < 0 || physicalStartCall < 0 ||
+    !(localStartHelper < baselineGuard && baselineGuard < localBridge && localBridge < localPhysicalStart &&
+      localPhysicalStart < keypadA && keypadA < keypadStart && keypadStart < physicalStartBranch &&
+      physicalStartBranch < physicalStartCall)) {
+  throw new Error('Arduino Hall calibration runtime: motor start must remain local-only behind baseline readiness via keypad A or physical START');
 }
 
 const applyBranch = arduinoMain.indexOf('HallCalibrationState::WaitingApplyConfirm');
@@ -284,4 +298,4 @@ if (applyTimeoutState < 0 || applyTimeoutElapsed < 0 || applyTimeoutLimit < 0 ||
   throw new Error('Arduino Hall calibration service: apply confirmation timeout must fail closed to abort');
 }
 
-console.log('Hall calibration exact-id/local-confirm/no-replay/reconciliation contracts: OK');
+console.log('Hall calibration exact-id/local-start/no-replay/reconciliation contracts: OK');

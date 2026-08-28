@@ -24,6 +24,8 @@ must(prefetch,"url.pathname!=='/api/material-requests'",'bounded request page in
 must(prefetch,"'/api/material-requests/status-batch?ids='+encodeURIComponent(ids.join(','))",'one batch status read per page');
 must(prefetch,"url.pathname==='/api/material-requests/status'",'legacy per-item status cache compatibility');
 must(prefetch,'statusCache.has(id)','local status cache lookup');
+must(prefetch,'statusCache.delete(id);','one-shot prefetched status consumption');
+must(prefetch,"const methodOf=(input,init)=>String(init&&init.method||(input&&input.method)||'GET').toUpperCase();",'Request method awareness');
 must(prefetch,'rows.length>24','client batch bound');
 must(prefetch,'seen.has(id)','duplicate page identity fail closed');
 must(prefetch,"['DRAFT','ISSUED','PRICED','CLOSED'].includes(item.status)",'status domain validation');
@@ -49,4 +51,4 @@ must(runWire,'spool_id:String(activeSpool.spool_id)','exact immutable spool');
 must(runWire,'/api/material-requests/warehouse','dedicated RUN_WIRE mutation endpoint');
 mustNot(runWire,'/api/materials/usage','generic material mutation forbidden for RUN_WIRE');
 
-console.log('RUN_WIRE material-request status batch contracts OK: bounded status prefetch removes server N+1 scans while exact manual RUN_WIRE provenance/mutation semantics remain unchanged.');
+console.log('RUN_WIRE material-request status batch contracts OK: bounded status prefetch removes server N+1 scans, consumes cache once, and exact manual RUN_WIRE provenance/mutation semantics remain unchanged.');

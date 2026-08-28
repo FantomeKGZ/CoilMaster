@@ -280,14 +280,62 @@ SHA bada572285bb098e373da63e0ec1681a751ef608
 completed / success
 ```
 
+## Repair materials checkpoint 7 — unified visible RUN_WIRE entry, separate exact-safe mutation path — GREEN
+
+The repair-material page now exposes RUN_WIRE in the same operator surface, but does not duplicate or merge the RUN_WIRE state machine into generic material usage.
+
+Desktop/mobile `materials.html` now show a dedicated `Провод RUN_WIRE` block and pass only the exact `repair_id` to the existing dedicated `writeoff.html` workflow.
+
+The generic material page deliberately does **not**:
+
+- POST to `/api/material-requests/warehouse`;
+- construct `source_session_id`, `source_run_id` or `spool_id`;
+- route RUN_WIRE through `/api/materials/usage`;
+- infer or weaken provenance requirements.
+
+The existing shared writeoff workflow remains authoritative and still obtains:
+
+```text
+RUN_COMPLETED evidence          <- /api/winding-history
+already-covered exact runs      <- /api/warehouse/write-offs
+immutable spool selection       <- /api/jobs/spool-selection
+active spool identity           <- /api/warehouse/spools
+spool -> MaterialLedger bridge  <- /api/warehouse/spool-material-bridges
+repair Material Request/status  <- /api/material-requests + /status
+```
+
+Only after those checks does the operator manually submit `confirmed=true`, exact session/run/spool/diameter/material identity to `/api/material-requests/warehouse`, which remains routed to `RunWireIssueCoordinator::execute()`.
+
+Implementation:
+
+```text
+aab2442e67ceed89e1beee382206f6054b88bedb  desktop unified RUN_WIRE entry
+e5b632b5e7f713b0cce71ef4e643a6e1251cc229  mobile parity
+bd61c9b4b08fa3490c99406e5453e96b5bc28560  contract: generic material page cannot duplicate exact RUN_WIRE mutation/provenance
+```
+
+Final verification:
+
+```text
+CMP Protocol Tests #3815
+run 33153831232
+SHA bd61c9b4b08fa3490c99406e5453e96b5bc28560
+completed / success
+
+ESP32 Build #1659
+run 33153753512
+SHA e5b632b5e7f713b0cce71ef4e643a6e1251cc229
+completed / success
+```
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
-2. Integrate exact RUN_WIRE into the same visible repair-material card while retaining the separate coordinator and all exact provenance requirements.
-3. The unified UI must remain selection/evidence oriented: it must not route RUN_WIRE through generic `/api/materials/usage` and must not derive spool/session/run identity client-side when authoritative linked evidence exists.
-4. Require exact `spool_id`, `source_session_id`, `source_run_id`, completed-run evidence and existing immutable selection/bridge checks before the explicit manual RUN_WIRE writeoff action becomes available.
-5. Preserve no-auto-writeoff, no-auto-retry and no automatic physical START semantics.
-6. After RUN_WIRE visible integration, add append-only correction/history UX; never edit/delete confirmed durable operations.
+2. Audit and implement append-only correction/history UX for ordinary repair materials using existing authoritative adjustment/event semantics where possible.
+3. Confirmed usage/writeoff rows must never be edited or deleted; corrections must be new durable records with explicit provenance to the corrected operation where the existing schema supports it.
+4. Corrections must remain reflected in authoritative stock/costing/integrity/backup; do not create a UI-only compensation layer.
+5. Keep generic material corrections separate from exact RUN_WIRE warehouse movement correction semantics unless the existing backend already provides a safe shared abstraction.
+6. Preserve no-auto-writeoff, no-auto-retry and no automatic physical START semantics.
 7. Verify actual CMP/ESP32 CI and update PROJECT_HANDOFF after each completed checkpoint.
 8. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 

@@ -181,8 +181,8 @@ for (const text of [
   "wire_diameter_hundredths_mm:String(activeSpool.diameter_hundredths_mm)", "material_class:String(activeSpool.material_class)",
   "'/api/warehouse/spool-material-bridges?spool_id='", "'/api/material-requests?'+q",
   "'/api/material-requests/status?material_request_id='", "status.status==='DRAFT'||status.status==='ISSUED'",
-  "event.event!=='RUN_COMPLETED'", "found.material_class==='CU'||found.material_class==='AL'",
-  "менять provenance после RUN_COMPLETED нельзя"
+  "event.event!=='RUN_COMPLETED'", "payload.material_class!=='CU'&&payload.material_class!=='AL'",
+  "'/api/warehouse/spools/by-id?spool_id='", "менять provenance после RUN_COMPLETED нельзя"
 ]) requireText(controllerPath, controller, text, 'atomic RUN_WIRE UI controller contract missing: ' + text);
 for (const forbidden of [
   "jsonFetch('/api/warehouse/write-offs',{method:'POST'", "writeoff_mode:'KG_FIRST'", "quantity_kg:quantity.kg",
@@ -199,4 +199,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('KG-first material contracts OK: managed atomic RUN_WIRE owns current kg-first mutation, dead direct Store entrypoints stay removed, legacy POST is 410-disabled, historical recovery and audited costing remain intact, and RUN_COMPLETED never deducts automatically.');
+console.log('KG-first material contracts OK: managed atomic RUN_WIRE owns current kg-first mutation, exact immutable spool lookup stays fail-closed, dead direct Store entrypoints stay removed, legacy POST is 410-disabled, historical recovery and audited costing remain intact, and RUN_COMPLETED never deducts automatically.');

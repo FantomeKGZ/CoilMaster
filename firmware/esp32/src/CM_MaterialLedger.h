@@ -182,6 +182,10 @@ public:
     bool appendUsageHistoryPageJson(String& json, uint32_t repairId, uint32_t materialId,
                                     uint32_t cursor, uint8_t limit, uint16_t& count,
                                     uint32_t& nextCursor, bool& hasMore) const;
+    bool appendUsageCorrectionHistoryPageJson(String& json, uint32_t repairId,
+                                              uint32_t sourceUsageId, uint32_t cursor,
+                                              uint8_t limit, uint16_t& count,
+                                              uint32_t& nextCursor, bool& hasMore) const;
     bool confirmUsage(const RepairMaterialUsage& usage, RepairMaterialUsageResult& result);
 
 private:

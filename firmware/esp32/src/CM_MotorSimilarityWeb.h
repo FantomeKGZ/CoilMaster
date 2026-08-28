@@ -14,6 +14,7 @@ public:
 
 private:
     void handleLookup();
+    void handleUpdate();
 
     WebServer& m_server;
     RepairRegistry& m_registry;

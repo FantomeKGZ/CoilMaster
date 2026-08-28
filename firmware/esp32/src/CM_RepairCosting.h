@@ -14,6 +14,7 @@ struct RepairCostSummary
     uint64_t aluminiumWireCostMinor;
     uint64_t unknownWireCostMinor;
     uint64_t materialCostMinor;
+    uint64_t materialCorrectionCostMinor;
     uint64_t labourCostMinor;
     uint64_t totalCostMinor;
     uint64_t clientPriceMinor;
@@ -26,6 +27,7 @@ struct RepairCostSummary
     uint16_t aluminiumWireLineCount;
     uint16_t unknownWireLineCount;
     uint16_t materialLineCount;
+    uint16_t materialCorrectionLineCount;
     uint16_t pricingRevisionCount;
     String pricingUpdatedAt;
     String currency;
@@ -33,12 +35,13 @@ struct RepairCostSummary
     RepairCostSummary()
         : repairId(0UL), wireCostMinor(0ULL), copperWireCostMinor(0ULL),
           aluminiumWireCostMinor(0ULL), unknownWireCostMinor(0ULL),
-          materialCostMinor(0ULL), labourCostMinor(0ULL), totalCostMinor(0ULL),
-          clientPriceMinor(0ULL), marginMinor(0ULL), copperWireGrams(0UL),
-          aluminiumWireGrams(0UL), unknownWireGrams(0UL), wireLineCount(0U),
-          copperWireLineCount(0U), aluminiumWireLineCount(0U),
-          unknownWireLineCount(0U), materialLineCount(0U), pricingRevisionCount(0U),
-          currency("KGS") {}
+          materialCostMinor(0ULL), materialCorrectionCostMinor(0ULL),
+          labourCostMinor(0ULL), totalCostMinor(0ULL), clientPriceMinor(0ULL),
+          marginMinor(0ULL), copperWireGrams(0UL), aluminiumWireGrams(0UL),
+          unknownWireGrams(0UL), wireLineCount(0U), copperWireLineCount(0U),
+          aluminiumWireLineCount(0U), unknownWireLineCount(0U),
+          materialLineCount(0U), materialCorrectionLineCount(0U),
+          pricingRevisionCount(0U), currency("KGS") {}
 };
 
 struct PricingRevisionSnapshot
@@ -80,6 +83,7 @@ public:
 private:
     static constexpr const char* WireMovementsPath = "/data/warehouse/movements.ndjson";
     static constexpr const char* MaterialUsagePath = "/data/materials/usage.ndjson";
+    static constexpr const char* MaterialAdjustmentsPath = "/data/materials/adjustments.ndjson";
     static constexpr const char* PricingPath = "/data/repairs/pricing.ndjson";
     static constexpr const char* RepairsPath = "/data/workshop/repairs.ndjson";
 

@@ -141,11 +141,15 @@ for (const text of [
 for (const text of [
   'const String usageComment=m_server.arg("comment")',
   'usageComment.indexOf(F("RWI_TX="))==0',
+  'usageComment.indexOf(F("MU_TX="))==0',
   'reserved_usage_comment_prefix',
   'write_performed',
-  'usage.comment=usageComment'
+  'MaterialUsageIdempotency::taggedComment(operationId,usageComment)'
 ]) {
   requireText(materialWeb, text, `reserved RUN_WIRE ledger provenance guard ${text}`);
+}
+if (coordinator.includes('MaterialUsageIdempotency')) {
+  throw new Error('generic material usage idempotency must not replace dedicated RUN_WIRE exact-run protection');
 }
 
 for (const text of [
@@ -240,4 +244,4 @@ requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evide
 requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
 requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; atomic exact-run safety remains authoritative, dead direct Store mutation entrypoints stay removed, historical PENDING recovery remains deterministic, and direct spool provenance stays bounded.');
+console.log('RUN_WIRE ISSUE transaction contracts: OK; atomic exact-run safety remains authoritative, generic material idempotency stays isolated, dead direct Store mutation entrypoints stay removed, historical PENDING recovery remains deterministic, and direct spool provenance stays bounded.');

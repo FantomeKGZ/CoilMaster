@@ -64,9 +64,18 @@ for (const [label, page] of [
   must(page, "j.error==='insufficient_stock'", `${label} authoritative insufficient-stock response`);
   must(page, 'j.available_quantity_milli', `${label} current available stock display`);
   must(page, "j.error==='stale_material_preview'", `${label} stale preview response`);
-  must(page, "j.error==='usage_not_committed'", `${label} mutation-time TOCTOU response`);
+  must(page, "j.error==='usage_not_committed'", `${label} mutation-time ambiguous response`);
   must(page, 'проверьте новые данные и подтвердите списание ещё раз', `${label} stale preview manual reconfirm UX`);
-  must(page, 'повторите вручную', `${label} final TOCTOU manual retry UX`);
+  must(page, 'тот же идентификатор операции', `${label} ambiguous outcome same-operation guidance`);
+  must(page, 'Не меняйте строку операции', `${label} transport error same-operation guidance`);
+  const ambiguousStart = page.indexOf("if(r.status===409&&j.error==='usage_not_committed')");
+  const ambiguousEnd = page.indexOf("if(r.status===404&&j.error==='repair_not_found')", ambiguousStart);
+  if (ambiguousStart < 0 || ambiguousEnd < 0 || ambiguousEnd <= ambiguousStart) {
+    throw new Error(`${label}: ambiguous usage retry branch boundaries missing`);
+  }
+  const ambiguousBranch = page.slice(ambiguousStart, ambiguousEnd);
+  mustNot(ambiguousBranch, 'resetOperationId()', `${label} ambiguous outcome must preserve operation id`);
+  must(ambiguousBranch, 'loadUsageHistory(0,true)', `${label} ambiguous outcome refreshes durable history`);
   must(page, 'cleanUsageComment', `${label} system idempotency tag hidden from history`);
   must(page, 'Promise.all([load(0,true),loadUsageHistory(0,true),loadCosting()])', `${label} post-write authoritative refresh`);
   mustNot(page, 'name="material_id"', `${label} manual material id input`);
@@ -155,4 +164,4 @@ must(runWireApply, 'm_ledger.confirmUsage(usage, result)', 'RUN_WIRE still uses 
 mustNot(runWire, 'MaterialUsageIdempotency', 'generic idempotency must not replace RUN_WIRE exact-run protection');
 must(runWire, 'confirmedWriteOffForSourceRun', 'RUN_WIRE exact source-run duplicate protection remains');
 
-console.log('Repair material card contracts OK: bounded search/history/costing, generic idempotency, stale-preview reconfirmation and final MaterialLedger TOCTOU remain protected without changing dedicated RUN_WIRE exact-run safety.');
+console.log('Repair material card contracts OK: bounded search/history/costing, generic idempotency, stale-preview reconfirmation, ambiguous-outcome same-operation retry and final MaterialLedger TOCTOU remain protected without changing dedicated RUN_WIRE exact-run safety.');

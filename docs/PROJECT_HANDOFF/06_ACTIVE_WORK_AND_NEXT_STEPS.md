@@ -1,7 +1,8 @@
 # Активная работа и следующие шаги
 
-Дата обновления: **2026-08-27**  
-Ветка: **`cmp-protocol-v1`**
+Дата обновления: **2026-08-28**  
+Production/source-of-truth: **`cmp-protocol-v1`**  
+Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
 
 ## GREEN foundation through checkpoint 165; checkpoint 166 NO-CHANGE; software optimization complete
 
@@ -45,7 +46,7 @@ e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164
 db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 final production code
 ```
 
-Latest direct verification:
+Latest direct verification of the old production baseline:
 
 ```text
 CMP Tests #3759    33047621155 / SUCCESS  (checkpoint 164 production)
@@ -69,18 +70,43 @@ Final residual audit reviewed remaining bounded runtime candidates. `NetworkWeb:
 
 MaterialLedger `confirmUsage()` remains intentionally two-pass across the pre-WAL snapshot and mutation-time authoritative reread. Different integrity ledgers and mutation phases remain separate. No tail-only historical integrity replacement, unbounded buffering, automatic data truncation/rotation or premature DB/index migration is justified.
 
-**Conclusion: software optimization complete. Do not force further software changes unless hardware E2E exposes a concrete defect.**
+## 2026-08-28 — branch transfer status: NOT YET COMPLETED
 
-## Current active queue — hardware E2E acceptance
+Direct GitHub verification before creating the new plan:
 
-1. Flash/use the current `cmp-protocol-v1` production firmware on Arduino Uno and ESP32.
-2. Perform full two-board UART/production-flow E2E from ESP32 command/assignment through Arduino acknowledgement and required physical START.
-3. Verify no automatic START or auto-resume after reboot; Arduino remains sole SSR owner.
-4. Verify RUN_STARTED/RUN_COMPLETED lifecycle and recovery/fail-closed behavior.
-5. Verify exact `spool_id` + `source_session_id` + `source_run_id` provenance and explicit/manual RUN_WIRE write-off only.
-6. Verify key operator paths affected by prior hardware pressure: LCD, keypad, START button, UART and Hall/calibration architecture behavior.
-7. Record measured Uno flash/RAM, ESP32 build/runtime evidence and all hardware findings in PROJECT_HANDOFF.
-8. If hardware E2E passes, prepare final release-completion checkpoint. If it exposes a concrete defect, fix only that defect and re-run the relevant acceptance path.
+```text
+cmp-protocol-v1              b0d66d52b0624232279f8ae9cc19af938d3cba47
+arduino-ru-lcd-experiment    9194413b1f91381e45dc71018492da6ec0869ada
+compare                      experiment ahead / behind_by=0
+Arduino RU LCD Build #61     run 33139229254 / SUCCESS / 9194413b...
+```
+
+The planned transfer from `arduino-ru-lcd-experiment` into `cmp-protocol-v1` was **not actually executed**. Therefore the first action in the next work session must be to re-fetch both current HEADs, confirm `behind_by=0`, then fast-forward `cmp-protocol-v1` to the current experiment HEAD without force. After that, verify both refs and production CI. Do not start the new materials block before this sync checkpoint is complete.
+
+## New active software block — repair materials and write-off
+
+Authoritative implementation plan:
+
+`docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md`
+
+The new block covers:
+
+1. unified repair-material card;
+2. warehouse selector with stock/price visibility;
+3. copper/aluminium wire via exact `spool_id`;
+4. bearings and general consumables;
+5. explicit/manual write-off only;
+6. price snapshot and repair costing integration;
+7. append-only correction/history model;
+8. actionable fail-closed UX errors;
+9. desktop/mobile parity;
+10. duplicate-submit, stale-preview/TOCTOU, insufficient-stock, provenance and recovery tests.
+
+After production sync, continue implementation **only in `arduino-ru-lcd-experiment`** until the next separately approved production transfer.
+
+## First next step after sync
+
+Perform a read-only audit of the current MaterialLedger, Warehouse, Repair costing, RUN_WIRE APIs and corresponding desktop/mobile UI. Produce the exact current data-flow map and identify the minimum extension points. Do not create a parallel material ledger or weaken existing provenance/integrity checks.
 
 ## Safety invariants
 
@@ -88,4 +114,4 @@ No automatic physical START/repeat START/resume/writeoff. Arduino owns SSR. ESP3
 
 ## Hardware acceptance
 
-**Now required.** Full two-board Arduino + ESP32 E2E is the remaining acceptance gate before final project completion.
+Full two-board Arduino + ESP32 E2E remains required before final project completion. For the new materials software block, hardware E2E may remain deferred until software checkpoints are complete unless a concrete hardware-dependent defect requires earlier verification.

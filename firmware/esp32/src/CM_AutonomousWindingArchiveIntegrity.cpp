@@ -1,6 +1,8 @@
 #include "CM_AutonomousWindingArchive.h"
 
 #include "CM_FlatJsonObjectValidator.h"
+#include "CM_JobSnapshotStore.h"
+#include "CM_JobStateStore.h"
 
 namespace CM
 {
@@ -51,9 +53,6 @@ bool AutonomousWindingArchive::validateStorage(
 {
     metrics = AutonomousWindingIntegrityMetrics();
 
-    // This lambda lives inside the class member so it can reuse the archive's
-    // authoritative private parser while keeping the batched scan implementation
-    // local to the read-only audit.
     const auto validateAssignmentBatch =
         [&](AssignmentReference* references, uint8_t count) -> bool
     {
@@ -98,12 +97,6 @@ bool AutonomousWindingArchive::validateStorage(
         return unresolved == 0U;
     };
 
-    // events.ndjson is append-only and Arduino emits LOCAL_EVT through a FIFO.
-    // run_id is globally monotonic; a normal completion therefore immediately
-    // follows its matching start for the same run. A completion without a start
-    // remains valid only when start_observed=0 (EEPROM recovery after lost START).
-    // This validates the full event stream in one pass instead of the previous
-    // per-completion full-file rescans.
     if (storage.exists(EventsPath))
     {
         File file = storage.open(EventsPath, FILE_READ);
@@ -192,10 +185,6 @@ bool AutonomousWindingArchive::validateStorage(
                 }
                 else
                 {
-                    // A prior START without completion is retained as historical
-                    // STARTED_NOT_COMPLETED. A later run is allowed after an
-                    // Arduino reboot, but a completion claiming start_observed=1
-                    // must have its matching START in this same run pair.
                     pendingStart = false;
                     if (event.type == RemoteEventType::RunCompleted &&
                         startObserved == 1UL)
@@ -225,11 +214,6 @@ bool AutonomousWindingArchive::validateStorage(
         file.close();
     }
 
-    // assignments.ndjson may reference old runs in arbitrary operator order, so
-    // it cannot be merge-joined directly with events.ndjson. Validate references
-    // in fixed-size batches: one event scan per 32 assignments instead of one
-    // complete event scan per assignment. RAM usage stays bounded and the source
-    // remains the same append-only NDJSON files.
     if (storage.exists(AssignmentsPath))
     {
         File assignments = storage.open(AssignmentsPath, FILE_READ);
@@ -285,6 +269,76 @@ bool AutonomousWindingArchive::validateStorage(
         {
             assignments.close();
             return false;
+        }
+        assignments.close();
+    }
+
+    // ESP32_JOB linkage is a separate append-only journal. Each row must point
+    // to the exact terminal persisted job state and immutable snapshot. A job
+    // that already had immutable repair/motor linkage cannot receive this later
+    // manual assignment path.
+    if (storage.exists(WebAssignmentsPath))
+    {
+        File assignments = storage.open(WebAssignmentsPath, FILE_READ);
+        if (!assignments || assignments.isDirectory())
+        {
+            if (assignments) assignments.close();
+            return false;
+        }
+        if (!requireNdjsonTermination(assignments))
+        {
+            assignments.close();
+            return false;
+        }
+
+        uint32_t previousAssignmentId = 0UL;
+        while (assignments.available())
+        {
+            const String line = assignments.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+
+            uint32_t schema = 0UL;
+            uint32_t assignmentId = 0UL;
+            uint32_t sessionId = 0UL;
+            uint32_t runId = 0UL;
+            uint32_t motorId = 0UL;
+            uint32_t assignedUptimeMs = 0UL;
+            String source;
+            String role;
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "schema_version", schema) || schema != 1UL ||
+                !findUnsigned(line, "assignment_id", assignmentId) ||
+                assignmentId == 0UL || assignmentId <= previousAssignmentId ||
+                !findString(line, "source", source) || source != "ESP32_JOB" ||
+                !findUnsigned(line, "session_id", sessionId) || sessionId == 0UL ||
+                !findUnsigned(line, "run_id", runId) || runId == 0UL ||
+                !findUnsigned(line, "motor_id", motorId) || motorId == 0UL ||
+                !findString(line, "role", role) || !validRole(role) ||
+                !findUnsigned(line, "assigned_uptime_ms", assignedUptimeMs) ||
+                !incrementCount(metrics.webAssignmentRecordCount))
+            {
+                assignments.close();
+                return false;
+            }
+            previousAssignmentId = assignmentId;
+
+            JobRuntimeState state;
+            JobSnapshot snapshot;
+            if (!JobStateStore::readPersisted(storage, sessionId, state) ||
+                !JobSnapshotStore::readPersisted(storage, sessionId, snapshot) ||
+                state.executionState != JobExecutionState::ProgramCompleted ||
+                state.deliveryState != JobDeliveryState::Accepted ||
+                state.jobId != snapshot.jobId ||
+                state.sessionId != snapshot.sessionId ||
+                state.sessionId != sessionId ||
+                state.lastRunId != runId ||
+                state.completedRuns == 0U ||
+                state.completedRuns != snapshot.repeatTarget ||
+                !snapshot.linkage.isValid() || snapshot.linkage.linked)
+            {
+                assignments.close();
+                return false;
+            }
         }
         assignments.close();
     }

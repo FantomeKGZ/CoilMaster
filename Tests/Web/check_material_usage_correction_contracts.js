@@ -22,8 +22,14 @@ must(correction,'MaterialUsageCorrectionStatus::RunWireForbidden','RUN_WIRE doma
 must(correction,'MaterialUsageCorrectionStatus::OverCorrection','over-correction status');
 must(correction,'MaterialUsageCorrectionStatus::OperationIdConflict','operation id conflict');
 must(correction,'MaterialUsageCorrectionStatus::DuplicateReplay','idempotent replay');
-must(correction,'adjustment.correctionSourceUsageId = correction.sourceUsageId;','exact source usage provenance');
-must(correction,'adjustment.correctionOperationId = correction.operationId;','durable correction operation id');
+must(correction,'F(",\\\"correction_source_usage_id\\\":")','serialized source usage provenance field');
+must(correction,'auditLine += correction.sourceUsageId;','serialized exact source usage value');
+must(correction,'F(",\\\"correction_repair_id\\\":")','serialized repair provenance field');
+must(correction,'auditLine += correction.repairId;','serialized exact repair provenance value');
+must(correction,'F(",\\\"correction_quantity_milli\\\":")','serialized correction quantity field');
+must(correction,'auditLine += correction.quantityMilli;','serialized exact correction quantity value');
+must(correction,'F(",\\\"correction_operation_id\\\":\\\"")','serialized correction operation id field');
+must(correction,'auditLine += jsonEscape(correction.operationId);','durable escaped correction operation id');
 must(correction,'(static_cast<uint64_t>(correction.quantityMilli) * sourcePrice + 500ULL) / 1000ULL','persisted source price correction cost');
 mustNot(correction,'remove(UsagePath)','source usage history is immutable');
 

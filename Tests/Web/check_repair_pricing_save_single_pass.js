@@ -5,9 +5,11 @@ const repoRoot = path.resolve(__dirname, '..', '..');
 const headerPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairCosting.h');
 const validationPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairCostingValidation.cpp');
 const costingPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairCosting.cpp');
+const webPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairCostingWeb.cpp');
 const header = fs.readFileSync(headerPath, 'utf8');
 const validation = fs.readFileSync(validationPath, 'utf8');
 const costing = fs.readFileSync(costingPath, 'utf8');
+const web = fs.readFileSync(webPath, 'utf8');
 
 function requireText(source, text, description) {
   if (!source.includes(text)) {
@@ -53,6 +55,10 @@ requireText(
   'bool repairExists(uint32_t repairId, bool& found) const;',
   'fail-closed RepairCosting repair lookup API');
 requireText(
+  header,
+  'bool loadKnownRepair(uint32_t repairId, RepairCostSummary& summary) const;',
+  'known-repair read-only costing API');
+requireText(
   validation,
   'bool RepairCosting::repairExists(uint32_t repairId, bool& found) const',
   'fail-closed RepairCosting repair lookup implementation');
@@ -69,4 +75,24 @@ requireText(
   'WarehouseMovementIntegrityAudit::checkRepair(m_storage, repairId, wireTotals)',
   'authoritative movement validation retained by load');
 
-console.log('Repair pricing save single-pass contracts OK: savePricing reuses one fail-closed load() repair identity scan without a duplicate repairs.ndjson pass or ambiguous bool wrapper.');
+// Each RepairCostingWeb operation proves exact repair existence first. Its
+// read/preflight costing call must therefore use the known-repair path instead
+// of immediately repeating the full repairs.ndjson scan. savePricing() itself
+// remains the mutation-time owner of a fresh generic load() validation.
+const webKnownLoads = (web.match(/m_costing\.loadKnownRepair\(repairId, /g) || []).length;
+if (webKnownLoads !== 3) {
+  throw new Error(`RepairCostingWeb must reuse exact repair proof in all three paths; found ${webKnownLoads} known-repair loads`);
+}
+if (web.includes('m_costing.load(repairId,')) {
+  throw new Error('RepairCostingWeb must not repeat repairs.ndjson through generic load() after exact repairExists proof');
+}
+const webRepairProofs = (web.match(/m_costing\.repairExists\(repairId, repairFound\)/g) || []).length;
+if (webRepairProofs !== 3) {
+  throw new Error(`RepairCostingWeb must retain exact repair proof in all three paths; found ${webRepairProofs}`);
+}
+requireText(
+  web,
+  'if (!m_costing.savePricing(repairId, labour, clientPrice, currency, timestamp))',
+  'pricing mutation must still delegate to savePricing');
+
+console.log('Repair pricing single-pass contracts OK: Web read/preflight paths reuse their exact repair proof, while generic load and savePricing retain authoritative repair validation at their safety boundaries.');

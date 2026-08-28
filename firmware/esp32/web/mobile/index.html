@@ -17,6 +17,7 @@
 <section class="card"><h2>Быстрая отправка</h2><form id="jobForm"><select name="type"><option value="working">Рабочая</option><option value="starting">Пусковая</option></select><input name="turns" placeholder="140/100/80/40" required><input name="repeat_target" type="number" min="1" max="65535" value="1" aria-label="Количество повторений" required><button id="serviceSend" disabled>Отправить на Arduino</button></form><div id="serviceState" class="note">Проверка готовности сервисного режима.</div><div id="result" class="note">Сервисный режим без привязки к ремонту. Запуск выполняется физической кнопкой START.</div><a class="action" href="/mobile/service-job.html">Удалить/закрыть зависшее сервисное задание</a></section>
 </main>
 <nav><a href="/mobile/"><b>🏠</b>Главная</a><a href="/mobile/repairs.html"><b>🧰</b>Ремонты</a><a href="/mobile/calculator.html"><b>🧮</b>Расчёт</a><a href="/mobile/warehouse.html"><b>📦</b>Склад</a><a href="/mobile/more.html"><b>☰</b>Ещё</a></nav>
+<script src="/shared/completed-job-display-reset.js"></script>
 <script>
 localStorage.setItem('cm-ui-version','mobile');
 const $=id=>document.getElementById(id);
@@ -76,7 +77,7 @@ async function refresh(){
       context.className='context';
       context.textContent='Контекст задания: —';
     }
-    $('hint').textContent=statusHint(s);
+    $('hint').textContent=s.current_job_cleared_after_completion===true?'Последняя программа завершена. Текущее задание очищено; результат доступен в Arduino-архиве.':statusHint(s);
     $('health').textContent=persistentHealthy(s)?'Система: норма':'Внимание';
     renderServiceState(s);
   }catch(e){

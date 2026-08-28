@@ -54,11 +54,19 @@ for (const [label, page] of [
   must(page, 'pendingOperationId', `${label} retry operation state`);
   must(page, 'crypto.getRandomValues', `${label} strong operation id generation`);
   must(page, 'operation_id:pendingOperationId', `${label} operation id request`);
+  must(page, 'expected_stock_quantity_milli:String(material.stock_quantity_milli)', `${label} stock snapshot request`);
+  must(page, 'expected_price_per_unit_minor:String(material.price_per_unit_minor)', `${label} price snapshot request`);
   must(page, 'if(!pendingOperationId)pendingOperationId=newOperationId()', `${label} operation id reused across retry`);
   must(page, "$('quantity').oninput=resetOperationId", `${label} quantity change resets operation id`);
   must(page, "$('comment').oninput=resetOperationId", `${label} comment change resets operation id`);
   must(page, 'duplicate_replay===true', `${label} duplicate replay UX`);
   must(page, 'operation_id_conflict', `${label} operation collision UX`);
+  must(page, "j.error==='insufficient_stock'", `${label} authoritative insufficient-stock response`);
+  must(page, 'j.available_quantity_milli', `${label} current available stock display`);
+  must(page, "j.error==='stale_material_preview'", `${label} stale preview response`);
+  must(page, "j.error==='usage_not_committed'", `${label} mutation-time TOCTOU response`);
+  must(page, 'проверьте новые данные и подтвердите списание ещё раз', `${label} stale preview manual reconfirm UX`);
+  must(page, 'повторите вручную', `${label} final TOCTOU manual retry UX`);
   must(page, 'cleanUsageComment', `${label} system idempotency tag hidden from history`);
   must(page, 'Promise.all([load(0,true),loadUsageHistory(0,true),loadCosting()])', `${label} post-write authoritative refresh`);
   mustNot(page, 'name="material_id"', `${label} manual material id input`);
@@ -96,6 +104,9 @@ mustNot(idempotency, 'std::vector', 'unbounded replay storage');
 mustNot(idempotency, 'readString()', 'whole-file replay buffering');
 
 must(materialWeb, '!m_server.hasArg("operation_id")', 'generic operation id required');
+must(materialWeb, 'parseUnsigned(m_server,"expected_stock_quantity_milli",0UL,0xFFFFFFFFUL,expectedStock)', 'expected stock preview input');
+must(materialWeb, 'parseUnsigned(m_server,"expected_price_per_unit_minor",1UL,100000000UL,expectedPrice)', 'expected price preview input');
+must(materialWeb, 'invalid_material_preview', 'invalid preview fail-closed response');
 must(materialWeb, 'MaterialUsageIdempotency::lookup(SD,operationId,repairId,materialId,quantity,replay)', 'replay lookup before mutation');
 must(materialWeb, 'operation_id_conflict', 'operation id collision response');
 const replayBranchStart = materialWeb.indexOf('if(replay.found)');
@@ -108,10 +119,24 @@ must(replayBranch, 'm_server.send(200', 'duplicate replay successful replay resp
 must(replayBranch, 'replay.lineCostMinor', 'duplicate replay persisted line cost');
 must(replayBranch, 'current.stockQuantityMilli', 'duplicate replay authoritative current stock');
 must(materialWeb, 'MaterialUsageIdempotency::taggedComment(operationId,usageComment)', 'durable idempotency evidence');
+
+must(materialWeb, 'm_ledger.loadActiveMaterialState(materialId,materialState,materialFound)', 'authoritative preview reread');
+must(materialWeb, 'quantity>materialState.stockQuantityMilli', 'authoritative insufficient stock guard');
+must(materialWeb, '"insufficient_stock"', 'insufficient stock fail-closed response');
+must(materialWeb, 'materialState.stockQuantityMilli!=expectedStock||materialState.pricePerUnitMinor!=expectedPrice', 'stale stock/price preview guard');
+must(materialWeb, '"stale_material_preview"', 'stale preview fail-closed response');
+must(materialWeb, '"next_action\\\":\\\"REFRESH_MATERIAL_AND_RETRY"', 'mutation-time retry guidance');
 const replayLookupPos = materialWeb.indexOf('MaterialUsageIdempotency::lookup(');
+const staleGuardPos = materialWeb.indexOf('materialState.stockQuantityMilli!=expectedStock||materialState.pricePerUnitMinor!=expectedPrice');
 const confirmPos = materialWeb.indexOf('m_ledger.confirmUsage(usage,result)');
-if (replayLookupPos < 0 || confirmPos < 0 || replayLookupPos >= confirmPos) {
-  throw new Error('generic usage idempotency lookup must execute before MaterialLedger mutation');
+if (replayLookupPos < 0 || staleGuardPos < 0 || confirmPos < 0 ||
+    !(replayLookupPos < staleGuardPos && staleGuardPos < confirmPos)) {
+  throw new Error('generic usage order must remain replay -> stale preview guard -> authoritative MaterialLedger mutation');
+}
+const beforeConfirm = materialWeb.slice(0, confirmPos);
+if (beforeConfirm.includes('expectedPrice*') || beforeConfirm.includes('expectedPrice *') ||
+    beforeConfirm.includes('expected_price_per_unit_minor*')) {
+  throw new Error('client preview price must never become a cost authority');
 }
 
 must(materialWeb, 'm_ledger.confirmUsage(usage,result)', 'material route authoritative ledger mutation');
@@ -130,4 +155,4 @@ must(runWireApply, 'm_ledger.confirmUsage(usage, result)', 'RUN_WIRE still uses 
 mustNot(runWire, 'MaterialUsageIdempotency', 'generic idempotency must not replace RUN_WIRE exact-run protection');
 must(runWire, 'confirmedWriteOffForSourceRun', 'RUN_WIRE exact source-run duplicate protection remains');
 
-console.log('Repair material card contracts OK: bounded search/history/costing and generic retry idempotency are protected without changing MaterialLedger TOCTOU or dedicated RUN_WIRE exact-run safety.');
+console.log('Repair material card contracts OK: bounded search/history/costing, generic idempotency, stale-preview reconfirmation and final MaterialLedger TOCTOU remain protected without changing dedicated RUN_WIRE exact-run safety.');

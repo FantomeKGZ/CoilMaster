@@ -147,7 +147,7 @@ e50b09bc61ca3f3a4a053a5dd826f25d36ad6c71  add RepairCosting::loadKnownRepair()
 bf529900a8211f0b9a920ec237942bae2f7093c5  validate client repairs once per balance request
 ```
 
-Runtime verification for `bf529900a8211f0b9a920ec237942bae2f7093c5`:
+Runtime verification:
 
 ```text
 CMP Protocol Tests #3939 33191506843 / SUCCESS
@@ -164,29 +164,64 @@ CMP Protocol Tests #3941 33194910481 / SUCCESS
 
 Semantics:
 
-- client balance still obtains repair ids only from bounded `RepairRegistry::appendRepairsPageJson()` client-filtered pages;
-- after the first returned repair id, `RepairCosting::repairExists()` performs one authoritative full `repairs.ndjson` validation for the request;
-- subsequent repair ids use `RepairCosting::loadKnownRepair()` and do not repeat the full repair-journal scan;
+- client balance obtains repair ids only from bounded client-filtered RepairRegistry pages;
+- after the first returned repair id, one authoritative full `repairExists()` validates `repairs.ndjson` for the request;
+- subsequent repair ids use `loadKnownRepair()` and do not repeat the full repair-journal scan;
 - generic `RepairCosting::load()` still always performs `repairExists()` before delegating;
 - `savePricing()` still uses generic `load()`; mutation semantics are unchanged;
 - known-repair path skips only the already-proven repair-existence scan; all warehouse movement, material usage/correction, pricing, currency, overflow and RUN_WIRE pending checks remain identical;
 - no persistent cache/index/database or unbounded collection added.
 
-Intermediate contract commit `6a5ecda6eb514f65152d4d6ff1b00a7f995f109d` produced CMP #3940 FAILURE only because two source-text assertions expected different local spelling (`repairIds[i]/found` instead of actual `repairIds[0]/repairFound`). Runtime was unchanged; `19bf0300...` corrected only the assertions and CMP #3941 is fully GREEN.
+Intermediate contract commit `6a5ecda6eb514f65152d4d6ff1b00a7f995f109d` produced CMP #3940 FAILURE only because two source-text assertions expected different local spelling. Runtime was unchanged; `19bf0300...` corrected only assertions.
+
+### RepairCostingWeb exact repair proof reuse — GREEN
+
+Checkpoint 158 removes three immediate duplicate full `repairs.ndjson` scans after exact repair proof in the costing Web layer.
+
+Runtime:
+
+```text
+e460a32a0021b49a6d5262c316a1d9f83f5554d2
+CMP Protocol Tests #3944 33195340340 / SUCCESS
+ESP32 Build #1744        33195340296 / SUCCESS
+Arduino RU LCD #168      33195340333 / SUCCESS
+```
+
+Regression contract:
+
+```text
+3f5d7f65782196491cf81934d0b3aa0276914a02
+CMP Protocol Tests #3945 33195389757 / SUCCESS
+```
+
+Semantics:
+
+- `handlePricingHistory()`, `handleGet()` and the read/preflight stage of `handleSavePricing()` retain their existing exact `m_costing.repairExists(repairId, repairFound)` lookup and 404/read-failure semantics;
+- after successful exact proof they use `m_costing.loadKnownRepair()` rather than generic `load()` and therefore avoid an immediate second `repairs.ndjson` pass;
+- generic `RepairCosting::load()` is unchanged and still owns repair existence validation for callers that do not already have proof;
+- `RepairCosting::savePricing()` is unchanged and still performs its own repair-lifecycle gate plus generic `load()` before append, preserving mutation-time authoritative validation;
+- pricing-history's second `pricing.ndjson` scan remains intentionally retained for current-vs-history integrity comparisons;
+- all movement/material/correction/pricing integrity checks inside costing remain unchanged;
+- no cache/index/DB or new unbounded state added.
+
+Adjacent checkpoint-158 audit:
+
+- moving `MaterialUsageCorrectionIntegrityAudit::check()` out of each known-repair costing load is **NO-CHANGE**. The audit is global provenance validation that internally processes corrections in bounded batches and rereads usage/adjustments. Avoiding repeated calls would require a new prevalidated bypass/context or a larger batch-costing API, which adds integrity and code/flash risk.
 
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
 2. Continue repo-reviewable repeated-scan/performance audit only for confirmed repeated growing-journal passes in the same request/operation.
-3. Next inspect client-balance/costing aggregation beyond the now-removed repeated `repairs.ndjson` validation. `loadKnownRepair()` still invokes full costing validation/aggregation per repair; change this only if a bounded batch primitive can preserve every existing journal validation and exact per-repair result without unbounded RAM.
-4. Keep CashPayment correction preflight NO-CHANGE unless a simpler proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
-5. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
-6. Preserve separate integrity domains; do not fuse unrelated ledgers solely to reduce I/O.
-7. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-8. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-9. Verify actual CMP/ESP32/Arduino CI after each completed code block and update PROJECT_HANDOFF.
-10. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
-11. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+3. Search remaining exact-proof → generic-read/load patterns outside RepairCostingWeb; prefer reusing already-authoritative proof over introducing batch state.
+4. Do not batch/fuse global correction integrity or per-repair full costing unless an existing bounded primitive can preserve every current validation without a bypass API.
+5. Keep CashPayment correction preflight NO-CHANGE unless a simpler proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
+6. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
+7. Preserve separate integrity domains; do not fuse unrelated ledgers solely to reduce I/O.
+8. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
+9. No automatic production rotation/deletion/truncation and no premature DB/index migration.
+10. Verify actual CMP/ESP32/Arduino CI after each completed code block and update PROJECT_HANDOFF.
+11. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
+12. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

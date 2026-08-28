@@ -49,6 +49,13 @@ public:
     bool create(uint32_t jobId, uint32_t sessionId, uint32_t nowMs);
     bool load(uint32_t sessionId, JobRuntimeState& state) const;
 
+    // Read one exact persisted state without begin()/directory creation. This is
+    // intended for read-only archive/report projections that must not mutate the
+    // winding-job store while enumerating historical completed sessions.
+    static bool readPersisted(fs::FS& fileSystem,
+                              uint32_t sessionId,
+                              JobRuntimeState& state);
+
     // Finds the highest valid persisted session. Any malformed, temporary or
     // unexpected regular file fails the scan closed. found=false is valid only
     // when the state directory contains no persisted session.

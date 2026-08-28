@@ -53,6 +53,15 @@ void MaterialLedgerWeb::handleList()
                       "{\"error\":\"invalid_cursor_or_limit\"}");
         return;
     }
+
+    String search = m_server.hasArg("search") ? m_server.arg("search") : String();
+    search.trim();
+    if (search.length() > MaterialLedger::MaxSearchLength)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"search_too_long\",\"max_search_length\":48}");
+        return;
+    }
     const uint8_t limit = static_cast<uint8_t>(parsedLimit);
 
     String response = F("{\"items\":[");
@@ -60,7 +69,7 @@ void MaterialLedgerWeb::handleList()
     uint16_t count = 0U;
     uint32_t nextCursor = 0UL;
     bool hasMore = false;
-    if (!m_ledger.appendMaterialsPageJson(response, cursor, limit, count,
+    if (!m_ledger.appendMaterialsPageJson(response, search, cursor, limit, count,
                                           nextCursor, hasMore))
     {
         if (!m_ledger.ready())
@@ -83,6 +92,10 @@ void MaterialLedgerWeb::handleList()
     response += F(",\"next_cursor\":");
     if (hasMore) response += nextCursor;
     else response += F("null");
+    response += F(",\"search_active\":");
+    response += search.length() > 0U ? F("true") : F("false");
+    response += F(",\"max_search_length\":");
+    response += static_cast<unsigned int>(MaterialLedger::MaxSearchLength);
     response += F(",\"max_page_size\":");
     response += static_cast<unsigned int>(MaterialLedger::MaxListPageSize);
     response += F(",\"currency_policy\":\"KGS_ONLY\","
@@ -193,7 +206,7 @@ void MaterialLedgerWeb::handleUsage()
 
 bool MaterialLedgerWeb::parseUnsigned(WebServer& server,const char* name,uint32_t minimum,uint32_t maximum,uint32_t& value)
 {
-    value=0UL;if(!server.hasArg(name))return false;const String source=server.arg(name);if(source.length()==0U)return false;if(source.length()>1U&&source[0]=='0')return false;uint32_t parsed=0UL;for(size_t i=0U;i<source.length();++i){if(!isDigit(source[i]))return false;const uint8_t digit=static_cast<uint8_t>(source[i]-'0');if(parsed>(0xFFFFFFFFUL-digit)/10UL)return false;parsed=parsed*10UL+digit;}if(parsed<minimum||parsed>maximum)return false;value=parsed;return true;
+    value=0UL;if(!server.hasArg(name))return false;const String source=m_server.arg(name);if(source.length()==0U)return false;if(source.length()>1U&&source[0]=='0')return false;uint32_t parsed=0UL;for(size_t i=0U;i<source.length();++i){if(!isDigit(source[i]))return false;const uint8_t digit=static_cast<uint8_t>(source[i]-'0');if(parsed>(0xFFFFFFFFUL-digit)/10UL)return false;parsed=parsed*10UL+digit;}if(parsed<minimum||parsed>maximum)return false;value=parsed;return true;
 }
 
 bool MaterialLedgerWeb::parseUnit(const String& source,MaterialUnit& unit)

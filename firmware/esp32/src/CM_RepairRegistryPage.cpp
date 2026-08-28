@@ -125,39 +125,51 @@ bool RepairRegistry::appendMotorsPageJson(String& json,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
+        uint32_t motorId = 0UL;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "motor_id", motorId) || motorId == 0UL)
         {
             file.close();
             return false;
         }
 
+        String effectiveLine = line;
+        String revision;
+        bool revisionFound = false;
+        if (!latestMotorRevisionLine(motorId, revision, revisionFound))
+        {
+            file.close();
+            return false;
+        }
+        if (revisionFound) effectiveLine = revision;
+
         if (query.length() > 0U)
         {
             String searchable;
             String field;
-            if (findString(line, "name", field)) searchable += field + ' ';
-            if (findString(line, "model", field)) searchable += field + ' ';
-            if (findString(line, "manufacturer", field)) searchable += field + ' ';
-            if (findString(line, "tags", field)) searchable += field + ' ';
-            if (findString(line, "coil_program", field)) searchable += field + ' ';
+            if (findString(effectiveLine, "name", field)) searchable += field + ' ';
+            if (findString(effectiveLine, "model", field)) searchable += field + ' ';
+            if (findString(effectiveLine, "manufacturer", field)) searchable += field + ' ';
+            if (findString(effectiveLine, "tags", field)) searchable += field + ' ';
+            if (findString(effectiveLine, "coil_program", field)) searchable += field + ' ';
 
             uint32_t numeric = 0UL;
-            if (findUnsigned(line, "phases", numeric))
+            if (findUnsigned(effectiveLine, "phases", numeric))
             {
                 searchable += String(numeric);
                 searchable += F(" фазы фаз ");
             }
-            if (findUnsigned(line, "slot_count", numeric))
+            if (findUnsigned(effectiveLine, "slot_count", numeric))
             {
                 searchable += String(numeric);
                 searchable += F(" пазы пазов ");
             }
-            if (findUnsigned(line, "repeat_target", numeric))
+            if (findUnsigned(effectiveLine, "repeat_target", numeric))
             {
                 searchable += String(numeric);
                 searchable += F(" повторы повторов ");
             }
-            if (findUnsigned(line, "pole_count", numeric))
+            if (findUnsigned(effectiveLine, "pole_count", numeric))
             {
                 searchable += String(numeric);
                 searchable += F(" полюсы полюсов ");
@@ -169,7 +181,7 @@ bool RepairRegistry::appendMotorsPageJson(String& json,
 
         if (!first) json += ',';
         first = false;
-        json += line;
+        json += effectiveLine;
         ++count;
     }
 

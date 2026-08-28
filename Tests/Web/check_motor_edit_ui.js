@@ -28,7 +28,10 @@ for (const surface of ['desktop', 'mobile']) {
   const details = read(`firmware/esp32/web/${surface}/motor-details.html`);
   must(editor, '/api/motors/by-id?motor_id=', `${surface} editor exact load`);
   must(editor, '/api/motors/update', `${surface} editor save`);
-  must(editor, "body.set('motor_id',motorId)", `${surface} editor fixed motor id`);
+  if (!editor.includes("body.set('motor_id',motorId)") &&
+      !editor.includes("b.set('motor_id',motorId)")) {
+    failures.push(`${surface} editor: fixed motor id missing`);
+  }
   must(details, `${surface}/motor-edit.html?motor_id=`.replace(`${surface}/`, `/${surface}/`), `${surface} detail edit link`);
 }
 

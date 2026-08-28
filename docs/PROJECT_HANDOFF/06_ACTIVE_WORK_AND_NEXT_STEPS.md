@@ -210,8 +210,6 @@ Desktop/mobile now show:
 - cursor-based next/previous history navigation without whole-file buffering in UI;
 - after a successful explicit writeoff, authoritative catalog, usage history and costing are all re-read rather than locally synthesized.
 
-The contract protects reuse of `MaterialUsageHistoryWeb::appendUsageHistoryPageJson` and `RepairCosting::materialCostMinor`, while forbidding manual material ID fields, legacy direct writeoff API use or local duplicated costing persistence.
-
 Direct verification:
 
 ```text
@@ -222,7 +220,48 @@ status completed
 conclusion success
 ```
 
-Configure / Build / Test and all host contract audits completed success, including material usage, backup, warehouse, RUN_WIRE and Hall safety contracts.
+## Repair materials checkpoint 3 — bounded server-side warehouse search — GREEN
+
+Search was added on top of the existing MaterialLedger catalogue without introducing an index, DB, secondary catalogue or whole-file result buffering.
+
+Implementation commits:
+
+```text
+4f70357804499ca3d5f617a418220cefc544b1fa  MaterialLedger bounded search contract/max query length
+649af913fd164241e506cfed61f2dcb75772c3ef  streaming read-only material search implementation
+2c39e373b8ed7acf28fd93f30e3ed86b021be54f  GET /api/materials search dispatch
+a692e51f0ab2dde98181acc43c632deea6a535f6  parser compile-safety correction
+7a0e76f166b7b7dca13bde804684474e5776e5d6  desktop material search UX
+73447a822398a36d8516a82fbbe80ff32035344f  mobile material search parity
+7aa81b7119c95d0dc81331cd7c6755fc3e79e44e  bounded search contract
+```
+
+Current search flow:
+
+```text
+GET /api/materials?search=<query>&limit=20&cursor=<file-position>
+  -> query trim + max 48 chars
+  -> streaming materials.ndjson scan
+  -> FlatJson validation and monotonic ID checks
+  -> ACTIVE records only
+  -> match name / comment / unit / wire_type / wire diameter
+  -> append at most requested page limit
+  -> next cursor is the actual NDJSON file position
+```
+
+The implementation explicitly avoids `std::vector` result accumulation and whole-file `readString()` buffering. Empty search delegates to the existing catalogue pager. Desktop/mobile reset paging whenever the search query changes and keep stock, price and optional CU/AL diameter metadata visible in results.
+
+Direct verification:
+
+```text
+CMP Protocol Tests #3790
+run 33148837612
+SHA 7aa81b7119c95d0dc81331cd7c6755fc3e79e44e
+status completed
+conclusion success
+```
+
+Configure / Build / Test and the full host contract suite completed success, including material usage/recovery, backup, warehouse/RUN_WIRE and Hall safety audits.
 
 Production remains unchanged:
 
@@ -233,13 +272,14 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
-2. Next safe checkpoint: add real bounded server-side material search/filter over the existing MaterialLedger catalog, preserving cursor paging and bounded memory; no whole-file result buffering.
-3. Connect identical search UX to desktop/mobile and keep stock/price visible in results.
-4. Then add ordinary-material duplicate-submit/idempotency protection and stale-preview/TOCTOU UX around the existing authoritative MaterialLedger transaction.
-5. Later integrate exact RUN_WIRE into the same UI surface while retaining its separate coordinator/provenance requirements.
-6. Add append-only correction/history UX; do not edit/delete durable confirmed operations.
-7. Verify actual CI and update PROJECT_HANDOFF after every completed checkpoint.
-8. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+2. Next safety checkpoint: add idempotency/duplicate-submit protection for ordinary explicit material usage without changing the dedicated RUN_WIRE coordinator or its exact-run duplicate protection.
+3. Generic material operations should receive a bounded unique operation key; retry of the same exact request must return the existing persisted price snapshot without another stock mutation, while reuse of the same key with different payload must fail closed.
+4. Preserve backward compatibility for historical usage rows and RUN_WIRE-generated MaterialLedger rows that do not carry the generic operator operation key.
+5. Then expose stale-preview/insufficient-stock/changed-price failures as actionable operator errors while retaining MaterialLedger mutation-time authoritative reread/TOCTOU.
+6. Later integrate exact RUN_WIRE into the same UI surface while retaining its separate coordinator/provenance requirements.
+7. Add append-only correction/history UX; do not edit/delete durable confirmed operations.
+8. Verify actual CI and update PROJECT_HANDOFF after every completed checkpoint.
+9. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

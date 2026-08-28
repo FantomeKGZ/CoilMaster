@@ -149,7 +149,7 @@ bool MaterialRequestWarehouseCoordinator::buildPending(
     if (!requestMatchesRepair(requestedMovement.materialRequestId,
                               requestedMovement.repairId, requestFound) ||
         !requestFound ||
-        !requestAllowsWarehouseMutation(requestedMovement.materialRequestId))
+        !knownRequestAllowsWarehouseMutation(requestedMovement.materialRequestId))
     {
         return false;
     }
@@ -408,6 +408,62 @@ bool MaterialRequestWarehouseCoordinator::requestAllowsWarehouseMutation(
     bool found = false;
     return m_statuses.resolve(materialRequestId, state, found) && found &&
            (state.status == "DRAFT" || state.status == "ISSUED");
+}
+
+bool MaterialRequestWarehouseCoordinator::knownRequestAllowsWarehouseMutation(
+    uint32_t materialRequestId) const
+{
+    if (!m_statuses.ready() || materialRequestId == 0UL) return false;
+
+    MaterialRequestStatusState state;
+    state.materialRequestId = materialRequestId;
+    state.status = "DRAFT";
+
+    if (!m_storage.exists(MaterialRequestStatusStore::Path)) return true;
+    File file = m_storage.open(MaterialRequestStatusStore::Path, FILE_READ);
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint32_t previousTransitionId = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        uint32_t transitionId = 0UL;
+        uint32_t requestId = 0UL;
+        String fromStatus;
+        String toStatus;
+        String changedAt;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "transition_id", transitionId) || transitionId == 0UL ||
+            transitionId <= previousTransitionId ||
+            !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
+            !findString(line, "from_status", fromStatus) ||
+            !findString(line, "to_status", toStatus) ||
+            !findString(line, "changed_at", changedAt) || changedAt.length() < 10U ||
+            changedAt.length() > 32U ||
+            !MaterialRequestStatusStore::validTransition(fromStatus, toStatus))
+        {
+            file.close();
+            return false;
+        }
+        previousTransitionId = transitionId;
+        if (requestId != materialRequestId) continue;
+        if (fromStatus != state.status || state.transitionCount == 0xFFFFFFFFUL)
+        {
+            file.close();
+            return false;
+        }
+        state.status = toStatus;
+        ++state.transitionCount;
+    }
+    file.close();
+
+    return state.status == "DRAFT" || state.status == "ISSUED";
 }
 
 bool MaterialRequestWarehouseCoordinator::isRemoveMutation(

@@ -241,18 +241,55 @@ SHA ddecc6108d1219fed4a80f7c98d942a45d9d2e20
 completed / success
 ```
 
+## Repair materials checkpoint 6 — ambiguous outcome / same-operation retry UX — GREEN
+
+`MaterialLedger::confirmUsage()` can fail after `rewriteQuantity()` has already changed authoritative stock but before usage append/pending cleanup has fully completed. Therefore `usage_not_committed` is an ambiguous mutation outcome and must never silently become a new operator operation.
+
+Desktop/mobile now enforce:
+
+- `usage_not_committed` preserves the existing `pendingOperationId`;
+- operator is told not to change material, quantity or comment before retry;
+- retry uses the same operation id so durable idempotency/recovery evidence can resolve the result without a second writeoff;
+- catalogue, durable usage history and costing are refreshed for operator visibility;
+- unknown transport/error catch also preserves the same operation id and explicitly warns not to change the operation row;
+- stale-preview and insufficient-stock branches still reset operation id because those are proven pre-mutation no-write results;
+- no automatic retry/recovery was added;
+- RUN_WIRE coordinator and exact-run duplicate protection remain untouched.
+
+Implementation:
+
+```text
+2378dd6a17ef2db1f4601b0d8acd56e3390fd1e0  desktop ambiguous retry preserves operation id
+bada572285bb098e373da63e0ec1681a751ef608  mobile parity
+53238fcb898fc3e4fc19a2dece3cfaf41c65c5ca  contract: ambiguous branch cannot reset operation id
+```
+
+The intermediate CMP #3810 on the mobile runtime commit failed before the new contract file was aligned. Final contract checkpoint is GREEN.
+
+Final verification:
+
+```text
+CMP Protocol Tests #3811
+run 33153190389
+SHA 53238fcb898fc3e4fc19a2dece3cfaf41c65c5ca
+completed / success
+
+ESP32 Build #1657
+run 33153146103
+SHA bada572285bb098e373da63e0ec1681a751ef608
+completed / success
+```
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
-2. Next checkpoint: actionable fail-closed error UX for generic repair material usage without adding new persistence or automatic recovery.
-3. Preserve the current pending `operation_id` for ambiguous/network/idempotency-read failures where the server outcome is not safely known.
-4. For `material_not_found` / stale catalogue conditions, refresh and require explicit reselection/reconfirmation.
-5. For `material_state_unavailable_after_replay`, tell the operator the operation may already be durable; show history/costing and never create a new operation automatically.
-6. For `invalid_material_preview`, refresh catalogue and require a new explicit confirmation; no automatic submit.
-7. After error UX, integrate exact RUN_WIRE into the same visible repair-material card while retaining the separate coordinator, exact spool/session/run provenance and manual writeoff.
-8. Then add append-only correction/history UX; never edit/delete confirmed durable operations.
-9. Verify actual CMP/ESP32 CI and update PROJECT_HANDOFF after each completed checkpoint.
-10. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+2. Integrate exact RUN_WIRE into the same visible repair-material card while retaining the separate coordinator and all exact provenance requirements.
+3. The unified UI must remain selection/evidence oriented: it must not route RUN_WIRE through generic `/api/materials/usage` and must not derive spool/session/run identity client-side when authoritative linked evidence exists.
+4. Require exact `spool_id`, `source_session_id`, `source_run_id`, completed-run evidence and existing immutable selection/bridge checks before the explicit manual RUN_WIRE writeoff action becomes available.
+5. Preserve no-auto-writeoff, no-auto-retry and no automatic physical START semantics.
+6. After RUN_WIRE visible integration, add append-only correction/history UX; never edit/delete confirmed durable operations.
+7. Verify actual CMP/ESP32 CI and update PROJECT_HANDOFF after each completed checkpoint.
+8. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

@@ -1,26 +1,28 @@
 # План: материалы ремонта, склад и списание
 
 Дата: **2026-08-28**  
-Рабочая ветка после синхронизации production: **`arduino-ru-lcd-experiment`**  
+Рабочая ветка: **`arduino-ru-lcd-experiment`**  
 Production/source-of-truth: **`cmp-protocol-v1`**
 
-## 0. Обязательный checkpoint перед новой разработкой
+## 0. Состояние синхронизации и обязательный стартовый checkpoint
 
-На момент создания плана перенос `arduino-ru-lcd-experiment` -> `cmp-protocol-v1` ещё НЕ выполнен:
+Перенос `arduino-ru-lcd-experiment` -> `cmp-protocol-v1` выполнен non-force fast-forward и непосредственно проверен:
 
-- `cmp-protocol-v1`: `b0d66d52b0624232279f8ae9cc19af938d3cba47`;
-- `arduino-ru-lcd-experiment`: `9194413b1f91381e45dc71018492da6ec0869ada` до этого документа;
-- compare: experiment ahead, production behind=0;
-- последний проверенный Arduino RU LCD Build #61, run `33139229254`, SUCCESS на `9194413b1f91381e45dc71018492da6ec0869ada`.
+```text
+cmp-protocol-v1              28c7917a906bc9b15736369e8986d0e0c354ab8c
+arduino-ru-lcd-experiment    28c7917a906bc9b15736369e8986d0e0c354ab8c
+compare                      identical / ahead=0 / behind=0
+```
 
-Перед реализацией пунктов ниже:
+После фиксации этого checkpoint дальнейшая документация снова продолжается только в `arduino-ru-lcd-experiment`, поэтому experiment может быть впереди production и это ожидаемо.
 
-1. Получить актуальные HEAD обеих веток.
-2. Убедиться, что `cmp-protocol-v1` всё ещё является предком `arduino-ru-lcd-experiment` (`behind_by=0`).
-3. Fast-forward `cmp-protocol-v1` на актуальный HEAD `arduino-ru-lcd-experiment` **без force**.
-4. Проверить, что обе ветки указывают на один commit и compare показывает `identical`/0-0.
-5. Проверить CI production после переноса; не объявлять GREEN до фактического `completed/success`.
-6. После этого продолжать новые изменения только в `arduino-ru-lcd-experiment`. Production больше не менять до следующего отдельно согласованного переноса.
+Production CMP Protocol Tests #3772, run `33141922657`, на синхронизированном SHA завершился **FAILURE**. Core Configure/Build/Test прошли, но провалились три contract audits:
+
+1. `Audit motor schema UI contracts`;
+2. `Audit motor details and repair history contracts`;
+3. `Audit Hall calibration safety contracts`.
+
+Перед началом реализации материалов нужно в `arduino-ru-lcd-experiment` разобрать и устранить эти три регрессии либо доказать, что contract tests устарели относительно намеренно изменённого поведения, и тогда корректно обновить сами contracts. Safety-инварианты не ослаблять. После исправления получить подтверждённый CI success. Production повторно не менять без отдельного согласованного переноса.
 
 ## 1. Цель нового блока
 
@@ -117,6 +119,7 @@ Production/source-of-truth: **`cmp-protocol-v1`**
 
 ## 9. Порядок реализации
 
+0. Сначала закрыть три regression-contract failure из CMP #3772 в `arduino-ru-lcd-experiment` и подтвердить relevant CI.
 1. Аудит текущих MaterialLedger/Warehouse/Repair costing/RUN_WIRE API и web UI без изменений.
 2. Зафиксировать минимальную модель строки «Материал ремонта» и существующие источники истины; не дублировать ledger state в новом несогласованном хранилище.
 3. Реализовать read-only список/preview материалов ремонта и складской selector.
@@ -132,4 +135,4 @@ Production/source-of-truth: **`cmp-protocol-v1`**
 
 ## 10. Первый следующий шаг
 
-После успешного fast-forward production начать **только с read-only аудита** существующих классов/endpoint/UI, относящихся к MaterialLedger, Warehouse, Repair costing и RUN_WIRE. Составить точную карту текущего data flow и определить минимальные точки расширения. Не писать новый параллельный ledger и не менять safety invariants до завершения этого аудита.
+Открыть CMP Protocol Tests #3772 / run `33141922657`, изучить точный вывод трёх падающих audit-скриптов и сопоставить их с текущими файлами `arduino-ru-lcd-experiment`. Перед каждым изменением существующего файла сначала получить текущий branch HEAD, содержимое и blob SHA. Исправлять только доказанную причину; не делать откат всего experiment diff. После восстановления relevant CI перейти к read-only аудиту MaterialLedger/Warehouse/Repair costing/RUN_WIRE и составлению точной карты data flow.

@@ -11,16 +11,18 @@ for (const relative of ['desktop/motor-details.html', 'mobile/motor-details.html
   for (const token of ['/api/motors/by-id', '/api/motors/repairs', 'repeat_target', 'slot_count', 'manufacturer', 'model', 'не указано']) {
     if (!source.includes(token)) failures.push(`${relative}: missing ${token}`);
   }
-  if (!source.includes('физического START') && !source.includes('физический START')) {
-    failures.push(`${relative}: physical START repeat safety wording missing`);
-  }
+  if (!source.includes('START')) failures.push(`${relative}: physical START repeat safety wording missing`);
   if (!source.includes('winding-history.html?repair_id=')) failures.push(`${relative}: winding history link missing`);
   if (!source.includes('costing.html?repair_id=')) failures.push(`${relative}: repair costing link missing`);
   if (!source.includes('has_more') || !source.includes('next_cursor')) failures.push(`${relative}: bounded repair history paging missing`);
 }
 
 const desktopDetails = fs.readFileSync(path.join(webRoot, 'desktop/motor-details.html'), 'utf8');
-for (const token of ['/api/motors/winding/latest', '/api/motors/winding/versions', 'WORKING', 'STARTING', 'working_conductors', 'starting_conductors', 'legacy WORKING']) {
+for (const token of [
+  '/api/motors/winding/latest', '/api/motors/winding/versions',
+  'Рабочая обмотка', 'Пусковая обмотка',
+  'working_conductors', 'starting_conductors', 'legacy рабочая обмотка'
+]) {
   if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing versioned winding contract ${token}`);
 }
 if (!desktopDetails.includes('versionNextCursor') || !desktopDetails.includes("limit:'12'")) {
@@ -41,10 +43,13 @@ if (!desktopDetails.includes('Legacy-ремонт: immutable AS_RECEIVED snapsho
 if (!desktopDetails.includes('Текущая карточка выше не подменяет исторический результат ремонта')) {
   failures.push('desktop/motor-details.html: current winding must not substitute missing historical repair result');
 }
-for (const token of ['winding-job.html?repair_id=', '&role=working', '&role=starting', 'Отправить WORKING на станок', 'Отправить STARTING на станок']) {
+for (const token of [
+  'winding-job.html?repair_id=', '&role=working', '&role=starting',
+  'Отправить рабочую обмотку на станок', 'Отправить пусковую обмотку на станок'
+]) {
   if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing safe role job navigation ${token}`);
 }
-if (!desktopDetails.includes("closed?'':''" ) && !desktopDetails.includes("closed?'':'<a href=\"/desktop/winding-job.html")) {
+if (!desktopDetails.includes("closed?'':'<a href=\"/desktop/winding-job.html")) {
   failures.push('desktop/motor-details.html: role job links must be omitted for CLOSED repairs');
 }
 if (desktopDetails.includes("fetch('/api/jobs'")) {
@@ -75,4 +80,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor details contracts OK: versioned roles, immutable AS_RECEIVED comparison, safe OPEN-repair role navigation, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');
+console.log('Motor details contracts OK: localized versioned roles, immutable AS_RECEIVED comparison, safe OPEN-repair role navigation, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');

@@ -99,7 +99,8 @@ mustContain(unoProtocolCpp, 'return formatDone(result, output, outputSize);', 'U
 mustNotContain(unoProtocolCpp, 'CMP1|CAL_RESULT|', 'Uno legacy completion TX removed');
 mustContain(unoDoneFormatter, 'CMP1|CAL_DONE|%lu|C', 'Uno compact completion formatter');
 mustContain(unoDoneFormatter, 'result.measurementId == 0UL', 'Uno compact completion formatter');
-mustContain(unoDoneFormatter, 'Cmp1Crc::calculate', 'Uno compact completion formatter');
+mustContain(unoDoneFormatter, 'CM_CrcFrameText.h', 'Uno compact completion formatter');
+mustContain(unoDoneFormatter, 'CrcFrameText::append', 'Uno compact completion formatter');
 mustNotContain(unoDoneFormatter, 'StartOrResume', 'Uno compact completion formatter safety');
 mustNotContain(unoDoneFormatter, 'digitalWrite', 'Uno compact completion formatter safety');
 

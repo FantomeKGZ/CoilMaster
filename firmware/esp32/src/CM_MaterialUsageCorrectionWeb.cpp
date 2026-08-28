@@ -10,7 +10,33 @@ MaterialUsageCorrectionWeb::MaterialUsageCorrectionWeb(WebServer& server, Materi
 
 void MaterialUsageCorrectionWeb::begin()
 {
+    m_server.on("/api/materials/usage/corrections", HTTP_GET, [this]() { handleGet(); });
     m_server.on("/api/materials/usage/corrections", HTTP_POST, [this]() { handlePost(); });
+}
+
+void MaterialUsageCorrectionWeb::handleGet()
+{
+    if (!m_ledger.ready()) { m_server.send(503,"application/json; charset=utf-8","{\"error\":\"materials_unavailable\"}"); return; }
+    uint32_t repairId=0UL,cursor=0UL,limit=20UL,sourceUsageId=0UL;
+    if (!parseUnsigned(m_server,"repair_id",1UL,0xFFFFFFFFUL,repairId) ||
+        (m_server.hasArg("cursor") && !parseUnsigned(m_server,"cursor",0UL,0xFFFFFFFFUL,cursor)) ||
+        (m_server.hasArg("limit") && !parseUnsigned(m_server,"limit",1UL,MaterialLedger::MaxListPageSize,limit)) ||
+        (m_server.hasArg("source_usage_id") && !parseUnsigned(m_server,"source_usage_id",1UL,0xFFFFFFFFUL,sourceUsageId)))
+    { m_server.send(400,"application/json; charset=utf-8","{\"error\":\"invalid_usage_correction_page\"}"); return; }
+
+    bool repairFound=false;
+    if (!m_ledger.repairExists(repairId,repairFound)) { m_server.send(m_ledger.ready()?500:503,"application/json; charset=utf-8","{\"error\":\"repair_reference_read_failed\"}"); return; }
+    if (!repairFound) { m_server.send(404,"application/json; charset=utf-8","{\"error\":\"repair_not_found\"}"); return; }
+
+    String r=F("{\"items\":["); r.reserve(640U+static_cast<unsigned int>(limit)*360U);
+    uint16_t count=0U; uint32_t nextCursor=0UL; bool hasMore=false;
+    if (!m_ledger.appendUsageCorrectionHistoryPageJson(r,repairId,sourceUsageId,cursor,static_cast<uint8_t>(limit),count,nextCursor,hasMore))
+    { m_server.send(m_ledger.ready()?500:503,"application/json; charset=utf-8","{\"error\":\"usage_correction_history_read_failed\"}"); return; }
+    r+=F("],\"count\":"); r+=count; r+=F(",\"cursor\":"); r+=cursor; r+=F(",\"limit\":"); r+=limit;
+    r+=F(",\"has_more\":"); r+=hasMore?F("true"):F("false"); r+=F(",\"next_cursor\":"); if(hasMore)r+=nextCursor;else r+=F("null");
+    r+=F(",\"repair_id\":"); r+=repairId; r+=F(",\"source_usage_id\":"); if(sourceUsageId>0UL)r+=sourceUsageId;else r+=F("null");
+    r+=F(",\"max_page_size\":"); r+=MaterialLedger::MaxListPageSize; r+=F(",\"source\":\"APPEND_ONLY_ADJUSTMENTS\"}");
+    m_server.send(200,"application/json; charset=utf-8",r);
 }
 
 void MaterialUsageCorrectionWeb::handlePost()

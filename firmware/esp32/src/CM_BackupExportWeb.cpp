@@ -106,6 +106,7 @@ constexpr ExportFileDefinition ExportFiles[] =
     {"winding-events", "/data/winding-runs/events.ndjson", "application/x-ndjson", "winding-events.ndjson"},
     {"autonomous-winding-events", "/data/autonomous-windings/events.ndjson", "application/x-ndjson", "autonomous-winding-events.ndjson"},
     {"autonomous-winding-assignments", "/data/autonomous-windings/assignments.ndjson", "application/x-ndjson", "autonomous-winding-assignments.ndjson"},
+    {"autonomous-winding-web-assignments", "/data/autonomous-windings/web-assignments.ndjson", "application/x-ndjson", "autonomous-winding-web-assignments.ndjson"},
     {"warehouse-spools", "/data/warehouse/spools.ndjson", "application/x-ndjson", "warehouse-spools.ndjson"},
     {"warehouse-movements", "/data/warehouse/movements.ndjson", "application/x-ndjson", "warehouse-movements.ndjson"},
     {"warehouse-price", "/data/warehouse/price.ndjson", "application/x-ndjson", "warehouse-price.ndjson"},

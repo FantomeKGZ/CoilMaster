@@ -15,7 +15,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполняются в `arduino-ru-lcd-experiment`. Не переносить их обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Stable pre-CRM snapshot сохранён как историческая контрольная точка:
+Stable pre-CRM snapshot:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
@@ -27,6 +27,7 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 ```text
 /AGENTS.md
 this file
+docs/PROJECT_HANDOFF/151_REPAIR_MATERIAL_SOFTWARE_ACCEPTANCE_2026-08-28.md
 docs/PROJECT_HANDOFF/150_MATERIAL_FAIL_CLOSED_UX_2026-08-28.md
 docs/PROJECT_HANDOFF/149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
@@ -45,9 +46,9 @@ docs/PROJECT_HANDOFF/137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 ```
 
-## Latest GREEN experiment checkpoint
+## Latest GREEN code checkpoint
 
-Repair-material fail-closed operator UX is complete. Existing append-only material corrections were also re-audited and confirmed already authoritative rather than a pending implementation task.
+Repair-material fail-closed operator UX is GREEN. Append-only generic corrections and RUN_WIRE operator provenance were re-audited and confirmed already authoritative.
 
 ```text
 runtime/UI code SHA                    28343cb20cc5d75c748c38881d8705fd8505d182
@@ -57,30 +58,30 @@ final host-contract SHA               eff0cb8a7e0365cf6184aa81694d9e277037116d
 CMP Protocol Tests #3867              run 33164535872 / SUCCESS
 ```
 
-See `150_MATERIAL_FAIL_CLOSED_UX_2026-08-28.md` for exact error/operation-id semantics and the corrected next software audit.
-
-The preceding client editing + PREPAYMENT block remains GREEN and is documented in `149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md`.
+After those code/test SHAs only handoff/docs commits were added.
 
 ## Current state
 
-Generic repair-material usage keeps one manual mutation path. `material_state_unavailable_after_replay` is treated as a potentially already-durable operation: the operator is explicitly told not to create a new `operation_id`. Authoritative/idempotency read failures remain fail-closed and preserve the same operation identity; proven pre-mutation no-write cases require a fresh manual selection/confirmation. No automatic retry was added.
+The core software block from `07_REPAIR_MATERIAL_WRITEOFF_PLAN.md` is accepted complete for accounting/integrity. See `151_REPAIR_MATERIAL_SOFTWARE_ACCEPTANCE_2026-08-28.md`.
 
-Append-only generic material corrections are already implemented with exact source-usage provenance, idempotent replay, bounded history, integrity/backup coverage and net RepairCosting. Confirmed source usage is never edited or deleted. Generic corrections remain isolated from RUN_WIRE evidence and warehouse correction semantics.
+Generic repair-material usage keeps one explicit/manual mutation path with operation-id idempotency, authoritative stock/price preflight, persisted cost snapshots, final mutation-time TOCTOU/WAL and fail-closed recovery.
 
-Client identity remains stable and edits are append-only revisions. PREPAYMENT remains separate from repair debt/costing and is never auto-applied.
+Append-only generic material corrections have exact source-usage provenance, bounded history, integrity/backup coverage and net RepairCosting. Confirmed usage is never edited/deleted. RUN_WIRE is not corrected through the generic path.
 
-Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains disabled; exact spool/session/run provenance and historical recovery compatibility remain intact.
+RUN_WIRE remains a separate exact-safe warehouse path with manual confirmation and exact `spool_id + source_session_id + source_run_id`. `RUN_COMPLETED` remains evidence only.
+
+A convenience `material_not_found -> catalog/create` link is non-blocking UX polish only; automatic material creation is forbidden. A frequently-used-material shortcut is intentionally not implemented because no bounded/read-only aggregation API exists and a full growing-NDJSON scan/new favourites state is not justified.
+
+Client PREPAYMENT remains separate from repair debt/costing and is never auto-applied.
 
 ## Immediate NEXT
 
-1. Audit operator visibility in the unified repair-material card rather than reimplementing the already-existing correction ledger.
-2. Verify that each generic usage can be clearly related to its append-only corrections and net quantity/cost in the UI.
-3. Verify that RUN_WIRE provenance/history is visible enough from the same repair context while remaining a separate warehouse ledger/path.
-4. Check actionable navigation for `material_not_found` / missing stock position using only existing safe warehouse/create workflows.
-5. Consider a bounded/read-only frequently-used material shortcut only if it requires no new duplicated state or unbounded scan.
-6. Preserve append-only history, bounded streamed reads and fail-closed integrity semantics.
-7. Keep fixed RAM bounds; no whole-file buffering or unbounded vectors.
-8. No automatic rotation/deletion/truncation or premature DB/index migration.
-9. Continue software work in `arduino-ru-lcd-experiment`; do not move changes to production without explicit approval.
+1. Do not reopen the repair-material accounting/integrity block without a new concrete requirement.
+2. Continue repo-reviewable software optimization/audit in `arduino-ru-lcd-experiment` using the current tree and existing handoff queue.
+3. Prefer bounded single-pass/fused reads only when they do not combine different integrity domains or weaken fail-closed semantics.
+4. Preserve append-only history, fixed RAM bounds and streamed growing-NDJSON reads.
+5. No automatic rotation/deletion/truncation and no premature DB/index migration.
+6. Hardware Arduino+ESP32 E2E for repair-material flow remains a separate final acceptance gate when hardware testing resumes.
+7. Do not move experiment commits to `cmp-protocol-v1` without explicit approval.
 
 `RUN_COMPLETED` remains evidence only; no automatic wire writeoff, physical START or resume.

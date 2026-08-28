@@ -20,6 +20,10 @@ void AutonomousWindingWeb::begin()
                 [this]() { handleList(); });
     m_server.on("/api/autonomous-windings/assign", HTTP_POST,
                 [this]() { handleAssign(); });
+    m_server.on("/api/autonomous-windings/web-completed", HTTP_GET,
+                [this]() { handleCompletedWebJobsList(); });
+    m_server.on("/api/autonomous-windings/web-completed/assign", HTTP_POST,
+                [this]() { handleCompletedWebJobAssign(); });
 }
 
 void AutonomousWindingWeb::handleList()
@@ -105,6 +109,66 @@ void AutonomousWindingWeb::handleList()
     response += F(",\"max_page_size\":");
     response += AutonomousWindingArchive::MaxTaskPageSize;
     response += '}';
+    m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void AutonomousWindingWeb::handleCompletedWebJobsList()
+{
+    if (!m_archive.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"autonomous_winding_archive_unavailable\"}");
+        return;
+    }
+
+    uint32_t cursor = 0UL;
+    if (m_server.hasArg("cursor") &&
+        !parseCanonicalUint32(m_server.arg("cursor"), cursor))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_cursor\"}");
+        return;
+    }
+
+    uint32_t limitValue = DefaultTaskPageSize;
+    if (m_server.hasArg("limit") &&
+        (!parseCanonicalUint32(m_server.arg("limit"), limitValue) ||
+         limitValue == 0UL ||
+         limitValue > AutonomousWindingArchive::MaxTaskPageSize))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_limit\"}");
+        return;
+    }
+    const uint8_t limit = static_cast<uint8_t>(limitValue);
+
+    String response = F("{\"source\":\"ESP32_JOB\",\"items\":[");
+    response.reserve(768U + static_cast<unsigned int>(limit) * 384U);
+    uint16_t count = 0U;
+    uint32_t nextCursor = 0UL;
+    bool hasMore = false;
+    if (!m_archive.appendCompletedWebJobsPageJson(response,
+                                                  cursor,
+                                                  limit,
+                                                  count,
+                                                  nextCursor,
+                                                  hasMore))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"completed_web_job_archive_integrity_failed\"}");
+        return;
+    }
+
+    response += F("],\"count\":"); response += count;
+    response += F(",\"limit\":"); response += limit;
+    response += F(",\"cursor\":"); response += cursor;
+    response += F(",\"has_more\":"); response += hasMore ? F("true") : F("false");
+    response += F(",\"next_cursor\":");
+    if (hasMore) response += nextCursor;
+    else response += F("null");
+    response += F(",\"max_page_size\":");
+    response += AutonomousWindingArchive::MaxTaskPageSize;
+    response += F(",\"run_evidence_copied\":false}");
     m_server.send(200, "application/json; charset=utf-8", response);
 }
 
@@ -218,6 +282,107 @@ void AutonomousWindingWeb::handleAssign()
     response += F(",\"role\":\"");
     response += role;
     response += F("\"}");
+    m_server.send(201, "application/json; charset=utf-8", response);
+}
+
+void AutonomousWindingWeb::handleCompletedWebJobAssign()
+{
+    if (!m_archive.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"autonomous_winding_archive_unavailable\"}");
+        return;
+    }
+    if (!m_registry.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"repair_registry_unavailable\"}");
+        return;
+    }
+    if (!m_server.hasArg("confirmed") || m_server.arg("confirmed") != "true")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"explicit_confirmation_required\"}");
+        return;
+    }
+
+    uint32_t sessionId = 0UL;
+    uint32_t runId = 0UL;
+    uint32_t motorId = 0UL;
+    if (!m_server.hasArg("session_id") || !m_server.hasArg("run_id") ||
+        !m_server.hasArg("motor_id") ||
+        !parseCanonicalUint32(m_server.arg("session_id"), sessionId) ||
+        !parseCanonicalUint32(m_server.arg("run_id"), runId) ||
+        !parseCanonicalUint32(m_server.arg("motor_id"), motorId) ||
+        sessionId == 0UL || runId == 0UL || motorId == 0UL)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_session_run_or_motor_id\"}");
+        return;
+    }
+
+    const String role = m_server.hasArg("role") ? m_server.arg("role") : String();
+    if (role != "WORKING" && role != "STARTING" && role != "AUXILIARY")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_assignment_role\"}");
+        return;
+    }
+
+    bool motorFound = false;
+    if (!m_registry.motorExists(motorId, motorFound))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_lookup_integrity_failed\"}");
+        return;
+    }
+    if (!motorFound)
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_not_found\"}");
+        return;
+    }
+
+    uint32_t assignmentId = 0UL;
+    const AutonomousWindingAssignResult result =
+        m_archive.assignCompletedWebJobMotorChecked(sessionId,
+                                                    runId,
+                                                    motorId,
+                                                    role,
+                                                    assignmentId);
+    switch (result)
+    {
+        case AutonomousWindingAssignResult::TaskNotFound:
+            m_server.send(404, "application/json; charset=utf-8",
+                          "{\"error\":\"completed_web_job_not_found\"}");
+            return;
+        case AutonomousWindingAssignResult::ArchiveIntegrityFailed:
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"completed_web_job_archive_integrity_failed\"}");
+            return;
+        case AutonomousWindingAssignResult::StorageUnavailable:
+            m_server.send(503, "application/json; charset=utf-8",
+                          "{\"error\":\"completed_web_job_archive_unavailable\"}");
+            return;
+        case AutonomousWindingAssignResult::Invalid:
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"immutable_or_invalid_web_job_linkage\"}");
+            return;
+        case AutonomousWindingAssignResult::WriteFailed:
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"completed_web_job_assignment_failed\"}");
+            return;
+        case AutonomousWindingAssignResult::Assigned:
+            break;
+    }
+
+    String response = F("{\"assigned\":true,\"source\":\"ESP32_JOB\",\"assignment_id\":");
+    response += assignmentId;
+    response += F(",\"session_id\":"); response += sessionId;
+    response += F(",\"run_id\":"); response += runId;
+    response += F(",\"motor_id\":"); response += motorId;
+    response += F(",\"role\":\""); response += role;
+    response += F("\",\"run_evidence_modified\":false}");
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 

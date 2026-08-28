@@ -13,6 +13,10 @@ function must(text, needle, label) {
   if (!text.includes(needle)) throw new Error(`missing ${label}: ${needle}`);
 }
 
+function forbid(text, needle, label) {
+  if (text.includes(needle)) throw new Error(`forbidden ${label}: ${needle}`);
+}
+
 must(header, 'bool execute(', 'explicit execution API');
 must(header, 'bool recover();', 'recovery API');
 must(source, 'm_pending.save(pending)', 'durable intent before mutation');
@@ -35,6 +39,70 @@ must(source, 'MaterialRequestUnitAdapter::convert', 'server-side canonical unit/
 must(source, 'm_ledger.loadActiveMaterialState', 'authoritative catalog state');
 must(source, 'MRW_TX=', 'shared ledger transaction evidence');
 must(source, 'esp_random()', 'transaction ref entropy');
+
+// Fresh warehouse execution already validates the exact request + repair through
+// requestMatchesRepair(). Its lifecycle gate must therefore scan only the status
+// journal and must not re-scan material-requests.ndjson. Recovery remains stricter
+// and intentionally uses the full existence-validating status resolver.
+const buildPendingStart = source.indexOf('bool MaterialRequestWarehouseCoordinator::buildPending(');
+const applyLedgerStart = source.indexOf('bool MaterialRequestWarehouseCoordinator::applyLedger(', buildPendingStart);
+if (buildPendingStart < 0 || applyLedgerStart <= buildPendingStart) {
+  throw new Error('buildPending body missing');
+}
+const buildPending = source.slice(buildPendingStart, applyLedgerStart);
+must(buildPending,
+  'requestMatchesRepair(requestedMovement.materialRequestId,',
+  'authoritative exact request/repair validation before status-only lookup');
+must(buildPending,
+  'knownRequestAllowsWarehouseMutation(requestedMovement.materialRequestId)',
+  'known-request status-only warehouse lifecycle gate');
+forbid(buildPending,
+  'requestAllowsWarehouseMutation(requestedMovement.materialRequestId)',
+  'fresh warehouse path full request-journal status resolver');
+
+const knownStart = source.indexOf('bool MaterialRequestWarehouseCoordinator::knownRequestAllowsWarehouseMutation(');
+const knownEnd = source.indexOf('bool MaterialRequestWarehouseCoordinator::isRemoveMutation(', knownStart);
+if (knownStart < 0 || knownEnd <= knownStart) {
+  throw new Error('known-request warehouse lifecycle helper missing');
+}
+const known = source.slice(knownStart, knownEnd);
+must(known,
+  'm_storage.open(MaterialRequestStatusStore::Path, FILE_READ)',
+  'status-only journal scan for already-validated request');
+must(known,
+  'transitionId <= previousTransitionId',
+  'global status transition ordering validation');
+must(known,
+  'MaterialRequestStatusStore::validTransition(fromStatus, toStatus)',
+  'canonical lifecycle transition validation');
+must(known,
+  'fromStatus != state.status || state.transitionCount == 0xFFFFFFFFUL',
+  'exact request lifecycle chain validation');
+forbid(known, 'appendByIdJson(', 'duplicate request journal lookup');
+forbid(known, 'm_statuses.resolve(', 'duplicate request existence scan through general resolver');
+forbid(known, 'material-requests.ndjson', 'direct duplicate request journal scan');
+forbid(known, 'std::vector', 'unbounded known-request state');
+forbid(known, 'readString()', 'whole-file status buffering');
+
+const recoverStart = source.indexOf('bool MaterialRequestWarehouseCoordinator::recover()');
+const recoverEnd = source.indexOf('bool MaterialRequestWarehouseCoordinator::buildPending(', recoverStart);
+if (recoverStart < 0 || recoverEnd <= recoverStart) {
+  throw new Error('warehouse recovery body missing');
+}
+const recover = source.slice(recoverStart, recoverEnd);
+must(recover,
+  'requestAllowsWarehouseMutation(pending.materialRequestId)',
+  'recovery keeps full request existence validation');
+
+const fullGateStart = source.indexOf('bool MaterialRequestWarehouseCoordinator::requestAllowsWarehouseMutation(');
+const knownGateStart = source.indexOf('bool MaterialRequestWarehouseCoordinator::knownRequestAllowsWarehouseMutation(', fullGateStart);
+if (fullGateStart < 0 || knownGateStart <= fullGateStart) {
+  throw new Error('full warehouse lifecycle gate missing');
+}
+const fullGate = source.slice(fullGateStart, knownGateStart);
+must(fullGate,
+  'm_statuses.resolve(materialRequestId, state, found)',
+  'recovery/general gate retains authoritative request existence lookup');
 
 must(webHeader, 'class MaterialRequestWeb', 'bounded Material Request web class');
 must(webSource, '"/api/material-requests"', 'request create/list route');
@@ -67,4 +135,4 @@ if (webSource.includes('price_per_unit_minor') || webSource.includes('unit_cost_
 // Keep checkpoint 121 RUN_WIRE atomicity in the existing mandatory CMP step.
 require('./check_run_wire_issue_transaction.js');
 
-console.log('Material Request warehouse coordinator/runtime API contracts OK');
+console.log('Material Request warehouse coordinator/runtime API contracts OK; fresh exact-request path scans status only while recovery keeps full request existence validation');

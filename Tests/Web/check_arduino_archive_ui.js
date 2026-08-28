@@ -8,6 +8,7 @@ const desktopHome = fs.readFileSync(path.join(root, 'firmware/esp32/web/desktop/
 const mobileHome = fs.readFileSync(path.join(root, 'firmware/esp32/web/mobile/index.html'), 'utf8');
 const shared = fs.readFileSync(path.join(root, 'firmware/esp32/web/shared/arduino-windings-archive.js'), 'utf8');
 const bridge = fs.readFileSync(path.join(root, 'firmware/esp32/web/shared/completed-web-job-archive-bridge.js'), 'utf8');
+const compactIds = fs.readFileSync(path.join(root, 'firmware/esp32/web/shared/arduino-archive-compact-ids.js'), 'utf8');
 const displayReset = fs.readFileSync(path.join(root, 'firmware/esp32/web/shared/completed-job-display-reset.js'), 'utf8');
 const archiveHeader = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_AutonomousWindingArchive.h'), 'utf8');
 const archiveWeb = fs.readFileSync(path.join(root, 'firmware/esp32/src/CM_AutonomousWindingWeb.cpp'), 'utf8');
@@ -22,8 +23,12 @@ function requireText(text, needle, label) {
 for (const [label, page] of [['desktop', desktop], ['mobile', mobile]]) {
   requireText(page, '/shared/completed-web-job-archive-bridge.js', `${label} completed-web bridge`);
   requireText(page, '/shared/arduino-windings-archive.js', label);
+  requireText(page, '/shared/arduino-archive-compact-ids.js', `${label} compact ids`);
   if (page.indexOf('/shared/completed-web-job-archive-bridge.js') > page.indexOf('/shared/arduino-windings-archive.js')) {
     throw new Error(`${label}: completed-web archive bridge must load before archive controller`);
+  }
+  if (page.indexOf('/shared/arduino-archive-compact-ids.js') < page.indexOf('/shared/arduino-windings-archive.js')) {
+    throw new Error(`${label}: compact-id layer must load after archive controller`);
   }
   requireText(page, 'id="bulkAssign"', label);
   requireText(page, 'id="createSelected"', label);
@@ -63,6 +68,18 @@ for (const needle of [
   'archive_exact_run_source_collision'
 ]) requireText(bridge, needle, 'completed-web archive bridge');
 requireText(shared, "confirmed:'true'", 'archive assignment owner must keep explicit confirmation');
+
+for (const needle of [
+  'data-exact-session-id',
+  'data-exact-run-id',
+  'Session / Run:',
+  '№${ordinal}',
+  'MutationObserver',
+  'Exact Session / Run:'
+]) requireText(compactIds, needle, 'compact operator id layer');
+if (compactIds.includes("fetch(") || compactIds.includes("method:'POST'") || compactIds.includes('/api/')) {
+  throw new Error('compact operator id layer must stay display-only');
+}
 
 for (const needle of [
   "body.job_status !== 'PROGRAM_COMPLETED'",
@@ -130,4 +147,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; completed ESP32 jobs are projected read-only, current completed task is cleared only in display, and source-specific linkage stays explicit.');
+console.log('Arduino archive UI contracts OK; completed ESP32 jobs are projected read-only, current completed task is cleared only in display, compact operator numbering keeps exact Session/Run hidden in details, and source-specific linkage stays explicit.');

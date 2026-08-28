@@ -4,14 +4,18 @@ const nativeFetch=globalThis.fetch.bind(globalThis);
 const statusCache=new Map();
 const jsonResponse=(payload,status=200)=>new Response(JSON.stringify(payload),{status,headers:{'Content-Type':'application/json; charset=utf-8'}});
 const parsedUrl=input=>{try{return new URL(typeof input==='string'?input:String(input&&input.url||''),location.origin)}catch(_){return null}};
-const methodOf=init=>String(init&&init.method||'GET').toUpperCase();
+const methodOf=(input,init)=>String(init&&init.method||(input&&input.method)||'GET').toUpperCase();
 
 globalThis.fetch=async function(input,init){
     const url=parsedUrl(input);
-    const method=methodOf(init);
+    const method=methodOf(input,init);
     if(url&&url.origin===location.origin&&method==='GET'&&url.pathname==='/api/material-requests/status'){
         const id=url.searchParams.get('material_request_id')||'';
-        if(statusCache.has(id))return jsonResponse(statusCache.get(id));
+        if(statusCache.has(id)){
+            const cached=statusCache.get(id);
+            statusCache.delete(id);
+            return jsonResponse(cached);
+        }
     }
 
     const response=await nativeFetch(input,init);

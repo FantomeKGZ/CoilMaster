@@ -18,9 +18,14 @@ bool prepareCashNdjson(File& file)
 
 bool validCashKindDirection(const String& kind, const String& direction)
 {
-    if (kind == "PAYMENT") return direction == "ADD";
+    if (kind == "PAYMENT" || kind == "PREPAYMENT") return direction == "ADD";
     if (kind == "CORRECTION") return direction == "ADD" || direction == "SUBTRACT";
     return false;
+}
+
+bool validCashRepairScope(const String& kind, uint32_t repairId)
+{
+    return kind == "PREPAYMENT" ? repairId == 0UL : repairId != 0UL;
 }
 
 bool addCashChecked(uint64_t& target, uint64_t value)
@@ -54,11 +59,14 @@ bool CashPaymentStore::eventBelongsToRepair(uint32_t eventId,
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
         uint32_t current = 0UL, currentRepair = 0UL, currentClient = 0UL;
+        String kind, direction;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", current) || current == 0UL ||
             current <= previous ||
-            !findUnsigned(line, "repair_id", currentRepair) || currentRepair == 0UL ||
-            !findUnsigned(line, "client_id", currentClient) || currentClient == 0UL)
+            !findUnsigned(line, "repair_id", currentRepair) ||
+            !findUnsigned(line, "client_id", currentClient) || currentClient == 0UL ||
+            !findString(line, "kind", kind) || !findString(line, "direction", direction) ||
+            !validCashKindDirection(kind, direction) || !validCashRepairScope(kind, currentRepair))
         {
             file.close();
             return false;
@@ -66,7 +74,8 @@ bool CashPaymentStore::eventBelongsToRepair(uint32_t eventId,
         previous = current;
         if (current == eventId)
         {
-            found = currentRepair == repairId && currentClient == clientId;
+            found = kind != "PREPAYMENT" &&
+                    currentRepair == repairId && currentClient == clientId;
             file.close();
             return true;
         }
@@ -96,19 +105,20 @@ bool CashPaymentStore::totalsForClient(uint32_t clientId,
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
-        uint32_t id = 0UL, lineClient = 0UL;
+        uint32_t id = 0UL, lineClient = 0UL, lineRepair = 0UL;
         uint64_t amount = 0ULL;
         String kind, direction, currency, occurredAt;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL ||
             id <= previousId ||
             !findUnsigned(line, "client_id", lineClient) || lineClient == 0UL ||
+            !findUnsigned(line, "repair_id", lineRepair) ||
             !findUnsigned64(line, "amount_minor", amount) || amount == 0ULL ||
             !findString(line, "kind", kind) ||
             !findString(line, "direction", direction) ||
             !findString(line, "currency", currency) || currency.length() != 3U ||
             !findString(line, "occurred_at", occurredAt) || occurredAt.length() < 10U ||
-            !validCashKindDirection(kind, direction))
+            !validCashKindDirection(kind, direction) || !validCashRepairScope(kind, lineRepair))
         {
             file.close();
             return false;
@@ -126,6 +136,19 @@ bool CashPaymentStore::totalsForClient(uint32_t clientId,
             file.close();
             return false;
         }
+
+        if (kind == "PREPAYMENT")
+        {
+            if (totals.prepaymentEventCount == 0xFFFFFFFFUL ||
+                !addCashChecked(totals.prepaymentMinor, amount))
+            {
+                file.close();
+                return false;
+            }
+            ++totals.prepaymentEventCount;
+            continue;
+        }
+
         if (totals.eventCount == 0xFFFFFFFFUL)
         {
             file.close();

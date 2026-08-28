@@ -60,9 +60,9 @@ for (const needle of [
   '/api/autonomous-windings/web-completed/assign',
   "source:item.source || 'ARDUINO_LOCAL'",
   "source:'ESP32_JOB'",
-  'archive_exact_run_source_collision',
-  "confirmed:'true'"
+  'archive_exact_run_source_collision'
 ]) requireText(bridge, needle, 'completed-web archive bridge');
+requireText(shared, "confirmed:'true'", 'archive assignment owner must keep explicit confirmation');
 
 for (const needle of [
   "body.job_status !== 'PROGRAM_COMPLETED'",

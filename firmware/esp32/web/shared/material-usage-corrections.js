@@ -13,6 +13,50 @@ const operationId=()=>{const a=new Uint32Array(4);if(globalThis.crypto&&crypto.g
 const card=document.createElement('section');card.className='card';card.id='usageCorrectionCard';card.innerHTML='<h2>Коррекции списаний</h2><div class="warning">Исходное подтверждённое списание не редактируется и не удаляется. Коррекция создаёт отдельную append-only запись и возвращает количество на склад. RUN_WIRE здесь не корректируется.</div><form id="usageCorrectionForm"><label>Исходное списание</label><select id="correctionUsage" required><option value="">Загрузка…</option></select><div id="correctionSourceInfo" class="info muted">Выберите подтверждённое обычное списание.</div><label>Количество к возврату</label><input id="correctionQuantity" inputmode="decimal" placeholder="1,0" required><label>Причина / комментарий</label><input id="correctionComment" maxlength="160"><button id="correctionSubmit" type="submit">Подтвердить коррекцию</button></form><p id="correctionResult" class="muted"></p><button id="correctionRefresh" type="button" class="secondary" hidden>Обновить карточку ремонта</button><h3>Доступные исходные списания</h3><div id="correctionSources" class="muted">Загрузка…</div><div class="pager"><button id="correctionSourcePrev" type="button" disabled>← Назад</button><span id="correctionSourcePage" class="muted">Страница 1</span><button id="correctionSourceNext" type="button" disabled>Далее →</button></div><h3>История коррекций</h3><div id="correctionHistory" class="muted">Загрузка…</div><div class="pager"><button id="correctionHistoryPrev" type="button" disabled>← Назад</button><span id="correctionHistoryPage" class="muted">Страница 1</span><button id="correctionHistoryNext" type="button" disabled>Далее →</button></div>';
 host.parentElement.insertAdjacentElement('afterend',card);
 const $=id=>document.getElementById(id);
+function installGenericUsageFailClosedUx(){
+  const form=$('usageForm');
+  if(!form||typeof form.onsubmit!=='function')return;
+  const originalSubmit=form.onsubmit;
+  form.onsubmit=async function(event){
+    const nativeFetch=globalThis.fetch;
+    let originalError='';
+    globalThis.fetch=async function(input,init){
+      const response=await nativeFetch(input,init);
+      const url=typeof input==='string'?input:String(input&&input.url||'');
+      const method=String(init&&init.method||'GET').toUpperCase();
+      if(url!=='/api/materials/usage'||method!=='POST'||response.ok)return response;
+      let payload;
+      try{payload=await response.clone().json()}catch(e){return response}
+      const error=String(payload&&payload.error||'');
+      const preserveOperationId=error==='material_state_unavailable_after_replay'||error==='usage_idempotency_read_failed'||error==='repair_reference_read_failed'||error==='repair_lifecycle_unavailable'||error==='material_reference_read_failed'||error==='materials_unavailable';
+      const resetAfterConfirmedNoWrite=error==='invalid_material_preview'||error==='material_not_found';
+      if(!preserveOperationId&&!resetAfterConfirmedNoWrite)return response;
+      originalError=error;
+      const mappedError=resetAfterConfirmedNoWrite?'stale_material_preview':'usage_not_committed';
+      const mappedPayload=Object.assign({},payload,{error:mappedError});
+      return new Response(JSON.stringify(mappedPayload),{status:409,statusText:'Conflict',headers:{'Content-Type':'application/json; charset=utf-8'}});
+    };
+    try{await originalSubmit.call(form,event)}finally{
+      globalThis.fetch=nativeFetch;
+      if(!originalError)return;
+      const result=$('result');
+      if(!result)return;
+      result.className='warning';
+      if(originalError==='material_state_unavailable_after_replay'){
+        result.textContent='Операция с этим operation_id могла уже быть сохранена. Не создавайте новый operation_id и не меняйте строку материала. История и себестоимость перечитаны; повторяйте вручную только с тем же operation_id.';
+      }else if(originalError==='usage_idempotency_read_failed'){
+        result.textContent='Не удалось безопасно проверить operation_id. Списание остановлено fail-closed. Не меняйте строку или operation_id; ручной повтор должен использовать тот же идентификатор.';
+      }else if(originalError==='invalid_material_preview'){
+        result.textContent='Некорректный снимок остатка/цены. Списание не выполнено. Каталог обновлён; выберите материал и количество заново и подтвердите вручную.';
+      }else if(originalError==='material_not_found'){
+        result.textContent='Материал больше не найден в authoritative каталоге. Списание не выполнено. Каталог обновлён; выберите материал заново и подтвердите вручную.';
+      }else{
+        result.textContent='Authoritative проверка временно недоступна ('+originalError+'). Списание остановлено fail-closed; автоматического повтора нет. Поля и operation_id сохранены для ручной повторной проверки.';
+      }
+    }
+  };
+}
+installGenericUsageFailClosedUx();
 let writable=false,sourceRows=[],sourceCursor=0,sourceNext=0,sourceHasMore=false,sourceStack=[],sourcePage=1,historyCursor=0,historyNext=0,historyHasMore=false,historyStack=[],historyPage=1,pendingCorrectionOperationId='';
 const resetCorrectionOperationId=()=>{pendingCorrectionOperationId=''};
 function selectedSource(){return sourceRows.find(x=>String(x.usage_id)===$('correctionUsage').value)}

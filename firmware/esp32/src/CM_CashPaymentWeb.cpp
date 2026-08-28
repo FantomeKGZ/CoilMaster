@@ -409,6 +409,7 @@ bool CashPaymentWeb::loadClientCharges(uint32_t clientId,
     currency = String();
     currencySet = false;
     uint32_t cursor = 0UL;
+    bool repairsValidated = false;
 
     while (true)
     {
@@ -440,10 +441,18 @@ bool CashPaymentWeb::loadClientCharges(uint32_t clientId,
             return false;
         }
 
+        if (idCount > 0U && !repairsValidated)
+        {
+            bool repairFound = false;
+            if (!m_costing.repairExists(repairIds[0], repairFound) || !repairFound)
+                return false;
+            repairsValidated = true;
+        }
+
         for (uint8_t i = 0U; i < idCount; ++i)
         {
             RepairCostSummary pricing;
-            if (!m_costing.load(repairIds[i], pricing)) return false;
+            if (!m_costing.loadKnownRepair(repairIds[i], pricing)) return false;
             if (!currencySet)
             {
                 currency = pricing.currency;

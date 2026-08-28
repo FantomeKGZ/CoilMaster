@@ -144,13 +144,44 @@ Semantics:
 
 CMP #3923-#3925 failures were stale/test-only assertions after replacing the old catalogue implementation; host CTest/runtime remained intact, and final CMP #3926 is GREEN.
 
+### Material Request create repair scan reuse — GREEN
+
+Checkpoint 155 removes one confirmed duplicate full `repairs.ndjson` pass from a single Material Request create request.
+
+Runtime:
+
+```text
+28d4704819fc2e09443448a3766d91974431f136
+CMP Protocol Tests #3930 run 33181705062 / SUCCESS
+ESP32 Build #1738         run 33181705074 / SUCCESS
+```
+
+Final contract:
+
+```text
+06f814922c5e081059545e3c4389a83f543efba0
+CMP Protocol Tests #3931 run 33181752412 / SUCCESS
+```
+
+Semantics:
+
+- `POST /api/material-requests` still performs authoritative `loadRepairIdentity(repair_id)` against `repairs.ndjson` and preserves 404/fail-closed behavior;
+- after that successful exact lookup, the same request now resolves only repair status instead of invoking `repairIsOpen()` and scanning `repairs.ndjson` a second time;
+- generic `RepairRegistry::repairIsOpen()` keeps its original exact existence check for callers that have not already validated repair identity;
+- `repair-status.ndjson` validation/duplicate-close fail-closed behavior is unchanged;
+- Material Request ids, immutable client/motor provenance, status semantics and HTTP errors are unchanged;
+- no cache/index/DB or unbounded state was added; safety/RUN_WIRE/warehouse mutation semantics are untouched;
+- contract test prohibits returning to `repairIsOpen()` from the create handler after `loadRepairIdentity()`.
+
+The repair-scoped Material Request list path was also checked in this block: it already performs one bounded request page scan and uses the existing batch status path, so no speculative change was made there.
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
 2. Continue repo-reviewable repeated-scan/performance audit; do not reopen already accepted material accounting without a concrete requirement.
-3. Audit remaining Material Request/Warehouse/Repair list + exact-id/repeated scan patterns one block at a time.
-4. RUN_WIRE status prefetch is already bounded: max 24 ids/page and one batch status resolution; do not replace it with per-item server scans.
-5. Next inspect whether any repair-scoped Material Request/list flow still performs redundant full journal passes or retains unbounded result state where a bounded authoritative page can be used without changing operator semantics.
+3. Audit remaining Material Request/Warehouse/Repair exact-id/list/server flows one block at a time and change only a confirmed repeated growing-journal pass.
+4. Material Request create duplicate Repair scan is already removed by checkpoint 155; do not weaken the generic exact-existence guard for unrelated callers.
+5. RUN_WIRE status prefetch is already bounded: max 24 ids/page and one batch status resolution; do not replace it with per-item server scans.
 6. Prefer existing authoritative exact/batch APIs over new state/indexes.
 7. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
 8. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.

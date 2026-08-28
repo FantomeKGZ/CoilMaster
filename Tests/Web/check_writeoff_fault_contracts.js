@@ -121,7 +121,7 @@ for (const text of [
 for (const text of [
   '"/api/warehouse/spools/by-id", HTTP_GET', 'handleGetActiveSpool()',
   'm_store.loadActiveSpoolIdentity(spoolId, identity, found)',
-  'identity.spoolId != spoolId', '"active_spool_not_found"'
+  'identity.spoolId != spoolId', 'active_spool_not_found'
 ]) requireText(spoolWebPath, spoolWeb, text, 'authoritative active-spool by-id contract missing: ' + text);
 for (const text of [
   "fetch('/api/warehouse/spools/by-id?spool_id='+encodeURIComponent(spoolId)",

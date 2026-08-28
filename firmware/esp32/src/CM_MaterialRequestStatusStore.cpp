@@ -43,6 +43,121 @@ bool MaterialRequestStatusStore::resolve(uint32_t materialRequestId,
     return analyzeStatus(materialRequestId, state, found, nullptr);
 }
 
+bool MaterialRequestStatusStore::resolveBatch(
+    const uint32_t* materialRequestIds,
+    uint8_t count,
+    MaterialRequestStatusState* states,
+    bool* found) const
+{
+    if (!ready() || materialRequestIds == nullptr || states == nullptr ||
+        found == nullptr || count == 0U || count > MaxBatchSize)
+    {
+        return false;
+    }
+
+    for (uint8_t i = 0U; i < count; ++i)
+    {
+        if (materialRequestIds[i] == 0UL) return false;
+        for (uint8_t j = 0U; j < i; ++j)
+        {
+            if (materialRequestIds[j] == materialRequestIds[i]) return false;
+        }
+        states[i] = MaterialRequestStatusState();
+        states[i].materialRequestId = materialRequestIds[i];
+        states[i].status = "DRAFT";
+        found[i] = false;
+    }
+
+    if (m_storage.exists(RequestsPath))
+    {
+        File requests = m_storage.open(RequestsPath, FILE_READ);
+        if (!prepareNdjson(requests))
+        {
+            if (requests) requests.close();
+            return false;
+        }
+
+        uint32_t previousRequestId = 0UL;
+        while (requests.available())
+        {
+            const String line = requests.readStringUntil('\n');
+            if (line.length() == 0U) continue;
+            uint32_t requestId = 0UL;
+            if (!FlatJsonObjectValidator::valid(line) ||
+                !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
+                requestId <= previousRequestId)
+            {
+                requests.close();
+                return false;
+            }
+            previousRequestId = requestId;
+            for (uint8_t i = 0U; i < count; ++i)
+            {
+                if (materialRequestIds[i] != requestId) continue;
+                if (found[i])
+                {
+                    requests.close();
+                    return false;
+                }
+                found[i] = true;
+                break;
+            }
+        }
+        requests.close();
+    }
+
+    if (!m_storage.exists(Path)) return true;
+
+    File file = m_storage.open(Path, FILE_READ);
+    if (!prepareNdjson(file))
+    {
+        if (file) file.close();
+        return false;
+    }
+
+    uint32_t previousTransitionId = 0UL;
+    while (file.available())
+    {
+        const String line = file.readStringUntil('\n');
+        if (line.length() == 0U) continue;
+
+        uint32_t transitionId = 0UL;
+        uint32_t requestId = 0UL;
+        String fromStatus;
+        String toStatus;
+        String changedAt;
+        if (!FlatJsonObjectValidator::valid(line) ||
+            !findUnsigned(line, "transition_id", transitionId) || transitionId == 0UL ||
+            transitionId <= previousTransitionId ||
+            !findUnsigned(line, "material_request_id", requestId) || requestId == 0UL ||
+            !findString(line, "from_status", fromStatus) ||
+            !findString(line, "to_status", toStatus) ||
+            !findString(line, "changed_at", changedAt) || changedAt.length() < 10U ||
+            changedAt.length() > 32U || !validTransition(fromStatus, toStatus))
+        {
+            file.close();
+            return false;
+        }
+        previousTransitionId = transitionId;
+
+        for (uint8_t i = 0U; i < count; ++i)
+        {
+            if (materialRequestIds[i] != requestId) continue;
+            if (!found[i] || fromStatus != states[i].status ||
+                states[i].transitionCount == 0xFFFFFFFFUL)
+            {
+                file.close();
+                return false;
+            }
+            states[i].status = toStatus;
+            ++states[i].transitionCount;
+            break;
+        }
+    }
+    file.close();
+    return true;
+}
+
 bool MaterialRequestStatusStore::transition(uint32_t materialRequestId,
                                             const String& targetStatus,
                                             const String& changedAt,

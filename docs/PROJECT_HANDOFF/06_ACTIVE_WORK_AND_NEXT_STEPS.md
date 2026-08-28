@@ -130,14 +130,147 @@ The new block covers:
 9. desktop/mobile parity;
 10. duplicate-submit, stale-preview/TOCTOU, insufficient-stock, provenance and recovery tests.
 
+## Repair-material read-only architecture audit — COMPLETED
+
+The audit covered MaterialLedger, Warehouse/spool storage, RepairCosting, RUN_WIRE, material request/catalog, APIs, desktop/mobile UI and backup/integrity coverage.
+
+### Authoritative stores and reusable flows
+
+**General repair materials:** existing `MaterialLedger` remains authoritative; no parallel material ledger is justified.
+
+```text
+/data/materials/materials.ndjson
+  -> bounded GET /api/materials selector
+  -> repair_id + material_id + actual quantity
+  -> explicit POST /api/materials/usage
+  -> MaterialLedger::confirmUsage()
+       authoritative repair/material preflight
+       pending usage transaction
+       mutation-time rewriteQuantity() authoritative reread / TOCTOU check
+  -> /data/materials/usage.ndjson price snapshot
+  -> RepairCosting.materialCostMinor
+  -> bounded usage history / material integrity / backup
+```
+
+Confirmed existing ordinary-material operation snapshot fields include `usage_id`, `repair_id`, `material_id`, `quantity_milli`, `price_per_unit_minor`, `line_cost_minor`, `currency`, `timestamp` and optional `comment`.
+
+**RUN_WIRE:** must remain on the dedicated managed coordinator path; it must not be collapsed into generic material usage.
+
+```text
+Warehouse spools.ndjson
++ spool-material bridge
++ immutable JobSpoolSelection exact spool
++ completed winding run evidence
+  -> explicit RUN_WIRE material request with exact spool/session/run
+  -> RunWireIssueCoordinator durable pending
+  -> material-request movement evidence
+  -> MaterialLedger usage evidence
+  -> managed Warehouse PENDING / exact spool weight rewrite / CONFIRMED movement
+  -> /data/warehouse/movements.ndjson
+  -> RepairCosting.wireCostMinor + CU/AL/UNKNOWN totals
+  -> separate cross-ledger integrity + backup
+```
+
+Exact `spool_id`, `source_session_id`, `source_run_id`, diameter and CU/AL identity remain mandatory. `RUN_COMPLETED` remains evidence only.
+
+**Material Request workflow:** remains a separate planning/lifecycle/evidence layer using its existing durable coordinator and authoritative downstream stores; it is not a second stock ledger.
+
+Relevant existing endpoints include:
+
+```text
+POST/GET /api/material-requests
+GET      /api/material-requests/item
+GET      /api/material-requests/movements
+GET/POST /api/material-requests/status
+POST     /api/material-requests/warehouse
+```
+
+Material-request status mutation already requires explicit confirmation.
+
+**Costing:** existing RepairCosting already aggregates the two authoritative material sources separately:
+
+```text
+/data/warehouse/movements.ndjson -> wireCostMinor + wire material totals
+/data/materials/usage.ndjson      -> materialCostMinor
+/data/repairs/pricing.ndjson      -> append-only labour/client pricing revisions
+```
+
+Therefore the new repair-material UI must consume/reuse these sources rather than create a new costing store.
+
+**Backup/integrity:** material, warehouse, warehouse movements, spool-material bridge, RUN_WIRE cross-log accounting and workshop/pricing integrity are already deliberately separate. Composite backup uses scoped audits while standalone checks retain broader validation. These phases must remain separate.
+
+### Existing UI capability discovered and retained
+
+`desktop/materials.html` and `mobile/materials.html` already implement an early repair-material card. They already:
+
+- resolve `repair_id` and fail closed if lifecycle cannot be confirmed;
+- use a bounded `/api/materials` selector rather than manual material ID entry;
+- show current stock and price;
+- block obvious insufficient stock in UI while server authoritative reread remains decisive;
+- perform explicit/manual POST `/api/materials/usage`;
+- verify the persisted price-snapshot response;
+- never call the retired legacy direct warehouse writeoff route.
+
+Gaps identified for subsequent checkpoints:
+
+1. no real material search/filter yet; only bounded page selection;
+2. no integrated read-only usage history on the card yet despite an existing bounded history API;
+3. no material-cost/costing preview on the card yet despite existing RepairCosting API;
+4. ordinary material POST currently has no explicit client operation/idempotency key, so duplicate-submit/retry hardening is still required before this flow is considered complete;
+5. corrections/adjustments need to be surfaced as append-only history rather than editing confirmed usage;
+6. exact RUN_WIRE flow must later be presented in the same UI without merging its dedicated coordinator into generic usage.
+
+## Repair materials checkpoint 1 — repair-card entry / existing authoritative flow reuse — GREEN
+
+Minimal first implementation deliberately changed no storage or writeoff semantics.
+
+Implemented:
+
+```text
+c9c74313871e45605520e1b0885cf90ed5978557  desktop repair card -> Материалы ремонта
+a3aa5c82fcb883eba7156e0f3d249b5ef07ae9b5  mobile repair card -> Материалы ремонта
+b94325af380788d413aef11b21ff76a48220fdba  repair-material entry/reuse contract test
+f9427b53e18aef047d944169bc9e0639bee78831  run repair-material UI contract inside mandatory material usage audit
+```
+
+Every desktop/mobile repair row now links directly to its existing repair-specific materials page:
+
+```text
+/desktop/materials.html?repair_id=<exact repair id>
+/mobile/materials.html?repair_id=<exact repair id>
+```
+
+The new contract explicitly protects reuse of bounded `/api/materials` + authoritative `/api/materials/usage`, stock/price preview, repair lifecycle gate and existing TOCTOU boundary, and rejects manual `material_id` fields or the retired `/api/warehouse/write-offs` route.
+
+Direct verification:
+
+```text
+CMP Protocol Tests #3778
+run 33147929516
+SHA f9427b53e18aef047d944169bc9e0639bee78831
+status completed
+conclusion success
+```
+
+Configure / Build / Test and all CMP host audits completed success. `Audit material usage single-pass preflight contracts`, which now includes the repair-material-card contract, completed success. Warehouse, backup, RUN_WIRE, finalization and Hall safety audits also remained success.
+
+Production was **not** changed and remains:
+
+```text
+cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
+```
+
 ## Current execution order
 
-1. Continue work only in `arduino-ru-lcd-experiment`.
-2. Perform the planned read-only audit of MaterialLedger, Warehouse/spool storage, Repair costing, RUN_WIRE, material request/catalog, related APIs, desktop/mobile UI and backup/integrity coverage.
-3. Produce the exact current data-flow map `warehouse/material/spool -> selection -> repair/run -> confirmation -> ledger -> costing -> history/backup` and identify reusable authoritative components.
-4. Implement the minimum safe first repair-material checkpoint without creating a parallel ledger.
-5. Verify relevant CI and update PROJECT_HANDOFF after each completed checkpoint.
-6. Do not copy further experiment commits into `cmp-protocol-v1` until a new explicit transfer is agreed.
+1. Continue only in `arduino-ru-lcd-experiment`.
+2. Extend the existing repair `materials.html` card rather than create new storage.
+3. Next safe checkpoint: add bounded read-only repair usage history and current RepairCosting material-cost preview, with desktop/mobile parity and no mutation changes.
+4. Then add real bounded warehouse/material search and quick selection while preserving no whole-file buffering.
+5. Before expanding ordinary material mutation semantics, add explicit duplicate-submit/idempotency protection and stale-preview/TOCTOU UX around the existing authoritative MaterialLedger transaction.
+6. Later integrate exact RUN_WIRE into the same UI surface while retaining its separate coordinator/provenance requirements.
+7. Add append-only correction/history UX; do not edit/delete durable confirmed operations.
+8. Verify relevant CI and update PROJECT_HANDOFF after every completed checkpoint.
+9. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - cmp-protocol-v1
+      - arduino-ru-lcd-experiment
     paths:
       - "firmware/esp32/**"
       - "Shared/**"

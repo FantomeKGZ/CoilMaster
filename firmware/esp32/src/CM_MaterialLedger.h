@@ -63,10 +63,19 @@ struct MaterialAdjustment
     String currency;
     String timestamp;
     String comment;
+    // Optional append-only correction provenance. Generic stock adjustments
+    // leave all of these at their default values.
+    uint32_t correctionSourceUsageId;
+    uint32_t correctionRepairId;
+    uint32_t correctionQuantityMilli;
+    uint64_t correctionLineCostMinor;
+    String correctionOperationId;
 
     MaterialAdjustment()
         : materialId(0UL), addQuantityMilli(0UL),
-          newPricePerUnitMinor(0UL), currency("KGS") {}
+          newPricePerUnitMinor(0UL), currency("KGS"),
+          correctionSourceUsageId(0UL), correctionRepairId(0UL),
+          correctionQuantityMilli(0UL), correctionLineCostMinor(0ULL) {}
 };
 
 struct MaterialAdjustmentResult

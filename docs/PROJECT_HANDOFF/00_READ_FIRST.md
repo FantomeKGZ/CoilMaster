@@ -1,24 +1,35 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-27**  
+Дата обновления: **2026-08-28**  
 Repo: `FantomeKGZ/CoilMaster`  
-Source-of-truth: **`cmp-protocol-v1`**. `main` для исходников не использовать.
+Production/source-of-truth: **`cmp-protocol-v1`**. `main` для исходников не использовать.  
+Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**.
 
-## Stable pre-CRM snapshot
+## Branch policy
+
+Production остаётся на:
+
+```text
+cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
+```
+
+Все новые изменения текущего цикла выполняются в `arduino-ru-lcd-experiment`. Не переносить их обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
+
+Stable pre-CRM snapshot сохранён как историческая контрольная точка:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
-main -> same commit
 stable-2026-08-25-pre-crm-redesign -> same commit
 ```
-
-Вся новая разработка только в `cmp-protocol-v1`.
 
 ## Read order
 
 ```text
 /AGENTS.md
 this file
+docs/PROJECT_HANDOFF/149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md
 docs/PROJECT_HANDOFF/147_MATERIAL_REQUEST_STATUS_TRANSITION_SINGLE_PASS_2026-08-27.md
 docs/PROJECT_HANDOFF/146_CASH_PAYMENT_APPEND_SINGLE_PASS_2026-08-27.md
 docs/PROJECT_HANDOFF/145_WINDING_JOURNAL_BOOT_SINGLE_PASS_2026-08-27.md
@@ -30,39 +41,42 @@ docs/PROJECT_HANDOFF/140_WINDING_SESSION_SELECTION_ONLY_PREFLIGHT_2026-08-26.md
 docs/PROJECT_HANDOFF/139_FINALIZATION_WRITEOFF_FIRST_BATCH_FUSED_AUDIT_2026-08-26.md
 docs/PROJECT_HANDOFF/138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
 docs/PROJECT_HANDOFF/137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08-26.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 ```
 
-Latest GREEN foundation = checkpoint **147**.
+## Latest GREEN experiment checkpoint
 
-Latest verified evidence:
+Client editing + explicit client PREPAYMENT are complete in the experiment branch.
 
 ```text
-final source through 147             a0ec58c552bed883d289fa1e30160f365955a6e1
-final mandatory contract             6c404070d80532e617174d4621d828cf16a094c0
-ESP32 Build #1624                    33036483178 / SUCCESS
-CMP Protocol Tests #3695             source commit / SUCCESS
-CMP Protocol Tests #3696             33036507740 / SUCCESS
+runtime/UI code SHA                    d47b2f5a088566af33f20e805104206b9c167fe2
+ESP32 Build #1699                     run 33162070105 / SUCCESS
+Arduino RU LCD Build #123             run 33162070106 / SUCCESS
+final host-contract SHA               58b1aff87434dbb38a16327c7929b2a61b4befc9
+CMP Protocol Tests #3863              run 33162276329 / SUCCESS
 ```
 
-CMP host audit remains **69 mandatory steps**.
+See `149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md` for exact storage/API/UI semantics and commit lineage.
 
 ## Current state
 
-`WindingJournal` runtime and boot duplicate scans are consolidated. `CashPaymentStore::append()` fuses correction existence with next-id allocation. `MaterialRequestStatusStore::transition()` now resolves current status and next global transition id in one streamed pass of `material-request-status.ndjson`.
+Client identity remains stable and edits are append-only revisions. `client-details.html` is now the deliberate write surface for client edits; the client catalogue itself remains read-only.
 
-The immutable Material Request catalog lookup remains separate because it proves a different integrity domain. Public `resolve(..., found)` keeps missing-vs-read-failure semantics.
+Client PREPAYMENT reuses the existing authoritative cash journal. It is `ADD` only, has exact `client_id`, uses `repair_id=0`, requires explicit confirmation, and is kept in a separate `prepayment_minor` bucket. It is not automatically applied to repair debt and does not affect RepairCosting.
 
-Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains HTTP 410; historical recovery compatibility remains intact.
+Repair-material work remains based on existing MaterialLedger/Warehouse/RepairCosting stores. No parallel stock ledger was introduced.
+
+Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains disabled; exact spool/session/run provenance and historical recovery compatibility remain intact.
 
 ## Immediate NEXT
 
-1. Continue bounded audit of Material Request movement/coordinator and other append-only runtime stores for concrete same-file duplicate scans.
-2. Do not combine scans across different ledgers merely to reduce I/O; preserve independent integrity domains.
-3. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
-4. Keep fixed RAM bounds; no whole-file buffering or unbounded vectors.
-5. No automatic rotation/deletion/truncation or premature DB/index migration.
-6. Continue software optimization before final two-board hardware E2E.
+1. Return to the active repair-material plan in `07_REPAIR_MATERIAL_WRITEOFF_PLAN.md` from the latest recorded checkpoint.
+2. Keep client PREPAYMENT separate until/unless an explicit operator-driven allocation-to-repair workflow is requested; never auto-apply it.
+3. Preserve append-only history, bounded streamed reads and fail-closed integrity semantics.
+4. Do not combine scans across different ledgers merely to reduce I/O.
+5. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
+6. Keep fixed RAM bounds; no whole-file buffering or unbounded vectors.
+7. No automatic rotation/deletion/truncation or premature DB/index migration.
+8. Continue software work in `arduino-ru-lcd-experiment`; do not move changes to production without explicit approval.
 
-`RUN_COMPLETED` remains evidence only; no automatic writeoff, START or resume.
+`RUN_COMPLETED` remains evidence only; no automatic wire writeoff, physical START or resume.

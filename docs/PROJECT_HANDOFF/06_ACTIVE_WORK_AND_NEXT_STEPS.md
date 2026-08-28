@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Authoritative plan: `07_REPAIR_MATERIAL_WRITEOFF_PLAN.md`.
 
-Core flow закрыт и зафиксирован checkpoint 151:
+Core flow закрыт checkpoint 151:
 
 - generic repair-material usage — explicit/manual;
 - bounded catalogue/search/history;
@@ -33,8 +33,6 @@ Core flow закрыт и зафиксирован checkpoint 151:
 - correction integrity/backup coverage;
 - RUN_WIRE остаётся отдельным exact-safe warehouse path;
 - desktop/mobile parity.
-
-`material_not_found -> catalog/create` остаётся только optional UX polish, не integrity blocker. Frequently-used material shortcut сознательно не добавлен: безопасного bounded aggregation API нет, а новый duplicated favourites state/full growing-NDJSON scan не оправдан.
 
 ### Client editing + PREPAYMENT — GREEN
 
@@ -62,168 +60,133 @@ Checkpoint 150:
 
 Checkpoint 152 устранил N+1 status scans в RUN_WIRE preflight.
 
-Runtime/UI:
-
 ```text
-104f319e1cb8e466a229c0d40876b35aac6ded86
-ESP32 Build #1708   run 33167009269 / SUCCESS
-Arduino RU LCD #132 run 33167009264 / SUCCESS
+runtime 104f319e1cb8e466a229c0d40876b35aac6ded86
+ESP32 Build #1708         33167009269 / SUCCESS
+Arduino RU LCD #132       33167009264 / SUCCESS
+contract 17c7c43058802f44d5f0b26d0da301190e792ebd
+CMP Protocol Tests #3885  33167039155 / SUCCESS
 ```
 
-Final contract:
-
-```text
-17c7c43058802f44d5f0b26d0da301190e792ebd
-CMP Protocol Tests #3885 run 33167039155 / SUCCESS
-```
-
-Semantics:
-
-- max batch = 24 Material Request ids;
-- one streamed request-journal scan + one streamed status-journal scan per bounded page;
-- global request/transition ordering remains validated;
-- exact per-request lifecycle chain remains fail-closed;
-- browser prefetch cache is one-shot;
-- no mutation/POST from prefetch;
-- exact manual RUN_WIRE session/run/spool provenance is unchanged.
+Bounded max batch remains 24 ids; request/status journals are each streamed once per bounded page; exact lifecycle and manual RUN_WIRE provenance remain fail-closed.
 
 ### Unified autonomous/Web completed-job archive lifecycle — GREEN
 
-Checkpoint 153 closes the experiment-side completed Web/ESP32 job projection/linkage lifecycle without changing physical-run ownership or exact provenance.
-
-Final runtime/backup HEAD before handoff update:
+Checkpoint 153:
 
 ```text
 a23d681a58670866f281191e7d1be6c5915d11f9
-CMP Protocol Tests #3920 run 33174170271 / SUCCESS
-ESP32 Build #1734         run 33174170232 / SUCCESS
-Arduino RU LCD #158       run 33174170231 / SUCCESS
+CMP Protocol Tests #3920 33174170271 / SUCCESS
+ESP32 Build #1734        33174170232 / SUCCESS
+Arduino RU LCD #158      33174170231 / SUCCESS
 ```
 
-Semantics:
-
-- long monotonic Arduino `session_id/run_id` remain authoritative 32-bit IDs for EEPROM recovery, UART and exact provenance;
-- archive UI shows a short row number (`№1`, `№2`, ...) while exact Session/Run remain available in Info/details and are used for linkage;
-- completed Web/ESP32 jobs are projected into the common autonomous archive as `ESP32_JOB` without copying or fabricating physical RUN evidence;
-- local autonomous runs remain `ARDUINO_LOCAL`;
-- `ESP32_JOB` exact Session/Run linkage is first-write-only: same motor/role replay is idempotent, different motor/role is rejected;
-- duplicate exact linkage in persisted data is fail-closed;
-- append-only `/data/autonomous-windings/web-assignments.ndjson` participates in autonomous archive integrity validation;
-- `web-assignments.ndjson` is included in backup/restore whitelist as `autonomous-winding-web-assignments`;
-- no reset/reuse of historical Session/Run counters, no weakening of recovery/provenance.
-
-Intermediate CMP failures #3909-#3916 were contract-test corrections during implementation; the final branch state is covered by consecutive GREEN #3917-#3920 and final runtime builds above.
+Long Arduino `session_id/run_id` remain authoritative. UI short numbering is presentation-only. `ESP32_JOB` projection never fabricates physical RUN evidence. Exact linkage is first-write-only and duplicate conflicting provenance remains fail-closed. `web-assignments.ndjson` is append-only, integrity-audited and backed up.
 
 ### RUN_WIRE exact immutable-spool lookup — GREEN
 
-Checkpoint 154 removes the browser-side full active-spool catalogue scan for one immutable `spool_id`.
-
-Runtime/UI:
+Checkpoint 154:
 
 ```text
-42ff9c2f8bbbc1d65a945ff019502299197e9b76
-ESP32 Build #1736         run 33174983830 / SUCCESS
-Arduino RU LCD #160       run 33174983809 / SUCCESS
+runtime/UI 42ff9c2f8bbbc1d65a945ff019502299197e9b76
+ESP32 Build #1736         33174983830 / SUCCESS
+Arduino RU LCD #160       33174983809 / SUCCESS
+contract fd3428cf2c9ebdafe7a6dfe20206281701d43f94
+CMP Protocol Tests #3926  33175377848 / SUCCESS
 ```
 
-Final contract:
-
-```text
-fd3428cf2c9ebdafe7a6dfe20206281701d43f94
-CMP Protocol Tests #3926 run 33175377848 / SUCCESS
-```
-
-Semantics:
-
-- RUN_WIRE `findActiveSpool(spool_id)` now uses one existing authoritative read-only `GET /api/warehouse/spools/by-id?spool_id=...` request;
-- server resolves exact id through `loadActiveSpoolIdentity()` and validates exact returned identity;
-- 404 remains fail-closed: immutable spool is unavailable, no alternate spool is inferred/substituted;
-- browser no longer pages `/api/warehouse/spools?material=ALL&limit=32` across the active catalogue;
-- exact `source_session_id + source_run_id + spool_id`, manual confirmation and dedicated warehouse mutation endpoint remain unchanged;
-- regression contracts prohibit returning to catalogue paging for exact immutable-spool lookup.
-
-CMP #3923-#3925 failures were stale/test-only assertions after replacing the old catalogue implementation; host CTest/runtime remained intact, and final CMP #3926 is GREEN.
+Exact `spool_id` now resolves through authoritative by-id lookup instead of browser paging of the full active-spool catalogue. 404 remains fail-closed; no alternate spool is inferred. Exact `source_session_id + source_run_id + spool_id` and manual confirmation are unchanged.
 
 ### Material Request create repair scan reuse — GREEN
 
-Checkpoint 155 removes one confirmed duplicate full `repairs.ndjson` pass from a single Material Request create request.
-
-Runtime:
+Checkpoint 155:
 
 ```text
-28d4704819fc2e09443448a3766d91974431f136
-CMP Protocol Tests #3930 run 33181705062 / SUCCESS
-ESP32 Build #1738         run 33181705074 / SUCCESS
+runtime 28d4704819fc2e09443448a3766d91974431f136
+CMP Protocol Tests #3930 33181705062 / SUCCESS
+ESP32 Build #1738        33181705074 / SUCCESS
+contract 06f814922c5e081059545e3c4389a83f543efba0
+CMP Protocol Tests #3931 33181752412 / SUCCESS
 ```
 
-Final contract:
-
-```text
-06f814922c5e081059545e3c4389a83f543efba0
-CMP Protocol Tests #3931 run 33181752412 / SUCCESS
-```
-
-Semantics:
-
-- `POST /api/material-requests` still performs authoritative `loadRepairIdentity(repair_id)` against `repairs.ndjson` and preserves 404/fail-closed behavior;
-- after that successful exact lookup, the same request now resolves only repair status instead of invoking `repairIsOpen()` and scanning `repairs.ndjson` a second time;
-- generic `RepairRegistry::repairIsOpen()` keeps its original exact existence check for callers that have not already validated repair identity;
-- `repair-status.ndjson` validation/duplicate-close fail-closed behavior is unchanged;
-- Material Request ids, immutable client/motor provenance, status semantics and HTTP errors are unchanged;
-- no cache/index/DB or unbounded state was added; safety/RUN_WIRE/warehouse mutation semantics are untouched;
-- contract test prohibits returning to `repairIsOpen()` from the create handler after `loadRepairIdentity()`.
-
-The repair-scoped Material Request list path was also checked in this block: it already performs one bounded request page scan and uses the existing batch status path, so no speculative change was made there.
+`POST /api/material-requests` performs authoritative `loadRepairIdentity()` once, then status-only open check. Generic `repairIsOpen()` retains exact existence validation for unrelated callers. Repair status fail-closed semantics are unchanged.
 
 ### Material Request Warehouse known-request status reuse — GREEN
 
-Checkpoint 156 removes the next confirmed duplicate full `material-requests.ndjson` pass from a fresh generic Material Request warehouse mutation.
-
-Runtime code:
+Checkpoint 156:
 
 ```text
-e9756e7c176fac6030c6adea68519695804b47e3
-CMP Protocol Tests #3934 run 33182699055 / SUCCESS
-ESP32 Build #1740         run 33182699044 / SUCCESS
+runtime e9756e7c176fac6030c6adea68519695804b47e3
+CMP Protocol Tests #3934 33182699055 / SUCCESS
+ESP32 Build #1740        33182699044 / SUCCESS
+contract 59f20bc192bd09a5012441aafec84fe726bec2cc
+CMP Protocol Tests #3935 33183113778 / SUCCESS
+```
+
+Fresh `buildPending()` proves exact request/repair identity first and then scans status only. Recovery remains stricter and still revalidates request existence through the general resolver. Movement-first WAL ordering, pending recovery, repair-open gate, authoritative material state and mutation-time ledger checks are unchanged.
+
+Adjacent audits after checkpoint 156:
+
+- Material Request movement/history — NO-CHANGE;
+- Material Request status transition — NO-CHANGE;
+- Repair close/finalization duplicate checks retained as TOCTOU boundary — NO-CHANGE;
+- Repair lookup/list and Warehouse exact/list paths already bounded/one-pass per request — NO-CHANGE;
+- MaterialLedger pre-read + mutation-time reread retained — NO-CHANGE;
+- Repair pricing-history second pricing scan retained because history/current comparison is an explicit integrity contract — NO-CHANGE;
+- CashPayment correction `eventBelongsToRepair()` + SUBTRACT totals candidate — NO-CHANGE because a fused helper would duplicate validation logic and risk changing existing error/fail-closed semantics.
+
+### Client balance repair-journal validation reuse — GREEN
+
+Checkpoint 157 removes repeated full `repairs.ndjson` validation from one client-balance request without weakening generic costing or mutation paths.
+
+Runtime commits:
+
+```text
+e50b09bc61ca3f3a4a053a5dd826f25d36ad6c71  add RepairCosting::loadKnownRepair()
+347ca06061129afe223e6fa56b7379315cfca38b  generic load validates repair then delegates
+bf529900a8211f0b9a920ec237942bae2f7093c5  validate client repairs once per balance request
+```
+
+Runtime verification for `bf529900a8211f0b9a920ec237942bae2f7093c5`:
+
+```text
+CMP Protocol Tests #3939 33191506843 / SUCCESS
+ESP32 Build #1743        33191506805 / SUCCESS
+Arduino RU LCD #167      33191506861 / SUCCESS
 ```
 
 Final regression contract:
 
 ```text
-59f20bc192bd09a5012441aafec84fe726bec2cc
-CMP Protocol Tests #3935 run 33183113778 / SUCCESS
+19bf03003b5e1f3aea6692609e634a79247fb397
+CMP Protocol Tests #3941 33194910481 / SUCCESS
 ```
 
 Semantics:
 
-- fresh `MaterialRequestWarehouseCoordinator::buildPending()` first performs authoritative exact `requestMatchesRepair()` through `MaterialRequestStore::appendByIdJson()`;
-- after that exact request + repair proof, the lifecycle gate scans only `material-request-status.ndjson` and no longer asks `MaterialRequestStatusStore::resolve()` to re-scan `material-requests.ndjson` for existence;
-- status-only lookup still validates global monotonic transition ids, canonical transitions, timestamp bounds and the exact request lifecycle chain fail-closed;
-- only `DRAFT`/`ISSUED` remain eligible for warehouse mutation;
-- recovery intentionally remains stricter: `requestAllowsWarehouseMutation()` still uses the normal `m_statuses.resolve()` path and therefore revalidates request existence before replaying a movement-only pending transaction;
-- no cache/index/DB, whole-file buffering or unbounded collection was added;
-- movement-first WAL ordering, pending recovery, repair-open gate, authoritative material state, unit/cost conversion and mutation-time ledger checks are unchanged;
-- RUN_WIRE continues through its dedicated exact-safe coordinator and is not weakened or merged with the generic warehouse path;
-- regression contract explicitly prevents fresh `buildPending()` from returning to the general existence-scanning resolver while requiring recovery to retain it.
+- client balance still obtains repair ids only from bounded `RepairRegistry::appendRepairsPageJson()` client-filtered pages;
+- after the first returned repair id, `RepairCosting::repairExists()` performs one authoritative full `repairs.ndjson` validation for the request;
+- subsequent repair ids use `RepairCosting::loadKnownRepair()` and do not repeat the full repair-journal scan;
+- generic `RepairCosting::load()` still always performs `repairExists()` before delegating;
+- `savePricing()` still uses generic `load()`; mutation semantics are unchanged;
+- known-repair path skips only the already-proven repair-existence scan; all warehouse movement, material usage/correction, pricing, currency, overflow and RUN_WIRE pending checks remain identical;
+- no persistent cache/index/database or unbounded collection added.
 
-The adjacent Material Request status-transition Web flow was audited after this block. It directly delegates one transition request to `MaterialRequestStatusStore::transition()` and does not perform a separate exact-request read first, so there is no same-request duplicate request-journal pass to remove there.
+Intermediate contract commit `6a5ecda6eb514f65152d4d6ff1b00a7f995f109d` produced CMP #3940 FAILURE only because two source-text assertions expected different local spelling (`repairIds[i]/found` instead of actual `repairIds[0]/repairFound`). Runtime was unchanged; `19bf0300...` corrected only the assertions and CMP #3941 is fully GREEN.
 
 ## Current execution order
 
-1. Continue only in `arduino-ru-lcd-experiment`.
-2. Continue repo-reviewable repeated-scan/performance audit; do not reopen already accepted material accounting without a concrete requirement.
-3. Check remaining Material Request movement/history, Repair and Warehouse exact-id/list/server flows one block at a time; change only a confirmed repeated growing-journal pass in the same request/operation.
-4. Material Request create duplicate Repair scan is already removed by checkpoint 155; generic exact-existence guards for unrelated callers remain intact.
-5. Fresh generic Material Request Warehouse duplicate request-journal scan is removed by checkpoint 156; recovery must keep its independent request-existence validation.
-6. Material Request status transition was audited NO-CHANGE after checkpoint 156: it has no preceding duplicate exact-request lookup.
-7. RUN_WIRE status prefetch remains bounded: max 24 ids/page and one batch status resolution; do not replace it with per-item server scans.
-8. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
-9. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
-10. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-11. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-12. Verify actual CMP/ESP32 CI after each completed code block and update PROJECT_HANDOFF.
-13. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
-14. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
+2. Continue repo-reviewable repeated-scan/performance audit only for confirmed repeated growing-journal passes in the same request/operation.
+3. Next inspect client-balance/costing aggregation beyond the now-removed repeated `repairs.ndjson` validation. `loadKnownRepair()` still invokes full costing validation/aggregation per repair; change this only if a bounded batch primitive can preserve every existing journal validation and exact per-repair result without unbounded RAM.
+4. Keep CashPayment correction preflight NO-CHANGE unless a simpler proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
+5. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
+6. Preserve separate integrity domains; do not fuse unrelated ledgers solely to reduce I/O.
+7. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
+8. No automatic production rotation/deletion/truncation and no premature DB/index migration.
+9. Verify actual CMP/ESP32/Arduino CI after each completed code block and update PROJECT_HANDOFF.
+10. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
+11. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

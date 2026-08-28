@@ -7,11 +7,13 @@ on:
       - arduino-ru-lcd-experiment
     paths:
       - "firmware/arduino/**"
-      - "firmware/esp32/web/shared/settings-hall-calibration.js"
+      - "firmware/esp32/src/**"
+      - "firmware/esp32/web/**"
       - "Arduino/**"
       - "Core/**"
       - "Shared/**"
       - "Tests/Web/check_ru_hall_calibration_experiment.js"
+      - "Tests/Web/check_motor_edit_ui.js"
       - "platformio.ini"
       - ".github/workflows/arduino-ru-lcd-build.yml"
 
@@ -25,6 +27,9 @@ jobs:
 
       - name: Audit RU Hall calibration experiment contracts
         run: node Tests/Web/check_ru_hall_calibration_experiment.js
+
+      - name: Audit editable motor card contracts
+        run: node Tests/Web/check_motor_edit_ui.js
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -45,6 +50,12 @@ jobs:
         run: |
           set -o pipefail
           pio run -e uno_ru | tee uno-ru-build.log
+
+      - name: Build ESP32 firmware
+        shell: bash
+        run: |
+          set -o pipefail
+          pio run -e esp32 | tee esp32-build.log
 
       - name: Compare resource usage
         run: |

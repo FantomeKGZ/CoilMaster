@@ -114,19 +114,50 @@ Semantics:
 
 Intermediate CMP failures #3909-#3916 were contract-test corrections during implementation; the final branch state is covered by consecutive GREEN #3917-#3920 and final runtime builds above.
 
+### RUN_WIRE exact immutable-spool lookup — GREEN
+
+Checkpoint 154 removes the browser-side full active-spool catalogue scan for one immutable `spool_id`.
+
+Runtime/UI:
+
+```text
+42ff9c2f8bbbc1d65a945ff019502299197e9b76
+ESP32 Build #1736         run 33174983830 / SUCCESS
+Arduino RU LCD #160       run 33174983809 / SUCCESS
+```
+
+Final contract:
+
+```text
+fd3428cf2c9ebdafe7a6dfe20206281701d43f94
+CMP Protocol Tests #3926 run 33175377848 / SUCCESS
+```
+
+Semantics:
+
+- RUN_WIRE `findActiveSpool(spool_id)` now uses one existing authoritative read-only `GET /api/warehouse/spools/by-id?spool_id=...` request;
+- server resolves exact id through `loadActiveSpoolIdentity()` and validates exact returned identity;
+- 404 remains fail-closed: immutable spool is unavailable, no alternate spool is inferred/substituted;
+- browser no longer pages `/api/warehouse/spools?material=ALL&limit=32` across the active catalogue;
+- exact `source_session_id + source_run_id + spool_id`, manual confirmation and dedicated warehouse mutation endpoint remain unchanged;
+- regression contracts prohibit returning to catalogue paging for exact immutable-spool lookup.
+
+CMP #3923-#3925 failures were stale/test-only assertions after replacing the old catalogue implementation; host CTest/runtime remained intact, and final CMP #3926 is GREEN.
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
 2. Continue repo-reviewable repeated-scan/performance audit; do not reopen already accepted material accounting without a concrete requirement.
-3. **Immediate next candidate:** RUN_WIRE exact spool lookup — audit `findActiveSpool(spool_id)`, which currently may page through the entire active spool catalogue for one immutable `spool_id`.
-4. Prefer an existing authoritative by-id lookup if one already exists. If not, add only a bounded/read-only exact lookup that preserves spool schema/integrity checks; never infer or substitute another spool.
-5. Then audit other list + per-id / repeated full-scan patterns in Material Request/Warehouse/Repair flows one block at a time.
-6. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
-7. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-8. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-9. Verify actual CMP/ESP32 CI after each completed code block and update PROJECT_HANDOFF.
-10. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
-11. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+3. Audit remaining Material Request/Warehouse/Repair list + exact-id/repeated scan patterns one block at a time.
+4. RUN_WIRE status prefetch is already bounded: max 24 ids/page and one batch status resolution; do not replace it with per-item server scans.
+5. Next inspect whether any repair-scoped Material Request/list flow still performs redundant full journal passes or retains unbounded result state where a bounded authoritative page can be used without changing operator semantics.
+6. Prefer existing authoritative exact/batch APIs over new state/indexes.
+7. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
+8. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
+9. No automatic production rotation/deletion/truncation and no premature DB/index migration.
+10. Verify actual CMP/ESP32 CI after each completed code block and update PROJECT_HANDOFF.
+11. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
+12. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

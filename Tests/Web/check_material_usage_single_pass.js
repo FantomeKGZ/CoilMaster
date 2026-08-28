@@ -16,6 +16,7 @@ function bodyBetween(source, startMarker, endMarker) {
 const header = fs.readFileSync('firmware/esp32/src/CM_MaterialLedger.h', 'utf8');
 const ledger = fs.readFileSync('firmware/esp32/src/CM_MaterialLedger.cpp', 'utf8');
 const adjustment = fs.readFileSync('firmware/esp32/src/CM_MaterialAdjustment.cpp', 'utf8');
+const failClosedUx = fs.readFileSync('firmware/esp32/web/shared/material-usage-corrections.js', 'utf8');
 
 const confirm = bodyBetween(
   ledger,
@@ -98,6 +99,32 @@ for (const required of [
   if (!state.includes(required)) fail(`readMaterialState lost fail-closed contract: ${required}`);
 }
 
-console.log('PASS: material usage preflight remains fail-closed, repair existence is explicit, recovery stays deterministic, and retired private full-log helpers remain removed');
+for (const required of [
+  'function installGenericUsageFailClosedUx()',
+  'const originalSubmit=form.onsubmit;',
+  "url!=='/api/materials/usage'||method!=='POST'||response.ok",
+  "error==='material_state_unavailable_after_replay'",
+  "error==='usage_idempotency_read_failed'",
+  "error==='repair_reference_read_failed'",
+  "error==='repair_lifecycle_unavailable'",
+  "error==='material_reference_read_failed'",
+  "error==='materials_unavailable'",
+  "error==='invalid_material_preview'",
+  "error==='material_not_found'",
+  "const mappedError=resetAfterConfirmedNoWrite?'stale_material_preview':'usage_not_committed';",
+  'await originalSubmit.call(form,event)',
+  'globalThis.fetch=nativeFetch;',
+  'могла уже быть сохранена',
+  'Не создавайте новый operation_id',
+  'автоматического повтора нет',
+  'Каталог обновлён; выберите материал и количество заново'
+]) {
+  if (!failClosedUx.includes(required)) fail(`generic fail-closed usage UX missing: ${required}`);
+}
+if (failClosedUx.includes("fetch('/api/materials/usage',{method:'POST'")) {
+  fail('shared fail-closed UX must not create a second generic material usage POST path');
+}
+
+console.log('PASS: material usage preflight remains fail-closed, repair existence is explicit, recovery stays deterministic, generic error UX preserves the correct operation-id semantics, and retired private full-log helpers remain removed');
 require('./check_repair_material_card_ui.js');
 require('./check_material_usage_correction_contracts.js');

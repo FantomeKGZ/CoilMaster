@@ -4,174 +4,73 @@
 Production/source-of-truth: **`cmp-protocol-v1`**  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
 
-## GREEN foundation through checkpoint 165; checkpoint 166 NO-CHANGE; software optimization complete
+## Production baseline и experiment policy
+
+Production остаётся без новых переносов:
 
 ```text
-148 managed RUN_WIRE removes redundant spool pre-scan
-149 spool/material bridge append -> one validated bridge-log pass
-150 MaterialLedger confirmUsage two-pass retained as safety boundary
-151 append-only audit -> no safe same-ledger duplicate full scan
-152 autonomous save -> one bounded-tail latest-event read
-153 dead-helper linker audit -> NO-CHANGE; linker GC already strips them
-154 autonomous task query parsed once per page
-155 motor similarity candidate parsed once; each stored winding program parsed once
-156 motor similarity Web handler reuses one coil_program request String
-157 Material History optional query values fetched once
-158 Material adjustment optional quantity/price values fetched once
-159 standard conductor recommendations reuse one warehouse availability lookup per component
-160 calculator warehouse-diameter lookup uses binary search over sorted catalogue
-161 loadKnownWireDiameters maintains sorted catalogue during scan; removes final O(N^2) sort
-162 conductor recommendation search reuses precomputed single-wire areas across strand combinations
-163 recommendation top-3 caches rankingScore; existing scores are no longer recalculated per candidate
-164 calculator Web request reuses one required target area for warehouse + standard searches + JSON
-165 required target area derives from already-cached sourceArea; removes second source-component area pass
-166 final residual audit -> NO-CHANGE; no remaining safe meaningful software optimization
+cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Production commits:
+Все дальнейшие изменения выполняются только в `arduino-ru-lcd-experiment`. Не переносить их обратно в production без отдельного прямого запроса.
 
-```text
-1e831cde072f6c6152d10b7e71cb6a1e0f2a7b0e  checkpoint 152
-a2f98cb377873d88d3fd103b6dfdfbabaf28ea65  checkpoint 154
-415394d162de0f1c83e433cbbea3db94833b3162  checkpoint 155
-78b41d38abdf89b9e72a02eea37edcd346c9610f  checkpoint 156
-491fcf965fe573f91eb29bc99f6513017f3f5b1a  checkpoint 157
-0596ae9ff473503bd1d21aeda0c6c4da0f2ba0da  checkpoint 158
-93d858c83b3f63932d6c2809df585a017a74a6b6  checkpoint 159
-1efb3c35947c77fb79b5cc7a24f0c07c5dcab67c  checkpoint 160
-317273ac74e6e67208e9a94330b615bb3ba1ba08  checkpoint 161
-18d611e6ee8bb0355deda5f99874b0b9923d576f  checkpoint 162
-ac5411cc7ad2f279eef655fc3b0e3be3f139b4d0  checkpoint 163
-e2d84e5ab37ec89724c8a1f71d5f29ddd62c5cea  checkpoint 164
-db642c50a79d80179a765c5c4ff8ebb5006fd27f  checkpoint 165 final production code
-```
+Production CMP Protocol Tests #3772 / run `33141922657` на SHA `28c7917a906bc9b15736369e8986d0e0c354ab8c` завершился FAILURE из-за четырёх stale contract assertions. Runtime rollback не выполнялся. Контракты были выровнены в experiment без ослабления Hall/SSR safety, и experiment CI был добавлен в push coverage.
 
-Latest direct verification of the old production baseline:
-
-```text
-CMP Tests #3759    33047621155 / SUCCESS  (checkpoint 164 production)
-ESP32 Build #1647  33047621128 / SUCCESS  (checkpoint 164 production)
-CMP Tests #3766    33047940015 / SUCCESS  (checkpoint 165 production)
-ESP32 Build #1650  33047940040 / SUCCESS  (checkpoint 165 production)
-CMP Tests #3767    33048020592 / SUCCESS  (checkpoint 165 handoff HEAD)
-```
-
-## 2026-08-28 — experiment -> production transfer COMPLETED
-
-The previous planned transfer was re-checked and then executed as a **non-force fast-forward**.
-
-Verified transfer snapshot:
-
-```text
-cmp-protocol-v1              28c7917a906bc9b15736369e8986d0e0c354ab8c
-arduino-ru-lcd-experiment    28c7917a906bc9b15736369e8986d0e0c354ab8c
-compare                      identical / ahead=0 / behind=0
-```
-
-So all changes that existed in `arduino-ru-lcd-experiment` through `28c7917a906bc9b15736369e8986d0e0c354ab8c`, including the new repair-material plan, are present in `cmp-protocol-v1`.
-
-Production CMP Protocol Tests #3772 / run `33141922657` completed **FAILURE** on production SHA `28c7917a906bc9b15736369e8986d0e0c354ab8c`. Configure/build/ctest passed. Four actual failing audit steps were identified from the job result/logs:
-
-1. `Audit motor schema UI contracts`;
-2. `Audit motor details and repair history contracts`;
-3. `Audit Hall calibration safety contracts`;
-4. `Audit Hall raw migration ownership`.
-
-Read-only comparison with current experiment behavior proved these were stale contract assertions, not a reason to roll back the transferred runtime:
-
-- motor CRUD had intentionally moved to dedicated create/edit pages, while old assertions still expected inline catalog/repair quick-add fields;
-- motor role UI had intentionally localized WORKING/STARTING labels while exact `role=working` / `role=starting` navigation remained intact;
-- Hall experiment intentionally starts calibration motor motion only from local keypad `A` or the physical START input after baseline readiness, while EEPROM apply still requires separate local `#` confirmation and Web has no motor-start/SSR endpoint;
-- Uno compact completion intentionally delegates CRC append to shared `CrcFrameText::append`, while the old ownership audit required the previous direct `Cmp1Crc::calculate` literal.
-
-Only contract tests were aligned; Hall/SSR runtime safety was not weakened. Fix commits in `arduino-ru-lcd-experiment`:
-
-```text
-bb4aa5c58b173f015df0b8a3971a28a4ece62d9c  motor schema audit -> dedicated CRUD pages
-c73cf2164ccbc3c9c7c232d6778789037704ddb9  motor details audit -> localized role UI
-6ac4de83ba95659a679a0dc171517f9f08aa61d1  Hall safety audit -> local A/physical START experiment contract
-9b239f30e991876b77ec2f8f972d9c82b7616872  Hall raw migration audit -> shared CRC formatter
-```
-
-A CI coverage gap was also closed: `CMP Protocol Tests` push trigger now includes `arduino-ru-lcd-experiment` in addition to production, while `main` remains excluded. Commit:
-
-```text
-ea56a53e67500cbee019321542446107e0bc316d  ci: run CMP contract suite on experiment branch
-```
-
-Direct verification of this experiment checkpoint:
+Подтверждение восстановления:
 
 ```text
 CMP Protocol Tests #3773
 run 33147497236
 SHA ea56a53e67500cbee019321542446107e0bc316d
-status completed
-conclusion success
+completed / success
 ```
 
-All four previously failing audit steps completed `success` in #3773, as did Configure / Build / Test and the rest of the CMP host audit suite. This establishes a GREEN **experiment checkpoint** for the repaired contracts. It does **not** change production: `cmp-protocol-v1` remains at `28c7917a906bc9b15736369e8986d0e0c354ab8c` until a separate explicit transfer request.
+## Active software block — repair materials and write-off
 
-## New active software block — repair materials and write-off
-
-Authoritative implementation plan:
+Authoritative plan:
 
 `docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md`
 
-The new block covers unified repair-material card, warehouse selector with stock/price visibility, exact RUN_WIRE spool provenance, bearings/general consumables, explicit/manual write-off, price snapshots, costing integration, append-only correction/history, actionable errors, desktop/mobile parity and duplicate/stale/recovery tests.
-
-## Repair-material read-only architecture audit — COMPLETED
-
-The audit covered MaterialLedger, Warehouse/spool storage, RepairCosting, RUN_WIRE, material request/catalog, APIs, desktop/mobile UI and backup/integrity coverage.
-
 ### Authoritative data flow
 
-**General repair materials:** existing `MaterialLedger` remains authoritative; no parallel material ledger is justified.
+Новый material ledger не создаётся.
+
+General repair materials:
 
 ```text
 /data/materials/materials.ndjson
-  -> bounded GET /api/materials selector
-  -> repair_id + material_id + actual quantity
-  -> explicit POST /api/materials/usage
+  -> bounded/searchable GET /api/materials
+  -> exact repair + selected material + actual quantity
+  -> explicit/manual POST /api/materials/usage
+  -> generic operation idempotency lookup
+  -> authoritative MaterialLedger state reread / preview checks
   -> MaterialLedger::confirmUsage()
-       authoritative repair/material preflight
-       pending usage transaction
-       mutation-time rewriteQuantity() authoritative reread / TOCTOU check
+       pending usage WAL
+       mutation-time rewriteQuantity() authoritative reread / TOCTOU
   -> /data/materials/usage.ndjson persisted price snapshot
   -> RepairCosting.materialCostMinor
-  -> bounded usage history / material integrity / backup
+  -> bounded history / integrity / backup
 ```
 
-**RUN_WIRE:** remains on the dedicated managed coordinator path and is not collapsed into generic material usage.
+RUN_WIRE remains a separate safety path:
 
 ```text
-Warehouse spool + bridge + immutable exact spool selection + completed run evidence
-  -> explicit RUN_WIRE material request with exact spool/session/run
-  -> RunWireIssueCoordinator durable pending
-  -> material-request movement evidence
+exact spool + bridge + immutable selection + completed run evidence
+  -> explicit RUN_WIRE Material Request
+  -> RunWireIssueCoordinator pending
+  -> movement evidence
   -> MaterialLedger usage evidence
-  -> managed Warehouse physical phases and CONFIRMED movement
-  -> /data/warehouse/movements.ndjson
+  -> managed warehouse physical phases
+  -> CONFIRMED movement
   -> RepairCosting.wireCostMinor
-  -> separate cross-ledger integrity + backup
+  -> separate cross-ledger integrity / backup
 ```
 
-Exact `spool_id`, `source_session_id`, `source_run_id`, diameter and CU/AL identity remain mandatory. `RUN_COMPLETED` remains evidence only.
+Exact `spool_id`, `source_session_id`, `source_run_id`, diameter and CU/AL identity remain mandatory. `RUN_COMPLETED` remains evidence only and never deducts wire automatically.
 
-**Material Request:** remains a separate planning/lifecycle/evidence layer using its existing durable coordinator and authoritative downstream stores; it is not a second stock ledger.
-
-**Costing:** existing RepairCosting already aggregates:
-
-```text
-/data/warehouse/movements.ndjson -> wireCostMinor + wire material totals
-/data/materials/usage.ndjson      -> materialCostMinor
-/data/repairs/pricing.ndjson      -> append-only labour/client pricing revisions
-```
-
-**Backup/integrity:** material, warehouse, warehouse movements, spool-material bridge, RUN_WIRE cross-log accounting and workshop/pricing integrity remain deliberately separate.
+Material Request remains a planning/lifecycle/evidence layer, not a second stock ledger. RepairCosting remains authoritative for aggregation from warehouse movements, material usage and append-only pricing revisions.
 
 ## Repair materials checkpoint 1 — repair-card entry — GREEN
-
-Implemented without changing storage/writeoff semantics:
 
 ```text
 c9c74313871e45605520e1b0885cf90ed5978557  desktop repair -> Материалы ремонта
@@ -180,113 +79,198 @@ b94325af380788d413aef11b21ff76a48220fdba  repair-material UI contract
 f9427b53e18aef047d944169bc9e0639bee78831  mandatory CMP integration
 ```
 
-Direct verification:
+Verification:
 
 ```text
 CMP Protocol Tests #3778
 run 33147929516
 SHA f9427b53e18aef047d944169bc9e0639bee78831
-status completed
-conclusion success
+completed / success
 ```
 
 ## Repair materials checkpoint 2 — bounded history + costing preview — GREEN
 
-The existing repair material card was extended only as a read-only consumer of existing authoritative APIs; no new persistence or mutation path was added.
+Desktop/mobile consume existing authoritative APIs only:
 
-Implementation commits:
+- `GET /api/repairs/costing?repair_id=...` -> current `material_cost_minor`;
+- bounded `GET /api/materials/usage?repair_id=...&limit=20&cursor=...`;
+- persisted `usage_id`, `material_id`, actual quantity, price snapshot, line cost, timestamp/comment;
+- post-write authoritative reread of catalogue, history and costing.
 
 ```text
-b9057089560f1f862fc36b5ba2d16477edcd0c94  desktop materials: usage history + material costing
+b9057089560f1f862fc36b5ba2d16477edcd0c94  desktop history + costing
 0117ae33cb4c28ab801f6263ba7fc2fe1c6dcac3  mobile parity
-711e992c9d839d546ee185d246019faf310a88f9  contract: bounded history + authoritative costing
+711e992c9d839d546ee185d246019faf310a88f9  contracts
 ```
 
-Desktop/mobile now show:
-
-- current `material_cost_minor` from `GET /api/repairs/costing?repair_id=<exact repair>`;
-- bounded confirmed material usage history from `GET /api/materials/usage?repair_id=<exact repair>&limit=20&cursor=...`;
-- persisted operation `usage_id`, `material_id`, actual quantity, `price_per_unit_minor` snapshot, `line_cost_minor`, timestamp and comment;
-- cursor-based next/previous history navigation without whole-file buffering in UI;
-- after a successful explicit writeoff, authoritative catalog, usage history and costing are all re-read rather than locally synthesized.
-
-Direct verification:
+Verification:
 
 ```text
 CMP Protocol Tests #3782
 run 33148352333
 SHA 711e992c9d839d546ee185d246019faf310a88f9
-status completed
-conclusion success
+completed / success
 ```
 
-## Repair materials checkpoint 3 — bounded server-side warehouse search — GREEN
+## Repair materials checkpoint 3 — bounded server-side search — GREEN
 
-Search was added on top of the existing MaterialLedger catalogue without introducing an index, DB, secondary catalogue or whole-file result buffering.
-
-Implementation commits:
+Search stays streaming over `materials.ndjson`, max query 48 characters, ACTIVE records only, bounded result page/cursor. No DB/index, no whole-file buffering, no unbounded result vector.
 
 ```text
-4f70357804499ca3d5f617a418220cefc544b1fa  MaterialLedger bounded search contract/max query length
-649af913fd164241e506cfed61f2dcb75772c3ef  streaming read-only material search implementation
-2c39e373b8ed7acf28fd93f30e3ed86b021be54f  GET /api/materials search dispatch
-a692e51f0ab2dde98181acc43c632deea6a535f6  parser compile-safety correction
-7a0e76f166b7b7dca13bde804684474e5776e5d6  desktop material search UX
-73447a822398a36d8516a82fbbe80ff32035344f  mobile material search parity
-7aa81b7119c95d0dc81331cd7c6755fc3e79e44e  bounded search contract
+4f70357804499ca3d5f617a418220cefc544b1fa  bounded search API contract
+649af913fd164241e506cfed61f2dcb75772c3ef  streaming search
+2c39e373b8ed7acf28fd93f30e3ed86b021be54f  HTTP search dispatch
+a692e51f0ab2dde98181acc43c632deea6a535f6  compile-safety correction
+7a0e76f166b7b7dca13bde804684474e5776e5d6  desktop search
+73447a822398a36d8516a82fbbe80ff32035344f  mobile parity
+7aa81b7119c95d0dc81331cd7c6755fc3e79e44e  contracts
 ```
 
-Current search flow:
-
-```text
-GET /api/materials?search=<query>&limit=20&cursor=<file-position>
-  -> query trim + max 48 chars
-  -> streaming materials.ndjson scan
-  -> FlatJson validation and monotonic ID checks
-  -> ACTIVE records only
-  -> match name / comment / unit / wire_type / wire diameter
-  -> append at most requested page limit
-  -> next cursor is the actual NDJSON file position
-```
-
-The implementation explicitly avoids `std::vector` result accumulation and whole-file `readString()` buffering. Empty search delegates to the existing catalogue pager. Desktop/mobile reset paging whenever the search query changes and keep stock, price and optional CU/AL diameter metadata visible in results.
-
-Direct verification:
+Verification:
 
 ```text
 CMP Protocol Tests #3790
 run 33148837612
 SHA 7aa81b7119c95d0dc81331cd7c6755fc3e79e44e
-status completed
-conclusion success
+completed / success
 ```
 
-Configure / Build / Test and the full host contract suite completed success, including material usage/recovery, backup, warehouse/RUN_WIRE and Hall safety audits.
+## Repair materials checkpoint 4 — generic duplicate-submit/idempotency — GREEN
 
-Production remains unchanged:
+Ordinary explicit material usage now has a bounded generic `operation_id`. This is deliberately separate from RUN_WIRE exact-run duplicate protection.
+
+Rules:
+
+- same `operation_id` + same repair/material/quantity -> replay persisted usage snapshot, no second mutation;
+- same `operation_id` + different payload -> `operation_id_conflict`, fail closed;
+- unknown network retry preserves the same operation id;
+- editing selected material/quantity/comment resets operation id for a genuinely new operator action;
+- replay scan is streaming/validated; historical rows remain compatible;
+- generic idempotency is not imported into `RunWireIssueCoordinator`;
+- RUN_WIRE continues to use exact source-session/source-run + spool safety.
+
+Runtime/UI/contract block includes commits through:
 
 ```text
-cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
+e1c00465...  generic operation-id foundation
+1f516c45...  persisted replay lookup/tagging
+836d050c...  generic material Web idempotency
+92ed2e2b...  desktop retry-safe operation id
+32283a00...  mobile parity
+ba8bc4d0...  initial contract coverage
+c314464224a21227f7564bac4ecf5dff85f6f64d  ESP32 experiment trigger/runtime checkpoint
+436eddd9ef34f1bcd8165dec0f84f93dd72bbe98  latest contract lineage includes semantic fixes
+```
+
+Verified runtime build:
+
+```text
+ESP32 Build #1652
+run 33149412785
+SHA c314464224a21227f7564bac4ecf5dff85f6f64d
+completed / success
+```
+
+Verified CMP after fixing a stale variable-name assertion only (runtime unchanged):
+
+```text
+CMP Protocol Tests #3802
+run 33149994140
+SHA d9a6eab1f083332214cfe94fa0738d0f35161e24
+completed / success
+```
+
+## Repair materials checkpoint 5 — stale preview / insufficient stock / TOCTOU UX — GREEN
+
+Backend generic usage preflight now requires client preview snapshots:
+
+```text
+expected_stock_quantity_milli
+expected_price_per_unit_minor
+```
+
+They are guards only. Client preview price is never used as cost authority.
+
+Ordering remains:
+
+```text
+operation-id replay lookup
+  -> repair lifecycle
+  -> authoritative loadActiveMaterialState()
+  -> insufficient-stock check
+  -> expected/current stock+price stale-preview comparison
+  -> MaterialLedger::confirmUsage()
+       final authoritative mutation-time reread / TOCTOU + WAL
+```
+
+Important semantics:
+
+- idempotency replay happens before stale-preview comparison, so a network retry can safely return a durable prior operation even though current stock changed after that operation;
+- `insufficient_stock` returns authoritative available stock and performs no write;
+- `stale_material_preview` performs no write and requires the operator to review refreshed stock/price and confirm again manually;
+- `usage_not_committed` remains the final mutation-time fail-closed condition; UI refreshes and requires manual retry;
+- stale/insufficient branches reset the pending operation id only after the server has explicitly confirmed that no write occurred;
+- unknown network failure preserves the same operation id for safe replay;
+- no automatic re-submit after refresh;
+- desktop/mobile behavior is aligned;
+- RUN_WIRE path is untouched.
+
+Implementation:
+
+```text
+43b640a32c5ad72d6de9f2b8f1835f175fe0a34f  backend stale-preview/stock preflight
+a4220a72986525508e9917744acc6db453589426  desktop manual reconfirmation
+ddecc6108d1219fed4a80f7c98d942a45d9d2e20  mobile parity
+5aafd439909206cdc1e7f440a202327b605d73f8  initial checkpoint-5 contract
+436eddd9ef34f1bcd8165dec0f84f93dd72bbe98  semantic escaped-error contract fix
+```
+
+The first CMP run #3806 / `33151003904` failed only because the new test searched for an unescaped C++ JSON literal. Configure/build/ctest and the underlying material safety audit passed. The assertion was changed to semantic error tokens; runtime was not changed.
+
+Final verification:
+
+```text
+CMP Protocol Tests #3807
+run 33151095290
+SHA 436eddd9ef34f1bcd8165dec0f84f93dd72bbe98
+completed / success
+
+ESP32 Build #1655
+run 33150952500
+SHA ddecc6108d1219fed4a80f7c98d942a45d9d2e20
+completed / success
 ```
 
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`.
-2. Next safety checkpoint: add idempotency/duplicate-submit protection for ordinary explicit material usage without changing the dedicated RUN_WIRE coordinator or its exact-run duplicate protection.
-3. Generic material operations should receive a bounded unique operation key; retry of the same exact request must return the existing persisted price snapshot without another stock mutation, while reuse of the same key with different payload must fail closed.
-4. Preserve backward compatibility for historical usage rows and RUN_WIRE-generated MaterialLedger rows that do not carry the generic operator operation key.
-5. Then expose stale-preview/insufficient-stock/changed-price failures as actionable operator errors while retaining MaterialLedger mutation-time authoritative reread/TOCTOU.
-6. Later integrate exact RUN_WIRE into the same UI surface while retaining its separate coordinator/provenance requirements.
-7. Add append-only correction/history UX; do not edit/delete durable confirmed operations.
-8. Verify actual CI and update PROJECT_HANDOFF after every completed checkpoint.
-9. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+2. Next checkpoint: actionable fail-closed error UX for generic repair material usage without adding new persistence or automatic recovery.
+3. Preserve the current pending `operation_id` for ambiguous/network/idempotency-read failures where the server outcome is not safely known.
+4. For `material_not_found` / stale catalogue conditions, refresh and require explicit reselection/reconfirmation.
+5. For `material_state_unavailable_after_replay`, tell the operator the operation may already be durable; show history/costing and never create a new operation automatically.
+6. For `invalid_material_preview`, refresh catalogue and require a new explicit confirmation; no automatic submit.
+7. After error UX, integrate exact RUN_WIRE into the same visible repair-material card while retaining the separate coordinator, exact spool/session/run provenance and manual writeoff.
+8. Then add append-only correction/history UX; never edit/delete confirmed durable operations.
+9. Verify actual CMP/ESP32 CI and update PROJECT_HANDOFF after each completed checkpoint.
+10. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 
-No automatic physical START/repeat START/resume/writeoff. Arduino owns SSR. ESP32/Web never controls SSR directly. `RUN_COMPLETED` is evidence only. Exact `spool_id` + `source_session_id` + `source_run_id` provenance remains mandatory for wire write-off. Restore remains operator-only and fail-closed.
-
-MaterialLedger `confirmUsage()` remains intentionally two-pass across the pre-WAL snapshot and mutation-time authoritative reread. Different integrity ledgers and mutation phases remain separate. No tail-only historical integrity replacement, unbounded buffering, automatic data truncation/rotation or premature DB/index migration is justified.
+- no automatic physical START or repeat START;
+- no auto-resume after reboot;
+- Arduino is the only SSR owner;
+- ESP32/Web never controls SSR directly;
+- `RUN_COMPLETED` is evidence only;
+- RUN_WIRE writeoff is explicit/manual;
+- exact `spool_id` + `source_session_id` + `source_run_id` remain mandatory;
+- restore/recovery remain fail-closed/operator-controlled;
+- MaterialLedger `confirmUsage()` retains authoritative reread and final mutation-time TOCTOU protection;
+- generic material idempotency never replaces RUN_WIRE exact-run protection;
+- different integrity ledgers and phases remain separate;
+- no unbounded whole-file buffering of growing NDJSON;
+- no automatic production truncation/rotation;
+- no premature DB/index migration.
 
 ## Hardware acceptance
 
-Full two-board Arduino + ESP32 E2E remains required before final project completion. For the new materials software block, hardware E2E may remain deferred until software checkpoints are complete unless a concrete hardware-dependent defect requires earlier verification.
+Full Arduino + ESP32 two-board E2E remains required before final project completion. For this material software block, hardware E2E remains deferred until software checkpoints are complete unless a concrete hardware-dependent issue requires earlier verification.

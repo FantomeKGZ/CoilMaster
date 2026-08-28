@@ -221,6 +221,14 @@ bool AutonomousWindingArchive::appendCompletedWebJobsPageJson(
             {
                 if (selected[index].sessionId == assignment.sessionId)
                 {
+                    // Linkage for a completed ESP32 job is first-write-only.
+                    // Historical duplicate exact-session rows are integrity loss,
+                    // not a last-write-wins state transition.
+                    if (assignmentFound[index])
+                    {
+                        file.close();
+                        return false;
+                    }
                     assignments[index] = assignment;
                     assignmentFound[index] = true;
                 }
@@ -330,6 +338,10 @@ AutonomousWindingArchive::assignCompletedWebJobMotorChecked(
         return AutonomousWindingAssignResult::Invalid;
 
     uint32_t highestId = 0UL;
+    bool exactAssignmentFound = false;
+    uint32_t exactAssignmentId = 0UL;
+    uint32_t exactMotorId = 0UL;
+    String exactRole;
     if (m_storage.exists(WebAssignmentsPath))
     {
         File existing = m_storage.open(WebAssignmentsPath, FILE_READ);
@@ -363,9 +375,33 @@ AutonomousWindingArchive::assignCompletedWebJobMotorChecked(
                 return AutonomousWindingAssignResult::ArchiveIntegrityFailed;
             }
             highestId = currentId;
+
+            if (currentSession == sessionId && currentRun == runId)
+            {
+                if (exactAssignmentFound)
+                {
+                    existing.close();
+                    return AutonomousWindingAssignResult::ArchiveIntegrityFailed;
+                }
+                exactAssignmentFound = true;
+                exactAssignmentId = currentId;
+                exactMotorId = currentMotor;
+                exactRole = currentRole;
+            }
         }
         existing.close();
     }
+
+    if (exactAssignmentFound)
+    {
+        assignmentId = exactAssignmentId;
+        // Identical retry is idempotent. A different motor or role would rewrite
+        // historical linkage and is therefore rejected without a new append.
+        if (exactMotorId == motorId && exactRole == role)
+            return AutonomousWindingAssignResult::Assigned;
+        return AutonomousWindingAssignResult::Invalid;
+    }
+
     if (highestId == 0xFFFFFFFFUL)
         return AutonomousWindingAssignResult::WriteFailed;
     assignmentId = highestId + 1UL;

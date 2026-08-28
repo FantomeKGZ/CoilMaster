@@ -114,7 +114,7 @@ bool CashPaymentIntegrityAudit::check(fs::FS& storage, uint32_t& recordCount)
         String kind, direction, currency, occurredAt, method;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "cash_event_id", id) || id == 0UL || id <= previousId ||
-            !findUnsigned(line, "repair_id", repairId) || repairId == 0UL ||
+            !findUnsigned(line, "repair_id", repairId) ||
             !findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
             !findUnsigned64(line, "amount_minor", amount) || amount == 0ULL ||
             !findString(line, "kind", kind) ||
@@ -125,9 +125,12 @@ bool CashPaymentIntegrityAudit::check(fs::FS& storage, uint32_t& recordCount)
         {
             file.close(); return false;
         }
+        const bool prepayment = kind == "PREPAYMENT";
         if ((kind == "PAYMENT" && direction != "ADD") ||
+            (prepayment && (direction != "ADD" || repairId != 0UL)) ||
             (kind == "CORRECTION" && direction != "ADD" && direction != "SUBTRACT") ||
-            (kind != "PAYMENT" && kind != "CORRECTION"))
+            (kind != "PAYMENT" && kind != "PREPAYMENT" && kind != "CORRECTION") ||
+            (!prepayment && repairId == 0UL))
         {
             file.close(); return false;
         }
@@ -149,17 +152,28 @@ bool CashPaymentIntegrityAudit::check(fs::FS& storage, uint32_t& recordCount)
             }
         }
 
-        RepairIdentity identity;
-        bool found = false;
-        if (!repairs.loadRepairIdentity(repairId, identity, found) || !found ||
-            identity.clientId != clientId)
+        if (prepayment)
         {
-            file.close(); return false;
+            bool clientFound = false;
+            if (!repairs.clientExists(clientId, clientFound) || !clientFound)
+            {
+                file.close(); return false;
+            }
         }
-        RepairCostSummary pricing;
-        if (!costing.load(repairId, pricing) || pricing.currency != currency)
+        else
         {
-            file.close(); return false;
+            RepairIdentity identity;
+            bool found = false;
+            if (!repairs.loadRepairIdentity(repairId, identity, found) || !found ||
+                identity.clientId != clientId)
+            {
+                file.close(); return false;
+            }
+            RepairCostSummary pricing;
+            if (!costing.load(repairId, pricing) || pricing.currency != currency)
+            {
+                file.close(); return false;
+            }
         }
 
         previousId = id;

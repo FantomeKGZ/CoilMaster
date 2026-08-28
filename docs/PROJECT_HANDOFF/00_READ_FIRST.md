@@ -27,6 +27,7 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 ```text
 /AGENTS.md
 this file
+docs/PROJECT_HANDOFF/150_MATERIAL_FAIL_CLOSED_UX_2026-08-28.md
 docs/PROJECT_HANDOFF/149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md
@@ -46,37 +47,40 @@ docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 
 ## Latest GREEN experiment checkpoint
 
-Client editing + explicit client PREPAYMENT are complete in the experiment branch.
+Repair-material fail-closed operator UX is complete. Existing append-only material corrections were also re-audited and confirmed already authoritative rather than a pending implementation task.
 
 ```text
-runtime/UI code SHA                    d47b2f5a088566af33f20e805104206b9c167fe2
-ESP32 Build #1699                     run 33162070105 / SUCCESS
-Arduino RU LCD Build #123             run 33162070106 / SUCCESS
-final host-contract SHA               58b1aff87434dbb38a16327c7929b2a61b4befc9
-CMP Protocol Tests #3863              run 33162276329 / SUCCESS
+runtime/UI code SHA                    28343cb20cc5d75c748c38881d8705fd8505d182
+ESP32 Build #1700                     run 33164496835 / SUCCESS
+Arduino RU LCD Build #124             run 33164496837 / SUCCESS
+final host-contract SHA               eff0cb8a7e0365cf6184aa81694d9e277037116d
+CMP Protocol Tests #3867              run 33164535872 / SUCCESS
 ```
 
-See `149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md` for exact storage/API/UI semantics and commit lineage.
+See `150_MATERIAL_FAIL_CLOSED_UX_2026-08-28.md` for exact error/operation-id semantics and the corrected next software audit.
+
+The preceding client editing + PREPAYMENT block remains GREEN and is documented in `149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md`.
 
 ## Current state
 
-Client identity remains stable and edits are append-only revisions. `client-details.html` is now the deliberate write surface for client edits; the client catalogue itself remains read-only.
+Generic repair-material usage keeps one manual mutation path. `material_state_unavailable_after_replay` is treated as a potentially already-durable operation: the operator is explicitly told not to create a new `operation_id`. Authoritative/idempotency read failures remain fail-closed and preserve the same operation identity; proven pre-mutation no-write cases require a fresh manual selection/confirmation. No automatic retry was added.
 
-Client PREPAYMENT reuses the existing authoritative cash journal. It is `ADD` only, has exact `client_id`, uses `repair_id=0`, requires explicit confirmation, and is kept in a separate `prepayment_minor` bucket. It is not automatically applied to repair debt and does not affect RepairCosting.
+Append-only generic material corrections are already implemented with exact source-usage provenance, idempotent replay, bounded history, integrity/backup coverage and net RepairCosting. Confirmed source usage is never edited or deleted. Generic corrections remain isolated from RUN_WIRE evidence and warehouse correction semantics.
 
-Repair-material work remains based on existing MaterialLedger/Warehouse/RepairCosting stores. No parallel stock ledger was introduced.
+Client identity remains stable and edits are append-only revisions. PREPAYMENT remains separate from repair debt/costing and is never auto-applied.
 
 Atomic RUN_WIRE remains the only current wire mutation path. Legacy public writeoff POST remains disabled; exact spool/session/run provenance and historical recovery compatibility remain intact.
 
 ## Immediate NEXT
 
-1. Return to the active repair-material plan in `07_REPAIR_MATERIAL_WRITEOFF_PLAN.md` from the latest recorded checkpoint.
-2. Keep client PREPAYMENT separate until/unless an explicit operator-driven allocation-to-repair workflow is requested; never auto-apply it.
-3. Preserve append-only history, bounded streamed reads and fail-closed integrity semantics.
-4. Do not combine scans across different ledgers merely to reduce I/O.
-5. Preserve Web HTTP preflight semantics and mutation-time TOCTOU validation.
-6. Keep fixed RAM bounds; no whole-file buffering or unbounded vectors.
-7. No automatic rotation/deletion/truncation or premature DB/index migration.
-8. Continue software work in `arduino-ru-lcd-experiment`; do not move changes to production without explicit approval.
+1. Audit operator visibility in the unified repair-material card rather than reimplementing the already-existing correction ledger.
+2. Verify that each generic usage can be clearly related to its append-only corrections and net quantity/cost in the UI.
+3. Verify that RUN_WIRE provenance/history is visible enough from the same repair context while remaining a separate warehouse ledger/path.
+4. Check actionable navigation for `material_not_found` / missing stock position using only existing safe warehouse/create workflows.
+5. Consider a bounded/read-only frequently-used material shortcut only if it requires no new duplicated state or unbounded scan.
+6. Preserve append-only history, bounded streamed reads and fail-closed integrity semantics.
+7. Keep fixed RAM bounds; no whole-file buffering or unbounded vectors.
+8. No automatic rotation/deletion/truncation or premature DB/index migration.
+9. Continue software work in `arduino-ru-lcd-experiment`; do not move changes to production without explicit approval.
 
 `RUN_COMPLETED` remains evidence only; no automatic wire writeoff, physical START or resume.

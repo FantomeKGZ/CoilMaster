@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Production behavior подтверждён GREEN through checkpoint **165**. Production checkpoint **166** закрыт как residual audit **NO-CHANGE** и production software optimization остаётся frozen до hardware E2E либо конкретного дефекта.
 
-После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side repeated-scan/performance work подтверждён through checkpoint **157**. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
+После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side repeated-scan/performance work подтверждён through checkpoint **158**. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
 
 ## Production optimization checkpoints
 
@@ -72,46 +72,42 @@ ESP32 Build #1650  33047940040 / SUCCESS
 CMP Tests #3767    33048020592 / SUCCESS
 ```
 
-## Experiment checkpoints 152–157
+## Experiment checkpoints 152–158
 
 Experiment branch currently includes the separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup and subsequent repeated-scan reductions documented in `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
 
-Latest experiment checkpoint **157 — GREEN**:
+Checkpoint **157 — GREEN** removed repeated full `repairs.ndjson` validation from client balance while preserving generic/mutation repair validation. Runtime `bf529900a8211f0b9a920ec237942bae2f7093c5` is verified by CMP #3939, ESP32 #1743 and Arduino RU LCD #167; contract `19bf03003b5e1f3aea6692609e634a79247fb397` is verified by CMP #3941.
 
-- `CashPaymentWeb::loadClientCharges()` no longer calls generic `RepairCosting::load()` for every repair and therefore no longer performs one full `repairs.ndjson` validation per repair;
-- one authoritative full `RepairCosting::repairExists()` validation is performed once after the first repair id is obtained from the bounded RepairRegistry client page;
-- subsequent ids in the same read-only client-balance request use `RepairCosting::loadKnownRepair()`;
-- generic `RepairCosting::load()` still performs exact `repairExists()` validation before delegating;
-- mutation path `savePricing()` still uses generic `load()` and is unchanged;
-- all costing journals, RUN_WIRE pending guard, Warehouse movement integrity, material usage/correction integrity, currency/overflow validation remain unchanged;
-- no cache/index/DB, whole-file buffering or unbounded collection added.
+Latest experiment checkpoint **158 — GREEN**:
 
-Runtime commits:
+- `RepairCostingWeb::handlePricingHistory()`, `handleGet()` and the read/preflight stage of `handleSavePricing()` each already perform an authoritative exact `RepairCosting::repairExists(repairId, found)` check;
+- after that successful proof they now call `RepairCosting::loadKnownRepair()` instead of immediately invoking generic `load()` and scanning `repairs.ndjson` a second time;
+- HTTP 404/read-failure semantics of the initial exact repair lookup are unchanged;
+- `RepairCosting::load()` still retains its own exact repair validation for all callers without prior proof;
+- `RepairCosting::savePricing()` remains unchanged and still performs its own repair-lifecycle gate plus generic `load()` before the append, preserving mutation-time authoritative validation;
+- pricing-history still keeps its separate pricing-history scan because history/current comparison is an explicit integrity contract;
+- all Warehouse movement, material usage/correction, pricing currency/overflow, RUN_WIRE pending and append-only validations remain unchanged;
+- no cache/index/DB or unbounded state added.
 
-```text
-e50b09bc61ca3f3a4a053a5dd826f25d36ad6c71  add known-repair costing read path
-347ca06061129afe223e6fa56b7379315cfca38b  generic load validates then delegates
-bf529900a8211f0b9a920ec237942bae2f7093c5  client balance validates repairs once
-```
-
-Runtime CI for `bf529900a8211f0b9a920ec237942bae2f7093c5`:
+Runtime:
 
 ```text
-CMP Protocol Tests #3939  run 33191506843 / SUCCESS
-ESP32 Build #1743         run 33191506805 / SUCCESS
-Arduino RU LCD #167       run 33191506861 / SUCCESS
+e460a32a0021b49a6d5262c316a1d9f83f5554d2
+CMP Protocol Tests #3944  run 33195340340 / SUCCESS
+ESP32 Build #1744         run 33195340296 / SUCCESS
+Arduino RU LCD #168       run 33195340333 / SUCCESS
 ```
 
-Final regression contract:
+Regression contract:
 
 ```text
-19bf03003b5e1f3aea6692609e634a79247fb397
-CMP Protocol Tests #3941  run 33194910481 / SUCCESS
+3f5d7f65782196491cf81934d0b3aa0276914a02
+CMP Protocol Tests #3945  run 33195389757 / SUCCESS
 ```
 
-Intermediate contract commit `6a5ecda6eb514f65152d4d6ff1b00a7f995f109d` produced CMP #3940 FAILURE only because two text assertions expected different local variable/index spelling; host build/CTest and all other executed audits were healthy. The assertion-only correction is `19bf0300...`; runtime code was not changed.
+Adjacent costing audit: moving `MaterialUsageCorrectionIntegrityAudit::check()` out of each known-repair load was classified **NO-CHANGE**. That audit is global provenance validation over usage/adjustment history; skipping repeated calls safely would require a new prevalidated bypass/context or a substantially larger batch-costing API, increasing integrity risk and code/flash complexity.
 
-The adjacent CashPayment correction preflight was audited in the same block and remains **NO-CHANGE**: combining `eventBelongsToRepair()` and `totalsForRepair()` would require a parallel validation implementation and risk changing current fail-closed/error semantics. Mutation-time `append()` authoritative scan remains mandatory.
+The CashPayment correction preflight also remains **NO-CHANGE**: combining `eventBelongsToRepair()` and `totalsForRepair()` would require parallel validation logic and risk changing fail-closed/error semantics. Mutation-time `append()` authoritative scan remains mandatory.
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -129,8 +125,8 @@ The adjacent CashPayment correction preflight was audited in the same block and 
 
 1. Continue only in `arduino-ru-lcd-experiment`; production remains unchanged.
 2. Continue repo-reviewable repeated-scan/performance audit only where the same request repeats an authoritative growing-journal pass and the proof can be preserved.
-3. Next inspect adjacent client-balance/costing aggregation for remaining N-per-repair journal work; do not introduce batch state unless validation semantics remain equivalent and RAM stays bounded.
-4. Keep CashPayment correction preflight as NO-CHANGE unless a simpler proof-preserving one-pass primitive appears.
+3. Inspect remaining exact-proof → generic-load/read patterns outside RepairCostingWeb before considering any larger batch costing refactor.
+4. Keep global correction-integrity reuse and CashPayment correction fusion as NO-CHANGE unless a simpler proof-preserving primitive appears.
 5. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before final release completion.
 
 ## Hardware acceptance

@@ -41,8 +41,9 @@ requireToken(swap, 'const bool hasWireType', 'swap optional metadata');
 requireToken(swap, 'if (hasWireType != hasDiameter)', 'swap pair parity');
 requireToken(swap, 'if (unit != "GRAM" ||', 'swap GRAM restriction');
 
-requireToken(web, 'const bool hasWireType=m_server.hasArg("wire_type")', 'HTTP wire_type input');
-requireToken(web, 'const bool hasDiameter=m_server.hasArg("diameter_hundredths_mm")', 'HTTP diameter input');
+requireToken(web, 'hasWireType=m_server.hasArg("wire_type")', 'HTTP wire_type input');
+requireToken(web, 'hasDiameter=m_server.hasArg("diameter_hundredths_mm")', 'HTTP diameter input');
+requireToken(web, 'if(hasWireType!=hasDiameter)', 'HTTP wire metadata pair gate');
 requireToken(web, 'wire_metadata_pair_required', 'HTTP pair error');
 requireToken(web, 'invalid_wire_metadata', 'HTTP validation error');
 requireToken(web, 'unit!=MaterialUnit::Gram', 'HTTP GRAM restriction');

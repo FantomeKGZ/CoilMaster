@@ -57,6 +57,13 @@ public:
     // Legacy schema-v1 snapshots without repeat_target are read as target 1.
     bool load(uint32_t sessionId, JobSnapshot& snapshot) const;
 
+    // Read one exact immutable snapshot without begin()/directory creation. This
+    // is used by read-only historical archive projections and never mutates the
+    // winding-job store.
+    static bool readPersisted(fs::FS& fileSystem,
+                              uint32_t sessionId,
+                              JobSnapshot& snapshot);
+
     // Verifies that the persisted immutable snapshot is structurally valid and
     // belongs to the exact job/session pair expected by runtime recovery.
     bool validateIdentity(uint32_t jobId, uint32_t sessionId) const;

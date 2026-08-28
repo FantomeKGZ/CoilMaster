@@ -56,32 +56,27 @@ ESP32 Build #1650  33047940040 / SUCCESS  (checkpoint 165 production)
 CMP Tests #3767    33048020592 / SUCCESS  (checkpoint 165 handoff HEAD)
 ```
 
-Intermediate ESP32 Build #1642 (`33046801931`) failed on `7936b8f9964294cf0164a8e5287cfbfdc19f8c7d` because the expanded `evaluateOption()` declaration expected 10 arguments while two call sites and the definition still used 8. The corrected checkpoint-162 production commit is `18d611e6ee8bb0355deda5f99874b0b9923d576f`, verified by CMP #3750 + ESP32 #1643.
+## 2026-08-28 — experiment -> production transfer COMPLETED
 
-CMP host audit remains 69 mandatory steps.
+The previous planned transfer was re-checked and then executed as a **non-force fast-forward**.
 
-## Checkpoint 165 — GREEN
-
-The Web handler computes `sourceSetAreaMicrometre2(source)` once and passes the cached `sourceArea` to an area-based `requiredTargetAreaMicrometre2()` overload. Existing bundle/set overloads delegate to the same material-ratio formula. The second source-component area scan is removed while integer rounding, overflow saturation, material conversion, recommendation ranking and JSON values remain unchanged. CMP #3766 and ESP32 #1650 directly verify production; CMP #3767 verifies the handoff HEAD.
-
-## Checkpoint 166 — NO-CHANGE
-
-Final residual audit reviewed remaining bounded runtime candidates. `NetworkWeb::handleSave()` has only isolated repeated `WebServer::arg()` retrievals for optional `id`/`password`. `WarehouseWeb::handleListSpools()` similarly checks the optional diameter String once before delegating to the existing server-based numeric parser. Eliminating these remaining micro-retrievals would require additional local/helper code and likely flash growth for negligible runtime benefit. The previously rejected repair-status request-wide scan remains unsafe without bounded indexing because repair close order is not guaranteed to follow `repair_id`.
-
-MaterialLedger `confirmUsage()` remains intentionally two-pass across the pre-WAL snapshot and mutation-time authoritative reread. Different integrity ledgers and mutation phases remain separate. No tail-only historical integrity replacement, unbounded buffering, automatic data truncation/rotation or premature DB/index migration is justified.
-
-## 2026-08-28 — branch transfer status: NOT YET COMPLETED
-
-Direct GitHub verification before creating the new plan:
+Verified transfer snapshot:
 
 ```text
-cmp-protocol-v1              b0d66d52b0624232279f8ae9cc19af938d3cba47
-arduino-ru-lcd-experiment    9194413b1f91381e45dc71018492da6ec0869ada
-compare                      experiment ahead / behind_by=0
-Arduino RU LCD Build #61     run 33139229254 / SUCCESS / 9194413b...
+cmp-protocol-v1              28c7917a906bc9b15736369e8986d0e0c354ab8c
+arduino-ru-lcd-experiment    28c7917a906bc9b15736369e8986d0e0c354ab8c
+compare                      identical / ahead=0 / behind=0
 ```
 
-The planned transfer from `arduino-ru-lcd-experiment` into `cmp-protocol-v1` was **not actually executed**. Therefore the first action in the next work session must be to re-fetch both current HEADs, confirm `behind_by=0`, then fast-forward `cmp-protocol-v1` to the current experiment HEAD without force. After that, verify both refs and production CI. Do not start the new materials block before this sync checkpoint is complete.
+So all changes that existed in `arduino-ru-lcd-experiment` through `28c7917a906bc9b15736369e8986d0e0c354ab8c`, including the new repair-material plan, are now present in `cmp-protocol-v1`.
+
+Immediately after the fast-forward, production CMP Protocol Tests #3772 / run `33141922657` completed **FAILURE** on the same SHA. Build/test core steps passed, but three contract audits failed:
+
+1. `Audit motor schema UI contracts`;
+2. `Audit motor details and repair history contracts`;
+3. `Audit Hall calibration safety contracts`.
+
+Therefore the transferred production state must **not** be called GREEN yet. These three concrete regressions are the first priority in the next work session. Do not revert the whole transfer blindly; inspect the failing contract scripts and the current branch files to distinguish intentional experiment/UI evolution from real safety/schema regressions.
 
 ## New active software block — repair materials and write-off
 
@@ -102,15 +97,21 @@ The new block covers:
 9. desktop/mobile parity;
 10. duplicate-submit, stale-preview/TOCTOU, insufficient-stock, provenance and recovery tests.
 
-After production sync, continue implementation **only in `arduino-ru-lcd-experiment`** until the next separately approved production transfer.
+## Current execution order
 
-## First next step after sync
-
-Perform a read-only audit of the current MaterialLedger, Warehouse, Repair costing, RUN_WIRE APIs and corresponding desktop/mobile UI. Produce the exact current data-flow map and identify the minimum extension points. Do not create a parallel material ledger or weaken existing provenance/integrity checks.
+1. Continue work only in `arduino-ru-lcd-experiment` from the synchronized production snapshot.
+2. Inspect and resolve the three CMP #3772 contract failures without weakening safety invariants.
+3. Re-run/verify relevant CI; do not declare the synchronized baseline GREEN before confirmed success.
+4. Then perform a read-only audit of MaterialLedger, Warehouse, Repair costing, RUN_WIRE APIs and desktop/mobile UI.
+5. Produce the exact current data-flow map and minimum extension points.
+6. Implement the repair-material plan in small checkpoints with tests and handoff updates.
+7. Do not copy further experiment commits into `cmp-protocol-v1` until a new explicit transfer is agreed.
 
 ## Safety invariants
 
 No automatic physical START/repeat START/resume/writeoff. Arduino owns SSR. ESP32/Web never controls SSR directly. `RUN_COMPLETED` is evidence only. Exact `spool_id` + `source_session_id` + `source_run_id` provenance remains mandatory for wire write-off. Restore remains operator-only and fail-closed.
+
+MaterialLedger `confirmUsage()` remains intentionally two-pass across the pre-WAL snapshot and mutation-time authoritative reread. Different integrity ledgers and mutation phases remain separate. No tail-only historical integrity replacement, unbounded buffering, automatic data truncation/rotation or premature DB/index migration is justified.
 
 ## Hardware acceptance
 

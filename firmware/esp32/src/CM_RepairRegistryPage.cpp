@@ -62,17 +62,29 @@ bool RepairRegistry::appendClientsPageJson(String& json,
     bool first = true;
     while (file.available() && count < limit)
     {
-        const String line = file.readStringUntil('\n');
-        if (line.length() == 0U) continue;
-        if (!FlatJsonObjectValidator::valid(line))
+        const String baseLine = file.readStringUntil('\n');
+        if (baseLine.length() == 0U) continue;
+        uint32_t clientId = 0UL;
+        if (!FlatJsonObjectValidator::valid(baseLine) ||
+            !findUnsigned(baseLine, "client_id", clientId) || clientId == 0UL)
         {
             file.close();
             return false;
         }
 
+        String effectiveLine = baseLine;
+        String revision;
+        bool revisionFound = false;
+        if (!latestClientRevisionLine(clientId, revision, revisionFound))
+        {
+            file.close();
+            return false;
+        }
+        if (revisionFound) effectiveLine = revision;
+
         String normalized;
         if (query.length() > 0U &&
-            (!findString(line, "phone_normalized", normalized) ||
+            (!findString(effectiveLine, "phone_normalized", normalized) ||
              normalized.indexOf(query) < 0))
         {
             continue;
@@ -80,7 +92,7 @@ bool RepairRegistry::appendClientsPageJson(String& json,
 
         if (!first) json += ',';
         first = false;
-        json += line;
+        json += effectiveLine;
         ++count;
     }
 

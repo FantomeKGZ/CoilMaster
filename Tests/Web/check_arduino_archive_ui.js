@@ -70,8 +70,8 @@ for (const needle of [
 requireText(shared, "confirmed:'true'", 'archive assignment owner must keep explicit confirmation');
 
 for (const needle of [
-  'data-exact-session-id',
-  'data-exact-run-id',
+  'dataset.exactSessionId',
+  'dataset.exactRunId',
   'Session / Run:',
   '№${ordinal}',
   'MutationObserver',

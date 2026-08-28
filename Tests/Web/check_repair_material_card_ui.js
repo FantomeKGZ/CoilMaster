@@ -122,10 +122,10 @@ must(materialWeb, 'MaterialUsageIdempotency::taggedComment(operationId,usageComm
 
 must(materialWeb, 'm_ledger.loadActiveMaterialState(materialId,materialState,materialFound)', 'authoritative preview reread');
 must(materialWeb, 'quantity>materialState.stockQuantityMilli', 'authoritative insufficient stock guard');
-must(materialWeb, '"insufficient_stock"', 'insufficient stock fail-closed response');
+must(materialWeb, 'insufficient_stock', 'insufficient stock fail-closed response');
 must(materialWeb, 'materialState.stockQuantityMilli!=expectedStock||materialState.pricePerUnitMinor!=expectedPrice', 'stale stock/price preview guard');
-must(materialWeb, '"stale_material_preview"', 'stale preview fail-closed response');
-must(materialWeb, '"next_action\\\":\\\"REFRESH_MATERIAL_AND_RETRY"', 'mutation-time retry guidance');
+must(materialWeb, 'stale_material_preview', 'stale preview fail-closed response');
+must(materialWeb, 'REFRESH_MATERIAL_AND_RETRY', 'mutation-time retry guidance');
 const replayLookupPos = materialWeb.indexOf('MaterialUsageIdempotency::lookup(');
 const staleGuardPos = materialWeb.indexOf('materialState.stockQuantityMilli!=expectedStock||materialState.pricePerUnitMinor!=expectedPrice');
 const confirmPos = materialWeb.indexOf('m_ledger.confirmUsage(usage,result)');

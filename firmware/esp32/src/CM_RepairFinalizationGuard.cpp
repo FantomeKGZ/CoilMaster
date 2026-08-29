@@ -5,8 +5,11 @@
 
 namespace CM
 {
-RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
-                                                       uint32_t repairId)
+namespace
+{
+RepairFinalizationCheck checkInternal(fs::FS& storage,
+                                      uint32_t repairId,
+                                      bool repairAlreadyKnown)
 {
     if (repairId == 0UL)
         return RepairFinalizationCheck::CostingIntegrityFailed;
@@ -15,11 +18,15 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
     if (!costing.begin() || !costing.ready())
         return RepairFinalizationCheck::CostingStorageUnavailable;
 
-    // RepairCosting::load() uses WarehouseMovementIntegrityAudit::checkRepair(),
-    // which performs the same authoritative transaction/provenance validation
-    // while aggregating this repair's confirmed wire totals in that one pass.
+    // RepairCosting uses WarehouseMovementIntegrityAudit::checkRepair(), which
+    // performs the same authoritative transaction/provenance validation while
+    // aggregating this repair's confirmed wire totals in that one pass. The
+    // known-repair path only skips RepairCosting's duplicate RepairsPath proof.
     RepairCostSummary summary;
-    if (!costing.load(repairId, summary))
+    const bool costingLoaded = repairAlreadyKnown
+                                   ? costing.loadKnownRepair(repairId, summary)
+                                   : costing.load(repairId, summary);
+    if (!costingLoaded)
     {
         return costing.ready()
                    ? RepairFinalizationCheck::CostingIntegrityFailed
@@ -82,5 +89,18 @@ RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
     }
 
     return RepairFinalizationCheck::Ready;
+}
+}
+
+RepairFinalizationCheck RepairFinalizationGuard::check(fs::FS& storage,
+                                                       uint32_t repairId)
+{
+    return checkInternal(storage, repairId, false);
+}
+
+RepairFinalizationCheck RepairFinalizationGuard::checkKnownRepair(fs::FS& storage,
+                                                                  uint32_t repairId)
+{
+    return checkInternal(storage, repairId, true);
 }
 }

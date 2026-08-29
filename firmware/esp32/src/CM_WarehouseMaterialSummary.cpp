@@ -254,7 +254,6 @@ bool WarehouseStore::appendMaterialSummaryJson(String& json,
                     return false;
                 }
                 uint32_t previousSpoolId = 0UL;
-                bool foundSpool = false;
                 while (spools.available())
                 {
                     const String spoolLine = spools.readStringUntil('\n');
@@ -285,15 +284,15 @@ bool WarehouseStore::appendMaterialSummaryJson(String& json,
                         movements.close();
                         return false;
                     }
-                    if (currentId != spoolId) continue;
-                    if (foundSpool)
-                    {
-                        spools.close();
-                        movements.close();
-                        return false;
-                    }
-                    foundSpool = true;
-                    if (spoolHasWireType) wireType = currentWireType;
+
+                    // The primary spool pass above already validated the complete,
+                    // strictly increasing spool snapshot. No write occurs before this
+                    // legacy read-only lookup, so once the requested id is reached (or
+                    // passed) reading the remaining growing file cannot change the result.
+                    if (currentId < spoolId) continue;
+                    if (currentId == spoolId && spoolHasWireType)
+                        wireType = currentWireType;
+                    break;
                 }
                 spools.close();
             }

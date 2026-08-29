@@ -51,6 +51,21 @@ for (const forbidden of [
   }
 }
 
+// Hall local-start UI must describe the key that the actual keypad handler
+// accepts. In WaitingLocalConfirm, A starts the locally confirmed calibration;
+// # is not an OK key there and must never be advertised as one.
+for (const [text, description] of [
+  ['copyPadded(line2, "A=START B=CANCEL");', 'Hall local-confirm prompt does not advertise the accepted A start key'],
+  ["if (key == 'A')", 'Hall keypad start owner no longer uses A'],
+  ['HallCalibrationState::WaitingLocalConfirm', 'Hall local-confirm state guard missing']
+]) {
+  const haystack = text.startsWith('copyPadded') ? source : entrypoint;
+  if (!haystack.includes(text)) failures.push(description + ': ' + text);
+}
+if (source.includes('copyPadded(line2, "#=OK B=CANCEL");')) {
+  failures.push('Hall local-confirm prompt advertises # even though # cancels in the keypad handler');
+}
+
 // The real LCD was detected at 0x27 and passed an isolated library test. Keep
 // I2C/LCD initialization ahead of UART/EEPROM/services so the operator sees a
 // bounded boot stage instead of an uninitialized row of blocks.
@@ -128,4 +143,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino LCD contracts OK: layout/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');
+console.log('Arduino LCD contracts OK: layout/Hall hints/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');

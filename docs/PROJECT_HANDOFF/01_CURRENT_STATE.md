@@ -1,6 +1,6 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-29**  
+Дата обновления: **2026-08-30**  
 Production/source-of-truth: **`cmp-protocol-v1`**  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
 
@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Production behavior подтверждён GREEN through checkpoint **165**. Production checkpoint **166** закрыт как residual audit **NO-CHANGE** и production software optimization остаётся frozen до hardware E2E либо конкретного дефекта.
 
-После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **165**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161, repair-finalization exact-proof reuse 162, Repair Delivery single-pass append preflight 163, spool/material bridge suffix uniqueness audit 164 и residual repeated-scan audit 165 **NO-CHANGE**. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
+После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **166**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161, repair-finalization exact-proof reuse 162, Repair Delivery single-pass append preflight 163, spool/material bridge suffix uniqueness audit 164, residual repeated-scan audit 165 **NO-CHANGE** и reachable Hall RU LCD localization 166. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
 
 ## Production optimization checkpoints
 
@@ -72,9 +72,9 @@ ESP32 Build #1650  33047940040 / SUCCESS
 CMP Tests #3767    33048020592 / SUCCESS
 ```
 
-## Experiment checkpoints 152–165
+## Experiment checkpoints 152–166
 
-Experiment branch includes separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions, canonical autonomous-winding projection and later proof-preserving growing-NDJSON optimizations.
+Experiment branch includes separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions, canonical autonomous-winding projection, later proof-preserving growing-NDJSON optimizations and the isolated Arduino RU LCD/Hall experiment.
 
 Checkpoint **157 — GREEN** removed repeated full `repairs.ndjson` validation from client balance while preserving generic/mutation repair validation. Runtime `bf529900a8211f0b9a920ec237942bae2f7093c5` is verified by CMP #3939, ESP32 #1743 and Arduino RU LCD #167; contract `19bf03003b5e1f3aea6692609e634a79247fb397` is verified by CMP #3941.
 
@@ -253,6 +253,52 @@ Result: checkpoint 165 is **NO-CHANGE**. Speculative repeated-scan optimization 
 
 Detailed closeout: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
 
+### Checkpoint 166 — reachable Hall RU LCD localization — GREEN
+
+The remaining Hall/RU-LCD acceptance defect was that the Russian experiment still bypassed the Russian glyph path for all reachable Hall calibration screens. The three reachable Hall screens are now localized without changing the calibration state machine.
+
+- `ArmedWaitingPhysicalStart` displays `ДАТЧИК ХОЛЛА` and `A ИЛИ START`;
+- `Running` displays `ТЕСТ ХОЛЛА` plus bounded `ОСТ. <n> СЕК` countdown;
+- `WaitingApplyConfirm` displays `СОХР. НАСТР.?` and `#=ДА B=НЕТ`;
+- only four already-existing custom glyphs are loaded for Hall mode (`Д`, `Ч`, `И`, `Л`); no new bitmap table was added;
+- normal screen-specific Russian CGRAM is forcibly restored after Hall exits, preventing slot aliasing/wrong Russian letters;
+- unreachable `WaitingLocalConfirm` LCD state remains removed and contract-forbidden;
+- Hall start remains operator-local (`A` keypad or separate physical START); ESP32/Web does not obtain START/SSR ownership;
+- Hall timing, ADC sampling, UART telemetry, persistence/apply flow and SSR fail-safe behavior are unchanged;
+- standard non-RU fallback build remains supported.
+
+Implementation / contract commits:
+
+```text
+1162bd798b30494b9a04436ea0cd94571e8b6833  Russian reachable Hall LCD implementation
+15f627c6971520f6dec9ed031e79917cce15cf7e  LCD/CGRAM regression contract
+3624e18a4c1a51fe1b914b5aa7fc3ece6245197c  RU Hall experiment contract alignment / verified source HEAD
+```
+
+Intermediate CI diagnostic:
+
+```text
+Arduino RU LCD #205  run 33268835043 / FAILURE
+reason: stale RU Hall source-text contract still expected English `HALL TEST READY`; PlatformIO compile had not yet started
+```
+
+Exact final source-head evidence:
+
+```text
+3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
+CMP Protocol Tests #4028  run 33268897356 / SUCCESS
+Arduino RU LCD #206       run 33268897370 / SUCCESS
+```
+
+Exact Uno build sizes from #206:
+
+```text
+uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); Flash headroom 808 bytes
+uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); Flash headroom 1190 bytes
+```
+
+Because the RU build has only **808 bytes of flash headroom**, future Uno-side additions must be extremely small and concrete. Prefer keeping processing/expanded UI logic on ESP32 when architecture permits; do not add speculative Uno features merely for convenience.
+
 ## Safety / integrity boundaries that remain intentionally unchanged
 
 - No automatic physical START, repeat START or resume.
@@ -268,11 +314,11 @@ Detailed closeout: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
 ## Current NEXT
 
 1. Continue only in `arduino-ru-lcd-experiment`; production remains unchanged.
-2. Treat checkpoints 159–165 as closed unless a concrete regression is observed.
+2. Treat checkpoints 159–166 as closed unless a concrete regression is observed.
 3. Do not continue speculative repeated-scan refactors merely to reduce file opens; checkpoint 165 closed the residual audit as NO-CHANGE.
 4. Keep `MaterialUsageCorrectionIntegrityAudit`, CashPayment mutation rereads and recovery/TOCTOU scans unchanged unless a concrete proof-preserving primitive is introduced.
-5. Next repo-reviewable work should be driven by a concrete defect, measured bottleneck, or remaining experiment/Hall/LCD acceptance work.
-6. Prefer bounded existing APIs; no persistent cache/index/database or whole-file buffering.
+5. Continue only concrete Hall/RU-LCD acceptance defects; with 808 bytes RU flash headroom, avoid broad Uno-side feature growth.
+6. Prefer bounded existing APIs and move processing/expanded presentation to ESP32 where architecture permits; no persistent cache/index/database or whole-file buffering.
 7. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before release completion.
 
 ## Hardware acceptance

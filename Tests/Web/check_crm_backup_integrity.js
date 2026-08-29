@@ -54,7 +54,16 @@ must(source, 'WindingProgramParser::valid', 'winding program validation');
 
 must(deliveryStoreHeader, '/data/workshop/repair-deliveries.ndjson', 'delivery journal path');
 must(deliveryStore, 'FILE_APPEND', 'append-only delivery evidence');
-must(deliveryStore, 'resolveByRepair(delivery.repairId, existing, found)', 'single delivery per repair gate');
+must(deliveryStoreHeader, 'prepareAppend(uint32_t repairId, uint32_t& deliveryId) const', 'single-pass append preparation API');
+must(deliveryStore, 'prepareAppend(delivery.repairId, deliveryId)', 'single delivery per repair and id gate');
+must(deliveryStore, 'candidateRepairId != repairId', 'append-time repair uniqueness scan');
+must(deliveryStore, 'deliveryId = previousId + 1UL', 'append-time next delivery id');
+if (deliveryStore.includes('nextDeliveryId(')) {
+  throw new Error('delivery append must not perform a second full journal scan only to derive the next id');
+}
+if (deliveryStore.includes('resolveByRepair(delivery.repairId, existing, found)')) {
+  throw new Error('delivery append must not perform a separate mutation-time repair lookup before append preparation');
+}
 must(deliveryWeb, '"/api/repairs/delivery"', 'delivery API route');
 must(deliveryWeb, 'explicit_confirmation_required', 'delivery explicit confirmation');
 must(deliveryWeb, 'm_repairs.loadRepairIdentity(repairId, identity, repairFound)', 'server-side authoritative delivery identity');
@@ -140,4 +149,4 @@ if (deliveryWeb.includes('m_payments') || deliveryWeb.includes('CashPaymentStore
   throw new Error('delivery persistence must not require cash balance/payment state');
 }
 
-console.log('CRM backup/integrity + delivery + cash payment contracts OK: delivery reuses authoritative repair identity proof for status-only CLOSED check.');
+console.log('CRM backup/integrity + delivery + cash payment contracts OK: delivery append prepares uniqueness + next id in one authoritative journal pass.');

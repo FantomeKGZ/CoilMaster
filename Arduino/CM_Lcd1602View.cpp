@@ -143,7 +143,8 @@ Lcd1602View::Lcd1602View(LiquidCrystal_I2C& lcd)
       m_initialized(false)
 #if CM_LCD_RU_EN
       , m_russianGlyphScreen(UiScreen::Fault),
-      m_hasRussianGlyphScreen(false)
+      m_hasRussianGlyphScreen(false),
+      m_hasHallRussianGlyphs(false)
 #endif
 {
 }
@@ -155,6 +156,7 @@ void Lcd1602View::begin()
     m_lcd.clear();
 #if CM_LCD_RU_EN
     m_hasRussianGlyphScreen = false;
+    m_hasHallRussianGlyphs = false;
 #endif
     invalidate();
     m_initialized = true;
@@ -175,27 +177,32 @@ void Lcd1602View::render(const UiModel& model)
     const HallCalibrationState calibrationState = HallCalibrationService::displayState();
     if (calibrationState == HallCalibrationState::ArmedWaitingPhysicalStart)
     {
-        copyPadded(line1, "HALL TEST READY");
-        copyPadded(line2, "A OR START");
+        prepareHallRussianGlyphs();
+        copyPadded(line1,
+                   "\x01" "AT" "\x02" "\x03" "K XO" "\x04" "\x04" "A");
+        copyPadded(line2,
+                   "A " "\x03" "\x04" "\x03" " START");
     }
     else if (calibrationState == HallCalibrationState::Running)
     {
-        copyPadded(line1, "HALL TEST RUN");
+        prepareHallRussianGlyphs();
+        copyPadded(line1, "TECT XO" "\x04" "\x04" "A");
         clearLine(line2);
         uint8_t position = 0U;
-        appendFlash(line2, position, F("LEFT "));
+        appendFlash(line2, position, F("OCT. "));
         const uint32_t elapsed = static_cast<uint32_t>(millis() -
             HallCalibrationService::displayStartedAtMs());
         const uint32_t duration = HallCalibrationService::displayRunDurationMs();
         const uint16_t seconds = static_cast<uint16_t>(
             elapsed >= duration ? 0UL : (duration - elapsed + 999UL) / 1000UL);
         appendUnsigned(line2, position, seconds);
-        appendFlash(line2, position, F(" SEC"));
+        appendFlash(line2, position, F(" CEK"));
     }
     else if (calibrationState == HallCalibrationState::WaitingApplyConfirm)
     {
-        copyPadded(line1, "SAVE HALL CFG?");
-        copyPadded(line2, "#=YES B=NO");
+        prepareHallRussianGlyphs();
+        copyPadded(line1, "COXP. HACTP.?");
+        copyPadded(line2, "#=" "\x01" "A B=HET");
     }
     else
     {
@@ -254,7 +261,12 @@ void Lcd1602View::loadRussianGlyph(uint8_t slot, const uint8_t* bitmap)
 
 void Lcd1602View::prepareRussianGlyphs(UiScreen screen)
 {
-    if (m_hasRussianGlyphScreen && m_russianGlyphScreen == screen) return;
+    if (!m_hasHallRussianGlyphs &&
+        m_hasRussianGlyphScreen &&
+        m_russianGlyphScreen == screen)
+    {
+        return;
+    }
 
     const uint8_t screenIndex = static_cast<uint8_t>(screen);
     for (uint8_t index = 0U; index < RuGlyphSlotsPerScreen; ++index)
@@ -266,6 +278,21 @@ void Lcd1602View::prepareRussianGlyphs(UiScreen screen)
 
     m_russianGlyphScreen = screen;
     m_hasRussianGlyphScreen = true;
+    m_hasHallRussianGlyphs = false;
+    invalidate();
+}
+
+void Lcd1602View::prepareHallRussianGlyphs()
+{
+    if (m_hasHallRussianGlyphs) return;
+
+    loadRussianGlyph(1U, RuGlyphs[RuD - 1U]);
+    loadRussianGlyph(2U, RuGlyphs[RuCh - 1U]);
+    loadRussianGlyph(3U, RuGlyphs[RuI - 1U]);
+    loadRussianGlyph(4U, RuGlyphs[RuL - 1U]);
+
+    m_hasHallRussianGlyphs = true;
+    m_hasRussianGlyphScreen = false;
     invalidate();
 }
 #endif

@@ -2,7 +2,6 @@
 
 #include <FS.h>
 
-#include "CM_JobDisplayRecovery.h"
 #include "CM_JobRecovery.h"
 #include "CM_JobSnapshotStore.h"
 #include "CM_JobStateStore.h"
@@ -33,16 +32,10 @@ public:
             return true;
         }
 
-        RecoveredJobDisplay display;
-        if (!JobDisplayRecovery::load(snapshots,
-                                      recovery.state.jobId,
-                                      recovery.state.sessionId,
-                                      display))
-        {
-            return false;
-        }
-
-        if (!display.linkage.linked || display.linkage.repairId != repairId)
+        // evaluate() already loaded and validated the immutable source snapshot
+        // for this exact job/session and retained its linkage. Reuse that proof
+        // instead of reopening the same snapshot only to inspect repair linkage.
+        if (!recovery.linkage.linked || recovery.linkage.repairId != repairId)
         {
             allowed = true;
             return true;

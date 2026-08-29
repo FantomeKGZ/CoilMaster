@@ -211,11 +211,24 @@ void AutonomousWindingWeb::handleAssign()
 
     const String role = m_server.hasArg("role")
         ? m_server.arg("role") : String();
-    if (role != "WORKING" && role != "STARTING" && role != "AUXILIARY")
+    if (role != "WORKING" && role != "STARTING")
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_assignment_role\"}");
         return;
+    }
+
+    bool replaceExisting = false;
+    if (m_server.hasArg("replace_existing"))
+    {
+        const String replaceValue = m_server.arg("replace_existing");
+        if (replaceValue != "true" && replaceValue != "false")
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_replace_existing\"}");
+            return;
+        }
+        replaceExisting = replaceValue == "true";
     }
 
     bool motorFound = false;
@@ -238,6 +251,7 @@ void AutonomousWindingWeb::handleAssign()
                                      runId,
                                      motorId,
                                      role,
+                                     replaceExisting,
                                      assignmentId);
 
     switch (result)
@@ -246,42 +260,47 @@ void AutonomousWindingWeb::handleAssign()
             m_server.send(404, "application/json; charset=utf-8",
                           "{\"error\":\"autonomous_winding_not_found\"}");
             return;
-
+        case AutonomousWindingAssignResult::RoleOccupied:
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"motor_winding_role_occupied\",\"replace_existing_required\":true}");
+            return;
+        case AutonomousWindingAssignResult::StartingRequiresWorking:
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"starting_requires_existing_working_winding\"}");
+            return;
+        case AutonomousWindingAssignResult::ProjectionFailed:
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"motor_winding_projection_failed\"}");
+            return;
         case AutonomousWindingAssignResult::ArchiveIntegrityFailed:
             m_server.send(500, "application/json; charset=utf-8",
                           "{\"error\":\"autonomous_winding_archive_integrity_failed\"}");
             return;
-
         case AutonomousWindingAssignResult::StorageUnavailable:
             m_server.send(503, "application/json; charset=utf-8",
                           "{\"error\":\"autonomous_winding_archive_unavailable\"}");
             return;
-
         case AutonomousWindingAssignResult::Invalid:
             m_server.send(400, "application/json; charset=utf-8",
                           "{\"error\":\"invalid_autonomous_winding_assignment\"}");
             return;
-
         case AutonomousWindingAssignResult::WriteFailed:
             m_server.send(500, "application/json; charset=utf-8",
                           "{\"error\":\"autonomous_winding_assignment_failed\"}");
             return;
-
         case AutonomousWindingAssignResult::Assigned:
             break;
     }
 
     String response = F("{\"assigned\":true,\"assignment_id\":");
     response += assignmentId;
-    response += F(",\"session_id\":");
-    response += sessionId;
-    response += F(",\"run_id\":");
-    response += runId;
-    response += F(",\"motor_id\":");
-    response += motorId;
-    response += F(",\"role\":\"");
-    response += role;
-    response += F("\"}");
+    response += F(",\"session_id\":"); response += sessionId;
+    response += F(",\"run_id\":"); response += runId;
+    response += F(",\"motor_id\":"); response += motorId;
+    response += F(",\"role\":\""); response += role;
+    response += F("\",\"replace_existing\":");
+    response += replaceExisting ? F("true") : F("false");
+    response += '}';
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 
@@ -322,11 +341,24 @@ void AutonomousWindingWeb::handleCompletedWebJobAssign()
     }
 
     const String role = m_server.hasArg("role") ? m_server.arg("role") : String();
-    if (role != "WORKING" && role != "STARTING" && role != "AUXILIARY")
+    if (role != "WORKING" && role != "STARTING")
     {
         m_server.send(400, "application/json; charset=utf-8",
                       "{\"error\":\"invalid_assignment_role\"}");
         return;
+    }
+
+    bool replaceExisting = false;
+    if (m_server.hasArg("replace_existing"))
+    {
+        const String replaceValue = m_server.arg("replace_existing");
+        if (replaceValue != "true" && replaceValue != "false")
+        {
+            m_server.send(400, "application/json; charset=utf-8",
+                          "{\"error\":\"invalid_replace_existing\"}");
+            return;
+        }
+        replaceExisting = replaceValue == "true";
     }
 
     bool motorFound = false;
@@ -349,12 +381,25 @@ void AutonomousWindingWeb::handleCompletedWebJobAssign()
                                                     runId,
                                                     motorId,
                                                     role,
+                                                    replaceExisting,
                                                     assignmentId);
     switch (result)
     {
         case AutonomousWindingAssignResult::TaskNotFound:
             m_server.send(404, "application/json; charset=utf-8",
                           "{\"error\":\"completed_web_job_not_found\"}");
+            return;
+        case AutonomousWindingAssignResult::RoleOccupied:
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"motor_winding_role_occupied\",\"replace_existing_required\":true}");
+            return;
+        case AutonomousWindingAssignResult::StartingRequiresWorking:
+            m_server.send(409, "application/json; charset=utf-8",
+                          "{\"error\":\"starting_requires_existing_working_winding\"}");
+            return;
+        case AutonomousWindingAssignResult::ProjectionFailed:
+            m_server.send(500, "application/json; charset=utf-8",
+                          "{\"error\":\"motor_winding_projection_failed\"}");
             return;
         case AutonomousWindingAssignResult::ArchiveIntegrityFailed:
             m_server.send(500, "application/json; charset=utf-8",
@@ -382,7 +427,9 @@ void AutonomousWindingWeb::handleCompletedWebJobAssign()
     response += F(",\"run_id\":"); response += runId;
     response += F(",\"motor_id\":"); response += motorId;
     response += F(",\"role\":\""); response += role;
-    response += F("\",\"run_evidence_modified\":false}");
+    response += F("\",\"replace_existing\":");
+    response += replaceExisting ? F("true") : F("false");
+    response += F(",\"run_evidence_modified\":false}");
     m_server.send(201, "application/json; charset=utf-8", response);
 }
 
@@ -406,5 +453,4 @@ bool AutonomousWindingWeb::parseCanonicalUint32(const String& text,
     }
     value = parsed;
     return true;
-}
 }

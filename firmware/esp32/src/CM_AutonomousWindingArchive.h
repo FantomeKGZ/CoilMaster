@@ -148,6 +148,12 @@ private:
         const String& program,
         uint16_t repeatTarget,
         bool replaceExisting);
+    AutonomousWindingAssignResult assignCompletedWebJobMotorKnownTaskChecked(
+        uint32_t sessionId,
+        uint32_t runId,
+        uint32_t motorId,
+        const String& role,
+        uint32_t& assignmentId);
     bool loadLastEvent(RemoteWindingEvent& event, bool& found) const;
     bool findEventReplay(const RemoteWindingEvent& event,
                          bool& exactMatch,

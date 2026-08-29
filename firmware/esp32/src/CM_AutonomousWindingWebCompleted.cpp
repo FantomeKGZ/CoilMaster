@@ -13,7 +13,29 @@ constexpr const char* WebStateDirectory = "/data/winding-jobs/state";
 struct WebJobPageItem
 {
     uint32_t sessionId;
-    WebJobPageItem() : sessionId(0UL) {}
+    uint32_t jobId;
+    uint32_t lastRunId;
+    uint32_t updatedUptimeMs;
+    uint16_t completedRuns;
+    JobDeliveryState deliveryState;
+
+    WebJobPageItem()
+        : sessionId(0UL),
+          jobId(0UL),
+          lastRunId(0UL),
+          updatedUptimeMs(0UL),
+          completedRuns(0U),
+          deliveryState(JobDeliveryState::Created) {}
+
+    void capture(const JobRuntimeState& state)
+    {
+        sessionId = state.sessionId;
+        jobId = state.jobId;
+        lastRunId = state.lastRunId;
+        updatedUptimeMs = state.updatedUptimeMs;
+        completedRuns = state.completedRuns;
+        deliveryState = state.deliveryState;
+    }
 };
 
 struct WebJobAssignment
@@ -71,6 +93,8 @@ bool AutonomousWindingArchive::appendCompletedWebJobsPageJson(
 
     // Keep only the lowest limit+1 completed sessions above the cursor. This
     // gives deterministic ascending paging without buffering the whole directory.
+    // The validated state snapshot travels with each bounded item so rendering
+    // does not reopen the same state file after this authoritative directory pass.
     WebJobPageItem selected[MaxTaskPageSize + 1U];
     uint8_t selectedCount = 0U;
     File entry = directory.openNextFile();
@@ -159,14 +183,14 @@ bool AutonomousWindingArchive::appendCompletedWebJobsPageJson(
         {
             for (uint8_t move = selectedCount; move > insertAt; --move)
                 selected[move] = selected[move - 1U];
-            selected[insertAt].sessionId = state.sessionId;
+            selected[insertAt].capture(state);
             ++selectedCount;
         }
         else if (insertAt < capacity)
         {
             for (uint8_t move = capacity - 1U; move > insertAt; --move)
                 selected[move] = selected[move - 1U];
-            selected[insertAt].sessionId = state.sessionId;
+            selected[insertAt].capture(state);
         }
 
         entry = directory.openNextFile();
@@ -239,12 +263,10 @@ bool AutonomousWindingArchive::appendCompletedWebJobsPageJson(
 
     for (uint8_t index = 0U; index < pageCount; ++index)
     {
-        JobRuntimeState state;
+        const WebJobPageItem& state = selected[index];
         JobSnapshot snapshot;
-        const uint32_t sessionId = selected[index].sessionId;
-        if (!JobStateStore::readPersisted(m_storage, sessionId, state) ||
-            !JobSnapshotStore::readPersisted(m_storage, sessionId, snapshot) ||
-            state.executionState != JobExecutionState::ProgramCompleted ||
+        const uint32_t sessionId = state.sessionId;
+        if (!JobSnapshotStore::readPersisted(m_storage, sessionId, snapshot) ||
             state.deliveryState != JobDeliveryState::Accepted ||
             state.jobId != snapshot.jobId || state.sessionId != snapshot.sessionId ||
             state.lastRunId == 0UL || state.completedRuns == 0U ||

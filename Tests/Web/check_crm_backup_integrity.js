@@ -100,7 +100,10 @@ must(cashWeb, '"/api/payments/balance"', 'balance API');
 must(cashWeb, 'exactly_one_balance_filter_required', 'repair/client balance selector');
 must(cashWeb, 'explicit_confirmation_required', 'payment explicit confirmation');
 must(cashWeb, 'm_repairs.loadRepairIdentity', 'server-derived payment client identity');
-must(cashWeb, 'm_costing.load(repairId, pricing)', 'authoritative repair price read');
+must(cashWeb, 'm_costing.loadKnownRepair(repairId, pricing)', 'known-repair price read');
+if (cashWeb.includes('m_costing.load(repairId, pricing)')) {
+  throw new Error('cash payment create must not repeat authoritative repair price validation after exact repair proof');
+}
 must(cashWeb, 'event.currency != pricing.currency', 'payment currency guard');
 must(cashWeb, 'eventBelongsToRepair(event.correctsEventId', 'correction target repair guard');
 must(cashWeb, 'correction_reference_repair_mismatch_or_missing', 'correction mismatch rejection');

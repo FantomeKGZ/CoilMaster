@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <FS.h>
 
+#include "CM_MotorWindingVersionStore.h"
 #include "CM_UartEventReceiver.h"
 
 namespace CM
@@ -22,6 +23,9 @@ enum class AutonomousWindingAssignResult : uint8_t
     Assigned = 0U,
     Invalid,
     TaskNotFound,
+    RoleOccupied,
+    StartingRequiresWorking,
+    ProjectionFailed,
     ArchiveIntegrityFailed,
     StorageUnavailable,
     WriteFailed
@@ -93,6 +97,7 @@ public:
                                                       uint32_t runId,
                                                       uint32_t motorId,
                                                       const String& role,
+                                                      bool replaceExisting,
                                                       uint32_t& assignmentId);
 
     AutonomousWindingAssignResult assignCompletedWebJobMotorChecked(
@@ -100,6 +105,7 @@ public:
         uint32_t runId,
         uint32_t motorId,
         const String& role,
+        bool replaceExisting,
         uint32_t& assignmentId);
 
     static bool validateStorage(fs::FS& storage,
@@ -120,6 +126,14 @@ private:
                      uint32_t motorId,
                      const String& role,
                      uint32_t& assignmentId);
+    AutonomousWindingAssignResult ensureCanonicalProjection(
+        uint32_t sessionId,
+        uint32_t runId,
+        uint32_t motorId,
+        const String& role,
+        const String& program,
+        uint16_t repeatTarget,
+        bool replaceExisting);
     bool loadLastEvent(RemoteWindingEvent& event, bool& found) const;
     bool findEventReplay(const RemoteWindingEvent& event,
                          bool& exactMatch,
@@ -143,6 +157,7 @@ private:
     static const char* windingTypeName(RemoteJobType type);
 
     fs::FS& m_storage;
+    MotorWindingVersionStore m_motorWindingVersions;
     bool m_ready;
 };
 }

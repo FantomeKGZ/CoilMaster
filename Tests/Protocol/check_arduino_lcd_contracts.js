@@ -6,6 +6,8 @@ const sourcePath = 'Arduino/CM_Lcd1602View.cpp';
 const source = fs.readFileSync(path.join(root, sourcePath), 'utf8');
 const entrypointPath = 'firmware/arduino/src/main.cpp';
 const entrypoint = fs.readFileSync(path.join(root, entrypointPath), 'utf8');
+const hallServicePath = 'Arduino/CM_HallCalibrationService.cpp';
+const hallService = fs.readFileSync(path.join(root, hallServicePath), 'utf8');
 const failures = [];
 
 function requireText(text, description) {
@@ -51,19 +53,26 @@ for (const forbidden of [
   }
 }
 
-// Hall local-start UI must describe the key that the actual keypad handler
-// accepts. In WaitingLocalConfirm, A starts the locally confirmed calibration;
-// # is not an OK key there and must never be advertised as one.
-for (const [text, description] of [
-  ['copyPadded(line2, "A=START B=CANCEL");', 'Hall local-confirm prompt does not advertise the accepted A start key'],
-  ["if (key == 'A')", 'Hall keypad start owner no longer uses A'],
-  ['HallCalibrationState::WaitingLocalConfirm', 'Hall local-confirm state guard missing']
+// Hall ARM keeps the legacy protocol reply but deliberately exposes only the
+// reachable operator state: armed and waiting for a physical/local START. The
+// internal WaitingLocalConfirm state is auto-promoted by update(), so carrying a
+// separate LCD branch for it wastes Uno flash and can drift from real controls.
+for (const [text, haystack, description] of [
+  ['copyPadded(line2, "A OR START");', source, 'reachable Hall armed prompt missing'],
+  ['s_displayState = HallCalibrationState::ArmedWaitingPhysicalStart;', hallService, 'Hall ARM no longer exposes the armed display state'],
+  ['if (m_state == HallCalibrationState::WaitingLocalConfirm)', hallService, 'Hall auto-promotion guard missing'],
+  ['(void)confirmLocal(nowMs);', hallService, 'Hall WaitingLocalConfirm is no longer auto-promoted'],
+  ["if (key == 'A')", entrypoint, 'Hall keypad start owner no longer uses A'],
+  ['HallCalibrationState::WaitingLocalConfirm', entrypoint, 'Hall keypad local-confirm state guard missing']
 ]) {
-  const haystack = text.startsWith('copyPadded') ? source : entrypoint;
   if (!haystack.includes(text)) failures.push(description + ': ' + text);
 }
-if (source.includes('copyPadded(line2, "#=OK B=CANCEL");')) {
-  failures.push('Hall local-confirm prompt advertises # even though # cancels in the keypad handler');
+if (source.includes('HallCalibrationState::WaitingLocalConfirm')) {
+  failures.push('unreachable WaitingLocalConfirm LCD branch returned');
+}
+if (source.includes('copyPadded(line2, "#=OK B=CANCEL");') ||
+    source.includes('copyPadded(line2, "A=START B=CANCEL");')) {
+  failures.push('unreachable Hall local-confirm prompt returned');
 }
 
 // The real LCD was detected at 0x27 and passed an isolated library test. Keep
@@ -143,4 +152,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino LCD contracts OK: layout/Hall hints/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');
+console.log('Arduino LCD contracts OK: layout/reachable Hall UI/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');

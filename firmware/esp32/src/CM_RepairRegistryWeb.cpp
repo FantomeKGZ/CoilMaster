@@ -744,7 +744,7 @@ void RepairRegistryWeb::handleRepairFinalization()
     }
 
     const RepairFinalizationCheck finalization =
-        RepairFinalizationGuard::check(SD, repairId);
+        RepairFinalizationGuard::checkKnownRepair(SD, repairId);
     const char* reason = nullptr;
     switch (finalization)
     {
@@ -846,7 +846,7 @@ void RepairRegistryWeb::handleCloseRepair()
     }
 
     const RepairFinalizationCheck finalization =
-        RepairFinalizationGuard::check(SD, repairId);
+        RepairFinalizationGuard::checkKnownRepair(SD, repairId);
     if (finalization == RepairFinalizationCheck::CostingStorageUnavailable)
     {
         m_server.send(503, "application/json; charset=utf-8",

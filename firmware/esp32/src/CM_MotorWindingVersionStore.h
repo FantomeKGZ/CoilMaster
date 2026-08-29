@@ -45,6 +45,9 @@ struct NewMotorWindingVersion
     uint32_t motorId;
     uint32_t previousVersionId;
     uint32_t sourceRepairId;
+    uint32_t sourceAutonomousSessionId;
+    uint32_t sourceAutonomousRunId;
+    String sourceAutonomousRole;
     String versionKind;
     String createdAt;
     String comment;
@@ -52,7 +55,8 @@ struct NewMotorWindingVersion
     MotorWindingRoleSpec starting;
 
     NewMotorWindingVersion()
-        : motorId(0UL), previousVersionId(0UL), sourceRepairId(0UL)
+        : motorId(0UL), previousVersionId(0UL), sourceRepairId(0UL),
+          sourceAutonomousSessionId(0UL), sourceAutonomousRunId(0UL)
     {
     }
 };
@@ -68,6 +72,16 @@ public:
     bool begin();
     bool ready() const;
     bool append(const NewMotorWindingVersion& version, uint32_t& versionId);
+    bool loadLatestByMotor(uint32_t motorId,
+                           NewMotorWindingVersion& version,
+                           uint32_t& versionId,
+                           bool& found) const;
+    bool findAutonomousProjection(uint32_t sessionId,
+                                  uint32_t runId,
+                                  const String& role,
+                                  uint32_t& motorId,
+                                  uint32_t& versionId,
+                                  bool& found) const;
     bool appendLatestByMotorJson(String& json, uint32_t motorId, bool& found) const;
     bool appendByVersionIdJson(String& json,
                                uint32_t versionId,
@@ -90,6 +104,24 @@ private:
     static bool validRole(const MotorWindingRoleSpec& role);
     static bool validMaterialClass(const String& value);
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
+    static bool findOptionalUnsigned(const String& line,
+                                     const char* key,
+                                     uint32_t& value,
+                                     bool& present);
+    static bool findString(const String& line,
+                           const char* key,
+                           String& value,
+                           bool required);
+    static bool findBool(const String& line, const char* key, bool& value);
+    static bool parseConductors(const String& canonical,
+                                MotorWindingRoleSpec& role);
+    static bool parseRole(const String& line,
+                          const char* prefix,
+                          bool present,
+                          MotorWindingRoleSpec& role);
+    static bool parseVersion(const String& line,
+                             NewMotorWindingVersion& version,
+                             uint32_t& versionId);
     static String jsonEscape(const String& value);
 
     fs::FS& m_storage;

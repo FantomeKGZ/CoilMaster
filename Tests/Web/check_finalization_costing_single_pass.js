@@ -3,17 +3,25 @@ const path = require('path');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const guardPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairFinalizationGuard.cpp');
+const guardHeaderPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairFinalizationGuard.h');
 const costingPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairCosting.cpp');
 const movementPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_WarehouseMovementIntegrityAudit.cpp');
+const repairWebPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairRegistryWeb.cpp');
 
 const guard = fs.readFileSync(guardPath, 'utf8');
+const guardHeader = fs.readFileSync(guardHeaderPath, 'utf8');
 const costing = fs.readFileSync(costingPath, 'utf8');
 const movement = fs.readFileSync(movementPath, 'utf8');
+const repairWeb = fs.readFileSync(repairWebPath, 'utf8');
 
 function requireText(source, text, description) {
   if (!source.includes(text)) {
     throw new Error(`Missing ${description}: ${text}`);
   }
+}
+
+function countText(source, text) {
+  return source.split(text).length - 1;
 }
 
 if (guard.includes('WarehouseMovementIntegrityAudit::check(storage)')) {
@@ -29,8 +37,54 @@ requireText(
   'finalization costing service');
 requireText(
   guard,
-  'if (!costing.load(repairId, summary))',
-  'authoritative costing load');
+  '? costing.loadKnownRepair(repairId, summary)',
+  'known-repair costing path');
+requireText(
+  guard,
+  ': costing.load(repairId, summary);',
+  'generic authoritative costing path');
+requireText(
+  guardHeader,
+  'static RepairFinalizationCheck checkKnownRepair(fs::FS& storage, uint32_t repairId);',
+  'explicit known-repair finalization API');
+requireText(
+  guard,
+  'return checkInternal(storage, repairId, false);',
+  'generic finalization proof mode');
+requireText(
+  guard,
+  'return checkInternal(storage, repairId, true);',
+  'known-repair finalization proof mode');
+
+const finalizationHandlerStart = repairWeb.indexOf('void RepairRegistryWeb::handleRepairFinalization()');
+const closeHandlerStart = repairWeb.indexOf('void RepairRegistryWeb::handleCloseRepair()');
+const parseUnsignedStart = repairWeb.indexOf('bool RepairRegistryWeb::parseUnsigned', closeHandlerStart);
+if (finalizationHandlerStart < 0 || closeHandlerStart < 0 || parseUnsignedStart < 0) {
+  throw new Error('Repair finalization/close handler boundaries are missing');
+}
+const finalizationHandler = repairWeb.slice(finalizationHandlerStart, closeHandlerStart);
+const closeHandler = repairWeb.slice(closeHandlerStart, parseUnsignedStart);
+for (const [name, handler] of [
+  ['finalization', finalizationHandler],
+  ['close', closeHandler]
+]) {
+  const proofIndex = handler.indexOf('m_registry.repairIsOpen(repairId, repairOpen)');
+  const knownGuardIndex = handler.indexOf('RepairFinalizationGuard::checkKnownRepair(SD, repairId)');
+  if (proofIndex < 0 || knownGuardIndex < 0 || proofIndex >= knownGuardIndex) {
+    throw new Error(`${name} handler must prove exact repair/open state before using checkKnownRepair`);
+  }
+  if (handler.includes('RepairFinalizationGuard::check(SD, repairId)')) {
+    throw new Error(`${name} handler must not repeat the repair journal through generic finalization check`);
+  }
+}
+if (countText(repairWeb, 'RepairFinalizationGuard::checkKnownRepair(SD, repairId)') !== 2) {
+  throw new Error('Exactly the two repair Web finalization paths must use checkKnownRepair');
+}
+requireText(
+  closeHandler,
+  'm_registry.closeRepair(repairId, m_server.arg("closed_at"), alreadyClosed)',
+  'mutation-time authoritative close reread');
+
 requireText(
   costing,
   'WarehouseMovementIntegrityAudit::checkRepair(m_storage, repairId, wireTotals)',
@@ -75,4 +129,4 @@ for (const text of [
   requireText(costing, text, `RUN_WIRE costing dedup/fail-closed guard ${text}`);
 }
 
-console.log('Finalization costing single-pass contracts OK: authoritative movement transaction/provenance validation and repair aggregation share the costing pass; provenance batches validate pairs once and scan only the later journal suffix; atomic RUN_WIRE ledger usage is not double-counted and in-flight RUN_WIRE costing fails closed.');
+console.log('Finalization costing single-pass contracts OK: Web finalization reuses its authoritative repair/open proof without weakening generic callers or mutation-time close rereads; warehouse provenance and RUN_WIRE costing integrity remain enforced.');

@@ -40,13 +40,18 @@ public:
     bool begin();
     bool ready() const;
     bool append(const NewRepairDelivery& delivery, uint32_t& deliveryId);
+    bool append(const NewRepairDelivery& delivery,
+                uint32_t& deliveryId,
+                bool& alreadyExists);
     bool resolveByRepair(uint32_t repairId,
                          RepairDeliveryState& state,
                          bool& found) const;
 
 private:
     bool ensureDirectory();
-    bool prepareAppend(uint32_t repairId, uint32_t& deliveryId) const;
+    bool prepareAppend(uint32_t repairId,
+                       uint32_t& deliveryId,
+                       bool& alreadyExists) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);
     static String jsonEscape(const String& value);

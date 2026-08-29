@@ -3,6 +3,7 @@ const fs = require('fs');
 const backup = fs.readFileSync('firmware/esp32/src/CM_BackupExportWeb.cpp', 'utf8');
 const header = fs.readFileSync('firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.h', 'utf8');
 const source = fs.readFileSync('firmware/esp32/src/CM_CrmPersistenceIntegrityAudit.cpp', 'utf8');
+const repairRegistryHeader = fs.readFileSync('firmware/esp32/src/CM_RepairRegistry.h', 'utf8');
 const deliveryStoreHeader = fs.readFileSync('firmware/esp32/src/CM_RepairDeliveryStore.h', 'utf8');
 const deliveryStore = fs.readFileSync('firmware/esp32/src/CM_RepairDeliveryStore.cpp', 'utf8');
 const deliveryWeb = fs.readFileSync('firmware/esp32/src/CM_RepairDeliveryWeb.cpp', 'utf8');
@@ -56,8 +57,17 @@ must(deliveryStore, 'FILE_APPEND', 'append-only delivery evidence');
 must(deliveryStore, 'resolveByRepair(delivery.repairId, existing, found)', 'single delivery per repair gate');
 must(deliveryWeb, '"/api/repairs/delivery"', 'delivery API route');
 must(deliveryWeb, 'explicit_confirmation_required', 'delivery explicit confirmation');
-must(deliveryWeb, 'm_repairs.loadRepairIdentity', 'server-side delivery identity');
-must(deliveryWeb, 'm_repairs.repairIsOpen', 'delivery repair lifecycle lookup');
+must(deliveryWeb, 'm_repairs.loadRepairIdentity(repairId, identity, repairFound)', 'server-side authoritative delivery identity');
+must(repairRegistryHeader, 'bool repairStatusIsOpen(uint32_t repairId, bool& open) const', 'known-repair status-only API');
+must(deliveryWeb, 'm_repairs.repairStatusIsOpen(repairId, repairOpen)', 'delivery status-only lifecycle lookup');
+if (deliveryWeb.includes('m_repairs.repairIsOpen(repairId, repairOpen)')) {
+  throw new Error('delivery create must not rescan repairs.ndjson after loadRepairIdentity exact proof');
+}
+const identityProof = deliveryWeb.indexOf('m_repairs.loadRepairIdentity(repairId, identity, repairFound)');
+const statusProof = deliveryWeb.indexOf('m_repairs.repairStatusIsOpen(repairId, repairOpen)');
+if (identityProof < 0 || statusProof < 0 || identityProof >= statusProof) {
+  throw new Error('delivery status-only lookup must occur only after authoritative repair identity proof');
+}
 must(deliveryWeb, 'repair_must_be_closed_before_delivery', 'CLOSED repair delivery gate');
 must(deliveryWeb, 'balance_gate_applied\\\":false', 'delivery allowed independently of balance');
 must(repairWeb, 'static RepairDeliveryStore deliveryStore(SD);', 'delivery store production bootstrap');
@@ -127,4 +137,4 @@ if (deliveryWeb.includes('m_payments') || deliveryWeb.includes('CashPaymentStore
   throw new Error('delivery persistence must not require cash balance/payment state');
 }
 
-console.log('CRM backup/integrity + delivery + cash payment contracts OK');
+console.log('CRM backup/integrity + delivery + cash payment contracts OK: delivery reuses authoritative repair identity proof for status-only CLOSED check.');

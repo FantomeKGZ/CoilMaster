@@ -3,6 +3,7 @@
 const fs = require('fs');
 
 const archiveHeader = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingArchive.h', 'utf8');
+const assignmentAppend = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingArchiveAssign.cpp', 'utf8');
 const projection = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingProjection.cpp', 'utf8');
 const web = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingWeb.cpp', 'utf8');
 
@@ -27,6 +28,17 @@ requireText(projection, 'sourceAutonomousRunId = runId', 'source run provenance'
 requireText(projection, 'sourceAutonomousRole = role', 'source role provenance');
 requireText(projection, 'ensureCanonicalProjection(', 'canonical-first projection helper');
 requireText(projection, 'if (assignmentId != 0UL) return AutonomousWindingAssignResult::Assigned;', 'assignment-only historical backfill retry');
+
+requireText(assignmentAppend, 'completedTaskExists(sessionId, runId, taskFound)', 'mutation-time completed task reread');
+requireText(assignmentAppend, 'm_storage.open(AssignmentsPath, FILE_READ)', 'mutation-time assignment journal scan');
+requireText(assignmentAppend, 'current.assignmentId <= highestId', 'strict assignment id ordering');
+requireText(assignmentAppend, 'current.sessionId == sessionId && current.runId == runId', 'mutation-time exact retry lookup');
+requireText(assignmentAppend, 'current.motorId != motorId || current.role != role', 'mutation-time assignment conflict guard');
+requireText(assignmentAppend, 'if (exactFound)', 'idempotent assignment retry');
+requireText(assignmentAppend, 'assignmentId = highestId + 1UL;', 'next id from same authoritative scan');
+if (assignmentAppend.includes('nextAssignmentId(assignmentId)')) {
+  throw new Error('checked assignment append must not rescan only for next id');
+}
 
 requireText(web, 'role != "WORKING" && role != "STARTING"', 'canonical role allowlist');
 if (web.includes('role != "WORKING" && role != "STARTING" && role != "AUXILIARY"')) {

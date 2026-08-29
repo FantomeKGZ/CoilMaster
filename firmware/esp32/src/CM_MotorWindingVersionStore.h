@@ -82,6 +82,16 @@ public:
                                   uint32_t& motorId,
                                   uint32_t& versionId,
                                   bool& found) const;
+    bool analyzeAutonomousProjection(uint32_t sessionId,
+                                     uint32_t runId,
+                                     const String& role,
+                                     uint32_t targetMotorId,
+                                     uint32_t& projectedMotorId,
+                                     uint32_t& projectedVersionId,
+                                     bool& projectionFound,
+                                     NewMotorWindingVersion& latest,
+                                     uint32_t& latestVersionId,
+                                     bool& latestFound) const;
     bool appendLatestByMotorJson(String& json, uint32_t motorId, bool& found) const;
     bool appendByVersionIdJson(String& json,
                                uint32_t versionId,

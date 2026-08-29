@@ -46,7 +46,7 @@ public:
 
 private:
     bool ensureDirectory();
-    bool nextDeliveryId(uint32_t& deliveryId) const;
+    bool prepareAppend(uint32_t repairId, uint32_t& deliveryId) const;
     static bool findUnsigned(const String& line, const char* key, uint32_t& value);
     static bool findString(const String& line, const char* key, String& value);
     static String jsonEscape(const String& value);

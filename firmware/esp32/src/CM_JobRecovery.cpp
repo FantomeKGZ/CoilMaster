@@ -5,6 +5,7 @@ namespace CM
 JobRecoveryInfo::JobRecoveryInfo()
     : disposition(JobRecoveryDisposition::None),
       state(),
+      linkage(),
       mayCreateNewJob(true),
       mayAutoQueue(false),
       mayAutoResume(false)
@@ -24,14 +25,19 @@ bool JobRecovery::evaluate(const JobStateStore& stateStore,
 
     // Runtime state is never trusted by itself. Recovery requires the immutable
     // source snapshot to exist, parse correctly and match the same identifiers.
+    // Retain its already-validated linkage so read-only closure checks do not
+    // reopen the same immutable snapshot immediately after this proof.
+    JobSnapshot snapshot;
     if (!snapshotStore.isReady() ||
-        !snapshotStore.validateIdentity(latest.jobId, latest.sessionId))
+        !snapshotStore.load(latest.sessionId, snapshot) ||
+        snapshot.jobId != latest.jobId || snapshot.sessionId != latest.sessionId)
     {
         recovery.mayCreateNewJob = false;
         return false;
     }
 
     recovery.state = latest;
+    recovery.linkage = snapshot.linkage;
     recovery.mayAutoQueue = false;
     recovery.mayAutoResume = false;
 

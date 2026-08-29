@@ -78,13 +78,7 @@ bool RepairDeliveryStore::append(const NewRepairDelivery& delivery,
         return false;
     }
 
-    RepairDeliveryState existing;
-    bool found = false;
-    if (!resolveByRepair(delivery.repairId, existing, found) || found ||
-        !nextDeliveryId(deliveryId))
-    {
-        return false;
-    }
+    if (!prepareAppend(delivery.repairId, deliveryId)) return false;
 
     File file = m_storage.open(Path, FILE_APPEND);
     if (!file)
@@ -180,33 +174,60 @@ bool RepairDeliveryStore::ensureDirectory()
     return true;
 }
 
-bool RepairDeliveryStore::nextDeliveryId(uint32_t& deliveryId) const
+bool RepairDeliveryStore::prepareAppend(uint32_t repairId,
+                                        uint32_t& deliveryId) const
 {
     deliveryId = 1UL;
     if (!m_storage.exists(Path)) return true;
+
     File file = m_storage.open(Path, FILE_READ);
     if (!prepareNdjson(file))
     {
         if (file) file.close();
         return false;
     }
+
     uint32_t previousId = 0UL;
+    bool found = false;
     while (file.available())
     {
         const String line = file.readStringUntil('\n');
         if (line.length() == 0U) continue;
+
         uint32_t currentId = 0UL;
+        uint32_t candidateRepairId = 0UL;
         if (!FlatJsonObjectValidator::valid(line) ||
             !findUnsigned(line, "delivery_id", currentId) || currentId == 0UL ||
-            currentId <= previousId)
+            currentId <= previousId ||
+            !findUnsigned(line, "repair_id", candidateRepairId) || candidateRepairId == 0UL)
         {
             file.close();
             return false;
         }
         previousId = currentId;
+
+        if (candidateRepairId != repairId) continue;
+
+        uint32_t clientId = 0UL;
+        uint32_t motorId = 0UL;
+        String deliveredAt;
+        String comment;
+        if (found ||
+            !findUnsigned(line, "client_id", clientId) || clientId == 0UL ||
+            !findUnsigned(line, "motor_id", motorId) || motorId == 0UL ||
+            !findString(line, "delivered_at", deliveredAt) ||
+            deliveredAt.length() < 10U || deliveredAt.length() > 32U ||
+            (line.indexOf(F("\"comment\":")) >= 0 &&
+             !findString(line, "comment", comment)))
+        {
+            file.close();
+            return false;
+        }
+        found = true;
     }
     file.close();
-    if (previousId == 0xFFFFFFFFUL) return false;
+
+    if (found || previousId == 0xFFFFFFFFUL) return false;
     deliveryId = previousId + 1UL;
     return true;
 }

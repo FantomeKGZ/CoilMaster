@@ -43,11 +43,12 @@ for (const token of [
   '*nextBridgeId = previousId + 1UL;',
   'constexpr uint8_t BridgeAuditBatchSize = 24U;',
   'uint32_t batchSpoolIds[BridgeAuditBatchSize]',
-  'uint8_t matches[BridgeAuditBatchSize]',
-  'if (batchCount == 0U) return true;',
-  'batchCount >= BridgeAuditBatchSize',
-  'if (batchCount < BridgeAuditBatchSize) return true;'
+  'File outer = m_storage.open(Path, FILE_READ);',
+  'const size_t suffixOffset = outer.position();',
+  '!suffix.seek(static_cast<uint32_t>(suffixOffset))',
+  'uint32_t suffixPreviousId = previousId;'
 ]) must(source, token, 'bridge store');
+mustNot(source, 'uint32_t batchAfterBridgeId = 0UL;', 'bridge audit must not restart each batch from journal start');
 
 mustNot(source, 'bool SpoolMaterialBridgeStore::nextBridgeId(', 'retired second bridge append scan');
 const appendStart = source.indexOf('bool SpoolMaterialBridgeStore::append(');
@@ -73,6 +74,16 @@ if (appendStart < 0 || loadStart < 0 || analyzeStart < 0 || validateStart < 0) {
   if (optionalNext < 0 || overflowGuard < optionalNext || assignNext < overflowGuard) {
     failures.push('bridge store: id overflow must fail only when append requests nextBridgeId');
   }
+
+  const validateBody = source.slice(validateStart);
+  must(validateBody, 'while (outer.available() && batchCount < BridgeAuditBatchSize)',
+    'bounded outer bridge batches');
+  must(validateBody, 'const size_t suffixOffset = outer.position();',
+    'suffix begins after already-proven batch');
+  must(validateBody, '!suffix.seek(static_cast<uint32_t>(suffixOffset))',
+    'suffix scan seeks past proven prefix');
+  must(validateBody, 'batchSpoolIds[i] == current.spoolId',
+    'suffix duplicate spool rejection');
 }
 
 mustNot(source, 'RUN_COMPLETED', 'bridge store must not react to run completion');
@@ -171,4 +182,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Spool material bridge foundation contracts OK: append duplicate-spool detection and next bridge id share one validated pass; read-only lookup remains independent of id exhaustion; deterministic recovery and atomic RUN_WIRE safety remain authoritative.');
+console.log('Spool material bridge foundation contracts OK: append duplicate-spool detection and next bridge id share one validated pass; bridge integrity compares each bounded batch only with its suffix; deterministic recovery and atomic RUN_WIRE safety remain authoritative.');

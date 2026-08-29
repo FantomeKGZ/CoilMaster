@@ -321,7 +321,7 @@ AutonomousWindingArchive::assignCompletedWebJobMotorChecked(
     if (projected != AutonomousWindingAssignResult::Assigned) return projected;
 
     if (assignmentId != 0UL) return AutonomousWindingAssignResult::Assigned;
-    return assignCompletedWebJobMotorChecked(sessionId, runId, motorId, role,
-                                             assignmentId);
+    return assignCompletedWebJobMotorKnownTaskChecked(sessionId, runId, motorId, role,
+                                                       assignmentId);
 }
 }

@@ -18,6 +18,7 @@ struct JobRecoveryInfo
 {
     JobRecoveryDisposition disposition;
     JobRuntimeState state;
+    JobLinkage linkage;
     bool mayCreateNewJob;
     bool mayAutoQueue;
     bool mayAutoResume;

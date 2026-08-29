@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Production behavior подтверждён GREEN through checkpoint **165**. Production checkpoint **166** закрыт как residual audit **NO-CHANGE** и production software optimization остаётся frozen до hardware E2E либо конкретного дефекта.
 
-После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side repeated-scan/performance work подтверждён through checkpoint **158**. Experiment checkpoint **159** закрывает отдельный функциональный дефект autonomous winding → canonical motor winding history. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
+После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **162**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161 и repair-finalization exact-proof reuse 162. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
 
 ## Production optimization checkpoints
 
@@ -72,9 +72,9 @@ ESP32 Build #1650  33047940040 / SUCCESS
 CMP Tests #3767    33048020592 / SUCCESS
 ```
 
-## Experiment checkpoints 152–159
+## Experiment checkpoints 152–162
 
-Experiment branch includes the separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions through checkpoint 158, and checkpoint 159 canonical autonomous-winding projection documented in `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Experiment branch includes separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions, canonical autonomous-winding projection and later proof-preserving growing-NDJSON optimizations.
 
 Checkpoint **157 — GREEN** removed repeated full `repairs.ndjson` validation from client balance while preserving generic/mutation repair validation. Runtime `bf529900a8211f0b9a920ec237942bae2f7093c5` is verified by CMP #3939, ESP32 #1743 and Arduino RU LCD #167; contract `19bf03003b5e1f3aea6692609e634a79247fb397` is verified by CMP #3941.
 
@@ -149,7 +149,52 @@ ESP32 Build #1751        / SUCCESS
 CMP Protocol Tests #3959 run 33254003888 / SUCCESS
 ```
 
-The post-`9e7b1390...` commits modify Web JS/tests only; no C++ firmware source changed after the ESP32 #1751 compile checkpoint.
+### Checkpoints 160–161 — Warehouse growing-journal read reductions — GREEN
+
+Checkpoint 160 closed the legacy exact spool/material lookup duplicate scan while preserving authoritative spool validation and bounded material lookup.
+
+Checkpoint 161 changed `WarehouseMovementIntegrityAudit::confirmedProvenanceUnique()` so each unordered CONFIRMED provenance pair is checked exactly once: conflicts inside the fixed 32-entry batch are checked in RAM, while the secondary file pass starts at `outer.position()` and scans only later records. Full transaction/schema/order validation, conflict semantics and fixed RAM bounds are unchanged.
+
+Runtime and regression evidence for checkpoint 161:
+
+```text
+dc9415c531d8c9685bc6202941df042ec299af0c
+CMP Protocol Tests #3965  run 33257271690 / SUCCESS
+ESP32 Build #1754         run 33257271722 / SUCCESS
+Arduino RU LCD #178       run 33257271706 / SUCCESS
+
+875c6a069b3680569dc35576d82861d737444144
+CMP Protocol Tests #3966  run 33257294547 / SUCCESS
+```
+
+Detailed checkpoint: `10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md`.
+
+### Checkpoint 162 — repair finalization known-repair proof reuse — GREEN
+
+Both `RepairRegistryWeb` finalization flows already perform authoritative `m_registry.repairIsOpen(repairId, repairOpen)`. They now pass that exact repair/open-state proof through explicit `RepairFinalizationGuard::checkKnownRepair()` so `RepairCosting::loadKnownRepair()` does not immediately rescan `repairs.ndjson`.
+
+The generic `RepairFinalizationGuard::check()` remains self-validating and still uses generic `RepairCosting::load()`. All costing, Warehouse movement/provenance, material correction, winding transition and wire-writeoff coverage audits remain. `handleCloseRepair()` still executes mutation-time `m_registry.closeRepair(...)`, preserving the TOCTOU boundary.
+
+Commits:
+
+```text
+6c3e967a5ca555f84bd5965e92ada22f8bc67bdd  known guard API
+cda4c10c1019681698facd64e1f0f1151c2adfff  generic/known internal routing
+6e104dfebc50464c8b6fc8bb39b17a7fe4a41d42  two Web callers reuse proof
+f61f7e17b227fd52e1e00a96c1f945ea1ac6749f  regression contract
+```
+
+Verified runtime/contract evidence:
+
+```text
+ESP32 Build #1757         run 33257746469 / SUCCESS
+Arduino RU LCD #181       run 33257746498 / SUCCESS
+CMP Protocol Tests #3971  run 33257805004 / SUCCESS
+```
+
+`CMP #3970` on `6e104df...` failed only because the old source-text contract still required the pre-refactor literal `if (!costing.load(repairId, summary))`; CMake/build/CTest 4/4 and all other contract steps passed. Commit `f61f7e1...` corrected that assertion and #3971 is SUCCESS.
+
+Detailed checkpoint: `11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md`.
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -159,18 +204,20 @@ The post-`9e7b1390...` commits modify Web JS/tests only; no C++ firmware source 
 - Wire write-off remains explicit/manual and tied to exact `spool_id`, `source_session_id`, `source_run_id`.
 - MaterialLedger `confirmUsage()` keeps separate pre-WAL and mutation-time authoritative reads.
 - Different ledgers / different mutation phases keep separate validation passes when they are integrity boundaries.
-- No tail-only substitute for authoritative historical integrity scans.
+- No tail-only substitute for authoritative historical integrity scans unless the earlier prefix was already authoritatively validated in the same proof and the later suffix still covers every unseen pair.
 - No unbounded vectors or whole-file buffering for growing NDJSON.
 - No automatic production-data rotation/deletion/truncation and no premature DB/index migration.
 
 ## Current NEXT
 
 1. Continue only in `arduino-ru-lcd-experiment`; production remains unchanged.
-2. Treat checkpoint 159 autonomous → canonical motor-card projection as closed unless a new concrete regression is observed.
-3. Resume repo-reviewable repeated-scan/performance audit only where the same request repeats an authoritative growing-journal pass and the proof can be preserved.
-4. Inspect remaining exact-proof → generic-load/read patterns outside RepairCostingWeb before considering any larger batch costing refactor.
-5. Keep global correction-integrity reuse and CashPayment correction fusion as NO-CHANGE unless a simpler proof-preserving primitive appears.
-6. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before final release completion.
+2. Treat checkpoints 159–162 as closed unless a concrete regression is observed.
+3. Continue repo-reviewable repeated-scan/performance audit only where the same operation repeats a growing-journal pass and existing proof can be reused without weakening generic callers.
+4. Keep `MaterialUsageCorrectionIntegrityAudit` batch rereads **NO-CHANGE**: each batch must see earlier corrections for cumulative over-correction.
+5. Keep CashPayment correction fusion **NO-CHANGE** unless a simpler existing proof-preserving primitive appears.
+6. Never remove mutation/recovery/TOCTOU rereads solely for performance.
+7. Prefer bounded existing APIs; no persistent cache/index/database or whole-file buffering.
+8. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before release completion.
 
 ## Hardware acceptance
 

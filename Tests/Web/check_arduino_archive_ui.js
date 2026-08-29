@@ -66,6 +66,19 @@ for (const needle of ['m_server.on("/api/autonomous-windings/web-completed", HTT
 for (const needle of ['JobExecutionState::ProgramCompleted','JobDeliveryState::Accepted','state.completedRuns != snapshot.repeatTarget','JobStateStore::readPersisted','JobSnapshotStore::readPersisted','WebJobPageItem selected[MaxTaskPageSize + 1U]','snapshot.linkage.linked','source\\\":\\\"ESP32_JOB','exactAssignmentFound','exactMotorId == motorId && exactRole == role','return AutonomousWindingAssignResult::Invalid','if (assignmentFound[index])']) requireText(completedProjection, needle, 'completed web job projection/linkage');
 if (completedProjection.includes('std::vector') || completedProjection.includes('readString()')) throw new Error('completed web job projection must not introduce unbounded collection or whole-directory buffering');
 if (completedProjection.includes('EventsPath') || completedProjection.includes('WindingJournal')) throw new Error('completed web job projection must not copy or rewrite physical RUN evidence');
+
+const pageStart = completedProjection.indexOf('bool AutonomousWindingArchive::appendCompletedWebJobsPageJson(');
+const assignmentStart = completedProjection.indexOf('AutonomousWindingArchive::assignCompletedWebJobMotorChecked(', pageStart);
+if (pageStart < 0 || assignmentStart <= pageStart) throw new Error('completed web job projection: cannot isolate read-only page function');
+const completedPage = completedProjection.slice(pageStart, assignmentStart);
+const pageStateReads = completedPage.match(/JobStateStore::readPersisted\(/g) || [];
+if (pageStateReads.length !== 1) throw new Error(`completed web job projection: page must contain exactly one runtime-state read call site, found ${pageStateReads.length}`);
+for (const needle of ['selected[insertAt].capture(state);','const WebJobPageItem& state = selected[index];','JobSnapshotStore::readPersisted(m_storage, sessionId, snapshot)','state.deliveryState != JobDeliveryState::Accepted','state.completedRuns != snapshot.repeatTarget']) requireText(completedPage, needle, 'completed web job bounded state reuse');
+requireText(completedProjection, 'void capture(const JobRuntimeState& state)', 'completed web job bounded state capture');
+for (const field of ['jobId','lastRunId','updatedUptimeMs','completedRuns','deliveryState']) requireText(completedProjection, `${field} = state.${field};`, `completed web job state capture ${field}`);
+const assignmentMutation = completedProjection.slice(assignmentStart);
+requireText(assignmentMutation, 'JobStateStore::readPersisted(m_storage, sessionId, state)', 'assignment mutation must keep TOCTOU-boundary state reread');
+
 requireText(stateRead, '/data/winding-jobs/state/session-', 'read-only job state path');
 requireText(snapshotRead, '/data/winding-jobs/snapshots/session-', 'read-only job snapshot path');
 
@@ -81,4 +94,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; canonical roles are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs remain read-only projections without copied RUN evidence, and exact Session/Run provenance is preserved.');
+console.log('Arduino archive UI contracts OK; canonical roles are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');

@@ -359,6 +359,25 @@ AutonomousWindingArchive::assignCompletedWebJobMotorChecked(
     if (snapshot.linkage.linked)
         return AutonomousWindingAssignResult::Invalid;
 
+    return assignCompletedWebJobMotorKnownTaskChecked(sessionId, runId, motorId,
+                                                       role, assignmentId);
+}
+
+AutonomousWindingAssignResult
+AutonomousWindingArchive::assignCompletedWebJobMotorKnownTaskChecked(
+    uint32_t sessionId,
+    uint32_t runId,
+    uint32_t motorId,
+    const String& role,
+    uint32_t& assignmentId)
+{
+    assignmentId = 0UL;
+    if (!ready() || sessionId == 0UL || runId == 0UL || motorId == 0UL ||
+        !validRole(role))
+        return AutonomousWindingAssignResult::Invalid;
+
+    // Keep the full assignment-ledger validation directly before append. Only
+    // the already-proven immutable job state/snapshot reads are skipped here.
     uint32_t highestId = 0UL;
     bool exactAssignmentFound = false;
     uint32_t exactAssignmentId = 0UL;

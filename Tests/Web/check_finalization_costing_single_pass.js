@@ -7,12 +7,18 @@ const guardHeaderPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_Repa
 const costingPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairCosting.cpp');
 const movementPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_WarehouseMovementIntegrityAudit.cpp');
 const repairWebPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairRegistryWeb.cpp');
+const deliveryWebPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairDeliveryWeb.cpp');
+const deliveryStorePath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairDeliveryStore.cpp');
+const deliveryHeaderPath = path.join(repoRoot, 'firmware', 'esp32', 'src', 'CM_RepairDeliveryStore.h');
 
 const guard = fs.readFileSync(guardPath, 'utf8');
 const guardHeader = fs.readFileSync(guardHeaderPath, 'utf8');
 const costing = fs.readFileSync(costingPath, 'utf8');
 const movement = fs.readFileSync(movementPath, 'utf8');
 const repairWeb = fs.readFileSync(repairWebPath, 'utf8');
+const deliveryWeb = fs.readFileSync(deliveryWebPath, 'utf8');
+const deliveryStore = fs.readFileSync(deliveryStorePath, 'utf8');
+const deliveryHeader = fs.readFileSync(deliveryHeaderPath, 'utf8');
 
 function requireText(source, text, description) {
   if (!source.includes(text)) {
@@ -129,4 +135,41 @@ for (const text of [
   requireText(costing, text, `RUN_WIRE costing dedup/fail-closed guard ${text}`);
 }
 
-console.log('Finalization costing single-pass contracts OK: Web finalization reuses its authoritative repair/open proof without weakening generic callers or mutation-time close rereads; warehouse provenance and RUN_WIRE costing integrity remain enforced.');
+// Repair delivery creation must not pre-scan the growing delivery journal and
+// then immediately repeat the same scan at append. The append scan remains the
+// authoritative mutation-time integrity/conflict/id-allocation boundary.
+const deliveryCreateStart = deliveryWeb.indexOf('void RepairDeliveryWeb::handleCreate()');
+const deliveryParseStart = deliveryWeb.indexOf('bool RepairDeliveryWeb::parseUnsigned', deliveryCreateStart);
+if (deliveryCreateStart < 0 || deliveryParseStart < 0) {
+  throw new Error('Repair delivery create handler boundaries are missing');
+}
+const deliveryCreate = deliveryWeb.slice(deliveryCreateStart, deliveryParseStart);
+if (deliveryCreate.includes('m_deliveries.resolveByRepair(repairId')) {
+  throw new Error('Repair delivery create must not pre-scan delivery journal before mutation-time append scan');
+}
+requireText(
+  deliveryCreate,
+  'm_deliveries.append(delivery, deliveryId, alreadyDelivered)',
+  'single authoritative mutation-time delivery append scan');
+requireText(
+  deliveryCreate,
+  '"{\\"error\\":\\"repair_already_delivered\\"}"',
+  'delivery duplicate HTTP 409 semantics');
+requireText(
+  deliveryHeader,
+  'bool append(const NewRepairDelivery& delivery,\n                uint32_t& deliveryId,\n                bool& alreadyExists);',
+  'delivery append conflict-result overload');
+requireText(
+  deliveryStore,
+  'if (!prepareAppend(delivery.repairId, deliveryId, alreadyExists)) return false;',
+  'mutation-time delivery journal scan');
+requireText(
+  deliveryStore,
+  'alreadyExists = true;\n        return true;',
+  'distinct already-delivered result from authoritative scan');
+requireText(
+  deliveryStore,
+  'return append(delivery, deliveryId, alreadyExists) && !alreadyExists;',
+  'legacy two-argument append compatibility semantics');
+
+console.log('Finalization costing single-pass contracts OK: Web finalization reuses its authoritative repair/open proof without weakening generic callers or mutation-time close rereads; warehouse provenance, RUN_WIRE costing integrity, and repair-delivery mutation-time single-pass conflict detection remain enforced.');

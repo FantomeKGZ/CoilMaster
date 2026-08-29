@@ -454,3 +454,4 @@ bool AutonomousWindingWeb::parseCanonicalUint32(const String& text,
     value = parsed;
     return true;
 }
+}

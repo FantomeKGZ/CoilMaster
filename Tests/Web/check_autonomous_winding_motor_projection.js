@@ -4,6 +4,7 @@ const fs = require('fs');
 
 const archiveHeader = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingArchive.h', 'utf8');
 const assignmentAppend = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingArchiveAssign.cpp', 'utf8');
+const completedWeb = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingWebCompleted.cpp', 'utf8');
 const projection = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingProjection.cpp', 'utf8');
 const projectionStore = fs.readFileSync('firmware/esp32/src/CM_MotorWindingVersionStoreAutonomous.cpp', 'utf8');
 const windingStore = fs.readFileSync('firmware/esp32/src/CM_MotorWindingVersionStore.cpp', 'utf8');
@@ -17,6 +18,7 @@ requireText(archiveHeader, 'RoleOccupied', 'occupied canonical role result');
 requireText(archiveHeader, 'StartingRequiresWorking', 'starting-only fail-closed result');
 requireText(archiveHeader, 'ProjectionFailed', 'projection failure result');
 requireText(archiveHeader, 'bool replaceExisting', 'explicit replacement argument');
+requireText(archiveHeader, 'assignCompletedWebJobMotorKnownTaskChecked', 'known completed job append path');
 
 requireText(projection, 'analyzeAutonomousProjection(sessionId', 'single-pass canonical projection preflight');
 if (projection.includes('findAutonomousProjection(sessionId') ||
@@ -42,6 +44,19 @@ requireText(projection, 'sourceAutonomousRunId = runId', 'source run provenance'
 requireText(projection, 'sourceAutonomousRole = role', 'source role provenance');
 requireText(projection, 'ensureCanonicalProjection(', 'canonical-first projection helper');
 requireText(projection, 'if (assignmentId != 0UL) return AutonomousWindingAssignResult::Assigned;', 'assignment-only historical backfill retry');
+requireText(projection, 'return assignCompletedWebJobMotorKnownTaskChecked(sessionId, runId, motorId, role,', 'projected web job reuses proven task');
+
+const knownTaskStart = completedWeb.indexOf('AutonomousWindingArchive::assignCompletedWebJobMotorKnownTaskChecked(');
+if (knownTaskStart < 0) throw new Error('known completed job append implementation missing');
+const knownTaskBody = completedWeb.slice(knownTaskStart);
+if (knownTaskBody.includes('JobStateStore::readPersisted') ||
+    knownTaskBody.includes('JobSnapshotStore::readPersisted')) {
+  throw new Error('known completed job append must not reread already-proven state/snapshot');
+}
+requireText(knownTaskBody, 'm_storage.open(WebAssignmentsPath, FILE_READ)', 'mutation-time web assignment scan retained');
+requireText(knownTaskBody, 'currentId <= highestId', 'web assignment id ordering retained');
+requireText(knownTaskBody, 'currentSession == sessionId && currentRun == runId', 'web assignment retry lookup retained');
+requireText(knownTaskBody, 'm_storage.open(WebAssignmentsPath, FILE_APPEND)', 'web assignment append retained');
 
 requireText(assignmentAppend, 'completedTaskExists(sessionId, runId, taskFound)', 'mutation-time completed task reread');
 requireText(assignmentAppend, 'm_storage.open(AssignmentsPath, FILE_READ)', 'mutation-time assignment journal scan');

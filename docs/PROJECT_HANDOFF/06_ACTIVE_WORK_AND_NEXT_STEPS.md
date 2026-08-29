@@ -129,9 +129,8 @@ Adjacent audits after checkpoint 156:
 
 - Material Request movement/history — NO-CHANGE;
 - Material Request status transition — NO-CHANGE;
-- Repair close/finalization duplicate checks retained as TOCTOU boundary — NO-CHANGE;
-- Repair lookup/list and Warehouse exact/list paths already bounded/one-pass per request — NO-CHANGE;
 - MaterialLedger pre-read + mutation-time reread retained — NO-CHANGE;
+- Repair lookup/list and Warehouse exact/list paths already bounded/one-pass per request — NO-CHANGE;
 - Repair pricing-history second pricing scan retained because history/current comparison is an explicit integrity contract — NO-CHANGE;
 - CashPayment correction `eventBelongsToRepair()` + SUBTRACT totals candidate — NO-CHANGE because a fused helper would duplicate validation logic and risk changing existing error/fail-closed semantics.
 
@@ -249,18 +248,78 @@ ESP32 Build #1751        / SUCCESS
 CMP Protocol Tests #3959 run 33254003888 / SUCCESS
 ```
 
-No C++ source changed after `9e7b1390...`; the later commits are Web JS/test-only.
+No C++ source changed after `9e7b1390...` in checkpoint 159; later commits in that block are Web JS/test-only.
+
+### Warehouse provenance suffix scan — GREEN
+
+Checkpoint 161 keeps the full authoritative `movements.ndjson` transaction/schema/order pass, but removes duplicate provenance comparisons and repeated already-validated prefix reads.
+
+```text
+runtime dc9415c531d8c9685bc6202941df042ec299af0c
+CMP Protocol Tests #3965 33257271690 / SUCCESS
+ESP32 Build #1754        33257271722 / SUCCESS
+Arduino RU LCD #178      33257271706 / SUCCESS
+contract 875c6a069b3680569dc35576d82861d737444144
+CMP Protocol Tests #3966 33257294547 / SUCCESS
+```
+
+Fixed `BatchSize=32` remains. Within-batch pairs are checked in RAM; cross-batch checks seek to `outer.position()` and scan only the later suffix, so each unordered provenance pair is checked once. Conflict semantics, RUN_WIRE provenance, recovery and mutation boundaries are unchanged.
+
+Detailed record: `10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md`.
+
+### Repair finalization known-repair proof reuse — GREEN
+
+Checkpoint 162 closes the earlier finalization candidate without weakening generic callers.
+
+Before finalization, both `RepairRegistryWeb` paths already execute authoritative:
+
+```cpp
+m_registry.repairIsOpen(repairId, repairOpen)
+```
+
+The new explicit `RepairFinalizationGuard::checkKnownRepair()` reuses that proof and calls existing `RepairCosting::loadKnownRepair()`. Generic `RepairFinalizationGuard::check()` still uses generic `RepairCosting::load()` and therefore remains self-validating.
+
+`handleCloseRepair()` still performs the later mutation-time:
+
+```cpp
+m_registry.closeRepair(repairId, m_server.arg("closed_at"), alreadyClosed)
+```
+
+so the authoritative TOCTOU reread at the close mutation boundary remains intact.
+
+Commits:
+
+```text
+6c3e967a5ca555f84bd5965e92ada22f8bc67bdd  known-repair guard API
+cda4c10c1019681698facd64e1f0f1151c2adfff  generic/known internal implementation
+6e104dfebc50464c8b6fc8bb39b17a7fe4a41d42  Web proof reuse
+f61f7e17b227fd52e1e00a96c1f945ea1ac6749f  regression contract
+```
+
+Verification:
+
+```text
+ESP32 Build #1757         33257746469 / SUCCESS
+Arduino RU LCD #181       33257746498 / SUCCESS
+CMP Protocol Tests #3971  33257805004 / SUCCESS
+```
+
+`CMP #3970` (`33257746468`) failed only because the old source-text assertion expected the pre-refactor literal `if (!costing.load(repairId, summary))`; CMake/build/CTest 4/4 and all other checks passed. `f61f7e1...` updated the contract and #3971 is SUCCESS.
+
+All costing, Warehouse transaction/provenance, material correction, winding transition and exact manual wire-writeoff coverage validation remains unchanged. No persistent cache/index/DB or unbounded state added.
+
+Detailed record: `11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md`.
 
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
-2. Checkpoint 159 autonomous → canonical motor-card projection is closed; do not redesign it without a concrete regression.
-3. Resume repo-reviewable repeated-scan/performance audit only for confirmed repeated growing-journal passes in the same request/operation.
-4. Search remaining exact-proof → generic-read/load patterns outside RepairCostingWeb; prefer reusing already-authoritative proof over introducing batch state.
-5. Do not batch/fuse global correction integrity or per-repair full costing unless an existing bounded primitive can preserve every current validation without a bypass API.
-6. Keep CashPayment correction preflight NO-CHANGE unless a simpler proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
-7. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
-8. Preserve separate integrity domains; do not fuse unrelated ledgers solely to reduce I/O.
+2. Checkpoints 159–162 are closed; do not redesign them without a concrete regression.
+3. Continue repo-reviewable repeated-scan/performance audit only for confirmed repeated growing-journal passes in the same request/operation.
+4. Prefer an existing authoritative proof + explicit known/prevalidated read path over introducing persistent batch state.
+5. Keep `MaterialUsageCorrectionIntegrityAudit` batch rereads **NO-CHANGE**: each batch must see previous corrections to prove cumulative over-correction limits.
+6. Keep CashPayment correction preflight/fusion **NO-CHANGE** unless a simpler existing proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
+7. Never remove recovery or mutation-time TOCTOU rereads solely for performance.
+8. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
 9. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
 10. No automatic production rotation/deletion/truncation and no premature DB/index migration.
 11. Verify actual CMP/ESP32/Arduino CI after each completed code block and update PROJECT_HANDOFF.

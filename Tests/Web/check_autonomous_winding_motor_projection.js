@@ -5,6 +5,8 @@ const fs = require('fs');
 const archiveHeader = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingArchive.h', 'utf8');
 const assignmentAppend = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingArchiveAssign.cpp', 'utf8');
 const projection = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingProjection.cpp', 'utf8');
+const projectionStore = fs.readFileSync('firmware/esp32/src/CM_MotorWindingVersionStoreAutonomous.cpp', 'utf8');
+const windingStore = fs.readFileSync('firmware/esp32/src/CM_MotorWindingVersionStore.cpp', 'utf8');
 const web = fs.readFileSync('firmware/esp32/src/CM_AutonomousWindingWeb.cpp', 'utf8');
 
 function requireText(text, needle, label) {
@@ -16,7 +18,19 @@ requireText(archiveHeader, 'StartingRequiresWorking', 'starting-only fail-closed
 requireText(archiveHeader, 'ProjectionFailed', 'projection failure result');
 requireText(archiveHeader, 'bool replaceExisting', 'explicit replacement argument');
 
-requireText(projection, 'findAutonomousProjection(sessionId', 'session/run/role retry lookup');
+requireText(projection, 'analyzeAutonomousProjection(sessionId', 'single-pass canonical projection preflight');
+if (projection.includes('findAutonomousProjection(sessionId') ||
+    projection.includes('loadLatestByMotor(motorId')) {
+  throw new Error('canonical projection preflight must not rescan winding history');
+}
+requireText(projectionStore, 'sourceSessionId == sessionId && sourceRunId == runId', 'fused exact retry provenance');
+requireText(projectionStore, 'sourceRole == role', 'fused exact retry role');
+requireText(projectionStore, 'if (projectionFound)', 'fused duplicate projection rejection');
+requireText(projectionStore, 'if (currentMotorId != targetMotorId) continue;', 'fused latest motor filter');
+requireText(projectionStore, 'latestVersionId = currentVersionId;', 'fused latest version capture');
+requireText(projectionStore, 'latestFound = true;', 'fused latest state capture');
+requireText(projection, 'm_motorWindingVersions.append(next, appendedVersionId)', 'authoritative append boundary retained');
+requireText(windingStore, '!nextVersionId(versionId)', 'mutation-time allocator and integrity scan retained');
 requireText(projection, 'projectedMotorId == motorId', 'retry motor identity guard');
 requireText(projection, 'if (!latestFound && role == "STARTING")', 'starting requires working');
 requireText(projection, 'targetOccupied && !replaceExisting', 'silent overwrite rejection');

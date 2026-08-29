@@ -176,7 +176,7 @@ void Lcd1602View::render(const UiModel& model)
     if (calibrationState == HallCalibrationState::WaitingLocalConfirm)
     {
         copyPadded(line1, "HALL TEST");
-        copyPadded(line2, "#=OK B=CANCEL");
+        copyPadded(line2, "A=START B=CANCEL");
     }
     else if (calibrationState == HallCalibrationState::ArmedWaitingPhysicalStart)
     {

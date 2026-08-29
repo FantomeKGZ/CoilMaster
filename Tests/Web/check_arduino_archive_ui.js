@@ -43,6 +43,14 @@ for (const needle of ['/api/autonomous-windings?','/api/autonomous-windings/assi
 for (const needle of ['/api/autonomous-windings/web-completed?','/api/autonomous-windings/web-completed/assign',"source:item.source || 'ARDUINO_LOCAL'","source:'ESP32_JOB'",'archive_exact_run_source_collision']) requireText(bridge, needle, 'completed-web archive bridge');
 requireText(shared, "confirmed:'true'", 'archive assignment owner must keep explicit confirmation');
 
+for (const needle of ['setupAssignmentSafetyUi','replaceExistingControl','id="replaceExisting"','replacementRequested()','option.value !== \'WORKING\' && option.value !== \'STARTING\'',"body.set('replace_existing', replacementRequested() ? 'true' : 'false')"]) requireText(bridge, needle, 'explicit replacement safety UI');
+requireText(bridge, "url.pathname === '/api/autonomous-windings/assign' ||", 'local assignment replacement gate');
+requireText(bridge, "url.pathname === '/api/autonomous-windings/web-completed/assign'", 'completed web assignment replacement gate');
+if (bridge.includes('motor_winding_role_occupied')) throw new Error('replacement UI must not auto-retry a role conflict; controller must surface the 409');
+requireText(archiveWeb, 'motor_winding_role_occupied', 'backend occupied-role conflict');
+requireText(archiveWeb, 'replace_existing_required', 'backend explicit replacement requirement');
+requireText(archiveWeb, 'invalid_replace_existing', 'backend replacement flag validation');
+
 for (const needle of ['dataset.exactSessionId','dataset.exactRunId','Session / Run:','№${ordinal}','MutationObserver','Exact Session / Run:']) requireText(compactIds, needle, 'compact operator id layer');
 if (compactIds.includes('fetch(') || compactIds.includes("method:'POST'") || compactIds.includes('/api/')) throw new Error('compact operator id layer must stay display-only');
 
@@ -73,4 +81,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; completed ESP32 jobs are projected read-only without copied RUN evidence, current completed task is cleared only in display, compact operator numbering keeps exact Session/Run in details, and ESP32_JOB linkage is first-write-only with idempotent identical replay.');
+console.log('Arduino archive UI contracts OK; canonical roles are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs remain read-only projections without copied RUN evidence, and exact Session/Run provenance is preserved.');

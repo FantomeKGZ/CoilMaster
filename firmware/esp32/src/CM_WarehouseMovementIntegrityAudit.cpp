@@ -205,6 +205,18 @@ struct ProvenanceEntry
     uint32_t sourceRunId;
 };
 
+bool provenanceEntriesConflict(const ProvenanceEntry& left,
+                               const ProvenanceEntry& right)
+{
+    if (left.movementId == right.movementId ||
+        left.sourceSessionId != right.sourceSessionId)
+    {
+        return false;
+    }
+    return !left.hasSourceRunId || !right.hasSourceRunId ||
+           left.sourceRunId == right.sourceRunId;
+}
+
 bool provenanceConflicts(const ProvenanceEntry& entry,
                          const WarehouseWriteOffRecord& candidate)
 {
@@ -258,8 +270,29 @@ bool confirmedProvenanceUnique(fs::FS& storage, const char* path)
 
         if (batchCount == 0U) continue;
 
+        for (uint8_t left = 0U; left < batchCount; ++left)
+        {
+            for (uint8_t right = static_cast<uint8_t>(left + 1U);
+                 right < batchCount; ++right)
+            {
+                if (provenanceEntriesConflict(batch[left], batch[right]))
+                {
+                    outer.close();
+                    return false;
+                }
+            }
+        }
+
+        const size_t suffixOffset = outer.position();
+        if (suffixOffset > 0xFFFFFFFFUL)
+        {
+            outer.close();
+            return false;
+        }
+
         File inner = storage.open(path, FILE_READ);
-        if (!inner || inner.isDirectory())
+        if (!inner || inner.isDirectory() ||
+            !inner.seek(static_cast<uint32_t>(suffixOffset)))
         {
             if (inner) inner.close();
             outer.close();

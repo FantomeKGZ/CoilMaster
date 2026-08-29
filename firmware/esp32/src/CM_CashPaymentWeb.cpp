@@ -180,7 +180,7 @@ void CashPaymentWeb::handleCreate()
     }
 
     RepairCostSummary pricing;
-    if (!m_costing.load(repairId, pricing))
+    if (!m_costing.loadKnownRepair(repairId, pricing))
     {
         m_server.send(500, "application/json", "{\"error\":\"repair_pricing_unavailable\"}");
         return;
@@ -311,7 +311,7 @@ bool CashPaymentWeb::sendRepairBalance(uint32_t repairId)
     }
     RepairCostSummary pricing;
     CashRepairTotals paid;
-    if (!m_costing.load(repairId, pricing) || !m_payments.totalsForRepair(repairId, paid))
+    if (!m_costing.loadKnownRepair(repairId, pricing) || !m_payments.totalsForRepair(repairId, paid))
     {
         m_server.send(500, "application/json", "{\"error\":\"balance_read_failed\"}");
         return false;

@@ -56,12 +56,19 @@ AutonomousWindingAssignResult AutonomousWindingArchive::ensureCanonicalProjectio
     uint32_t projectedMotorId = 0UL;
     uint32_t projectedVersionId = 0UL;
     bool projectionFound = false;
-    if (!m_motorWindingVersions.findAutonomousProjection(sessionId,
-                                                          runId,
-                                                          role,
-                                                          projectedMotorId,
-                                                          projectedVersionId,
-                                                          projectionFound))
+    NewMotorWindingVersion latest;
+    uint32_t latestVersionId = 0UL;
+    bool latestFound = false;
+    if (!m_motorWindingVersions.analyzeAutonomousProjection(sessionId,
+                                                             runId,
+                                                             role,
+                                                             motorId,
+                                                             projectedMotorId,
+                                                             projectedVersionId,
+                                                             projectionFound,
+                                                             latest,
+                                                             latestVersionId,
+                                                             latestFound))
     {
         return AutonomousWindingAssignResult::ProjectionFailed;
     }
@@ -70,17 +77,6 @@ AutonomousWindingAssignResult AutonomousWindingArchive::ensureCanonicalProjectio
         return projectedMotorId == motorId
             ? AutonomousWindingAssignResult::Assigned
             : AutonomousWindingAssignResult::Invalid;
-    }
-
-    NewMotorWindingVersion latest;
-    uint32_t latestVersionId = 0UL;
-    bool latestFound = false;
-    if (!m_motorWindingVersions.loadLatestByMotor(motorId,
-                                                   latest,
-                                                   latestVersionId,
-                                                   latestFound))
-    {
-        return AutonomousWindingAssignResult::ProjectionFailed;
     }
 
     if (!latestFound && role == "STARTING")
@@ -119,6 +115,9 @@ AutonomousWindingAssignResult AutonomousWindingArchive::ensureCanonicalProjectio
     if (role == "WORKING") next.working = incoming;
     else next.starting = incoming;
 
+    // append() intentionally performs its own authoritative journal scan for
+    // allocator/integrity immediately before mutation. Only the two read-only
+    // projection preflight scans above are fused.
     uint32_t appendedVersionId = 0UL;
     if (!m_motorWindingVersions.append(next, appendedVersionId) ||
         appendedVersionId == 0UL)

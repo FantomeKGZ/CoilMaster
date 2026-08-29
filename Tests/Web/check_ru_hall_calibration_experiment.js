@@ -41,11 +41,12 @@ mustContain(arduinoMain, 'startHallCalibrationFromLocalControl(nowMs)', 'physica
 mustContain(arduinoMain, 'hallCalibration.motorPermit()', 'SSR Hall permit interlock');
 mustContain(arduinoMain, 'ssr.forceOff();', 'Hall fail-safe SSR off path');
 
-mustContain(lcdView, 'HALL TEST READY', 'RU Hall ready LCD');
-mustContain(lcdView, 'A OR START', 'RU Hall local start LCD');
-mustContain(lcdView, 'HALL TEST RUN', 'RU Hall running LCD');
-mustContain(lcdView, 'LEFT ', 'RU Hall countdown LCD');
-mustContain(lcdView, 'SAVE HALL CFG?', 'RU Hall apply LCD');
+mustContain(lcdView, 'prepareHallRussianGlyphs();', 'RU Hall bounded CGRAM preparation');
+mustContain(lcdView, '"A " "\\x03" "\\x04" "\\x03" " START"', 'RU Hall local start LCD');
+mustContain(lcdView, '"TECT XO" "\\x04" "\\x04" "A"', 'RU Hall running LCD');
+mustContain(lcdView, 'F("OCT. ")', 'RU Hall countdown LCD');
+mustContain(lcdView, 'COXP. HACTP.?', 'RU Hall apply LCD');
+mustContain(lcdView, '"#=" "\\x01" "A B=HET"', 'RU Hall apply controls LCD');
 
 mustContain(sharedWeb, 'A на клавиатуре или отдельной физической START', 'Hall web local start instruction');
 mustContain(sharedWeb, 'Калибровка выполняется 15 секунд', 'Hall web duration instruction');

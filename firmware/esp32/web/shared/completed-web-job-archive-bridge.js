@@ -41,6 +41,39 @@ function rememberSource(item, source) {
     throw new Error('archive_exact_run_source_collision');
   sourceByExactRun.set(key, source);
 }
+function setupAssignmentSafetyUi() {
+  const role = document.getElementById('role');
+  if (!role) return;
+
+  [...role.options].forEach(option => {
+    if (option.value !== 'WORKING' && option.value !== 'STARTING') option.remove();
+  });
+
+  if (document.getElementById('replaceExisting')) return;
+  const control = document.createElement('label');
+  control.id = 'replaceExistingControl';
+  control.style.marginTop = '8px';
+  control.style.padding = '8px';
+  control.style.border = '1px solid #e5b8b3';
+  control.style.borderRadius = '9px';
+  control.style.background = '#fdecec';
+  control.style.color = '#8f1d14';
+  control.style.fontSize = '12px';
+  control.innerHTML = '<input id="replaceExisting" type="checkbox" style="width:auto;margin:0 6px 0 0;vertical-align:middle">Явно заменить уже занятую выбранную роль новой append-only версией';
+  role.insertAdjacentElement('afterend', control);
+}
+function replacementRequested() {
+  const checkbox = document.getElementById('replaceExisting');
+  return checkbox ? checkbox.checked === true : false;
+}
+function assignmentInitWithExplicitReplacement(init) {
+  if (!init || !(init.body instanceof URLSearchParams)) return init;
+  const nextInit = {...init};
+  const body = new URLSearchParams(init.body);
+  body.set('replace_existing', replacementRequested() ? 'true' : 'false');
+  nextInit.body = body;
+  return nextInit;
+}
 async function fetchLocalPage(state, limit, program, tolerance) {
   if (state.localDone) return {items:[], has_more:false, next_cursor:null};
   const query = new URLSearchParams({limit:String(limit), tolerance_percent:String(tolerance)});
@@ -127,8 +160,14 @@ window.fetch = async function(input, init) {
     }
   }
 
+  if (method === 'POST' &&
+      (url.pathname === '/api/autonomous-windings/assign' ||
+       url.pathname === '/api/autonomous-windings/web-completed/assign')) {
+    init = assignmentInitWithExplicitReplacement(init);
+  }
+
   if (method === 'POST' && url.pathname === '/api/autonomous-windings/assign') {
-    let body = init && init.body;
+    const body = init && init.body;
     if (!(body instanceof URLSearchParams))
       return originalFetch(input, init);
     const key = exactKey(body.get('session_id'), body.get('run_id'));
@@ -140,4 +179,6 @@ window.fetch = async function(input, init) {
 
   return originalFetch(input, init);
 };
+
+setupAssignmentSafetyUi();
 })();

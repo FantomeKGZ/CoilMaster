@@ -98,19 +98,6 @@ void RepairDeliveryWeb::handleCreate()
         return;
     }
 
-    RepairDeliveryState existing;
-    bool alreadyDelivered = false;
-    if (!m_deliveries.resolveByRepair(repairId, existing, alreadyDelivered))
-    {
-        m_server.send(500, "application/json", "{\"error\":\"delivery_read_failed\"}");
-        return;
-    }
-    if (alreadyDelivered)
-    {
-        m_server.send(409, "application/json", "{\"error\":\"repair_already_delivered\"}");
-        return;
-    }
-
     NewRepairDelivery delivery;
     delivery.repairId = repairId;
     delivery.clientId = identity.clientId;
@@ -119,9 +106,15 @@ void RepairDeliveryWeb::handleCreate()
     delivery.comment = m_server.hasArg("comment") ? m_server.arg("comment") : String();
 
     uint32_t deliveryId = 0UL;
-    if (!m_deliveries.append(delivery, deliveryId))
+    bool alreadyDelivered = false;
+    if (!m_deliveries.append(delivery, deliveryId, alreadyDelivered))
     {
         m_server.send(500, "application/json", "{\"error\":\"delivery_write_failed\"}");
+        return;
+    }
+    if (alreadyDelivered)
+    {
+        m_server.send(409, "application/json", "{\"error\":\"repair_already_delivered\"}");
         return;
     }
 

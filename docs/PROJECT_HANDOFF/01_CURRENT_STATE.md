@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Production behavior подтверждён GREEN through checkpoint **165**. Production checkpoint **166** закрыт как residual audit **NO-CHANGE** и production software optimization остаётся frozen до hardware E2E либо конкретного дефекта.
 
-После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **162**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161 и repair-finalization exact-proof reuse 162. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
+После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **165**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161, repair-finalization exact-proof reuse 162, Repair Delivery single-pass append preflight 163, spool/material bridge suffix uniqueness audit 164 и residual repeated-scan audit 165 **NO-CHANGE**. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
 
 ## Production optimization checkpoints
 
@@ -72,7 +72,7 @@ ESP32 Build #1650  33047940040 / SUCCESS
 CMP Tests #3767    33048020592 / SUCCESS
 ```
 
-## Experiment checkpoints 152–162
+## Experiment checkpoints 152–165
 
 Experiment branch includes separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions, canonical autonomous-winding projection and later proof-preserving growing-NDJSON optimizations.
 
@@ -196,6 +196,63 @@ CMP Protocol Tests #3971  run 33257805004 / SUCCESS
 
 Detailed checkpoint: `11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md`.
 
+### Checkpoint 163 — Repair Delivery single-pass preflight — GREEN
+
+Repair Delivery append now obtains existing-repair linkage/conflict state and the next `delivery_id` from one authoritative validated delivery-journal pass through `prepareAppend(repairId, deliveryId, alreadyExists)`. The caller reuses exact repair identity for its status-only open check, while mutation-time validation remains authoritative.
+
+Verified final evidence:
+
+```text
+ESP32 Build #1774         run 33265057626 / SUCCESS
+Arduino RU LCD #198       run 33265057605 / SUCCESS
+CMP Protocol Tests #4009  run 33265221419 / SUCCESS
+CMP Protocol Tests #4010  run 33265276200 / SUCCESS
+checkpoint docs HEAD      eb22812e4cec4954a1ca2aedf730128cbb4b6742
+```
+
+The preceding `#4005–#4008`, `#1773` and `#197` were intermediate C++/source-text contract failures and are not counted as GREEN evidence.
+
+### Checkpoint 164 — spool/material bridge suffix uniqueness audit — GREEN
+
+`SpoolMaterialBridgeStore::validateAll()` keeps a forward-moving outer reader and compares each fixed 24-entry batch only against the still-unseen suffix beginning at `outer.position()`. Duplicate `spool_id` values inside the current batch remain checked in bounded RAM; strict `bridge_id` order is validated in both outer and suffix passes. Already-proven prefix records are no longer reread for every batch.
+
+Commits:
+
+```text
+d8862aef7ae3b3c4a6e3e7dbbe49c92d19babb77  suffix-scan implementation
+63c70e59fee99f77c20135606c8d9911f8bfbd4e  scoped regression contract
+8f37cb5268ee461e9b41a2307981d3fd45b9a565  update stale bridge contract
+fb7aaa368ae21fe5041395f0df5eef959233920d  namespace-close fix / final runtime head
+```
+
+Intermediate diagnostics are recorded, not hidden:
+
+```text
+CMP #4011   run 33266038272 / FAILURE  stale old full-rescan source-text assertion
+ESP32 #1776 run 33266038221 / FAILURE  missing final namespace CM brace
+```
+
+Final exact-head evidence:
+
+```text
+fb7aaa368ae21fe5041395f0df5eef959233920d
+CMP Protocol Tests #4014  run 33266181118 / SUCCESS
+ESP32 Build #1777         run 33266181104 / SUCCESS
+```
+
+### Checkpoint 165 — residual repeated-scan audit — NO-CHANGE
+
+The remaining strongest candidates do not admit another simple proof-preserving optimization under current constraints:
+
+- `SpoolMaterialBridgeIntegrityAudit` must resolve arbitrary spool/material IDs against the full corresponding journals; suffix-only lookup would miss references located in an already-read prefix unless a new index/cache is introduced;
+- `MaterialUsageCorrectionIntegrityAudit` batch rereads are required to see earlier corrections and prove cumulative over-correction, exact operation uniqueness and source provenance;
+- CashPayment correction/read preflight and mutation-time append scans remain separate integrity phases; fusing them would require a larger prevalidated mutation API or weaken the authoritative reread immediately before append;
+- Repair Intake repeated reads around durable pending/append/recovery remain intentional TOCTOU/recovery boundaries.
+
+Result: checkpoint 165 is **NO-CHANGE**. Speculative repeated-scan optimization should stop until a concrete profiled bottleneck or defect appears.
+
+Detailed closeout: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
+
 ## Safety / integrity boundaries that remain intentionally unchanged
 
 - No automatic physical START, repeat START or resume.
@@ -211,13 +268,12 @@ Detailed checkpoint: `11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md`.
 ## Current NEXT
 
 1. Continue only in `arduino-ru-lcd-experiment`; production remains unchanged.
-2. Treat checkpoints 159–162 as closed unless a concrete regression is observed.
-3. Continue repo-reviewable repeated-scan/performance audit only where the same operation repeats a growing-journal pass and existing proof can be reused without weakening generic callers.
-4. Keep `MaterialUsageCorrectionIntegrityAudit` batch rereads **NO-CHANGE**: each batch must see earlier corrections for cumulative over-correction.
-5. Keep CashPayment correction fusion **NO-CHANGE** unless a simpler existing proof-preserving primitive appears.
-6. Never remove mutation/recovery/TOCTOU rereads solely for performance.
-7. Prefer bounded existing APIs; no persistent cache/index/database or whole-file buffering.
-8. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before release completion.
+2. Treat checkpoints 159–165 as closed unless a concrete regression is observed.
+3. Do not continue speculative repeated-scan refactors merely to reduce file opens; checkpoint 165 closed the residual audit as NO-CHANGE.
+4. Keep `MaterialUsageCorrectionIntegrityAudit`, CashPayment mutation rereads and recovery/TOCTOU scans unchanged unless a concrete proof-preserving primitive is introduced.
+5. Next repo-reviewable work should be driven by a concrete defect, measured bottleneck, or remaining experiment/Hall/LCD acceptance work.
+6. Prefer bounded existing APIs; no persistent cache/index/database or whole-file buffering.
+7. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before release completion.
 
 ## Hardware acceptance
 

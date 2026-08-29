@@ -22,6 +22,9 @@ class RepairFinalizationGuard
 {
 public:
     static RepairFinalizationCheck check(fs::FS& storage, uint32_t repairId);
+    // Read-only fast path for callers that have already completed one
+    // authoritative repair-journal validation and exact-ID/open-state proof.
+    static RepairFinalizationCheck checkKnownRepair(fs::FS& storage, uint32_t repairId);
 };
 }
 

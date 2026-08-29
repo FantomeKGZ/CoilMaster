@@ -1,6 +1,6 @@
 # Текущее состояние CoilMaster
 
-Дата обновления: **2026-08-28**  
+Дата обновления: **2026-08-29**  
 Production/source-of-truth: **`cmp-protocol-v1`**  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
 
@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Production behavior подтверждён GREEN through checkpoint **165**. Production checkpoint **166** закрыт как residual audit **NO-CHANGE** и production software optimization остаётся frozen до hardware E2E либо конкретного дефекта.
 
-После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side repeated-scan/performance work подтверждён through checkpoint **158**. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
+После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side repeated-scan/performance work подтверждён through checkpoint **158**. Experiment checkpoint **159** закрывает отдельный функциональный дефект autonomous winding → canonical motor winding history. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
 
 ## Production optimization checkpoints
 
@@ -72,16 +72,16 @@ ESP32 Build #1650  33047940040 / SUCCESS
 CMP Tests #3767    33048020592 / SUCCESS
 ```
 
-## Experiment checkpoints 152–158
+## Experiment checkpoints 152–159
 
-Experiment branch currently includes the separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup and subsequent repeated-scan reductions documented in `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
+Experiment branch includes the separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions through checkpoint 158, and checkpoint 159 canonical autonomous-winding projection documented in `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
 
 Checkpoint **157 — GREEN** removed repeated full `repairs.ndjson` validation from client balance while preserving generic/mutation repair validation. Runtime `bf529900a8211f0b9a920ec237942bae2f7093c5` is verified by CMP #3939, ESP32 #1743 and Arduino RU LCD #167; contract `19bf03003b5e1f3aea6692609e634a79247fb397` is verified by CMP #3941.
 
-Latest experiment checkpoint **158 — GREEN**:
+Checkpoint **158 — GREEN**:
 
 - `RepairCostingWeb::handlePricingHistory()`, `handleGet()` and the read/preflight stage of `handleSavePricing()` each already perform an authoritative exact `RepairCosting::repairExists(repairId, found)` check;
-- after that successful proof they now call `RepairCosting::loadKnownRepair()` instead of immediately invoking generic `load()` and scanning `repairs.ndjson` a second time;
+- after that successful proof they call `RepairCosting::loadKnownRepair()` instead of immediately invoking generic `load()` and scanning `repairs.ndjson` a second time;
 - HTTP 404/read-failure semantics of the initial exact repair lookup are unchanged;
 - `RepairCosting::load()` still retains its own exact repair validation for all callers without prior proof;
 - `RepairCosting::savePricing()` remains unchanged and still performs its own repair-lifecycle gate plus generic `load()` before the append, preserving mutation-time authoritative validation;
@@ -109,6 +109,48 @@ Adjacent costing audit: moving `MaterialUsageCorrectionIntegrityAudit::check()` 
 
 The CashPayment correction preflight also remains **NO-CHANGE**: combining `eventBelongsToRepair()` and `totalsForRepair()` would require parallel validation logic and risk changing fail-closed/error semantics. Mutation-time `append()` authoritative scan remains mandatory.
 
+### Checkpoint 159 — autonomous winding canonical motor projection — GREEN
+
+The defect where an autonomous/completed winding could be linked in the Arduino archive but remain absent from the normal motor card is closed on `arduino-ru-lcd-experiment`.
+
+Semantics now fixed:
+
+- assignment projects the winding into append-only `MotorWindingVersionStore` used by the normal motor card;
+- canonical roles are only `WORKING` and `STARTING`; `AUXILIARY` is rejected and removed from the runtime operator selector;
+- exact projection identity is `session_id + run_id + role`, so identical retry does not create another canonical version;
+- historical assignment-only records are backfilled on retry because canonical projection is checked/performed before the assignment append path completes;
+- canonical-first partial failure is retry-safe: an already-created projection is detected by provenance and the missing assignment ledger append can complete without duplicating motor history;
+- adding/replacing one role preserves the complete other role from the latest motor winding version;
+- `STARTING` without an existing `WORKING` winding fails closed;
+- an occupied target role returns conflict and is never silently overwritten;
+- replacement requires explicit `replace_existing=true` and appends a new canonical version; UI defaults to false and does not automatically retry a 409 conflict;
+- local autonomous projection derives the canonical program from completed autonomous evidence; completed ESP32/Web jobs use persisted immutable job state/snapshot data;
+- no physical RUN evidence is copied or rewritten;
+- no cache/index/DB, whole-file buffering, automatic truncation or history mutation was introduced.
+
+Key commits in the block:
+
+```text
+348b75c  canonical autonomous provenance/API
+0066262d projection/retry/role-preservation implementation
+9e7b1390d7394ccbaddf0942b00085d859f8a0be C++/Web syntax-fixed runtime checkpoint
+e1450325a88b85464029f3ec7c312ca88f435cc9 explicit operator replacement safety UI
+8955f506f793b8a732a89726f38708ba2520945d UI regression contract
+```
+
+Verified CI evidence:
+
+```text
+9e7b1390d7394ccbaddf0942b00085d859f8a0be
+CMP Protocol Tests #3957 / SUCCESS
+ESP32 Build #1751        / SUCCESS
+
+8955f506f793b8a732a89726f38708ba2520945d
+CMP Protocol Tests #3959 run 33254003888 / SUCCESS
+```
+
+The post-`9e7b1390...` commits modify Web JS/tests only; no C++ firmware source changed after the ESP32 #1751 compile checkpoint.
+
 ## Safety / integrity boundaries that remain intentionally unchanged
 
 - No automatic physical START, repeat START or resume.
@@ -124,11 +166,12 @@ The CashPayment correction preflight also remains **NO-CHANGE**: combining `even
 ## Current NEXT
 
 1. Continue only in `arduino-ru-lcd-experiment`; production remains unchanged.
-2. Continue repo-reviewable repeated-scan/performance audit only where the same request repeats an authoritative growing-journal pass and the proof can be preserved.
-3. Inspect remaining exact-proof → generic-load/read patterns outside RepairCostingWeb before considering any larger batch costing refactor.
-4. Keep global correction-integrity reuse and CashPayment correction fusion as NO-CHANGE unless a simpler proof-preserving primitive appears.
-5. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before final release completion.
+2. Treat checkpoint 159 autonomous → canonical motor-card projection as closed unless a new concrete regression is observed.
+3. Resume repo-reviewable repeated-scan/performance audit only where the same request repeats an authoritative growing-journal pass and the proof can be preserved.
+4. Inspect remaining exact-proof → generic-load/read patterns outside RepairCostingWeb before considering any larger batch costing refactor.
+5. Keep global correction-integrity reuse and CashPayment correction fusion as NO-CHANGE unless a simpler proof-preserving primitive appears.
+6. Full two-board Arduino + ESP32 hardware E2E remains the final separate acceptance gate before final release completion.
 
 ## Hardware acceptance
 
-Full two-board Arduino + ESP32 E2E remains required before final project completion, but current repo-reviewable experiment optimization may continue without intermediate hardware tests.
+Full two-board Arduino + ESP32 E2E remains required before final project completion, but current repo-reviewable experiment work may continue without intermediate hardware tests.

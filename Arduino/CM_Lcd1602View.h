@@ -39,6 +39,7 @@ private:
 
 #if CM_LCD_RU_EN
     void prepareRussianGlyphs(UiScreen screen);
+    void prepareHallRussianGlyphs();
     void loadRussianGlyph(uint8_t slot, const uint8_t* bitmap);
 #endif
 
@@ -59,6 +60,7 @@ private:
 #if CM_LCD_RU_EN
     UiScreen m_russianGlyphScreen;
     bool m_hasRussianGlyphScreen;
+    bool m_hasHallRussianGlyphs;
 #endif
 };
 

@@ -1,6 +1,6 @@
 # Активная работа и следующие шаги
 
-Дата обновления: **2026-08-29**  
+Дата обновления: **2026-08-30**  
 Production/source-of-truth: **`cmp-protocol-v1`**  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
 
@@ -16,7 +16,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Active state
 
-Experiment-side repo-reviewable software work закрыт through checkpoint **165**.
+Experiment-side repo-reviewable software work закрыт through checkpoint **166**.
 
 Ключевые detailed records:
 
@@ -25,6 +25,7 @@ Experiment-side repo-reviewable software work закрыт through checkpoint **
 10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md
 11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md
 12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
+13_HALL_RU_LCD_ACCEPTANCE.md
 ```
 
 `01_CURRENT_STATE.md` остаётся общей полной сводкой состояния и CI evidence.
@@ -190,20 +191,51 @@ Result: checkpoint 165 is **NO-CHANGE**. Do not continue speculative repeated-sc
 
 Detailed closeout: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
 
+### Checkpoint 166 — reachable Hall RU LCD localization — GREEN
+
+The remaining reachable Hall screens in the RU LCD experiment are now Russian while Hall control semantics stay unchanged:
+
+- armed: `ДАТЧИК ХОЛЛА` / `A ИЛИ START`;
+- running: `ТЕСТ ХОЛЛА` / `ОСТ. <n> СЕК`;
+- apply confirmation: `СОХР. НАСТР.?` / `#=ДА B=НЕТ`;
+- dedicated Hall CGRAM uses only four existing glyphs (`Д`, `Ч`, `И`, `Л`);
+- normal screen-specific RU CGRAM is restored after Hall exits;
+- unreachable `WaitingLocalConfirm` LCD branch remains forbidden;
+- A/physical START remains operator-local; ESP32/Web never receives START or SSR control;
+- Hall timing, ADC sampling, UART telemetry and persisted calibration flow remain unchanged.
+
+Final source-head evidence:
+
+```text
+3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
+CMP Protocol Tests #4028  run 33268897356 / SUCCESS
+Arduino RU LCD #206       run 33268897370 / SUCCESS
+```
+
+Uno resource evidence from #206:
+
+```text
+uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); only 808 bytes Flash remain
+uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); 1190 bytes Flash remain
+```
+
+`Arduino RU LCD #205` (`33268835043`) is recorded as an intermediate stale-contract failure: it still expected English `HALL TEST READY` and failed before PlatformIO compile. The final aligned contract is GREEN at #206.
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
-2. Treat checkpoints 159–165 as closed unless a concrete regression is observed.
-3. Repeated-scan optimization is temporarily exhausted; resume it only for a concrete measured bottleneck or defect.
-4. Next repo-reviewable work should target a concrete experiment defect or remaining Hall/RU-LCD acceptance work, not speculative storage refactoring.
-5. Keep `MaterialUsageCorrectionIntegrityAudit` batch rereads **NO-CHANGE**.
-6. Keep CashPayment mutation-time authoritative reread **NO-CHANGE** unless a proof-preserving mutation primitive is explicitly introduced.
-7. Never remove recovery or mutation-time TOCTOU rereads solely for performance.
-8. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
-9. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-10. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-11. Full Arduino+ESP32 hardware E2E remains the final release acceptance gate.
-12. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+2. Treat checkpoints 159–166 as closed unless a concrete regression is observed.
+3. Repeated-scan optimization is exhausted for now; resume it only for a concrete measured bottleneck or defect.
+4. Continue only concrete experiment/Hall/RU-LCD defects. With just 808 bytes of RU flash headroom, avoid broad Uno-side feature growth.
+5. Prefer moving processing/expanded presentation to ESP32 where architecture permits while Arduino remains independently safe/operable.
+6. Keep `MaterialUsageCorrectionIntegrityAudit` batch rereads **NO-CHANGE**.
+7. Keep CashPayment mutation-time authoritative reread **NO-CHANGE** unless a proof-preserving mutation primitive is explicitly introduced.
+8. Never remove recovery or mutation-time TOCTOU rereads solely for performance.
+9. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
+10. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
+11. No automatic production rotation/deletion/truncation and no premature DB/index migration.
+12. Full Arduino+ESP32 hardware E2E remains the final release acceptance gate.
+13. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

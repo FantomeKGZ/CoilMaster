@@ -93,6 +93,14 @@ public:
                                         uint32_t& nextCursorSessionId,
                                         bool& hasMore) const;
 
+    // Legacy storage writer retained for internal compatibility. New HTTP calls
+    // use the overload with replaceExisting so canonical projection is completed
+    // before the assignment ledger append.
+    AutonomousWindingAssignResult assignMotorChecked(uint32_t sessionId,
+                                                      uint32_t runId,
+                                                      uint32_t motorId,
+                                                      const String& role,
+                                                      uint32_t& assignmentId);
     AutonomousWindingAssignResult assignMotorChecked(uint32_t sessionId,
                                                       uint32_t runId,
                                                       uint32_t motorId,
@@ -100,6 +108,12 @@ public:
                                                       bool replaceExisting,
                                                       uint32_t& assignmentId);
 
+    AutonomousWindingAssignResult assignCompletedWebJobMotorChecked(
+        uint32_t sessionId,
+        uint32_t runId,
+        uint32_t motorId,
+        const String& role,
+        uint32_t& assignmentId);
     AutonomousWindingAssignResult assignCompletedWebJobMotorChecked(
         uint32_t sessionId,
         uint32_t runId,
@@ -157,7 +171,7 @@ private:
     static const char* windingTypeName(RemoteJobType type);
 
     fs::FS& m_storage;
-    MotorWindingVersionStore m_motorWindingVersions;
+    MotorWindingVersionStore m_motorWindingVersions{m_storage};
     bool m_ready;
 };
 }

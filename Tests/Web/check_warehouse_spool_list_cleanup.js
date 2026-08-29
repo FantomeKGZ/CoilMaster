@@ -3,6 +3,7 @@ const fs = require('fs');
 const obsoleteImplPath = 'firmware/esp32/src/CM_WarehouseSpoolList.cpp';
 const headerPath = 'firmware/esp32/src/CM_WarehouseStore.h';
 const paginatedImplPath = 'firmware/esp32/src/CM_WarehouseSpoolMaterialList.cpp';
+const materialSummaryPath = 'firmware/esp32/src/CM_WarehouseMaterialSummary.cpp';
 const webPath = 'firmware/esp32/src/CM_WarehouseSpoolWeb.cpp';
 const warehouseWebPath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const mainPath = 'firmware/esp32/src/main.cpp';
@@ -15,6 +16,7 @@ if (fs.existsSync(obsoleteImplPath)) {
 
 const header = fs.readFileSync(headerPath, 'utf8');
 const paginatedImpl = fs.readFileSync(paginatedImplPath, 'utf8');
+const materialSummary = fs.readFileSync(materialSummaryPath, 'utf8');
 const web = fs.readFileSync(webPath, 'utf8');
 const warehouseWeb = fs.readFileSync(warehouseWebPath, 'utf8');
 const main = fs.readFileSync(mainPath, 'utf8');
@@ -39,6 +41,24 @@ for (const required of [
   'nextCursor',
 ]) {
   if (!paginatedImpl.includes(required)) failures.push(`${paginatedImplPath}: missing paginated spool backend contract: ${required}`);
+}
+
+// Material summary performs one authoritative complete spool validation before
+// reading movements. Legacy movements without wire_type may need a spool lookup,
+// but that lookup must stop as soon as the sorted spool id is found or passed;
+// rereading the already-validated tail for every legacy movement is redundant.
+for (const required of [
+  'The primary spool pass above already validated the complete',
+  'if (currentId < spoolId) continue;',
+  'if (currentId == spoolId && spoolHasWireType)',
+  'break;',
+]) {
+  if (!materialSummary.includes(required)) {
+    failures.push(`${materialSummaryPath}: legacy spool material lookup must remain bounded after the authoritative full pass: ${required}`);
+  }
+}
+if (materialSummary.includes('bool foundSpool = false;')) {
+  failures.push(`${materialSummaryPath}: legacy lookup must not scan the validated spool tail solely to re-check duplicate ids`);
 }
 
 for (const required of [
@@ -96,4 +116,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Warehouse spool list cleanup contract OK: paginated spool routes stay narrow and common warehouse services are registered only by WarehouseWeb::begin().');
+console.log('Warehouse spool list cleanup contract OK: paginated routes stay narrow, common services remain single-owned, and legacy material lookups stop at the sorted target after the authoritative spool pass.');

@@ -55,10 +55,20 @@ for (const forbidden of [
 
 // Hall ARM keeps the legacy protocol reply but deliberately exposes only the
 // reachable operator state: armed and waiting for a physical/local START. The
-// internal WaitingLocalConfirm state is auto-promoted by update(), so carrying a
-// separate LCD branch for it wastes Uno flash and can drift from real controls.
+// RU build uses one bounded four-glyph Hall CGRAM set and must restore the
+// screen-specific glyph set after Hall exits. Controls remain explicit: A or
+// physical START to run, then # to apply or B to reject.
 for (const [text, haystack, description] of [
-  ['copyPadded(line2, "A OR START");', source, 'reachable Hall armed prompt missing'],
+  ['void Lcd1602View::prepareHallRussianGlyphs()', source, 'bounded Hall RU glyph loader missing'],
+  ['loadRussianGlyph(1U, RuGlyphs[RuD - 1U]);', source, 'Hall RU Д glyph missing'],
+  ['loadRussianGlyph(2U, RuGlyphs[RuCh - 1U]);', source, 'Hall RU Ч glyph missing'],
+  ['loadRussianGlyph(3U, RuGlyphs[RuI - 1U]);', source, 'Hall RU И glyph missing'],
+  ['loadRussianGlyph(4U, RuGlyphs[RuL - 1U]);', source, 'Hall RU Л glyph missing'],
+  ['m_hasHallRussianGlyphs = false;', source, 'normal RU glyph restore guard missing'],
+  ['"A " "\\x03" "\\x04" "\\x03" " START"', source, 'reachable Hall armed RU prompt must expose A and START'],
+  ['F("OCT. ")', source, 'running Hall RU countdown prefix missing'],
+  ['F(" CEK")', source, 'running Hall RU countdown suffix missing'],
+  ['"#=" "\\x01" "A B=HET"', source, 'Hall apply RU prompt must expose # yes and B no'],
   ['s_displayState = HallCalibrationState::ArmedWaitingPhysicalStart;', hallService, 'Hall ARM no longer exposes the armed display state'],
   ['if (m_state == HallCalibrationState::WaitingLocalConfirm)', hallService, 'Hall auto-promotion guard missing'],
   ['(void)confirmLocal(nowMs);', hallService, 'Hall WaitingLocalConfirm is no longer auto-promoted'],
@@ -152,4 +162,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Arduino LCD contracts OK: layout/reachable Hall UI/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');
+console.log('Arduino LCD contracts OK: layout/reachable Russian Hall UI/startup/reset provenance stay bounded and the retired Uno diagnostic profile stays removed.');

@@ -1,6 +1,6 @@
 # Активная работа и следующие шаги
 
-Дата обновления: **2026-08-28**  
+Дата обновления: **2026-08-29**  
 Production/source-of-truth: **`cmp-protocol-v1`**  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
 
@@ -208,20 +208,64 @@ Adjacent checkpoint-158 audit:
 
 - moving `MaterialUsageCorrectionIntegrityAudit::check()` out of each known-repair costing load is **NO-CHANGE**. The audit is global provenance validation that internally processes corrections in bounded batches and rereads usage/adjustments. Avoiding repeated calls would require a new prevalidated bypass/context or a larger batch-costing API, which adds integrity and code/flash risk.
 
+### Autonomous winding → canonical motor winding history — GREEN
+
+Checkpoint 159 closes the functional defect where Arduino archive assignment was durable in the autonomous assignment ledger but could remain absent from the normal motor card because `MotorWindingVersionStore` was not updated.
+
+Implemented behavior:
+
+- both local autonomous RUN and completed ESP32/Web job assignments project to append-only canonical `MotorWindingVersionStore`;
+- exact canonical provenance is `source_autonomous_session_id + source_autonomous_run_id + source_autonomous_role`;
+- identical retry is idempotent and does not append a duplicate canonical winding version;
+- historical assignment-only entries are backfilled on retry;
+- projection executes before assignment-ledger completion, and provenance detection makes canonical-first/assignment-failed retry safe;
+- only canonical `WORKING` and `STARTING` roles are accepted; runtime UI removes `AUXILIARY` and backend rejects unsupported roles;
+- adding one role preserves the complete existing other role;
+- `STARTING` on a motor without existing `WORKING` fails closed;
+- occupied target role returns HTTP 409 and is never silently overwritten;
+- replacement requires explicit `replace_existing=true`, creates a new append-only canonical version and never mutates old history;
+- operator UI defaults `replace_existing=false`, exposes a separate explicit replacement checkbox, and never automatically retries the 409 conflict;
+- physical RUN evidence remains immutable/not copied; SSR ownership, START behavior and material writeoff are unchanged;
+- no unbounded buffering/cache/index/database/history truncation introduced.
+
+Key commits:
+
+```text
+348b75c canonical provenance/API
+0066262d projection, retry/backfill, role-preservation logic
+9e7b1390d7394ccbaddf0942b00085d859f8a0be syntax-fixed C++ runtime checkpoint
+e1450325a88b85464029f3ec7c312ca88f435cc9 explicit operator replacement safety UI
+8955f506f793b8a732a89726f38708ba2520945d UI contract
+```
+
+Verification:
+
+```text
+9e7b1390d7394ccbaddf0942b00085d859f8a0be
+CMP Protocol Tests #3957 / SUCCESS
+ESP32 Build #1751        / SUCCESS
+
+8955f506f793b8a732a89726f38708ba2520945d
+CMP Protocol Tests #3959 run 33254003888 / SUCCESS
+```
+
+No C++ source changed after `9e7b1390...`; the later commits are Web JS/test-only.
+
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
-2. Continue repo-reviewable repeated-scan/performance audit only for confirmed repeated growing-journal passes in the same request/operation.
-3. Search remaining exact-proof → generic-read/load patterns outside RepairCostingWeb; prefer reusing already-authoritative proof over introducing batch state.
-4. Do not batch/fuse global correction integrity or per-repair full costing unless an existing bounded primitive can preserve every current validation without a bypass API.
-5. Keep CashPayment correction preflight NO-CHANGE unless a simpler proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
-6. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
-7. Preserve separate integrity domains; do not fuse unrelated ledgers solely to reduce I/O.
-8. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-9. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-10. Verify actual CMP/ESP32/Arduino CI after each completed code block and update PROJECT_HANDOFF.
-11. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
-12. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
+2. Checkpoint 159 autonomous → canonical motor-card projection is closed; do not redesign it without a concrete regression.
+3. Resume repo-reviewable repeated-scan/performance audit only for confirmed repeated growing-journal passes in the same request/operation.
+4. Search remaining exact-proof → generic-read/load patterns outside RepairCostingWeb; prefer reusing already-authoritative proof over introducing batch state.
+5. Do not batch/fuse global correction integrity or per-repair full costing unless an existing bounded primitive can preserve every current validation without a bypass API.
+6. Keep CashPayment correction preflight NO-CHANGE unless a simpler proof-preserving primitive appears; never weaken `append()` mutation-time authoritative scan.
+7. Prefer existing authoritative exact/batch APIs over new persistent state/indexes.
+8. Preserve separate integrity domains; do not fuse unrelated ledgers solely to reduce I/O.
+9. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
+10. No automatic production rotation/deletion/truncation and no premature DB/index migration.
+11. Verify actual CMP/ESP32/Arduino CI after each completed code block and update PROJECT_HANDOFF.
+12. Full Arduino+ESP32 hardware E2E remains a separate final gate when hardware testing resumes.
+13. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
 
 ## Safety invariants
 

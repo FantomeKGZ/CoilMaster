@@ -70,7 +70,16 @@ bool RepairDeliveryStore::ready() const
 bool RepairDeliveryStore::append(const NewRepairDelivery& delivery,
                                  uint32_t& deliveryId)
 {
+    bool alreadyExists = false;
+    return append(delivery, deliveryId, alreadyExists) && !alreadyExists;
+}
+
+bool RepairDeliveryStore::append(const NewRepairDelivery& delivery,
+                                 uint32_t& deliveryId,
+                                 bool& alreadyExists)
+{
     deliveryId = 0UL;
+    alreadyExists = false;
     if (!ready() || delivery.repairId == 0UL || delivery.clientId == 0UL ||
         delivery.motorId == 0UL || delivery.deliveredAt.length() < 10U ||
         delivery.deliveredAt.length() > 32U || delivery.comment.length() > 500U)
@@ -78,7 +87,8 @@ bool RepairDeliveryStore::append(const NewRepairDelivery& delivery,
         return false;
     }
 
-    if (!prepareAppend(delivery.repairId, deliveryId)) return false;
+    if (!prepareAppend(delivery.repairId, deliveryId, alreadyExists)) return false;
+    if (alreadyExists) return true;
 
     File file = m_storage.open(Path, FILE_APPEND);
     if (!file)
@@ -175,9 +185,11 @@ bool RepairDeliveryStore::ensureDirectory()
 }
 
 bool RepairDeliveryStore::prepareAppend(uint32_t repairId,
-                                        uint32_t& deliveryId) const
+                                        uint32_t& deliveryId,
+                                        bool& alreadyExists) const
 {
     deliveryId = 1UL;
+    alreadyExists = false;
     if (!m_storage.exists(Path)) return true;
 
     File file = m_storage.open(Path, FILE_READ);
@@ -227,7 +239,13 @@ bool RepairDeliveryStore::prepareAppend(uint32_t repairId,
     }
     file.close();
 
-    if (found || previousId == 0xFFFFFFFFUL) return false;
+    if (found)
+    {
+        deliveryId = 0UL;
+        alreadyExists = true;
+        return true;
+    }
+    if (previousId == 0xFFFFFFFFUL) return false;
     deliveryId = previousId + 1UL;
     return true;
 }

@@ -43,6 +43,18 @@ requireText(
   movement,
   'if (!confirmedProvenanceUnique(storage, Path)) return false;',
   'provenance uniqueness validation');
+requireText(
+  movement,
+  'provenanceEntriesConflict(batch[left], batch[right])',
+  'within-batch provenance conflict validation');
+requireText(
+  movement,
+  'const size_t suffixOffset = outer.position();',
+  'validated batch suffix offset');
+requireText(
+  movement,
+  '!inner.seek(static_cast<uint32_t>(suffixOffset))',
+  'suffix-only later-provenance scan');
 
 // Atomic RUN_WIRE owns both a MaterialLedger stock usage and a standard physical
 // warehouse movement. Costing must publish neither a mixed in-flight snapshot nor
@@ -63,4 +75,4 @@ for (const text of [
   requireText(costing, text, `RUN_WIRE costing dedup/fail-closed guard ${text}`);
 }
 
-console.log('Finalization costing single-pass contracts OK: authoritative movement transaction/provenance validation and repair aggregation share the costing pass; atomic RUN_WIRE ledger usage is not double-counted and in-flight RUN_WIRE costing fails closed.');
+console.log('Finalization costing single-pass contracts OK: authoritative movement transaction/provenance validation and repair aggregation share the costing pass; provenance batches validate pairs once and scan only the later journal suffix; atomic RUN_WIRE ledger usage is not double-counted and in-flight RUN_WIRE costing fails closed.');

@@ -87,7 +87,7 @@ void RepairDeliveryWeb::handleCreate()
     }
 
     bool repairOpen = false;
-    if (!m_repairs.repairIsOpen(repairId, repairOpen))
+    if (!m_repairs.repairStatusIsOpen(repairId, repairOpen))
     {
         m_server.send(500, "application/json", "{\"error\":\"repair_status_lookup_failed\"}");
         return;

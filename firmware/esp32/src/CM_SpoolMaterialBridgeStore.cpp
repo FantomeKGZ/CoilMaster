@@ -311,3 +311,5 @@ String SpoolMaterialBridgeStore::jsonEscape(const String& value)
     }
     return escaped;
 }
+
+}

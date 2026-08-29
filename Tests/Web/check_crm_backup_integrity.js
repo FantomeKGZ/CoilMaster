@@ -54,10 +54,11 @@ must(source, 'WindingProgramParser::valid', 'winding program validation');
 
 must(deliveryStoreHeader, '/data/workshop/repair-deliveries.ndjson', 'delivery journal path');
 must(deliveryStore, 'FILE_APPEND', 'append-only delivery evidence');
-must(deliveryStoreHeader, 'prepareAppend(uint32_t repairId, uint32_t& deliveryId) const', 'single-pass append preparation API');
-must(deliveryStore, 'prepareAppend(delivery.repairId, deliveryId)', 'single delivery per repair and id gate');
+must(deliveryStoreHeader, 'prepareAppend(uint32_t repairId,\n                       uint32_t& deliveryId,\n                       bool& alreadyExists) const', 'single-pass append preparation API');
+must(deliveryStore, 'prepareAppend(delivery.repairId, deliveryId, alreadyExists)', 'single delivery per repair and id gate');
 must(deliveryStore, 'candidateRepairId != repairId', 'append-time repair uniqueness scan');
 must(deliveryStore, 'deliveryId = previousId + 1UL', 'append-time next delivery id');
+must(deliveryStore, 'alreadyExists = true;', 'append-time already-delivered conflict result');
 if (deliveryStore.includes('nextDeliveryId(')) {
   throw new Error('delivery append must not perform a second full journal scan only to derive the next id');
 }
@@ -77,6 +78,8 @@ const statusProof = deliveryWeb.indexOf('m_repairs.repairStatusIsOpen(repairId, 
 if (identityProof < 0 || statusProof < 0 || identityProof >= statusProof) {
   throw new Error('delivery status-only lookup must occur only after authoritative repair identity proof');
 }
+must(deliveryWeb, 'm_deliveries.append(delivery, deliveryId, alreadyDelivered)', 'delivery mutation-time single-pass conflict gate');
+must(deliveryWeb, 'repair_already_delivered', 'delivery duplicate conflict semantics');
 must(deliveryWeb, 'repair_must_be_closed_before_delivery', 'CLOSED repair delivery gate');
 must(deliveryWeb, 'balance_gate_applied\\\":false', 'delivery allowed independently of balance');
 must(repairWeb, 'static RepairDeliveryStore deliveryStore(SD);', 'delivery store production bootstrap');
@@ -149,4 +152,4 @@ if (deliveryWeb.includes('m_payments') || deliveryWeb.includes('CashPaymentStore
   throw new Error('delivery persistence must not require cash balance/payment state');
 }
 
-console.log('CRM backup/integrity + delivery + cash payment contracts OK: delivery append prepares uniqueness + next id in one authoritative journal pass.');
+console.log('CRM backup/integrity + delivery + cash payment contracts OK: delivery append performs one authoritative mutation-time journal pass for uniqueness, conflict result, and next id.');

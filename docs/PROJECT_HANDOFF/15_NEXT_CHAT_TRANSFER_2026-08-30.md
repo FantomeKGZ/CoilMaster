@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — physical E2E accepted
+# NEXT CHAT TRANSFER — 2026-08-30 — feature-completeness audit active
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -9,177 +9,105 @@ Production/source-of-truth: **`cmp-protocol-v1`**
 
 - `main` как source не использовать.
 - Production `cmp-protocol-v1` не изменять без отдельного прямого запроса пользователя.
-- Все дальнейшие experiment-side изменения выполнять только в `arduino-ru-lcd-experiment`.
-- Перед изменением существующего файла обязательно fetch current branch content и использовать current blob SHA.
+- Все дальнейшие изменения выполнять только в `arduino-ru-lcd-experiment`.
+- Перед изменением существующего файла fetch exact current content + blob SHA.
 - Для нового файла сначала подтверждать отсутствие пути.
 
-Production остаётся неизменённым:
+Production остаётся:
 
 ```text
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-## Exact current handoff state
+## Current work mode
 
-GitHub metadata independently verifies the documentation chain continuously through **CMP #4518**.
+Пользователь явно сменил приоритет: сначала проверить **все ранее обсуждавшиеся обновления/добавления функций**, закончить proven incomplete items, и только после этого продолжать следующий этап проекта.
 
-Последние подтверждённые runs:
+Поэтому documentation-only CI recursion больше не является основным work stream.
 
-```text
-CMP Protocol Tests #4509  run 33312397960 / SUCCESS  head 6733c043cd7cb6068c9383ddc2af717c9662cad1
-CMP Protocol Tests #4510  run 33312422691 / SUCCESS  head cf8c6555d41248e452477b4d597539ab5d0f4e7b
-CMP Protocol Tests #4511  run 33312494963 / SUCCESS  head fd9bc57ba48adcbd2f7d706962a833a474908fe1
-CMP Protocol Tests #4512  run 33312514698 / SUCCESS  head 611f0840c7fdfe54410dc20bb55891a95595a45a
-CMP Protocol Tests #4513  run 33312544301 / SUCCESS  head 4de5062e024f3297f6c6bc9c7ce13a2634d1e5cc
-CMP Protocol Tests #4514  run 33312643984 / SUCCESS  head 7bd18d6369b9cf1197fda1d4011dd486a68bdc4b
-CMP Protocol Tests #4515  run 33312665383 / SUCCESS  head fa4666b32a792114f1f52d5a6ba4c04b128b7e3e
-CMP Protocol Tests #4516  run 33312689702 / SUCCESS  head 762b189f4225b40325de60e133f20598f5810e22
-CMP Protocol Tests #4517  run 33312756868 / SUCCESS  head 7f917bc0f4c96bc65c294f99de97536ead092ed4
-CMP Protocol Tests #4518  run 33312777122 / SUCCESS  head 0a9287c2ab4e22bf9236c7b742cc389993ae2158
-```
+Previous checkpoints 159–167 остаются закрытыми, repeated-scan optimization остаётся closed/no-change до measured defect/bottleneck, physical Arduino+ESP32 E2E для ранее проверенного состояния остаётся operator-confirmed PASS.
 
-Полная непрерывная chain #4160–#4518 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
-
-Latest exact independently verified GREEN SHA before this documentation refresh:
+## Latest CI state
 
 ```text
-0a9287c2ab4e22bf9236c7b742cc389993ae2158
-CMP Protocol Tests #4518  run 33312777122 / SUCCESS
+CMP #4519 run 33312797865 / SUCCESS head 626399bc84ac31cc791fc298376a7da666b2a85a
+CMP #4520 run 33312873604 / SUCCESS head b4510d4dca30b6d33be1d8c0d03087515b5e75a5
+CMP #4521 run 33312892924 / SUCCESS head 395d474732902650397c9ec53cb308d6e3c93b74
+CMP #4522 run 33312914746 / SUCCESS head 268383ac8d8ae12c03e952f2919f8a9c162d3e65
+CMP #4523 run 33313015445 / SUCCESS head 7eee9bc312bbaf07308e8213c9738cf8cda3202b
+CMP #4524 run 33313040747 / SUCCESS head 32da60826ee39e410afef0c30b69fc1e3fd63158
+CMP #4525 run 33313307355 / FAILURE head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
+CMP #4526 run 33313331225 / FAILURE head da6b5423d782b73ed4ebacb9aaf5fa164d5ac552
+CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346a
+ESP32 #1780 run 33313307362 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
 ```
 
-#4516 verifies the transfer through #4513 (`762b189f4225b40325de60e133f20598f5810e22`). #4517 verifies the snapshot through #4515 (`7f917bc0f4c96bc65c294f99de97536ead092ed4`), and #4518 verifies the entrypoint through #4515 (`0a9287c2ab4e22bf9236c7b742cc389993ae2158`). The transfer through #4515 (`626399bc84ac31cc791fc298376a7da666b2a85a`) remains newer than the latest supplied exact GREEN and must not be called GREEN without its own exact CI evidence. New documentation commits through #4518 are newer again and require their own exact runs before being called GREEN.
+#4523 verifies snapshot through #4522. #4524 verifies entrypoint through #4522. A transfer through #4522 was not written before the feature audit started; this file now closes that handoff gap and records the newer functional state.
 
-Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
+CMP #4525/#4526 are understood intermediate failures. The failing job step was `Audit calculator source wire input`; host configure/build/test and the preceding audits succeeded. The pre-existing test still required each entered diameter to represent exactly one source strand and therefore correctly caught that the contract had not yet been updated for the intentional new UX. The regression contract was aligned and CMP recovered at #4527.
 
-## Current engineering state
-
-Repo-reviewable experiment-side software work закрыт through checkpoint **167**:
+Latest exact CMP SUCCESS before this docs refresh:
 
 ```text
-152 RUN_WIRE Material Request status batching
-153 unified autonomous/Web completed-job archive lifecycle
-154 RUN_WIRE exact immutable-spool lookup
-155 Material Request create repair scan reuse
-156 Material Request Warehouse known-request status reuse
-157 client balance repair-journal validation reuse
-158 RepairCostingWeb exact repair proof reuse
-159 autonomous winding -> canonical motor history projection
-160 Warehouse exact lookup optimization
-161 Warehouse CONFIRMED provenance suffix scan
-162 repair finalization known-repair proof reuse
-163 Repair Delivery single-pass append preflight
-164 spool/material bridge suffix uniqueness audit
-165 residual repeated-scan audit -> NO-CHANGE
-166 reachable Hall RU LCD localization -> GREEN
-167 static canonical winding-role selector cleanup -> GREEN
+1b7f8504184b681d5f7e0da7710c4a50601a346a
+CMP #4527 run 33313347671 / SUCCESS
 ```
 
-Checkpoints 159–167 считать закрытыми и не переделывать без concrete regression.
+Exact ESP32 evidence supplied so far for this block is #1780 on `4c6554a0...`; do not call later calculator SHA ESP32-GREEN without checking a later exact build.
 
-Repeated-scan/performance optimization считается исчерпанной до появления concrete measured bottleneck или defect. Не продолжать speculative storage refactors только ради уменьшения file opens.
+## First feature-completeness result — calculator source strand counts
 
-## Firmware/build evidence
+Concrete gap found and fixed:
 
-Checkpoint 166 Hall RU LCD:
+Old Web behavior:
+- accepted up to five source diameters separated by `;`;
+- hard-coded every component as `source_strands_N=1`;
+- therefore could not represent the requested 3/5 parallel-strand source winding semantically.
+
+Current Web behavior:
+- desktop and mobile parse `<diameter>x<strand-count>`;
+- examples: `0,80x3`, `1,00x5`, `0,80x3;1,00x2`;
+- omitted `xN` defaults to one strand for backward-compatible simple entry;
+- backend already validates 1..12 strands/component, so no unsafe backend widening was required.
+
+Commits:
 
 ```text
-3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
-CMP Protocol Tests #4028  run 33268897356 / SUCCESS
-Arduino RU LCD #206       run 33268897370 / SUCCESS
+4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5  desktop
+ da6b5423d782b73ed4ebacb9aaf5fa164d5ac552  mobile
+1b7f8504184b681d5f7e0da7710c4a50601a346a  regression contract / CMP recovery
 ```
 
-Uno sizes from #206:
+## Next feature audit order
 
-```text
-uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); headroom 808 bytes
-uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); headroom 1190 bytes
-```
+Continue in this order unless a concrete defect is discovered earlier:
 
-Checkpoint 167 canonical winding-role selector:
+1. clients/motors/repairs bounded pagination and navigation;
+2. motor import workflow and validation;
+3. shared Web shell: navigation, icons, breadcrumbs, global search, recent items, RTC/device clock, FW/Web/SD version, toast/error layer;
+4. FTP/Web recovery behavior including `/web` absent case;
+5. Wi-Fi profiles, static IP, network status and `coil.local`;
+6. backup/settings workflows;
+7. desktop/mobile functional parity;
+8. stale/empty pages, dead menu links and settings links;
+9. any other previously promised feature discovered incomplete from docs/history versus current code.
 
-```text
-9e538828ed179700d362286a3af72de6a6ce0b6f
-CMP Protocol Tests #4068  run 33290408963 / SUCCESS
-ESP32 Build #1778         run 33290408891 / SUCCESS
-Arduino RU LCD #207       run 33290408886 / SUCCESS
+Do not mark a function complete merely because an old roadmap says it is implemented; verify current source + matching tests/API ownership.
 
-47903b0f2e2ddc8ac90abf1e26db7e678a570363
-CMP Protocol Tests #4069  run 33290422893 / SUCCESS
-ESP32 Build #1779         run 33290422888 / SUCCESS
-Arduino RU LCD #208       run 33290422860 / SUCCESS
-
-0eb32376de3a4c50c765dcbe6b946524d075f69b
-CMP Protocol Tests #4070  run 33290440543 / SUCCESS
-```
-
-Documentation-only CI does not replace these firmware/build evidence checkpoints.
-
-## Physical Arduino + ESP32 E2E — operator-confirmed PASS
-
-На **2026-08-30** пользователь сообщил, что физический тест реального CoilMaster проведён и **всё работает нормально**.
-
-Это operator-confirmed hardware evidence, а не автоматически наблюдаемый CI result. Physical acceptance gate считается закрытым для текущего проверенного hardware/firmware состояния.
-
-Accepted boundaries:
-
-1. ESP32 command -> Arduino ack.
-2. Keypad responsiveness до и после Hall mode.
-3. Normal RU LCD screens до Hall, Hall screens during test, normal CGRAM restoration после выхода.
-4. Physical START ownership только на Arduino; Web/ESP32 не управляют SSR.
-5. Hall 15-second run, apply и reject paths.
-6. SSR fail-safe behavior.
-7. RUN_STARTED/RUN_COMPLETED evidence без automatic wire deduction.
-8. Manual exact RUN_WIRE writeoff с `spool_id + source_session_id + source_run_id`.
-9. Reboot/recovery fail-closed behavior; no auto-resume.
-
-Если позже обнаружится concrete hardware regression, она становится новым finding и исправляется минимально, не переоткрывая автоматически остальные закрытые checkpoints.
-
-## Immediate next work
-
-Repo-reviewable software checkpoints 159–167 закрыты, speculative performance work остановлена, physical Arduino+ESP32 E2E закрыт operator-confirmed PASS.
-
-Следовательно, **нет обязательного незакрытого engineering gate** из текущего handoff.
-
-Дальнейшая работа должна начинаться только от одного из следующих реальных входов:
-
-- concrete runtime/software defect;
-- new hardware finding;
-- measured performance bottleneck;
-- явно выбранная новая product feature/UX задача;
-- отдельный прямой запрос на перенос experiment в production.
-
-Не придумывать новый cleanup/audit checkpoint только ради продолжения активности.
-
-## Safety invariants — do not change
+## Safety invariants — unchanged
 
 - no automatic physical START/repeat START;
 - no auto-resume after reboot;
 - Arduino is sole SSR owner;
-- ESP32/Web never controls SSR directly;
-- `RUN_COMPLETED` is evidence only;
-- RUN_WIRE writeoff remains explicit/manual;
-- exact `spool_id + source_session_id + source_run_id` mandatory;
-- restore/recovery remain fail-closed/operator-controlled;
-- mutation-time authoritative rereads and TOCTOU guards remain;
-- confirmed append-only history is never silently edited/deleted;
-- no unbounded growing-NDJSON buffering/cache;
+- ESP32/Web never directly controls SSR;
+- `RUN_COMPLETED` is evidence only and never auto-deducts wire;
+- RUN_WIRE remains explicit/manual with exact `spool_id + source_session_id + source_run_id`;
+- restore/recovery remain operator-controlled, transactional and fail-closed;
+- authoritative mutation-time rereads/TOCTOU guards remain;
+- append-only evidence is not silently edited/deleted;
 - no automatic production truncation/rotation/deletion;
 - no premature DB/index migration.
 
-## Read order for continuation
+## Continuation
 
-```text
-/AGENTS.md
-docs/PROJECT_HANDOFF/00_READ_FIRST.md
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
-docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
-docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md
-docs/PROJECT_HANDOFF/10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md
-docs/PROJECT_HANDOFF/11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md
-docs/PROJECT_HANDOFF/12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
-docs/PROJECT_HANDOFF/13_HALL_RU_LCD_ACCEPTANCE.md
-docs/PROJECT_HANDOFF/14_NEXT_CHAT_TRANSFER_2026-08-30.md
-docs/PROJECT_HANDOFF/15_NEXT_CHAT_TRANSFER_2026-08-30.md
-docs/PROJECT_HANDOFF/16_CMP_4160_4162_GREEN_2026-08-30.md
-docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
-```
+At next turn fetch fresh `arduino-ru-lcd-experiment` HEAD and continue feature-completeness audit, beginning with pagination unless a newer user-selected functional target exists. Update HANDOFF after meaningful functional checkpoints, not after every docs-only CI result.

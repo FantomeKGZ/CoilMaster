@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const networkWeb = fs.readFileSync('firmware/esp32/src/CM_NetworkWeb.cpp', 'utf8');
 const staticSite = fs.readFileSync('firmware/esp32/src/CM_StaticSiteServer.cpp', 'utf8');
+const wifiUi = fs.readFileSync('firmware/esp32/web/shared/settings-wifi.js', 'utf8');
 
 function requireText(source, needle, message) {
   if (!source.includes(needle)) throw new Error(message);
@@ -42,4 +43,15 @@ for (const expression of [
     `/api/system/network string field is not protected by JSON escaping: ${expression}`);
 }
 
-console.log('Network JSON escaping contracts OK');
+for (const [needle, message] of [
+  ['let items=[],saving=false;', 'Wi-Fi UI single-flight state missing'],
+  ['if(saving)return;saving=true;', 'Wi-Fi profile save must reject a second in-flight submit'],
+  ['if(submit)submit.disabled=true;', 'Wi-Fi profile submit control must lock while saving'],
+  ['finally{saving=false;if(submit)submit.disabled=false}', 'Wi-Fi profile save lock must always be released'],
+  ['networkStateText(s.network_state)', 'Wi-Fi runtime state must use localized presentation'],
+  ['networkResultText(s.network_last_result)', 'Wi-Fi runtime result must use localized presentation'],
+]) {
+  requireText(wifiUi, needle, message);
+}
+
+console.log('Network JSON escaping and Wi-Fi UI single-flight contracts OK');

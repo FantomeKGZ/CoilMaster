@@ -24,30 +24,13 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-65c520ff55788a931a347bb06c0386e242521280
-CMP Protocol Tests #4097  run 33292838954 / SUCCESS
+df4af83bc11635a41303c4aa17fe8b4d96e18bd7
+CMP Protocol Tests #4101  run 33293094890 / SUCCESS
 ```
 
-Последняя подтверждённая documentation-only цепочка вокруг текущего handoff:
+GitHub metadata подтверждает для `#4101`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact head `df4af83bc11635a41303c4aa17fe8b4d96e18bd7`. Job `host-tests` полностью SUCCESS, включая CMake configure/build/test и contract-аудиты Arduino, Web, CRM, Warehouse, material/costing, backup, Hall и RU LCD.
 
-```text
-497d38b5a0ec42f3568e3757da26c87dfadf460e
-CMP Protocol Tests #4093  run 33292447449 / SUCCESS
-
-0091eb59186bb5edec3f044a909ea137830afac8
-CMP Protocol Tests #4094  run 33292562741 / SUCCESS
-
-c7238c9f207f1372f2f58944fe58d493330f6d94
-CMP Protocol Tests #4095  run 33292581605 / SUCCESS
-
-fdd00c728f35351755399d721cd7878c856000a8
-CMP Protocol Tests #4096  run 33292705314 / SUCCESS
-
-65c520ff55788a931a347bb06c0386e242521280
-CMP Protocol Tests #4097  run 33292838954 / SUCCESS
-```
-
-Для `#4093–#4097`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+Это documentation-only confirmation текущего handoff HEAD и не заменяет отдельное firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 
@@ -110,7 +93,7 @@ WaitingApplyConfirm
 #=ДА B=НЕТ
 ```
 
-`WaitingLocalConfirm` остаётся недостижимым LCD state. Hall CGRAM использует только existing glyph bitmap `Д`, `Ч`, `И`, `Л`; после Hall mode normal screen-specific RU glyph set восстанавливается.
+`WaitingLocalConfirm` остаётся недостижимым LCD state. Hall CGRAM использует only existing glyph bitmap `Д`, `Ч`, `И`, `Л`; после Hall mode normal screen-specific RU glyph set восстанавливается.
 
 Exact firmware evidence:
 

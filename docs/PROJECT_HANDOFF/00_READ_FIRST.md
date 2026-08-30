@@ -18,13 +18,19 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний independently verified CI experiment HEAD перед этим documentation update:
 
 ```text
-a5da49fd5706843bb129691d6a23288276be12f2
-CMP Protocol Tests #4114  run 33293887033 / SUCCESS
+699a56937108bbd78963731c891d20d0bb33798e
+CMP Protocol Tests #4116  run 33294051310 / SUCCESS
 ```
 
 Непосредственно предшествующие documentation heads также подтверждены:
 
 ```text
+538173ad7b43c8673c4db126391ca705d2a881c4
+CMP Protocol Tests #4115  run 33294026938 / SUCCESS
+
+a5da49fd5706843bb129691d6a23288276be12f2
+CMP Protocol Tests #4114  run 33293887033 / SUCCESS
+
 e7c5d43184498eb5b003a8c352b0185be9172169
 CMP Protocol Tests #4113  run 33293866518 / SUCCESS
 
@@ -53,7 +59,7 @@ bcc3984bbaeda3e44132573e86c72199c7654521
 CMP Protocol Tests #4105  run 33293337241 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4112`, `#4113` и `#4114`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4114` является последним independently verified CI evidence перед этим documentation update. Эти documentation-only confirmations не заменяют отдельное firmware/build evidence checkpoints 166–167. Текущий branch HEAD после следующих docs commits нельзя называть GREEN до отдельного exact CI run.
+GitHub metadata подтверждает для `#4114`, `#4115` и `#4116`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4116` является последним independently verified CI evidence перед этим documentation update. Эти documentation-only confirmations не заменяют отдельное firmware/build evidence checkpoints 166–167. Текущий branch HEAD после следующих docs commits нельзя называть GREEN до отдельного exact CI run.
 
 Stable pre-CRM snapshot сохраняется:
 

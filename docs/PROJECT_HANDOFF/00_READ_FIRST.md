@@ -19,14 +19,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4257**.
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4260**.
 
 Последние подтверждённые runs:
 
 ```text
-#4248  run 33303438829 / SUCCESS  head f940d84f07d4ccddcb4603c22b11ca06be3d1357
-#4249  run 33303460375 / SUCCESS  head 9b8377115a65dedfdcefd395b1ef3ec01d351dcf
-#4250  run 33303512810 / SUCCESS  head 3915771cb573ce91f6e3bc0c84e54fd0a7be7457
 #4251  run 33303527840 / SUCCESS  head 611ec075f175c66832dbc08e852c72178d992584
 #4252  run 33303547940 / SUCCESS  head 3bbf453af708e89e4afc1be5e8c88a0f3b9e7ca0
 #4253  run 33303594288 / SUCCESS  head 359c4565a18b3ba0ca399ddb9e9305ea6b80d0cb
@@ -34,15 +31,18 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 #4255  run 33303633463 / SUCCESS  head a816206ee6a0dfb4c1ddd894517c57118676fbe0
 #4256  run 33303673598 / SUCCESS  head 3c96dbb47655389544ddb919d32fc10b088fa3ea
 #4257  run 33303687718 / SUCCESS  head 66cd16490c89c2114bfb4f86c1aadf62c0d9eff3
+#4258  run 33303706648 / SUCCESS  head 8786ee16df9cedd200044981858a66f08707af1d
+#4259  run 33303753983 / SUCCESS  head 0282e1d48b9adaceffb4181db56e0e6a18e584c8
+#4260  run 33303767626 / SUCCESS  head b9ce72df88dfbbd0bea1f7a9c5c3dedd777dc6ee
 ```
 
-Полная непрерывная цепочка #4160–#4257 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная цепочка #4160–#4260 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-66cd16490c89c2114bfb4f86c1aadf62c0d9eff3
-CMP Protocol Tests #4257  run 33303687718 / SUCCESS
+b9ce72df88dfbbd0bea1f7a9c5c3dedd777dc6ee
+CMP Protocol Tests #4260  run 33303767626 / SUCCESS
 ```
 
 Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.

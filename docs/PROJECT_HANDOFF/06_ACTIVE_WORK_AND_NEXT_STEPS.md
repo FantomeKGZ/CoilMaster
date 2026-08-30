@@ -241,9 +241,12 @@ CMP Protocol Tests #4043  run 33289176000 / SUCCESS  head e72df70cb90a8bcb6bc28d
 CMP Protocol Tests #4044  run 33289192924 / SUCCESS  head 944c7c29461f16bb191a2183d913e6db427f0118
 CMP Protocol Tests #4045  run 33289269685 / SUCCESS  head 1bb563db927ad363474f6471252e97c77119ee48
 CMP Protocol Tests #4046  run 33289289249 / SUCCESS  head a50bf196d1e8c88c5a1c578204cb6bebb9e0d5e5
+CMP Protocol Tests #4047  run 33289383083 / SUCCESS  head 1891dd264653dd4724441f4de15a4683c030f528
+CMP Protocol Tests #4048  run 33289410136 / SUCCESS  head b8f67b5d81611ab5c96110b90adab9461bb4a37b
+CMP Protocol Tests #4049  run 33289445045 / SUCCESS  head 026d0e13f535257d85f542795c00e9471483001d
 ```
 
-`#4036–#4046` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4044–#4046` are the latest independently verified documentation/contract runs before the current documentation commits.
+`#4036–#4049` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4046–#4049` are the latest independently verified documentation/contract runs before the current documentation commits.
 
 These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 

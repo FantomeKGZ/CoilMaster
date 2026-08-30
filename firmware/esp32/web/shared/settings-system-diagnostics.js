@@ -10,14 +10,14 @@
 
     const labels={
         POWER_ON:'включение питания',
-        EXTERNAL_PIN:'внешний RESET',
+        EXTERNAL_PIN:'внешний сброс',
         SOFTWARE:'программная перезагрузка',
         PANIC:'авария прошивки',
-        INTERRUPT_WATCHDOG:'watchdog прерывания',
-        TASK_WATCHDOG:'watchdog задачи',
-        WATCHDOG:'watchdog',
-        DEEP_SLEEP:'выход из deep sleep',
-        BROWNOUT:'просадка питания (brownout)',
+        INTERRUPT_WATCHDOG:'сторожевой таймер прерывания',
+        TASK_WATCHDOG:'сторожевой таймер задачи',
+        WATCHDOG:'сторожевой таймер',
+        DEEP_SLEEP:'выход из глубокого сна',
+        BROWNOUT:'просадка питания',
         SDIO:'сброс SDIO',
         UNKNOWN:'причина не определена'
     };
@@ -63,9 +63,9 @@
             const storage=await storagePromise;
             root.textContent='';
             addRow('Причина прошлого сброса',labels[data.reset_reason]||String(data.reset_reason||'—'));
-            addRow('Свободная heap',heapSize(data.free_heap_bytes));
-            addRow('Минимальная heap после запуска',heapSize(data.minimum_free_heap_bytes));
-            addRow('Крупнейший свободный блок',heapSize(data.largest_free_heap_block_bytes));
+            addRow('Свободная динамическая память',heapSize(data.free_heap_bytes));
+            addRow('Минимум свободной памяти после запуска',heapSize(data.minimum_free_heap_bytes));
+            addRow('Крупнейший свободный блок памяти',heapSize(data.largest_free_heap_block_bytes));
 
             if(storage){
                 addRow('microSD',storage.storage_ready?'готова':'не готова');
@@ -88,13 +88,13 @@
             const storageFailed=storage&&storage.storage_ready!==true;
             if(data.brownout_reset_detected===true){
                 root.className='note warn';
-                note.textContent='Зафиксирован brownout: проверьте источник 5 В, кабель, общую землю и напряжение 3,3 В во время старта Wi‑Fi.';
+                note.textContent='Зафиксирована просадка питания: проверьте источник 5 В, кабель, общую землю и напряжение 3,3 В во время старта Wi‑Fi.';
             }else if(storageFailed){
                 root.className='note warn';
-                note.textContent='microSD не готова: проверьте карту и перезагрузите устройство. Автоматическое удаление production данных не выполняется.';
+                note.textContent='microSD не готова: проверьте карту и перезагрузите устройство. Автоматическое удаление рабочих данных не выполняется.';
             }else{
                 note.className='muted';
-                note.textContent='Brownout прошлого запуска не зафиксирован. Размеры растущих NDJSON показаны для наблюдения; автоматическая очистка/ротация production данных отключена.';
+                note.textContent='Просадка питания прошлого запуска не зафиксирована. Размеры растущих NDJSON-журналов показаны для наблюдения; автоматическая очистка и ротация рабочих данных отключены.';
             }
             root.appendChild(note);
         }catch(error){

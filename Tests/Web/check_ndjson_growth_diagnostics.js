@@ -36,7 +36,7 @@ for (const text of [
   "addRow('Журнал намоток',byteSize(storage.winding_events_bytes))",
   "addRow('Реестр ремонтов',byteSize(storage.repair_registry_bytes))",
   "addRow('Реестр бухт',byteSize(storage.wire_spools_bytes))",
-  'автоматическая очистка/ротация production данных отключена'
+  'автоматическая очистка и ротация рабочих данных отключены'
 ]) {
   requireText(uiPath, ui, text, 'NDJSON growth diagnostics UI missing: ' + text);
 }

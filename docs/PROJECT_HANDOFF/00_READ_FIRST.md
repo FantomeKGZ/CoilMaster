@@ -19,59 +19,36 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-GitHub metadata independently confirms the latest documentation chain:
-
-```text
-c7da174ea9e18897f66944d12123a60d2970e420
-CMP Protocol Tests #4136  run 33295198287 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4134
-
-dc96c3917cf41b89521de5821151849434f9e0c4
-CMP Protocol Tests #4135  run 33295180004 / SUCCESS
-message: docs(handoff): record CMP 4132 through 4134
-
-8b3926b8de870589b64f0e0107d2f7a099e89c70
-CMP Protocol Tests #4134  run 33295091259 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4131
-
-b97fd6b9f77496646573bbd1ea64c151c049a78f
-CMP Protocol Tests #4133  run 33295068299 / SUCCESS
-message: docs(handoff): record CMP 4131
-
-103dc4ef9267c266ae64acadbe2dd198d6a77eed
-CMP Protocol Tests #4132  run 33294968670 / SUCCESS
-message: docs(handoff): extend verified CI chain through 4130
-
-58dda8de4b76861d05a14390bc3760f4647b7876
-CMP Protocol Tests #4131  run 33294943179 / SUCCESS
-
-fd098e0bbd72acc2c7e5c11b397e2315314343d5
-CMP Protocol Tests #4130  run 33294860227 / SUCCESS
-
-2390d6e1916c2bd2cbbcb72901cf486e200c72e2
-CMP Protocol Tests #4129  run 33294838984 / SUCCESS
-
-f833937bdea98c38a200cce4f297a95d62513d80
-CMP Protocol Tests #4128  run 33294756834 / SUCCESS
-```
-
-For `#4132/#4133/#4134/#4135/#4136`, branch is `arduino-ru-lcd-experiment`, event is `push`, status is `completed`, conclusion is `success`. Exact heads are `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f`, `8b3926b8de870589b64f0e0107d2f7a099e89c70`, `dc96c3917cf41b89521de5821151849434f9e0c4`, and `c7da174ea9e18897f66944d12123a60d2970e420` respectively.
-
-Therefore `c7da174ea9e18897f66944d12123a60d2970e420` is the latest exact independently verified GREEN documentation head from the supplied run evidence.
-
-The branch advanced after that run to docs-only commit:
+GitHub metadata подтверждает следующую свежую цепочку на `arduino-ru-lcd-experiment`:
 
 ```text
 13c26dad7b01f10545d1019cb130d350f26cef89
+CMP Protocol Tests #4137  run 33295262217 / SUCCESS
 message: docs(handoff): record CMP 4135
-parent: c7da174ea9e18897f66944d12123a60d2970e420
+
+9b62ddd9ce6cfff1a9075635dad5f3b81c785ef0
+CMP Protocol Tests #4138  run 33295354492 / SUCCESS
+message: docs(handoff): record CMP 4136
+
+ae15755f99d9c545a057e50cc483e56da1173838
+CMP Protocol Tests #4139  run 33295375686 / SUCCESS
+message: docs(handoff): extend verified CI through CMP 4136
 ```
 
-Do not call `13c26dad7b01f10545d1019cb130d350f26cef89` GREEN until its own exact CI result is confirmed. This documentation update likewise requires its own exact CI result before being called GREEN.
+Для всех трёх runs branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
 
-The longer verified handoff chain through `#4119` remains recorded in `14_NEXT_CHAT_TRANSFER_2026-08-30.md` and Git history. Documentation-only runs do not replace separate firmware/build evidence checkpoints 166–167.
+Следовательно latest exact independently verified GREEN head перед данным документационным изменением:
 
-Stable pre-CRM snapshot remains:
+```text
+ae15755f99d9c545a057e50cc483e56da1173838
+CMP Protocol Tests #4139  run 33295375686 / SUCCESS
+```
+
+Текущий документационный commit, созданный после `ae15755f...`, должен получить собственный exact CI result прежде чем его можно называть GREEN.
+
+Более длинная verified documentation chain остаётся в `14_NEXT_CHAT_TRANSFER_2026-08-30.md` и Git history. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
+
+Stable pre-CRM snapshot:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
@@ -96,8 +73,6 @@ docs/PROJECT_HANDOFF/14_NEXT_CHAT_TRANSFER_2026-08-30.md
 docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 ```
 
-Старые numbered checkpoint-файлы остаются историей, но не являются текущей точкой входа.
-
 ## Current state
 
 Experiment-side repo-reviewable software work закрыт through checkpoint **167**.
@@ -121,7 +96,7 @@ Experiment-side repo-reviewable software work закрыт through checkpoint **
 167 static canonical winding-role selector cleanup -> GREEN
 ```
 
-Repeated-scan/performance optimization считается исчерпанной до появления конкретного измеренного bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения количества file opens.
+Repeated-scan/performance optimization считается исчерпанной до появления конкретного measured bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения количества file opens.
 
 ## Checkpoint 166 — Hall RU LCD firmware evidence
 
@@ -162,11 +137,26 @@ Static desktop/mobile selectors expose only canonical `WORKING` / `STARTING`. Ru
 ## Immediate NEXT
 
 1. Получить свежий HEAD `arduino-ru-lcd-experiment` перед любым изменением.
-2. Treat checkpoints 159–167 as closed unless a concrete regression is observed.
-3. Не продолжать speculative repeated-scan refactors; checkpoint 165 is NO-CHANGE.
-4. Следующая repo-only работа должна идти только от конкретного дефекта, measured bottleneck либо hardware-acceptance находки.
+2. Treat checkpoints 159–167 as closed unless concrete regression is observed.
+3. Не продолжать speculative repeated-scan refactors; checkpoint 165 = NO-CHANGE.
+4. Следующая repo-only работа — только concrete defect, measured bottleneck либо hardware-acceptance finding.
 5. Full Arduino + ESP32 hardware E2E остаётся обязательным финальным acceptance gate.
 6. Во время hardware E2E проверить UART command/ack, keypad, normal RU screens before/after Hall, physical START ownership, Hall 15-second run/apply/reject, SSR fail-safe, RUN evidence, manual exact RUN_WIRE writeoff и reboot/recovery fail-closed behavior.
-7. Перед каждым изменением существующего файла fetch current branch content + current blob SHA.
-8. Не утверждать GREEN без exact current CI/run evidence.
-9. Production `cmp-protocol-v1` не трогать без отдельного запроса.
+7. Не утверждать GREEN без exact current CI/run evidence.
+8. Production `cmp-protocol-v1` не трогать без отдельного запроса.
+
+## Safety invariants
+
+- no automatic physical START/repeat START;
+- no auto-resume after reboot;
+- Arduino is sole SSR owner;
+- ESP32/Web never controls SSR directly;
+- `RUN_COMPLETED` is evidence only;
+- RUN_WIRE writeoff remains explicit/manual;
+- exact `spool_id + source_session_id + source_run_id` mandatory;
+- restore/recovery fail closed/operator controlled;
+- mutation-time authoritative rereads and TOCTOU guards remain;
+- append-only confirmed history never silently edited/deleted;
+- no unbounded growing-NDJSON buffering/cache;
+- no automatic production truncation/rotation/deletion;
+- no premature DB/index migration.

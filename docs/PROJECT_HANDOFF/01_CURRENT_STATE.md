@@ -299,6 +299,18 @@ uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); Flash headroom
 
 Because the RU build has only **808 bytes of flash headroom**, future Uno-side additions must be extremely small and concrete. Prefer keeping processing/expanded UI logic on ESP32 when architecture permits; do not add speculative Uno features merely for convenience.
 
+## Latest verified experiment handoff CI
+
+The latest user-provided CMP handoff/documentation chain is independently verified through #4065:
+
+```text
+CMP Protocol Tests #4063  run 33290149645 / SUCCESS  head b189d7d3575663fa2f11b376352dca1cda301377
+CMP Protocol Tests #4064  run 33290236422 / SUCCESS  head 05b5fd3a2acb2f8cb5d7f167848561bc353864fe
+CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d
+```
+
+`#4065` is exact for branch HEAD `8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d` immediately before the current documentation refresh. These runs confirm current handoff/documentation/contract state and do not replace the exact firmware acceptance evidence for checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`).
+
 ## Safety / integrity boundaries that remain intentionally unchanged
 
 - No automatic physical START, repeat START or resume.

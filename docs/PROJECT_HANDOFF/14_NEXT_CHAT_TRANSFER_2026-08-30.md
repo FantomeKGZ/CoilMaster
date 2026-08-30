@@ -22,10 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified handoff HEAD перед текущим documentation update:
 
 ```text
-026d0e13f535257d85f542795c00e9471483001d
+248e6a1861ef310aba38910043124f4777833943
 ```
 
-Он подтверждён `CMP Protocol Tests #4049`. После него ветка содержит только последующие documentation commits; в новом чате всегда сначала получать свежий branch HEAD и не считать docs-only child новым firmware runtime checkpoint.
+Он подтверждён `CMP Protocol Tests #4051`. После него ветка содержит только последующие documentation commits; в новом чате всегда сначала получать свежий branch HEAD и не считать docs-only child новым firmware runtime checkpoint.
 
 ## 2. Что читать первым
 
@@ -255,9 +255,17 @@ CMP Protocol Tests #4048  run 33289410136 / SUCCESS
 026d0e13f535257d85f542795c00e9471483001d
 docs(handoff): sync active CI chain through 4046
 CMP Protocol Tests #4049  run 33289445045 / SUCCESS
+
+fd3eb34a15ccdc334202f38d165934ae0bb1f2ce
+docs(handoff): extend verified CI through 4049
+CMP Protocol Tests #4050  run 33289542271 / SUCCESS
+
+248e6a1861ef310aba38910043124f4777833943
+docs(handoff): record CMP 4047-4049
+CMP Protocol Tests #4051  run 33289561938 / SUCCESS
 ```
 
-`#4036–#4049` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4046–#4049` were rechecked directly against GitHub metadata in this update. `#4049` is the latest exact CI-verified handoff/documentation head before this commit.
+`#4036–#4051` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4050` and `#4051` were rechecked directly against GitHub metadata in this update. `#4051` is the latest exact CI-verified handoff/documentation head before this commit.
 
 These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 

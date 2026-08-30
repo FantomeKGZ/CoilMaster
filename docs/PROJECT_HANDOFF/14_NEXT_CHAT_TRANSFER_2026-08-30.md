@@ -24,6 +24,12 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified documentation heads:
 
 ```text
+c834321ec8199d1d3420ed29a625c18760453ec6
+CMP Protocol Tests #4126  run 33294630764 / SUCCESS
+
+db0f3175caff1582b95628d85c5edcacf21a59d1
+CMP Protocol Tests #4125  run 33294606600 / SUCCESS
+
 de180b5deda6cf1545c439ca09c83da2193c4d30
 CMP Protocol Tests #4124  run 33294520980 / SUCCESS
 
@@ -47,16 +53,18 @@ GitHub metadata подтверждает:
 
 - `#4122`: branch `arduino-ru-lcd-experiment`, head `124e43e7626a769750648cfac96d07c131bd548e`, status `completed`, conclusion `success`, event `push`;
 - `#4123`: branch `arduino-ru-lcd-experiment`, head `a5059a362844cb8b3668fb38afeea18ba29d552b`, status `completed`, conclusion `success`, event `push`;
-- `#4124`: branch `arduino-ru-lcd-experiment`, head `de180b5deda6cf1545c439ca09c83da2193c4d30`, status `completed`, conclusion `success`, event `push`.
+- `#4124`: branch `arduino-ru-lcd-experiment`, head `de180b5deda6cf1545c439ca09c83da2193c4d30`, status `completed`, conclusion `success`, event `push`;
+- `#4125`: branch `arduino-ru-lcd-experiment`, head `db0f3175caff1582b95628d85c5edcacf21a59d1`, status `completed`, conclusion `success`, event `push`;
+- `#4126`: branch `arduino-ru-lcd-experiment`, head `c834321ec8199d1d3420ed29a625c18760453ec6`, status `completed`, conclusion `success`, event `push`.
 
-Текущий branch HEAD непосредственно перед этими documentation updates был:
+Текущий branch HEAD непосредственно перед этим documentation update:
 
 ```text
-de180b5deda6cf1545c439ca09c83da2193c4d30
-message: docs(handoff): advance entrypoint through CMP 4121
+c834321ec8199d1d3420ed29a625c18760453ec6
+message: docs(handoff): advance transfer through CMP 4124
 ```
 
-`#4124` является exact GREEN confirmation этого pre-update HEAD. Текущие documentation commits после `de180b5d...` требуют собственного exact CI confirmation прежде чем их можно называть GREEN.
+`#4126` является exact GREEN confirmation этого pre-update HEAD. Новый documentation commit, который добавляет `#4125/#4126` в этот handoff, должен иметь собственный CI result прежде чем его можно называть GREEN.
 
 Непосредственно предыдущие documentation heads также подтверждены:
 
@@ -257,30 +265,3 @@ Checkpoint 165 закрыл residual audit как **NO-CHANGE**. Intentional rer
 ## 9. Immediate next work
 
 Без конкретного repo defect следующий обязательный engineering gate — physical Arduino + ESP32 E2E на реальном CoilMaster.
-
-Проверить:
-
-1. boot без reset loop;
-2. keypad responsiveness;
-3. normal RU LCD до Hall mode;
-4. Hall armed screen и отсутствие automatic start;
-5. keypad `A` и отдельный physical START только когда interlocks разрешают;
-6. Arduino-only SSR ownership и fail-safe path;
-7. читаемый 15-second Hall countdown;
-8. `#` applies/persists accepted calibration; `B` rejects without applying;
-9. normal RU glyphs restored after Hall exit;
-10. ESP32 loss не создаёт unsafe start/resume;
-11. UART command/ack и Hall telemetry;
-12. RUN_STARTED/RUN_COMPLETED evidence behavior;
-13. manual exact RUN_WIRE writeoff;
-14. reboot/recovery fail-closed behavior.
-
-Если hardware E2E выявит дефект, исправлять только этот concrete defect в `arduino-ru-lcd-experiment`, с current-content/current-SHA discipline и exact CI verification.
-
-## 10. Working style
-
-- Russian, concise.
-- Execute rather than replace work with long plans.
-- Continue code/commits until the concrete repo-reviewable block is closed or a real external blocker exists.
-- Do not ask the user to manually verify each commit.
-- Never call CI/build GREEN without exact current run confirmation.

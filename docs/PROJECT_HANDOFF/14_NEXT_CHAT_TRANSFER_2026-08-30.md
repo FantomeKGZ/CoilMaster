@@ -24,6 +24,15 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified documentation heads:
 
 ```text
+de180b5deda6cf1545c439ca09c83da2193c4d30
+CMP Protocol Tests #4124  run 33294520980 / SUCCESS
+
+a5059a362844cb8b3668fb38afeea18ba29d552b
+CMP Protocol Tests #4123  run 33294500721 / SUCCESS
+
+124e43e7626a769750648cfac96d07c131bd548e
+CMP Protocol Tests #4122  run 33294397706 / SUCCESS
+
 5687a7153598879f68f2487e3e61f8241fa60447
 CMP Protocol Tests #4121  run 33294372059 / SUCCESS
 
@@ -36,17 +45,18 @@ CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 
 GitHub metadata подтверждает:
 
-- `#4120`: branch `arduino-ru-lcd-experiment`, head `3c7d82daadffe516ae2c49904ffd750357658526`, status `completed`, conclusion `success`, event `push`;
-- `#4121`: branch `arduino-ru-lcd-experiment`, head `5687a7153598879f68f2487e3e61f8241fa60447`, status `completed`, conclusion `success`, event `push`.
+- `#4122`: branch `arduino-ru-lcd-experiment`, head `124e43e7626a769750648cfac96d07c131bd548e`, status `completed`, conclusion `success`, event `push`;
+- `#4123`: branch `arduino-ru-lcd-experiment`, head `a5059a362844cb8b3668fb38afeea18ba29d552b`, status `completed`, conclusion `success`, event `push`;
+- `#4124`: branch `arduino-ru-lcd-experiment`, head `de180b5deda6cf1545c439ca09c83da2193c4d30`, status `completed`, conclusion `success`, event `push`.
 
-Текущий branch HEAD непосредственно перед этим documentation update был:
+Текущий branch HEAD непосредственно перед этими documentation updates был:
 
 ```text
-124e43e7626a769750648cfac96d07c131bd548e
-message: docs(handoff): advance verified CI through 4119
+de180b5deda6cf1545c439ca09c83da2193c4d30
+message: docs(handoff): advance entrypoint through CMP 4121
 ```
 
-`#4120/#4121` не подтверждают `124e43e...`, потому что их `head_sha` — более ранние commits. После этого нового docs commit снова получать свежий HEAD и не считать его GREEN до отдельного exact CI run.
+`#4124` является exact GREEN confirmation этого pre-update HEAD. Текущие documentation commits после `de180b5d...` требуют собственного exact CI confirmation прежде чем их можно называть GREEN.
 
 Непосредственно предыдущие documentation heads также подтверждены:
 

@@ -41,18 +41,29 @@ message: docs(handoff): record CMP 4155 and 4156
 945061512a705a5b4f61a054841c977b7e978c9e
 CMP Protocol Tests #4158  run 33296459453 / SUCCESS
 message: docs(handoff): advance through CMP 4156
+
+bd7e1f8454a25305fc0a4af47361341ba161d84f
+CMP Protocol Tests #4159  run 33296578402 / SUCCESS
+message: docs(handoff): record CMP 4157 and 4158
 ```
 
-Для #4154–#4158 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. Для #4157 и #4158 host-tests дополнительно подтверждены как fully successful, включая configure/build/test и все audit steps.
+Для #4154–#4159 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. `#4159` exact-confirmed на `bd7e1f8454a25305fc0a4af47361341ba161d84f`.
 
 Следовательно latest exact independently verified GREEN documentation head перед текущими documentation-only обновлениями:
 
 ```text
-945061512a705a5b4f61a054841c977b7e978c9e
-CMP Protocol Tests #4158  run 33296459453 / SUCCESS
+bd7e1f8454a25305fc0a4af47361341ba161d84f
+CMP Protocol Tests #4159  run 33296578402 / SUCCESS
 ```
 
-Новые documentation-only commits после `945061512...` должны получить собственные exact CI results прежде чем их HEAD можно называть GREEN.
+Текущий branch HEAD перед этим обновлением был:
+
+```text
+d8a597c1ac07ee234a824a419698a4dc61067761
+message: docs(handoff): advance through CMP 4158
+```
+
+Для `d8a597c1...` и новых documentation-only commits после него нужен собственный exact CI result прежде чем их HEAD можно называть GREEN.
 
 Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 

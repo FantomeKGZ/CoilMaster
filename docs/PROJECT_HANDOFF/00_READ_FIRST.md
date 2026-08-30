@@ -19,33 +19,33 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4509**.
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4513**.
 
 Последние подтверждённые runs:
 
 ```text
-#4500  run 33312006146 / SUCCESS  head 7b0340de555b0a6e0bcb4034d5ba9f82375e2d95
-#4501  run 33312028901 / SUCCESS  head 1cf362fb8500abeb546365f96b8a18ce59511bd9
-#4502  run 33312118683 / SUCCESS  head 2d76a44b7c4a8f051cff4035ffbec9487265bde1
-#4503  run 33312143177 / SUCCESS  head d4d962387ada7f97e217355d8b4b52b63e35be84
 #4504  run 33312165284 / SUCCESS  head 1ba67a24f512eb22c92a261820c7495e6b2b9559
 #4505  run 33312246571 / SUCCESS  head aa57043d7a57ce63850efc9280ffbf2eed65ec3b
 #4506  run 33312267626 / SUCCESS  head 5fb842b9c89f35634e0dadbd48ee10930194eae9
 #4507  run 33312294361 / SUCCESS  head c565431e0f5622e3d2c25f4824946bdff1dada42
 #4508  run 33312375450 / SUCCESS  head 147713b1cb229276b9b880ccf25f4188b5f392bf
 #4509  run 33312397960 / SUCCESS  head 6733c043cd7cb6068c9383ddc2af717c9662cad1
+#4510  run 33312422691 / SUCCESS  head cf8c6555d41248e452477b4d597539ab5d0f4e7b
+#4511  run 33312494963 / SUCCESS  head fd9bc57ba48adcbd2f7d706962a833a474908fe1
+#4512  run 33312514698 / SUCCESS  head 611f0840c7fdfe54410dc20bb55891a95595a45a
+#4513  run 33312544301 / SUCCESS  head 4de5062e024f3297f6c6bc9c7ce13a2634d1e5cc
 ```
 
-Полная непрерывная цепочка #4160–#4509 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная цепочка #4160–#4513 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-6733c043cd7cb6068c9383ddc2af717c9662cad1
-CMP Protocol Tests #4509  run 33312397960 / SUCCESS
+4de5062e024f3297f6c6bc9c7ce13a2634d1e5cc
+CMP Protocol Tests #4513  run 33312544301 / SUCCESS
 ```
 
-#4508 verifies snapshot through #4507 and #4509 verifies entrypoint through #4507. Transfer through #4507 (`cf8c6555d41248e452477b4d597539ab5d0f4e7b`) пока не подтверждён отдельным supplied exact SUCCESS. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Новые docs commits through #4509 новее latest exact GREEN и не должны называться GREEN без exact run evidence. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.
+#4510 verifies transfer through #4507. #4511 verifies snapshot through #4509, #4512 verifies entrypoint through #4509, and #4513 verifies transfer through #4509. Thus the entire previous HANDOFF triplet through #4509 is independently verified GREEN. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Новые docs commits through #4513 новее latest exact GREEN и не должны называться GREEN без exact run evidence. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.
 
 ## Current engineering state
 

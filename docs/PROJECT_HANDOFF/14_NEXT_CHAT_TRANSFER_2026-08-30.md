@@ -48,15 +48,19 @@ message: docs(handoff): record CMP 4140 and 4141
 0fd178e2d4a194b707420edfa1c4f525cad2fbdf
 CMP Protocol Tests #4143  run 33295571380 / SUCCESS
 message: docs(handoff): extend verified CI through CMP 4141
+
+902d128bca63dbde58831834b17b8b6b3b1cdfa6
+CMP Protocol Tests #4144  run 33295649674 / SUCCESS
+message: docs(handoff): record CMP 4142 and 4143
 ```
 
-GitHub metadata independently confirms #4140 through #4143 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
+GitHub metadata independently confirms #4140 through #4144 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
 
 Exact latest verified GREEN documentation head before this documentation update:
 
 ```text
-0fd178e2d4a194b707420edfa1c4f525cad2fbdf
-CMP Protocol Tests #4143  run 33295571380 / SUCCESS
+902d128bca63dbde58831834b17b8b6b3b1cdfa6
+CMP Protocol Tests #4144  run 33295649674 / SUCCESS
 ```
 
 This current transfer-document commit is documentation-only and requires its own exact CI result before the new documentation HEAD is itself called GREEN.

@@ -1,21 +1,27 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-28**  
+Дата обновления: **2026-08-30**  
 Repo: `FantomeKGZ/CoilMaster`  
 Production/source-of-truth: **`cmp-protocol-v1`**. `main` для исходников не использовать.  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**.
 
 ## Branch policy
 
-Production остаётся на:
+Production остаётся неизменённым:
 
 ```text
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Все новые изменения текущего цикла выполняются в `arduino-ru-lcd-experiment`. Не переносить их обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
+Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Stable pre-CRM snapshot:
+Текущий HEAD, от которого обновлён этот handoff:
+
+```text
+70a9d492bca693237413dbb1b781d3cef4ed85dc
+```
+
+Stable pre-CRM snapshot сохраняется:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
@@ -24,58 +30,84 @@ stable-2026-08-25-pre-crm-redesign -> same commit
 
 ## Read order
 
+Для нового чата сначала читать:
+
 ```text
 /AGENTS.md
-this file
-docs/PROJECT_HANDOFF/152_RUN_WIRE_MATERIAL_REQUEST_STATUS_BATCH_2026-08-28.md
-docs/PROJECT_HANDOFF/151_REPAIR_MATERIAL_SOFTWARE_ACCEPTANCE_2026-08-28.md
-docs/PROJECT_HANDOFF/150_MATERIAL_FAIL_CLOSED_UX_2026-08-28.md
-docs/PROJECT_HANDOFF/149_CLIENT_EDIT_PREPAYMENT_2026-08-28.md
+docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
 docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md
-docs/PROJECT_HANDOFF/147_MATERIAL_REQUEST_STATUS_TRANSITION_SINGLE_PASS_2026-08-27.md
-docs/PROJECT_HANDOFF/146_CASH_PAYMENT_APPEND_SINGLE_PASS_2026-08-27.md
-docs/PROJECT_HANDOFF/145_WINDING_JOURNAL_BOOT_SINGLE_PASS_2026-08-27.md
-docs/PROJECT_HANDOFF/144_WINDING_JOURNAL_RUNTIME_SINGLE_PASS_2026-08-27.md
-docs/PROJECT_HANDOFF/143_AUTONOMOUS_ASSIGNMENT_API_NARROWING_2026-08-27.md
-docs/PROJECT_HANDOFF/142_JOB_SNAPSHOT_EXISTS_VISIBILITY_2026-08-27.md
-docs/PROJECT_HANDOFF/141_CRM_FAIL_CLOSED_SOURCE_LOOKUPS_2026-08-26.md
-docs/PROJECT_HANDOFF/140_WINDING_SESSION_SELECTION_ONLY_PREFLIGHT_2026-08-26.md
-docs/PROJECT_HANDOFF/139_FINALIZATION_WRITEOFF_FIRST_BATCH_FUSED_AUDIT_2026-08-26.md
-docs/PROJECT_HANDOFF/138_REPAIR_COSTING_FAIL_CLOSED_REPAIR_LOOKUP_2026-08-26.md
-docs/PROJECT_HANDOFF/137_MATERIAL_LEDGER_RETIRED_PRIVATE_HELPERS_REMOVAL_2026-08-26.md
-docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
+docs/PROJECT_HANDOFF/10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md
+docs/PROJECT_HANDOFF/11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md
+docs/PROJECT_HANDOFF/12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
+docs/PROJECT_HANDOFF/13_HALL_RU_LCD_ACCEPTANCE.md
+docs/PROJECT_HANDOFF/14_NEXT_CHAT_TRANSFER_2026-08-30.md
+docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 ```
 
-## Latest GREEN code checkpoint
-
-RUN_WIRE Material Request status preflight no longer performs N+1 server-side status scans. A bounded max-24 batch resolver performs one request-journal scan plus one status-journal scan per page while preserving global ordering and exact per-request lifecycle-chain validation.
-
-```text
-runtime/UI code SHA                    104f319e1cb8e466a229c0d40876b35aac6ded86
-ESP32 Build #1708                     run 33167009269 / SUCCESS
-Arduino RU LCD Build #132             run 33167009264 / SUCCESS
-final host-contract SHA               17c7c43058802f44d5f0b26d0da301190e792ebd
-CMP Protocol Tests #3885              run 33167039155 / SUCCESS
-```
-
-See `152_RUN_WIRE_MATERIAL_REQUEST_STATUS_BATCH_2026-08-28.md`.
+Старые numbered checkpoint-файлы остаются историей, но не являются текущей точкой входа.
 
 ## Current state
 
-The repair-material software accounting/integrity block is accepted complete; see checkpoint 151. Generic material usage/corrections remain append-only, idempotent and fail-closed. RUN_WIRE remains a separate manual exact-safe warehouse path.
+Experiment-side repo-reviewable software work закрыт through checkpoint **166**.
 
-RUN_WIRE status batching is read-only optimization only. Exact `source_session_id + source_run_id + spool_id`, explicit `confirmed=true`, dedicated `/api/material-requests/warehouse`, and `RUN_COMPLETED` evidence-only semantics are unchanged.
+Закрытые последние блоки:
 
-Client edits remain append-only revisions. Client PREPAYMENT remains separate from repair debt/costing and is never auto-applied.
+```text
+159 autonomous winding -> canonical motor history projection
+160 Warehouse exact lookup optimization
+161 Warehouse CONFIRMED provenance suffix scan
+162 repair finalization known-repair proof reuse
+163 Repair Delivery single-pass append preflight
+164 spool/material bridge suffix uniqueness audit
+165 residual repeated-scan audit -> NO-CHANGE
+166 reachable Hall RU LCD localization -> GREEN
+```
+
+Repeated-scan/performance optimization считается исчерпанной до появления конкретного измеренного bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения количества file opens.
+
+## Latest verified Hall/RU LCD source checkpoint
+
+```text
+3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
+CMP Protocol Tests #4028  run 33268897356 / SUCCESS
+Arduino RU LCD #206       run 33268897370 / SUCCESS
+```
+
+Uno resource evidence из exact #206:
+
+```text
+uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); headroom 808 bytes
+uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); headroom 1190 bytes
+```
+
+Практический вывод: не расширять Uno крупными Hall/UI-функциями. Новые Arduino-side изменения только для конкретных дефектов и максимально малы; расширенную обработку/представление по возможности держать на ESP32, сохраняя автономную безопасность Arduino.
+
+Подробно: `13_HALL_RU_LCD_ACCEPTANCE.md`.
 
 ## Immediate NEXT
 
-1. Continue repo-reviewable repeated-scan/performance audit in `arduino-ru-lcd-experiment`.
-2. First candidate: exact RUN_WIRE spool lookup — verify whether Web still walks the whole paged spool catalogue for one immutable `spool_id` and whether an existing authoritative by-id backend lookup can replace it safely.
-3. Prefer bounded/single-pass reads only when integrity domains remain separate and fail-closed semantics are preserved.
-4. Keep fixed RAM bounds; no whole-file buffering, unbounded vectors, automatic rotation/deletion/truncation or premature DB/index migration.
-5. Hardware Arduino+ESP32 E2E remains a separate final gate.
-6. Do not move experiment commits to `cmp-protocol-v1` without explicit approval.
+1. Получить свежий HEAD `arduino-ru-lcd-experiment` перед любым изменением.
+2. Не переделывать checkpoints 159–166 без конкретной regression.
+3. Следующая repo-only работа должна идти только от конкретного дефекта, измеренного bottleneck либо hardware-acceptance находки.
+4. Full Arduino + ESP32 hardware E2E остаётся обязательным финальным acceptance gate.
+5. Во время hardware E2E проверить UART command/ack, keypad, normal RU screens before/after Hall, physical START ownership, Hall 15-second run/apply/reject, SSR fail-safe, RUN evidence, manual exact RUN_WIRE writeoff и reboot/recovery fail-closed behavior.
+6. Перед каждым изменением существующего файла fetch current branch content + current blob SHA.
+7. Не утверждать GREEN без exact current CI/run evidence.
+8. Production `cmp-protocol-v1` не трогать без отдельного запроса.
 
-`RUN_COMPLETED` remains evidence only; no automatic wire writeoff, physical START or resume.
+## Safety invariants
+
+- никакого automatic physical START или repeat START;
+- никакого auto-resume after reboot;
+- Arduino — единственный владелец SSR;
+- ESP32/Web не управляют SSR напрямую;
+- `RUN_COMPLETED` остаётся evidence only;
+- RUN_WIRE writeoff только explicit/manual;
+- exact `spool_id + source_session_id + source_run_id` обязателен;
+- mutation-time authoritative rereads / TOCTOU / recovery gates не удалять ради performance;
+- confirmed append-only history не редактировать/удалять скрытно;
+- no unbounded growing-NDJSON buffering/cache;
+- no automatic production truncation/rotation/deletion;
+- no premature DB/index migration.

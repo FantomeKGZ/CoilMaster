@@ -14,16 +14,19 @@ Do not require the same Hall/RU-LCD physical E2E again solely because older summ
 
 ## Latest exact verified CI
 
-Current branch HEAD before this documentation commit:
+Current release-readiness checkpoint:
 
 ```text
-59c1e7e0a9e221706bdbb73985c7bd570fbb169d
-CMP Protocol Tests #4632  run 33320805155 / SUCCESS
+7665238636e3e7c956486be6a93bd87090b8fcfa
+CMP Protocol Tests #4633  run 33321339061 / SUCCESS
 ```
 
 Immediately preceding verified checkpoints:
 
 ```text
+59c1e7e0a9e221706bdbb73985c7bd570fbb169d
+CMP Protocol Tests #4632  run 33320805155 / SUCCESS
+
 5aeb8693554bf31225b0d0ee1f6d63254619dffe
 CMP Protocol Tests #4631  run 33320763406 / SUCCESS
 
@@ -32,9 +35,22 @@ CMP Protocol Tests #4630   run 33320670860 / SUCCESS
 Arduino RU LCD Build #241 run 33320670903 / SUCCESS
 ```
 
-The earlier CMP #4620 failure was intermediate; the later chain #4621 through #4632 recovered to SUCCESS.
+The earlier CMP #4620 failure was intermediate; the later chain #4621 through #4633 recovered and remained SUCCESS.
 
-Do not call this documentation commit itself GREEN until its own exact run is checked.
+## Promotion build-chain evidence
+
+The last Web/runtime commit before the final regression-only/docs commits is:
+
+```text
+9430ea189ab1ed45480180f06a1af88e821b31dc
+CMP Protocol Tests #4629   run 33320651036 / SUCCESS
+ESP32 Build #1810          run 33320651041 / SUCCESS
+Arduino RU LCD Build #240  run 33320651027 / SUCCESS
+```
+
+The next commit `d84402251552522f60c2494da7dd7b19bb6af35a` changes only `Tests/Web/check_crud_page_separation.js` and is independently verified by CMP #4630 and Arduino RU LCD #241.
+
+Exact compare from `d8440225...` to `76652386...` shows only three later commits and only `docs/PROJECT_HANDOFF` changes. Therefore no firmware, ESP32 runtime, Arduino runtime, Web asset or test source changed after the verified code/test checkpoint.
 
 ## Completed final Web/code audit blocks
 
@@ -77,7 +93,7 @@ base: cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 head: arduino-ru-lcd-experiment
 status: ahead
 behind: 0
-ahead: 864 commits
+ahead: 865 commits
 merge-base: 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
@@ -87,14 +103,16 @@ This is **not** authorization to change production. Do not move or merge `cmp-pr
 
 ## Current engineering state
 
-No broad speculative audit is currently justified.
+Repo-side release-readiness is complete for the current release candidate.
 
-Remaining release work is now limited to:
+Remaining release work is limited to:
 
 1. concrete reproducible defects, if discovered;
-2. exact CI verification of any new documentation/code commit;
-3. final release verification / production promotion only after an explicit operator request;
-4. optional final production acceptance E2E if the operator wants a release-candidate hardware pass after promotion planning.
+2. exact CI verification of any new commit;
+3. production promotion only after an explicit operator request;
+4. optional final production acceptance E2E only if the operator explicitly requests another release-candidate hardware pass.
+
+Do not start another broad speculative audit without a concrete defect or a new product requirement.
 
 ## Safety invariants unchanged
 

@@ -29,6 +29,10 @@ for (const surface of ['desktop', 'mobile']) {
   need(repairNew, "fetch('/api/repairs'", `${surface} repair creation`);
   need(repairNew, 'name="client_id"', `${surface} repair client link`);
   need(repairNew, 'name="motor_id"', `${surface} repair motor link`);
+  need(repairNew, 'let sending=false', `${surface} repair create state guard`);
+  need(repairNew, 'if(sending)return', `${surface} repair create single-flight`);
+  need(repairNew, "$('saveBtn').disabled=true", `${surface} repair submit lock`);
+  need(repairNew, 'repair_id_missing', `${surface} repair create response identity`);
 
   const clients = read(`${surface}/clients.html`);
   need(clients, `/${surface}/client-new.html`, `${surface} client catalog create link`);
@@ -60,6 +64,10 @@ for (const surface of ['desktop', 'mobile']) {
 
   const spoolNew = read(`${surface}/spool-new.html`);
   need(spoolNew, "fetch('/api/warehouse/spools'", `${surface} spool creation`);
+  need(spoolNew, 'let sending=false', `${surface} spool create state guard`);
+  need(spoolNew, 'if(sending)return', `${surface} spool create single-flight`);
+  need(spoolNew, "$('saveBtn').disabled=true", `${surface} spool submit lock`);
+  need(spoolNew, 'spool_id_missing', `${surface} spool create response identity`);
 
   const materials = read(`${surface}/material-catalog.html`);
   need(materials, `/${surface}/material-new.html`, `${surface} material create link`);
@@ -89,4 +97,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('CRUD page separation OK: catalogs are list-only, create/edit flows are dedicated pages, create mutations are single-flight, navigation is present, and modified scripts parse.');
+console.log('CRUD page separation OK: catalogs are list-only, create/edit flows are dedicated pages, client/motor/repair/spool/material create mutations are single-flight, navigation is present, and modified scripts parse.');

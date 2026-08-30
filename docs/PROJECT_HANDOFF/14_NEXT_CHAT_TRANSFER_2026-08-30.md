@@ -24,6 +24,15 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified documentation heads:
 
 ```text
+fd098e0bbd72acc2c7e5c11b397e2315314343d5
+CMP Protocol Tests #4130  run 33294860227 / SUCCESS
+
+2390d6e1916c2bd2cbbcb72901cf486e200c72e2
+CMP Protocol Tests #4129  run 33294838984 / SUCCESS
+
+f833937bdea98c38a200cce4f297a95d62513d80
+CMP Protocol Tests #4128  run 33294756834 / SUCCESS
+
 b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
 CMP Protocol Tests #4127  run 33294728536 / SUCCESS
 
@@ -54,29 +63,19 @@ CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 
 GitHub metadata подтверждает:
 
-- `#4122`: branch `arduino-ru-lcd-experiment`, head `124e43e7626a769750648cfac96d07c131bd548e`, status `completed`, conclusion `success`, event `push`;
-- `#4123`: branch `arduino-ru-lcd-experiment`, head `a5059a362844cb8b3668fb38afeea18ba29d552b`, status `completed`, conclusion `success`, event `push`;
-- `#4124`: branch `arduino-ru-lcd-experiment`, head `de180b5deda6cf1545c439ca09c83da2193c4d30`, status `completed`, conclusion `success`, event `push`;
-- `#4125`: branch `arduino-ru-lcd-experiment`, head `db0f3175caff1582b95628d85c5edcacf21a59d1`, status `completed`, conclusion `success`, event `push`;
-- `#4126`: branch `arduino-ru-lcd-experiment`, head `c834321ec8199d1d3420ed29a625c18760453ec6`, status `completed`, conclusion `success`, event `push`;
-- `#4127`: branch `arduino-ru-lcd-experiment`, head `b6f40e1cfd6db422a7f506363decc7aa14d2cf9f`, status `completed`, conclusion `success`, event `push`.
+- `#4128`: branch `arduino-ru-lcd-experiment`, head `f833937bdea98c38a200cce4f297a95d62513d80`, status `completed`, conclusion `success`, event `push`;
+- `#4129`: branch `arduino-ru-lcd-experiment`, head `2390d6e1916c2bd2cbbcb72901cf486e200c72e2`, status `completed`, conclusion `success`, event `push`;
+- `#4130`: branch `arduino-ru-lcd-experiment`, head `fd098e0bbd72acc2c7e5c11b397e2315314343d5`, status `completed`, conclusion `success`, event `push`.
 
-`#4127` is exact GREEN confirmation of documentation commit:
+Последний exact GREEN documentation head перед новыми handoff updates:
 
 ```text
-b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
-message: docs(handoff): record CMP 4125 and 4126
+fd098e0bbd72acc2c7e5c11b397e2315314343d5
+message: docs(handoff): advance entrypoint through CMP 4127
+CMP Protocol Tests #4130  run 33294860227 / SUCCESS
 ```
 
-Текущий branch HEAD непосредственно перед этой documentation update:
-
-```text
-f833937bdea98c38a200cce4f297a95d62513d80
-message: docs(handoff): advance entrypoint through CMP 4126
-parent: b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
-```
-
-`#4127` не подтверждает `f833937...`; этот и созданный текущей правкой documentation head требуют собственного exact CI result прежде чем их можно называть GREEN.
+Созданные после `fd098e0...` documentation commits требуют собственного exact CI result прежде чем их можно называть GREEN.
 
 Непосредственно предыдущие documentation heads также подтверждены:
 

@@ -73,20 +73,28 @@ message: docs(handoff): extend CMP snapshot through 4164
 c26c58729e94db03895ad49d42322360dd4d4afd
 CMP Protocol Tests #4166  run 33297104319 / SUCCESS
 message: docs(handoff): advance entrypoint through CMP 4164
+
+702984933d795dff8a58c11cc15bf0bc68ac9547
+CMP Protocol Tests #4167  run 33297180420 / SUCCESS
+message: docs(handoff): record CMP 4165 and 4166
+
+8b2442668a44ae9b115c856120a518a0bb2cb794
+CMP Protocol Tests #4168  run 33297201539 / SUCCESS
+message: docs(handoff): advance entrypoint through CMP 4166
 ```
 
-Для #4154–#4166 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. Для #4160–#4162 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4163–#4166 independently verified exact run metadata также `completed/success`.
+Для #4154–#4168 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4163–#4168 independently verified exact run metadata также `completed/success`.
 
 Latest exact independently verified GREEN documentation head перед текущими documentation-only updates:
 
 ```text
-c26c58729e94db03895ad49d42322360dd4d4afd
-CMP Protocol Tests #4166  run 33297104319 / SUCCESS
+8b2442668a44ae9b115c856120a518a0bb2cb794
+CMP Protocol Tests #4168  run 33297201539 / SUCCESS
 ```
 
-Текущие documentation-only updates после `c26c587...` нельзя называть GREEN, пока для их exact HEAD не будет собственного SUCCESS.
+Текущие documentation-only updates после `8b244266...` нельзя называть GREEN, пока для их exact HEAD не будет собственного SUCCESS.
 
-Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4166 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md` (имя файла сохранено для стабильной ссылки, заголовок/содержимое расширены through #4166). Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
+Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4168 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md` (имя файла сохранено для стабильной ссылки, заголовок/содержимое расширены through #4168). Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 
 Stable pre-CRM snapshot:
 

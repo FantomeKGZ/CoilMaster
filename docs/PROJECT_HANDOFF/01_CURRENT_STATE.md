@@ -20,7 +20,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Production behavior подтверждён GREEN through checkpoint **165**. Production checkpoint **166** закрыт как residual audit **NO-CHANGE** и production software optimization остаётся frozen до hardware E2E либо конкретного дефекта.
 
-После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **166**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161, repair-finalization exact-proof reuse 162, Repair Delivery single-pass append preflight 163, spool/material bridge suffix uniqueness audit 164, residual repeated-scan audit 165 **NO-CHANGE** и reachable Hall RU LCD localization 166. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
+После синхронизации production дальнейшие изменения продолжаются отдельно в `arduino-ru-lcd-experiment`. Experiment-side software work подтверждён through checkpoint **167**: repeated-scan reductions through 158, autonomous winding canonical projection 159, Warehouse lookup/provenance optimization 160–161, repair-finalization exact-proof reuse 162, Repair Delivery single-pass append preflight 163, spool/material bridge suffix uniqueness audit 164, residual repeated-scan audit 165 **NO-CHANGE**, reachable Hall RU LCD localization 166 и static canonical winding-role selector cleanup 167. Full two-board Arduino + ESP32 hardware E2E остаётся отдельным финальным acceptance gate.
 
 ## Production optimization checkpoints
 
@@ -72,7 +72,7 @@ ESP32 Build #1650  33047940040 / SUCCESS
 CMP Tests #3767    33048020592 / SUCCESS
 ```
 
-## Experiment checkpoints 152–166
+## Experiment checkpoints 152–167
 
 Experiment branch includes separate RUN_WIRE Material Request batching, unified autonomous/Web archive, exact immutable-spool lookup, repeated-scan reductions, canonical autonomous-winding projection, later proof-preserving growing-NDJSON optimizations and the isolated Arduino RU LCD/Hall experiment.
 
@@ -299,17 +299,52 @@ uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); Flash headroom
 
 Because the RU build has only **808 bytes of flash headroom**, future Uno-side additions must be extremely small and concrete. Prefer keeping processing/expanded UI logic on ESP32 when architecture permits; do not add speculative Uno features merely for convenience.
 
+### Checkpoint 167 — static canonical winding-role selector cleanup — GREEN
+
+The autonomous/archive assignment backend and runtime safety layer already permitted only canonical `WORKING` / `STARTING`, but both static operator HTML pages still contained an obsolete `AUXILIARY` option that JavaScript removed only after load. This residual mismatch is closed.
+
+- desktop and mobile `arduino-windings.html` now contain only `WORKING` and `STARTING`;
+- runtime filtering remains defense-in-depth for stale/cached pages;
+- backend unsupported-role rejection and explicit occupied-role replacement semantics are unchanged;
+- no firmware control, RUN evidence, motor-history or SSR semantics changed.
+
+Exact code/build evidence:
+
+```text
+9e538828ed179700d362286a3af72de6a6ce0b6f  desktop static role cleanup
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS
+ESP32 Build #1778         run 33290408891 / SUCCESS
+Arduino RU LCD #207       run 33290408886 / SUCCESS
+
+47903b0f2e2ddc8ac90abf1e26db7e678a570363  mobile static role cleanup
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS
+ESP32 Build #1779         run 33290422888 / SUCCESS
+Arduino RU LCD #208       run 33290422860 / SUCCESS
+
+0eb32376de3a4c50c765dcbe6b946524d075f69b  regression contract
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS
+```
+
 ## Latest verified experiment handoff CI
 
-The latest user-provided CMP handoff/documentation chain is independently verified through #4065:
+The latest independently verified chain now extends through checkpoint 167:
 
 ```text
 CMP Protocol Tests #4063  run 33290149645 / SUCCESS  head b189d7d3575663fa2f11b376352dca1cda301377
 CMP Protocol Tests #4064  run 33290236422 / SUCCESS  head 05b5fd3a2acb2f8cb5d7f167848561bc353864fe
 CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d
+CMP Protocol Tests #4066  run 33290353792 / SUCCESS  head 8baf7119dd2f962032ed655ac39a1ffbb85abe6b
+CMP Protocol Tests #4067  run 33290379205 / SUCCESS  head 52c2ed9015df7591fc730a9614b4e8c85d2bb3bb
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS  head 0eb32376de3a4c50c765dcbe6b946524d075f69b
+ESP32 Build #1778         run 33290408891 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
+ESP32 Build #1779         run 33290422888 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
+Arduino RU LCD #207       run 33290408886 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
+Arduino RU LCD #208       run 33290422860 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 ```
 
-`#4065` is exact for branch HEAD `8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d` immediately before the current documentation refresh. These runs confirm current handoff/documentation/contract state and do not replace the exact firmware acceptance evidence for checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`).
+`#4066–#4067` are documentation-only handoff confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact code/build evidence for the desktop/mobile static selector cleanup. `#4070` is exact for the checkpoint-167 source-text regression contract. These runs do not replace the exact Hall firmware acceptance evidence for checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`).
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 
@@ -326,7 +361,7 @@ CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590
 ## Current NEXT
 
 1. Continue only in `arduino-ru-lcd-experiment`; production remains unchanged.
-2. Treat checkpoints 159–166 as closed unless a concrete regression is observed.
+2. Treat checkpoints 159–167 as closed unless a concrete regression is observed.
 3. Do not continue speculative repeated-scan refactors merely to reduce file opens; checkpoint 165 closed the residual audit as NO-CHANGE.
 4. Keep `MaterialUsageCorrectionIntegrityAudit`, CashPayment mutation rereads and recovery/TOCTOU scans unchanged unless a concrete proof-preserving primitive is introduced.
 5. Continue only concrete Hall/RU-LCD acceptance defects; with 808 bytes RU flash headroom, avoid broad Uno-side feature growth.

@@ -19,68 +19,32 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4206**:
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4209**.
+
+Последние подтверждённые runs:
 
 ```text
-#4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
-#4161  run 33296706502 / SUCCESS  head 124464fc728414c6ba770669755a57e724e4710c
-#4162  run 33296723545 / SUCCESS  head 4be7c2204eb2d552950b0e4648cb24358d6e356e
-#4163  run 33296961701 / SUCCESS  head 8e451fb65495792cf69f9b96c4c43350835b622a
-#4164  run 33296984838 / SUCCESS  head 159da0c7abb90dba8c6c00e5da40d835fa28d106
-#4165  run 33297079657 / SUCCESS  head 18bca1973b2cf0f369970ea8cc84856f11aae630
-#4166  run 33297104319 / SUCCESS  head c26c58729e94db03895ad49d42322360dd4d4afd
-#4167  run 33297180420 / SUCCESS  head 702984933d795dff8a58c11cc15bf0bc68ac9547
-#4168  run 33297201539 / SUCCESS  head 8b2442668a44ae9b115c856120a518a0bb2cb794
-#4169  run 33297342101 / SUCCESS  head a9376388ad80376ca1190f41ef6ff203f4a08584
-#4170  run 33297367289 / SUCCESS  head 914ad8e868a7908eb4386ee1f2bcc180f8ddf3a8
-#4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7692256687d0be4704a
-#4172  run 33297482944 / SUCCESS  head 87286e3380bb2ca01b1da9d30b3106a53c7d8413
-#4173  run 33297519488 / SUCCESS  head aada5bf6eb3a7c8d17e24930638ab5f69dc9b81e
-#4174  run 33297539871 / SUCCESS  head c96439dbcb5db73cc97f2e3f672222fbc72ab082
-#4175  run 33297558840 / SUCCESS  head 3128287b0fcbe404a377a0ac16fc8987ea377e2f
-#4176  run 33297636012 / SUCCESS  head b7d85d5fb1e478d6ce4d9aad75e855c1b5a12a85
-#4177  run 33297656125 / SUCCESS  head 67e4ee7b22b28d7c7574c82d66af6383f5fbea2b
-#4178  run 33297675300 / SUCCESS  head 93acd7112db32f81b1a1b3f70cdd5bd171cbb495
-#4179  run 33301160832 / SUCCESS  head a47b788995c31c9edd1b31d5f7abeecab962ea82
-#4180  run 33301185698 / SUCCESS  head 53176b964123f97eca65461bdfda5bb4b490c0c0
-#4181  run 33301246334 / SUCCESS  head c4a85986e5b32ded3e7f596b2a6959e6187ce676
-#4182  run 33301267596 / SUCCESS  head 88856a5f00626c65f54fbbfa9946104c5f988505
-#4183  run 33301292351 / SUCCESS  head ade926838f966e5e7a01cda274f3187bae4e7d26
-#4184  run 33301333347 / SUCCESS  head 9f712e53a4cf5ff1411b60069136736eedcca9a9
-#4185  run 33301354570 / SUCCESS  head d502921a9a18994a630366ed305a20bbd9cf584a
-#4186  run 33301373673 / SUCCESS  head 6fb066f6c780ab66ef2a48d8ea4992efda202823
-#4187  run 33301422840 / SUCCESS  head 025061dc1ba1705041ad9e73368d692c5b4c230a
-#4188  run 33301441473 / SUCCESS  head 81aac63927dbab3745273a2bc4a8e74c72b97416
-#4189  run 33301463914 / SUCCESS  head 6afd3f0e8b30621a5dadb12b182f39bfc6000664
-#4190  run 33301508840 / SUCCESS  head f6c747ceb6b52d52386d455ce89e5c9aea3090f0
-#4191  run 33301531996 / SUCCESS  head 2b2711cd99e73148fc10a8265a63b5cd575957aa
-#4192  run 33301556291 / SUCCESS  head 2f8b31e1b5079abcc1a965d74e2e9fac50381d9c
-#4193  run 33301601444 / SUCCESS  head f42e6c8c8f5d8245c59e6f55ff7c368dd779bb8e
-#4194  run 33301623857 / SUCCESS  head 194b8e3da0185d7d1a14c2a754eb917734807cf6
-#4195  run 33301647064 / SUCCESS  head 4b74204da413ca658a7f70402dcab5913849d3a2
-#4196  run 33301693818 / SUCCESS  head 60e863bb5f65081a368b9775fe3e23056ba6c180
-#4197  run 33301714196 / SUCCESS  head 3874f705c4051f164d12373619ab49d862e76f99
-#4198  run 33301742371 / SUCCESS  head 5d763d632d2cce06f32eaa8c6537af0794f418b2
-#4199  run 33301793805 / SUCCESS  head 6c2975cddaf75eae17545e847dae06acb46ce3b6
-#4200  run 33301814959 / SUCCESS  head 1852e71714f9b1d26f541a6444456bf9fd2bd39b
 #4201  run 33301841277 / SUCCESS  head 40664e65bb477d3b58ac33ad125f02d8066beab5
 #4202  run 33301887847 / SUCCESS  head 5c7f7fc0b1aabf98eeb143299dbba26b4891478e
 #4203  run 33301916368 / SUCCESS  head f7f8be793ad96044a6a9a7a7b4b686216d320d6b
 #4204  run 33301946532 / SUCCESS  head cd82394d20a811ce8e87915d44d8b215fae29c47
 #4205  run 33301994046 / SUCCESS  head d1c70da40d8c3518531729cd7ef59ec51f27cca4
 #4206  run 33302020751 / SUCCESS  head 35fe27cd52c9e6fb9f920f906a7ae11ef60c2dbc
+#4207  run 33302047551 / SUCCESS  head b884ef3898c688b6e0e058d7332437151db3a8e0
+#4208  run 33302098408 / SUCCESS  head 9acffb6b0a9cd3ed0d9e329b510cc4a8dde63d79
+#4209  run 33302124250 / SUCCESS  head ba65593b4ede47471640abe25017a0c9155cf8a1
 ```
+
+Полная непрерывная цепочка #4160–#4209 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-35fe27cd52c9e6fb9f920f906a7ae11ef60c2dbc
-CMP Protocol Tests #4206  run 33302020751 / SUCCESS
+ba65593b4ede47471640abe25017a0c9155cf8a1
+CMP Protocol Tests #4209  run 33302124250 / SUCCESS
 ```
 
-Detailed CI snapshot: `16_CMP_4160_4162_GREEN_2026-08-30.md` (filename retained for stable reference; content is extended through #4206).
-
-Documentation-only runs do not replace firmware/build evidence for checkpoints 166–167. Do not create an endless chain of documentation commits merely to record SUCCESS of the immediately preceding documentation commit.
+Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.
 
 ## Current engineering state
 

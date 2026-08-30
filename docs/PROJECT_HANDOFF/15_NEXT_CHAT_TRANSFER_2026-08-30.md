@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4156
+# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4158
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -50,9 +50,29 @@ event push
 status completed
 conclusion SUCCESS
 message docs(handoff): advance entrypoint through CMP 4154
+
+CMP Protocol Tests #4157
+run 33296440587
+head dc9ff401cbb2e5dc68b0311c6a28f142462d7cab
+branch arduino-ru-lcd-experiment
+event push
+status completed
+conclusion SUCCESS
+message docs(handoff): record CMP 4155 and 4156
+
+CMP Protocol Tests #4158
+run 33296459453
+head 945061512a705a5b4f61a054841c977b7e978c9e
+branch arduino-ru-lcd-experiment
+event push
+status completed
+conclusion SUCCESS
+message docs(handoff): advance through CMP 4156
 ```
 
-Следовательно `00919cbf5e8cd847a0e622bdbfe7bf4b291ab7f5` — latest exact independently verified GREEN documentation head перед текущими documentation-only updates. Коммиты, созданные после него для записи #4155/#4156, должны получить собственный exact CI result прежде чем их новый HEAD можно называть GREEN.
+Следовательно `945061512a705a5b4f61a054841c977b7e978c9e` — latest exact independently verified GREEN documentation head перед текущим documentation-only update. Коммит, созданный этим обновлением для записи #4157/#4158, должен получить собственный exact CI result прежде чем его новый HEAD можно называть GREEN.
+
+Для #4157 и #4158 host-tests отдельно подтверждены GitHub jobs metadata: configure/build/test и все audit steps завершены `success`.
 
 ## Current engineering state
 

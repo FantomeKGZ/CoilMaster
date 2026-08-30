@@ -18,6 +18,15 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified CI experiment heads перед текущими documentation updates:
 
 ```text
+fd098e0bbd72acc2c7e5c11b397e2315314343d5
+CMP Protocol Tests #4130  run 33294860227 / SUCCESS
+
+2390d6e1916c2bd2cbbcb72901cf486e200c72e2
+CMP Protocol Tests #4129  run 33294838984 / SUCCESS
+
+f833937bdea98c38a200cce4f297a95d62513d80
+CMP Protocol Tests #4128  run 33294756834 / SUCCESS
+
 b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
 CMP Protocol Tests #4127  run 33294728536 / SUCCESS
 
@@ -46,17 +55,17 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4125/#4126/#4127`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `db0f3175caff1582b95628d85c5edcacf21a59d1`, `c834321ec8199d1d3420ed29a625c18760453ec6` и `b6f40e1cfd6db422a7f506363decc7aa14d2cf9f` соответственно.
+GitHub metadata подтверждает для `#4128/#4129/#4130`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `f833937bdea98c38a200cce4f297a95d62513d80`, `2390d6e1916c2bd2cbbcb72901cf486e200c72e2` и `fd098e0bbd72acc2c7e5c11b397e2315314343d5` соответственно.
 
 Последний exact GREEN documentation head перед новыми handoff updates:
 
 ```text
-b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
-message: docs(handoff): record CMP 4125 and 4126
-CMP Protocol Tests #4127  run 33294728536 / SUCCESS
+fd098e0bbd72acc2c7e5c11b397e2315314343d5
+message: docs(handoff): advance entrypoint through CMP 4127
+CMP Protocol Tests #4130  run 33294860227 / SUCCESS
 ```
 
-Следующий documentation head `f833937bdea98c38a200cce4f297a95d62513d80` (`docs(handoff): advance entrypoint through CMP 4126`) не покрывается `#4127`, потому что `#4127` запущен на его parent `b6f40e1...`. Созданные после него documentation commits также нельзя считать GREEN без собственного exact CI result.
+Созданные после `fd098e0...` documentation commits нельзя считать GREEN без собственного exact CI result.
 
 Непосредственно предшествующие documentation heads также подтверждены:
 

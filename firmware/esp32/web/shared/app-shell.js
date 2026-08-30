@@ -203,7 +203,7 @@ async function searchClients(query){
  return (data.items||[]).map(x=>({
   label:x.name||`Клиент #${x.client_id}`,
   meta:`Клиент #${x.client_id}${x.phone?' · '+x.phone:''}`,
-  href:`/${uiMode}/repairs.html?client_id=${encodeURIComponent(x.client_id)}`
+  href:`/${uiMode}/client-details.html?client_id=${encodeURIComponent(x.client_id)}`
  }));
 }
 

@@ -24,6 +24,9 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified documentation heads:
 
 ```text
+58dda8de4b76861d05a14390bc3760f4647b7876
+CMP Protocol Tests #4131  run 33294943179 / SUCCESS
+
 fd098e0bbd72acc2c7e5c11b397e2315314343d5
 CMP Protocol Tests #4130  run 33294860227 / SUCCESS
 
@@ -65,17 +68,25 @@ GitHub metadata подтверждает:
 
 - `#4128`: branch `arduino-ru-lcd-experiment`, head `f833937bdea98c38a200cce4f297a95d62513d80`, status `completed`, conclusion `success`, event `push`;
 - `#4129`: branch `arduino-ru-lcd-experiment`, head `2390d6e1916c2bd2cbbcb72901cf486e200c72e2`, status `completed`, conclusion `success`, event `push`;
-- `#4130`: branch `arduino-ru-lcd-experiment`, head `fd098e0bbd72acc2c7e5c11b397e2315314343d5`, status `completed`, conclusion `success`, event `push`.
+- `#4130`: branch `arduino-ru-lcd-experiment`, head `fd098e0bbd72acc2c7e5c11b397e2315314343d5`, status `completed`, conclusion `success`, event `push`;
+- `#4131`: branch `arduino-ru-lcd-experiment`, head `58dda8de4b76861d05a14390bc3760f4647b7876`, status `completed`, conclusion `success`, event `push`.
 
 Последний exact GREEN documentation head перед новыми handoff updates:
 
 ```text
-fd098e0bbd72acc2c7e5c11b397e2315314343d5
-message: docs(handoff): advance entrypoint through CMP 4127
-CMP Protocol Tests #4130  run 33294860227 / SUCCESS
+58dda8de4b76861d05a14390bc3760f4647b7876
+message: docs(handoff): record CMP 4128 through 4130
+CMP Protocol Tests #4131  run 33294943179 / SUCCESS
 ```
 
-Созданные после `fd098e0...` documentation commits требуют собственного exact CI result прежде чем их можно называть GREEN.
+На момент проверки current branch HEAD был:
+
+```text
+103dc4ef9267c266ae64acadbe2dd198d6a77eed
+message: docs(handoff): extend verified CI chain through 4130
+```
+
+Для `103dc4e...` собственного exact CI result в проверенной цепочке ещё не было; его и последующие documentation commits нельзя называть GREEN до exact run evidence.
 
 Непосредственно предыдущие documentation heads также подтверждены:
 

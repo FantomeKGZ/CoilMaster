@@ -21,14 +21,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata independently verifies the documentation chain continuously through **CMP #4353**.
+GitHub metadata independently verifies the documentation chain continuously through **CMP #4356**.
 
 Последние подтверждённые runs:
 
 ```text
-CMP Protocol Tests #4344  run 33306197133 / SUCCESS  head fc251135aac3b59bfc305c989a2553e9d4ee93c1
-CMP Protocol Tests #4345  run 33306217212 / SUCCESS  head 8e9daf0aad97bec34e0558c2bf1f7f875ea35b61
-CMP Protocol Tests #4346  run 33306282231 / SUCCESS  head dae0461c6886336b978852c98680fdd39e350640
 CMP Protocol Tests #4347  run 33306299251 / SUCCESS  head f8d51644b63bcb344b3267763114d7378db9c39a
 CMP Protocol Tests #4348  run 33306322538 / SUCCESS  head 822a8bdd4bf1f88ab0b990f6320f7ee91116a584
 CMP Protocol Tests #4349  run 33306373389 / SUCCESS  head cfb5addea5e7f36bc061d3270dcc779fe6d04540
@@ -36,18 +33,21 @@ CMP Protocol Tests #4350  run 33306387322 / SUCCESS  head bdd0d48c8ae992ed525737
 CMP Protocol Tests #4351  run 33306403393 / SUCCESS  head 31cef51508ffd5ce05d3fe9cce4bfa43353956e8
 CMP Protocol Tests #4352  run 33306455218 / SUCCESS  head 31d2e5bcb0b713a04715e231467f4fa0fcea5b5b
 CMP Protocol Tests #4353  run 33306470271 / SUCCESS  head 555e1be02b4ef8ee4816b0bdca0d0ba965e236c5
+CMP Protocol Tests #4354  run 33306491590 / SUCCESS  head 461fb657af3219a42c3aab33362d1057feade82b
+CMP Protocol Tests #4355  run 33306546716 / SUCCESS  head dc5245475f80a0fc657d004a2819030876b6a43c
+CMP Protocol Tests #4356  run 33306565899 / SUCCESS  head 2d54017fc0026ad77002d39584612c8b270b979f
 ```
 
-Полная непрерывная chain #4160–#4353 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная chain #4160–#4356 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 
 ```text
-555e1be02b4ef8ee4816b0bdca0d0ba965e236c5
-CMP Protocol Tests #4353  run 33306470271 / SUCCESS
+2d54017fc0026ad77002d39584612c8b270b979f
+CMP Protocol Tests #4356  run 33306565899 / SUCCESS
 ```
 
-#4351 verifies the transfer through #4347, #4352 verifies the snapshot through #4350, and #4353 verifies the entrypoint through #4350. The transfer commit through #4350 is newer than the latest independently verified run in this snapshot and must not be called GREEN without its own exact CI evidence.
+#4354 verifies the transfer through #4350, #4355 verifies the snapshot through #4353, and #4356 verifies the entrypoint through #4353. The transfer commit through #4353 is newer than the latest independently verified run in this snapshot and must not be called GREEN without its own exact CI evidence.
 
 Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 

@@ -16,7 +16,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Active state
 
-Experiment-side repo-reviewable software work закрыт through checkpoint **166**.
+Experiment-side repo-reviewable software work закрыт through checkpoint **167**.
 
 Ключевые detailed records:
 
@@ -222,6 +222,26 @@ uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); 1190 bytes Fla
 
 `Arduino RU LCD #205` (`33268835043`) is recorded as an intermediate stale-contract failure: it still expected English `HALL TEST READY` and failed before PlatformIO compile. The final aligned contract is GREEN at #206.
 
+### Checkpoint 167 — static canonical winding-role selector cleanup — GREEN
+
+The autonomous/archive assignment backend and runtime safety layer already permitted only canonical `WORKING` / `STARTING`, but both static operator HTML pages still contained an obsolete `AUXILIARY` option that JavaScript removed only after load. This residual mismatch is now closed.
+
+- desktop `arduino-windings.html` contains only `WORKING` and `STARTING`;
+- mobile `arduino-windings.html` contains only `WORKING` and `STARTING`;
+- runtime filtering remains as defense-in-depth for stale/cached pages;
+- backend rejection of unsupported roles remains unchanged;
+- explicit occupied-role replacement remains opt-in and never auto-retried;
+- no firmware, RUN evidence, motor history or safety-control semantics changed.
+
+Commits / verification:
+
+```text
+9e538828ed179700d362286a3af72de6a6ce0b6f  desktop static role cleanup
+47903b0f2e2ddc8ac90abf1e26db7e678a570363  mobile static role cleanup
+0eb32376de3a4c50c765dcbe6b946524d075f69b  regression contract
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS
+```
+
 ## Latest verified handoff CI chain
 
 These CMP runs were independently verified against GitHub metadata on `arduino-ru-lcd-experiment`:
@@ -259,16 +279,19 @@ CMP Protocol Tests #4061  run 33290011908 / SUCCESS  head 08d79f3a06ea473fff0644
 CMP Protocol Tests #4063  run 33290149645 / SUCCESS  head b189d7d3575663fa2f11b376352dca1cda301377
 CMP Protocol Tests #4064  run 33290236422 / SUCCESS  head 05b5fd3a2acb2f8cb5d7f167848561bc353864fe
 CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d
+CMP Protocol Tests #4066  run 33290353792 / SUCCESS  head 8baf7119dd2f962032ed655ac39a1ffbb85abe6b
+CMP Protocol Tests #4067  run 33290379205 / SUCCESS  head 52c2ed9015df7591fc730a9614b4e8c85d2bb3bb
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS  head 0eb32376de3a4c50c765dcbe6b946524d075f69b
 ```
 
-`#4036–#4065` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The latest user-provided runs `#4063–#4065` are confirmed SUCCESS. `#4065` is exact for branch HEAD `8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d` immediately before this documentation update.
+`#4036–#4070` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The user-provided `#4063–#4065` are confirmed SUCCESS; the subsequent documentation runs `#4066–#4067` and checkpoint-167 contract run `#4070` are also confirmed SUCCESS.
 
 These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 
 ## Current execution order
 
 1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
-2. Treat checkpoints 159–166 as closed unless a concrete regression is observed.
+2. Treat checkpoints 159–167 as closed unless a concrete regression is observed.
 3. Repeated-scan optimization is exhausted for now; resume it only for a concrete measured bottleneck or defect.
 4. Continue only concrete experiment/Hall/RU-LCD defects. With just 808 bytes of RU flash headroom, avoid broad Uno-side feature growth.
 5. Prefer moving processing/expanded presentation to ESP32 where architecture permits while Arduino remains independently safe/operable.

@@ -15,9 +15,25 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Последние independently verified CI experiment heads перед текущими documentation updates:
+Перед каждым изменением существующего файла обязательно fetch current branch content и использовать current blob SHA. Для нового файла сначала подтвердить отсутствие пути.
+
+## Latest independently verified experiment CI
+
+GitHub metadata independently confirms the latest documentation chain:
 
 ```text
+8b3926b8de870589b64f0e0107d2f7a099e89c70
+CMP Protocol Tests #4134  run 33295091259 / SUCCESS
+message: docs(handoff): advance entrypoint through CMP 4131
+
+b97fd6b9f77496646573bbd1ea64c151c049a78f
+CMP Protocol Tests #4133  run 33295068299 / SUCCESS
+message: docs(handoff): record CMP 4131
+
+103dc4ef9267c266ae64acadbe2dd198d6a77eed
+CMP Protocol Tests #4132  run 33294968670 / SUCCESS
+message: docs(handoff): extend verified CI chain through 4130
+
 58dda8de4b76861d05a14390bc3760f4647b7876
 CMP Protocol Tests #4131  run 33294943179 / SUCCESS
 
@@ -29,96 +45,15 @@ CMP Protocol Tests #4129  run 33294838984 / SUCCESS
 
 f833937bdea98c38a200cce4f297a95d62513d80
 CMP Protocol Tests #4128  run 33294756834 / SUCCESS
-
-b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
-CMP Protocol Tests #4127  run 33294728536 / SUCCESS
-
-c834321ec8199d1d3420ed29a625c18760453ec6
-CMP Protocol Tests #4126  run 33294630764 / SUCCESS
-
-db0f3175caff1582b95628d85c5edcacf21a59d1
-CMP Protocol Tests #4125  run 33294606600 / SUCCESS
-
-de180b5deda6cf1545c439ca09c83da2193c4d30
-CMP Protocol Tests #4124  run 33294520980 / SUCCESS
-
-a5059a362844cb8b3668fb38afeea18ba29d552b
-CMP Protocol Tests #4123  run 33294500721 / SUCCESS
-
-124e43e7626a769750648cfac96d07c131bd548e
-CMP Protocol Tests #4122  run 33294397706 / SUCCESS
-
-5687a7153598879f68f2487e3e61f8241fa60447
-CMP Protocol Tests #4121  run 33294372059 / SUCCESS
-
-3c7d82daadffe516ae2c49904ffd750357658526
-CMP Protocol Tests #4120  run 33294305854 / SUCCESS
-
-046da69294074ac3ff74990c1d16d8072e8c9380
-CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4128/#4129/#4130/#4131`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `f833937bdea98c38a200cce4f297a95d62513d80`, `2390d6e1916c2bd2cbbcb72901cf486e200c72e2`, `fd098e0bbd72acc2c7e5c11b397e2315314343d5` и `58dda8de4b76861d05a14390bc3760f4647b7876` соответственно.
+For `#4132/#4133/#4134`, branch is `arduino-ru-lcd-experiment`, event is `push`, status is `completed`, conclusion is `success`, and exact heads are `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f`, and `8b3926b8de870589b64f0e0107d2f7a099e89c70`.
 
-Последний exact GREEN documentation head перед новыми handoff updates:
+Therefore `8b3926b8de870589b64f0e0107d2f7a099e89c70` is an exact verified GREEN documentation head. Any documentation commit after it must get its own exact CI result before being called GREEN.
 
-```text
-58dda8de4b76861d05a14390bc3760f4647b7876
-message: docs(handoff): record CMP 4128 through 4130
-CMP Protocol Tests #4131  run 33294943179 / SUCCESS
-```
+The longer verified handoff chain through `#4119` remains recorded in `14_NEXT_CHAT_TRANSFER_2026-08-30.md` and Git history. Documentation-only runs do not replace separate firmware/build evidence checkpoints 166–167.
 
-На момент проверки перед текущими записями branch HEAD был `103dc4ef9267c266ae64acadbe2dd198d6a77eed` (`docs(handoff): extend verified CI chain through 4130`). Для него собственного exact CI result в подтверждённой цепочке ещё не было. Новые documentation commits также считать GREEN только после их exact CI result.
-
-Непосредственно предшествующие documentation heads также подтверждены:
-
-```text
-1acb0ba2414c6df04e41f5f00b507d9e54b5924d
-CMP Protocol Tests #4118  run 33294172224 / SUCCESS
-
-8614cab2b6b5854187879e1702ded6b1e19210b4
-CMP Protocol Tests #4117  run 33294147832 / SUCCESS
-
-699a56937108bbd78963731c891d20d0bb33798e
-CMP Protocol Tests #4116  run 33294051310 / SUCCESS
-
-538173ad7b43c8673c4db126391ca705d2a881c4
-CMP Protocol Tests #4115  run 33294026938 / SUCCESS
-
-a5da49fd5706843bb129691d6a23288276be12f2
-CMP Protocol Tests #4114  run 33293887033 / SUCCESS
-
-e7c5d43184498eb5b003a8c352b0185be9172169
-CMP Protocol Tests #4113  run 33293866518 / SUCCESS
-
-ced5d03e66aaa61e1bf2538756e8760622c4e0c8
-CMP Protocol Tests #4112  run 33293782544 / SUCCESS
-
-56dfb050993a8ecbf4e1c7ab9692ff7f58555668
-CMP Protocol Tests #4111  run 33293760814 / SUCCESS
-
-cbde2c24d9fadf9f7b3a2b048463457183245066
-CMP Protocol Tests #4110  run 33293676211 / SUCCESS
-
-9c9b05364d0a00cb801b75159202fc4201e9b0f5
-CMP Protocol Tests #4109  run 33293658325 / SUCCESS
-
-cc122bcad7140cb93be7532011180d70de454736
-CMP Protocol Tests #4108  run 33293540349 / SUCCESS
-
-8ccf035c04e5791165bd46a6273b31563cb43417
-CMP Protocol Tests #4107  run 33293444395 / SUCCESS
-
-578c91d09461bbbe205a0044e70cc2c5fa771195
-CMP Protocol Tests #4106  run 33293423944 / SUCCESS
-
-bcc3984bbaeda3e44132573e86c72199c7654521
-CMP Protocol Tests #4105  run 33293337241 / SUCCESS
-```
-
-Эти documentation-only confirmations не заменяют отдельное firmware/build evidence checkpoints 166–167.
-
-Stable pre-CRM snapshot сохраняется:
+Stable pre-CRM snapshot remains:
 
 ```text
 449570d47649d5f6336a31ee3eed491256e0fb1a
@@ -204,7 +139,7 @@ Arduino RU LCD #208       run 33290422860 / SUCCESS
 CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 ```
 
-Static desktop/mobile selectors now expose only canonical `WORKING` / `STARTING`. Runtime stale-page filtering and backend unsupported-role rejection remain defense-in-depth; occupied-role replacement remains explicit and never auto-retried.
+Static desktop/mobile selectors expose only canonical `WORKING` / `STARTING`. Runtime stale-page filtering and backend unsupported-role rejection remain defense-in-depth; occupied-role replacement remains explicit and never auto-retried.
 
 ## Immediate NEXT
 
@@ -217,18 +152,3 @@ Static desktop/mobile selectors now expose only canonical `WORKING` / `STARTING`
 7. Перед каждым изменением существующего файла fetch current branch content + current blob SHA.
 8. Не утверждать GREEN без exact current CI/run evidence.
 9. Production `cmp-protocol-v1` не трогать без отдельного запроса.
-
-## Safety invariants
-
-- никакого automatic physical START или repeat START;
-- никакого auto-resume after reboot;
-- Arduino — единственный владелец SSR;
-- ESP32/Web не управляют SSR напрямую;
-- `RUN_COMPLETED` остаётся evidence only;
-- RUN_WIRE writeoff только explicit/manual;
-- exact `spool_id + source_session_id + source_run_id` обязателен;
-- mutation-time authoritative rereads / TOCTOU / recovery gates не удалять ради performance;
-- confirmed append-only history не редактировать/удалять скрытно;
-- no unbounded growing-NDJSON buffering/cache;
-- no automatic production truncation/rotation/deletion;
-- no premature DB/index migration.

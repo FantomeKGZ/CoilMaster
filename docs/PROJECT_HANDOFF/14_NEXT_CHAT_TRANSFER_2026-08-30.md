@@ -22,10 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified handoff HEAD перед текущим documentation update:
 
 ```text
-fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52
+e1fa715c8049e765b0c5bc010a95a5fafadac614
 ```
 
-Он подтверждён `CMP Protocol Tests #4072` (`33290608524`) / SUCCESS. Предыдущий documentation-only head `5ed169dc7ef0ac16768810d44bda732da2233b4f` подтверждён `CMP #4071` (`33290487906`) / SUCCESS. Эти documentation-only runs не заменяют exact code/build evidence checkpoint 167. После текущего documentation update в новом чате всегда сначала получать свежий branch HEAD и не считать его GREEN без отдельного exact run.
+Он подтверждён `CMP Protocol Tests #4076` (`33290785679`) / SUCCESS. Последовательная documentation-only chain также подтверждена: `#4073` (`33290636544`) на `578e4f786ab67bb701b1c796bd3e137492e46e6e`, `#4074` (`33290727723`) на `37ffd3d41ca7602c9e8ff60086c124d9692f3ff8`, `#4075` (`33290759157`) на `76feab5c37973a5ad4afc63ef515d5b6f7f4fdc3` и `#4076` на `e1fa715c8049e765b0c5bc010a95a5fafadac614`. Эти documentation-only runs не заменяют exact code/build evidence checkpoint 167. После текущего documentation update в новом чате всегда сначала получать свежий branch HEAD и не считать его GREEN без отдельного exact run.
 
 ## 2. Что читать первым
 
@@ -245,9 +245,13 @@ b189d7d3575663fa2f11b376352dca1cda301377  CMP #4063  run 33290149645 / SUCCESS
 0eb32376de3a4c50c765dcbe6b946524d075f69b  CMP #4070  run 33290440543 / SUCCESS
 5ed169dc7ef0ac16768810d44bda732da2233b4f  CMP #4071  run 33290487906 / SUCCESS
 fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52  CMP #4072  run 33290608524 / SUCCESS
+578e4f786ab67bb701b1c796bd3e137492e46e6e  CMP #4073  run 33290636544 / SUCCESS
+37ffd3d41ca7602c9e8ff60086c124d9692f3ff8  CMP #4074  run 33290727723 / SUCCESS
+76feab5c37973a5ad4afc63ef515d5b6f7f4fdc3  CMP #4075  run 33290759157 / SUCCESS
+e1fa715c8049e765b0c5bc010a95a5fafadac614  CMP #4076  run 33290785679 / SUCCESS
 ```
 
-`#4066–#4067`, `#4071` and `#4072` are documentation-only handoff confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence; `#4070` is exact source-text regression-contract evidence.
+`#4066–#4067` and `#4071–#4076` are documentation-only handoff confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence; `#4070` is exact source-text regression-contract evidence.
 
 These documentation runs do not replace exact Hall/RU-LCD firmware evidence checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`) and do not make later documentation HEADs firmware checkpoints.
 

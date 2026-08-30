@@ -233,9 +233,17 @@ CMP Protocol Tests #4035  run 33288575129 / SUCCESS  head c2d76a1e159733e9972a6e
 CMP Protocol Tests #4036  run 33288687699 / SUCCESS  head 6e109d0c261fcd638c3bdf6922494b298f30d196
 CMP Protocol Tests #4037  run 33288701498 / SUCCESS  head 6ff5bbc578a06ef15935085a4048ee487ffaa2f9
 CMP Protocol Tests #4038  run 33288723882 / SUCCESS  head 89aa0d98d2811b32107b9f3f1ab043517fafe9f6
+CMP Protocol Tests #4039  run 33289007119 / SUCCESS  head ec28cebb49ea68f2c0222e47b0e9971f8ee40077
+CMP Protocol Tests #4040  run 33289028681 / SUCCESS  head 62274a0fd7e0f40aa2da7768a8f52f46bbb4d891
+CMP Protocol Tests #4041  run 33289102116 / SUCCESS  head 04763307d222c9a9696a4fd396453882744e5a
+CMP Protocol Tests #4042  run 33289117627 / SUCCESS  head fb34936f1e00816000bc5570a0060af0b8ebcca9
+CMP Protocol Tests #4043  run 33289176000 / SUCCESS  head e72df70cb90a8bcb6bc28d7590c6b91eca09a063
+CMP Protocol Tests #4044  run 33289192924 / SUCCESS  head 944c7c29461f16bb191a2183d913e6db427f0118
+CMP Protocol Tests #4045  run 33289269685 / SUCCESS  head 1bb563db927ad363474f6471252e97c77119ee48
+CMP Protocol Tests #4046  run 33289289249 / SUCCESS  head a50bf196d1e8c88c5a1c578204cb6bebb9e0d5e5
 ```
 
-`#4036–#4038` were rechecked against GitHub metadata; their `host-tests` jobs completed successfully. `#4038` is the latest verified pre-refresh source HEAD and completed the full host contract/audit job.
+`#4036–#4046` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4044–#4046` are the latest independently verified documentation/contract runs before the current documentation commits.
 
 These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 

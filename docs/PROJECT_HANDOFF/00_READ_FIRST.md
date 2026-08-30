@@ -56,23 +56,24 @@ CMP #4525/#4526 were understood intermediate failures only in `Audit calculator 
 ## Latest exact documentation CI
 
 ```text
-CMP #4534 run 33313802936 / SUCCESS head 30d788ca54243e75926ba059551703efa9da891f
-CMP #4535 run 33313827911 / SUCCESS head c136369aaab324c8d7776c85ad70d25c0ed3e148
-CMP #4536 run 33313849652 / SUCCESS head 9ee65cff3804c0a5482367c1033f181b8ba265a4
 CMP #4537 run 33313953287 / SUCCESS head c9a36326fe23f76d33ea9af045dc0bd3c8d60965
 CMP #4538 run 33313977433 / SUCCESS head 9327eb7724256199d2542119de4470ae2ec31524
+CMP #4539 run 33313997710 / SUCCESS head 3e102376cd5024d7ef1a1cf9cff8493d4187bb3a
+CMP #4540 run 33314083320 / SUCCESS head 6a817e416b24b67985bacdecb8b04fd70eddf31c
+CMP #4541 run 33314104209 / SUCCESS head 0d2573847ed3962b967c79dc52f7dbdd47efe5fb
+CMP #4542 run 33314124206 / SUCCESS head e246d98de6b9ff6cbcfee7e0d9764a8a8a851964
 ```
 
-#4537 verifies snapshot through #4536. #4538 verifies entrypoint through #4536. Transfer through #4536 (`3e102376cd5024d7ef1a1cf9cff8493d4187bb3a`) remains without its own supplied exact CMP SUCCESS and must not be called GREEN.
+#4539 verifies transfer through #4536. #4540/#4541/#4542 independently verify the snapshot/entrypoint/transfer HANDOFF through #4538. Thus all HANDOFF documentation through `e246d98de6b9ff6cbcfee7e0d9764a8a8a851964` is independently CMP-GREEN.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 
 ```text
-9327eb7724256199d2542119de4470ae2ec31524
-CMP #4538 run 33313977433 / SUCCESS
+e246d98de6b9ff6cbcfee7e0d9764a8a8a851964
+CMP #4542 run 33314124206 / SUCCESS
 ```
 
-New docs commits after #4538 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
+New docs commits after #4542 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 

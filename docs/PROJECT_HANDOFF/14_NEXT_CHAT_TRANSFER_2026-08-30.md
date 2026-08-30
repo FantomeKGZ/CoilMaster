@@ -19,16 +19,10 @@ Production остаётся:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Последний подтверждённый transfer HEAD перед текущим CI-record update:
+Последний подтверждённый handoff HEAD перед текущим CI-record update:
 
 ```text
-51d1de7839d4f0b7b7be3031546cc896e4bdb212
-```
-
-Его parent handoff refresh:
-
-```text
-bcbc5441f337c53c7b92f956da49f019f4a747a5
+c2d76a1e159733e9972a6e396537710682a84740
 ```
 
 После handoff-коммитов фактический HEAD новее; в новом чате всегда сначала получать свежий branch HEAD.
@@ -187,23 +181,27 @@ Current semantics:
 
 ## 9. Verified handoff CI — 2026-08-30
 
-User-supplied run was independently checked against GitHub metadata:
+All listed runs were independently checked against GitHub metadata and completed successfully on `arduino-ru-lcd-experiment`:
 
 ```text
 bcbc5441f337c53c7b92f956da49f019f4a747a5
 docs(handoff): refresh current entrypoint
 CMP Protocol Tests #4032  run 33288140386 / SUCCESS
-```
 
-The next transfer-doc commit was also checked on its exact SHA:
-
-```text
 51d1de7839d4f0b7b7be3031546cc896e4bdb212
 docs(handoff): add 2026-08-30 transfer checkpoint
 CMP Protocol Tests #4033  run 33288156234 / SUCCESS
+
+54ba0370894f4d42617fca36a4fe10611082ec7e
+docs(handoff): record verified transfer CI
+CMP Protocol Tests #4034  run 33288559791 / SUCCESS
+
+c2d76a1e159733e9972a6e396537710682a84740
+docs(handoff): record CMP 4032 and 4033
+CMP Protocol Tests #4035  run 33288575129 / SUCCESS
 ```
 
-Both runs completed the `host-tests` job successfully. These are documentation/contract handoff checks, not a new firmware runtime checkpoint; the latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
+These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 
 ## 10. Immediate next work
 

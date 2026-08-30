@@ -21,9 +21,21 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## 2. Latest independently verified CI handoff
 
-Последние independently verified documentation heads:
+Последняя independently verified documentation chain:
 
 ```text
+8b3926b8de870589b64f0e0107d2f7a099e89c70
+CMP Protocol Tests #4134  run 33295091259 / SUCCESS
+message: docs(handoff): advance entrypoint through CMP 4131
+
+b97fd6b9f77496646573bbd1ea64c151c049a78f
+CMP Protocol Tests #4133  run 33295068299 / SUCCESS
+message: docs(handoff): record CMP 4131
+
+103dc4ef9267c266ae64acadbe2dd198d6a77eed
+CMP Protocol Tests #4132  run 33294968670 / SUCCESS
+message: docs(handoff): extend verified CI chain through 4130
+
 58dda8de4b76861d05a14390bc3760f4647b7876
 CMP Protocol Tests #4131  run 33294943179 / SUCCESS
 
@@ -64,87 +76,18 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает:
+GitHub metadata independently confirms `#4132/#4133/#4134` on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`, with exact heads `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f` and `8b3926b8de870589b64f0e0107d2f7a099e89c70` respectively.
 
-- `#4128`: branch `arduino-ru-lcd-experiment`, head `f833937bdea98c38a200cce4f297a95d62513d80`, status `completed`, conclusion `success`, event `push`;
-- `#4129`: branch `arduino-ru-lcd-experiment`, head `2390d6e1916c2bd2cbbcb72901cf486e200c72e2`, status `completed`, conclusion `success`, event `push`;
-- `#4130`: branch `arduino-ru-lcd-experiment`, head `fd098e0bbd72acc2c7e5c11b397e2315314343d5`, status `completed`, conclusion `success`, event `push`;
-- `#4131`: branch `arduino-ru-lcd-experiment`, head `58dda8de4b76861d05a14390bc3760f4647b7876`, status `completed`, conclusion `success`, event `push`.
-
-Последний exact GREEN documentation head перед новыми handoff updates:
+Therefore the exact branch HEAD immediately before this documentation update is verified GREEN:
 
 ```text
-58dda8de4b76861d05a14390bc3760f4647b7876
-message: docs(handoff): record CMP 4128 through 4130
-CMP Protocol Tests #4131  run 33294943179 / SUCCESS
+8b3926b8de870589b64f0e0107d2f7a099e89c70
+CMP Protocol Tests #4134  run 33295091259 / SUCCESS
 ```
 
-На момент проверки current branch HEAD был:
+This new documentation commit must get its own exact CI result before it is itself called GREEN.
 
-```text
-103dc4ef9267c266ae64acadbe2dd198d6a77eed
-message: docs(handoff): extend verified CI chain through 4130
-```
-
-Для `103dc4e...` собственного exact CI result в проверенной цепочке ещё не было; его и последующие documentation commits нельзя называть GREEN до exact run evidence.
-
-Непосредственно предыдущие documentation heads также подтверждены:
-
-```text
-1acb0ba2414c6df04e41f5f00b507d9e54b5924d
-CMP Protocol Tests #4118  run 33294172224 / SUCCESS
-
-8614cab2b6b5854187879e1702ded6b1e19210b4
-CMP Protocol Tests #4117  run 33294147832 / SUCCESS
-
-699a56937108bbd78963731c891d20d0bb33798e
-CMP Protocol Tests #4116  run 33294051310 / SUCCESS
-
-538173ad7b43c8673c4db126391ca705d2a881c4
-CMP Protocol Tests #4115  run 33294026938 / SUCCESS
-
-a5da49fd5706843bb129691d6a23288276be12f2
-CMP Protocol Tests #4114  run 33293887033 / SUCCESS
-
-e7c5d43184498eb5b003a8c352b0185be9172169
-CMP Protocol Tests #4113  run 33293866518 / SUCCESS
-
-ced5d03e66aaa61e1bf2538756e8760622c4e0c8
-CMP Protocol Tests #4112  run 33293782544 / SUCCESS
-
-56dfb050993a8ecbf4e1c7ab9692ff7f58555668
-CMP Protocol Tests #4111  run 33293760814 / SUCCESS
-
-cbde2c24d9fadf9f7b3a2b048463457183245066
-CMP Protocol Tests #4110  run 33293676211 / SUCCESS
-
-9c9b05364d0a00cb801b75159202fc4201e9b0f5
-CMP Protocol Tests #4109  run 33293658325 / SUCCESS
-
-cc122bcad7140cb93be7532011180d70de454736
-CMP Protocol Tests #4108  run 33293540349 / SUCCESS
-
-8ccf035c04e5791165bd46a6273b31563cb43417
-CMP Protocol Tests #4107  run 33293444395 / SUCCESS
-
-578c91d09461bbbe205a0044e70cc2c5fa771195
-CMP Protocol Tests #4106  run 33293423944 / SUCCESS
-```
-
-Предыдущая independently verified handoff chain:
-
-```text
-bcc3984bbaeda3e44132573e86c72199c7654521
-CMP Protocol Tests #4105  run 33293337241 / SUCCESS
-
-689b5a4f2e0519fd13cd2dfd749bfba49ef99c30
-CMP Protocol Tests #4104  run 33293320035 / SUCCESS
-
-5e4631ff11ad5e86180d70d481ff8f9d3030873d
-CMP Protocol Tests #4103  run 33293252153 / SUCCESS
-```
-
-Это documentation-only confirmation текущего handoff chain и не заменяет отдельное firmware/build evidence checkpoints 166–167.
+The preceding documentation chain through `#4118` is already recorded in repository history and remains valid. These documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
 
 ## 3. Что читать первым
 

@@ -19,13 +19,13 @@ Production остаётся:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Последний подтверждённый handoff HEAD перед текущим CI-record update:
+Последний подтверждённый handoff/source HEAD перед этим CI-record update:
 
 ```text
-c2d76a1e159733e9972a6e396537710682a84740
+89aa0d98d2811b32107b9f3f1ab043517fafe9f6
 ```
 
-После handoff-коммитов фактический HEAD новее; в новом чате всегда сначала получать свежий branch HEAD.
+Это exact source HEAD, подтверждённый `CMP Protocol Tests #4038`. После текущего documentation commit фактический HEAD будет новее; в новом чате всегда сначала получать свежий branch HEAD.
 
 ## 2. Что читать первым
 
@@ -199,7 +199,21 @@ CMP Protocol Tests #4034  run 33288559791 / SUCCESS
 c2d76a1e159733e9972a6e396537710682a84740
 docs(handoff): record CMP 4032 and 4033
 CMP Protocol Tests #4035  run 33288575129 / SUCCESS
+
+6e109d0c261fcd638c3bdf6922494b298f30d196
+docs(handoff): record CMP 4034 and 4035
+CMP Protocol Tests #4036  run 33288687699 / SUCCESS
+
+6ff5bbc578a06ef15935085a4048ee487ffaa2f9
+docs(handoff): extend verified CI chain
+CMP Protocol Tests #4037  run 33288701498 / SUCCESS
+
+89aa0d98d2811b32107b9f3f1ab043517fafe9f6
+docs(handoff): record latest verified CMP chain
+CMP Protocol Tests #4038  run 33288723882 / SUCCESS
 ```
+
+`#4036–#4038` additionally had the `host-tests` job completed successfully; `#4038` checked out exact head `89aa0d98d2811b32107b9f3f1ab043517fafe9f6` and completed the full host contract/audit job successfully.
 
 These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 

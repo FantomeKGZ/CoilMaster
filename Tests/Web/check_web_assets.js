@@ -217,7 +217,7 @@ const storageDiagnosticsUi = fs.readFileSync(storageDiagnosticsUiPath, 'utf8');
 if (!storageDiagnosticsUi.includes('/api/system/storage') ||
     !storageDiagnosticsUi.includes('filesystem_free_bytes') ||
     !storageDiagnosticsUi.includes('Свободно на microSD') ||
-    !storageDiagnosticsUi.includes('автоматическая очистка/ротация production данных отключена')) {
+    !storageDiagnosticsUi.includes('автоматическая очистка и ротация рабочих данных отключены')) {
   failures.push('settings-system-diagnostics.js: microSD free-space diagnostics UI missing');
 }
 

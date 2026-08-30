@@ -15,113 +15,27 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Последний exact CI-verified handoff HEAD перед текущим documentation update:
+Текущий exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-b189d7d3575663fa2f11b376352dca1cda301377
+7d340d6b1711420d5e97a6f76acf4920704d098a
+CMP Protocol Tests #4079  run 33291149537 / SUCCESS
 ```
 
-Verified handoff CI chain:
+Непосредственно предшествующая подтверждённая documentation-only chain:
 
 ```text
-bcbc5441f337c53c7b92f956da49f019f4a747a5
-CMP Protocol Tests #4032  run 33288140386 / SUCCESS
+bbfeaabd2deaa8356300b02f5a6c504907e24922
+CMP Protocol Tests #4077  run 33291077232 / SUCCESS
 
-51d1de7839d4f0b7b7be3031546cc896e4bdb212
-CMP Protocol Tests #4033  run 33288156234 / SUCCESS
+114ec9c3262fa9da61eb6f78cc592306e06aa31f
+CMP Protocol Tests #4078  run 33291112419 / SUCCESS
 
-54ba0370894f4d42617fca36a4fe10611082ec7e
-CMP Protocol Tests #4034  run 33288559791 / SUCCESS
-
-c2d76a1e159733e9972a6e396537710682a84740
-CMP Protocol Tests #4035  run 33288575129 / SUCCESS
-
-6e109d0c261fcd638c3bdf6922494b298f30d196
-CMP Protocol Tests #4036  run 33288687699 / SUCCESS
-
-6ff5bbc578a06ef15935085a4048ee487ffaa2f9
-CMP Protocol Tests #4037  run 33288701498 / SUCCESS
-
-89aa0d98d2811b32107b9f3f1ab043517fafe9f6
-CMP Protocol Tests #4038  run 33288723882 / SUCCESS
-
-ec28cebb49ea68f2c0222e47b0e9971f8ee40077
-CMP Protocol Tests #4039  run 33289007119 / SUCCESS
-
-62274a0fd7e0f40aa2da7768a8f52f46bbb4d891
-CMP Protocol Tests #4040  run 33289028681 / SUCCESS
-
-04763307d222c9a9696a4fd396453882744e5a
-CMP Protocol Tests #4041  run 33289102116 / SUCCESS
-
-fb34936f1e00816000bc5570a0060af0b8ebcca9
-CMP Protocol Tests #4042  run 33289117627 / SUCCESS
-
-e72df70cb90a8bcb6bc28d7590c6b91eca09a063
-CMP Protocol Tests #4043  run 33289176000 / SUCCESS
-
-944c7c29461f16bb191a2183d913e6db427f0118
-CMP Protocol Tests #4044  run 33289192924 / SUCCESS
-
-1bb563db927ad363474f6471252e97c77119ee48
-CMP Protocol Tests #4045  run 33289269685 / SUCCESS
-
-a50bf196d1e8c88c5a1c578204cb6bebb9e0d5e5
-CMP Protocol Tests #4046  run 33289289249 / SUCCESS
-
-1891dd264653dd4724441f4de15a4683c030f528
-CMP Protocol Tests #4047  run 33289383083 / SUCCESS
-
-b8f67b5d81611ab5c96110b90adab9461bb4a37b
-CMP Protocol Tests #4048  run 33289410136 / SUCCESS
-
-026d0e13f535257d85f542795c00e9471483001d
-CMP Protocol Tests #4049  run 33289445045 / SUCCESS
-
-fd3eb34a15ccdc334202f38d165934ae0bb1f2ce
-CMP Protocol Tests #4050  run 33289542271 / SUCCESS
-
-248e6a1861ef310aba38910043124f4777833943
-CMP Protocol Tests #4051  run 33289561938 / SUCCESS
-
-8d64b08eb05959eb0aa1112c936176e3bab36969
-CMP Protocol Tests #4052  run 33289583224 / SUCCESS
-
-60da9ea34c0fb2998aded8ff6dd35b28c0273b29
-CMP Protocol Tests #4053  run 33289676773 / SUCCESS
-
-a4ac7b02bb68dec2f8cc1887f9206188fb7b105e
-CMP Protocol Tests #4054  run 33289697240 / SUCCESS
-
-78901d2f730e431411582c2e46e796560908b6c6
-CMP Protocol Tests #4055  run 33289767490 / SUCCESS
-
-8177d383c8b0aa5b94658d3bb59fd86ff066a62e
-CMP Protocol Tests #4056  run 33289786730 / SUCCESS
-
-1579b6a2c202457e501dc7a8aa3480ae0ce0702e
-CMP Protocol Tests #4057  run 33289866054 / SUCCESS
-
-46cede22a06fdf7dc68dfce545c618ced9063876
-CMP Protocol Tests #4058  run 33289891342 / SUCCESS
-
-70e4db3aad53458bef5778b7c8cd5c7a08ec2840
-CMP Protocol Tests #4059  run 33289916765 / SUCCESS
-
-f04ee9e8f36b29cde590c0a364a6a95442bc56b3
-CMP Protocol Tests #4060  run 33289985842 / SUCCESS
-
-08d79f3a06ea473fff0644efe4540c5251942c39
-CMP Protocol Tests #4061  run 33290011908 / SUCCESS
-
-f90ae58c163880491a40d9c23409984801835acc
-CMP Protocol Tests #4062  run 33290126788 / SUCCESS
-
-b189d7d3575663fa2f11b376352dca1cda301377
-CMP Protocol Tests #4063  run 33290149645 / SUCCESS
+7d340d6b1711420d5e97a6f76acf4920704d098a
+CMP Protocol Tests #4079  run 33291149537 / SUCCESS
 ```
 
-`#4032–#4063` — documentation/contract handoff checks. GitHub metadata подтверждает `#4062` как `completed/success` на exact head `f90ae58c163880491a40d9c23409984801835acc`, а следующий docs-only HEAD `b189d7d3575663fa2f11b376352dca1cda301377` отдельно подтверждён `#4063` / SUCCESS. Эти docs/contract runs не заменяют firmware/runtime evidence checkpoint 166; последний точный Arduino RU LCD firmware checkpoint остаётся `#4028` + Arduino RU LCD `#206` ниже.
+`#4077–#4079` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Это documentation-only подтверждения и они не заменяют exact firmware/build evidence checkpoints 166–167 ниже.
 
 Stable pre-CRM snapshot сохраняется:
 
@@ -152,11 +66,16 @@ docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 
 ## Current state
 
-Experiment-side repo-reviewable software work закрыт through checkpoint **166**.
-
-Закрытые последние блоки:
+Experiment-side repo-reviewable software work закрыт through checkpoint **167**.
 
 ```text
+152 RUN_WIRE Material Request status batching
+153 unified autonomous/Web completed-job archive lifecycle
+154 RUN_WIRE exact immutable-spool lookup
+155 Material Request create repair scan reuse
+156 Material Request Warehouse known-request status reuse
+157 client balance repair-journal validation reuse
+158 RepairCostingWeb exact repair proof reuse
 159 autonomous winding -> canonical motor history projection
 160 Warehouse exact lookup optimization
 161 Warehouse CONFIRMED provenance suffix scan
@@ -165,11 +84,12 @@ Experiment-side repo-reviewable software work закрыт through checkpoint **
 164 spool/material bridge suffix uniqueness audit
 165 residual repeated-scan audit -> NO-CHANGE
 166 reachable Hall RU LCD localization -> GREEN
+167 static canonical winding-role selector cleanup -> GREEN
 ```
 
 Repeated-scan/performance optimization считается исчерпанной до появления конкретного измеренного bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения количества file opens.
 
-## Latest verified Hall/RU LCD source checkpoint
+## Checkpoint 166 — Hall RU LCD firmware evidence
 
 ```text
 3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
@@ -177,7 +97,7 @@ CMP Protocol Tests #4028  run 33268897356 / SUCCESS
 Arduino RU LCD #206       run 33268897370 / SUCCESS
 ```
 
-Uno resource evidence из exact #206:
+Exact #206 Uno resource evidence:
 
 ```text
 uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); headroom 808 bytes
@@ -186,18 +106,36 @@ uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); headroom 1190 
 
 Практический вывод: не расширять Uno крупными Hall/UI-функциями. Новые Arduino-side изменения только для конкретных дефектов и максимально малы; расширенную обработку/представление по возможности держать на ESP32, сохраняя автономную безопасность Arduino.
 
-Подробно: `13_HALL_RU_LCD_ACCEPTANCE.md`.
+## Checkpoint 167 — canonical winding-role selector evidence
+
+```text
+9e538828ed179700d362286a3af72de6a6ce0b6f
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS
+ESP32 Build #1778         run 33290408891 / SUCCESS
+Arduino RU LCD #207       run 33290408886 / SUCCESS
+
+47903b0f2e2ddc8ac90abf1e26db7e678a570363
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS
+ESP32 Build #1779         run 33290422888 / SUCCESS
+Arduino RU LCD #208       run 33290422860 / SUCCESS
+
+0eb32376de3a4c50c765dcbe6b946524d075f69b
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS
+```
+
+Static desktop/mobile selectors now expose only canonical `WORKING` / `STARTING`. Runtime stale-page filtering and backend unsupported-role rejection remain defense-in-depth; occupied-role replacement remains explicit and never auto-retried.
 
 ## Immediate NEXT
 
 1. Получить свежий HEAD `arduino-ru-lcd-experiment` перед любым изменением.
-2. Не переделывать checkpoints 159–166 без конкретной regression.
-3. Следующая repo-only работа должна идти только от конкретного дефекта, измеренного bottleneck либо hardware-acceptance находки.
-4. Full Arduino + ESP32 hardware E2E остаётся обязательным финальным acceptance gate.
-5. Во время hardware E2E проверить UART command/ack, keypad, normal RU screens before/after Hall, physical START ownership, Hall 15-second run/apply/reject, SSR fail-safe, RUN evidence, manual exact RUN_WIRE writeoff и reboot/recovery fail-closed behavior.
-6. Перед каждым изменением существующего файла fetch current branch content + current blob SHA.
-7. Не утверждать GREEN без exact current CI/run evidence.
-8. Production `cmp-protocol-v1` не трогать без отдельного запроса.
+2. Treat checkpoints 159–167 as closed unless a concrete regression is observed.
+3. Не продолжать speculative repeated-scan refactors; checkpoint 165 is NO-CHANGE.
+4. Следующая repo-only работа должна идти только от конкретного дефекта, measured bottleneck либо hardware-acceptance находки.
+5. Full Arduino + ESP32 hardware E2E остаётся обязательным финальным acceptance gate.
+6. Во время hardware E2E проверить UART command/ack, keypad, normal RU screens before/after Hall, physical START ownership, Hall 15-second run/apply/reject, SSR fail-safe, RUN evidence, manual exact RUN_WIRE writeoff и reboot/recovery fail-closed behavior.
+7. Перед каждым изменением существующего файла fetch current branch content + current blob SHA.
+8. Не утверждать GREEN без exact current CI/run evidence.
+9. Production `cmp-protocol-v1` не трогать без отдельного запроса.
 
 ## Safety invariants
 

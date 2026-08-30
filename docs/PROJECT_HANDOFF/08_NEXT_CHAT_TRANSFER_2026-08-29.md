@@ -19,13 +19,13 @@ Production остаётся неизменённым:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-HEAD, подтверждённый перед этим handoff update:
+HEAD непосредственно перед этим handoff update:
 
 ```text
-1238bd68b2c6b947148c0a7f47e10c0a42eb20fb
+c34540510a909937f039ae354a1ffc0c673ac2f6
 ```
 
-Этот HEAD — documentation-only commit `docs(handoff): sync latest verified CI chain`.
+Этот HEAD — documentation-only commit `docs(handoff): advance transfer through CMP 4097` и он точно подтверждён `CMP Protocol Tests #4100 / SUCCESS`.
 
 ## 2. Что читать в новом чате
 
@@ -118,19 +118,25 @@ CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 
 The later runs after checkpoint 167 are documentation-only confirmations and do not replace the exact firmware/build evidence above.
 
-Latest independently verified run:
+Latest verified sequence supplied by the user and independently checked against GitHub metadata:
 
 ```text
-HEAD 1238bd68b2c6b947148c0a7f47e10c0a42eb20fb
-CMP Protocol Tests #4085
-run 33291646267
-completed / SUCCESS
-branch arduino-ru-lcd-experiment
+CMP Protocol Tests #4098  run 33292858194 / SUCCESS
+head 547f1c1e58f3fb657d6f75301c30f88b3e179589
+message docs(handoff): refresh entrypoint through CMP 4096
+
+CMP Protocol Tests #4099  run 33292963140 / SUCCESS
+head a8997c55e49bbfaab6d863b480d558ce28d159e7
+message docs(handoff): record CMP 4097
+
+CMP Protocol Tests #4100  run 33292981946 / SUCCESS
+head c34540510a909937f039ae354a1ffc0c673ac2f6
+message docs(handoff): advance transfer through CMP 4097
 ```
 
-GitHub metadata confirms run #4085 belongs exactly to HEAD `1238bd68...`, branch `arduino-ru-lcd-experiment`, and completed successfully.
+All three runs are on branch `arduino-ru-lcd-experiment`, completed successfully. They are three successive documentation HEADs, not repeated runs of one SHA. `#4100` is the exact GREEN confirmation for the branch HEAD that immediately preceded this documentation update.
 
-Previously recorded documentation-only confirmations include `#4066–#4067` and `#4071–#4076`; they do not substitute for the exact checkpoint 166/167 runtime evidence.
+Previously recorded documentation-only confirmations include `#4066–#4067`, `#4071–#4076` and the later handoff chain through `#4097`; they do not substitute for the exact checkpoint 166/167 runtime evidence.
 
 ## 7. Residual repeated-scan audit — checkpoint 165 NO-CHANGE
 

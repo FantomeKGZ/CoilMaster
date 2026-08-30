@@ -14,7 +14,6 @@ Production/source-of-truth: **`cmp-protocol-v1`**
 - Для нового файла сначала подтверждать отсутствие пути.
 
 Production остаётся:
-
 ```text
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
@@ -28,7 +27,6 @@ Documentation-only CI recursion больше не основной work stream. 
 ## First feature result — calculator source strand counts
 
 Concrete gap fixed:
-
 - old Web UI accepted several diameters but hard-coded every component as `source_strands_N=1`;
 - desktop/mobile now parse `<diameter>x<strand-count>`;
 - examples: `0,80x3`, `1,00x5`, `0,80x3;1,00x2`;
@@ -36,7 +34,6 @@ Concrete gap fixed:
 - backend already validates 1..12 strands/component.
 
 Commits:
-
 ```text
 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5  desktop
 da6b5423d782b73ed4ebacb9aaf5fa164d5ac552  mobile
@@ -53,27 +50,24 @@ Arduino RU LCD #210 run 33313331284 / SUCCESS head da6b5423d782b73ed4ebacb9aaf5f
 CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346a
 ```
 
-CMP #4525/#4526 were understood intermediate failures only in `Audit calculator source wire input`; the old contract still required one strand per entered diameter. The updated regression contract restored CMP SUCCESS at #4527.
-
 ## Latest documentation CI
 
 ```text
-CMP #4551 run 33314598022 / SUCCESS head 8709a6f118d0c100c2fa9d6620128c60e1d8b7a5
-CMP #4552 run 33314693290 / SUCCESS head bf3270f1b3875a5938da7565dc6d0fbf2616b000
-CMP #4553 run 33314714837 / SUCCESS head fdc56cbefa6fe05ccb258234ff9edbd6553caf32
 CMP #4554 run 33314737600 / SUCCESS head a39c17c0f672ef14cce3a11a65e1cac6607d146d
 CMP #4555 run 33314823700 / SUCCESS head 43b454b4966ed4ddc0c657f86125796a6d2c5006
 CMP #4556 run 33314847523 / SUCCESS head 12893de6692c5d2407169f77041f233ebdcaf5e2
 CMP #4557 run 33314870221 / SUCCESS head 3350fc4aeef7351487c1437105254b5e3b4469d6
+CMP #4558 run 33314954914 / SUCCESS head 658d63fe441b4ae7031604b38da17978f43ce6b4
+CMP #4559 run 33314980308 / SUCCESS head 3f64afcebf19f9e29d05b3a9e4e8fe0dd8aaf9b2
+CMP #4560 run 33314998446 / SUCCESS head 9baa2a1bfabbd392c5c310c4362011f60206bd98
 ```
 
-#4554 verifies transfer through #4551. #4555/#4556/#4557 verify the snapshot/entrypoint/transfer HANDOFF through #4553. Therefore all prior HANDOFF documentation through `3350fc4aeef7351487c1437105254b5e3b4469d6` is independently CMP-GREEN.
+#4554 verifies transfer through #4551. #4555/#4556/#4557 verify snapshot/entrypoint/transfer through #4553. #4558/#4559/#4560 independently verify snapshot/entrypoint/transfer through #4557. Therefore all prior HANDOFF documentation through `9baa2a1bfabbd392c5c310c4362011f60206bd98` is independently CMP-GREEN.
 
 Latest exact independently verified GREEN SHA before this transfer refresh:
-
 ```text
-3350fc4aeef7351487c1437105254b5e3b4469d6
-CMP #4557 run 33314870221 / SUCCESS
+9baa2a1bfabbd392c5c310c4362011f60206bd98
+CMP #4560 run 33314998446 / SUCCESS
 ```
 
 Any newer docs commit requires its own exact run before being called GREEN. Do not create more docs-only commits merely to chase their own SUCCESS; return to the feature audit.
@@ -81,7 +75,6 @@ Any newer docs commit requires its own exact run before being called GREEN. Do n
 ## Next feature audit order
 
 Continue in this order unless a concrete defect is discovered earlier:
-
 1. clients/motors/repairs bounded pagination and navigation;
 2. motor import workflow and validation;
 3. shared Web shell: navigation, icons, breadcrumbs, global search, recent items, RTC/device clock, FW/Web/SD version, toast/error layer;

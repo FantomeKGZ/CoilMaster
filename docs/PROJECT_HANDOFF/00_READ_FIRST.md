@@ -18,6 +18,9 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified CI experiment heads перед текущими documentation updates:
 
 ```text
+b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
+CMP Protocol Tests #4127  run 33294728536 / SUCCESS
+
 c834321ec8199d1d3420ed29a625c18760453ec6
 CMP Protocol Tests #4126  run 33294630764 / SUCCESS
 
@@ -43,17 +46,17 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4125/#4126`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `db0f3175caff1582b95628d85c5edcacf21a59d1` и `c834321ec8199d1d3420ed29a625c18760453ec6` соответственно.
+GitHub metadata подтверждает для `#4125/#4126/#4127`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `db0f3175caff1582b95628d85c5edcacf21a59d1`, `c834321ec8199d1d3420ed29a625c18760453ec6` и `b6f40e1cfd6db422a7f506363decc7aa14d2cf9f` соответственно.
 
-Последний exact GREEN documentation head перед новым handoff update:
+Последний exact GREEN documentation head перед новыми handoff updates:
 
 ```text
-c834321ec8199d1d3420ed29a625c18760453ec6
-message: docs(handoff): advance transfer through CMP 4124
-CMP Protocol Tests #4126  run 33294630764 / SUCCESS
+b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
+message: docs(handoff): record CMP 4125 and 4126
+CMP Protocol Tests #4127  run 33294728536 / SUCCESS
 ```
 
-После него создан documentation commit `b6f40e1cfd6db422a7f506363decc7aa14d2cf9f` (`docs(handoff): record CMP 4125 and 4126`). Его нельзя считать GREEN без собственного exact CI result. Текущий entrypoint commit после этой правки также требует собственного CI confirmation.
+Следующий documentation head `f833937bdea98c38a200cce4f297a95d62513d80` (`docs(handoff): advance entrypoint through CMP 4126`) не покрывается `#4127`, потому что `#4127` запущен на его parent `b6f40e1...`. Созданные после него documentation commits также нельзя считать GREEN без собственного exact CI result.
 
 Непосредственно предшествующие documentation heads также подтверждены:
 

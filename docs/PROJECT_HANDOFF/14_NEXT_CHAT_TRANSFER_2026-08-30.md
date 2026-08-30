@@ -24,10 +24,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Перед текущим documentation update exact branch HEAD был:
 
 ```text
-7d340d6b1711420d5e97a6f76acf4920704d098a
+01b209e8a8fd00119f5c1eb54982685737993b38
 ```
 
-Он и два непосредственно предшествующих documentation-only HEAD подтверждены GitHub metadata:
+Последняя подтверждённая documentation-only цепочка:
 
 ```text
 bbfeaabd2deaa8356300b02f5a6c504907e24922
@@ -38,11 +38,17 @@ CMP Protocol Tests #4078  run 33291112419 / SUCCESS
 
 7d340d6b1711420d5e97a6f76acf4920704d098a
 CMP Protocol Tests #4079  run 33291149537 / SUCCESS
+
+d62eb851549ad1ce390b34b2c25c54d014a254cc
+CMP Protocol Tests #4080  run 33291272960 / SUCCESS
+
+01b209e8a8fd00119f5c1eb54982685737993b38
+CMP Protocol Tests #4081  run 33291293949 / SUCCESS
 ```
 
-Для всех трёх: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
+Для `#4077–#4081`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
 
-Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+`#4080` подтверждает documentation commit `docs(handoff): sync checkpoint 167 latest CI`; `#4081` подтверждает непосредственный pre-update HEAD `01b209e8...` (`docs(handoff): record CMP 4077 through 4079`). Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 

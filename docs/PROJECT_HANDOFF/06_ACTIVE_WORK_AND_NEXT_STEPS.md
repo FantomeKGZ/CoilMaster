@@ -294,13 +294,17 @@ CMP Protocol Tests #4069  run 33290422893 / SUCCESS  head 47903b0f2e2ddc8ac90abf
 CMP Protocol Tests #4070  run 33290440543 / SUCCESS  head 0eb32376de3a4c50c765dcbe6b946524d075f69b
 CMP Protocol Tests #4071  run 33290487906 / SUCCESS  head 5ed169dc7ef0ac16768810d44bda732da2233b4f
 CMP Protocol Tests #4072  run 33290608524 / SUCCESS  head fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52
+CMP Protocol Tests #4073  run 33290636544 / SUCCESS  head 578e4f786ab67bb701b1c796bd3e137492e46e6e
+CMP Protocol Tests #4074  run 33290727723 / SUCCESS  head 37ffd3d41ca7602c9e8ff60086c124d9692f3ff8
+CMP Protocol Tests #4075  run 33290759157 / SUCCESS  head 76feab5c37973a5ad4afc63ef515d5b6f7f4fdc3
+CMP Protocol Tests #4076  run 33290785679 / SUCCESS  head e1fa715c8049e765b0c5bc010a95a5fafadac614
 ESP32 Build #1778         run 33290408891 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
 ESP32 Build #1779         run 33290422888 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 Arduino RU LCD #207       run 33290408886 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
 Arduino RU LCD #208       run 33290422860 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 ```
 
-`#4036–#4072` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4066–#4067`, `#4071` and `#4072` are documentation-only confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence, while `#4070` is the exact source-text regression-contract confirmation.
+`#4036–#4076` were rechecked against GitHub metadata. `#4066–#4067` and `#4071–#4076` are documentation-only confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence, while `#4070` is the exact source-text regression-contract confirmation.
 
 These later checkpoint-167 runs do not replace the exact checkpoint 166 Hall firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 

@@ -22,10 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified handoff HEAD перед текущим documentation update:
 
 ```text
-b189d7d3575663fa2f11b376352dca1cda301377
+fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52
 ```
 
-Он подтверждён `CMP Protocol Tests #4063` (`33290149645`) / SUCCESS. Предыдущий user-supplied `#4062` (`33290126788`) также подтверждён SUCCESS на exact head `f90ae58c163880491a40d9c23409984801835acc`. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
+Он подтверждён `CMP Protocol Tests #4072` (`33290608524`) / SUCCESS. Предыдущий documentation-only head `5ed169dc7ef0ac16768810d44bda732da2233b4f` подтверждён `CMP #4071` (`33290487906`) / SUCCESS. Эти documentation-only runs не заменяют exact code/build evidence checkpoint 167. После текущего documentation update в новом чате всегда сначала получать свежий branch HEAD и не считать его GREEN без отдельного exact run.
 
 ## 2. Что читать первым
 
@@ -45,7 +45,7 @@ docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 
 ## 3. Current experiment state
 
-Repo-reviewable software work закрыт through checkpoint **166**.
+Repo-reviewable software work закрыт through checkpoint **167**.
 
 ```text
 152 RUN_WIRE Material Request status batching
@@ -63,9 +63,10 @@ Repo-reviewable software work закрыт through checkpoint **166**.
 164 spool/material bridge suffix uniqueness audit
 165 residual repeated-scan audit -> NO-CHANGE
 166 reachable Hall RU LCD localization -> GREEN
+167 static canonical winding-role selector cleanup -> GREEN
 ```
 
-Checkpoints 159–166 не переделывать без конкретной regression.
+Checkpoints 159–167 не переделывать без конкретной regression.
 
 ## 4. Latest Hall/RU LCD checkpoint — GREEN
 
@@ -146,7 +147,7 @@ Intentional rereads, которые сохраняются:
 
 Не вводить persistent cache/index/DB, whole-file growing state, unbounded vectors или automatic history truncation/rotation/deletion.
 
-## 7. Autonomous winding canonical projection — closed
+## 7. Autonomous winding canonical projection / role selector — closed
 
 Former defect where autonomous/completed assignment did not appear in normal motor card is closed.
 
@@ -161,7 +162,26 @@ Current semantics:
 - untargeted role preserved completely;
 - `STARTING` requires existing `WORKING`;
 - UI never auto-retries occupied-role 409;
+- desktop/mobile static selectors now also contain only `WORKING` / `STARTING`;
+- runtime stale-page filtering remains defense-in-depth;
 - no physical RUN evidence fabrication/copying.
+
+Checkpoint 167 exact code/build evidence:
+
+```text
+9e538828ed179700d362286a3af72de6a6ce0b6f
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS
+ESP32 Build #1778         run 33290408891 / SUCCESS
+Arduino RU LCD #207       run 33290408886 / SUCCESS
+
+47903b0f2e2ddc8ac90abf1e26db7e678a570363
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS
+ESP32 Build #1779         run 33290422888 / SUCCESS
+Arduino RU LCD #208       run 33290422860 / SUCCESS
+
+0eb32376de3a4c50c765dcbe6b946524d075f69b
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS
+```
 
 ## 8. Safety invariants — do not change
 
@@ -216,11 +236,20 @@ f04ee9e8f36b29cde590c0a364a6a95442bc56b3  CMP #4060  run 33289985842 / SUCCESS
 08d79f3a06ea473fff0644efe4540c5251942c39  CMP #4061  run 33290011908 / SUCCESS
 f90ae58c163880491a40d9c23409984801835acc  CMP #4062  run 33290126788 / SUCCESS
 b189d7d3575663fa2f11b376352dca1cda301377  CMP #4063  run 33290149645 / SUCCESS
+05b5fd3a2acb2f8cb5d7f167848561bc353864fe  CMP #4064  run 33290236422 / SUCCESS
+8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d  CMP #4065  run 33290257905 / SUCCESS
+8baf7119dd2f962032ed655ac39a1ffbb85abe6b  CMP #4066  run 33290353792 / SUCCESS
+52c2ed9015df7591fc730a9614b4e8c85d2bb3bb  CMP #4067  run 33290379205 / SUCCESS
+9e538828ed179700d362286a3af72de6a6ce0b6f  CMP #4068  run 33290408963 / SUCCESS
+47903b0f2e2ddc8ac90abf1e26db7e678a570363  CMP #4069  run 33290422893 / SUCCESS
+0eb32376de3a4c50c765dcbe6b946524d075f69b  CMP #4070  run 33290440543 / SUCCESS
+5ed169dc7ef0ac16768810d44bda732da2233b4f  CMP #4071  run 33290487906 / SUCCESS
+fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52  CMP #4072  run 33290608524 / SUCCESS
 ```
 
-`#4036–#4063` are confirmed SUCCESS from GitHub metadata. The user-supplied `#4062` is exact for `f90ae58c...`; the immediately following docs-only HEAD `b189d7d...` is independently confirmed by `#4063`. Thus the verified handoff chain is continuous through `b189d7d...` before this documentation update.
+`#4066–#4067`, `#4071` and `#4072` are documentation-only handoff confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence; `#4070` is exact source-text regression-contract evidence.
 
-These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
+These documentation runs do not replace exact Hall/RU-LCD firmware evidence checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`) and do not make later documentation HEADs firmware checkpoints.
 
 ## 10. Immediate next work
 

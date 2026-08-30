@@ -18,11 +18,18 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-df4af83bc11635a41303c4aa17fe8b4d96e18bd7
-CMP Protocol Tests #4101  run 33293094890 / SUCCESS
+5e4631ff11ad5e86180d70d481ff8f9d3030873d
+CMP Protocol Tests #4103  run 33293252153 / SUCCESS
 ```
 
-`#4101` проверен по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, exact head `df4af83bc11635a41303c4aa17fe8b4d96e18bd7`. `host-tests` полностью SUCCESS, включая configure/build/test и все contract-аудиты. Это documentation-only confirmation; firmware/build evidence checkpoints 166–167 остаётся отдельным authoritative evidence. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
+Непосредственно предшествующий documentation head также подтверждён:
+
+```text
+63d757babe290044702e70d139dfdeb577be1c62
+CMP Protocol Tests #4102  run 33293235402 / SUCCESS
+```
+
+GitHub metadata подтверждает для `#4102` и `#4103`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4103` является текущим exact CI evidence перед этим documentation update. Эти documentation-only confirmations не заменяют отдельное firmware/build evidence checkpoints 166–167. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
 
 Stable pre-CRM snapshot сохраняется:
 

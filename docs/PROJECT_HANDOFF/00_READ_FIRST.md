@@ -15,10 +15,16 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Последний подтверждённый handoff HEAD перед этим CI-record update:
+Последний exact CI-verified handoff HEAD:
 
 ```text
-62274a0fd7e0f40aa2da7768a8f52f46bbb4d891
+04763307d222c9a9696a6a4fd396453882744e5a
+```
+
+Текущий pre-update branch HEAD был docs-only child:
+
+```text
+fb34936f1e00816000bc5570a0060af0b8ebcca9
 ```
 
 Verified handoff CI chain:
@@ -50,9 +56,12 @@ CMP Protocol Tests #4039  run 33289007119 / SUCCESS
 
 62274a0fd7e0f40aa2da7768a8f52f46bbb4d891
 CMP Protocol Tests #4040  run 33289028681 / SUCCESS
+
+04763307d222c9a9696a6a4fd396453882744e5a
+CMP Protocol Tests #4041  run 33289102116 / SUCCESS
 ```
 
-`#4032–#4040` — documentation/contract handoff checks. Они не заменяют firmware/runtime evidence checkpoint 166; последний точный Arduino RU LCD firmware checkpoint остаётся `#4028` + Arduino RU LCD `#206` ниже.
+`#4032–#4041` — documentation/contract handoff checks. `#4041` independently подтверждён GitHub metadata: `completed/success`, branch `arduino-ru-lcd-experiment`, exact head `04763307d222c9a9696a6a4fd396453882744e5a`. Они не заменяют firmware/runtime evidence checkpoint 166; последний точный Arduino RU LCD firmware checkpoint остаётся `#4028` + Arduino RU LCD `#206` ниже.
 
 Stable pre-CRM snapshot сохраняется:
 

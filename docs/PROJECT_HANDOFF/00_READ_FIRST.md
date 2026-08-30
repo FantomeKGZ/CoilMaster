@@ -66,18 +66,26 @@ message: docs(handoff): record CMP 4145 and 4146
 f01a54a1d930fd84c411fca16bf4e37d551468e4
 CMP Protocol Tests #4148  run 33295856552 / SUCCESS
 message: docs(handoff): extend verified CI through CMP 4146
+
+91a8b2a246a44a991d07b925aca925a06a16ffb8
+CMP Protocol Tests #4149  run 33295956638 / SUCCESS
+message: docs(handoff): record CMP 4147 and 4148
+
+51e7077aaf34d11cafdc82363afb32e67d73318c
+CMP Protocol Tests #4150  run 33295977687 / SUCCESS
+message: docs(handoff): advance verified CI through CMP 4148
 ```
 
-Для #4140–#4148 GitHub metadata независимо подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
+Для #4140–#4150 GitHub metadata независимо подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
 
 Следовательно latest exact independently verified GREEN head перед текущим documentation-only обновлением:
 
 ```text
-f01a54a1d930fd84c411fca16bf4e37d551468e4
-CMP Protocol Tests #4148  run 33295856552 / SUCCESS
+51e7077aaf34d11cafdc82363afb32e67d73318c
+CMP Protocol Tests #4150  run 33295977687 / SUCCESS
 ```
 
-Текущие documentation-only commits после `f01a54a1...` должны получить собственные exact CI results прежде чем новый documentation HEAD можно называть GREEN.
+Текущие documentation-only commits после `51e7077a...` должны получить собственные exact CI results прежде чем новый documentation HEAD можно называть GREEN.
 
 Более длинная verified documentation chain остаётся в `14_NEXT_CHAT_TRANSFER_2026-08-30.md` и Git history. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 
@@ -177,19 +185,3 @@ Static desktop/mobile selectors expose only canonical `WORKING` / `STARTING`. Ru
 6. Во время hardware E2E проверить UART command/ack, keypad, normal RU screens before/after Hall, physical START ownership, Hall 15-second run/apply/reject, SSR fail-safe, RUN evidence, manual exact RUN_WIRE writeoff и reboot/recovery fail-closed behavior.
 7. Не утверждать GREEN без exact current CI/run evidence.
 8. Production `cmp-protocol-v1` не трогать без отдельного запроса.
-
-## Safety invariants
-
-- no automatic physical START/repeat START;
-- no auto-resume after reboot;
-- Arduino is sole SSR owner;
-- ESP32/Web never controls SSR directly;
-- `RUN_COMPLETED` is evidence only;
-- RUN_WIRE writeoff remains explicit/manual;
-- exact `spool_id + source_session_id + source_run_id` mandatory;
-- restore/recovery fail closed/operator controlled;
-- mutation-time authoritative rereads and TOCTOU guards remain;
-- append-only confirmed history never silently edited/deleted;
-- no unbounded growing-NDJSON buffering/cache;
-- no automatic production truncation/rotation/deletion;
-- no premature DB/index migration.

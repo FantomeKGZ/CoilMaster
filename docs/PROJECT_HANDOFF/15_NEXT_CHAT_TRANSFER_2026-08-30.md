@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4154
+# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4156
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -21,27 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-Пользователь сообщил и GitHub metadata независимо подтверждает:
-
-```text
-CMP Protocol Tests #4153
-run 33296185197
-head 2f03992b8b6364e570795f1b0ad4d10e89aa8091
-branch arduino-ru-lcd-experiment
-event push
-status completed
-conclusion SUCCESS
-message docs(handoff): record CMP 4151 and 4152
-```
-
-После этого был создан documentation-only handoff commit:
-
-```text
-a3082500e9295ee38823456ff69c8b6530b369da
-message: docs(handoff): checkpoint exact CMP 4153 state
-```
-
-Его собственный exact CI также независимо подтверждён:
+GitHub metadata независимо подтверждает свежую documentation chain:
 
 ```text
 CMP Protocol Tests #4154
@@ -51,9 +31,28 @@ branch arduino-ru-lcd-experiment
 event push
 status completed
 conclusion SUCCESS
+message docs(handoff): checkpoint exact CMP 4153 state
+
+CMP Protocol Tests #4155
+run 33296340509
+head f99bdcf3f108243e3192c8e83a66b289469681ed
+branch arduino-ru-lcd-experiment
+event push
+status completed
+conclusion SUCCESS
+message docs(handoff): confirm CMP 4154 after 4153 checkpoint
+
+CMP Protocol Tests #4156
+run 33296357807
+head 00919cbf5e8cd847a0e622bdbfe7bf4b291ab7f5
+branch arduino-ru-lcd-experiment
+event push
+status completed
+conclusion SUCCESS
+message docs(handoff): advance entrypoint through CMP 4154
 ```
 
-Следовательно `a3082500...` — latest exact independently verified GREEN documentation head перед текущим documentation-only commit. Текущий commit, обновляющий этот файл, должен получить собственный exact CI result прежде чем его новый HEAD можно называть GREEN.
+Следовательно `00919cbf5e8cd847a0e622bdbfe7bf4b291ab7f5` — latest exact independently verified GREEN documentation head перед текущими documentation-only updates. Коммиты, созданные после него для записи #4155/#4156, должны получить собственный exact CI result прежде чем их новый HEAD можно называть GREEN.
 
 ## Current engineering state
 

@@ -21,89 +21,41 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## 2. Latest independently verified CI handoff
 
-Последняя independently verified documentation chain:
-
-```text
-c7da174ea9e18897f66944d12123a60d2970e420
-CMP Protocol Tests #4136  run 33295198287 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4134
-
-dc96c3917cf41b89521de5821151849434f9e0c4
-CMP Protocol Tests #4135  run 33295180004 / SUCCESS
-message: docs(handoff): record CMP 4132 through 4134
-
-8b3926b8de870589b64f0e0107d2f7a099e89c70
-CMP Protocol Tests #4134  run 33295091259 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4131
-
-b97fd6b9f77496646573bbd1ea64c151c049a78f
-CMP Protocol Tests #4133  run 33295068299 / SUCCESS
-message: docs(handoff): record CMP 4131
-
-103dc4ef9267c266ae64acadbe2dd198d6a77eed
-CMP Protocol Tests #4132  run 33294968670 / SUCCESS
-message: docs(handoff): extend verified CI chain through 4130
-
-58dda8de4b76861d05a14390bc3760f4647b7876
-CMP Protocol Tests #4131  run 33294943179 / SUCCESS
-
-fd098e0bbd72acc2c7e5c11b397e2315314343d5
-CMP Protocol Tests #4130  run 33294860227 / SUCCESS
-
-2390d6e1916c2bd2cbbcb72901cf486e200c72e2
-CMP Protocol Tests #4129  run 33294838984 / SUCCESS
-
-f833937bdea98c38a200cce4f297a95d62513d80
-CMP Protocol Tests #4128  run 33294756834 / SUCCESS
-
-b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
-CMP Protocol Tests #4127  run 33294728536 / SUCCESS
-
-c834321ec8199d1d3420ed29a625c18760453ec6
-CMP Protocol Tests #4126  run 33294630764 / SUCCESS
-
-db0f3175caff1582b95628d85c5edcacf21a59d1
-CMP Protocol Tests #4125  run 33294606600 / SUCCESS
-
-de180b5deda6cf1545c439ca09c83da2193c4d30
-CMP Protocol Tests #4124  run 33294520980 / SUCCESS
-
-a5059a362844cb8b3668fb38afeea18ba29d552b
-CMP Protocol Tests #4123  run 33294500721 / SUCCESS
-
-124e43e7626a769750648cfac96d07c131bd548e
-CMP Protocol Tests #4122  run 33294397706 / SUCCESS
-
-5687a7153598879f68f2487e3e61f8241fa60447
-CMP Protocol Tests #4121  run 33294372059 / SUCCESS
-
-3c7d82daadffe516ae2c49904ffd750357658526
-CMP Protocol Tests #4120  run 33294305854 / SUCCESS
-
-046da69294074ac3ff74990c1d16d8072e8c9380
-CMP Protocol Tests #4119  run 33294282887 / SUCCESS
-```
-
-GitHub metadata independently confirms `#4132/#4133/#4134/#4135/#4136` on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`, with exact heads `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f`, `8b3926b8de870589b64f0e0107d2f7a099e89c70`, `dc96c3917cf41b89521de5821151849434f9e0c4` and `c7da174ea9e18897f66944d12123a60d2970e420` respectively.
-
-Therefore the latest exact independently verified GREEN documentation head is:
-
-```text
-c7da174ea9e18897f66944d12123a60d2970e420
-CMP Protocol Tests #4136  run 33295198287 / SUCCESS
-```
-
-The branch then advanced through documentation-only commits, including:
+Свежая exact verified documentation chain:
 
 ```text
 13c26dad7b01f10545d1019cb130d350f26cef89
+CMP Protocol Tests #4137  run 33295262217 / SUCCESS
 message: docs(handoff): record CMP 4135
-parent: c7da174ea9e18897f66944d12123a60d2970e420
+
+9b62ddd9ce6cfff1a9075635dad5f3b81c785ef0
+CMP Protocol Tests #4138  run 33295354492 / SUCCESS
+message: docs(handoff): record CMP 4136
+
+ae15755f99d9c545a057e50cc483e56da1173838
+CMP Protocol Tests #4139  run 33295375686 / SUCCESS
+message: docs(handoff): extend verified CI through CMP 4136
 ```
 
-Any documentation commit newer than `c7da174e...` must get its own exact CI result before it is itself called GREEN.
+GitHub metadata independently confirms all three runs on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
 
-The preceding documentation chain through `#4118` is already recorded in repository history and remains valid. These documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
+Exact latest verified GREEN documentation head before the current documentation updates:
+
+```text
+ae15755f99d9c545a057e50cc483e56da1173838
+CMP Protocol Tests #4139  run 33295375686 / SUCCESS
+```
+
+The documentation then advanced to:
+
+```text
+f7ee334f5a2fac874e335729e3cca7d0ab1b8351
+message: docs(handoff): advance verified head through CMP 4139
+```
+
+`f7ee334f...` and this current transfer-document commit must each receive their own exact CI result before either new documentation head is itself called GREEN.
+
+Earlier documentation verification through `#4136` remains valid in Git history. Documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
 
 ## 3. Что читать первым
 
@@ -246,3 +198,15 @@ Checkpoint 165 закрыл residual audit как **NO-CHANGE**. Intentional rer
 ## 9. Immediate next work
 
 Без конкретного repo defect следующий обязательный engineering gate — physical Arduino + ESP32 E2E на реальном CoilMaster.
+
+Во время E2E проверить минимум:
+
+1. ESP32 command → Arduino ack.
+2. Keypad responsiveness before/after Hall mode.
+3. Normal RU LCD screens before Hall, Hall screens during test, normal CGRAM restoration after exit.
+4. Physical START ownership only on Arduino; no Web/ESP32 SSR path.
+5. Hall 15-second run, apply and reject paths.
+6. SSR fail-safe behavior.
+7. RUN_STARTED/RUN_COMPLETED evidence without automatic wire deduction.
+8. Manual exact RUN_WIRE writeoff with `spool_id + source_session_id + source_run_id`.
+9. Reboot/recovery fail-closed behavior and no auto-resume.

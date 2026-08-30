@@ -22,10 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified handoff HEAD:
 
 ```text
-04763307d222c9a9696a6a4fd396453882744e5a
+e72df70cb90a8bcb6bc28d7590c6b91eca09a063
 ```
 
-Он подтверждён `CMP Protocol Tests #4041`. Pre-update branch HEAD `fb34936f1e00816000bc5570a0060af0b8ebcca9` является docs-only child этого verified head; после текущего documentation commit фактический HEAD снова будет новее. В новом чате всегда сначала получать свежий branch HEAD.
+Он подтверждён `CMP Protocol Tests #4043`. После него ветка содержит только последующие documentation commits; в новом чате всегда сначала получать свежий branch HEAD и не считать docs-only child новым firmware runtime checkpoint.
 
 ## 2. Что читать первым
 
@@ -223,9 +223,17 @@ CMP Protocol Tests #4040  run 33289028681 / SUCCESS
 04763307d222c9a9696a6a4fd396453882744e5a
 docs(handoff): record CMP 4039 and 4040
 CMP Protocol Tests #4041  run 33289102116 / SUCCESS
+
+fb34936f1e00816000bc5570a0060af0b8ebcca9
+docs(handoff): extend verified CI through 4040
+CMP Protocol Tests #4042  run 33289117627 / SUCCESS
+
+e72df70cb90a8bcb6bc28d7590c6b91eca09a063
+docs(handoff): record CMP 4041
+CMP Protocol Tests #4043  run 33289176000 / SUCCESS
 ```
 
-`#4036–#4041` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4041` is the latest exact CI-verified handoff/documentation head currently recorded.
+`#4036–#4043` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4043` is the latest exact CI-verified handoff/documentation head currently recorded.
 
 These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 

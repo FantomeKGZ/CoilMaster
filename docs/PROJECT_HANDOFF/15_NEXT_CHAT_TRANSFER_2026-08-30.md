@@ -21,13 +21,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata independently verifies the documentation chain continuously through **CMP #4213**.
+GitHub metadata independently verifies the documentation chain continuously through **CMP #4215**.
 
 Последние подтверждённые runs:
 
 ```text
-CMP Protocol Tests #4204  run 33301946532 / SUCCESS  head cd82394d20a811ce8e87915d44d8b215fae29c47
-CMP Protocol Tests #4205  run 33301994046 / SUCCESS  head d1c70da40d8c3518531729cd7ef59ec51f27cca4
 CMP Protocol Tests #4206  run 33302020751 / SUCCESS  head 35fe27cd52c9e6fb9f920f906a7ae11ef60c2dbc
 CMP Protocol Tests #4207  run 33302047551 / SUCCESS  head b884ef3898c688b6e0e058d7332437151db3a8e0
 CMP Protocol Tests #4208  run 33302098408 / SUCCESS  head 9acffb6b0a9cd3ed0d9e329b510cc4a8dde63d79
@@ -36,18 +34,20 @@ CMP Protocol Tests #4210  run 33302152554 / SUCCESS  head 69cc2b9e115c3392c4fa4b
 CMP Protocol Tests #4211  run 33302215716 / SUCCESS  head 552685ac97a0170039e562d6fbe4a5535e3065f9
 CMP Protocol Tests #4212  run 33302230659 / SUCCESS  head 4b4702ea4accb6308a0ee8cbb3a8a88de85ae221
 CMP Protocol Tests #4213  run 33302250683 / SUCCESS  head 52b1b0b4ef9e2ce7fb9cf789fe2c8768a2eb40c1
+CMP Protocol Tests #4214  run 33302362675 / SUCCESS  head 8613888c37eb6e0c400e9459c5a5eac14721984e
+CMP Protocol Tests #4215  run 33302381350 / SUCCESS  head c77e199990aa4b90bf1172def846179e8ad61e80
 ```
 
-Полная непрерывная chain #4160–#4213 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная chain #4160–#4215 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 
 ```text
-52b1b0b4ef9e2ce7fb9cf789fe2c8768a2eb40c1
-CMP Protocol Tests #4213  run 33302250683 / SUCCESS
+c77e199990aa4b90bf1172def846179e8ad61e80
+CMP Protocol Tests #4215  run 33302381350 / SUCCESS
 ```
 
-#4210 verifies the transfer through #4206, #4211 verifies the snapshot through #4209, #4212 verifies the entrypoint through #4209, and #4213 verifies the transfer through #4209.
+#4214 verifies the snapshot through #4213, and #4215 verifies the entrypoint through #4213.
 
 Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 

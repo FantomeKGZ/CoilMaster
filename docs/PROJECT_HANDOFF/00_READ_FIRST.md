@@ -15,69 +15,30 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Текущий exact CI-verified experiment HEAD перед этим documentation update:
+Последний exact CI-verified experiment HEAD перед этим documentation update:
+
+```text
+fdd00c728f35351755399d721cd7878c856000a8
+CMP Protocol Tests #4096  run 33292705314 / SUCCESS
+```
+
+Последняя подтверждённая documentation-only chain вокруг текущего handoff:
 
 ```text
 497d38b5a0ec42f3568e3757da26c87dfadf460e
 CMP Protocol Tests #4093  run 33292447449 / SUCCESS
+
+0091eb59186bb5edec3f044a909ea137830afac8
+CMP Protocol Tests #4094  run 33292562741 / SUCCESS
+
+c7238c9f207f1372f2f58944fe58d493330f6d94
+CMP Protocol Tests #4095  run 33292581605 / SUCCESS
+
+fdd00c728f35351755399d721cd7878c856000a8
+CMP Protocol Tests #4096  run 33292705314 / SUCCESS
 ```
 
-Последняя подтверждённая documentation-only chain:
-
-```text
-bbfeaabd2deaa8356300b02f5a6c504907e24922
-CMP Protocol Tests #4077  run 33291077232 / SUCCESS
-
-114ec9c3262fa9da61eb6f78cc592306e06aa31f
-CMP Protocol Tests #4078  run 33291112419 / SUCCESS
-
-7d340d6b1711420d5e97a6f76acf4920704d098a
-CMP Protocol Tests #4079  run 33291149537 / SUCCESS
-
-d62eb851549ad1ce390b34b2c25c54d014a254cc
-CMP Protocol Tests #4080  run 33291272960 / SUCCESS
-
-01b209e8a8fd00119f5c1eb54982685737993b38
-CMP Protocol Tests #4081  run 33291293949 / SUCCESS
-
-87db3b6d5220da933b94f02bcaf9d917bae26835
-CMP Protocol Tests #4082  run 33291400295 / SUCCESS
-
-cb78accce67f73956835137ecb1cd7a2e4701c19
-CMP Protocol Tests #4083  run 33291494104 / SUCCESS
-
-8f3d8b4da359b5f5951ab02686f4473ab17086cc
-CMP Protocol Tests #4084  run 33291608258 / SUCCESS
-
-1238bd68b2c6b947148c0a7f47e10c0a42eb20fb
-CMP Protocol Tests #4085  run 33291646267 / SUCCESS
-
-050f21f5e2919489f01d7f1b406444f1e58b3299
-CMP Protocol Tests #4086  run 33291848255 / SUCCESS
-
-5f679fcbcbceaf38452b9fe200c531a4071cb987
-CMP Protocol Tests #4087  run 33291928492 / SUCCESS
-
-d8a8bc5bb522fdfaece2230e3011936dab30edf5
-CMP Protocol Tests #4088  run 33291949626 / SUCCESS
-
-aa2f52dd1952c79c56774d0c17d120351e0a92de
-CMP Protocol Tests #4089  run 33292050791 / SUCCESS
-
-1d152c3c7025705fff172c8b8520976adba78d8e
-CMP Protocol Tests #4090  run 33292170821 / SUCCESS
-
-bdb40d53f6f5019d51dde9773ae8617a4d8aa8e6
-CMP Protocol Tests #4091  run 33292319355 / SUCCESS
-
-d83ee7189c9da29c7beb3301fb93453950187998
-CMP Protocol Tests #4092  run 33292343761 / SUCCESS
-
-497d38b5a0ec42f3568e3757da26c87dfadf460e
-CMP Protocol Tests #4093  run 33292447449 / SUCCESS
-```
-
-`#4077–#4093` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. `#4093` является exact-head подтверждением commit `497d38b5...` (`docs(handoff): record CMP 4091 and 4092`). Эти documentation-only runs не заменяют exact firmware/build evidence checkpoints 166–167 ниже. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
+`#4093–#4096` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Это documentation-only confirmations; firmware/build evidence checkpoints 166–167 остаётся отдельным authoritative evidence. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
 
 Stable pre-CRM snapshot сохраняется:
 

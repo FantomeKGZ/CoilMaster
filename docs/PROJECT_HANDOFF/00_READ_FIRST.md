@@ -17,7 +17,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Current work stream — feature completeness
 
-По прямому запросу пользователя начат полный аудит ранее обсуждавшихся обновлений/добавлений функций. Цель: проверить реальную реализацию, закончить proven incomplete items и только после этого переходить к следующему этапу.
+По прямому запросу пользователя идёт полный аудит ранее обсуждавшихся обновлений/добавлений функций. Цель: проверить реальную реализацию, закончить proven incomplete items и только после этого переходить к следующему этапу.
 
 Previous checkpoints 159–167 остаются закрытыми, если нет concrete regression. Speculative repeated-scan/performance work не переоткрывать.
 
@@ -58,16 +58,28 @@ CMP #4525/#4526 were understood intermediate failures only in `Audit calculator 
 ```text
 CMP #4528 run 33313496030 / SUCCESS head 155c42ef90850a54fac0d49b87e9eb6ba8ca1fd8
 CMP #4529 run 33313522798 / SUCCESS head 9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
+CMP #4530 run 33313547013 / SUCCESS head 2a20feeb6e660f1a0d10f5bf868dde8a9759dd18
+CMP #4531 run 33313662125 / SUCCESS head cab5f38b0a80cbc0a9f40d0e9c21b21b71eb46b6
+CMP #4532 run 33313686343 / SUCCESS head 070297431a572c60c1e179e28bd28ebcc6b815c1
+CMP #4533 run 33313705562 / SUCCESS head a72ac12095332236dfdeb1868f4c5965a8dfe808
 ```
 
-#4528 verifies the first feature-audit HANDOFF snapshot commit. #4529 verifies the updated feature-audit entrypoint commit. Transfer commit `2a20feeb6e660f1a0d10f5bf868dde8a9759dd18` has no supplied exact CMP SUCCESS yet and must not be called GREEN.
+The previous feature-audit HANDOFF sequence is now fully verified:
+- #4528 verifies snapshot `155c42ef...`;
+- #4529 verifies entrypoint `9ad6768c...`;
+- #4530 verifies transfer `2a20feeb...`;
+- #4531 verifies build-evidence snapshot `cab5f38b...`;
+- #4532 verifies build-evidence entrypoint `07029743...`;
+- #4533 verifies build-evidence transfer `a72ac120...`.
 
-Latest exact supplied CMP SUCCESS before this documentation refresh:
+Latest exact independently verified GREEN SHA before this documentation refresh:
 
 ```text
-9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
-CMP #4529 run 33313522798 / SUCCESS
+a72ac12095332236dfdeb1868f4c5965a8dfe808
+CMP #4533 run 33313705562 / SUCCESS
 ```
+
+New docs commits after #4533 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 

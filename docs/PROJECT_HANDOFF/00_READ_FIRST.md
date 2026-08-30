@@ -19,32 +19,37 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-GitHub metadata подтверждает следующую свежую цепочку на `arduino-ru-lcd-experiment`:
+GitHub metadata подтверждает свежую documentation chain на `arduino-ru-lcd-experiment`:
 
 ```text
 13c26dad7b01f10545d1019cb130d350f26cef89
 CMP Protocol Tests #4137  run 33295262217 / SUCCESS
-message: docs(handoff): record CMP 4135
 
 9b62ddd9ce6cfff1a9075635dad5f3b81c785ef0
 CMP Protocol Tests #4138  run 33295354492 / SUCCESS
-message: docs(handoff): record CMP 4136
 
 ae15755f99d9c545a057e50cc483e56da1173838
 CMP Protocol Tests #4139  run 33295375686 / SUCCESS
-message: docs(handoff): extend verified CI through CMP 4136
+
+f7ee334f5a2fac874e335729e3cca7d0ab1b8351
+CMP Protocol Tests #4140  run 33295459355 / SUCCESS
+message: docs(handoff): advance verified head through CMP 4139
+
+24300c90a77f17c8b4592b2f41932ea46ae34279
+CMP Protocol Tests #4141  run 33295478482 / SUCCESS
+message: docs(handoff): record CMP 4137 through 4139
 ```
 
-Для всех трёх runs branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
+Для #4140 и #4141 GitHub metadata независимо подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
 
 Следовательно latest exact independently verified GREEN head перед данным документационным изменением:
 
 ```text
-ae15755f99d9c545a057e50cc483e56da1173838
-CMP Protocol Tests #4139  run 33295375686 / SUCCESS
+24300c90a77f17c8b4592b2f41932ea46ae34279
+CMP Protocol Tests #4141  run 33295478482 / SUCCESS
 ```
 
-Текущий документационный commit, созданный после `ae15755f...`, должен получить собственный exact CI result прежде чем его можно называть GREEN.
+Текущий документационный commit, созданный после `24300c90...`, должен получить собственный exact CI result прежде чем его можно называть GREEN.
 
 Более длинная verified documentation chain остаётся в `14_NEXT_CHAT_TRANSFER_2026-08-30.md` и Git history. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 

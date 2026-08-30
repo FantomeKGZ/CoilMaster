@@ -53,27 +53,26 @@ Arduino RU LCD #210 run 33313331284 / SUCCESS head da6b5423d782b73ed4ebacb9aaf5f
 CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346a
 ```
 
-CMP #4525/#4526 were understood intermediate failures only in `Audit calculator source wire input`; the old contract still required one strand per entered diameter. The updated regression contract restored CMP SUCCESS at #4527.
+CMP #4525/#4526 were understood intermediate failures only in `Audit calculator source wire input`; the old regression contract still required one strand per entered diameter. The updated regression contract restored CMP SUCCESS at #4527.
 
 ## Latest documentation CI
 
 ```text
-CMP #4545 run 33314274705 / SUCCESS head 9332377b4e44b091e10c62f046f5496649ffc777
-CMP #4546 run 33314368017 / SUCCESS head b9fa4e27a122881cc4cd2d53158320500e1793db
-CMP #4547 run 33314392991 / SUCCESS head 5503ab4dcce4ae33984792756bfe6bc65b9f62b4
 CMP #4548 run 33314417096 / SUCCESS head e056dc9eefc597847905c0f850b9db1e4a8b11e3
 CMP #4549 run 33314549761 / SUCCESS head 5f62b3e5017f5ed57c53760aefad0c279fcf6631
 CMP #4550 run 33314575279 / SUCCESS head 579b9423db0f31d1d8d0d289056de6ed1423a97c
 CMP #4551 run 33314598022 / SUCCESS head 8709a6f118d0c100c2fa9d6620128c60e1d8b7a5
+CMP #4552 run 33314693290 / SUCCESS head bf3270f1b3875a5938da7565dc6d0fbf2616b000
+CMP #4553 run 33314714837 / SUCCESS head fdc56cbefa6fe05ccb258234ff9edbd6553caf32
 ```
 
-#4549/#4550/#4551 verify the snapshot/entrypoint/transfer HANDOFF through #4548. Therefore all prior HANDOFF documentation through `8709a6f118d0c100c2fa9d6620128c60e1d8b7a5` is independently CMP-GREEN.
+#4552 verifies snapshot through #4551. #4553 verifies entrypoint through #4551. Transfer through #4551 (`a39c17c0f672ef14cce3a11a65e1cac6607d146d`) still requires its own exact run before being called GREEN.
 
 Latest exact independently verified GREEN SHA before this transfer refresh:
 
 ```text
-8709a6f118d0c100c2fa9d6620128c60e1d8b7a5
-CMP #4551 run 33314598022 / SUCCESS
+fdc56cbefa6fe05ccb258234ff9edbd6553caf32
+CMP #4553 run 33314714837 / SUCCESS
 ```
 
 Any newer docs commit requires its own exact run before being called GREEN. Do not create more docs-only commits merely to chase their own SUCCESS; return to the feature audit.

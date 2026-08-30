@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4153
+# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4154
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -21,14 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-Перед созданием этого файла текущая ветка была:
-
-```text
-2f03992b8b6364e570795f1b0ad4d10e89aa8091
-message: docs(handoff): record CMP 4151 and 4152
-```
-
-GitHub metadata независимо подтверждает exact CI для этого HEAD:
+Пользователь сообщил и GitHub metadata независимо подтверждает:
 
 ```text
 CMP Protocol Tests #4153
@@ -38,11 +31,29 @@ branch arduino-ru-lcd-experiment
 event push
 status completed
 conclusion SUCCESS
+message docs(handoff): record CMP 4151 and 4152
 ```
 
-Следовательно `2f03992b...` — latest exact independently verified GREEN documentation head перед текущим documentation-only commit.
+После этого был создан documentation-only handoff commit:
 
-Текущий commit, создающий этот файл, должен получить собственный exact CI result прежде чем его HEAD можно называть GREEN.
+```text
+a3082500e9295ee38823456ff69c8b6530b369da
+message: docs(handoff): checkpoint exact CMP 4153 state
+```
+
+Его собственный exact CI также независимо подтверждён:
+
+```text
+CMP Protocol Tests #4154
+run 33296258713
+head a3082500e9295ee38823456ff69c8b6530b369da
+branch arduino-ru-lcd-experiment
+event push
+status completed
+conclusion SUCCESS
+```
+
+Следовательно `a3082500...` — latest exact independently verified GREEN documentation head перед текущим documentation-only commit. Текущий commit, обновляющий этот файл, должен получить собственный exact CI result прежде чем его новый HEAD можно называть GREEN.
 
 ## Current engineering state
 

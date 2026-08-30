@@ -237,6 +237,7 @@
     }
 
     armBtn.addEventListener('click',async()=>{
+      armBtn.disabled=true;
       try{
         setStatus('Подготовка автокалибровки…','note warn');
         await post(CAL_URL+'/arm');
@@ -244,11 +245,13 @@
         clearTimeout(pollTimer);
         setTimeout(poll,250);
       }catch(e){
+        armBtn.disabled=false;
         setStatus('Не удалось вооружить калибровку: '+e.message,'note bad');
       }
     });
 
     abortBtn.addEventListener('click',async()=>{
+      abortBtn.disabled=true;
       try{
         await post(CAL_URL+'/abort');
         polling=true;
@@ -256,6 +259,7 @@
         setTimeout(poll,200);
       }catch(e){
         setStatus('Не удалось прервать калибровку: '+e.message,'note bad');
+        load(false).catch(()=>{abortBtn.disabled=false;});
       }
     });
 
@@ -273,6 +277,7 @@
       thresholdInput.value=lastResult.recommended_threshold;
       hysteresisInput.value=lastResult.recommended_hysteresis;
       directionInput.value=lastResult.direction;
+      applyBtn.disabled=true;
       try{
         setStatus('Отправка exact calibration proposal на Arduino…','note warn');
         await post(CAL_URL+'/apply',{
@@ -282,6 +287,7 @@
         clearTimeout(pollTimer);
         setTimeout(poll,200);
       }catch(e){
+        applyBtn.disabled=false;
         setStatus('Не удалось подготовить применение: '+e.message,'note bad');
       }
     });

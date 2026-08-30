@@ -21,7 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata independently verifies the documentation chain through **CMP #4180**:
+GitHub metadata independently verifies the documentation chain through **CMP #4181**:
 
 ```text
 CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -45,16 +45,17 @@ CMP Protocol Tests #4177  run 33297656125 / SUCCESS  head 67e4ee7b22b28d7c7574c8
 CMP Protocol Tests #4178  run 33297675300 / SUCCESS  head 93acd7112db32f81b1a1b3f70cdd5bd171cbb495
 CMP Protocol Tests #4179  run 33301160832 / SUCCESS  head a47b788995c31c9edd1b31d5f7abeecab962ea82
 CMP Protocol Tests #4180  run 33301185698 / SUCCESS  head 53176b964123f97eca65461bdfda5bb4b490c0c0
+CMP Protocol Tests #4181  run 33301246334 / SUCCESS  head c4a85986e5b32ded3e7f596b2a6959e6187ce676
 ```
 
 Latest exact independently verified GREEN SHA before the subsequent documentation refresh:
 
 ```text
-53176b964123f97eca65461bdfda5bb4b490c0c0
-CMP Protocol Tests #4180  run 33301185698 / SUCCESS
+c4a85986e5b32ded3e7f596b2a6959e6187ce676
+CMP Protocol Tests #4181  run 33301246334 / SUCCESS
 ```
 
-#4179 independently verifies the documentation commit that records the operator-confirmed physical Hall/RU-LCD E2E pass. #4180 independently verifies the subsequent handoff commit that closes the physical E2E gate.
+#4179 independently verifies the documentation commit that records the operator-confirmed physical Hall/RU-LCD E2E pass. #4180 independently verifies the subsequent handoff commit that closes the physical E2E gate. #4181 independently verifies the CI snapshot update through #4180.
 
 Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 

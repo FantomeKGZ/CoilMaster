@@ -60,18 +60,28 @@ CMP #4525/#4526 were understood intermediate failures only in `Audit calculator 
 ```text
 CMP #4528 run 33313496030 / SUCCESS head 155c42ef90850a54fac0d49b87e9eb6ba8ca1fd8
 CMP #4529 run 33313522798 / SUCCESS head 9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
+CMP #4530 run 33313547013 / SUCCESS head 2a20feeb6e660f1a0d10f5bf868dde8a9759dd18
+CMP #4531 run 33313662125 / SUCCESS head cab5f38b0a80cbc0a9f40d0e9c21b21b71eb46b6
+CMP #4532 run 33313686343 / SUCCESS head 070297431a572c60c1e179e28bd28ebcc6b815c1
+CMP #4533 run 33313705562 / SUCCESS head a72ac12095332236dfdeb1868f4c5965a8dfe808
 ```
 
-#4528 verifies snapshot commit `155c42ef...`. #4529 verifies entrypoint commit `9ad6768c...`. Previous transfer commit `2a20feeb6e660f1a0d10f5bf868dde8a9759dd18` remains without its own supplied exact CMP SUCCESS.
+All prior feature-audit HANDOFF documentation through `a72ac12095332236dfdeb1868f4c5965a8dfe808` is now independently CMP-GREEN:
+- #4528 snapshot;
+- #4529 entrypoint;
+- #4530 transfer;
+- #4531 build-evidence snapshot;
+- #4532 build-evidence entrypoint;
+- #4533 build-evidence transfer.
 
-Latest exact supplied CMP SUCCESS before this transfer refresh:
+Latest exact independently verified GREEN SHA before this transfer refresh:
 
 ```text
-9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
-CMP #4529 run 33313522798 / SUCCESS
+a72ac12095332236dfdeb1868f4c5965a8dfe808
+CMP #4533 run 33313705562 / SUCCESS
 ```
 
-Do not call newer documentation commits GREEN without their own exact run evidence.
+Any newer docs commit requires its own exact run before being called GREEN. Do not create more docs-only commits merely to chase their own SUCCESS; return to the feature audit.
 
 ## Next feature audit order
 

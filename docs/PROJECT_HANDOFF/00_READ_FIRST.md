@@ -19,7 +19,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` теперь подтверждена through **CMP #4188** для перечисленных run:
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` теперь подтверждена непрерывно through **CMP #4191**:
 
 ```text
 #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -44,24 +44,26 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 #4179  run 33301160832 / SUCCESS  head a47b788995c31c9edd1b31d5f7abeecab962ea82
 #4180  run 33301185698 / SUCCESS  head 53176b964123f97eca65461bdfda5bb4b490c0c0
 #4181  run 33301246334 / SUCCESS  head c4a85986e5b32ded3e7f596b2a6959e6187ce676
+#4182  run 33301267596 / SUCCESS  head 88856a5f00626c65f54fbbfa9946104c5f988505
 #4183  run 33301292351 / SUCCESS  head ade926838f966e5e7a01cda274f3187bae4e7d26
 #4184  run 33301333347 / SUCCESS  head 9f712e53a4cf5ff1411b60069136736eedcca9a9
 #4185  run 33301354570 / SUCCESS  head d502921a9a18994a630366ed305a20bbd9cf584a
 #4186  run 33301373673 / SUCCESS  head 6fb066f6c780ab66ef2a48d8ea4992efda202823
 #4187  run 33301422840 / SUCCESS  head 025061dc1ba1705041ad9e73368d692c5b4c230a
 #4188  run 33301441473 / SUCCESS  head 81aac63927dbab3745273a2bc4a8e74c72b97416
+#4189  run 33301463914 / SUCCESS  head 6afd3f0e8b30621a5dadb12b182f39bfc6000664
+#4190  run 33301508840 / SUCCESS  head f6c747ceb6b52d52386d455ce89e5c9aea3090f0
+#4191  run 33301531996 / SUCCESS  head 2b2711cd99e73148fc10a8265a63b5cd575957aa
 ```
-
-`#4182` в текущей подтверждённой серии не зафиксирован и не должен предполагаться автоматически.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-81aac63927dbab3745273a2bc4a8e74c72b97416
-CMP Protocol Tests #4188  run 33301441473 / SUCCESS
+2b2711cd99e73148fc10a8265a63b5cd575957aa
+CMP Protocol Tests #4191  run 33301531996 / SUCCESS
 ```
 
-Detailed CI snapshot: `16_CMP_4160_4162_GREEN_2026-08-30.md` (filename retained for stable reference; content is extended through #4188).
+Detailed CI snapshot: `16_CMP_4160_4162_GREEN_2026-08-30.md` (filename retained for stable reference; content is extended through #4191).
 
 Documentation-only runs do not replace firmware/build evidence for checkpoints 166–167. Do not create an endless chain of documentation commits merely to record SUCCESS of the immediately preceding documentation commit.
 

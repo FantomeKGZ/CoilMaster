@@ -54,7 +54,7 @@ void WebRecoveryFtpServer::begin(bool automaticRecovery)
     m_webServer.on("/api/ftp/status", HTTP_GET, [this]() { handleStatus(); });
     m_webServer.on("/api/ftp/start", HTTP_POST, [this]() { handleStart(); });
     m_webServer.on("/api/ftp/stop", HTTP_POST, [this]() { handleStop(); });
-    if (automaticRecovery) start(true);
+    if (automaticRecovery || !webRootUsable()) start(true);
 }
 
 void WebRecoveryFtpServer::setActivityProbe(BackupActivityGuard::RuntimeProbe probe)
@@ -108,9 +108,10 @@ void WebRecoveryFtpServer::update(uint32_t nowMs)
 {
     if (!m_running) return;
 
-    // Emergency FTP is only a bootstrap path. Once both production UI entry
-    // points exist, the site is usable and the emergency server must not stay
-    // advertised as an active recovery condition forever.
+    // Emergency FTP is only a bootstrap path. Once the root entrypoint and
+    // both production UI entrypoints exist, the site is usable and the
+    // emergency server must not stay advertised as an active recovery
+    // condition forever.
     if (m_automaticRecovery && webRootUsable())
     {
         stop("automatic_recovery_complete");
@@ -595,7 +596,8 @@ bool WebRecoveryFtpServer::sameLocalSubnet(const IPAddress& address) const
 
 bool WebRecoveryFtpServer::webRootUsable() const
 {
-    return m_storage.exists("/web/desktop/index.html") &&
+    return m_storage.exists("/web/index.html") &&
+           m_storage.exists("/web/desktop/index.html") &&
            m_storage.exists("/web/mobile/index.html");
 }
 

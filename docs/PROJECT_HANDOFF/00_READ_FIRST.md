@@ -19,75 +19,30 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-GitHub metadata подтверждает свежую documentation chain на `arduino-ru-lcd-experiment`:
+Свежая exact documentation chain на `arduino-ru-lcd-experiment`:
 
 ```text
-13c26dad7b01f10545d1019cb130d350f26cef89
-CMP Protocol Tests #4137  run 33295262217 / SUCCESS
+2f03992b8b6364e570795f1b0ad4d10e89aa8091
+CMP Protocol Tests #4153  run 33296185197 / SUCCESS
+message: docs(handoff): record CMP 4151 and 4152
 
-9b62ddd9ce6cfff1a9075635dad5f3b81c785ef0
-CMP Protocol Tests #4138  run 33295354492 / SUCCESS
-
-ae15755f99d9c545a057e50cc483e56da1173838
-CMP Protocol Tests #4139  run 33295375686 / SUCCESS
-
-f7ee334f5a2fac874e335729e3cca7d0ab1b8351
-CMP Protocol Tests #4140  run 33295459355 / SUCCESS
-message: docs(handoff): advance verified head through CMP 4139
-
-24300c90a77f17c8b4592b2f41932ea46ae34279
-CMP Protocol Tests #4141  run 33295478482 / SUCCESS
-message: docs(handoff): record CMP 4137 through 4139
-
-70ca869607d3556d3e37fc413c6ee557fdd442fd
-CMP Protocol Tests #4142  run 33295556344 / SUCCESS
-message: docs(handoff): record CMP 4140 and 4141
-
-0fd178e2d4a194b707420edfa1c4f525cad2fbdf
-CMP Protocol Tests #4143  run 33295571380 / SUCCESS
-message: docs(handoff): extend verified CI through CMP 4141
-
-902d128bca63dbde58831834b17b8b6b3b1cdfa6
-CMP Protocol Tests #4144  run 33295649674 / SUCCESS
-message: docs(handoff): record CMP 4142 and 4143
-
-cfcff39961bc7ba5d4f48e726f60f31aa79ec62d
-CMP Protocol Tests #4145  run 33295750743 / SUCCESS
-message: docs(handoff): record CMP 4144
-
-a5854e74d66b0333de488f4836e8cf6160d3eadc
-CMP Protocol Tests #4146  run 33295769234 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4144
-
-7f5ac1545a7c11e03b011ff89d3992258e74a942
-CMP Protocol Tests #4147  run 33295838323 / SUCCESS
-message: docs(handoff): record CMP 4145 and 4146
-
-f01a54a1d930fd84c411fca16bf4e37d551468e4
-CMP Protocol Tests #4148  run 33295856552 / SUCCESS
-message: docs(handoff): extend verified CI through CMP 4146
-
-91a8b2a246a44a991d07b925aca925a06a16ffb8
-CMP Protocol Tests #4149  run 33295956638 / SUCCESS
-message: docs(handoff): record CMP 4147 and 4148
-
-51e7077aaf34d11cafdc82363afb32e67d73318c
-CMP Protocol Tests #4150  run 33295977687 / SUCCESS
-message: docs(handoff): advance verified CI through CMP 4148
+a3082500e9295ee38823456ff69c8b6530b369da
+CMP Protocol Tests #4154  run 33296258713 / SUCCESS
+message: docs(handoff): checkpoint exact CMP 4153 state
 ```
 
-Для #4140–#4150 GitHub metadata независимо подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
+Для обоих runs GitHub metadata независимо подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`.
 
-Следовательно latest exact independently verified GREEN head перед текущим documentation-only обновлением:
+Следовательно latest exact independently verified GREEN documentation head перед текущим documentation-only обновлением:
 
 ```text
-51e7077aaf34d11cafdc82363afb32e67d73318c
-CMP Protocol Tests #4150  run 33295977687 / SUCCESS
+a3082500e9295ee38823456ff69c8b6530b369da
+CMP Protocol Tests #4154  run 33296258713 / SUCCESS
 ```
 
-Текущие documentation-only commits после `51e7077a...` должны получить собственные exact CI results прежде чем новый documentation HEAD можно называть GREEN.
+Текущий documentation-only commit после `a3082500...` должен получить собственный exact CI result прежде чем его новый HEAD можно называть GREEN.
 
-Более длинная verified documentation chain остаётся в `14_NEXT_CHAT_TRANSFER_2026-08-30.md` и Git history. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
+Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 
 Stable pre-CRM snapshot:
 
@@ -111,6 +66,7 @@ docs/PROJECT_HANDOFF/11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md
 docs/PROJECT_HANDOFF/12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
 docs/PROJECT_HANDOFF/13_HALL_RU_LCD_ACCEPTANCE.md
 docs/PROJECT_HANDOFF/14_NEXT_CHAT_TRANSFER_2026-08-30.md
+docs/PROJECT_HANDOFF/15_NEXT_CHAT_TRANSFER_2026-08-30.md
 docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 ```
 

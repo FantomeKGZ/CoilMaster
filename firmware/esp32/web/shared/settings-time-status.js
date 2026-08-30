@@ -31,7 +31,7 @@
             panel.appendChild(row('Модуль',data.detected?'обнаружен':'не найден'));
             panel.appendChild(row('Дата и время',data.time_valid&&data.local_time
                 ?data.local_time.replace('T',' '):'требуется установка'));
-            panel.appendChild(row('Расписание backup',data.scheduling_ready
+            panel.appendChild(row('Расписание резервных копий',data.scheduling_ready
                 ?'готово':'ещё не включено'));
             const refresh=document.createElement('button');
             refresh.type='button';

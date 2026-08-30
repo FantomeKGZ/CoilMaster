@@ -21,71 +21,30 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## 2. Latest independently verified CI handoff
 
-Текущий подтверждённый pre-update branch HEAD:
+Последний exact CI-verified experiment HEAD перед этим documentation update:
+
+```text
+fdd00c728f35351755399d721cd7878c856000a8
+CMP Protocol Tests #4096  run 33292705314 / SUCCESS
+```
+
+Последняя подтверждённая documentation-only цепочка вокруг текущего handoff:
 
 ```text
 497d38b5a0ec42f3568e3757da26c87dfadf460e
 CMP Protocol Tests #4093  run 33292447449 / SUCCESS
+
+0091eb59186bb5edec3f044a909ea137830afac8
+CMP Protocol Tests #4094  run 33292562741 / SUCCESS
+
+c7238c9f207f1372f2f58944fe58d493330f6d94
+CMP Protocol Tests #4095  run 33292581605 / SUCCESS
+
+fdd00c728f35351755399d721cd7878c856000a8
+CMP Protocol Tests #4096  run 33292705314 / SUCCESS
 ```
 
-Последняя подтверждённая documentation-only цепочка:
-
-```text
-bbfeaabd2deaa8356300b02f5a6c504907e24922
-CMP Protocol Tests #4077  run 33291077232 / SUCCESS
-
-114ec9c3262fa9da61eb6f78cc592306e06aa31f
-CMP Protocol Tests #4078  run 33291112419 / SUCCESS
-
-7d340d6b1711420d5e97a6f76acf4920704d098a
-CMP Protocol Tests #4079  run 33291149537 / SUCCESS
-
-d62eb851549ad1ce390b34b2c25c54d014a254cc
-CMP Protocol Tests #4080  run 33291272960 / SUCCESS
-
-01b209e8a8fd00119f5c1eb54982685737993b38
-CMP Protocol Tests #4081  run 33291293949 / SUCCESS
-
-87db3b6d5220da933b94f02bcaf9d917bae26835
-CMP Protocol Tests #4082  run 33291400295 / SUCCESS
-
-cb78accce67f73956835137ecb1cd7a2e4701c19
-CMP Protocol Tests #4083  run 33291494104 / SUCCESS
-
-8f3d8b4da359b5f5951ab02686f4473ab17086cc
-CMP Protocol Tests #4084  run 33291608258 / SUCCESS
-
-1238bd68b2c6b947148c0a7f47e10c0a42eb20fb
-CMP Protocol Tests #4085  run 33291646267 / SUCCESS
-
-050f21f5e2919489f01d7f1b406444f1e58b3299
-CMP Protocol Tests #4086  run 33291848255 / SUCCESS
-
-5f679fcbcbceaf38452b9fe200c531a4071cb987
-CMP Protocol Tests #4087  run 33291928492 / SUCCESS
-
-d8a8bc5bb522fdfaece2230e3011936dab30edf5
-CMP Protocol Tests #4088  run 33291949626 / SUCCESS
-
-aa2f52dd1952c79c56774d0c17d120351e0a92de
-CMP Protocol Tests #4089  run 33292050791 / SUCCESS
-
-1d152c3c7025705fff172c8b8520976adba78d8e
-CMP Protocol Tests #4090  run 33292170821 / SUCCESS
-
-bdb40d53f6f5019d51dde9773ae8617a4d8aa8e6
-CMP Protocol Tests #4091  run 33292319355 / SUCCESS
-
-d83ee7189c9da29c7beb3301fb93453950187998
-CMP Protocol Tests #4092  run 33292343761 / SUCCESS
-
-497d38b5a0ec42f3568e3757da26c87dfadf460e
-CMP Protocol Tests #4093  run 33292447449 / SUCCESS
-```
-
-Для `#4077–#4093`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
-
-`#4080` подтверждает documentation commit `docs(handoff): sync checkpoint 167 latest CI`; `#4081` подтверждает `01b209e8...` (`docs(handoff): record CMP 4077 through 4079`); `#4082` подтверждает `87db3b6d...` (`docs(handoff): record CMP 4080 and 4081`); `#4083` подтверждает `cb78acc...` (`docs(handoff): record exact CMP 4082`); `#4084` подтверждает `8f3d8b4...`; `#4085` подтверждает `1238bd68...`; `#4086` подтверждает `050f21f5...`; `#4087` подтверждает `5f679fcb...`; `#4088` подтверждает `d8a8bc5...` (`docs(handoff): refresh transfer through CMP 4086`); `#4089` подтверждает `aa2f52dd...` (`docs(handoff): record CMP 4086 through 4088`); `#4090` подтверждает `1d152c3c...` (`docs(handoff): record exact CMP 4089`); `#4091` подтверждает `bdb40d53...` (`docs(handoff): record exact CMP 4090`); `#4092` подтверждает `d83ee718...` (`docs(handoff): advance transfer through CMP 4090`); `#4093` подтверждает `497d38b5...` (`docs(handoff): record CMP 4091 and 4092`). Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+Для `#4093–#4096`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 
@@ -127,6 +86,8 @@ Repo-reviewable software work закрыт through checkpoint **167**.
 ```
 
 Checkpoints 159–167 не переделывать без конкретной regression.
+
+Repeated-scan/performance optimization считается исчерпанной до появления concrete measured bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения file opens.
 
 ## 5. Checkpoint 166 — Hall RU LCD firmware
 
@@ -174,7 +135,7 @@ Flash headroom = 1190 bytes
 
 ## 6. Checkpoint 167 — canonical winding-role selector
 
-Former defect where autonomous/completed assignment did not appear in normal motor card remains closed. Static desktop/mobile assignment selectors now contain only canonical `WORKING` / `STARTING`; runtime stale-page filtering and backend unsupported-role rejection remain defense-in-depth.
+Former defect where autonomous/completed assignment did not appear in normal motor card remains closed. Static desktop/mobile assignment selectors contain only canonical `WORKING` / `STARTING`; runtime stale-page filtering and backend unsupported-role rejection remain defense-in-depth.
 
 Occupied-role replacement remains explicit `replace_existing=true`, append-only and never auto-retried.
 
@@ -197,9 +158,7 @@ CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 
 ## 7. Repeated-scan optimization status
 
-Checkpoint 165 закрыл residual audit как **NO-CHANGE**. Не продолжать speculative refactors только для уменьшения file opens.
-
-Intentional rereads сохраняются:
+Checkpoint 165 закрыл residual audit как **NO-CHANGE**. Intentional rereads сохраняются:
 
 - `SpoolMaterialBridgeIntegrityAudit` cross-journal reference resolution;
 - `MaterialUsageCorrectionIntegrityAudit` cumulative correction/provenance checks;
@@ -227,26 +186,26 @@ Intentional rereads сохраняются:
 
 ## 9. Immediate next work
 
-Without a concrete repo defect, the next required engineering gate is physical Arduino + ESP32 E2E on real CoilMaster.
+Без конкретного repo defect следующий обязательный engineering gate — physical Arduino + ESP32 E2E на реальном CoilMaster.
 
-Verify:
+Проверить:
 
-1. boot without reset loop;
+1. boot без reset loop;
 2. keypad responsiveness;
-3. normal RU LCD before Hall mode;
-4. Hall armed screen and absence of automatic start;
-5. keypad `A` and separate physical START only when interlocks permit;
-6. Arduino-only SSR ownership and fail-safe path;
-7. readable 15-second Hall countdown;
+3. normal RU LCD до Hall mode;
+4. Hall armed screen и отсутствие automatic start;
+5. keypad `A` и отдельный physical START только когда interlocks разрешают;
+6. Arduino-only SSR ownership и fail-safe path;
+7. читаемый 15-second Hall countdown;
 8. `#` applies/persists accepted calibration; `B` rejects without applying;
 9. normal RU glyphs restored after Hall exit;
-10. ESP32 loss does not create unsafe start/resume;
-11. UART command/ack and Hall telemetry;
+10. ESP32 loss не создаёт unsafe start/resume;
+11. UART command/ack и Hall telemetry;
 12. RUN_STARTED/RUN_COMPLETED evidence behavior;
 13. manual exact RUN_WIRE writeoff;
 14. reboot/recovery fail-closed behavior.
 
-If hardware E2E exposes a defect, fix only that concrete defect in `arduino-ru-lcd-experiment`, with current-content/current-SHA discipline and exact CI verification.
+Если hardware E2E выявит дефект, исправлять только этот concrete defect в `arduino-ru-lcd-experiment`, с current-content/current-SHA discipline и exact CI verification.
 
 ## 10. Working style
 

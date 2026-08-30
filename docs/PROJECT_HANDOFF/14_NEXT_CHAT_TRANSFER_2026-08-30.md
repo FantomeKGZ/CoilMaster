@@ -24,8 +24,8 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-fdd00c728f35351755399d721cd7878c856000a8
-CMP Protocol Tests #4096  run 33292705314 / SUCCESS
+65c520ff55788a931a347bb06c0386e242521280
+CMP Protocol Tests #4097  run 33292838954 / SUCCESS
 ```
 
 Последняя подтверждённая documentation-only цепочка вокруг текущего handoff:
@@ -42,9 +42,12 @@ CMP Protocol Tests #4095  run 33292581605 / SUCCESS
 
 fdd00c728f35351755399d721cd7878c856000a8
 CMP Protocol Tests #4096  run 33292705314 / SUCCESS
+
+65c520ff55788a931a347bb06c0386e242521280
+CMP Protocol Tests #4097  run 33292838954 / SUCCESS
 ```
 
-Для `#4093–#4096`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+Для `#4093–#4097`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 

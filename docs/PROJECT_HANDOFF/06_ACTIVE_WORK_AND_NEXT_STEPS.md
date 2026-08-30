@@ -233,18 +233,26 @@ The autonomous/archive assignment backend and runtime safety layer already permi
 - explicit occupied-role replacement remains opt-in and never auto-retried;
 - no firmware, RUN evidence, motor history or safety-control semantics changed.
 
-Commits / verification:
+Commits / exact verification:
 
 ```text
 9e538828ed179700d362286a3af72de6a6ce0b6f  desktop static role cleanup
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS
+ESP32 Build #1778         run 33290408891 / SUCCESS
+Arduino RU LCD #207       run 33290408886 / SUCCESS
+
 47903b0f2e2ddc8ac90abf1e26db7e678a570363  mobile static role cleanup
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS
+ESP32 Build #1779         run 33290422888 / SUCCESS
+Arduino RU LCD #208       run 33290422860 / SUCCESS
+
 0eb32376de3a4c50c765dcbe6b946524d075f69b  regression contract
 CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 ```
 
 ## Latest verified handoff CI chain
 
-These CMP runs were independently verified against GitHub metadata on `arduino-ru-lcd-experiment`:
+These runs were independently verified against GitHub metadata on `arduino-ru-lcd-experiment`:
 
 ```text
 CMP Protocol Tests #4033  run 33288156234 / SUCCESS  head 51d1de7839d4f0b7b7be3031546cc896e4bdb212
@@ -281,12 +289,18 @@ CMP Protocol Tests #4064  run 33290236422 / SUCCESS  head 05b5fd3a2acb2f8cb5d7f1
 CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d
 CMP Protocol Tests #4066  run 33290353792 / SUCCESS  head 8baf7119dd2f962032ed655ac39a1ffbb85abe6b
 CMP Protocol Tests #4067  run 33290379205 / SUCCESS  head 52c2ed9015df7591fc730a9614b4e8c85d2bb3bb
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 CMP Protocol Tests #4070  run 33290440543 / SUCCESS  head 0eb32376de3a4c50c765dcbe6b946524d075f69b
+ESP32 Build #1778         run 33290408891 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
+ESP32 Build #1779         run 33290422888 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
+Arduino RU LCD #207       run 33290408886 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
+Arduino RU LCD #208       run 33290422860 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 ```
 
-`#4036–#4070` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The user-provided `#4063–#4065` are confirmed SUCCESS; the subsequent documentation runs `#4066–#4067` and checkpoint-167 contract run `#4070` are also confirmed SUCCESS.
+`#4036–#4070` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. `#4066–#4067` are documentation-only confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence, while `#4070` is the exact source-text regression-contract confirmation.
 
-These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
+These later checkpoint-167 runs do not replace the exact checkpoint 166 Hall firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 
 ## Current execution order
 

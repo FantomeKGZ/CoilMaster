@@ -19,10 +19,16 @@ Production остаётся:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-HEAD ветки перед началом этого обновления документации:
+Последний подтверждённый transfer HEAD перед текущим CI-record update:
 
 ```text
-70a9d492bca693237413dbb1b781d3cef4ed85dc
+51d1de7839d4f0b7b7be3031546cc896e4bdb212
+```
+
+Его parent handoff refresh:
+
+```text
+bcbc5441f337c53c7b92f956da49f019f4a747a5
 ```
 
 После handoff-коммитов фактический HEAD новее; в новом чате всегда сначала получать свежий branch HEAD.
@@ -179,7 +185,27 @@ Current semantics:
 - no automatic production truncation/rotation/deletion;
 - no premature DB/index migration.
 
-## 9. Immediate next work
+## 9. Verified handoff CI — 2026-08-30
+
+User-supplied run was independently checked against GitHub metadata:
+
+```text
+bcbc5441f337c53c7b92f956da49f019f4a747a5
+docs(handoff): refresh current entrypoint
+CMP Protocol Tests #4032  run 33288140386 / SUCCESS
+```
+
+The next transfer-doc commit was also checked on its exact SHA:
+
+```text
+51d1de7839d4f0b7b7be3031546cc896e4bdb212
+docs(handoff): add 2026-08-30 transfer checkpoint
+CMP Protocol Tests #4033  run 33288156234 / SUCCESS
+```
+
+Both runs completed the `host-tests` job successfully. These are documentation/contract handoff checks, not a new firmware runtime checkpoint; the latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
+
+## 10. Immediate next work
 
 Without a concrete repo defect, the next required engineering gate is physical Arduino + ESP32 E2E on real CoilMaster.
 
@@ -202,7 +228,7 @@ Verify:
 
 If hardware E2E exposes a defect, fix only that concrete defect in `arduino-ru-lcd-experiment`, with current-content/current-SHA discipline and exact CI verification.
 
-## 10. Working style
+## 11. Working style
 
 - Russian, concise.
 - Execute rather than replace work with long plans.

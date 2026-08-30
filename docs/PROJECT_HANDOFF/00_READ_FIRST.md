@@ -18,7 +18,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified handoff HEAD перед текущим documentation update:
 
 ```text
-46cede22a06fdf7dc68dfce545c618ced9063876
+b189d7d3575663fa2f11b376352dca1cda301377
 ```
 
 Verified handoff CI chain:
@@ -104,9 +104,24 @@ CMP Protocol Tests #4057  run 33289866054 / SUCCESS
 
 46cede22a06fdf7dc68dfce545c618ced9063876
 CMP Protocol Tests #4058  run 33289891342 / SUCCESS
+
+70e4db3aad53458bef5778b7c8cd5c7a08ec2840
+CMP Protocol Tests #4059  run 33289916765 / SUCCESS
+
+f04ee9e8f36b29cde590c0a364a6a95442bc56b3
+CMP Protocol Tests #4060  run 33289985842 / SUCCESS
+
+08d79f3a06ea473fff0644efe4540c5251942c39
+CMP Protocol Tests #4061  run 33290011908 / SUCCESS
+
+f90ae58c163880491a40d9c23409984801835acc
+CMP Protocol Tests #4062  run 33290126788 / SUCCESS
+
+b189d7d3575663fa2f11b376352dca1cda301377
+CMP Protocol Tests #4063  run 33290149645 / SUCCESS
 ```
 
-`#4032–#4058` — documentation/contract handoff checks. GitHub metadata подтверждает `#4056`, `#4057` и `#4058` как `completed/success` на `arduino-ru-lcd-experiment`; exact heads соответственно `8177d383c8b0aa5b94658d3bb59fd86ff066a62e`, `1579b6a2c202457e501dc7a8aa3480ae0ce0702e` и `46cede22a06fdf7dc68dfce545c618ced9063876`. Текущий branch HEAD после этих CI-проверок уже был documentation-only commit `70e4db3aad53458bef5778b7c8cd5c7a08ec2840`, поэтому `#4058` не выдаётся за проверку более позднего documentation HEAD. Эти docs/contract runs не заменяют firmware/runtime evidence checkpoint 166; последний точный Arduino RU LCD firmware checkpoint остаётся `#4028` + Arduino RU LCD `#206` ниже.
+`#4032–#4063` — documentation/contract handoff checks. GitHub metadata подтверждает `#4062` как `completed/success` на exact head `f90ae58c163880491a40d9c23409984801835acc`, а следующий docs-only HEAD `b189d7d3575663fa2f11b376352dca1cda301377` отдельно подтверждён `#4063` / SUCCESS. Эти docs/contract runs не заменяют firmware/runtime evidence checkpoint 166; последний точный Arduino RU LCD firmware checkpoint остаётся `#4028` + Arduino RU LCD `#206` ниже.
 
 Stable pre-CRM snapshot сохраняется:
 

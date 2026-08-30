@@ -1,6 +1,6 @@
-# NEXT CHAT TRANSFER — 2026-08-29
+# NEXT CHAT TRANSFER — 2026-08-30
 
-Дата: **2026-08-29**  
+Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
 Production/source-of-truth: **`cmp-protocol-v1`**  
 Активная рабочая ветка: **`arduino-ru-lcd-experiment`**
@@ -9,23 +9,23 @@ Production/source-of-truth: **`cmp-protocol-v1`**
 
 - `main` как source **не использовать**.
 - Production `cmp-protocol-v1` не изменять без отдельного прямого запроса пользователя.
-- Вся следующая разработка выполняется только в `arduino-ru-lcd-experiment`.
+- Вся дальнейшая разработка выполняется только в `arduino-ru-lcd-experiment`.
 - Перед изменением существующего файла обязательно получить его актуальное содержимое именно из `arduino-ru-lcd-experiment` и использовать текущий blob SHA.
 - Для нового файла сначала проверить, что путь отсутствует.
 
-Production остаётся:
+Production остаётся неизменённым:
 
 ```text
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Последний exact runtime HEAD, подтверждённый перед handoff update:
+HEAD, подтверждённый перед этим handoff update:
 
 ```text
-fb7aaa368ae21fe5041395f0df5eef959233920d
+1238bd68b2c6b947148c0a7f47e10c0a42eb20fb
 ```
 
-После документационных коммитов фактический HEAD ветки будет новее; в новом чате всегда сначала заново получить current branch HEAD.
+Этот HEAD — documentation-only commit `docs(handoff): sync latest verified CI chain`.
 
 ## 2. Что читать в новом чате
 
@@ -44,7 +44,7 @@ fb7aaa368ae21fe5041395f0df5eef959233920d
 
 ## 3. Текущее состояние experiment
 
-Repo-reviewable software work подтверждён through checkpoint **165**.
+Repo-reviewable experiment work закрыт through checkpoint **167**.
 
 ```text
 152 RUN_WIRE Material Request status batching
@@ -61,70 +61,76 @@ Repo-reviewable software work подтверждён through checkpoint **165**.
 163 Repair Delivery single-pass append preflight
 164 spool/material bridge suffix uniqueness audit
 165 residual repeated-scan audit -> NO-CHANGE
+166 reachable Hall RU LCD localization
+167 static canonical winding-role selector cleanup
 ```
 
-Checkpoints 159–165 считаются закрытыми, если не обнаружена конкретная regression.
+Checkpoints **159–167** считать закрытыми, пока не появится конкретная regression или измеренный bottleneck.
 
-## 4. Последний runtime checkpoint — 164 GREEN
+## 4. Checkpoint 166 — Hall RU LCD — GREEN
 
-`SpoolMaterialBridgeStore::validateAll()` теперь не перечитывает уже доказанный prefix bridge journal для каждого fixed batch. Current batch проверяется внутри bounded RAM и только против ещё не доказанного suffix, начинающегося с `outer.position()`.
+Reachable Hall screens now use the Russian LCD path without changing Hall calibration control flow.
 
-Коммиты блока:
+Exact final source evidence:
 
 ```text
-d8862aef7ae3b3c4a6e3e7dbbe49c92d19babb77  suffix scan implementation
-63c70e59fee99f77c20135606c8d9911f8bfbd4e  scoped contract
-8f37cb5268ee461e9b41a2307981d3fd45b9a565  stale contract correction
-fb7aaa368ae21fe5041395f0df5eef959233920d  final namespace-close fix
+3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
+CMP Protocol Tests #4028  run 33268897356 / SUCCESS
+Arduino RU LCD #206       run 33268897370 / SUCCESS
 ```
 
-Exact final CI:
+Uno build sizes from #206:
 
 ```text
-CMP Protocol Tests #4014  run 33266181118 / SUCCESS
-ESP32 Build #1777         run 33266181104 / SUCCESS
+uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); headroom 808 bytes
+uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); headroom 1190 bytes
 ```
 
-Intermediate failures are documented and must not be confused with GREEN:
+Because RU build headroom is only **808 bytes**, avoid broad Uno-side feature growth. Prefer ESP32 for processing/expanded presentation where architecture permits.
+
+## 5. Checkpoint 167 — canonical winding-role selector — GREEN
+
+Desktop and mobile autonomous winding assignment pages now statically expose only canonical roles:
+
+- `WORKING`
+- `STARTING`
+
+`AUXILIARY` was removed from static HTML. Runtime filtering remains defense-in-depth. Backend still rejects unsupported roles and occupied-role replacement remains explicit-only.
+
+Exact code/build evidence:
 
 ```text
-CMP #4011   run 33266038272 / FAILURE  stale source-text expectation
-ESP32 #1776 run 33266038221 / FAILURE  missing namespace CM closing brace
+9e538828ed179700d362286a3af72de6a6ce0b6f
+CMP Protocol Tests #4068  run 33290408963 / SUCCESS
+ESP32 Build #1778         run 33290408891 / SUCCESS
+Arduino RU LCD #207       run 33290408886 / SUCCESS
+
+47903b0f2e2ddc8ac90abf1e26db7e678a570363
+CMP Protocol Tests #4069  run 33290422893 / SUCCESS
+ESP32 Build #1779         run 33290422888 / SUCCESS
+Arduino RU LCD #208       run 33290422860 / SUCCESS
+
+0eb32376de3a4c50c765dcbe6b946524d075f69b
+CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 ```
 
-## 5. Checkpoint 163 — Repair Delivery GREEN
+## 6. Latest verified documentation/CI chain
 
-Repair Delivery append fuses existing-repair linkage/conflict validation and next `delivery_id` allocation into one authoritative delivery-journal pass.
+The later runs after checkpoint 167 are documentation-only confirmations and do not replace the exact firmware/build evidence above.
 
-Verified final evidence:
+Latest independently verified run:
 
 ```text
-ESP32 Build #1774         run 33265057626 / SUCCESS
-Arduino RU LCD #198       run 33265057605 / SUCCESS
-CMP Protocol Tests #4009  run 33265221419 / SUCCESS
-CMP Protocol Tests #4010  run 33265276200 / SUCCESS
+HEAD 1238bd68b2c6b947148c0a7f47e10c0a42eb20fb
+CMP Protocol Tests #4085
+run 33291646267
+completed / SUCCESS
+branch arduino-ru-lcd-experiment
 ```
 
-Earlier `#4005–#4008`, `#1773`, `#197` are intermediate failures only.
+GitHub metadata confirms run #4085 belongs exactly to HEAD `1238bd68...`, branch `arduino-ru-lcd-experiment`, and completed successfully.
 
-## 6. Checkpoint 159 functional defect — CLOSED
-
-The former defect where autonomous/completed winding assignment did not appear in the normal motor card is closed.
-
-Current canonical semantics:
-
-- assignment projects into append-only `MotorWindingVersionStore`;
-- roles only `WORKING` and `STARTING`;
-- operator explicitly selects role;
-- `AUXILIARY` canonical projection is rejected;
-- exact retry identity is `session_id + run_id + role`;
-- historical assignment-only records backfill on retry;
-- target role replacement requires explicit `replace_existing=true`;
-- replacement appends a new full canonical version and does not rewrite history;
-- untargeted role is preserved completely;
-- `STARTING` without existing `WORKING` fails closed;
-- UI does not auto-retry occupied-role conflict;
-- no physical RUN evidence is fabricated/copied.
+Previously recorded documentation-only confirmations include `#4066–#4067` and `#4071–#4076`; they do not substitute for the exact checkpoint 166/167 runtime evidence.
 
 ## 7. Residual repeated-scan audit — checkpoint 165 NO-CHANGE
 
@@ -132,16 +138,31 @@ Do not continue speculative storage refactoring merely to reduce file opens.
 
 Reviewed and intentionally retained:
 
-- `SpoolMaterialBridgeIntegrityAudit` cross-reference batch scans: referenced spool/material IDs may live anywhere in their journals; suffix-only lookup is not equivalent without a new index/cache.
-- `MaterialUsageCorrectionIntegrityAudit` batch rereads: required for cumulative over-correction, operation uniqueness and source provenance.
-- CashPayment read/preflight vs mutation append reread: separate integrity phases.
-- Repair Intake/recovery rereads around durable pending/append: intentional TOCTOU/recovery boundaries.
+- `SpoolMaterialBridgeIntegrityAudit` arbitrary cross-reference scans;
+- `MaterialUsageCorrectionIntegrityAudit` batch rereads required for cumulative correction/provenance proof;
+- CashPayment read/preflight vs mutation append reread separation;
+- Repair Intake/recovery rereads around durable pending/append.
 
-No persistent cache/index/DB, whole-file buffering or unbounded RAM was introduced.
+No persistent cache/index/DB, whole-file buffering or unbounded RAM should be introduced without a concrete measured need and proof-preserving design.
 
-Detailed reasoning: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
+## 8. Autonomous winding canonical projection — checkpoint 159 CLOSED
 
-## 8. Safety / integrity invariants — не менять
+The former defect where completed autonomous winding assignment did not appear in the normal motor card is closed.
+
+Current semantics:
+
+- assignment projects into append-only `MotorWindingVersionStore`;
+- canonical roles only `WORKING` and `STARTING`;
+- exact retry identity `session_id + run_id + role`;
+- historical assignment-only records backfill on retry;
+- occupied target role never silently overwrites;
+- replacement requires explicit `replace_existing=true` and appends a new canonical version;
+- untargeted role is preserved completely;
+- `STARTING` without existing `WORKING` fails closed;
+- UI never automatically retries an occupied-role conflict;
+- no physical RUN evidence is fabricated or rewritten.
+
+## 9. Safety / integrity invariants — не менять
 
 - никакого automatic physical START или repeat START;
 - никакого auto-resume after reboot;
@@ -158,26 +179,24 @@ Detailed reasoning: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
 - никакой преждевременной миграции в DB/index;
 - никакой silent edit/delete append-only history.
 
-## 9. Что делать дальше
+## 10. Что делать дальше
 
-Repeated-scan/performance audit временно исчерпан. Следующий кодовый блок должен появляться только из конкретного дефекта, измеренного bottleneck либо оставшейся Hall/RU-LCD experiment acceptance задачи.
+1. В новом рабочем цикле сначала заново получить current HEAD `arduino-ru-lcd-experiment`.
+2. Не переделывать checkpoints 159–167 без конкретной regression.
+3. Repeated-scan optimization считать исчерпанным до измеренного bottleneck/конкретного дефекта.
+4. Продолжать только конкретные experiment/Hall/RU-LCD defects или другую явно подтверждённую функциональную задачу.
+5. С учётом 808 bytes RU flash headroom избегать широкого роста Uno-кода.
+6. По возможности переносить processing/expanded UI logic на ESP32, сохраняя независимую безопасную работу Arduino.
+7. Перед каждым изменением существующего файла fetch current content + blob SHA.
+8. После runtime изменения проверять фактические CMP + relevant ESP32/Arduino builds.
+9. Не утверждать GREEN без exact current run result.
+10. Production `cmp-protocol-v1` не трогать без отдельного запроса пользователя.
 
-Если продолжается repo-only работа без hardware:
-
-1. Получить current HEAD `arduino-ru-lcd-experiment`.
-2. Проверить `01_CURRENT_STATE.md` и `06_ACTIVE_WORK_AND_NEXT_STEPS.md`.
-3. Не переделывать закрытые checkpoints 159–165 без конкретной regression.
-4. Для Hall/RU-LCD брать только конкретный ещё не закрытый contract/defect; существующие Hall safety contracts уже входят в CMP suite.
-5. Перед каждым изменением существующего файла fetch current content + blob SHA.
-6. После runtime изменения проверять фактические CMP + relevant ESP32/Arduino builds.
-7. Не утверждать GREEN без exact current run result.
-8. Production `cmp-protocol-v1` не трогать.
-
-## 10. Hardware acceptance
+## 11. Hardware acceptance
 
 Full two-board Arduino + ESP32 E2E остаётся обязательным финальным acceptance gate перед release completion.
 
-Промежуточные hardware tests для уже закрытых repo-reviewable software checkpoints не требуются, но финальная проверка двух плат должна подтвердить:
+Финальная hardware проверка должна подтвердить:
 
 - UART command/ack flow;
 - physical START ownership on Arduino;
@@ -187,7 +206,7 @@ Full two-board Arduino + ESP32 E2E остаётся обязательным ф�
 - manual exact RUN_WIRE writeoff;
 - reboot/recovery fail-closed behavior.
 
-## 11. Стиль работы
+## 12. Стиль работы
 
 - Писать по-русски и кратко.
 - Не заменять реализацию длинным планом.

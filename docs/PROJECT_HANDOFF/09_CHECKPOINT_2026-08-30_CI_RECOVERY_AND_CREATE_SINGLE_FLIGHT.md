@@ -25,7 +25,7 @@ No Russian UI wording was rolled back.
 
 ## Create-form duplicate-submit integrity fixes
 
-A bounded audit of create-only pages found real duplicate-create risk from fast double click/tap.
+A bounded audit of create-only pages found real duplicate-create risk from fast double click/tap. The bounded sweep is now complete for the persistent create entities currently exposed as dedicated CRUD pages: client, motor, repair, spool and material.
 
 ### Client create
 
@@ -62,21 +62,47 @@ Now both surfaces:
 - require returned `material_id`;
 - restore the button in `finally` on error.
 
-`Tests/Web/check_crud_page_separation.js` now locks the client/motor/material create single-flight contracts and still checks script syntax / CRUD page separation.
+### Repair create
+
+Both desktop and mobile `repair-new.html` previously allowed repeated POST `/api/repairs`, which could create two persistent repair records from one operator double click/tap.
+
+Now both surfaces:
+
+- use the same single-flight `sending` guard;
+- disable the create button during mutation;
+- require returned `repair_id` before storing the active repair and redirecting;
+- restore controls on error.
+
+### Spool create
+
+Both desktop and mobile `spool-new.html` previously allowed repeated POST `/api/warehouse/spools`, which could create two persistent spool records.
+
+Now both surfaces:
+
+- guard the create mutation with single-flight state;
+- disable the save button during mutation;
+- require returned `spool_id`;
+- restore controls in `finally`.
+
+`Tests/Web/check_crud_page_separation.js` now locks the client/motor/repair/spool/material create single-flight contracts and still checks script syntax / CRUD page separation.
 
 ## Confirmed GREEN
 
-Current confirmed code/test HEAD before this documentation commit:
+CI recovery was first confirmed at:
 
-`12df7eabaef2f86236cee7dd7080cab7a5ec3fd0`
+```text
+12df7eabaef2f86236cee7dd7080cab7a5ec3fd0
+CMP Protocol Tests #4624 / SUCCESS / run 33320524358
+```
 
-Exact CI confirmation:
+The completed create-only sweep is confirmed at:
 
-- CMP Protocol Tests #4624 — SUCCESS — run `33320524358`.
+```text
+d84402251552522f60c2494da7dd7b19bb6af35a
+CMP Protocol Tests #4630 / SUCCESS / run 33320670860
+```
 
-This run confirms recovery from the stale diagnostics contracts and the new create-form single-flight regression coverage.
-
-Do not infer ESP32/Arduino GREEN for the documentation commit itself unless exact runs confirm it.
+At the time this checkpoint was updated, Arduino RU LCD #241 for `d8440225...` was still `in_progress`; do not infer its result until exact GitHub metadata confirms it.
 
 ## Safety invariants unchanged
 
@@ -89,10 +115,10 @@ Do not infer ESP32/Arduino GREEN for the documentation commit itself unless exac
 
 ## Next repo-reviewable step
 
-Do not continue a broad cosmetic or repeated-scan sweep.
+The bounded create-only duplicate-submit sweep is complete. Do not broaden it into generic edit/list mutation cleanup without a reproducible defect.
 
-Next work should be one of:
+Return to the active experiment priorities documented in the current handoff/transfer files. Further work should be one of:
 
-1. a concrete reproducible functional defect in the `arduino-ru-lcd-experiment` UI/runtime flow;
-2. a bounded audit of the remaining create-only entities only if they can create duplicate persistent records (for example repair/spool create), with no expansion into edit/list actions unless a real duplicate-mutation risk is demonstrated;
+1. a concrete reproducible functional defect in the `arduino-ru-lcd-experiment` runtime/UI flow;
+2. a documented RU LCD / Hall / autonomous-winding experiment acceptance item that is still open;
 3. hardware E2E verification when requested/available.

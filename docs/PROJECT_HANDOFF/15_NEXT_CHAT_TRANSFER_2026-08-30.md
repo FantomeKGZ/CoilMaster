@@ -39,7 +39,7 @@ Commits:
 
 ```text
 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5  desktop
- da6b5423d782b73ed4ebacb9aaf5fa164d5ac552  mobile
+da6b5423d782b73ed4ebacb9aaf5fa164d5ac552  mobile
 1b7f8504184b681d5f7e0da7710c4a50601a346a  regression contract
 ```
 
@@ -64,21 +64,18 @@ CMP #4530 run 33313547013 / SUCCESS head 2a20feeb6e660f1a0d10f5bf868dde8a9759dd1
 CMP #4531 run 33313662125 / SUCCESS head cab5f38b0a80cbc0a9f40d0e9c21b21b71eb46b6
 CMP #4532 run 33313686343 / SUCCESS head 070297431a572c60c1e179e28bd28ebcc6b815c1
 CMP #4533 run 33313705562 / SUCCESS head a72ac12095332236dfdeb1868f4c5965a8dfe808
+CMP #4534 run 33313802936 / SUCCESS head 30d788ca54243e75926ba059551703efa9da891f
+CMP #4535 run 33313827911 / SUCCESS head c136369aaab324c8d7776c85ad70d25c0ed3e148
+CMP #4536 run 33313849652 / SUCCESS head 9ee65cff3804c0a5482367c1033f181b8ba265a4
 ```
 
-All prior feature-audit HANDOFF documentation through `a72ac12095332236dfdeb1868f4c5965a8dfe808` is now independently CMP-GREEN:
-- #4528 snapshot;
-- #4529 entrypoint;
-- #4530 transfer;
-- #4531 build-evidence snapshot;
-- #4532 build-evidence entrypoint;
-- #4533 build-evidence transfer.
+All prior feature-audit HANDOFF documentation through `9ee65cff3804c0a5482367c1033f181b8ba265a4` is independently CMP-GREEN. #4534 verifies snapshot through #4533, #4535 verifies entrypoint through #4533, and #4536 verifies transfer through #4533.
 
 Latest exact independently verified GREEN SHA before this transfer refresh:
 
 ```text
-a72ac12095332236dfdeb1868f4c5965a8dfe808
-CMP #4533 run 33313705562 / SUCCESS
+9ee65cff3804c0a5482367c1033f181b8ba265a4
+CMP #4536 run 33313849652 / SUCCESS
 ```
 
 Any newer docs commit requires its own exact run before being called GREEN. Do not create more docs-only commits merely to chase their own SUCCESS; return to the feature audit.

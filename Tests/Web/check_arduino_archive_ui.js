@@ -27,6 +27,9 @@ for (const [label, page] of [['desktop', desktop], ['mobile', mobile]]) {
   if (page.indexOf('/shared/completed-web-job-archive-bridge.js') > page.indexOf('/shared/arduino-windings-archive.js')) throw new Error(`${label}: completed-web archive bridge must load before archive controller`);
   if (page.indexOf('/shared/arduino-archive-compact-ids.js') < page.indexOf('/shared/arduino-windings-archive.js')) throw new Error(`${label}: compact-id layer must load after archive controller`);
   for (const needle of ['id="bulkAssign"','id="createSelected"','id="combineSelected"','id="historyScan"','id="selectedCount"']) requireText(page, needle, label);
+  requireText(page, '<option value="WORKING">', `${label} working role`);
+  requireText(page, '<option value="STARTING">', `${label} starting role`);
+  if (page.includes('value="AUXILIARY"')) throw new Error(`${label}: unsupported AUXILIARY role must not be present in static operator HTML`);
 }
 for (const [label, page] of [['desktop home', desktopHome], ['mobile home', mobileHome]]) {
   requireText(page, '/shared/completed-job-display-reset.js', label);
@@ -94,4 +97,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; canonical roles are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');
+console.log('Arduino archive UI contracts OK; static and runtime role selectors are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');

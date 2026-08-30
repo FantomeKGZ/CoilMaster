@@ -24,6 +24,9 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified documentation heads:
 
 ```text
+b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
+CMP Protocol Tests #4127  run 33294728536 / SUCCESS
+
 c834321ec8199d1d3420ed29a625c18760453ec6
 CMP Protocol Tests #4126  run 33294630764 / SUCCESS
 
@@ -55,16 +58,25 @@ GitHub metadata подтверждает:
 - `#4123`: branch `arduino-ru-lcd-experiment`, head `a5059a362844cb8b3668fb38afeea18ba29d552b`, status `completed`, conclusion `success`, event `push`;
 - `#4124`: branch `arduino-ru-lcd-experiment`, head `de180b5deda6cf1545c439ca09c83da2193c4d30`, status `completed`, conclusion `success`, event `push`;
 - `#4125`: branch `arduino-ru-lcd-experiment`, head `db0f3175caff1582b95628d85c5edcacf21a59d1`, status `completed`, conclusion `success`, event `push`;
-- `#4126`: branch `arduino-ru-lcd-experiment`, head `c834321ec8199d1d3420ed29a625c18760453ec6`, status `completed`, conclusion `success`, event `push`.
+- `#4126`: branch `arduino-ru-lcd-experiment`, head `c834321ec8199d1d3420ed29a625c18760453ec6`, status `completed`, conclusion `success`, event `push`;
+- `#4127`: branch `arduino-ru-lcd-experiment`, head `b6f40e1cfd6db422a7f506363decc7aa14d2cf9f`, status `completed`, conclusion `success`, event `push`.
 
-Текущий branch HEAD непосредственно перед этим documentation update:
+`#4127` is exact GREEN confirmation of documentation commit:
 
 ```text
-c834321ec8199d1d3420ed29a625c18760453ec6
-message: docs(handoff): advance transfer through CMP 4124
+b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
+message: docs(handoff): record CMP 4125 and 4126
 ```
 
-`#4126` является exact GREEN confirmation этого pre-update HEAD. Новый documentation commit, который добавляет `#4125/#4126` в этот handoff, должен иметь собственный CI result прежде чем его можно называть GREEN.
+Текущий branch HEAD непосредственно перед этой documentation update:
+
+```text
+f833937bdea98c38a200cce4f297a95d62513d80
+message: docs(handoff): advance entrypoint through CMP 4126
+parent: b6f40e1cfd6db422a7f506363decc7aa14d2cf9f
+```
+
+`#4127` не подтверждает `f833937...`; этот и созданный текущей правкой documentation head требуют собственного exact CI result прежде чем их можно называть GREEN.
 
 Непосредственно предыдущие documentation heads также подтверждены:
 

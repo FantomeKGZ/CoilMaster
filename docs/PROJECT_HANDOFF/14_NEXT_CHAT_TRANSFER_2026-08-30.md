@@ -19,13 +19,13 @@ Production остаётся:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Последний exact CI-verified handoff HEAD перед текущим documentation update:
+Последний exact CI-verified handoff HEAD перед текущими documentation updates:
 
 ```text
-8177d383c8b0aa5b94658d3bb59fd86ff066a62e
+46cede22a06fdf7dc68dfce545c618ced9063876
 ```
 
-Он подтверждён `CMP Protocol Tests #4056`. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
+Он подтверждён `CMP Protocol Tests #4058`. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
 
 ## 2. Что читать первым
 
@@ -283,11 +283,19 @@ CMP Protocol Tests #4055  run 33289767490 / SUCCESS
 8177d383c8b0aa5b94658d3bb59fd86ff066a62e
 docs(handoff): extend verified CI through 4053
 CMP Protocol Tests #4056  run 33289786730 / SUCCESS
+
+1579b6a2c202457e501dc7a8aa3480ae0ce0702e
+docs(handoff): verify CI through CMP 4056
+CMP Protocol Tests #4057  run 33289866054 / SUCCESS
+
+46cede22a06fdf7dc68dfce545c618ced9063876
+docs(handoff): extend transfer CI through 4056
+CMP Protocol Tests #4058  run 33289891342 / SUCCESS
 ```
 
-`#4036–#4056` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. User-provided `#4054` and `#4055` were rechecked directly; GitHub also independently shows `#4056 SUCCESS` on exact head `8177d383c8b0aa5b94658d3bb59fd86ff066a62e`.
+`#4036–#4058` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The latest supplied runs are exact: `#4056` -> `8177d383...`, `#4057` -> `1579b6a2...`, `#4058` -> `46cede22...`.
 
-These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
+These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The branch can advance through later documentation-only commits without making those older runs exact CI for the new HEAD. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 
 ## 10. Immediate next work
 

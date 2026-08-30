@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4168
+# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4171
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -21,7 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata независимо подтверждает свежую documentation chain through CMP #4168:
+GitHub metadata независимо подтверждает свежую documentation chain through CMP #4171:
 
 ```text
 CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -33,18 +33,21 @@ CMP Protocol Tests #4165  run 33297079657 / SUCCESS  head 18bca1973b2cf0f369970e
 CMP Protocol Tests #4166  run 33297104319 / SUCCESS  head c26c58729e94db03895ad49d42322360dd4d4afd
 CMP Protocol Tests #4167  run 33297180420 / SUCCESS  head 702984933d795dff8a58c11cc15bf0bc68ac9547
 CMP Protocol Tests #4168  run 33297201539 / SUCCESS  head 8b2442668a44ae9b115c856120a518a0bb2cb794
+CMP Protocol Tests #4169  run 33297342101 / SUCCESS  head a9376388ad80376ca1190f41ef6ff203f4a08584
+CMP Protocol Tests #4170  run 33297367289 / SUCCESS  head 914ad8e868a7908eb4386ee1f2bcc180f8ddf3a8
+CMP Protocol Tests #4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7692256687d0be4704a
 ```
 
-Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`.
+Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4169–#4171 independently verified exact run metadata также `completed/success`.
 
 Latest exact independently verified GREEN documentation head перед текущими documentation-only updates:
 
 ```text
-8b2442668a44ae9b115c856120a518a0bb2cb794
-CMP Protocol Tests #4168  run 33297201539 / SUCCESS
+f8e7232009b1aa5e4900e7692256687d0be4704a
+CMP Protocol Tests #4171  run 33297388482 / SUCCESS
 ```
 
-После него созданы новые documentation-only commits, обновляющие snapshot/entrypoint/transfer. Их нельзя считать GREEN до собственного exact SUCCESS.
+После него созданы documentation-only commits, обновляющие snapshot/transfer. Их нельзя считать GREEN до собственного exact SUCCESS. Не продолжать бесконечную рекурсивную фиксацию CI документационных commits, если engineering state не изменился.
 
 ## Current engineering state
 

@@ -9,6 +9,36 @@ window.CMRemoteBackupPage=(()=>{
         $('ftpResult').className='note '+(ok?'ok':'bad');
         $('ftpResult').textContent=text;
     }
+    function ftpResultText(value){
+        const code=String(value||'not_started');
+        const labels={
+            not_started:'ещё не запускался',
+            activity_state_not_safe:'безопасный простой не подтверждён',
+            web_root_create_failed:'не удалось создать каталог /web',
+            web_root_unavailable:'каталог /web недоступен',
+            automatic_recovery_started:'аварийное восстановление запущено',
+            operator_started:'запущен оператором',
+            stopped:'остановлен',
+            automatic_recovery_complete:'восстановление сайта завершено',
+            stopped_activity_not_safe:'остановлен: станок больше не в безопасном простое',
+            client_disconnected:'FTP-клиент отключён',
+            client_timeout:'тайм-аут FTP-клиента',
+            non_local_client_rejected:'отклонено подключение не из локальной сети',
+            client_connected:'FTP-клиент подключён',
+            authenticated:'вход выполнен',
+            authentication_failed:'ошибка логина или пароля',
+            data_connection_timeout:'тайм-аут канала передачи данных',
+            data_client_disconnected:'канал передачи данных отключён',
+            storage_write_failed:'ошибка записи на microSD',
+            target_backup_failed:'не удалось подготовить резервную замену файла',
+            atomic_rename_failed:'не удалось атомарно заменить файл',
+            upload_completed:'загрузка файла завершена',
+            listing_completed:'чтение списка файлов завершено',
+            transfer_aborted:'передача прервана',
+            operator_stopped:'остановлен оператором'
+        };
+        return labels[code]||('Неизвестно ('+code+')');
+    }
     function ensureScheduleControls(){
         if($('scheduleEnabled'))return;
         const enabledLabel=$('enabled').closest('label');
@@ -48,7 +78,7 @@ window.CMRemoteBackupPage=(()=>{
             FAILED:'Плановая копия завершилась ошибкой.'
         };
         let text=labels[configuration.schedule_state]||
-            ('Состояние расписания: '+String(configuration.schedule_state||'unknown'));
+            ('Неизвестное состояние расписания ('+String(configuration.schedule_state||'unknown')+')');
         if(configuration.last_scheduled_date){
             const value=String(configuration.last_scheduled_date);
             if(value.length===8)text+=' Последняя: '+value.slice(6,8)+'.'+value.slice(4,6)+'.'+value.slice(0,4)+'.';
@@ -79,7 +109,7 @@ window.CMRemoteBackupPage=(()=>{
             show(c.configured?'Настройки загружены. Пароль скрыт.':'Укажите FTP-сервер роутера.',true);
             scheduleText(c);
             if(fr.ok){
-                const addresses=[f.ap_address||f.address];if(f.sta_available&&f.sta_address)addresses.push(f.sta_address);$('device').innerHTML='<div class="row"><span>Сервер /web</span><b>'+(f.enabled?'включён':'выключен')+'</b></div><div class="row"><span>Адреса</span><b>'+addresses.map(a=>a+':'+f.port).join(' · ')+'</b></div><div class="row"><span>/web готов</span><b>'+(f.web_root_usable?'да':'нет')+'</b></div><div class="row"><span>Клиент</span><b>'+(f.client_connected?'подключён':'нет')+'</b></div><div class="row"><span>Режим</span><b>'+(f.automatic_recovery?'аварийный автозапуск':'ручной')+'</b></div><div class="row"><span>Последний результат</span><b>'+f.last_result+'</b></div>';
+                const addresses=[f.ap_address||f.address];if(f.sta_available&&f.sta_address)addresses.push(f.sta_address);$('device').innerHTML='<div class="row"><span>Сервер /web</span><b>'+(f.enabled?'включён':'выключен')+'</b></div><div class="row"><span>Адреса</span><b>'+addresses.map(a=>a+':'+f.port).join(' · ')+'</b></div><div class="row"><span>/web готов</span><b>'+(f.web_root_usable?'да':'нет')+'</b></div><div class="row"><span>Клиент</span><b>'+(f.client_connected?'подключён':'нет')+'</b></div><div class="row"><span>Режим</span><b>'+(f.automatic_recovery?'аварийный автозапуск':'ручной')+'</b></div><div class="row"><span>Последний результат</span><b>'+ftpResultText(f.last_result)+'</b></div>';
             }else if(nr.ok)$('device').textContent='Статус FTP-сервера недоступен.';
         }catch(error){
             show('Ошибка загрузки: '+error.message,false);

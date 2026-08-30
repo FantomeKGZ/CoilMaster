@@ -76,18 +76,26 @@ message: docs(handoff): record CMP 4147 and 4148
 51e7077aaf34d11cafdc82363afb32e67d73318c
 CMP Protocol Tests #4150  run 33295977687 / SUCCESS
 message: docs(handoff): advance verified CI through CMP 4148
+
+da22fcbc086938e6bfbad7133a729a3fcfa1e962
+CMP Protocol Tests #4151  run 33296075677 / SUCCESS
+message: docs(handoff): record CMP 4149 and 4150
+
+4bb5667de0f229a192b33b61c572e0b0642501c6
+CMP Protocol Tests #4152  run 33296106827 / SUCCESS
+message: docs(handoff): advance verified CI through CMP 4150
 ```
 
-GitHub metadata independently confirms #4140 through #4150 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
+GitHub metadata independently confirms #4140 through #4152 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
 
-Exact latest verified GREEN documentation head before the current documentation updates:
+Exact latest verified GREEN documentation head before the current documentation update:
 
 ```text
-51e7077aaf34d11cafdc82363afb32e67d73318c
-CMP Protocol Tests #4150  run 33295977687 / SUCCESS
+4bb5667de0f229a192b33b61c572e0b0642501c6
+CMP Protocol Tests #4152  run 33296106827 / SUCCESS
 ```
 
-The current documentation commits after `51e7077a...` require their own exact CI results before their HEADs are themselves called GREEN.
+The current documentation commit after `4bb5667d...` requires its own exact CI result before its HEAD is itself called GREEN.
 
 Earlier documentation verification remains valid in Git history. Documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
 

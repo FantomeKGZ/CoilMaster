@@ -256,9 +256,12 @@ CMP Protocol Tests #4058  run 33289891342 / SUCCESS  head 46cede22a06fdf7dc68dfc
 CMP Protocol Tests #4059  run 33289916765 / SUCCESS  head 70e4db3aad53458bef5778b7c8cd5c7a08ec2840
 CMP Protocol Tests #4060  run 33289985842 / SUCCESS  head f04ee9e8f36b29cde590c0a364a6a95442bc56b3
 CMP Protocol Tests #4061  run 33290011908 / SUCCESS  head 08d79f3a06ea473fff0644efe4540c5251942c39
+CMP Protocol Tests #4063  run 33290149645 / SUCCESS  head b189d7d3575663fa2f11b376352dca1cda301377
+CMP Protocol Tests #4064  run 33290236422 / SUCCESS  head 05b5fd3a2acb2f8cb5d7f167848561bc353864fe
+CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d
 ```
 
-`#4036–#4061` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The latest user-provided runs `#4059–#4061` are confirmed SUCCESS, and `#4061` is exact for branch HEAD `08d79f3a06ea473fff0644efe4540c5251942c39` immediately before the current documentation commits.
+`#4036–#4065` were rechecked against GitHub metadata; `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The latest user-provided runs `#4063–#4065` are confirmed SUCCESS. `#4065` is exact for branch HEAD `8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d` immediately before this documentation update.
 
 These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 

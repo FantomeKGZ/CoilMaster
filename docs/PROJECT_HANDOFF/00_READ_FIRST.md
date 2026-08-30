@@ -22,7 +22,7 @@ Previous checkpoints 159–167 остаются закрытыми, если н�
 
 ## First closed feature gap — calculator source strand counts
 
-Web calculator теперь поддерживает explicit strand count per component:
+Web calculator поддерживает explicit strand count per component:
 ```text
 0,80x3
 1,00x5
@@ -49,24 +49,24 @@ CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346
 ## Latest exact documentation CI
 
 ```text
-CMP #4557 run 33314870221 / SUCCESS head 3350fc4aeef7351487c1437105254b5e3b4469d6
-CMP #4558 run 33314954914 / SUCCESS head 658d63fe441b4ae7031604b38da17978f43ce6b4
-CMP #4559 run 33314980308 / SUCCESS head 3f64afcebf19f9e29d05b3a9e4e8fe0dd8aaf9b2
 CMP #4560 run 33314998446 / SUCCESS head 9baa2a1bfabbd392c5c310c4362011f60206bd98
 CMP #4561 run 33315091265 / SUCCESS head 3abf2f6b0bfd610865a6e97e21b75d05627dfb9a
 CMP #4562 run 33315109780 / SUCCESS head 1553bab026427abedb3bfcd8818565063b198019
 CMP #4563 run 33315135890 / SUCCESS head 3969b959cfbec3f2a0cb673b448276185cb52a57
+CMP #4564 run 33315227713 / SUCCESS head 68420580e4c7f3654c86289be8b6d42f56efe3c0
+CMP #4565 run 33315250634 / SUCCESS head 2f465d646ea801000fcc0e0d935e504f353e9beb
+CMP #4566 run 33315271992 / SUCCESS head 78187f76c51a94652c99feda0f260621e6cbe7c8
 ```
 
-#4561/#4562/#4563 independently verify the snapshot/entrypoint/transfer HANDOFF through #4560. Thus all HANDOFF documentation through `3969b959cfbec3f2a0cb673b448276185cb52a57` is independently CMP-GREEN.
+#4564/#4565/#4566 independently verify snapshot/entrypoint/transfer HANDOFF through #4563. Thus all HANDOFF documentation through `78187f76c51a94652c99feda0f260621e6cbe7c8` is independently CMP-GREEN.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 ```text
-3969b959cfbec3f2a0cb673b448276185cb52a57
-CMP #4563 run 33315135890 / SUCCESS
+78187f76c51a94652c99feda0f260621e6cbe7c8
+CMP #4566 run 33315271992 / SUCCESS
 ```
 
-New docs commits after #4563 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
+New docs commits after #4566 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 

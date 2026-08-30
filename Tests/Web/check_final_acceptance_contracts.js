@@ -31,6 +31,7 @@ const backupExportPath = 'firmware/esp32/src/CM_BackupExportWeb.cpp';
 const sessionAuditPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.cpp';
 const sessionAuditHeaderPath = 'firmware/esp32/src/CM_WindingSessionPersistenceIntegrityAudit.h';
 const staticSitePath = 'firmware/esp32/src/CM_StaticSiteServer.cpp';
+const webRecoveryFtpPath = 'firmware/esp32/src/CM_WebRecoveryFtpServer.cpp';
 const networkWebPath = 'firmware/esp32/src/CM_NetworkWeb.cpp';
 const storagePath = 'firmware/esp32/src/CM_StorageDiagnosticsWeb.cpp';
 const releaseAuditPath = 'Tests/Web/check_release_contracts.js';
@@ -51,6 +52,7 @@ const backupExport = read(backupExportPath);
 const sessionAudit = read(sessionAuditPath);
 const sessionAuditHeader = read(sessionAuditHeaderPath);
 const staticSite = read(staticSitePath);
+const webRecoveryFtp = read(webRecoveryFtpPath);
 const networkWeb = read(networkWebPath);
 const storage = read(storagePath);
 const releaseAudit = read(releaseAuditPath);
@@ -169,6 +171,28 @@ for (const text of [
   'appendWriteOffRecord(pending.movementId'
 ]) requireText(writeOffRecoveryPath, writeOffRecovery, text, 'historical legacy recovery guard missing: ' + text);
 
+for (const text of [
+  'if (automaticRecovery || !webRootUsable()) start(true);',
+  'm_storage.exists("/web/index.html")',
+  'm_storage.exists("/web/desktop/index.html")',
+  'm_storage.exists("/web/mobile/index.html")',
+  'storagePath = String(WebRoot)',
+  'sameLocalSubnet(candidate.remoteIP())',
+  'm_activityProbe() == BackupActivityCheck::Safe',
+  'm_transferTemporaryPath = storagePath + F(".part")',
+  'm_storage.rename(m_transferTemporaryPath, m_transferPath)',
+  'stop("automatic_recovery_complete")'
+]) requireText(webRecoveryFtpPath, webRecoveryFtp, text, 'restricted incomplete-web FTP recovery contract missing: ' + text);
+requireText(mainPath, main, 'webServer.send_P(503, "text/html; charset=utf-8", FallbackPage);',
+  'built-in missing-web recovery page missing');
+requireText(mainPath, main, 'webRecoveryFtp.setActivityProbe(backupRuntimeActivity);',
+  'web recovery FTP must share fail-closed runtime activity ownership');
+for (const forbidden of ['/data', '/warehouse', '/backup']) {
+  if (webRecoveryFtp.includes('String(' + JSON.stringify(forbidden))) {
+    failures.push(webRecoveryFtpPath + ': recovery FTP must stay rooted only in /web: ' + forbidden);
+  }
+}
+
 for (const variant of ['desktop', 'mobile']) {
   for (const page of ['settings.html', 'repairs.html', 'motors.html', 'warehouse.html', 'winding-history.html', 'backup.html']) {
     requireFile('firmware/esp32/web/' + variant + '/' + page, 'required final acceptance UI page missing');
@@ -186,4 +210,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Final acceptance contracts OK: bounded workshop reads, selection-only preflight before recoverable spool-store begin, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, atomic manual exact-run RUN_WIRE, removed dead direct writeoff entrypoints, deterministic historical recovery, and desktop/mobile acceptance UI.');
+console.log('Final acceptance contracts OK: bounded workshop reads, selection-only preflight before recoverable spool-store begin, exact linked spool identity, diagnostics/network/storage, fail-closed backup/restore, restricted incomplete-web FTP recovery, atomic manual exact-run RUN_WIRE, removed dead direct writeoff entrypoints, deterministic historical recovery, and desktop/mobile acceptance UI.');

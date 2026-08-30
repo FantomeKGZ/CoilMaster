@@ -19,30 +19,30 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4437**.
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4441**.
 
 Последние подтверждённые runs:
 
 ```text
-#4428  run 33309141363 / SUCCESS  head 38e56787a19d34752e89b20d0a2970adc45d5164
-#4429  run 33309165878 / SUCCESS  head b98d1b5b8b377512e3df8f2c74b05ad97c472990
-#4430  run 33309259736 / SUCCESS  head 048da1a78715c48ce360b9e25742412a871e880d
-#4431  run 33309279297 / SUCCESS  head 8a8eba65502cf54fb9994d781b5b80aad1d9a4c5
 #4432  run 33309300209 / SUCCESS  head 798f62c4b642f729964ab7c350207e38a27d6f02
 #4433  run 33309372230 / SUCCESS  head 58bd9d66b3636846c3f8acd9d9bdda8098e4690d
 #4434  run 33309390367 / SUCCESS  head 259393fccc5ae45b483525c95cfc441bec2623c4
 #4435  run 33309415573 / SUCCESS  head 931503b8eb228ecc6507842507837a3cce13b617
 #4436  run 33309468405 / SUCCESS  head d381be182fe744215901550f8350fb73273ae903
 #4437  run 33309485638 / SUCCESS  head bcfe8bf033b47511c36452aae1b8dfb9be17647d
+#4438  run 33309506699 / SUCCESS  head d21281094cb4c748db2da0b3d2f3d092c305b5f0
+#4439  run 33309575721 / SUCCESS  head 0a656a4fb206e531e7a8e9298a765d4d9e0c4e6e
+#4440  run 33309598262 / SUCCESS  head 79f5ed8bd2e091fb72cc3a44885a3ff76697ebc1
+#4441  run 33309618759 / SUCCESS  head e96ad3a56a14ca4a000f891daa271966e37c5201
 ```
 
-Полная непрерывная цепочка #4160–#4437 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная цепочка #4160–#4441 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-bcfe8bf033b47511c36452aae1b8dfb9be17647d
-CMP Protocol Tests #4437  run 33309485638 / SUCCESS
+e96ad3a56a14ca4a000f891daa271966e37c5201
+CMP Protocol Tests #4441  run 33309618759 / SUCCESS
 ```
 
 Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.

@@ -18,8 +18,8 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Текущий exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-1d152c3c7025705fff172c8b8520976adba78d8e
-CMP Protocol Tests #4090  run 33292170821 / SUCCESS
+497d38b5a0ec42f3568e3757da26c87dfadf460e
+CMP Protocol Tests #4093  run 33292447449 / SUCCESS
 ```
 
 Последняя подтверждённая documentation-only chain:
@@ -66,9 +66,18 @@ CMP Protocol Tests #4089  run 33292050791 / SUCCESS
 
 1d152c3c7025705fff172c8b8520976adba78d8e
 CMP Protocol Tests #4090  run 33292170821 / SUCCESS
+
+bdb40d53f6f5019d51dde9773ae8617a4d8aa8e6
+CMP Protocol Tests #4091  run 33292319355 / SUCCESS
+
+d83ee7189c9da29c7beb3301fb93453950187998
+CMP Protocol Tests #4092  run 33292343761 / SUCCESS
+
+497d38b5a0ec42f3568e3757da26c87dfadf460e
+CMP Protocol Tests #4093  run 33292447449 / SUCCESS
 ```
 
-`#4077–#4090` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. `#4090` является exact-head подтверждением commit `1d152c3c...` (`docs(handoff): record exact CMP 4089`). Эти documentation-only runs не заменяют exact firmware/build evidence checkpoints 166–167 ниже. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
+`#4077–#4093` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. `#4093` является exact-head подтверждением commit `497d38b5...` (`docs(handoff): record CMP 4091 and 4092`). Эти documentation-only runs не заменяют exact firmware/build evidence checkpoints 166–167 ниже. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
 
 Stable pre-CRM snapshot сохраняется:
 

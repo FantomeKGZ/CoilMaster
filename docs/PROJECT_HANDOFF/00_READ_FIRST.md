@@ -15,11 +15,29 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Текущий HEAD, от которого обновлён этот handoff:
+Последний подтверждённый transfer HEAD перед этим CI-record update:
 
 ```text
-70a9d492bca693237413dbb1b781d3cef4ed85dc
+51d1de7839d4f0b7b7be3031546cc896e4bdb212
 ```
+
+Его parent handoff refresh:
+
+```text
+bcbc5441f337c53c7b92f956da49f019f4a747a5
+```
+
+Verified handoff CI:
+
+```text
+bcbc5441f337c53c7b92f956da49f019f4a747a5
+CMP Protocol Tests #4032  run 33288140386 / SUCCESS
+
+51d1de7839d4f0b7b7be3031546cc896e4bdb212
+CMP Protocol Tests #4033  run 33288156234 / SUCCESS
+```
+
+`#4032` проверяет документационный commit `docs(handoff): refresh current entrypoint`; это не новый firmware/runtime checkpoint. `#4033` проверяет следующий transfer-doc commit на тогдашнем точном HEAD.
 
 Stable pre-CRM snapshot сохраняется:
 

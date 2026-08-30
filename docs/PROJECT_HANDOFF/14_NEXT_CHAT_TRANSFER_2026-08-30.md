@@ -24,13 +24,23 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-bcc3984bbaeda3e44132573e86c72199c7654521
-CMP Protocol Tests #4105  run 33293337241 / SUCCESS
+8ccf035c04e5791165bd46a6273b31563cb43417
+CMP Protocol Tests #4107  run 33293444395 / SUCCESS
 ```
 
-Предыдущие documentation heads также независимо подтверждены:
+Непосредственно предыдущий documentation head также подтверждён:
 
 ```text
+578c91d09461bbbe205a0044e70cc2c5fa771195
+CMP Protocol Tests #4106  run 33293423944 / SUCCESS
+```
+
+Предыдущая independently verified handoff chain:
+
+```text
+bcc3984bbaeda3e44132573e86c72199c7654521
+CMP Protocol Tests #4105  run 33293337241 / SUCCESS
+
 689b5a4f2e0519fd13cd2dfd749bfba49ef99c30
 CMP Protocol Tests #4104  run 33293320035 / SUCCESS
 
@@ -38,9 +48,9 @@ CMP Protocol Tests #4104  run 33293320035 / SUCCESS
 CMP Protocol Tests #4103  run 33293252153 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4103`, `#4104` и `#4105`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4105` является последним exact CI evidence перед этим documentation update.
+GitHub metadata подтверждает для `#4106` и `#4107`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`; exact heads указаны выше. `#4107` является последним exact CI evidence перед этим documentation update.
 
-Это documentation-only confirmation текущего handoff chain и не заменяет отдельное firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+Это documentation-only confirmation текущего handoff chain и не заменяет отдельное firmware/build evidence checkpoints 166–167. После этого нового docs commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 

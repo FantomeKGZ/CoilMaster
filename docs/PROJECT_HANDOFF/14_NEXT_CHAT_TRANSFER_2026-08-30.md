@@ -24,8 +24,8 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Текущий подтверждённый pre-update branch HEAD:
 
 ```text
-1d152c3c7025705fff172c8b8520976adba78d8e
-CMP Protocol Tests #4090  run 33292170821 / SUCCESS
+d83ee7189c9da29c7beb3301fb93453950187998
+CMP Protocol Tests #4092  run 33292343761 / SUCCESS
 ```
 
 Последняя подтверждённая documentation-only цепочка:
@@ -72,11 +72,17 @@ CMP Protocol Tests #4089  run 33292050791 / SUCCESS
 
 1d152c3c7025705fff172c8b8520976adba78d8e
 CMP Protocol Tests #4090  run 33292170821 / SUCCESS
+
+bdb40d53f6f5019d51dde9773ae8617a4d8aa8e6
+CMP Protocol Tests #4091  run 33292319355 / SUCCESS
+
+d83ee7189c9da29c7beb3301fb93453950187998
+CMP Protocol Tests #4092  run 33292343761 / SUCCESS
 ```
 
-Для `#4077–#4090`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
+Для `#4077–#4092`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
 
-`#4080` подтверждает documentation commit `docs(handoff): sync checkpoint 167 latest CI`; `#4081` подтверждает `01b209e8...` (`docs(handoff): record CMP 4077 through 4079`); `#4082` подтверждает `87db3b6d...` (`docs(handoff): record CMP 4080 and 4081`); `#4083` подтверждает `cb78acc...` (`docs(handoff): record exact CMP 4082`); `#4084` подтверждает `8f3d8b4...`; `#4085` подтверждает `1238bd68...`; `#4086` подтверждает `050f21f5...`; `#4087` подтверждает `5f679fcb...`; `#4088` подтверждает `d8a8bc5...` (`docs(handoff): refresh transfer through CMP 4086`); `#4089` подтверждает `aa2f52dd...` (`docs(handoff): record CMP 4086 through 4088`); `#4090` подтверждает `1d152c3c...` (`docs(handoff): record exact CMP 4089`). Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+`#4080` подтверждает documentation commit `docs(handoff): sync checkpoint 167 latest CI`; `#4081` подтверждает `01b209e8...` (`docs(handoff): record CMP 4077 through 4079`); `#4082` подтверждает `87db3b6d...` (`docs(handoff): record CMP 4080 and 4081`); `#4083` подтверждает `cb78acc...` (`docs(handoff): record exact CMP 4082`); `#4084` подтверждает `8f3d8b4...`; `#4085` подтверждает `1238bd68...`; `#4086` подтверждает `050f21f5...`; `#4087` подтверждает `5f679fcb...`; `#4088` подтверждает `d8a8bc5...` (`docs(handoff): refresh transfer through CMP 4086`); `#4089` подтверждает `aa2f52dd...` (`docs(handoff): record CMP 4086 through 4088`); `#4090` подтверждает `1d152c3c...` (`docs(handoff): record exact CMP 4089`); `#4091` подтверждает `bdb40d53...` (`docs(handoff): record exact CMP 4090`); `#4092` подтверждает `d83ee718...` (`docs(handoff): advance transfer through CMP 4090`). Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 

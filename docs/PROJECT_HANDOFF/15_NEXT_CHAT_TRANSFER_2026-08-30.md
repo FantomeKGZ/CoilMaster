@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4174
+# NEXT CHAT TRANSFER — 2026-08-30 — physical E2E accepted
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -39,18 +39,12 @@ CMP Protocol Tests #4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7
 CMP Protocol Tests #4172  run 33297482944 / SUCCESS  head 87286e3380bb2ca01b1da9d30b3106a53c7d8413
 CMP Protocol Tests #4173  run 33297519488 / SUCCESS  head aada5bf6eb3a7c8d17e24930638ab5f69dc9b81e
 CMP Protocol Tests #4174  run 33297539871 / SUCCESS  head c96439dbcb5db73cc97f2e3f672222fbc72ab082
+CMP Protocol Tests #4178  run 33297675300 / SUCCESS  head 93acd7112db32f81b1a1b3f70cdd5bd171cbb495
 ```
 
-Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4169–#4174 independently verified exact run metadata также `completed/success`.
+CMP #4178 independently verified exact then-current branch HEAD `93acd711...` as `completed/success` on `arduino-ru-lcd-experiment`.
 
-Latest exact independently verified GREEN documentation head перед последующими documentation-only updates:
-
-```text
-c96439dbcb5db73cc97f2e3f672222fbc72ab082
-CMP Protocol Tests #4174  run 33297539871 / SUCCESS
-```
-
-После него branch успел продвинуться documentation-only commit-ами, начиная с `3128287b0fcbe404a377a0ac16fc8987ea377e2f`. Эти более новые SHA нельзя называть GREEN на основании #4174. Не продолжать бесконечную рекурсивную фиксацию CI документационных commits, если engineering state не изменился.
+Documentation commits created after #4178 need their own exact CI evidence before being called GREEN; do not create an endless documentation-only CI recursion merely to record the preceding docs run.
 
 ## Current engineering state
 
@@ -79,7 +73,7 @@ Checkpoints 159–167 считать закрытыми и не переделы
 
 Repeated-scan/performance optimization считается исчерпанной до появления concrete measured bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения file opens.
 
-## Latest firmware/build evidence that remains authoritative
+## Firmware/build evidence
 
 Checkpoint 166 Hall RU LCD:
 
@@ -115,11 +109,13 @@ CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 
 Documentation-only CI after these checkpoints does not replace their firmware/build evidence.
 
-## Immediate next work
+## Physical Arduino + ESP32 E2E — operator-confirmed PASS
 
-Без нового concrete repo defect следующий обязательный engineering gate — **physical Arduino + ESP32 E2E** на реальном CoilMaster.
+На **2026-08-30** пользователь сообщил, что физический тест реального CoilMaster проведён и **всё работает нормально**.
 
-Минимальный acceptance checklist:
+Это operator-confirmed hardware evidence, а не автоматически наблюдаемый CI result. Физический acceptance gate, который до этого оставался обязательным, считается закрытым для текущего проверенного hardware/firmware состояния.
+
+Gate охватывает intended acceptance boundaries:
 
 1. ESP32 command -> Arduino ack.
 2. Keypad responsiveness до и после Hall mode.
@@ -131,7 +127,23 @@ Documentation-only CI after these checkpoints does not replace their firmware/bu
 8. Manual exact RUN_WIRE writeoff с `spool_id + source_session_id + source_run_id`.
 9. Reboot/recovery fail-closed behavior; no auto-resume.
 
-Если до hardware E2E обнаружен конкретный software defect, исправлять его минимально в `arduino-ru-lcd-experiment`, сохраняя существующие safety/integrity границы.
+Если позже обнаружится конкретная hardware regression, она становится новым finding и должна исправляться минимально, не переоткрывая автоматически остальные закрытые checkpoints.
+
+## Immediate next work
+
+Repo-reviewable software checkpoints 159–167 закрыты, speculative performance work остановлена, physical Arduino+ESP32 E2E также закрыт operator-confirmed PASS.
+
+Следовательно, **нет обязательного незакрытого engineering gate** из текущего handoff.
+
+Дальнейшая работа должна начинаться только от одного из следующих реальных входов:
+
+- конкретный runtime/software defect;
+- новый hardware finding;
+- measured performance bottleneck;
+- явно выбранная новая product feature/UX задача;
+- отдельный прямой запрос на перенос experiment в production.
+
+Не придумывать новый cleanup/audit checkpoint только ради продолжения активности.
 
 ## Safety invariants — do not change
 

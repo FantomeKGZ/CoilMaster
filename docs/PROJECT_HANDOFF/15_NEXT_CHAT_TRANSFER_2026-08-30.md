@@ -1,4 +1,4 @@
-# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4171
+# NEXT CHAT TRANSFER — 2026-08-30 — checkpoint after CMP #4174
 
 Дата: **2026-08-30**  
 Репозиторий: **`FantomeKGZ/CoilMaster`**  
@@ -21,7 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata независимо подтверждает свежую documentation chain through CMP #4171:
+GitHub metadata независимо подтверждает свежую documentation chain through CMP #4174:
 
 ```text
 CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -36,18 +36,21 @@ CMP Protocol Tests #4168  run 33297201539 / SUCCESS  head 8b2442668a44ae9b115c85
 CMP Protocol Tests #4169  run 33297342101 / SUCCESS  head a9376388ad80376ca1190f41ef6ff203f4a08584
 CMP Protocol Tests #4170  run 33297367289 / SUCCESS  head 914ad8e868a7908eb4386ee1f2bcc180f8ddf3a8
 CMP Protocol Tests #4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7692256687d0be4704a
+CMP Protocol Tests #4172  run 33297482944 / SUCCESS  head 87286e3380bb2ca01b1da9d30b3106a53c7d8413
+CMP Protocol Tests #4173  run 33297519488 / SUCCESS  head aada5bf6eb3a7c8d17e24930638ab5f69dc9b81e
+CMP Protocol Tests #4174  run 33297539871 / SUCCESS  head c96439dbcb5db73cc97f2e3f672222fbc72ab082
 ```
 
-Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4169–#4171 independently verified exact run metadata также `completed/success`.
+Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4169–#4174 independently verified exact run metadata также `completed/success`.
 
-Latest exact independently verified GREEN documentation head перед текущими documentation-only updates:
+Latest exact independently verified GREEN documentation head перед последующими documentation-only updates:
 
 ```text
-f8e7232009b1aa5e4900e7692256687d0be4704a
-CMP Protocol Tests #4171  run 33297388482 / SUCCESS
+c96439dbcb5db73cc97f2e3f672222fbc72ab082
+CMP Protocol Tests #4174  run 33297539871 / SUCCESS
 ```
 
-После него созданы documentation-only commits, обновляющие snapshot/transfer. Их нельзя считать GREEN до собственного exact SUCCESS. Не продолжать бесконечную рекурсивную фиксацию CI документационных commits, если engineering state не изменился.
+После него branch успел продвинуться documentation-only commit-ами, начиная с `3128287b0fcbe404a377a0ac16fc8987ea377e2f`. Эти более новые SHA нельзя называть GREEN на основании #4174. Не продолжать бесконечную рекурсивную фиксацию CI документационных commits, если engineering state не изменился.
 
 ## Current engineering state
 

@@ -18,11 +18,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Текущий exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-7d340d6b1711420d5e97a6f76acf4920704d098a
-CMP Protocol Tests #4079  run 33291149537 / SUCCESS
+cb78accce67f73956835137ecb1cd7a2e4701c19
+CMP Protocol Tests #4083  run 33291494104 / SUCCESS
 ```
 
-Непосредственно предшествующая подтверждённая documentation-only chain:
+Последняя подтверждённая documentation-only chain:
 
 ```text
 bbfeaabd2deaa8356300b02f5a6c504907e24922
@@ -33,9 +33,21 @@ CMP Protocol Tests #4078  run 33291112419 / SUCCESS
 
 7d340d6b1711420d5e97a6f76acf4920704d098a
 CMP Protocol Tests #4079  run 33291149537 / SUCCESS
+
+d62eb851549ad1ce390b34b2c25c54d014a254cc
+CMP Protocol Tests #4080  run 33291272960 / SUCCESS
+
+01b209e8a8fd00119f5c1eb54982685737993b38
+CMP Protocol Tests #4081  run 33291293949 / SUCCESS
+
+87db3b6d5220da933b94f02bcaf9d917bae26835
+CMP Protocol Tests #4082  run 33291400295 / SUCCESS
+
+cb78accce67f73956835137ecb1cd7a2e4701c19
+CMP Protocol Tests #4083  run 33291494104 / SUCCESS
 ```
 
-`#4077–#4079` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Это documentation-only подтверждения и они не заменяют exact firmware/build evidence checkpoints 166–167 ниже.
+`#4077–#4083` проверены по GitHub metadata: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`. Это documentation-only подтверждения и они не заменяют exact firmware/build evidence checkpoints 166–167 ниже.
 
 Stable pre-CRM snapshot сохраняется:
 

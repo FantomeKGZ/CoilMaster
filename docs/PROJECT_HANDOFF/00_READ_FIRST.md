@@ -19,14 +19,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4482**.
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4485**.
 
 Последние подтверждённые runs:
 
 ```text
-#4473  run 33310845212 / SUCCESS  head 6295b96814c5e52e51be5f53b993f9ef99c92627
-#4474  run 33310868189 / SUCCESS  head ef1763dd71c5714f6b479ee5fda87e3430cf1ea6
-#4475  run 33310956078 / SUCCESS  head 1decac09dc390b15683bb39962dd8caecc6ec69e
 #4476  run 33310974776 / SUCCESS  head 40e49e476c1dfe9efeb8706be189cffa2e85fef6
 #4477  run 33311017888 / SUCCESS  head 4b1eeec4842c757fade5924d1af023a4069636b7
 #4478  run 33311102782 / SUCCESS  head a893a78bc44d99a39a44da734cda1dffe4acd976
@@ -34,18 +31,21 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 #4480  run 33311146030 / SUCCESS  head fadabb4161d0a0cb5cf218fb8afbdbbe2943828f
 #4481  run 33311221704 / SUCCESS  head ed81baa114c26ec064d80ebfe411a673676842a3
 #4482  run 33311241718 / SUCCESS  head 31499e82b51e806a68600aae7deeb00bd71e9f86
+#4483  run 33311266660 / SUCCESS  head c898862486a25ba3e1689e4353346245f3f70cda
+#4484  run 33311352007 / SUCCESS  head a658ffdeb27e44f424c7c0a6ce645ebd47dad54e
+#4485  run 33311369952 / SUCCESS  head 2397d4a674e339ad5c55c924feb5dcc06992c845
 ```
 
-Полная непрерывная цепочка #4160–#4482 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная цепочка #4160–#4485 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-31499e82b51e806a68600aae7deeb00bd71e9f86
-CMP Protocol Tests #4482  run 33311241718 / SUCCESS
+2397d4a674e339ad5c55c924feb5dcc06992c845
+CMP Protocol Tests #4485  run 33311369952 / SUCCESS
 ```
 
-#4480 verifies transfer through #4477, #4481 verifies snapshot through #4479, #4482 verifies entrypoint through #4479. Transfer through #4479 (`c898862486a25ba3e1689e4353346245f3f70cda`) остаётся новее latest supplied exact GREEN и требует собственного exact SUCCESS. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.
+#4483 verifies transfer through #4479, #4484 verifies snapshot through #4482, #4485 verifies entrypoint through #4482. Transfer through #4482 (`3454d27e339d1437dae7ba449cd2fbb2cf7ce475`) остаётся новее latest supplied exact GREEN и требует собственного exact SUCCESS. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.
 
 ## Current engineering state
 

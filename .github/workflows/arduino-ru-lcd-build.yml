@@ -97,3 +97,22 @@ jobs:
           echo "Largest uno_ru symbols (decimal bytes):"
           "$NM" -C --defined-only --print-size --size-sort --radix=d \
             .pio/build/uno_ru/firmware.elf | tail -n 50
+
+      - name: Upload Arduino RU LCD release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: arduino-ru-lcd-firmware-${{ github.sha }}
+          path: |
+            .pio/build/uno/firmware.hex
+            .pio/build/uno/firmware.elf
+            .pio/build/uno_ru/firmware.hex
+            .pio/build/uno_ru/firmware.elf
+            .pio/build/esp32/bootloader.bin
+            .pio/build/esp32/partitions.bin
+            .pio/build/esp32/firmware.bin
+            .pio/build/esp32/firmware.elf
+            uno-build.log
+            uno-ru-build.log
+            esp32-build.log
+          if-no-files-found: error
+          retention-days: 30

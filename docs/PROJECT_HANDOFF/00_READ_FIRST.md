@@ -13,17 +13,25 @@ Production остаётся неизменённым:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Все новые изменения выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
-
-Перед каждым изменением существующего файла обязательно fetch current branch content и использовать current blob SHA. Для нового файла сначала подтвердить отсутствие пути.
+Все новые изменения выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в production без отдельного прямого запроса пользователя. Перед изменением существующего файла fetch exact current content + blob SHA; для нового файла сначала подтверждать отсутствие пути.
 
 ## Current work stream — feature completeness
 
-По прямому запросу пользователя начат полный аудит всех ранее обсуждавшихся добавлений/обновлений функций. Цель: проверить реальную реализацию, закончить proven incomplete items и только после этого переходить к следующему этапу.
+По прямому запросу пользователя начат полный аудит ранее обсуждавшихся обновлений/добавлений функций. Цель: проверить реальную реализацию, закончить proven incomplete items и только после этого переходить к следующему этапу.
 
-Это не новый speculative storage/performance audit. Checkpoints 159–167 остаются закрытыми, если нет concrete regression.
+Previous checkpoints 159–167 остаются закрытыми, если нет concrete regression. Speculative repeated-scan/performance work не переоткрывать.
 
-Первый найденный functional gap уже исправлен: Web calculator раньше принимал несколько исходных диаметров, но всегда отправлял `source_strands_N=1`. Desktop/mobile теперь поддерживают explicit strand count per component, например `0,80x3`, `1,00x5`, `0,80x3;1,00x2`, используя уже существующий backend range 1..12.
+## First closed feature gap — calculator source strand counts
+
+Web calculator раньше принимал несколько исходных диаметров, но всегда отправлял `source_strands_N=1`. Теперь desktop/mobile поддерживают explicit strand count per component:
+
+```text
+0,80x3
+1,00x5
+0,80x3;1,00x2
+```
+
+Без `xN` сохраняется один strand. Backend уже валидирует 1..12 strands/component; backend safety semantics не расширялись.
 
 Commits:
 
@@ -33,64 +41,39 @@ Commits:
 1b7f8504184b681d5f7e0da7710c4a50601a346a  regression contract
 ```
 
-## Latest exact CI
-
-Recent verified runs:
+Exact build/CI evidence:
 
 ```text
-CMP #4519 run 33312797865 / SUCCESS head 626399bc84ac31cc791fc298376a7da666b2a85a
-CMP #4520 run 33312873604 / SUCCESS head b4510d4dca30b6d33be1d8c0d03087515b5e75a5
-CMP #4521 run 33312892924 / SUCCESS head 395d474732902650397c9ec53cb308d6e3c93b74
-CMP #4522 run 33312914746 / SUCCESS head 268383ac8d8ae12c03e952f2919f8a9c162d3e65
-CMP #4523 run 33313015445 / SUCCESS head 7eee9bc312bbaf07308e8213c9738cf8cda3202b
-CMP #4524 run 33313040747 / SUCCESS head 32da60826ee39e410afef0c30b69fc1e3fd63158
-CMP #4525 run 33313307355 / FAILURE head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
-CMP #4526 run 33313331225 / FAILURE head da6b5423d782b73ed4ebacb9aaf5fa164d5ac552
-CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346a
 ESP32 #1780 run 33313307362 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
+Arduino RU LCD #209 run 33313307363 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
+ESP32 #1781 run 33313331248 / SUCCESS head da6b5423d782b73ed4ebacb9aaf5fa164d5ac552
+Arduino RU LCD #210 run 33313331284 / SUCCESS head da6b5423d782b73ed4ebacb9aaf5fa164d5ac552
+CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346a
 ```
 
-#4525/#4526 are understood intermediate failures: the old `Audit calculator source wire input` contract still required `source_strands_N=1`. The functional implementation itself reached ESP32 build success on desktop at #1780. The test contract was then aligned and CMP recovered to SUCCESS at #4527.
+CMP #4525/#4526 were understood intermediate failures only in `Audit calculator source wire input`; the old contract still required one strand per entered diameter. It was updated in `1b7f8504...`, after which CMP recovered at #4527.
 
-Latest exact CMP SUCCESS before this documentation update:
+## Latest exact documentation CI
 
 ```text
-1b7f8504184b681d5f7e0da7710c4a50601a346a
-CMP #4527 run 33313347671 / SUCCESS
+CMP #4528 run 33313496030 / SUCCESS head 155c42ef90850a54fac0d49b87e9eb6ba8ca1fd8
+CMP #4529 run 33313522798 / SUCCESS head 9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
 ```
 
-Do not infer ESP32/build GREEN for later SHA without exact run evidence.
+#4528 verifies the first feature-audit HANDOFF snapshot commit. #4529 verifies the updated feature-audit entrypoint commit. Transfer commit `2a20feeb6e660f1a0d10f5bf868dde8a9759dd18` has no supplied exact CMP SUCCESS yet and must not be called GREEN.
 
-## Existing closed engineering state
-
-Experiment-side previous software checkpoints remain closed through **167**:
+Latest exact supplied CMP SUCCESS before this documentation refresh:
 
 ```text
-152 RUN_WIRE Material Request status batching
-153 unified autonomous/Web completed-job archive lifecycle
-154 RUN_WIRE exact immutable-spool lookup
-155 Material Request create repair scan reuse
-156 Material Request Warehouse known-request status reuse
-157 client balance repair-journal validation reuse
-158 RepairCostingWeb exact repair proof reuse
-159 autonomous winding -> canonical motor history projection
-160 Warehouse exact lookup optimization
-161 Warehouse CONFIRMED provenance suffix scan
-162 repair finalization known-repair proof reuse
-163 Repair Delivery single-pass append preflight
-164 spool/material bridge suffix uniqueness audit
-165 residual repeated-scan audit -> NO-CHANGE
-166 reachable Hall RU LCD localization -> GREEN
-167 static canonical winding-role selector cleanup -> GREEN
+9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
+CMP #4529 run 33313522798 / SUCCESS
 ```
-
-Physical Arduino+ESP32 E2E for the previously tested hardware/firmware state remains operator-confirmed PASS.
 
 ## Feature-completeness audit order
 
 Continue systematically with:
 
-1. clients/motors/repairs pagination;
+1. clients/motors/repairs bounded pagination;
 2. motor import workflow;
 3. shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts;
 4. FTP/Web recovery;
@@ -98,45 +81,24 @@ Continue systematically with:
 6. backup/settings;
 7. desktop/mobile feature parity;
 8. stale/empty pages and links;
-9. any other previously documented promised feature found incomplete.
+9. any other previously promised feature found incomplete.
 
 For every proven gap: fetch exact current file + blob SHA, implement minimal fix, add/update regression coverage, verify applicable CI, then update HANDOFF meaningfully.
 
-## Firmware/build evidence retained
+## Physical / prior engineering state
 
-Checkpoint 166 Hall RU LCD:
+Physical Arduino+ESP32 E2E for the previously tested hardware/firmware state remains operator-confirmed PASS. Checkpoints 159–167 remain closed unless concrete regression is found.
 
-```text
-3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
-CMP #4028 run 33268897356 / SUCCESS
-Arduino RU LCD #206 run 33268897370 / SUCCESS
-```
-
-Uno resource evidence:
+Uno checkpoint 166 resource evidence remains:
 
 ```text
 uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); headroom 808 bytes
 uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); headroom 1190 bytes
 ```
 
-Checkpoint 167 remains verified by CMP/ESP32/Arduino runs recorded in the detailed handoff.
-
 ## Safety invariants
 
-Do not change:
-
-- no automatic physical START/repeat START;
-- no auto-resume after reboot;
-- Arduino is sole SSR owner;
-- ESP32/Web never directly controls SSR;
-- `RUN_COMPLETED` never automatically writes off wire;
-- manual linked RUN_WIRE requires exact `spool_id + source_session_id + source_run_id`;
-- restore/recovery remain fail-closed/operator-controlled;
-- mutation-time authoritative rereads/TOCTOU guards remain;
-- append-only evidence is not silently edited/deleted;
-- no unbounded growing-NDJSON cache;
-- no automatic production truncation/rotation/deletion;
-- no premature DB/index migration.
+Do not change: no automatic physical START/repeat START; no auto-resume after reboot; Arduino is sole SSR owner; ESP32/Web never directly controls SSR; `RUN_COMPLETED` never automatically writes off wire; manual linked RUN_WIRE requires exact `spool_id + source_session_id + source_run_id`; restore/recovery remain fail-closed/operator-controlled; mutation-time authoritative rereads/TOCTOU guards remain; append-only evidence is not silently edited/deleted; no automatic production truncation/rotation/deletion; no premature DB/index migration.
 
 ## Read order
 
@@ -157,4 +119,4 @@ docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 
 ## Immediate NEXT
 
-Continue the feature-completeness audit from fresh branch HEAD. Do not return to documentation-only CI recursion as the main activity. Production `cmp-protocol-v1` remains untouched.
+Continue the feature-completeness audit from fresh branch HEAD, beginning with clients/motors/repairs pagination unless the user selects another concrete feature. Do not return to documentation-only CI recursion as the main activity. Production `cmp-protocol-v1` remains untouched.

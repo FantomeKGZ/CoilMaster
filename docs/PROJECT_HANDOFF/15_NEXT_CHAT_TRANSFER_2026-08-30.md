@@ -51,21 +51,21 @@ CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346
 ## Latest documentation CI
 
 ```text
-CMP #4560 run 33314998446 / SUCCESS head 9baa2a1bfabbd392c5c310c4362011f60206bd98
-CMP #4561 run 33315091265 / SUCCESS head 3abf2f6b0bfd610865a6e97e21b75d05627dfb9a
-CMP #4562 run 33315109780 / SUCCESS head 1553bab026427abedb3bfcd8818565063b198019
 CMP #4563 run 33315135890 / SUCCESS head 3969b959cfbec3f2a0cb673b448276185cb52a57
 CMP #4564 run 33315227713 / SUCCESS head 68420580e4c7f3654c86289be8b6d42f56efe3c0
 CMP #4565 run 33315250634 / SUCCESS head 2f465d646ea801000fcc0e0d935e504f353e9beb
 CMP #4566 run 33315271992 / SUCCESS head 78187f76c51a94652c99feda0f260621e6cbe7c8
+CMP #4567 run 33315357132 / SUCCESS head b23279b56979ce2a7682b979eee25d9d46810f73
+CMP #4568 run 33315378898 / SUCCESS head 127b03d8a0ac6f60dfc06d07aba2570dbf1e61e9
+CMP #4569 run 33315398757 / SUCCESS head 5574c14bf8e995c12cc3de0ad142c399d7470966
 ```
 
-#4564/#4565/#4566 verify the snapshot/entrypoint/transfer HANDOFF through #4563. Therefore all prior HANDOFF documentation through `78187f76c51a94652c99feda0f260621e6cbe7c8` is independently CMP-GREEN.
+#4567/#4568/#4569 verify the snapshot/entrypoint/transfer HANDOFF through #4566. Therefore all prior HANDOFF documentation through `5574c14bf8e995c12cc3de0ad142c399d7470966` is independently CMP-GREEN.
 
 Latest exact independently verified GREEN SHA before this transfer refresh:
 ```text
-78187f76c51a94652c99feda0f260621e6cbe7c8
-CMP #4566 run 33315271992 / SUCCESS
+5574c14bf8e995c12cc3de0ad142c399d7470966
+CMP #4569 run 33315398757 / SUCCESS
 ```
 
 Any newer docs commit requires its own exact run before being called GREEN. Do not create more docs-only commits merely to chase their own SUCCESS; return to the feature audit.

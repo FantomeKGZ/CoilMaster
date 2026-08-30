@@ -36,6 +36,7 @@ for (const surface of ['desktop', 'mobile']) {
 
   const clientNew = read(`${surface}/client-new.html`);
   need(clientNew, "fetch('/api/clients'", `${surface} client creation`);
+  need(clientNew, 'if(sending)return', `${surface} client create single-flight`);
 
   const motors = read(`${surface}/motors.html`);
   need(motors, `/${surface}/motor-new.html`, `${surface} motor catalog create link`);
@@ -44,6 +45,9 @@ for (const surface of ['desktop', 'mobile']) {
 
   const motorNew = read(`${surface}/motor-new.html`);
   need(motorNew, "fetch('/api/motors'", `${surface} motor creation`);
+  need(motorNew, 'checking=false,creating=false', `${surface} motor create state guards`);
+  need(motorNew, 'if(creating)return', `${surface} motor create single-flight`);
+  need(motorNew, 'if(checking||creating)return', `${surface} motor similarity single-flight`);
 
   const motorEdit = read(`${surface}/motor-edit.html`);
   need(motorEdit, '/api/motors/update', `${surface} motor editing`);
@@ -65,6 +69,10 @@ for (const surface of ['desktop', 'mobile']) {
 
   const materialNew = read(`${surface}/material-new.html`);
   need(materialNew, "fetch('/api/materials'", `${surface} material creation`);
+  need(materialNew, 'let sending=false', `${surface} material create state guard`);
+  need(materialNew, 'if(sending)return', `${surface} material create single-flight`);
+  need(materialNew, "$('saveBtn').disabled=true", `${surface} material submit lock`);
+  need(materialNew, 'material_id_missing', `${surface} material create response identity`);
   const materialEdit = read(`${surface}/material-edit.html`);
   need(materialEdit, "fetch('/api/materials/adjust'", `${surface} material editing`);
 
@@ -81,4 +89,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('CRUD page separation OK: catalogs are list-only, create/edit flows are dedicated pages, navigation is present, and modified scripts parse.');
+console.log('CRUD page separation OK: catalogs are list-only, create/edit flows are dedicated pages, create mutations are single-flight, navigation is present, and modified scripts parse.');

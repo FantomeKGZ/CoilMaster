@@ -11,9 +11,13 @@ const sections=[
  ['🏠','Главная',''],['🧰','Ремонты','repairs.html'],['👤','Клиенты','clients.html'],
  ['📊','Двигатели','motors.html'],['🔌','Arduino','arduino-windings.html'],
  ['🧮','Калькулятор','calculator.html'],['📦','Склад','warehouse.html'],
- ['💰','Калькуляция','costing.html'],['📈','Отчёты','reports.html'],
- ['💾','Backup','backup.html'],['⚙️','Настройки','settings.html'],
+ ['💰','Калькуляция','costing.html'],['💵','Касса','cash.html'],['📈','Отчёты','reports.html'],
+ ['💾','Резервная копия','backup.html'],['⚙️','Настройки','settings.html'],
  ['📚','Справочник',`/sites/reference/${uiMode}/`]
+];
+const mobilePrimary=[
+ ['🏠','Главная',''],['🧰','Ремонты','repairs.html'],['🧮','Расчёт','calculator.html'],
+ ['📦','Склад','warehouse.html'],['☰','Ещё','more.html']
 ];
 
 function sectionHref(file){
@@ -26,7 +30,17 @@ function sectionActive(file){
  if(file==='motors.html')return pathname.includes('/motor-')||pathname.endsWith('/motors.html');
  if(file==='settings.html')return pathname.includes('/settings');
  if(file==='arduino-windings.html')return pathname.includes('arduino-windings');
+ if(file==='more.html')return uiMode==='mobile'&&!['','index.html','repairs.html','calculator.html','warehouse.html'].some(name=>pathname===`/mobile/${name}`);
  return pathname.endsWith('/'+file);
+}
+function equivalentPath(targetMode){
+ const suffix=location.pathname.replace(/^\/(desktop|mobile)/,'')||'/';
+ if(uiMode==='mobile'&&suffix==='/more.html'&&targetMode==='desktop')return'/desktop/';
+ return`/${targetMode}${suffix}`;
+}
+function modeSwitchHref(targetMode){return equivalentPath(targetMode)+location.search+location.hash}
+function sectionLinks(items,compact=false){
+ return items.map(([icon,label,file])=>`<a href="${sectionHref(file)}"${sectionActive(file)?' class="active" aria-current="page"':''}>${compact?`<b>${icon}</b>${esc(label)}`:`<span class="cm-nav-icon" aria-hidden="true">${icon}</span> <span class="cm-nav-label">${esc(label)}</span>`}</a>`).join('');
 }
 
 function ensureStyle(){
@@ -36,10 +50,36 @@ function ensureStyle(){
  style.textContent=`
  .cm-shell{background:#fff;border:1px solid #dbe4eb;border-radius:12px;padding:10px 12px;margin:0 0 14px;box-shadow:0 1px 5px #17212b12;font-family:Arial,sans-serif;color:#17212b}
  .cm-shell-nav{display:flex;gap:5px;overflow-x:auto;padding:0 0 9px;margin:0 0 9px;border-bottom:1px solid #e5ebf0;scrollbar-width:thin}.cm-shell-nav a{display:inline-flex;gap:5px;align-items:center;white-space:nowrap;padding:7px 9px;border-radius:8px;text-decoration:none;color:#31506a;font-size:13px;font-weight:700}.cm-shell-nav a:hover,.cm-shell-nav a:focus{background:#edf4fa;outline:none}.cm-shell-nav a.active{background:#1769aa;color:#fff}
- .cm-shell-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cm-shell-breadcrumbs{font-size:13px;color:#687580;flex:1 1 260px}.cm-shell-breadcrumbs a{color:#1769aa;text-decoration:none}.cm-shell-tools{display:flex;align-items:center;gap:8px;flex:1 1 420px;justify-content:flex-end;flex-wrap:wrap}.cm-shell-clock,.cm-shell-version{font-size:12px;color:#53606b;white-space:nowrap}.cm-shell-clock[data-state="bad"]{color:#b42318}.cm-shell-search-wrap{position:relative;min-width:230px;max-width:420px;flex:1}.cm-shell-search{width:100%!important;margin:0!important;padding:9px 11px!important;font-size:14px!important;border:1px solid #cbd5df!important;border-radius:8px!important;background:#fff!important;color:#17212b!important}.cm-shell-results{display:none;position:absolute;z-index:1000;left:0;right:0;top:calc(100% + 5px);max-height:360px;overflow:auto;background:#fff;border:1px solid #cbd5df;border-radius:10px;box-shadow:0 8px 28px #17212b2b;padding:7px}.cm-shell-results.open{display:block}.cm-shell-result{display:block;padding:9px;border-radius:7px;text-decoration:none;color:#17212b}.cm-shell-result:hover,.cm-shell-result:focus{background:#edf4fa;outline:none}.cm-shell-result small{display:block;color:#687580;margin-top:2px}.cm-shell-empty{padding:10px;color:#687580;font-size:13px}.cm-toast-region{position:fixed;right:16px;bottom:16px;z-index:2000;display:grid;gap:8px;max-width:min(420px,calc(100vw - 32px))}.cm-toast{background:#17212b;color:#fff;padding:11px 13px;border-radius:10px;box-shadow:0 5px 20px #0003;font:14px Arial,sans-serif}.cm-toast.bad{background:#8b2d2d}.cm-toast.ok{background:#17683a}.cm-recent{margin-top:7px;padding-top:7px;border-top:1px solid #e5ebf0}.cm-recent-title{font-size:12px;font-weight:bold;color:#687580;padding:3px 9px}
+ .cm-nav-icon{display:inline-block;min-width:1.45em;text-align:center}.cm-shell-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cm-shell-breadcrumbs{font-size:13px;color:#687580;flex:1 1 260px}.cm-shell-breadcrumbs a{color:#1769aa;text-decoration:none}.cm-shell-tools{display:flex;align-items:center;gap:8px;flex:1 1 420px;justify-content:flex-end;flex-wrap:wrap}.cm-shell-clock,.cm-shell-version{font-size:12px;color:#53606b;white-space:nowrap}.cm-shell-clock[data-state="bad"]{color:#b42318}.cm-shell-mode{font-size:12px;font-weight:700;color:#1769aa;text-decoration:none;white-space:nowrap}.cm-shell-search-wrap{position:relative;min-width:230px;max-width:420px;flex:1}.cm-shell-search{width:100%!important;margin:0!important;padding:9px 11px!important;font-size:14px!important;border:1px solid #cbd5df!important;border-radius:8px!important;background:#fff!important;color:#17212b!important}.cm-shell-results{display:none;position:absolute;z-index:1000;left:0;right:0;top:calc(100% + 5px);max-height:360px;overflow:auto;background:#fff;border:1px solid #cbd5df;border-radius:10px;box-shadow:0 8px 28px #17212b2b;padding:7px}.cm-shell-results.open{display:block}.cm-shell-result{display:block;padding:9px;border-radius:7px;text-decoration:none;color:#17212b}.cm-shell-result:hover,.cm-shell-result:focus{background:#edf4fa;outline:none}.cm-shell-result small{display:block;color:#687580;margin-top:2px}.cm-shell-empty{padding:10px;color:#687580;font-size:13px}.cm-toast-region{position:fixed;right:16px;bottom:16px;z-index:2000;display:grid;gap:8px;max-width:min(420px,calc(100vw - 32px))}.cm-toast{background:#17212b;color:#fff;padding:11px 13px;border-radius:10px;box-shadow:0 5px 20px #0003;font:14px Arial,sans-serif}.cm-toast.bad{background:#8b2d2d}.cm-toast.ok{background:#17683a}.cm-recent{margin-top:7px;padding-top:7px;border-top:1px solid #e5ebf0}.cm-recent-title{font-size:12px;font-weight:bold;color:#687580;padding:3px 9px}
+ aside .cm-nav-icon{display:inline-block;min-width:1.45em;text-align:center}aside a[aria-current="page"]{background:#24445f;color:#fff}
+ @media(max-width:980px){aside a .cm-nav-icon{font-size:20px;min-width:0}aside a .cm-nav-label{font-size:0}}
  @media(max-width:700px){.cm-shell{border-radius:0;margin:0 0 10px}.cm-shell-tools{justify-content:flex-start}.cm-shell-search-wrap{order:3;flex-basis:100%;max-width:none}.cm-shell-version{font-size:11px}.cm-shell-nav a{font-size:12px;padding:7px 8px}}
  `;
  document.head.appendChild(style);
+}
+
+function canonicalizeDesktopNav(){
+ if(uiMode!=='desktop')return false;
+ const aside=document.querySelector('aside');
+ if(!aside)return false;
+ const heading=aside.querySelector('h1,h2');
+ const headingTag=heading?heading.tagName.toLowerCase():'h2';
+ const headingText=heading&&heading.textContent.trim()?heading.textContent.trim():'CoilMaster';
+ const target='mobile';
+ aside.setAttribute('aria-label','Основные разделы');
+ aside.innerHTML=`<${headingTag}>${esc(headingText)}</${headingTag}>${sectionLinks(sections)}<div class="switch"><a href="${modeSwitchHref(target)}" data-cm-mode-switch="${target}"><span class="cm-nav-icon" aria-hidden="true">📱</span> <span class="cm-nav-label">Мобильная версия</span></a></div>`;
+ return true;
+}
+function canonicalizeMobileNav(){
+ if(uiMode!=='mobile')return false;
+ const nav=[...document.querySelectorAll('body > nav')].find(node=>!node.classList.contains('cm-shell-nav'));
+ if(!nav)return false;
+ nav.setAttribute('aria-label','Основные разделы');
+ nav.innerHTML=sectionLinks(mobilePrimary,true);
+ return true;
+}
+function canonicalizeNativeNavigation(){
+ return uiMode==='desktop'?canonicalizeDesktopNav():canonicalizeMobileNav();
 }
 
 function pageLabel(pathname){
@@ -53,6 +93,7 @@ function pageLabel(pathname){
   '/desktop/calculator.html':'Калькулятор','/mobile/calculator.html':'Калькулятор',
   '/desktop/warehouse.html':'Склад','/mobile/warehouse.html':'Склад',
   '/desktop/costing.html':'Калькуляция','/mobile/costing.html':'Калькуляция',
+  '/desktop/cash.html':'Касса','/mobile/cash.html':'Касса',
   '/desktop/reports.html':'Отчёты','/mobile/reports.html':'Отчёты',
   '/desktop/backup.html':'Резервная копия','/mobile/backup.html':'Резервная копия',
   '/desktop/settings.html':'Настройки','/mobile/settings.html':'Настройки',
@@ -61,7 +102,8 @@ function pageLabel(pathname){
   '/desktop/settings-time.html':'Время','/mobile/settings-time.html':'Время',
   '/desktop/settings-wifi.html':'Wi‑Fi','/mobile/settings-wifi.html':'Wi‑Fi',
   '/desktop/winding-history.html':'История намотки','/mobile/winding-history.html':'История намотки',
-  '/desktop/writeoff.html':'Списание провода','/mobile/writeoff.html':'Списание провода'
+  '/desktop/writeoff.html':'Списание провода','/mobile/writeoff.html':'Списание провода',
+  '/mobile/more.html':'Разделы'
  };
  return map[pathname]||document.title||'CoilMaster';
 }
@@ -79,7 +121,7 @@ function breadcrumbs(){
  return bits.join(' / ');
 }
 
-function navHtml(){return sections.map(([icon,label,file])=>`<a href="${sectionHref(file)}"${sectionActive(file)?' class="active" aria-current="page"':''}>${icon} ${esc(label)}</a>`).join('')}
+function navHtml(){return sectionLinks(sections)}
 
 const recentKey='cm-recent-items-v1';
 function loadRecent(){
@@ -238,9 +280,16 @@ function shellHost(){return document.querySelector('main')||document.querySelect
 function buildShell(){
  ensureStyle();
  if(document.getElementById('cmAppShell'))return;
+ const nativeNavigation=canonicalizeNativeNavigation();
  const shell=document.createElement('section');shell.id='cmAppShell';shell.className='cm-shell';shell.setAttribute('aria-label','CoilMaster navigation utilities');
- shell.innerHTML=`<nav class="cm-shell-nav" aria-label="Основные разделы">${navHtml()}</nav><div class="cm-shell-row"><div class="cm-shell-breadcrumbs">${breadcrumbs()}</div><div class="cm-shell-tools"><div class="cm-shell-search-wrap"><input class="cm-shell-search" id="cmGlobalSearch" type="search" autocomplete="off" placeholder="Поиск: двигатель, клиент, ремонт" aria-label="Глобальный поиск"><div id="cmGlobalResults" class="cm-shell-results"></div></div><span id="cmDeviceClock" class="cm-shell-clock">Время…</span><span id="cmBuildVersion" class="cm-shell-version">Версия…</span></div></div>`;
+ const fallbackNav=nativeNavigation?'':`<nav class="cm-shell-nav" aria-label="Основные разделы">${navHtml()}</nav>`;
+ const targetMode=uiMode==='mobile'?'desktop':'mobile';
+ const targetLabel=uiMode==='mobile'?'🖥️ Версия для ПК':'📱 Мобильная версия';
+ shell.innerHTML=`${fallbackNav}<div class="cm-shell-row"><div class="cm-shell-breadcrumbs">${breadcrumbs()}</div><div class="cm-shell-tools"><div class="cm-shell-search-wrap"><input class="cm-shell-search" id="cmGlobalSearch" type="search" autocomplete="off" placeholder="Поиск: двигатель, клиент, ремонт" aria-label="Глобальный поиск"><div id="cmGlobalResults" class="cm-shell-results"></div></div><span id="cmDeviceClock" class="cm-shell-clock">Время…</span><span id="cmBuildVersion" class="cm-shell-version">Версия…</span><a class="cm-shell-mode" href="${modeSwitchHref(targetMode)}" data-cm-mode-switch="${targetMode}">${targetLabel}</a></div></div>`;
  const host=shellHost();host.insertBefore(shell,host.firstChild);
+ document.querySelectorAll('#cm-version-switch').forEach(node=>node.remove());
+ document.querySelectorAll('a[href="#"]').forEach(a=>a.hidden=true);
+ document.querySelectorAll('[data-cm-mode-switch]').forEach(a=>a.addEventListener('click',()=>localStorage.setItem('cm-ui-version',a.dataset.cmModeSwitch)));
  const input=shell.querySelector('#cmGlobalSearch'),results=shell.querySelector('#cmGlobalResults');
  let token=0;
  const close=()=>results.classList.remove('open');

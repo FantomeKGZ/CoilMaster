@@ -22,79 +22,32 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Свежая exact documentation chain на `arduino-ru-lcd-experiment`:
 
 ```text
-a3082500e9295ee38823456ff69c8b6530b369da
-CMP Protocol Tests #4154  run 33296258713 / SUCCESS
-message: docs(handoff): checkpoint exact CMP 4153 state
-
-f99bdcf3f108243e3192c8e83a66b289469681ed
-CMP Protocol Tests #4155  run 33296340509 / SUCCESS
-message: docs(handoff): confirm CMP 4154 after 4153 checkpoint
-
-00919cbf5e8cd847a0e622bdbfe7bf4b291ab7f5
-CMP Protocol Tests #4156  run 33296357807 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4154
-
-dc9ff401cbb2e5dc68b0311c6a28f142462d7cab
-CMP Protocol Tests #4157  run 33296440587 / SUCCESS
-message: docs(handoff): record CMP 4155 and 4156
-
-945061512a705a5b4f61a054841c977b7e978c9e
-CMP Protocol Tests #4158  run 33296459453 / SUCCESS
-message: docs(handoff): advance through CMP 4156
-
-bd7e1f8454a25305fc0a4af47361341ba161d84f
-CMP Protocol Tests #4159  run 33296578402 / SUCCESS
-message: docs(handoff): record CMP 4157 and 4158
-
-d8a597c1ac07ee234a824a419698a4dc61067761
-CMP Protocol Tests #4160  run 33296596573 / SUCCESS
-message: docs(handoff): advance through CMP 4158
-
-124464fc728414c6ba770669755a57e724e4710c
-CMP Protocol Tests #4161  run 33296706502 / SUCCESS
-message: docs(handoff): record CMP 4159
-
-4be7c2204eb2d552950b0e4648cb24358d6e356e
-CMP Protocol Tests #4162  run 33296723545 / SUCCESS
-message: docs(handoff): advance transfer through CMP 4159
-
-8e451fb65495792cf69f9b96c4c43350835b622a
-CMP Protocol Tests #4163  run 33296961701 / SUCCESS
-message: docs(handoff): record CMP 4160-4162
-
-159da0c7abb90dba8c6c00e5da40d835fa28d106
-CMP Protocol Tests #4164  run 33296984838 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4162
-
-18bca1973b2cf0f369970ea8cc84856f11aae630
-CMP Protocol Tests #4165  run 33297079657 / SUCCESS
-message: docs(handoff): extend CMP snapshot through 4164
-
-c26c58729e94db03895ad49d42322360dd4d4afd
-CMP Protocol Tests #4166  run 33297104319 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4164
-
-702984933d795dff8a58c11cc15bf0bc68ac9547
-CMP Protocol Tests #4167  run 33297180420 / SUCCESS
-message: docs(handoff): record CMP 4165 and 4166
-
-8b2442668a44ae9b115c856120a518a0bb2cb794
-CMP Protocol Tests #4168  run 33297201539 / SUCCESS
-message: docs(handoff): advance entrypoint through CMP 4166
+CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
+CMP Protocol Tests #4161  run 33296706502 / SUCCESS  head 124464fc728414c6ba770669755a57e724e4710c
+CMP Protocol Tests #4162  run 33296723545 / SUCCESS  head 4be7c2204eb2d552950b0e4648cb24358d6e356e
+CMP Protocol Tests #4163  run 33296961701 / SUCCESS  head 8e451fb65495792cf69f9b96c4c43350835b622a
+CMP Protocol Tests #4164  run 33296984838 / SUCCESS  head 159da0c7abb90dba8c6c00e5da40d835fa28d106
+CMP Protocol Tests #4165  run 33297079657 / SUCCESS  head 18bca1973b2cf0f369970ea8cc84856f11aae630
+CMP Protocol Tests #4166  run 33297104319 / SUCCESS  head c26c58729e94db03895ad49d42322360dd4d4afd
+CMP Protocol Tests #4167  run 33297180420 / SUCCESS  head 702984933d795dff8a58c11cc15bf0bc68ac9547
+CMP Protocol Tests #4168  run 33297201539 / SUCCESS  head 8b2442668a44ae9b115c856120a518a0bb2cb794
+CMP Protocol Tests #4169  run 33297342101 / SUCCESS  head a9376388ad80376ca1190f41ef6ff203f4a08584
+CMP Protocol Tests #4170  run 33297367289 / SUCCESS  head 914ad8e868a7908eb4386ee1f2bcc180f8ddf3a8
+CMP Protocol Tests #4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7692256687d0be4704a
 ```
 
-Для #4154–#4168 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. Для #4160–#4162 и #4166–#4168 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`. #4163–#4168 independently verified exact run metadata также `completed/success`.
+GitHub metadata подтверждает для #4160–#4171 branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success` в independently checked chain. Для #4160–#4162 и #4166–#4168 также отдельно проверялся `host-tests`.
 
 Latest exact independently verified GREEN documentation head перед текущими documentation-only updates:
 
 ```text
-8b2442668a44ae9b115c856120a518a0bb2cb794
-CMP Protocol Tests #4168  run 33297201539 / SUCCESS
+f8e7232009b1aa5e4900e7692256687d0be4704a
+CMP Protocol Tests #4171  run 33297388482 / SUCCESS
 ```
 
-Текущие documentation-only updates после `8b244266...` нельзя называть GREEN, пока для их exact HEAD не будет собственного SUCCESS.
+Текущие documentation-only updates после `f8e7232...` нельзя называть GREEN, пока для их exact HEAD не будет собственного SUCCESS. При этом не нужно создавать бесконечную цепочку новых documentation commits только ради записи SUCCESS предыдущего documentation commit, если engineering state не изменился.
 
-Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4168 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md` (имя файла сохранено для стабильной ссылки, заголовок/содержимое расширены through #4168). Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
+Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4171 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md` (имя файла сохранено для стабильной ссылки, заголовок/содержимое расширены through #4171). Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 
 Stable pre-CRM snapshot:
 

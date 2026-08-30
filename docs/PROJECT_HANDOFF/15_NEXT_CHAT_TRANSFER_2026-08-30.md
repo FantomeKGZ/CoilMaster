@@ -21,13 +21,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata independently verifies the documentation chain continuously through **CMP #4372**.
+GitHub metadata independently verifies the documentation chain continuously through **CMP #4374**.
 
 Последние подтверждённые runs:
 
 ```text
-CMP Protocol Tests #4363  run 33306794240 / SUCCESS  head 6cc656c20af049900d35e2b5121e7fdf457b1629
-CMP Protocol Tests #4364  run 33306844503 / SUCCESS  head 549baf30147e4d4299f398dbb114b6f3bb47606f
 CMP Protocol Tests #4365  run 33306865572 / SUCCESS  head c611516456787330940afdf7669962d119d01c24
 CMP Protocol Tests #4366  run 33306882621 / SUCCESS  head 58359f569ed471e203b299a655c77d63586dde34
 CMP Protocol Tests #4367  run 33306942337 / SUCCESS  head 0fb861671d815053913d559010400dfd27772e65
@@ -36,18 +34,20 @@ CMP Protocol Tests #4369  run 33306976769 / SUCCESS  head 5e21a6037e10fe61b75855
 CMP Protocol Tests #4370  run 33307043453 / SUCCESS  head e23c9fb4cebc05b79ad3b3fb983f6e332bd02c5b
 CMP Protocol Tests #4371  run 33307061087 / SUCCESS  head 3fa3667d0c04f20d72fe4dff8b3c77e247781afd
 CMP Protocol Tests #4372  run 33307082202 / SUCCESS  head 33aa480dc7d3f332fc74687eb56b6a12c2e62be2
+CMP Protocol Tests #4373  run 33307155421 / SUCCESS  head da9da3c07af898971f39b9dd0d395837b822a42a
+CMP Protocol Tests #4374  run 33307173725 / SUCCESS  head 98398b270b6e3fa536daefecfb94fbcb7cb5f3dc
 ```
 
-Полная непрерывная chain #4160–#4372 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная chain #4160–#4374 находится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 
 ```text
-33aa480dc7d3f332fc74687eb56b6a12c2e62be2
-CMP Protocol Tests #4372  run 33307082202 / SUCCESS
+98398b270b6e3fa536daefecfb94fbcb7cb5f3dc
+CMP Protocol Tests #4374  run 33307173725 / SUCCESS
 ```
 
-#4369 verifies the transfer through #4365, #4370 verifies the snapshot through #4368, #4371 verifies the entrypoint through #4368, and #4372 verifies the transfer through #4368.
+#4373 verifies the snapshot through #4372, and #4374 verifies the entrypoint through #4372. The transfer commit through #4372 is newer than the latest independently verified run in this snapshot and must not be called GREEN without its own exact CI evidence.
 
 Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 

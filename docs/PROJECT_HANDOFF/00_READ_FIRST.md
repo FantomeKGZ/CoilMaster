@@ -56,27 +56,23 @@ CMP #4525/#4526 were understood intermediate failures only in `Audit calculator 
 ## Latest exact documentation CI
 
 ```text
-CMP #4528 run 33313496030 / SUCCESS head 155c42ef90850a54fac0d49b87e9eb6ba8ca1fd8
-CMP #4529 run 33313522798 / SUCCESS head 9ad6768cdce58a87e3401bbf4218fac6d26a4ca9
-CMP #4530 run 33313547013 / SUCCESS head 2a20feeb6e660f1a0d10f5bf868dde8a9759dd18
-CMP #4531 run 33313662125 / SUCCESS head cab5f38b0a80cbc0a9f40d0e9c21b21b71eb46b6
-CMP #4532 run 33313686343 / SUCCESS head 070297431a572c60c1e179e28bd28ebcc6b815c1
-CMP #4533 run 33313705562 / SUCCESS head a72ac12095332236dfdeb1868f4c5965a8dfe808
 CMP #4534 run 33313802936 / SUCCESS head 30d788ca54243e75926ba059551703efa9da891f
 CMP #4535 run 33313827911 / SUCCESS head c136369aaab324c8d7776c85ad70d25c0ed3e148
 CMP #4536 run 33313849652 / SUCCESS head 9ee65cff3804c0a5482367c1033f181b8ba265a4
+CMP #4537 run 33313953287 / SUCCESS head c9a36326fe23f76d33ea9af045dc0bd3c8d60965
+CMP #4538 run 33313977433 / SUCCESS head 9327eb7724256199d2542119de4470ae2ec31524
 ```
 
-The previous feature-audit HANDOFF sequence is fully verified through `9ee65cff3804c0a5482367c1033f181b8ba265a4`. #4534 verifies snapshot through #4533, #4535 verifies entrypoint through #4533, and #4536 verifies transfer through #4533.
+#4537 verifies snapshot through #4536. #4538 verifies entrypoint through #4536. Transfer through #4536 (`3e102376cd5024d7ef1a1cf9cff8493d4187bb3a`) remains without its own supplied exact CMP SUCCESS and must not be called GREEN.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 
 ```text
-9ee65cff3804c0a5482367c1033f181b8ba265a4
-CMP #4536 run 33313849652 / SUCCESS
+9327eb7724256199d2542119de4470ae2ec31524
+CMP #4538 run 33313977433 / SUCCESS
 ```
 
-New docs commits after #4536 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
+New docs commits after #4538 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 

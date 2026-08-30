@@ -10,12 +10,14 @@ const mustNot = (src, token, label) => { if (src.includes(token)) failures.push(
 
 const clientsPath = 'firmware/esp32/web/desktop/clients.html';
 const newPath = 'firmware/esp32/web/desktop/client-new.html';
+const mobileNewPath = 'firmware/esp32/web/mobile/client-new.html';
 const detailsPath = 'firmware/esp32/web/desktop/client-details.html';
 const mobileDetailsPath = 'firmware/esp32/web/mobile/client-details.html';
 const repairsPath = 'firmware/esp32/web/desktop/repairs.html';
 
 const clients = read(clientsPath);
 const clientNew = read(newPath);
+const mobileClientNew = read(mobileNewPath);
 const details = read(detailsPath);
 const mobileDetails = read(mobileDetailsPath);
 const repairs = read(repairsPath);
@@ -32,6 +34,18 @@ must(clientNew, '/desktop/client-details.html?client_id=', 'new client details h
 must(clientNew, '/desktop/repairs.html?client_id=', 'new client repair handoff');
 must(clientNew, 'Связь клиента с двигателем фиксируется исторически через ремонт', 'motor ownership boundary');
 mustNot(clientNew, "fetch('/api/repairs',{method:'POST'", 'client create must not create repair');
+
+for (const [label, source] of [['desktop client create', clientNew], ['mobile client create', mobileClientNew]]) {
+  must(source, 'let sending=false', `${label} single-flight state`);
+  must(source, 'if(sending)return', `${label} duplicate submit guard`);
+  must(source, "fetch('/api/clients',{method:'POST'", `${label} create endpoint`);
+  must(source, 'client_id_missing', `${label} authoritative created identity required`);
+  must(source, 'maxlength="96"', `${label} name bound`);
+  must(source, 'maxlength="48"', `${label} phone bound`);
+  must(source, 'maxlength="320"', `${label} comment bound`);
+}
+must(clientNew, "$('save').disabled=true", 'desktop client create pending button lock');
+must(mobileClientNew, "$('save').disabled=true", 'mobile client create pending button lock');
 
 for (const token of [
   '/api/clients/by-id?client_id=',
@@ -72,4 +86,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Client CRM UI contracts OK: catalog-only browsing, dedicated creation, append-only client editing, bounded repair/payment history, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');
+console.log('Client CRM UI contracts OK: catalog-only browsing, desktop/mobile single-flight dedicated creation, append-only client editing, bounded repair/payment history, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');

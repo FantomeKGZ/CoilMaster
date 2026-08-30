@@ -12,16 +12,17 @@ for (const file of files) {
     process.exitCode = 1;
   };
 
-  if (!text.includes('id="sourceWires"')) fail('single source wire input is missing');
-  if (!text.includes("split(';')")) fail('semicolon-separated wire parser is missing');
-  if (!text.includes('raw.length>5')) fail('five-wire UI limit is missing');
+  if (!text.includes('id="sourceWires"')) fail('source wire/bundle input is missing');
+  if (!text.includes("split(';')")) fail('semicolon-separated component parser is missing');
+  if (!text.includes('raw.length>5')) fail('five-component UI limit is missing');
+  if (!text.includes('[xх×]')) fail('strand-count xN syntax is missing');
+  if (!text.includes('strands<1||strands>12')) fail('source strand-count 1..12 validation is missing');
   if (!text.includes('source_component_count')) fail('multi-component request count is missing');
   if (!text.includes("source_diameter_'")) fail('multi-component diameter args are missing');
   if (!text.includes("source_strands_'")) fail('multi-component strand args are missing');
-  if (!text.includes("q.set('source_strands_'+n,'1')")) fail('each entered diameter must represent one source wire');
-  if (text.includes('id="diameter"') || text.includes('id="strands"')) {
-    fail('legacy diameter/strand input pair must not return');
-  }
+  if (!text.includes("q.set('source_strands_'+n,String(c.strands))")) fail('entered source strand counts are not sent to API');
+  if (text.includes("q.set('source_strands_'+n,'1')")) fail('source strand count is still hard-coded to one');
+  if (!text.includes('0,80x3')) fail('operator example for repeated source strands is missing');
 
   if (!text.includes('id="standardResults"')) fail('standard recommendation block is missing');
   if (!text.includes('data.standard_recommendations')) fail('standard recommendation API result is not rendered');
@@ -37,7 +38,7 @@ if (staticSite.includes('calculator-multisource.js')) {
   process.exitCode = 1;
 }
 if (fs.existsSync(legacyHelperPath)) {
-  console.error(`${legacyHelperPath}: obsolete pre-sourceWires helper must remain removed`);
+  console.error(`${legacyHelperPath}: obsolete calculator helper must remain removed`);
   process.exitCode = 1;
 }
 
@@ -54,9 +55,10 @@ for (const required of [
   'standard_recommendations',
   'warehouse_available',
   'diameter_storage_precision_mm',
+  'parseUnsignedArg(m_server, strandsName.c_str(), 1UL, 12UL, strands)',
 ]) {
   if (!api.includes(required)) {
-    console.error(`${apiPath}: missing standard calculator contract: ${required}`);
+    console.error(`${apiPath}: missing calculator contract: ${required}`);
     process.exitCode = 1;
   }
 }
@@ -86,5 +88,5 @@ for (const forbidden of ['SD.', 'FILE_WRITE', 'FILE_APPEND', 'addSpool(', 'setWa
 }
 
 if (!process.exitCode) {
-  console.log('Calculator contracts OK: sourceWires UI, no legacy helper injection, warehouse recommendations, and read-only IEC standard alternatives');
+  console.log('Calculator contracts OK: source diameter x strand-count input, API propagation, warehouse recommendations, and read-only IEC standard alternatives');
 }

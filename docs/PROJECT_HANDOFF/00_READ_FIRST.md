@@ -18,6 +18,15 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified CI experiment heads перед текущими documentation updates:
 
 ```text
+de180b5deda6cf1545c439ca09c83da2193c4d30
+CMP Protocol Tests #4124  run 33294520980 / SUCCESS
+
+a5059a362844cb8b3668fb38afeea18ba29d552b
+CMP Protocol Tests #4123  run 33294500721 / SUCCESS
+
+124e43e7626a769750648cfac96d07c131bd548e
+CMP Protocol Tests #4122  run 33294397706 / SUCCESS
+
 5687a7153598879f68f2487e3e61f8241fa60447
 CMP Protocol Tests #4121  run 33294372059 / SUCCESS
 
@@ -28,16 +37,16 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4120` и `#4121`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `3c7d82daadffe516ae2c49904ffd750357658526` и `5687a7153598879f68f2487e3e61f8241fa60447` соответственно.
+GitHub metadata подтверждает для `#4122/#4123/#4124`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `124e43e7626a769750648cfac96d07c131bd548e`, `a5059a362844cb8b3668fb38afeea18ba29d552b` и `de180b5deda6cf1545c439ca09c83da2193c4d30` соответственно.
 
-Непосредственно перед текущими documentation updates branch HEAD был:
+Непосредственно перед текущим documentation update branch HEAD был:
 
 ```text
-124e43e7626a769750648cfac96d07c131bd548e
-message: docs(handoff): advance verified CI through 4119
+de180b5deda6cf1545c439ca09c83da2193c4d30
+message: docs(handoff): advance entrypoint through CMP 4121
 ```
 
-`#4120/#4121` не подтверждают `124e43e...`, поскольку оба run относятся к более ранним `head_sha`. После каждого нового docs commit свежий HEAD нельзя называть GREEN до отдельного exact CI run.
+`#4124` является exact GREEN confirmation этого pre-update HEAD. После нового docs commit свежий HEAD нельзя называть GREEN до отдельного exact CI run.
 
 Непосредственно предшествующие documentation heads также подтверждены:
 

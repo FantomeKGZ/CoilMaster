@@ -26,9 +26,10 @@ Experiment-side repo-reviewable software work закрыт through checkpoint **
 11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md
 12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
 13_HALL_RU_LCD_ACCEPTANCE.md
+14_NEXT_CHAT_TRANSFER_2026-08-30.md
 ```
 
-`01_CURRENT_STATE.md` остаётся общей полной сводкой состояния и CI evidence.
+`01_CURRENT_STATE.md` остаётся общей полной сводкой состояния и firmware/runtime CI evidence; `00_READ_FIRST.md` и `14_NEXT_CHAT_TRANSFER_2026-08-30.md` содержат свежую handoff CI chain.
 
 ## Закрытые software-блоки
 
@@ -220,6 +221,18 @@ uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); 1190 bytes Fla
 ```
 
 `Arduino RU LCD #205` (`33268835043`) is recorded as an intermediate stale-contract failure: it still expected English `HALL TEST READY` and failed before PlatformIO compile. The final aligned contract is GREEN at #206.
+
+## Latest verified handoff CI chain
+
+These CMP runs were independently verified against GitHub metadata on `arduino-ru-lcd-experiment`:
+
+```text
+CMP Protocol Tests #4033  run 33288156234 / SUCCESS  head 51d1de7839d4f0b7b7be3031546cc896e4bdb212
+CMP Protocol Tests #4034  run 33288559791 / SUCCESS  head 54ba0370894f4d42617fca36a4fe10611082ec7e
+CMP Protocol Tests #4035  run 33288575129 / SUCCESS  head c2d76a1e159733e9972a6e396537710682a84740
+```
+
+These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 
 ## Current execution order
 

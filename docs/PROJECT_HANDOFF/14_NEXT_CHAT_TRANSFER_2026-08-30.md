@@ -22,10 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified handoff HEAD перед текущим documentation update:
 
 ```text
-08d79f3a06ea473fff0644efe4540c5251942c39
+b189d7d3575663fa2f11b376352dca1cda301377
 ```
 
-Он подтверждён `CMP Protocol Tests #4061` (`33290011908`) / SUCCESS. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
+Он подтверждён `CMP Protocol Tests #4063` (`33290149645`) / SUCCESS. Предыдущий user-supplied `#4062` (`33290126788`) также подтверждён SUCCESS на exact head `f90ae58c163880491a40d9c23409984801835acc`. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
 
 ## 2. Что читать первым
 
@@ -214,9 +214,11 @@ a4ac7b02bb68dec2f8cc1887f9206188fb7b105e  CMP #4054  run 33289697240 / SUCCESS
 70e4db3aad53458bef5778b7c8cd5c7a08ec2840  CMP #4059  run 33289916765 / SUCCESS
 f04ee9e8f36b29cde590c0a364a6a95442bc56b3  CMP #4060  run 33289985842 / SUCCESS
 08d79f3a06ea473fff0644efe4540c5251942c39  CMP #4061  run 33290011908 / SUCCESS
+f90ae58c163880491a40d9c23409984801835acc  CMP #4062  run 33290126788 / SUCCESS
+b189d7d3575663fa2f11b376352dca1cda301377  CMP #4063  run 33290149645 / SUCCESS
 ```
 
-`#4036–#4061` are confirmed SUCCESS from GitHub metadata. The newest user-supplied runs are exact: `#4059` -> `70e4db3a...`, `#4060` -> `f04ee9e8...`, `#4061` -> `08d79f3a...`. `#4061` is exact for the branch HEAD immediately before this documentation commit.
+`#4036–#4063` are confirmed SUCCESS from GitHub metadata. The user-supplied `#4062` is exact for `f90ae58c...`; the immediately following docs-only HEAD `b189d7d...` is independently confirmed by `#4063`. Thus the verified handoff chain is continuous through `b189d7d...` before this documentation update.
 
 These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 

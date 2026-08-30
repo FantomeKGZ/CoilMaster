@@ -18,6 +18,12 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified CI experiment heads перед текущими documentation updates:
 
 ```text
+c834321ec8199d1d3420ed29a625c18760453ec6
+CMP Protocol Tests #4126  run 33294630764 / SUCCESS
+
+db0f3175caff1582b95628d85c5edcacf21a59d1
+CMP Protocol Tests #4125  run 33294606600 / SUCCESS
+
 de180b5deda6cf1545c439ca09c83da2193c4d30
 CMP Protocol Tests #4124  run 33294520980 / SUCCESS
 
@@ -37,16 +43,17 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4122/#4123/#4124`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `124e43e7626a769750648cfac96d07c131bd548e`, `a5059a362844cb8b3668fb38afeea18ba29d552b` и `de180b5deda6cf1545c439ca09c83da2193c4d30` соответственно.
+GitHub metadata подтверждает для `#4125/#4126`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `db0f3175caff1582b95628d85c5edcacf21a59d1` и `c834321ec8199d1d3420ed29a625c18760453ec6` соответственно.
 
-Непосредственно перед текущим documentation update branch HEAD был:
+Последний exact GREEN documentation head перед новым handoff update:
 
 ```text
-de180b5deda6cf1545c439ca09c83da2193c4d30
-message: docs(handoff): advance entrypoint through CMP 4121
+c834321ec8199d1d3420ed29a625c18760453ec6
+message: docs(handoff): advance transfer through CMP 4124
+CMP Protocol Tests #4126  run 33294630764 / SUCCESS
 ```
 
-`#4124` является exact GREEN confirmation этого pre-update HEAD. После нового docs commit свежий HEAD нельзя называть GREEN до отдельного exact CI run.
+После него создан documentation commit `b6f40e1cfd6db422a7f506363decc7aa14d2cf9f` (`docs(handoff): record CMP 4125 and 4126`). Его нельзя считать GREEN без собственного exact CI result. Текущий entrypoint commit после этой правки также требует собственного CI confirmation.
 
 Непосредственно предшествующие documentation heads также подтверждены:
 

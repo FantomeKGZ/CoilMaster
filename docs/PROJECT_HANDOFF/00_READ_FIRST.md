@@ -22,6 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 GitHub metadata independently confirms the latest documentation chain:
 
 ```text
+dc96c3917cf41b89521de5821151849434f9e0c4
+CMP Protocol Tests #4135  run 33295180004 / SUCCESS
+message: docs(handoff): record CMP 4132 through 4134
+
 8b3926b8de870589b64f0e0107d2f7a099e89c70
 CMP Protocol Tests #4134  run 33295091259 / SUCCESS
 message: docs(handoff): advance entrypoint through CMP 4131
@@ -47,9 +51,19 @@ f833937bdea98c38a200cce4f297a95d62513d80
 CMP Protocol Tests #4128  run 33294756834 / SUCCESS
 ```
 
-For `#4132/#4133/#4134`, branch is `arduino-ru-lcd-experiment`, event is `push`, status is `completed`, conclusion is `success`, and exact heads are `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f`, and `8b3926b8de870589b64f0e0107d2f7a099e89c70`.
+For `#4132/#4133/#4134/#4135`, branch is `arduino-ru-lcd-experiment`, event is `push`, status is `completed`, conclusion is `success`. Exact heads are `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f`, `8b3926b8de870589b64f0e0107d2f7a099e89c70`, and `dc96c3917cf41b89521de5821151849434f9e0c4` respectively.
 
-Therefore `8b3926b8de870589b64f0e0107d2f7a099e89c70` is an exact verified GREEN documentation head. Any documentation commit after it must get its own exact CI result before being called GREEN.
+Therefore `dc96c3917cf41b89521de5821151849434f9e0c4` is the latest exact independently verified GREEN documentation head from the supplied run evidence.
+
+The branch advanced after that run to docs-only commit:
+
+```text
+c7da174ea9e18897f66944d12123a60d2970e420
+message: docs(handoff): advance entrypoint through CMP 4134
+parent: dc96c3917cf41b89521de5821151849434f9e0c4
+```
+
+Do not call `c7da174ea9e18897f66944d12123a60d2970e420` GREEN until its own exact CI result is confirmed. This documentation update likewise requires its own exact CI result before being called GREEN.
 
 The longer verified handoff chain through `#4119` remains recorded in `14_NEXT_CHAT_TRANSFER_2026-08-30.md` and Git history. Documentation-only runs do not replace separate firmware/build evidence checkpoints 166–167.
 

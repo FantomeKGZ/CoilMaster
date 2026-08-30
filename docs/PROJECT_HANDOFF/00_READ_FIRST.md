@@ -19,13 +19,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4372**.
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` подтверждена непрерывно through **CMP #4374**.
 
 Последние подтверждённые runs:
 
 ```text
-#4363  run 33306794240 / SUCCESS  head 6cc656c20af049900d35e2b5121e7fdf457b1629
-#4364  run 33306844503 / SUCCESS  head 549baf30147e4d4299f398dbb114b6f3bb47606f
 #4365  run 33306865572 / SUCCESS  head c611516456787330940afdf7669962d119d01c24
 #4366  run 33306882621 / SUCCESS  head 58359f569ed471e203b299a655c77d63586dde34
 #4367  run 33306942337 / SUCCESS  head 0fb861671d815053913d559010400dfd27772e65
@@ -34,15 +32,17 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 #4370  run 33307043453 / SUCCESS  head e23c9fb4cebc05b79ad3b3fb983f6e332bd02c5b
 #4371  run 33307061087 / SUCCESS  head 3fa3667d0c04f20d72fe4dff8b3c77e247781afd
 #4372  run 33307082202 / SUCCESS  head 33aa480dc7d3f332fc74687eb56b6a12c2e62be2
+#4373  run 33307155421 / SUCCESS  head da9da3c07af898971f39b9dd0d395837b822a42a
+#4374  run 33307173725 / SUCCESS  head 98398b270b6e3fa536daefecfb94fbcb7cb5f3dc
 ```
 
-Полная непрерывная цепочка #4160–#4372 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
+Полная непрерывная цепочка #4160–#4374 хранится в `16_CMP_4160_4162_GREEN_2026-08-30.md`.
 
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-33aa480dc7d3f332fc74687eb56b6a12c2e62be2
-CMP Protocol Tests #4372  run 33307082202 / SUCCESS
+98398b270b6e3fa536daefecfb94fbcb7cb5f3dc
+CMP Protocol Tests #4374  run 33307173725 / SUCCESS
 ```
 
 Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167. Не создавать бесконечную цепочку docs commits только ради записи SUCCESS предыдущего docs commit.

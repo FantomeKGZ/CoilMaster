@@ -21,12 +21,32 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## 2. Latest independently verified CI handoff
 
-Последний independently verified experiment HEAD перед этим documentation update:
+Последние independently verified documentation heads:
 
 ```text
+5687a7153598879f68f2487e3e61f8241fa60447
+CMP Protocol Tests #4121  run 33294372059 / SUCCESS
+
+3c7d82daadffe516ae2c49904ffd750357658526
+CMP Protocol Tests #4120  run 33294305854 / SUCCESS
+
 046da69294074ac3ff74990c1d16d8072e8c9380
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
+
+GitHub metadata подтверждает:
+
+- `#4120`: branch `arduino-ru-lcd-experiment`, head `3c7d82daadffe516ae2c49904ffd750357658526`, status `completed`, conclusion `success`, event `push`;
+- `#4121`: branch `arduino-ru-lcd-experiment`, head `5687a7153598879f68f2487e3e61f8241fa60447`, status `completed`, conclusion `success`, event `push`.
+
+Текущий branch HEAD непосредственно перед этим documentation update был:
+
+```text
+124e43e7626a769750648cfac96d07c131bd548e
+message: docs(handoff): advance verified CI through 4119
+```
+
+`#4120/#4121` не подтверждают `124e43e...`, потому что их `head_sha` — более ранние commits. После этого нового docs commit снова получать свежий HEAD и не считать его GREEN до отдельного exact CI run.
 
 Непосредственно предыдущие documentation heads также подтверждены:
 
@@ -84,9 +104,7 @@ CMP Protocol Tests #4104  run 33293320035 / SUCCESS
 CMP Protocol Tests #4103  run 33293252153 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4119`: branch `arduino-ru-lcd-experiment`, head `046da69294074ac3ff74990c1d16d8072e8c9380`, status `completed`, conclusion `success`, event `push`. `#4119` является последним independently verified CI evidence перед этим documentation update.
-
-Это documentation-only confirmation текущего handoff chain и не заменяет отдельное firmware/build evidence checkpoints 166–167. После этого нового docs commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+Это documentation-only confirmation текущего handoff chain и не заменяет отдельное firmware/build evidence checkpoints 166–167.
 
 ## 3. Что читать первым
 

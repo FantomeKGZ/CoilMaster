@@ -40,25 +40,26 @@ message: docs(handoff): advance verified head through CMP 4139
 24300c90a77f17c8b4592b2f41932ea46ae34279
 CMP Protocol Tests #4141  run 33295478482 / SUCCESS
 message: docs(handoff): record CMP 4137 through 4139
-```
 
-GitHub metadata independently confirms #4140 and #4141 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
-
-Exact latest verified GREEN documentation head before the current documentation updates:
-
-```text
-24300c90a77f17c8b4592b2f41932ea46ae34279
-CMP Protocol Tests #4141  run 33295478482 / SUCCESS
-```
-
-The documentation then advanced first to:
-
-```text
 70ca869607d3556d3e37fc413c6ee557fdd442fd
+CMP Protocol Tests #4142  run 33295556344 / SUCCESS
 message: docs(handoff): record CMP 4140 and 4141
+
+0fd178e2d4a194b707420edfa1c4f525cad2fbdf
+CMP Protocol Tests #4143  run 33295571380 / SUCCESS
+message: docs(handoff): extend verified CI through CMP 4141
 ```
 
-and then to the commit containing this transfer-file update. Those newer documentation commits require their own exact CI results before they are called GREEN.
+GitHub metadata independently confirms #4140 through #4143 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
+
+Exact latest verified GREEN documentation head before this documentation update:
+
+```text
+0fd178e2d4a194b707420edfa1c4f525cad2fbdf
+CMP Protocol Tests #4143  run 33295571380 / SUCCESS
+```
+
+This current transfer-document commit is documentation-only and requires its own exact CI result before the new documentation HEAD is itself called GREEN.
 
 Earlier documentation verification remains valid in Git history. Documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
 

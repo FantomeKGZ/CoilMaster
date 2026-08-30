@@ -45,27 +45,39 @@ message: docs(handoff): advance through CMP 4156
 bd7e1f8454a25305fc0a4af47361341ba161d84f
 CMP Protocol Tests #4159  run 33296578402 / SUCCESS
 message: docs(handoff): record CMP 4157 and 4158
-```
 
-Для #4154–#4159 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. `#4159` exact-confirmed на `bd7e1f8454a25305fc0a4af47361341ba161d84f`.
-
-Следовательно latest exact independently verified GREEN documentation head перед текущими documentation-only обновлениями:
-
-```text
-bd7e1f8454a25305fc0a4af47361341ba161d84f
-CMP Protocol Tests #4159  run 33296578402 / SUCCESS
-```
-
-Текущий branch HEAD перед этим обновлением был:
-
-```text
 d8a597c1ac07ee234a824a419698a4dc61067761
+CMP Protocol Tests #4160  run 33296596573 / SUCCESS
 message: docs(handoff): advance through CMP 4158
+
+124464fc728414c6ba770669755a57e724e4710c
+CMP Protocol Tests #4161  run 33296706502 / SUCCESS
+message: docs(handoff): record CMP 4159
+
+4be7c2204eb2d552950b0e4648cb24358d6e356e
+CMP Protocol Tests #4162  run 33296723545 / SUCCESS
+message: docs(handoff): advance transfer through CMP 4159
 ```
 
-Для `d8a597c1...` и новых documentation-only commits после него нужен собственный exact CI result прежде чем их HEAD можно называть GREEN.
+Для #4154–#4162 GitHub metadata подтверждает branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success`. Для #4160–#4162 дополнительно проверен `host-tests`: configure/build/test и все audit steps завершены `success`.
 
-Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
+Latest exact independently verified GREEN documentation head перед текущим documentation-only update:
+
+```text
+4be7c2204eb2d552950b0e4648cb24358d6e356e
+CMP Protocol Tests #4162  run 33296723545 / SUCCESS
+```
+
+После него создан documentation-only checkpoint:
+
+```text
+8e451fb65495792cf69f9b96c4c43350835b622a
+message: docs(handoff): record CMP 4160-4162
+```
+
+`8e451fb...` и commit этого entrypoint update нельзя называть GREEN, пока для соответствующего HEAD не будет собственного exact SUCCESS.
+
+Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4162 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md`. Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 
 Stable pre-CRM snapshot:
 
@@ -90,6 +102,7 @@ docs/PROJECT_HANDOFF/12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
 docs/PROJECT_HANDOFF/13_HALL_RU_LCD_ACCEPTANCE.md
 docs/PROJECT_HANDOFF/14_NEXT_CHAT_TRANSFER_2026-08-30.md
 docs/PROJECT_HANDOFF/15_NEXT_CHAT_TRANSFER_2026-08-30.md
+docs/PROJECT_HANDOFF/16_CMP_4160_4162_GREEN_2026-08-30.md
 docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 ```
 

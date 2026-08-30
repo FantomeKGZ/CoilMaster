@@ -21,7 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata independently verifies the documentation chain through **CMP #4185**:
+GitHub metadata independently verifies the documentation chain through **CMP #4188** for the listed runs:
 
 ```text
 CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -49,6 +49,9 @@ CMP Protocol Tests #4181  run 33301246334 / SUCCESS  head c4a85986e5b32ded3e7f59
 CMP Protocol Tests #4183  run 33301292351 / SUCCESS  head ade926838f966e5e7a01cda274f3187bae4e7d26
 CMP Protocol Tests #4184  run 33301333347 / SUCCESS  head 9f712e53a4cf5ff1411b60069136736eedcca9a9
 CMP Protocol Tests #4185  run 33301354570 / SUCCESS  head d502921a9a18994a630366ed305a20bbd9cf584a
+CMP Protocol Tests #4186  run 33301373673 / SUCCESS  head 6fb066f6c780ab66ef2a48d8ea4992efda202823
+CMP Protocol Tests #4187  run 33301422840 / SUCCESS  head 025061dc1ba1705041ad9e73368d692c5b4c230a
+CMP Protocol Tests #4188  run 33301441473 / SUCCESS  head 81aac63927dbab3745273a2bc4a8e74c72b97416
 ```
 
 `#4182` не включён: в переданной и independently checked серии его metadata не зафиксированы.
@@ -56,11 +59,11 @@ CMP Protocol Tests #4185  run 33301354570 / SUCCESS  head d502921a9a18994a630366
 Latest exact independently verified GREEN SHA before the subsequent documentation refresh:
 
 ```text
-d502921a9a18994a630366ed305a20bbd9cf584a
-CMP Protocol Tests #4185  run 33301354570 / SUCCESS
+81aac63927dbab3745273a2bc4a8e74c72b97416
+CMP Protocol Tests #4188  run 33301441473 / SUCCESS
 ```
 
-#4179 verifies the documentation commit recording the operator-confirmed physical Hall/RU-LCD E2E pass. #4180 verifies the subsequent handoff commit closing the physical E2E gate. #4181 verifies the CI snapshot through #4180. #4183 verifies the transfer through #4180. #4184 verifies the snapshot through #4181. #4185 verifies the entrypoint through #4181.
+#4179 verifies the documentation commit recording the operator-confirmed physical Hall/RU-LCD E2E pass. #4180 verifies the subsequent handoff commit closing the physical E2E gate. #4181 verifies the CI snapshot through #4180. #4183 verifies the transfer through #4180. #4184 verifies the snapshot through #4181. #4185 verifies the entrypoint through #4181. #4186 verifies the transfer through #4181. #4187 verifies the snapshot through #4185. #4188 verifies the entrypoint through #4185.
 
 Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 

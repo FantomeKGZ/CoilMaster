@@ -34,20 +34,23 @@ CMP Protocol Tests #4168  run 33297201539 / SUCCESS  head 8b2442668a44ae9b115c85
 CMP Protocol Tests #4169  run 33297342101 / SUCCESS  head a9376388ad80376ca1190f41ef6ff203f4a08584
 CMP Protocol Tests #4170  run 33297367289 / SUCCESS  head 914ad8e868a7908eb4386ee1f2bcc180f8ddf3a8
 CMP Protocol Tests #4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7692256687d0be4704a
+CMP Protocol Tests #4172  run 33297482944 / SUCCESS  head 87286e3380bb2ca01b1da9d30b3106a53c7d8413
+CMP Protocol Tests #4173  run 33297519488 / SUCCESS  head aada5bf6eb3a7c8d17e24930638ab5f69dc9b81e
+CMP Protocol Tests #4174  run 33297539871 / SUCCESS  head c96439dbcb5db73cc97f2e3f672222fbc72ab082
 ```
 
-GitHub metadata подтверждает для #4160–#4171 branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success` в independently checked chain. Для #4160–#4162 и #4166–#4168 также отдельно проверялся `host-tests`.
+GitHub metadata подтверждает для #4160–#4174 branch = `arduino-ru-lcd-experiment`, event = `push`, status = `completed`, conclusion = `success` в independently checked chain. Для #4160–#4162 и #4166–#4168 также отдельно проверялся `host-tests`.
 
-Latest exact independently verified GREEN documentation head перед текущими documentation-only updates:
+Latest exact independently verified GREEN documentation head перед последующими documentation-only updates:
 
 ```text
-f8e7232009b1aa5e4900e7692256687d0be4704a
-CMP Protocol Tests #4171  run 33297388482 / SUCCESS
+c96439dbcb5db73cc97f2e3f672222fbc72ab082
+CMP Protocol Tests #4174  run 33297539871 / SUCCESS
 ```
 
-Текущие documentation-only updates после `f8e7232...` нельзя называть GREEN, пока для их exact HEAD не будет собственного SUCCESS. При этом не нужно создавать бесконечную цепочку новых documentation commits только ради записи SUCCESS предыдущего documentation commit, если engineering state не изменился.
+После `c96439d...` branch уже продвинулся documentation-only commits, начиная с `3128287b0fcbe404a377a0ac16fc8987ea377e2f`; текущие documentation updates также новее этого подтверждённого SHA. Их нельзя называть GREEN, пока для exact SHA не будет собственного SUCCESS. При этом не нужно создавать бесконечную цепочку новых documentation commits только ради записи SUCCESS предыдущего documentation commit, если engineering state не изменился.
 
-Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4171 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md` (имя файла сохранено для стабильной ссылки, заголовок/содержимое расширены through #4171). Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
+Подробный актуальный handoff находится в `15_NEXT_CHAT_TRANSFER_2026-08-30.md`; exact #4160–#4174 snapshot — в `16_CMP_4160_4162_GREEN_2026-08-30.md` (имя файла сохранено для стабильной ссылки, заголовок/содержимое расширены through #4174). Documentation-only runs не заменяют firmware/build evidence checkpoints 166–167.
 
 Stable pre-CRM snapshot:
 

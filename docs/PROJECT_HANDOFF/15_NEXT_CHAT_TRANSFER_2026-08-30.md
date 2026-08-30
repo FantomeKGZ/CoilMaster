@@ -27,11 +27,10 @@ Documentation-only CI recursion больше не основной work stream. 
 ## First feature result — calculator source strand counts
 
 Concrete gap fixed:
-- old Web UI accepted several diameters but hard-coded every component as `source_strands_N=1`;
-- desktop/mobile now parse `<diameter>x<strand-count>`;
+- desktop/mobile parse `<diameter>x<strand-count>`;
 - examples: `0,80x3`, `1,00x5`, `0,80x3;1,00x2`;
 - omitted `xN` defaults to one strand;
-- backend already validates 1..12 strands/component.
+- backend existing 1..12 validation reused.
 
 Commits:
 ```text
@@ -40,8 +39,7 @@ da6b5423d782b73ed4ebacb9aaf5fa164d5ac552  mobile
 1b7f8504184b681d5f7e0da7710c4a50601a346a  regression contract
 ```
 
-## Exact calculator build / CI evidence
-
+Exact build/CI evidence:
 ```text
 ESP32 #1780 run 33313307362 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
 Arduino RU LCD #209 run 33313307363 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
@@ -53,21 +51,21 @@ CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346
 ## Latest documentation CI
 
 ```text
-CMP #4557 run 33314870221 / SUCCESS head 3350fc4aeef7351487c1437105254b5e3b4469d6
-CMP #4558 run 33314954914 / SUCCESS head 658d63fe441b4ae7031604b38da17978f43ce6b4
-CMP #4559 run 33314980308 / SUCCESS head 3f64afcebf19f9e29d05b3a9e4e8fe0dd8aaf9b2
 CMP #4560 run 33314998446 / SUCCESS head 9baa2a1bfabbd392c5c310c4362011f60206bd98
 CMP #4561 run 33315091265 / SUCCESS head 3abf2f6b0bfd610865a6e97e21b75d05627dfb9a
 CMP #4562 run 33315109780 / SUCCESS head 1553bab026427abedb3bfcd8818565063b198019
 CMP #4563 run 33315135890 / SUCCESS head 3969b959cfbec3f2a0cb673b448276185cb52a57
+CMP #4564 run 33315227713 / SUCCESS head 68420580e4c7f3654c86289be8b6d42f56efe3c0
+CMP #4565 run 33315250634 / SUCCESS head 2f465d646ea801000fcc0e0d935e504f353e9beb
+CMP #4566 run 33315271992 / SUCCESS head 78187f76c51a94652c99feda0f260621e6cbe7c8
 ```
 
-#4561/#4562/#4563 verify the snapshot/entrypoint/transfer HANDOFF through #4560. Therefore all prior HANDOFF documentation through `3969b959cfbec3f2a0cb673b448276185cb52a57` is independently CMP-GREEN.
+#4564/#4565/#4566 verify the snapshot/entrypoint/transfer HANDOFF through #4563. Therefore all prior HANDOFF documentation through `78187f76c51a94652c99feda0f260621e6cbe7c8` is independently CMP-GREEN.
 
 Latest exact independently verified GREEN SHA before this transfer refresh:
 ```text
-3969b959cfbec3f2a0cb673b448276185cb52a57
-CMP #4563 run 33315135890 / SUCCESS
+78187f76c51a94652c99feda0f260621e6cbe7c8
+CMP #4566 run 33315271992 / SUCCESS
 ```
 
 Any newer docs commit requires its own exact run before being called GREEN. Do not create more docs-only commits merely to chase their own SUCCESS; return to the feature audit.

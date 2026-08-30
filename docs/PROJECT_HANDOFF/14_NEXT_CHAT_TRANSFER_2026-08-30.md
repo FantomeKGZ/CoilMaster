@@ -19,13 +19,13 @@ Production остаётся:
 cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```
 
-Последний exact CI-verified handoff HEAD перед текущими documentation updates:
+Последний exact CI-verified handoff HEAD перед текущим documentation update:
 
 ```text
-46cede22a06fdf7dc68dfce545c618ced9063876
+08d79f3a06ea473fff0644efe4540c5251942c39
 ```
 
-Он подтверждён `CMP Protocol Tests #4058`. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
+Он подтверждён `CMP Protocol Tests #4061` (`33290011908`) / SUCCESS. Последующие documentation-only commits не считать новым firmware runtime checkpoint; в новом чате всегда сначала получать свежий branch HEAD.
 
 ## 2. Что читать первым
 
@@ -184,118 +184,41 @@ Current semantics:
 All listed runs were independently checked against GitHub metadata and completed successfully on `arduino-ru-lcd-experiment`:
 
 ```text
-bcbc5441f337c53c7b92f956da49f019f4a747a5
-docs(handoff): refresh current entrypoint
-CMP Protocol Tests #4032  run 33288140386 / SUCCESS
-
-51d1de7839d4f0b7b7be3031546cc896e4bdb212
-docs(handoff): add 2026-08-30 transfer checkpoint
-CMP Protocol Tests #4033  run 33288156234 / SUCCESS
-
-54ba0370894f4d42617fca36a4fe10611082ec7e
-docs(handoff): record verified transfer CI
-CMP Protocol Tests #4034  run 33288559791 / SUCCESS
-
-c2d76a1e159733e9972a6e396537710682a84740
-docs(handoff): record CMP 4032 and 4033
-CMP Protocol Tests #4035  run 33288575129 / SUCCESS
-
-6e109d0c261fcd638c3bdf6922494b298f30d196
-docs(handoff): record CMP 4034 and 4035
-CMP Protocol Tests #4036  run 33288687699 / SUCCESS
-
-6ff5bbc578a06ef15935085a4048ee487ffaa2f9
-docs(handoff): extend verified CI chain
-CMP Protocol Tests #4037  run 33288701498 / SUCCESS
-
-89aa0d98d2811b32107b9f3f1ab043517fafe9f6
-docs(handoff): record latest verified CMP chain
-CMP Protocol Tests #4038  run 33288723882 / SUCCESS
-
-ec28cebb49ea68f2c0222e47b0e9971f8ee40077
-docs(handoff): record CMP 4036-4038
-CMP Protocol Tests #4039  run 33289007119 / SUCCESS
-
-62274a0fd7e0f40aa2da7768a8f52f46bbb4d891
-docs(handoff): extend latest verified CI chain
-CMP Protocol Tests #4040  run 33289028681 / SUCCESS
-
-04763307d222c9a9696a4fd396453882744e5a
-docs(handoff): record CMP 4039 and 4040
-CMP Protocol Tests #4041  run 33289102116 / SUCCESS
-
-fb34936f1e00816000bc5570a0060af0b8ebcca9
-docs(handoff): extend verified CI through 4040
-CMP Protocol Tests #4042  run 33289117627 / SUCCESS
-
-e72df70cb90a8bcb6bc28d7590c6b91eca09a063
-docs(handoff): record CMP 4041
-CMP Protocol Tests #4043  run 33289176000 / SUCCESS
-
-944c7c29461f16bb191a2183d913e6db427f0118
-docs(handoff): extend verified CI through 4041
-CMP Protocol Tests #4044  run 33289192924 / SUCCESS
-
-1bb563db927ad363474f6471252e97c77119ee48
-docs(handoff): record CMP 4042 and 4043
-CMP Protocol Tests #4045  run 33289269685 / SUCCESS
-
-a50bf196d1e8c88c5a1c578204cb6bebb9e0d5e5
-docs(handoff): extend verified CI through 4043
-CMP Protocol Tests #4046  run 33289289249 / SUCCESS
-
-1891dd264653dd4724441f4de15a4683c030f528
-docs(handoff): extend verified CI through 4046
-CMP Protocol Tests #4047  run 33289383083 / SUCCESS
-
-b8f67b5d81611ab5c96110b90adab9461bb4a37b
-docs(handoff): record CMP 4044-4046
-CMP Protocol Tests #4048  run 33289410136 / SUCCESS
-
-026d0e13f535257d85f542795c00e9471483001d
-docs(handoff): sync active CI chain through 4046
-CMP Protocol Tests #4049  run 33289445045 / SUCCESS
-
-fd3eb34a15ccdc334202f38d165934ae0bb1f2ce
-docs(handoff): extend verified CI through 4049
-CMP Protocol Tests #4050  run 33289542271 / SUCCESS
-
-248e6a1861ef310aba38910043124f4777833943
-docs(handoff): record CMP 4047-4049
-CMP Protocol Tests #4051  run 33289561938 / SUCCESS
-
-8d64b08eb05959eb0aa1112c936176e3bab36969
-docs(handoff): sync active CI through 4049
-CMP Protocol Tests #4052  run 33289583224 / SUCCESS
-
-60da9ea34c0fb2998aded8ff6dd35b28c0273b29
-docs(handoff): record CMP 4050 and 4051
-CMP Protocol Tests #4053  run 33289676773 / SUCCESS
-
-a4ac7b02bb68dec2f8cc1887f9206188fb7b105e
-docs(handoff): refresh entrypoint through CMP 4051
-CMP Protocol Tests #4054  run 33289697240 / SUCCESS
-
-78901d2f730e431411582c2e46e796560908b6c6
-docs(handoff): record CMP 4052 and 4053
-CMP Protocol Tests #4055  run 33289767490 / SUCCESS
-
-8177d383c8b0aa5b94658d3bb59fd86ff066a62e
-docs(handoff): extend verified CI through 4053
-CMP Protocol Tests #4056  run 33289786730 / SUCCESS
-
-1579b6a2c202457e501dc7a8aa3480ae0ce0702e
-docs(handoff): verify CI through CMP 4056
-CMP Protocol Tests #4057  run 33289866054 / SUCCESS
-
-46cede22a06fdf7dc68dfce545c618ced9063876
-docs(handoff): extend transfer CI through 4056
-CMP Protocol Tests #4058  run 33289891342 / SUCCESS
+bcbc5441f337c53c7b92f956da49f019f4a747a5  CMP #4032  run 33288140386 / SUCCESS
+51d1de7839d4f0b7b7be3031546cc896e4bdb212  CMP #4033  run 33288156234 / SUCCESS
+54ba0370894f4d42617fca36a4fe10611082ec7e  CMP #4034  run 33288559791 / SUCCESS
+c2d76a1e159733e9972a6e396537710682a84740  CMP #4035  run 33288575129 / SUCCESS
+6e109d0c261fcd638c3bdf6922494b298f30d196  CMP #4036  run 33288687699 / SUCCESS
+6ff5bbc578a06ef15935085a4048ee487ffaa2f9  CMP #4037  run 33288701498 / SUCCESS
+89aa0d98d2811b32107b9f3f1ab043517fafe9f6  CMP #4038  run 33288723882 / SUCCESS
+ec28cebb49ea68f2c0222e47b0e9971f8ee40077  CMP #4039  run 33289007119 / SUCCESS
+62274a0fd7e0f40aa2da7768a8f52f46bbb4d891  CMP #4040  run 33289028681 / SUCCESS
+04763307d222c9a9696a4fd396453882744e5a  CMP #4041  run 33289102116 / SUCCESS
+fb34936f1e00816000bc5570a0060af0b8ebcca9  CMP #4042  run 33289117627 / SUCCESS
+e72df70cb90a8bcb6bc28d7590c6b91eca09a063  CMP #4043  run 33289176000 / SUCCESS
+944c7c29461f16bb191a2183d913e6db427f0118  CMP #4044  run 33289192924 / SUCCESS
+1bb563db927ad363474f6471252e97c77119ee48  CMP #4045  run 33289269685 / SUCCESS
+a50bf196d1e8c88c5a1c578204cb6bebb9e0d5e5  CMP #4046  run 33289289249 / SUCCESS
+1891dd264653dd4724441f4de15a4683c030f528  CMP #4047  run 33289383083 / SUCCESS
+b8f67b5d81611ab5c96110b90adab9461bb4a37b  CMP #4048  run 33289410136 / SUCCESS
+026d0e13f535257d85f542795c00e9471483001d  CMP #4049  run 33289445045 / SUCCESS
+fd3eb34a15ccdc334202f38d165934ae0bb1f2ce  CMP #4050  run 33289542271 / SUCCESS
+248e6a1861ef310aba38910043124f4777833943  CMP #4051  run 33289561938 / SUCCESS
+8d64b08eb05959eb0aa1112c936176e3bab36969  CMP #4052  run 33289583224 / SUCCESS
+60da9ea34c0fb2998aded8ff6dd35b28c0273b29  CMP #4053  run 33289676773 / SUCCESS
+a4ac7b02bb68dec2f8cc1887f9206188fb7b105e  CMP #4054  run 33289697240 / SUCCESS
+78901d2f730e431411582c2e46e796560908b6c6  CMP #4055  run 33289767490 / SUCCESS
+8177d383c8b0aa5b94658d3bb59fd86ff066a62e  CMP #4056  run 33289786730 / SUCCESS
+1579b6a2c202457e501dc7a8aa3480ae0ce0702e  CMP #4057  run 33289866054 / SUCCESS
+46cede22a06fdf7dc68dfce545c618ced9063876  CMP #4058  run 33289891342 / SUCCESS
+70e4db3aad53458bef5778b7c8cd5c7a08ec2840  CMP #4059  run 33289916765 / SUCCESS
+f04ee9e8f36b29cde590c0a364a6a95442bc56b3  CMP #4060  run 33289985842 / SUCCESS
+08d79f3a06ea473fff0644efe4540c5251942c39  CMP #4061  run 33290011908 / SUCCESS
 ```
 
-`#4036–#4058` are confirmed SUCCESS from GitHub metadata. `#4036–#4038` additionally had the `host-tests` job explicitly rechecked successful in the prior handoff refresh. The latest supplied runs are exact: `#4056` -> `8177d383...`, `#4057` -> `1579b6a2...`, `#4058` -> `46cede22...`.
+`#4036–#4061` are confirmed SUCCESS from GitHub metadata. The newest user-supplied runs are exact: `#4059` -> `70e4db3a...`, `#4060` -> `f04ee9e8...`, `#4061` -> `08d79f3a...`. `#4061` is exact for the branch HEAD immediately before this documentation commit.
 
-These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The branch can advance through later documentation-only commits without making those older runs exact CI for the new HEAD. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
+These are documentation/contract handoff checks, not a new firmware runtime checkpoint. The latest exact Hall/RU-LCD firmware evidence remains checkpoint 166 / `#4028` + Arduino RU LCD `#206` above.
 
 ## 10. Immediate next work
 

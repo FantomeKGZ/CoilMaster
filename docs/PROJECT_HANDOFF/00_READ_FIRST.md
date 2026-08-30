@@ -19,7 +19,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Latest independently verified experiment CI
 
-Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` теперь подтверждена through **CMP #4185**:
+Свежая independently verified documentation chain на `arduino-ru-lcd-experiment` теперь подтверждена through **CMP #4188** для перечисленных run:
 
 ```text
 #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -47,6 +47,9 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 #4183  run 33301292351 / SUCCESS  head ade926838f966e5e7a01cda274f3187bae4e7d26
 #4184  run 33301333347 / SUCCESS  head 9f712e53a4cf5ff1411b60069136736eedcca9a9
 #4185  run 33301354570 / SUCCESS  head d502921a9a18994a630366ed305a20bbd9cf584a
+#4186  run 33301373673 / SUCCESS  head 6fb066f6c780ab66ef2a48d8ea4992efda202823
+#4187  run 33301422840 / SUCCESS  head 025061dc1ba1705041ad9e73368d692c5b4c230a
+#4188  run 33301441473 / SUCCESS  head 81aac63927dbab3745273a2bc4a8e74c72b97416
 ```
 
 `#4182` в текущей подтверждённой серии не зафиксирован и не должен предполагаться автоматически.
@@ -54,11 +57,11 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Latest exact independently verified GREEN head before this documentation update:
 
 ```text
-d502921a9a18994a630366ed305a20bbd9cf584a
-CMP Protocol Tests #4185  run 33301354570 / SUCCESS
+81aac63927dbab3745273a2bc4a8e74c72b97416
+CMP Protocol Tests #4188  run 33301441473 / SUCCESS
 ```
 
-Detailed CI snapshot: `16_CMP_4160_4162_GREEN_2026-08-30.md` (filename retained for stable reference; content is extended through #4185).
+Detailed CI snapshot: `16_CMP_4160_4162_GREEN_2026-08-30.md` (filename retained for stable reference; content is extended through #4188).
 
 Documentation-only runs do not replace firmware/build evidence for checkpoints 166–167. Do not create an endless chain of documentation commits merely to record SUCCESS of the immediately preceding documentation commit.
 

@@ -71,6 +71,8 @@ requireText(shell,'SD web unknown','Shell must fail soft when an old SD bundle h
 requireText(shell,"'/api/motors?'",'Global search must query motors');
 requireText(shell,"'/api/search/clients?'",'Global search must query clients by name/phone/id');
 requireText(shell,"'/api/search/repairs?'",'Global search must query repair records rather than use a decorative fallback');
+requireText(shell,'motor-details.html?motor_id=','Global search must open motor cards by ID');
+requireText(shell,'client-details.html?client_id=','Global search must open the canonical client card by ID');
 requireText(shell,'winding-history.html?repair_id=','Global search must provide repair navigation by ID');
 requireText(shell,"placeholder=\"Поиск: двигатель, клиент, ремонт\"",'Global search control must be visible');
 requireText(shell,'event.ctrlKey||event.metaKey','Global search keyboard shortcut must support Ctrl/Cmd');

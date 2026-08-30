@@ -230,7 +230,12 @@ These CMP runs were independently verified against GitHub metadata on `arduino-r
 CMP Protocol Tests #4033  run 33288156234 / SUCCESS  head 51d1de7839d4f0b7b7be3031546cc896e4bdb212
 CMP Protocol Tests #4034  run 33288559791 / SUCCESS  head 54ba0370894f4d42617fca36a4fe10611082ec7e
 CMP Protocol Tests #4035  run 33288575129 / SUCCESS  head c2d76a1e159733e9972a6e396537710682a84740
+CMP Protocol Tests #4036  run 33288687699 / SUCCESS  head 6e109d0c261fcd638c3bdf6922494b298f30d196
+CMP Protocol Tests #4037  run 33288701498 / SUCCESS  head 6ff5bbc578a06ef15935085a4048ee487ffaa2f9
+CMP Protocol Tests #4038  run 33288723882 / SUCCESS  head 89aa0d98d2811b32107b9f3f1ab043517fafe9f6
 ```
+
+`#4036–#4038` were rechecked against GitHub metadata; their `host-tests` jobs completed successfully. `#4038` is the latest verified pre-refresh source HEAD and completed the full host contract/audit job.
 
 These runs validate handoff/documentation/contract state only. They do not replace the exact checkpoint 166 firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
 

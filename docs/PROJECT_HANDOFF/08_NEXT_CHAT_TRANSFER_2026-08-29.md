@@ -22,10 +22,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 HEAD непосредственно перед этим handoff update:
 
 ```text
-c34540510a909937f039ae354a1ffc0c673ac2f6
+f8e7232009b1aa5e4900e7692256687d0be4704a
 ```
 
-Этот HEAD — documentation-only commit `docs(handoff): advance transfer through CMP 4097` и он точно подтверждён `CMP Protocol Tests #4100 / SUCCESS`.
+Этот HEAD — documentation-only commit `docs(handoff): refresh transfer through CMP 4168` и он точно подтверждён `CMP Protocol Tests #4171 / SUCCESS` (run `33297388482`).
 
 ## 2. Что читать в новом чате
 
@@ -121,22 +121,26 @@ The later runs after checkpoint 167 are documentation-only confirmations and do 
 Latest verified sequence supplied by the user and independently checked against GitHub metadata:
 
 ```text
-CMP Protocol Tests #4098  run 33292858194 / SUCCESS
-head 547f1c1e58f3fb657d6f75301c30f88b3e179589
-message docs(handoff): refresh entrypoint through CMP 4096
+CMP Protocol Tests #4168  run 33297201539 / SUCCESS
+head 8b2442668a44ae9b115c856120a518a0bb2cb794
+message docs(handoff): advance entrypoint through CMP 4166
 
-CMP Protocol Tests #4099  run 33292963140 / SUCCESS
-head a8997c55e49bbfaab6d863b480d558ce28d159e7
-message docs(handoff): record CMP 4097
+CMP Protocol Tests #4169  run 33297342101 / SUCCESS
+head a9376388ad80376ca1190f41ef6ff203f4a08584
+message docs(handoff): extend CMP snapshot through 4168
 
-CMP Protocol Tests #4100  run 33292981946 / SUCCESS
-head c34540510a909937f039ae354a1ffc0c673ac2f6
-message docs(handoff): advance transfer through CMP 4097
+CMP Protocol Tests #4170  run 33297367289 / SUCCESS
+head 914ad8e868a7908eb4386ee1f2bcc180f8ddf3a8
+message docs(handoff): advance entrypoint through CMP 4168
+
+CMP Protocol Tests #4171  run 33297388482 / SUCCESS
+head f8e7232009b1aa5e4900e7692256687d0be4704a
+message docs(handoff): refresh transfer through CMP 4168
 ```
 
-All three runs are on branch `arduino-ru-lcd-experiment`, completed successfully. They are three successive documentation HEADs, not repeated runs of one SHA. `#4100` is the exact GREEN confirmation for the branch HEAD that immediately preceded this documentation update.
+All four runs are on branch `arduino-ru-lcd-experiment`, completed successfully. They are successive documentation HEADs, not repeated runs of one SHA. `#4171` is the exact GREEN confirmation for the branch HEAD that immediately preceded this documentation update.
 
-Previously recorded documentation-only confirmations include `#4066–#4067`, `#4071–#4076` and the later handoff chain through `#4097`; they do not substitute for the exact checkpoint 166/167 runtime evidence.
+Earlier verified documentation-only confirmations include the chain through `#4100`, `#4066–#4067` and `#4071–#4076`; they do not substitute for exact checkpoint 166/167 runtime evidence.
 
 ## 7. Residual repeated-scan audit — checkpoint 165 NO-CHANGE
 

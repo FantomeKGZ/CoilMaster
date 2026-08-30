@@ -15,16 +15,22 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 Все новые изменения текущего цикла выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в `cmp-protocol-v1` без отдельного прямого запроса пользователя.
 
-Последний exact CI-verified experiment HEAD перед этим documentation update:
+Последний independently verified CI experiment HEAD перед этим documentation update:
 
 ```text
-9c9b05364d0a00cb801b75159202fc4201e9b0f5
-CMP Protocol Tests #4109  run 33293658325 / SUCCESS
+56dfb050993a8ecbf4e1c7ab9692ff7f58555668
+CMP Protocol Tests #4111  run 33293760814 / SUCCESS
 ```
 
 Непосредственно предшествующие documentation heads также подтверждены:
 
 ```text
+cbde2c24d9fadf9f7b3a2b048463457183245066
+CMP Protocol Tests #4110  run 33293676211 / SUCCESS
+
+9c9b05364d0a00cb801b75159202fc4201e9b0f5
+CMP Protocol Tests #4109  run 33293658325 / SUCCESS
+
 cc122bcad7140cb93be7532011180d70de454736
 CMP Protocol Tests #4108  run 33293540349 / SUCCESS
 
@@ -38,7 +44,7 @@ bcc3984bbaeda3e44132573e86c72199c7654521
 CMP Protocol Tests #4105  run 33293337241 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4106`, `#4107`, `#4108` и `#4109`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4109` является последним exact CI evidence перед этим documentation update. Эти documentation-only confirmations не заменяют отдельное firmware/build evidence checkpoints 166–167. После этого documentation update новый HEAD снова должен подтверждаться отдельным exact CI run прежде чем его можно называть GREEN.
+GitHub metadata подтверждает для `#4110` и `#4111`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4111` является последним independently verified CI evidence перед этим documentation update. Эти documentation-only confirmations не заменяют отдельное firmware/build evidence checkpoints 166–167. Текущий branch HEAD после следующих docs commits нельзя называть GREEN до отдельного exact CI run.
 
 Stable pre-CRM snapshot сохраняется:
 

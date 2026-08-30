@@ -49,23 +49,24 @@ CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346
 ## Latest exact documentation CI
 
 ```text
-CMP #4569 run 33315398757 / SUCCESS head 5574c14bf8e995c12cc3de0ad142c399d7470966
-CMP #4570 run 33315501283 / SUCCESS head af88677962f7ebef5e6959b6ea1d4f91c61047e3
-CMP #4571 run 33315522070 / SUCCESS head c982a250732e2f246cc8fc87337711e55b1fcdb1
 CMP #4572 run 33315540094 / SUCCESS head 5bf08ea0439ad8f67624b6db17c692da7f8dc333
 CMP #4573 run 33315616257 / SUCCESS head f00c7d64151c0604b72296156c8ee4531321364e
 CMP #4574 run 33315633625 / SUCCESS head e4af32aa5361fbafada845d8cabcd259f4e106dd
+CMP #4575 run 33315653163 / SUCCESS head 3486dda09f29775b46cc60dc4231ba984ab7c669
+CMP #4576 run 33315752219 / SUCCESS head 76b1e6d60404aaf715b9fa23b5e55b50205c9e6a
+CMP #4577 run 33315776327 / SUCCESS head 5b6b3eebd4e133e893227a48eefdf8036cba2555
+CMP #4578 run 33315795903 / SUCCESS head df4b1251b1d38b90ed0f5ef6ce26b92d794fd0bd
 ```
 
-#4573 verifies snapshot through #4572. #4574 verifies entrypoint through #4572. Transfer through #4572 `3486dda09f29775b46cc60dc4231ba984ab7c669` still requires its own exact SUCCESS before being called GREEN.
+#4575 verifies transfer through #4572. #4576/#4577/#4578 independently verify snapshot/entrypoint/transfer HANDOFF through #4574. Thus all HANDOFF documentation through `df4b1251b1d38b90ed0f5ef6ce26b92d794fd0bd` is independently CMP-GREEN.
 
 Latest exact independently verified GREEN SHA before this documentation refresh:
 ```text
-e4af32aa5361fbafada845d8cabcd259f4e106dd
-CMP #4574 run 33315633625 / SUCCESS
+df4b1251b1d38b90ed0f5ef6ce26b92d794fd0bd
+CMP #4578 run 33315795903 / SUCCESS
 ```
 
-New docs commits after #4574 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
+New docs commits after #4578 require their own exact run before being called GREEN. Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 

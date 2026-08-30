@@ -21,7 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata independently verifies the documentation chain continuously through **CMP #4191**:
+GitHub metadata independently verifies the documentation chain continuously through **CMP #4194**:
 
 ```text
 CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -56,16 +56,19 @@ CMP Protocol Tests #4188  run 33301441473 / SUCCESS  head 81aac63927dbab3745273a
 CMP Protocol Tests #4189  run 33301463914 / SUCCESS  head 6afd3f0e8b30621a5dadb12b182f39bfc6000664
 CMP Protocol Tests #4190  run 33301508840 / SUCCESS  head f6c747ceb6b52d52386d455ce89e5c9aea3090f0
 CMP Protocol Tests #4191  run 33301531996 / SUCCESS  head 2b2711cd99e73148fc10a8265a63b5cd575957aa
+CMP Protocol Tests #4192  run 33301556291 / SUCCESS  head 2f8b31e1b5079abcc1a965d74e2e9fac50381d9c
+CMP Protocol Tests #4193  run 33301601444 / SUCCESS  head f42e6c8c8f5d8245c59e6f55ff7c368dd779bb8e
+CMP Protocol Tests #4194  run 33301623857 / SUCCESS  head 194b8e3da0185d7d1a14c2a754eb917734807cf6
 ```
 
 Latest exact independently verified GREEN SHA before the subsequent documentation refresh:
 
 ```text
-2b2711cd99e73148fc10a8265a63b5cd575957aa
-CMP Protocol Tests #4191  run 33301531996 / SUCCESS
+194b8e3da0185d7d1a14c2a754eb917734807cf6
+CMP Protocol Tests #4194  run 33301623857 / SUCCESS
 ```
 
-#4182 is now explicitly verified as the documentation commit `docs(handoff): advance entrypoint through CMP 4180`, closing the previous numbering gap. #4189 verifies the transfer through #4185, #4190 verifies the snapshot through #4188, and #4191 verifies the entrypoint through #4188.
+#4192 verifies the transfer through #4188, #4193 verifies the snapshot through #4191, and #4194 verifies the entrypoint through #4191.
 
 Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 

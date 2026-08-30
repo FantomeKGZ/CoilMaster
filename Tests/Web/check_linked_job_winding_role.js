@@ -3,6 +3,8 @@ const fs = require('fs');
 const header = fs.readFileSync('firmware/esp32/src/CM_JobLinkageResolver.h', 'utf8');
 const source = fs.readFileSync('firmware/esp32/src/CM_JobLinkageResolver.cpp', 'utf8');
 const main = fs.readFileSync('firmware/esp32/src/main.cpp', 'utf8');
+const desktop = fs.readFileSync('firmware/esp32/web/desktop/winding-job.html', 'utf8');
+const mobile = fs.readFileSync('firmware/esp32/web/mobile/winding-job.html', 'utf8');
 
 function must(text, needle, label) {
   if (!text.includes(needle)) throw new Error(`missing ${label}: ${needle}`);
@@ -36,4 +38,16 @@ if (main.includes('jobLinkageResolver.resolveWithProgram(linkage.repairId,\n    
   throw new Error('linked job still uses role-blind resolver call');
 }
 
-console.log('Linked job winding-role contract OK: latest version is authoritative for role/program/repeat, legacy STARTING and malformed legacy repeat fail closed, and server validates exact program plus repeat target before job persistence/UART.');
+for (const [variant, page] of [['desktop', desktop], ['mobile', mobile]]) {
+  must(page, 'id="roleSelect" name="type"', `${variant} canonical role selector`);
+  must(page, 'id="repeatTarget" name="repeat_target" type="number" min="1" max="65535" step="1" value="1" readonly required', `${variant} repeat target read-only contract`);
+  must(page, '/api/motors/winding/latest?motor_id=', `${variant} authoritative winding-version lookup`);
+  must(page, 'windingRoles={working:null,starting:null}', `${variant} role state`);
+  must(page, 'starting_present===true', `${variant} STARTING presence gate`);
+  must(page, 'option[value="starting"]').disabled=!windingRoles.starting', `${variant} missing STARTING disabled`);
+  must(page, "requestedRole==='starting'&&!windingRoles.starting", `${variant} requested STARTING fail-closed gate`);
+  must(page, 'STARTING для этого двигателя не зарегистрирована. Подмена на WORKING запрещена.', `${variant} no STARTING-to-WORKING fallback`);
+  must(page, 'Программа и число повторов взяты из authoritative winding role', `${variant} locked role/program/repeat operator contract`);
+}
+
+console.log('Linked job winding-role contract OK: latest version is authoritative for role/program/repeat in backend and both desktop/mobile UIs, legacy STARTING and malformed legacy repeat fail closed, and server validates exact program plus repeat target before job persistence/UART.');

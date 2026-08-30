@@ -338,13 +338,15 @@ CMP Protocol Tests #4067  run 33290379205 / SUCCESS  head 52c2ed9015df7591fc730a
 CMP Protocol Tests #4068  run 33290408963 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
 CMP Protocol Tests #4069  run 33290422893 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 CMP Protocol Tests #4070  run 33290440543 / SUCCESS  head 0eb32376de3a4c50c765dcbe6b946524d075f69b
+CMP Protocol Tests #4071  run 33290487906 / SUCCESS  head 5ed169dc7ef0ac16768810d44bda732da2233b4f
+CMP Protocol Tests #4072  run 33290608524 / SUCCESS  head fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52
 ESP32 Build #1778         run 33290408891 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
 ESP32 Build #1779         run 33290422888 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 Arduino RU LCD #207       run 33290408886 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
 Arduino RU LCD #208       run 33290422860 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
 ```
 
-`#4066–#4067` are documentation-only handoff confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact code/build evidence for the desktop/mobile static selector cleanup. `#4070` is exact for the checkpoint-167 source-text regression contract. These runs do not replace the exact Hall firmware acceptance evidence for checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`).
+`#4066–#4067`, `#4071` and `#4072` are documentation-only handoff confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact code/build evidence for the desktop/mobile static selector cleanup. `#4070` is exact for the checkpoint-167 source-text regression contract. These runs do not replace the exact Hall firmware acceptance evidence for checkpoint 166 (`CMP #4028` + Arduino RU LCD `#206`).
 
 ## Safety / integrity boundaries that remain intentionally unchanged
 

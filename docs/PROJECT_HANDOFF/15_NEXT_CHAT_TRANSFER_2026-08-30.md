@@ -21,7 +21,7 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## Exact current handoff state
 
-GitHub metadata независимо подтверждает свежую documentation chain through CMP #4174:
+GitHub metadata independently verifies the documentation chain through **CMP #4180**:
 
 ```text
 CMP Protocol Tests #4160  run 33296596573 / SUCCESS  head d8a597c1ac07ee234a824a419698a4dc61067761
@@ -39,12 +39,24 @@ CMP Protocol Tests #4171  run 33297388482 / SUCCESS  head f8e7232009b1aa5e4900e7
 CMP Protocol Tests #4172  run 33297482944 / SUCCESS  head 87286e3380bb2ca01b1da9d30b3106a53c7d8413
 CMP Protocol Tests #4173  run 33297519488 / SUCCESS  head aada5bf6eb3a7c8d17e24930638ab5f69dc9b81e
 CMP Protocol Tests #4174  run 33297539871 / SUCCESS  head c96439dbcb5db73cc97f2e3f672222fbc72ab082
+CMP Protocol Tests #4175  run 33297558840 / SUCCESS  head 3128287b0fcbe404a377a0ac16fc8987ea377e2f
+CMP Protocol Tests #4176  run 33297636012 / SUCCESS  head b7d85d5fb1e478d6ce4d9aad75e855c1b5a12a85
+CMP Protocol Tests #4177  run 33297656125 / SUCCESS  head 67e4ee7b22b28d7c7574c82d66af6383f5fbea2b
 CMP Protocol Tests #4178  run 33297675300 / SUCCESS  head 93acd7112db32f81b1a1b3f70cdd5bd171cbb495
+CMP Protocol Tests #4179  run 33301160832 / SUCCESS  head a47b788995c31c9edd1b31d5f7abeecab962ea82
+CMP Protocol Tests #4180  run 33301185698 / SUCCESS  head 53176b964123f97eca65461bdfda5bb4b490c0c0
 ```
 
-CMP #4178 independently verified exact then-current branch HEAD `93acd711...` as `completed/success` on `arduino-ru-lcd-experiment`.
+Latest exact independently verified GREEN SHA before the subsequent documentation refresh:
 
-Documentation commits created after #4178 need their own exact CI evidence before being called GREEN; do not create an endless documentation-only CI recursion merely to record the preceding docs run.
+```text
+53176b964123f97eca65461bdfda5bb4b490c0c0
+CMP Protocol Tests #4180  run 33301185698 / SUCCESS
+```
+
+#4179 independently verifies the documentation commit that records the operator-confirmed physical Hall/RU-LCD E2E pass. #4180 independently verifies the subsequent handoff commit that closes the physical E2E gate.
+
+Do not create an endless documentation-only CI recursion merely to record SUCCESS of the preceding docs commit.
 
 ## Current engineering state
 
@@ -69,9 +81,9 @@ Repo-reviewable experiment-side software work закрыт through checkpoint **
 167 static canonical winding-role selector cleanup -> GREEN
 ```
 
-Checkpoints 159–167 считать закрытыми и не переделывать без конкретной regression.
+Checkpoints 159–167 считать закрытыми и не переделывать без concrete regression.
 
-Repeated-scan/performance optimization считается исчерпанной до появления concrete measured bottleneck или дефекта. Не продолжать speculative storage refactors только ради уменьшения file opens.
+Repeated-scan/performance optimization считается исчерпанной до появления concrete measured bottleneck или defect. Не продолжать speculative storage refactors только ради уменьшения file opens.
 
 ## Firmware/build evidence
 
@@ -107,15 +119,15 @@ Arduino RU LCD #208       run 33290422860 / SUCCESS
 CMP Protocol Tests #4070  run 33290440543 / SUCCESS
 ```
 
-Documentation-only CI after these checkpoints does not replace their firmware/build evidence.
+Documentation-only CI does not replace these firmware/build evidence checkpoints.
 
 ## Physical Arduino + ESP32 E2E — operator-confirmed PASS
 
 На **2026-08-30** пользователь сообщил, что физический тест реального CoilMaster проведён и **всё работает нормально**.
 
-Это operator-confirmed hardware evidence, а не автоматически наблюдаемый CI result. Физический acceptance gate, который до этого оставался обязательным, считается закрытым для текущего проверенного hardware/firmware состояния.
+Это operator-confirmed hardware evidence, а не автоматически наблюдаемый CI result. Physical acceptance gate считается закрытым для текущего проверенного hardware/firmware состояния.
 
-Gate охватывает intended acceptance boundaries:
+Accepted boundaries:
 
 1. ESP32 command -> Arduino ack.
 2. Keypad responsiveness до и после Hall mode.
@@ -127,18 +139,18 @@ Gate охватывает intended acceptance boundaries:
 8. Manual exact RUN_WIRE writeoff с `spool_id + source_session_id + source_run_id`.
 9. Reboot/recovery fail-closed behavior; no auto-resume.
 
-Если позже обнаружится конкретная hardware regression, она становится новым finding и должна исправляться минимально, не переоткрывая автоматически остальные закрытые checkpoints.
+Если позже обнаружится concrete hardware regression, она становится новым finding и исправляется минимально, не переоткрывая автоматически остальные закрытые checkpoints.
 
 ## Immediate next work
 
-Repo-reviewable software checkpoints 159–167 закрыты, speculative performance work остановлена, physical Arduino+ESP32 E2E также закрыт operator-confirmed PASS.
+Repo-reviewable software checkpoints 159–167 закрыты, speculative performance work остановлена, physical Arduino+ESP32 E2E закрыт operator-confirmed PASS.
 
 Следовательно, **нет обязательного незакрытого engineering gate** из текущего handoff.
 
 Дальнейшая работа должна начинаться только от одного из следующих реальных входов:
 
-- конкретный runtime/software defect;
-- новый hardware finding;
+- concrete runtime/software defect;
+- new hardware finding;
 - measured performance bottleneck;
 - явно выбранная новая product feature/UX задача;
 - отдельный прямой запрос на перенос experiment в production.

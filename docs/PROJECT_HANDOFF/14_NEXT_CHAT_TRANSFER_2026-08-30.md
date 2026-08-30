@@ -21,10 +21,10 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 
 ## 2. Latest independently verified CI handoff
 
-Перед текущим documentation update exact branch HEAD был:
+Текущий подтверждённый pre-update branch HEAD:
 
 ```text
-01b209e8a8fd00119f5c1eb54982685737993b38
+87db3b6d5220da933b94f02bcaf9d917bae26835
 ```
 
 Последняя подтверждённая documentation-only цепочка:
@@ -44,11 +44,14 @@ CMP Protocol Tests #4080  run 33291272960 / SUCCESS
 
 01b209e8a8fd00119f5c1eb54982685737993b38
 CMP Protocol Tests #4081  run 33291293949 / SUCCESS
+
+87db3b6d5220da933b94f02bcaf9d917bae26835
+CMP Protocol Tests #4082  run 33291400295 / SUCCESS
 ```
 
-Для `#4077–#4081`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
+Для `#4077–#4082`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`.
 
-`#4080` подтверждает documentation commit `docs(handoff): sync checkpoint 167 latest CI`; `#4081` подтверждает непосредственный pre-update HEAD `01b209e8...` (`docs(handoff): record CMP 4077 through 4079`). Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+`#4080` подтверждает documentation commit `docs(handoff): sync checkpoint 167 latest CI`; `#4081` подтверждает `01b209e8...` (`docs(handoff): record CMP 4077 through 4079`); `#4082` подтверждает непосредственный pre-update HEAD `87db3b6d...` (`docs(handoff): record CMP 4080 and 4081`). Эти runs являются documentation-only confirmations и не заменяют firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 
@@ -218,4 +221,3 @@ If hardware E2E exposes a defect, fix only that concrete defect in `arduino-ru-l
 - Continue code/commits until the concrete repo-reviewable block is closed or a real external blocker exists.
 - Do not ask the user to manually verify each commit.
 - Never call CI/build GREEN without exact current run confirmation.
-- Do not copy experiment commits into production without explicit approval.

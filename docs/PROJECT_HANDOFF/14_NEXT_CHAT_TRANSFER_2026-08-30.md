@@ -24,13 +24,20 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последний exact CI-verified experiment HEAD перед этим documentation update:
 
 ```text
-df4af83bc11635a41303c4aa17fe8b4d96e18bd7
-CMP Protocol Tests #4101  run 33293094890 / SUCCESS
+5e4631ff11ad5e86180d70d481ff8f9d3030873d
+CMP Protocol Tests #4103  run 33293252153 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4101`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact head `df4af83bc11635a41303c4aa17fe8b4d96e18bd7`. Job `host-tests` полностью SUCCESS, включая CMake configure/build/test и contract-аудиты Arduino, Web, CRM, Warehouse, material/costing, backup, Hall и RU LCD.
+Предыдущий documentation head также независимо подтверждён:
 
-Это documentation-only confirmation текущего handoff HEAD и не заменяет отдельное firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
+```text
+63d757babe290044702e70d139dfdeb577be1c62
+CMP Protocol Tests #4102  run 33293235402 / SUCCESS
+```
+
+GitHub metadata подтверждает для `#4102` и `#4103`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, exact heads указаны выше. `#4103` является последним exact CI evidence перед этим documentation update.
+
+Это documentation-only confirmation текущего handoff chain и не заменяет отдельное firmware/build evidence checkpoints 166–167. После любого нового docs/code commit снова получать свежий HEAD и не считать его GREEN до отдельного exact run.
 
 ## 3. Что читать первым
 

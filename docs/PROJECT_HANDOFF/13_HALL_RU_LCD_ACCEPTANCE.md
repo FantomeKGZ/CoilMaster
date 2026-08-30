@@ -6,7 +6,7 @@ Production/source-of-truth: **`cmp-protocol-v1`** — не изменён.
 
 ## Purpose
 
-Этот файл фиксирует repo-reviewable acceptance состояние Hall calibration + русского LCD после checkpoint 166. Он не заменяет финальный physical two-board E2E.
+Этот файл фиксирует repo-reviewable acceptance состояние Hall calibration + русского LCD после checkpoint 166 и последующий physical two-board E2E на реальном CoilMaster.
 
 ## Reachable Hall LCD states
 
@@ -102,19 +102,29 @@ Flash headroom = 1190 bytes
 
 Практическое следствие: Arduino Uno больше не является подходящим местом для широкого расширения Hall processing/UI. Новые Uno-side изменения допустимы только при конкретном дефекте и должны быть очень малы. Расширенную обработку/представление по возможности держать на ESP32, сохраняя автономную безопасность Arduino.
 
-## Remaining acceptance
+## Physical two-board E2E — operator-confirmed PASS
 
-Repo-reviewable checkpoint 166 закрыт. Финальное acceptance Hall/RU-LCD требует physical Arduino+ESP32 E2E на реальном CoilMaster:
+На **2026-08-30** пользователь сообщил, что физический тест CoilMaster с Arduino + ESP32 проведён и **всё работает нормально**.
 
-- boot without reset loop;
-- keypad remains responsive;
-- normal RU screens render correctly before and after Hall mode;
-- Hall armed screen appears and does not start automatically;
-- keypad `A` and separate physical START each start only when interlocks permit;
-- SSR remains Arduino-owned and fail-safe;
-- running countdown is readable for the full 15-second test;
-- apply `#` persists accepted calibration; `B` rejects without applying;
-- after Hall exit, ordinary RU glyphs are not corrupted by Hall CGRAM slots;
-- ESP32 loss does not make Arduino unsafe and does not create automatic resume/start.
+Это является operator-confirmed hardware evidence, а не автоматически наблюдаемым CI результатом. На основании отчёта пользователя физический acceptance gate считается пройденным для текущего проверенного hardware/firmware состояния.
 
-До physical E2E не считать весь проект release-complete.
+Acceptance scope, для которого этот gate предназначен:
+
+- boot без reset loop;
+- keypad остаётся responsive;
+- normal RU screens корректны до и после Hall mode;
+- Hall armed state не запускает мотор автоматически;
+- local keypad/physical START ownership сохраняется;
+- SSR остаётся Arduino-owned и fail-safe;
+- 15-second Hall run работает;
+- apply/reject paths работают;
+- ordinary RU glyphs восстанавливаются после Hall CGRAM;
+- ESP32 loss не создаёт automatic resume/start.
+
+Если позже конкретный пункт из этого списка даст regression на железе, считать это новым hardware finding и исправлять минимально, не переоткрывая остальные закрытые checkpoints.
+
+## Acceptance status
+
+Repo-reviewable checkpoint 166 закрыт, а physical Arduino+ESP32 Hall/RU-LCD E2E теперь также подтверждён пользователем.
+
+Hall/RU-LCD acceptance для текущего experiment состояния считается **COMPLETE**. Новые изменения в этой области требуются только при конкретном дефекте, regression или новом product requirement.

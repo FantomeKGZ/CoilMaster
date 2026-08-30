@@ -44,7 +44,7 @@ for (const [variant, page] of [['desktop', desktop], ['mobile', mobile]]) {
   must(page, '/api/motors/winding/latest?motor_id=', `${variant} authoritative winding-version lookup`);
   must(page, 'windingRoles={working:null,starting:null}', `${variant} role state`);
   must(page, 'starting_present===true', `${variant} STARTING presence gate`);
-  must(page, 'option[value="starting"]').disabled=!windingRoles.starting', `${variant} missing STARTING disabled`);
+  must(page, 'querySelector(\'option[value="starting"]\').disabled=!windingRoles.starting', `${variant} missing STARTING disabled`);
   must(page, "requestedRole==='starting'&&!windingRoles.starting", `${variant} requested STARTING fail-closed gate`);
   must(page, 'STARTING для этого двигателя не зарегистрирована. Подмена на WORKING запрещена.', `${variant} no STARTING-to-WORKING fallback`);
   must(page, 'Программа и число повторов взяты из authoritative winding role', `${variant} locked role/program/repeat operator contract`);

@@ -18,6 +18,9 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последние independently verified CI experiment heads перед текущими documentation updates:
 
 ```text
+58dda8de4b76861d05a14390bc3760f4647b7876
+CMP Protocol Tests #4131  run 33294943179 / SUCCESS
+
 fd098e0bbd72acc2c7e5c11b397e2315314343d5
 CMP Protocol Tests #4130  run 33294860227 / SUCCESS
 
@@ -55,17 +58,17 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata подтверждает для `#4128/#4129/#4130`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `f833937bdea98c38a200cce4f297a95d62513d80`, `2390d6e1916c2bd2cbbcb72901cf486e200c72e2` и `fd098e0bbd72acc2c7e5c11b397e2315314343d5` соответственно.
+GitHub metadata подтверждает для `#4128/#4129/#4130/#4131`: branch `arduino-ru-lcd-experiment`, status `completed`, conclusion `success`, event `push`, с exact heads `f833937bdea98c38a200cce4f297a95d62513d80`, `2390d6e1916c2bd2cbbcb72901cf486e200c72e2`, `fd098e0bbd72acc2c7e5c11b397e2315314343d5` и `58dda8de4b76861d05a14390bc3760f4647b7876` соответственно.
 
 Последний exact GREEN documentation head перед новыми handoff updates:
 
 ```text
-fd098e0bbd72acc2c7e5c11b397e2315314343d5
-message: docs(handoff): advance entrypoint through CMP 4127
-CMP Protocol Tests #4130  run 33294860227 / SUCCESS
+58dda8de4b76861d05a14390bc3760f4647b7876
+message: docs(handoff): record CMP 4128 through 4130
+CMP Protocol Tests #4131  run 33294943179 / SUCCESS
 ```
 
-Созданные после `fd098e0...` documentation commits нельзя считать GREEN без собственного exact CI result.
+На момент проверки перед текущими записями branch HEAD был `103dc4ef9267c266ae64acadbe2dd198d6a77eed` (`docs(handoff): extend verified CI chain through 4130`). Для него собственного exact CI result в подтверждённой цепочке ещё не было. Новые documentation commits также считать GREEN только после их exact CI result.
 
 Непосредственно предшествующие documentation heads также подтверждены:
 

@@ -26,36 +26,41 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 ```text
 13c26dad7b01f10545d1019cb130d350f26cef89
 CMP Protocol Tests #4137  run 33295262217 / SUCCESS
-message: docs(handoff): record CMP 4135
 
 9b62ddd9ce6cfff1a9075635dad5f3b81c785ef0
 CMP Protocol Tests #4138  run 33295354492 / SUCCESS
-message: docs(handoff): record CMP 4136
 
 ae15755f99d9c545a057e50cc483e56da1173838
 CMP Protocol Tests #4139  run 33295375686 / SUCCESS
-message: docs(handoff): extend verified CI through CMP 4136
+
+f7ee334f5a2fac874e335729e3cca7d0ab1b8351
+CMP Protocol Tests #4140  run 33295459355 / SUCCESS
+message: docs(handoff): advance verified head through CMP 4139
+
+24300c90a77f17c8b4592b2f41932ea46ae34279
+CMP Protocol Tests #4141  run 33295478482 / SUCCESS
+message: docs(handoff): record CMP 4137 through 4139
 ```
 
-GitHub metadata independently confirms all three runs on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
+GitHub metadata independently confirms #4140 and #4141 on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`.
 
 Exact latest verified GREEN documentation head before the current documentation updates:
 
 ```text
-ae15755f99d9c545a057e50cc483e56da1173838
-CMP Protocol Tests #4139  run 33295375686 / SUCCESS
+24300c90a77f17c8b4592b2f41932ea46ae34279
+CMP Protocol Tests #4141  run 33295478482 / SUCCESS
 ```
 
-The documentation then advanced to:
+The documentation then advanced first to:
 
 ```text
-f7ee334f5a2fac874e335729e3cca7d0ab1b8351
-message: docs(handoff): advance verified head through CMP 4139
+70ca869607d3556d3e37fc413c6ee557fdd442fd
+message: docs(handoff): record CMP 4140 and 4141
 ```
 
-`f7ee334f...` and this current transfer-document commit must each receive their own exact CI result before either new documentation head is itself called GREEN.
+and then to the commit containing this transfer-file update. Those newer documentation commits require their own exact CI results before they are called GREEN.
 
-Earlier documentation verification through `#4136` remains valid in Git history. Documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
+Earlier documentation verification remains valid in Git history. Documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
 
 ## 3. Что читать первым
 

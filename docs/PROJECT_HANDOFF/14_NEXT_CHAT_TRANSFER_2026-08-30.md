@@ -24,6 +24,14 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 Последняя independently verified documentation chain:
 
 ```text
+c7da174ea9e18897f66944d12123a60d2970e420
+CMP Protocol Tests #4136  run 33295198287 / SUCCESS
+message: docs(handoff): advance entrypoint through CMP 4134
+
+dc96c3917cf41b89521de5821151849434f9e0c4
+CMP Protocol Tests #4135  run 33295180004 / SUCCESS
+message: docs(handoff): record CMP 4132 through 4134
+
 8b3926b8de870589b64f0e0107d2f7a099e89c70
 CMP Protocol Tests #4134  run 33295091259 / SUCCESS
 message: docs(handoff): advance entrypoint through CMP 4131
@@ -76,16 +84,24 @@ CMP Protocol Tests #4120  run 33294305854 / SUCCESS
 CMP Protocol Tests #4119  run 33294282887 / SUCCESS
 ```
 
-GitHub metadata independently confirms `#4132/#4133/#4134` on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`, with exact heads `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f` and `8b3926b8de870589b64f0e0107d2f7a099e89c70` respectively.
+GitHub metadata independently confirms `#4132/#4133/#4134/#4135/#4136` on branch `arduino-ru-lcd-experiment`, event `push`, status `completed`, conclusion `success`, with exact heads `103dc4ef9267c266ae64acadbe2dd198d6a77eed`, `b97fd6b9f77496646573bbd1ea64c151c049a78f`, `8b3926b8de870589b64f0e0107d2f7a099e89c70`, `dc96c3917cf41b89521de5821151849434f9e0c4` and `c7da174ea9e18897f66944d12123a60d2970e420` respectively.
 
-Therefore the exact branch HEAD immediately before this documentation update is verified GREEN:
+Therefore the latest exact independently verified GREEN documentation head is:
 
 ```text
-8b3926b8de870589b64f0e0107d2f7a099e89c70
-CMP Protocol Tests #4134  run 33295091259 / SUCCESS
+c7da174ea9e18897f66944d12123a60d2970e420
+CMP Protocol Tests #4136  run 33295198287 / SUCCESS
 ```
 
-This new documentation commit must get its own exact CI result before it is itself called GREEN.
+The branch then advanced through documentation-only commits, including:
+
+```text
+13c26dad7b01f10545d1019cb130d350f26cef89
+message: docs(handoff): record CMP 4135
+parent: c7da174ea9e18897f66944d12123a60d2970e420
+```
+
+Any documentation commit newer than `c7da174e...` must get its own exact CI result before it is itself called GREEN.
 
 The preceding documentation chain through `#4118` is already recorded in repository history and remains valid. These documentation-only confirmations do not replace separate firmware/build evidence for checkpoints 166–167.
 

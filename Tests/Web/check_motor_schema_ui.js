@@ -52,6 +52,7 @@ for (const [relative, source] of [
   for (const token of [
     "rows.length<1||rows.length>50",
     "const allowedFields=new Set",
+    "repeat_target:[1,65535]",
     "неизвестное поле ",
     "packageIdentityMatch",
     "/api/motors/similar?",
@@ -59,7 +60,14 @@ for (const [relative, source] of [
     "similar.identity_match_count",
     "selected:!errors.length&&!similar.identity_match_count",
     "confirm('Создать '+selected.length+' карточек?')",
-    "fetch('/api/motors',{method:'POST'"
+    "fetch('/api/motors',{method:'POST'",
+    "function windingRoleForm",
+    "fetch('/api/motors/winding/role'",
+    "expected_winding_version_id','0'",
+    "role','WORKING'",
+    "version_comment','MOTOR_IMPORT'",
+    "ЧАСТИЧНО",
+    "startsWith('ЧАСТИЧНО')"
   ]) {
     if (!source.includes(token)) failures.push(`${relative}: missing import contract ${token}`);
   }
@@ -112,4 +120,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor Web contracts OK: catalogs stay read-only, desktop/mobile import parity and validation/similarity/operator-selection semantics are locked, similarity responses stay bounded, and winding version fallback remains explicit.');
+console.log('Motor Web contracts OK: catalogs stay read-only; desktop/mobile import parity, validation, similarity, canonical WORKING version creation and explicit partial-failure semantics are locked; similarity responses stay bounded, and winding version fallback remains explicit.');

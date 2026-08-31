@@ -14,6 +14,7 @@ const interlock = read('firmware/esp32/src/CM_ProductionMutationInterlock.h');
 const backupHeader = read('firmware/esp32/src/CM_RemoteBackupWeb.h');
 const backup = read('firmware/esp32/src/CM_RemoteBackupWeb.cpp');
 const backupActivity = read('firmware/esp32/src/CM_BackupActivityGuard.cpp');
+const staleGuard = read('firmware/esp32/web/shared/backup-restore-stale-guard.js');
 
 // One handler must sit in front of all subsequently registered API routes. It is
 // inert during normal operation and only intercepts mutating API methods while
@@ -80,5 +81,21 @@ requireText(backupActivity, 'storage.exists(RunWireIssuePendingStore::TempPath)'
   'backup must block on RUN_WIRE pending temp recovery residue');
 requireText(backupActivity, 'return BackupActivityCheck::Busy;',
   'RUN_WIRE recovery residue must fail closed as backup busy');
+
+// The guard is shared with read-only backup pages. Those pages have no remote
+// restore/apply controls, so they must not hammer apply-status every 800 ms. The
+// polling and MutationObserver are only activated when restore UI is present.
+requireText(staleGuard, 'function hasRestoreUi()',
+  'shared stale guard must detect whether restore UI is present');
+requireText(staleGuard, 'if(!hasRestoreUi())return;',
+  'read-only backup pages must exit before restore apply-status polling');
+const gateAt = staleGuard.indexOf('if(!hasRestoreUi())return;');
+const observerAt = staleGuard.indexOf('new MutationObserver');
+const pollAt = staleGuard.lastIndexOf('checkApplyEvidence();');
+if (gateAt < 0 || observerAt < 0 || pollAt < 0 || gateAt > observerAt || gateAt > pollAt) {
+  throw new Error('restore UI presence gate must run before observer/poll startup');
+}
+requireText(staleGuard, "fetch('/api/backup/remote/apply-status'",
+  'restore pages must retain stale apply evidence polling');
 
 console.log('Restore mutation interlock contracts: OK');

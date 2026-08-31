@@ -1,4 +1,7 @@
 #include "CM_MotorSimilarityWeb.h"
+
+#include <SD.h>
+
 #include "CM_WindingProgramParser.h"
 
 namespace CM
@@ -197,17 +200,121 @@ bool parseMotorUpdateRequest(WebServer& server,
                              calculated == "on" || calculated == "yes";
     return true;
 }
+
+bool parseConductors(const String& canonical,
+                     MotorWindingRoleSpec& role)
+{
+    role.conductorCount = 0U;
+    if (canonical.length() == 0U) return true;
+
+    size_t start = 0U;
+    while (start < canonical.length())
+    {
+        if (role.conductorCount >= MotorWindingRoleSpec::MaxConductors) return false;
+        const int plus = canonical.indexOf('+', start);
+        const size_t end = plus < 0 ? canonical.length() : static_cast<size_t>(plus);
+        if (end <= start) return false;
+        const String token = canonical.substring(start, end);
+        const int colon = token.indexOf(':');
+        const int x = token.indexOf('x', colon + 1);
+        if (colon <= 0 || x <= colon + 1 || static_cast<size_t>(x + 1) >= token.length())
+            return false;
+
+        WindingConductorSpec& conductor = role.conductors[role.conductorCount];
+        conductor.materialClass = token.substring(0U, static_cast<size_t>(colon));
+        if (conductor.materialClass != "CU" && conductor.materialClass != "AL") return false;
+
+        uint32_t diameter = 0UL;
+        uint32_t strands = 0UL;
+        if (!parseUnsignedText(token.substring(static_cast<size_t>(colon + 1),
+                                               static_cast<size_t>(x)),
+                               1UL, 0xFFFFUL, diameter) ||
+            !parseUnsignedText(token.substring(static_cast<size_t>(x + 1)),
+                               1UL, 0xFFUL, strands))
+        {
+            return false;
+        }
+        conductor.diameterHundredthsMm = static_cast<uint16_t>(diameter);
+        conductor.strandCount = static_cast<uint8_t>(strands);
+        ++role.conductorCount;
+        if (plus < 0) break;
+        start = end + 1U;
+    }
+    return true;
+}
+
+bool parseWindingRoleRequest(WebServer& server,
+                             const String& roleName,
+                             MotorWindingRoleSpec& role,
+                             const char*& error)
+{
+    role = MotorWindingRoleSpec();
+    const bool starting = roleName == "STARTING";
+    const String presentText = server.hasArg("present") ? server.arg("present") : String("true");
+    const bool present = presentText == "true" || presentText == "1" || presentText == "on";
+    if (!present && !starting)
+    {
+        error = "working_role_required";
+        return false;
+    }
+    if (!present)
+    {
+        role.present = false;
+        return true;
+    }
+
+    role.present = true;
+    role.coilProgram = server.arg("coil_program");
+    if (role.coilProgram.length() == 0U || !WindingProgramParser::valid(role.coilProgram))
+    {
+        error = "invalid_winding_coil_program";
+        return false;
+    }
+
+    uint32_t parsed = 1UL;
+    if (server.hasArg("repeat_target") && server.arg("repeat_target").length() > 0U &&
+        !parseUnsignedText(server.arg("repeat_target"), 1UL, 0xFFFFUL, parsed))
+    {
+        error = "invalid_winding_repeat_target";
+        return false;
+    }
+    role.repeatTarget = static_cast<uint16_t>(parsed);
+
+    parsed = 0UL;
+    if (server.hasArg("coil_pitch") && server.arg("coil_pitch").length() > 0U &&
+        !parseUnsignedText(server.arg("coil_pitch"), 1UL, 0xFFFFUL, parsed))
+    {
+        error = "invalid_winding_coil_pitch";
+        return false;
+    }
+    role.coilPitch = static_cast<uint16_t>(parsed);
+
+    if (!parseConductors(server.arg("conductors"), role))
+    {
+        error = "invalid_winding_conductors";
+        return false;
+    }
+    return true;
+}
 }
 
 MotorSimilarityWeb::MotorSimilarityWeb(WebServer& server, RepairRegistry& registry)
-    : m_server(server), m_registry(registry) {}
+    : m_server(server),
+      m_registry(registry),
+      m_windingVersions(SD),
+      m_windingVersionsReady(false)
+{
+}
 
 void MotorSimilarityWeb::begin()
 {
+    m_windingVersionsReady = m_windingVersions.begin();
     m_server.on("/api/motors/similar", HTTP_GET,
                 [this]() { handleLookup(); });
     m_server.on("/api/motors/update", HTTP_POST,
                 [this]() { handleUpdate(); });
+    m_server.on("/api/motors/winding/role", HTTP_POST,
+                [this]() { handleWindingRoleUpdate(); });
 }
 
 void MotorSimilarityWeb::handleUpdate()
@@ -255,6 +362,129 @@ void MotorSimilarityWeb::handleUpdate()
     response += motorId;
     response += '}';
     m_server.send(200, "application/json; charset=utf-8", response);
+}
+
+void MotorSimilarityWeb::handleWindingRoleUpdate()
+{
+    if (!m_registry.ready() || !m_windingVersionsReady || !m_windingVersions.ready())
+    {
+        m_server.send(503, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_store_unavailable\"}");
+        return;
+    }
+
+    uint32_t motorId = 0UL;
+    uint32_t expectedVersionId = 0UL;
+    if (!m_server.hasArg("motor_id") ||
+        !parseUnsignedText(m_server.arg("motor_id"), 1UL, 0xFFFFFFFFUL, motorId) ||
+        !m_server.hasArg("expected_winding_version_id") ||
+        !parseUnsignedText(m_server.arg("expected_winding_version_id"),
+                           0UL, 0xFFFFFFFFUL, expectedVersionId))
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"invalid_motor_or_expected_winding_version_id\"}");
+        return;
+    }
+
+    bool motorFound = false;
+    if (!m_registry.motorExists(motorId, motorFound))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_lookup_failed\"}");
+        return;
+    }
+    if (!motorFound)
+    {
+        m_server.send(404, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_not_found\"}");
+        return;
+    }
+
+    const String roleName = m_server.arg("role");
+    if (roleName != "WORKING" && roleName != "STARTING")
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"editable_winding_role_required\"}");
+        return;
+    }
+
+    NewMotorWindingVersion latest;
+    uint32_t latestVersionId = 0UL;
+    bool latestFound = false;
+    if (!m_windingVersions.loadLatestByMotor(motorId, latest, latestVersionId, latestFound))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_integrity_failed\"}");
+        return;
+    }
+
+    if ((latestFound && latestVersionId != expectedVersionId) ||
+        (!latestFound && expectedVersionId != 0UL))
+    {
+        String response = F("{\"error\":\"winding_version_conflict\",\"expected_winding_version_id\":");
+        response += expectedVersionId;
+        response += F(",\"current_winding_version_id\":");
+        response += latestFound ? latestVersionId : 0UL;
+        response += '}';
+        m_server.send(409, "application/json; charset=utf-8", response);
+        return;
+    }
+    if (!latestFound && roleName == "STARTING")
+    {
+        m_server.send(409, "application/json; charset=utf-8",
+                      "{\"error\":\"working_winding_version_required\",\"current_winding_version_id\":0}");
+        return;
+    }
+
+    MotorWindingRoleSpec replacement;
+    const char* error = nullptr;
+    if (!parseWindingRoleRequest(m_server, roleName, replacement, error))
+    {
+        String response = F("{\"error\":\"");
+        response += error == nullptr ? "invalid_winding_role" : error;
+        response += F("\"}");
+        m_server.send(400, "application/json; charset=utf-8", response);
+        return;
+    }
+
+    NewMotorWindingVersion next = latestFound ? latest : NewMotorWindingVersion();
+    next.motorId = motorId;
+    next.previousVersionId = latestFound ? latestVersionId : 0UL;
+    next.sourceRepairId = 0UL;
+    next.sourceAutonomousSessionId = 0UL;
+    next.sourceAutonomousRunId = 0UL;
+    next.sourceAutonomousRole = String();
+    next.versionKind = "MANUAL_ROLE_EDIT";
+    next.createdAt = m_server.arg("created_at");
+    next.comment = m_server.arg("version_comment");
+    if (next.createdAt.length() < 10U)
+    {
+        m_server.send(400, "application/json; charset=utf-8",
+                      "{\"error\":\"created_at_required\"}");
+        return;
+    }
+
+    if (roleName == "WORKING") next.working = replacement;
+    else next.starting = replacement;
+
+    uint32_t newVersionId = 0UL;
+    if (!m_windingVersions.append(next, newVersionId))
+    {
+        m_server.send(500, "application/json; charset=utf-8",
+                      "{\"error\":\"motor_winding_version_append_failed\"}");
+        return;
+    }
+
+    String response = F("{\"updated\":true,\"motor_id\":");
+    response += motorId;
+    response += F(",\"role\":\"");
+    response += roleName;
+    response += F("\",\"previous_winding_version_id\":");
+    response += latestFound ? latestVersionId : 0UL;
+    response += F(",\"winding_version_id\":");
+    response += newVersionId;
+    response += '}';
+    m_server.send(201, "application/json; charset=utf-8", response);
 }
 
 void MotorSimilarityWeb::handleLookup()

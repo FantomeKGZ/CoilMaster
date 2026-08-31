@@ -97,4 +97,6 @@ for (const path of [
     `CMP Protocol Tests pull-request trigger missing ${path}`);
 }
 
-console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, and main is not a build push source.');
+require('./check_web_recovery_ftp_contracts.js');
+
+console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, and FTP recovery contracts are audited.');

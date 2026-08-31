@@ -11,7 +11,7 @@ FTP/Web recovery runtime audit is **NO-CHANGE**. No backend/runtime defect requi
 The audit confirmed:
 
 - desktop and mobile FTP settings use the same shared controller;
-- operator controls use `/api/ftp/status`, `/api/ftp/start`, `/api/ftp/stop`;
+- operator controls resolve `/api/ftp/status` plus POST `/api/ftp/` + explicit `start` / `stop` action;
 - remote-backup configuration/test on the same page uses `/api/backup/remote/configuration` and `/api/backup/remote/test`;
 - FTP storage remains confined to `/web`;
 - upload replacement uses a temporary `.part` file before rename to the final path;
@@ -35,20 +35,23 @@ It is invoked from the existing mandatory Web/CI contract audit:
 Tests/Web/check_ci_trigger_contracts.js
 ```
 
-Commits:
+Observed verification chain:
 
 ```text
-ca8ab7a70e22c2ec4ae38c5654ef25e0cc57b627  test(web): lock FTP recovery contracts
+226cc65a82cfc42bc172fe27b53153e669062812  test(web): lock FTP recovery contracts
+CMP Protocol Tests #4740 / run 33371841283 / SUCCESS
+
 d0ff4b0cd4fc5197511012f6baa4dd033caa2ac7  test(web): run FTP recovery contract audit
+CMP Protocol Tests #4741 / run 33371920243 / FAILURE
+reason: regression expected literal /api/ftp/start while production correctly builds /api/ftp/ + action
+
+8a3eadd260b9c1d33c9cf44e5fbd203e261b7e69  test(web): align FTP action contract with shared controller
+CMP Protocol Tests #4743 / SUCCESS
 ```
 
-Exact code/test HEAD before this documentation commit:
+`#4741` was an intermediate **test-contract failure**, not an FTP runtime failure. The correction changed only the regression assertion; production FTP/UI code remained unchanged.
 
-```text
-d0ff4b0cd4fc5197511012f6baa4dd033caa2ac7
-```
-
-CI for this code/test HEAD must be recorded only after an exact `completed/success` run is independently confirmed. Do not transfer GREEN from earlier commits.
+Exact code/test HEAD `8a3eadd260b9c1d33c9cf44e5fbd203e261b7e69` is CMP-confirmed GREEN by `#4743`. This documentation commit is a newer HEAD and must receive its own exact SUCCESS before being called GREEN.
 
 ## Next repo-reviewable block
 

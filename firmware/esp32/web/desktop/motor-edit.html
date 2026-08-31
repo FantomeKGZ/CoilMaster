@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Редактирование двигателя — CoilMaster</title>
 <style>
-body{margin:0;background:#edf2f6;font-family:Arial;color:#17212b}.layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#142536;color:#fff;padding:22px}aside a{display:block;color:#d9e5ee;text-decoration:none;padding:11px 0}main{padding:22px}.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:14px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field.wide{grid-column:1/-1}.field label{font-size:13px;color:#5d6973;font-weight:bold}.field input,.field select,.field textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #c9d4de;border-radius:9px;background:#fff;font:inherit}.field textarea{min-height:85px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn{display:inline-block;padding:11px 15px;border-radius:9px;text-decoration:none;border:0;font-size:15px;font-weight:bold;cursor:pointer}.primary{background:#1769aa;color:#fff}.secondary{background:#e7eef5;color:#17324b}.danger{background:#b23b3b;color:#fff}.muted{color:#687580}.ok{background:#e8f7ee;border:1px solid #82c99f;padding:12px;border-radius:10px}.warn{background:#fff3d8;border:1px solid #efc86a;padding:12px;border-radius:10px}.hidden{display:none}@media(max-width:950px){.layout{display:block}aside{display:none}.grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.grid{grid-template-columns:1fr}}
+body{margin:0;background:#edf2f6;font-family:Arial;color:#17212b}.layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}aside{background:#142536;color:#fff;padding:22px}aside a{display:block;color:#d9e5ee;text-decoration:none;padding:11px 0}main{padding:22px}.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:14px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px}.field.wide{grid-column:1/-1}.field label{font-size:13px;color:#5d6973;font-weight:bold}.field input,.field select,.field textarea{box-sizing:border-box;width:100%;padding:10px;border:1px solid #c9d4de;border-radius:9px;background:#fff;font:inherit}.field textarea{min-height:85px;resize:vertical}.actions{display:flex;gap:10px;flex-wrap:wrap}.btn{display:inline-block;padding:11px 15px;border-radius:9px;text-decoration:none;border:0;font-size:15px;font-weight:bold;cursor:pointer}.primary{background:#1769aa;color:#fff}.secondary{background:#e7eef5;color:#17324b}.danger{background:#b23b3b;color:#fff}.muted{color:#687580}.ok{background:#e8f7ee;border:1px solid #82c99f;padding:12px;border-radius:10px}.warn{background:#fff3d8;border:1px solid #efc86a;padding:12px;border-radius:10px}.hidden{display:none}.rolebox{margin-top:18px;padding:16px;border:1px solid #d8e2ea;border-radius:12px;background:#f8fbfd}.rolebox h3{margin:0 0 12px}.versionbar{margin:16px 0 6px;padding:10px 12px;background:#eef5fa;border-radius:9px}@media(max-width:950px){.layout{display:block}aside{display:none}.grid{grid-template-columns:1fr 1fr}}@media(max-width:650px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body><div class="layout"><aside><h2>CoilMaster</h2><a href="/desktop/">Главная</a><a href="/desktop/repairs.html">Ремонты</a><a href="/desktop/clients.html">Клиенты</a><a href="/desktop/motors.html">Двигатели</a></aside><main>
@@ -27,16 +27,36 @@ body{margin:0;background:#edf2f6;font-family:Arial;color:#17212b}.layout{display
 <div class="field"><label>Количество полюсов</label><input id="pole_count" inputmode="numeric"></div>
 <div class="field"><label>Соединение</label><input id="connection" placeholder="звезда / треугольник"></div>
 </div></section>
-<section class="card"><h2>Обмотка</h2><div class="grid">
-<div class="field"><label>Программа витков</label><input id="coil_program" required placeholder="38/38"></div>
-<div class="field"><label>Количество повторов</label><input id="repeat_target" inputmode="numeric" value="1"></div>
-<div class="field"><label>Шаг катушки</label><input id="coil_pitch" inputmode="numeric"></div>
+<section class="card"><h2>Обмотка</h2>
+<p class="muted">Основные поля ниже остаются частью карточки двигателя. Версионные WORKING/STARTING сохраняются отдельно и не изменяют историю — создаётся новая версия.</p>
+<div class="grid">
+<div class="field"><label>Программа витков карточки</label><input id="coil_program" required placeholder="38/38"></div>
+<div class="field"><label>Количество повторов карточки</label><input id="repeat_target" inputmode="numeric" value="1"></div>
+<div class="field"><label>Шаг катушки карточки</label><input id="coil_pitch" inputmode="numeric"></div>
 <div class="field"><label>Витков на катушку</label><input id="turns_per_coil" inputmode="numeric"></div>
 <div class="field"><label>Диаметр провода, мм</label><input id="wire_diameter_mm" type="number" step="0.01" min="0"></div>
 <div class="field"><label>Количество параллельных жил</label><input id="parallel_strands" inputmode="numeric"></div>
 <div class="field"><label>Материал провода</label><input id="wire_material" placeholder="CU / AL"></div>
 <div class="field"><label>Тип обмотки</label><input id="winding_type"></div>
-</div></section>
+</div>
+<div id="windingVersion" class="versionbar muted">Версия обмотки: загрузка…</div>
+<div class="rolebox"><h3>Рабочая обмотка</h3><div class="grid">
+<div class="field"><label>Программа витков</label><input id="working_program" placeholder="38/38"></div>
+<div class="field"><label>Количество повторов</label><input id="working_repeat_target" value="1"></div>
+<div class="field"><label>Шаг катушки</label><input id="working_coil_pitch"></div>
+<div class="field wide"><label>Проводники (например CU:95x1+CU:100x1)</label><input id="working_conductors" placeholder="CU:95x1"></div>
+<div class="field wide"><label>Комментарий к новой версии</label><input id="working_version_comment"></div>
+</div><div class="actions"><button id="saveWorking" class="btn primary" type="button">Сохранить рабочую обмотку</button></div></div>
+<div class="rolebox"><h3>Пусковая обмотка</h3><div class="grid">
+<div class="field"><label><input id="starting_present" type="checkbox" style="width:auto"> Пусковая обмотка используется</label></div>
+<div class="field"><label>Программа витков</label><input id="starting_program"></div>
+<div class="field"><label>Количество повторов</label><input id="starting_repeat_target" value="1"></div>
+<div class="field"><label>Шаг катушки</label><input id="starting_coil_pitch"></div>
+<div class="field wide"><label>Проводники (например CU:80x2)</label><input id="starting_conductors" placeholder="CU:80x2"></div>
+<div class="field wide"><label>Комментарий к новой версии</label><input id="starting_version_comment"></div>
+</div><div class="actions"><button id="saveStarting" class="btn primary" type="button">Сохранить пусковую обмотку</button></div></div>
+<p id="windingMessage" class="muted"></p>
+</section>
 <section class="card"><h2>Статор</h2><div class="grid">
 <div class="field"><label>Внутренний диаметр статора, мм</label><input id="stator_bore_mm" inputmode="numeric"></div>
 <div class="field"><label>Длина пакета статора, мм</label><input id="stator_core_length_mm" inputmode="numeric"></div>
@@ -50,7 +70,7 @@ body{margin:0;background:#edf2f6;font-family:Arial;color:#17212b}.layout{display
 <div class="field"><label><input id="calculated_fields" type="checkbox" style="width:auto"> Есть расчётные поля</label></div>
 <div class="field wide"><label>Комментарий</label><textarea id="comment"></textarea></div>
 </div></section>
-<div class="actions"><button id="save" class="btn primary" type="submit">Сохранить изменения</button><a id="cancel" class="btn secondary" href="/desktop/motors.html">Отмена</a></div>
+<div class="actions"><button id="save" class="btn primary" type="submit">Сохранить данные двигателя</button><a id="cancel" class="btn secondary" href="/desktop/motors.html">Отмена</a></div>
 </form>
 <p id="message" class="muted"></p>
 </main></div>
@@ -59,19 +79,30 @@ localStorage.setItem('cm-ui-version','desktop');
 const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),motorId=params.get('motor_id');
 const text=(id,v)=>$(id).value=(v===undefined||v===null?'':String(v));
 const optional=(body,name,value)=>{const v=String(value??'').trim();if(v!=='')body.set(name,v)};
+let currentWindingVersionId=0,legacyMotor=null;
+function legacyConductors(m){const mat=String(m.wire_material||'').toUpperCase(),dia=Number(m.wire_diameter_hundredths_mm||0),strands=Number(m.parallel_strands||0);return (['CU','AL'].includes(mat)&&dia>0&&strands>0)?`${mat}:${dia}x${strands}`:''}
 function fill(m){
- $('identity').textContent='motor_id: '+m.motor_id;
+ legacyMotor=m;$('identity').textContent='motor_id: '+m.motor_id;
  text('manufacturer',m.manufacturer);text('model',m.model);text('name',m.name);text('tags',m.tags);
  text('rated_power_w',m.rated_power_w);text('rated_voltage_v',m.rated_voltage_v);text('rated_current_a',m.rated_current_ma?Number(m.rated_current_ma)/1000:'');text('rated_speed_rpm',m.rated_speed_rpm);text('frequency_hz',m.frequency_hz);text('phase_count',m.phase_count??m.phases);text('slot_count',m.slot_count);text('pole_count',m.pole_count);text('connection',m.connection);
  text('coil_program',m.coil_program);text('repeat_target',m.repeat_target||1);text('coil_pitch',m.coil_pitch);text('turns_per_coil',m.turns_per_coil);text('wire_diameter_mm',m.wire_diameter_hundredths_mm?Number(m.wire_diameter_hundredths_mm)/100:'');text('parallel_strands',m.parallel_strands);text('wire_material',m.wire_material);text('winding_type',m.winding_type);
  text('stator_bore_mm',m.stator_bore_mm);text('stator_core_length_mm',m.stator_core_length_mm);
  text('source_type',m.source_type);text('source_title',m.source_title);text('confidence',m.confidence);text('source_url',m.source_url);text('source_retrieved_at',m.source_retrieved_at);$('calculated_fields').checked=m.calculated_fields===true;text('comment',m.comment);
 }
+function fillWinding(item){
+ currentWindingVersionId=item?.winding_version_id||0;$('windingVersion').textContent=currentWindingVersionId?'Текущая версия обмотки: #'+currentWindingVersionId:'Версионной истории пока нет. Первое сохранение WORKING создаст версию #1 для этого двигателя.';
+ const w=item?{program:item.working_program,repeat:item.working_repeat_target,pitch:item.working_coil_pitch,conductors:item.working_conductors}:{program:legacyMotor?.coil_program,repeat:legacyMotor?.repeat_target,pitch:legacyMotor?.coil_pitch,conductors:legacyConductors(legacyMotor||{})};
+ text('working_program',w.program);text('working_repeat_target',w.repeat||1);text('working_coil_pitch',w.pitch);text('working_conductors',w.conductors);
+ const present=item?.starting_present===true;$('starting_present').checked=present;text('starting_program',present?item.starting_program:'');text('starting_repeat_target',present?(item.starting_repeat_target||1):1);text('starting_coil_pitch',present?item.starting_coil_pitch:'');text('starting_conductors',present?item.starting_conductors:'');
+}
+async function loadWinding(){const r=await fetch('/api/motors/winding/latest?motor_id='+encodeURIComponent(motorId),{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'winding_read_failed');fillWinding(j.item)}
+async function saveRole(role){const prefix=role==='WORKING'?'working':'starting',button=$(role==='WORKING'?'saveWorking':'saveStarting');button.disabled=true;$('windingMessage').className='muted';$('windingMessage').textContent='Сохранение обмотки…';try{const b=new URLSearchParams();b.set('motor_id',motorId);b.set('role',role);b.set('expected_winding_version_id',String(currentWindingVersionId));const present=role==='WORKING'||$('starting_present').checked;b.set('present',present?'true':'false');if(present){b.set('coil_program',$(prefix+'_program').value.trim());b.set('repeat_target',$(prefix+'_repeat_target').value.trim()||'1');optional(b,'coil_pitch',$(prefix+'_coil_pitch').value);b.set('conductors',$(prefix+'_conductors').value.trim().toUpperCase())}b.set('version_comment',$(prefix+'_version_comment').value.trim());b.set('created_at',new Date().toISOString());const r=await fetch('/api/motors/winding/role',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:b}),j=await r.json();if(r.status===409){await loadWinding();throw new Error('Версия обмотки изменилась. Загружены свежие данные; проверьте их и повторите сохранение.')}if(!r.ok)throw new Error(j.error||'winding_update_failed');currentWindingVersionId=j.winding_version_id;await loadWinding();$(prefix+'_version_comment').value='';$('windingMessage').className='ok';$('windingMessage').textContent=(role==='WORKING'?'Рабочая':'Пусковая')+' обмотка сохранена новой версией #'+currentWindingVersionId+'.'}catch(err){$('windingMessage').className='warn';$('windingMessage').textContent='Ошибка сохранения обмотки: '+(err.message||'unknown')}finally{button.disabled=false}}
 async function load(){
  if(!motorId){$('message').className='warn';$('message').textContent='motor_id не указан';$('form').classList.add('hidden');return}
  $('back').href='/desktop/motor-details.html?motor_id='+encodeURIComponent(motorId);$('cancel').href=$('back').href;
- try{const r=await fetch('/api/motors/by-id?motor_id='+encodeURIComponent(motorId),{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'motor_read_failed');fill(j.item)}catch(e){$('message').className='warn';$('message').textContent='Не удалось загрузить двигатель: '+(e.message||'unknown');$('form').classList.add('hidden')}
+ try{const r=await fetch('/api/motors/by-id?motor_id='+encodeURIComponent(motorId),{cache:'no-store'}),j=await r.json();if(!r.ok)throw new Error(j.error||'motor_read_failed');fill(j.item);await loadWinding()}catch(e){$('message').className='warn';$('message').textContent='Не удалось загрузить двигатель: '+(e.message||'unknown');$('form').classList.add('hidden')}
 }
+$('saveWorking').addEventListener('click',()=>saveRole('WORKING'));$('saveStarting').addEventListener('click',()=>saveRole('STARTING'));
 $('form').addEventListener('submit',async e=>{
  e.preventDefault();$('save').disabled=true;$('message').className='muted';$('message').textContent='Сохранение…';
  try{
@@ -82,7 +113,7 @@ $('form').addEventListener('submit',async e=>{
   for(const id of ['connection','winding_type','wire_material','source_type','source_url','source_title','source_retrieved_at','confidence','comment'])body.set(id,$(id).value.trim());
   body.set('calculated_fields',$('calculated_fields').checked?'true':'false');
   const r=await fetch('/api/motors/update',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body}),j=await r.json();if(!r.ok)throw new Error(j.error||'motor_update_failed');
-  $('message').className='ok';$('message').textContent='Изменения сохранены. motor_id остался '+j.motor_id+'.';setTimeout(()=>location.href=$('back').href,500);
+  $('message').className='ok';$('message').textContent='Данные двигателя сохранены. motor_id остался '+j.motor_id+'.';
  }catch(err){$('message').className='warn';$('message').textContent='Ошибка сохранения: '+(err.message||'unknown')}finally{$('save').disabled=false}
 });
 load();

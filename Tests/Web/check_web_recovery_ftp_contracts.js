@@ -27,13 +27,14 @@ for (const [name, page] of [['desktop', desktop], ['mobile', mobile]]) {
 
 for (const endpoint of [
   '/api/ftp/status',
-  '/api/ftp/start',
-  '/api/ftp/stop',
   '/api/backup/remote/configuration',
   '/api/backup/remote/test'
 ]) {
   requireText(controller, endpoint, `shared UI endpoint ${endpoint}`);
 }
+requireText(controller, "fetch('/api/ftp/'+action,{method:'POST'})", 'shared FTP action endpoint');
+requireText(controller, "$('ftpStart').onclick=()=>ftpAction('start')", 'shared FTP start action');
+requireText(controller, "$('ftpStop').onclick=()=>ftpAction('stop')", 'shared FTP stop action');
 
 requireText(ftp, 'constexpr char WebRoot[] = "/web";', 'FTP storage root confinement');
 requireText(ftp, 'if (!activitySafe())', 'FTP fail-closed activity gate');

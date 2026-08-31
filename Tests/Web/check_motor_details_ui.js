@@ -48,37 +48,34 @@ for (const token of [
   'winding-job.html?repair_id=', '&role=working', '&role=starting',
   'Отправить рабочую обмотку на станок', 'Отправить пусковую обмотку на станок'
 ]) {
-  if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing safe role job navigation ${token}`);
+  if (!desktopDetails.includes(token)) failures.push(`desktop/motor-details.html: missing safe OPEN-repair role job navigation ${token}`);
 }
 if (!desktopDetails.includes("closed?'':'<a href=\"/desktop/winding-job.html")) {
-  failures.push('desktop/motor-details.html: role job links must be omitted for CLOSED repairs');
+  failures.push('desktop/motor-details.html: linked role job links must be omitted for CLOSED repairs');
 }
 if (!desktopDetails.includes('/shared/motor-role-send.js')) {
   failures.push('desktop/motor-details.html: direct role-card send helper missing');
 }
 if (desktopDetails.includes("fetch('/api/jobs'")) {
-  failures.push('desktop/motor-details.html: motor card must navigate to linked job flow, not POST jobs directly');
+  failures.push('desktop/motor-details.html: direct POST must stay isolated in the shared helper');
 }
 
 for (const token of [
-  'Отправить на станок', '/api/motors/winding/latest?motor_id=', '/api/motors/repairs?',
-  "limit:'20'", 'body.has_more !== true', 'invalid_repair_cursor', 'repair_page_limit',
-  "repairs.length === 0", 'repairs.length > 1', 'Автоматический выбор запрещён',
-  "windingJobUrl(repairs[0].repair_id, role)", "&role="
+  'Отправить на станок', '/api/motors/winding/latest?motor_id=', '/api/motors/by-id?motor_id=',
+  '/api/status', 'job_creation_ready === true', "form.set('type', role)",
+  "form.set('turns', selected.program)", "form.set('repeat_target', String(selected.repeat))",
+  "jsonFetch('/api/jobs', {method:'POST', body:form})", 'body.linked === false',
+  'body.repair_id === null', 'body.motor_id === null', 'body.spool_id === null',
+  'body.spool_selection_saved === false', 'body.automatic_wire_writeoff_allowed === false',
+  'Физический START остаётся обязательным', 'Запуск — только физической кнопкой START'
 ]) {
-  if (!roleSend.includes(token)) failures.push(`shared/motor-role-send.js: missing safe role-card navigation ${token}`);
+  if (!roleSend.includes(token)) failures.push(`shared/motor-role-send.js: missing direct service-send contract ${token}`);
 }
-if (!roleSend.includes("status !== 'CLOSED'")) {
-  failures.push('shared/motor-role-send.js: CLOSED repairs must not be eligible for direct role-card send');
+if (!roleSend.includes("body.item.starting_present !== true")) {
+  failures.push('shared/motor-role-send.js: STARTING send must fail closed when authoritative STARTING is absent');
 }
-if (!roleSend.includes("body.item.starting_present === true")) {
-  failures.push('shared/motor-role-send.js: STARTING send must verify authoritative STARTING presence');
-}
-if (roleSend.includes("fetch('/api/jobs'") || roleSend.includes('method:\'POST\'') || roleSend.includes('method:"POST"')) {
-  failures.push('shared/motor-role-send.js: role-card helper must never create a job directly');
-}
-if (roleSend.includes('/api/ssr') || roleSend.includes('automatic START')) {
-  failures.push('shared/motor-role-send.js: role-card helper must not control SSR or introduce automatic START');
+for (const forbidden of ['/api/motors/repairs?', 'repair_page_limit', 'windingJobUrl(', "form.set('repair_id'", "form.set('motor_id'", "form.set('spool_id'", '/api/ssr']) {
+  if (roleSend.includes(forbidden)) failures.push(`shared/motor-role-send.js: forbidden direct-send dependency ${forbidden}`);
 }
 
 for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
@@ -105,4 +102,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor details contracts OK: localized versioned roles, direct role-card navigation through one exact OPEN repair, immutable AS_RECEIVED comparison, safe OPEN-repair role navigation, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');
+console.log('Motor details contracts OK: role cards can create unlinked service jobs directly from authoritative WORKING/STARTING data while repair-linked navigation remains separate and physical START/SSR/writeoff safety semantics are preserved.');

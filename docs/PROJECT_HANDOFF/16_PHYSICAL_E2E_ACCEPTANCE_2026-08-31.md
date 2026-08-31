@@ -9,6 +9,20 @@ This is the next mandatory engineering gate after checkpoint 168. Do not replace
 
 The goal is to validate the real two-board CoilMaster path end-to-end while preserving all safety and provenance invariants.
 
+## CI status of this acceptance checkpoint
+
+The documentation/checklist baseline itself is exact-CMP-confirmed:
+
+```text
+8b888381124264cd8199fb1d2124fe04772fedcc
+CMP Protocol Tests #4753  run 33373426510 / SUCCESS
+
+ba5f2406ab2da544b8b3520c93ea1f7d48b7e42c
+CMP Protocol Tests #4754  run 33373490375 / SUCCESS
+```
+
+`ba5f2406...` is the exact prior checklist HEAD. This documentation update is newer and needs its own exact SUCCESS before its HEAD is itself called GREEN.
+
 ## Before power-on
 
 Record the exact firmware source SHA flashed to both boards.

@@ -22,9 +22,12 @@ CMP Protocol Tests #4754  run 33373490375 / SUCCESS
 
 fb89cc9a906393d6a2c45c5a57a0323b1f022e37
 CMP Protocol Tests #4755  run 33373645651 / SUCCESS
+
+401812bfc0104ea77a0902cccaf6f8c4b283b066
+CMP Protocol Tests #4757  run 33410394016 / SUCCESS
 ```
 
-`fb89cc9a...` is the latest exact-CMP-confirmed documentation/checklist HEAD before this update. This documentation-only update is newer and must receive its own exact SUCCESS before its HEAD itself is called GREEN.
+`401812bf...` is exact-CMP-confirmed for the documentation commit that records the first observed physical cold-boot PASS. Any later documentation-only update is newer and must receive its own exact SUCCESS before that newer HEAD itself is called GREEN.
 
 ## Before power-on
 

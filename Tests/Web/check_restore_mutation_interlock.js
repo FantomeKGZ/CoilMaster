@@ -101,15 +101,18 @@ requireText(staleGuard, 'presenceObserver.disconnect();',
   'restore control presence observer must stop after the UI appears');
 requireText(staleGuard, "fetch('/api/backup/remote/apply-status'",
   'restore pages must retain stale apply evidence polling');
-forbidText(staleGuard, 'if(!hasRestoreUi())return;',
-  'guard must not permanently exit before runtime remote UI injection');
+const immediateGateAt = staleGuard.indexOf('if(hasRestoreUi()){');
+const presenceAt = staleGuard.indexOf('const presenceObserver=new MutationObserver');
+const delayedWaitAt = staleGuard.indexOf('if(!hasRestoreUi())return;', presenceAt);
 const startAt = staleGuard.indexOf('function startGuard()');
 const pollStartAt = staleGuard.indexOf('checkApplyEvidence();', startAt);
-const presenceAt = staleGuard.indexOf('const presenceObserver=new MutationObserver');
 const presenceStartAt = staleGuard.indexOf('startGuard();', presenceAt);
-if (startAt < 0 || pollStartAt < 0 || presenceAt < 0 || presenceStartAt < 0 ||
-    pollStartAt < startAt || presenceStartAt < presenceAt) {
-  throw new Error('delayed restore UI must arm stale polling only through startGuard');
+if (immediateGateAt < 0 || presenceAt < 0 || delayedWaitAt < presenceAt ||
+    startAt < 0 || pollStartAt < startAt || presenceStartAt < presenceAt) {
+  throw new Error('delayed restore UI must wait without backend polling, then arm stale polling through startGuard');
 }
+const prePresence = staleGuard.slice(0, presenceAt);
+forbidText(prePresence, 'if(!hasRestoreUi())return;',
+  'guard must not permanently exit before installing the delayed restore UI observer');
 
 console.log('Restore mutation interlock contracts: OK');

@@ -18,6 +18,7 @@ for (const relative of ['desktop/motor-details.html', 'mobile/motor-details.html
 }
 
 const desktopDetails = fs.readFileSync(path.join(webRoot, 'desktop/motor-details.html'), 'utf8');
+const roleSend = fs.readFileSync(path.join(webRoot, 'shared/motor-role-send.js'), 'utf8');
 for (const token of [
   '/api/motors/winding/latest', '/api/motors/winding/versions',
   'Рабочая обмотка', 'Пусковая обмотка',
@@ -52,8 +53,32 @@ for (const token of [
 if (!desktopDetails.includes("closed?'':'<a href=\"/desktop/winding-job.html")) {
   failures.push('desktop/motor-details.html: role job links must be omitted for CLOSED repairs');
 }
+if (!desktopDetails.includes('/shared/motor-role-send.js')) {
+  failures.push('desktop/motor-details.html: direct role-card send helper missing');
+}
 if (desktopDetails.includes("fetch('/api/jobs'")) {
   failures.push('desktop/motor-details.html: motor card must navigate to linked job flow, not POST jobs directly');
+}
+
+for (const token of [
+  'Отправить на станок', '/api/motors/winding/latest?motor_id=', '/api/motors/repairs?',
+  "limit:'20'", 'body.has_more !== true', 'invalid_repair_cursor', 'repair_page_limit',
+  "repairs.length === 0", 'repairs.length > 1', 'Автоматический выбор запрещён',
+  "windingJobUrl(repairs[0].repair_id, role)", "&role="
+]) {
+  if (!roleSend.includes(token)) failures.push(`shared/motor-role-send.js: missing safe role-card navigation ${token}`);
+}
+if (!roleSend.includes("status !== 'CLOSED'")) {
+  failures.push('shared/motor-role-send.js: CLOSED repairs must not be eligible for direct role-card send');
+}
+if (!roleSend.includes("body.item.starting_present === true")) {
+  failures.push('shared/motor-role-send.js: STARTING send must verify authoritative STARTING presence');
+}
+if (roleSend.includes("fetch('/api/jobs'") || roleSend.includes('method:\'POST\'') || roleSend.includes('method:"POST"')) {
+  failures.push('shared/motor-role-send.js: role-card helper must never create a job directly');
+}
+if (roleSend.includes('/api/ssr') || roleSend.includes('automatic START')) {
+  failures.push('shared/motor-role-send.js: role-card helper must not control SSR or introduce automatic START');
 }
 
 for (const relative of ['desktop/motors.html', 'mobile/motors.html']) {
@@ -80,4 +105,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Motor details contracts OK: localized versioned roles, immutable AS_RECEIVED comparison, safe OPEN-repair role navigation, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');
+console.log('Motor details contracts OK: localized versioned roles, direct role-card navigation through one exact OPEN repair, immutable AS_RECEIVED comparison, safe OPEN-repair role navigation, bounded histories, legacy fallback, and physical START/SSR safety semantics are present.');

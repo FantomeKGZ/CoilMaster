@@ -1,5 +1,8 @@
 require('./check_dashboard_job_history.js');
 require('./check_client_crm_ui.js');
+require('./check_motor_edit_ui.js');
+require('./check_linked_job_winding_role.js');
+require('./check_winding_job_role_ui.js');
 const fs = require('fs');
 const path = require('path');
 

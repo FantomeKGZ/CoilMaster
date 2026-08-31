@@ -40,7 +40,9 @@ requireText(desktop, '.tip{', 'desktop accessible detail tooltip style');
 requireText(shared, 'class="tip" tabindex="0" aria-label="Подробности"', 'desktop accessible detail tooltip markup');
 requireText(shared, 'class="tip-box"', 'desktop accessible detail tooltip content');
 requireText(mobile, 'details{', 'mobile accessible details style');
-requireText(shared, '<details><summary>Подробности</summary>', 'mobile accessible details markup');
+requireText(shared, '<details><summary>Подробнее</summary>', 'mobile accessible details markup');
+for (const needle of ['.compact-main{','.compact-program b{','.compact-meta{','.compact-run{','Краткий список: номер RUN, количество витков']) requireText(mobile, needle, 'mobile compact list styling');
+for (const needle of ['class="task compact-task"','class="compact-main"','class="compact-program"',' витков</span>','class="compact-meta"','class="compact-run"','windingTypeLabel(task)','compactMotorLabel(task)']) requireText(shared, needle, 'mobile compact list rendering');
 
 for (const needle of ['/api/autonomous-windings?','/api/autonomous-windings/assign','/api/motors?','/api/motors','session_id','run_id','repeat_target','completed_runs','historicalCounts',"status !== 'COMPLETED'"]) requireText(shared, needle, 'shared archive controller');
 for (const needle of ['/api/autonomous-windings/web-completed?','/api/autonomous-windings/web-completed/assign',"source:item.source || 'ARDUINO_LOCAL'","source:'ESP32_JOB'",'archive_exact_run_source_collision']) requireText(bridge, needle, 'completed-web archive bridge');
@@ -100,4 +102,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; compact Session/Run rendering is observer-feedback-safe, static and runtime role selectors are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');
+console.log('Arduino archive UI contracts OK; mobile tasks use a compact turns/type/status/linkage list with exact Session/Run retained under details, compact Session/Run rendering is observer-feedback-safe, static and runtime role selectors are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');

@@ -19,9 +19,12 @@ CMP Protocol Tests #4753  run 33373426510 / SUCCESS
 
 ba5f2406ab2da544b8b3520c93ea1f7d48b7e42c
 CMP Protocol Tests #4754  run 33373490375 / SUCCESS
+
+fb89cc9a906393d6a2c45c5a57a0323b1f022e37
+CMP Protocol Tests #4755  run 33373645651 / SUCCESS
 ```
 
-`ba5f2406...` is the exact prior checklist HEAD. This documentation update is newer and needs its own exact SUCCESS before its HEAD is itself called GREEN.
+`fb89cc9a...` is the latest exact-CMP-confirmed documentation/checklist HEAD before this update. This documentation-only update is newer and must receive its own exact SUCCESS before its HEAD itself is called GREEN.
 
 ## Before power-on
 

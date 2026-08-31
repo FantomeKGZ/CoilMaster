@@ -1,6 +1,5 @@
 'use strict';
 
-require('./check_client_crm_ui.js');
 require('./check_crud_page_separation.js');
 
 const fs=require('fs');

@@ -122,6 +122,12 @@ function assignedMotorText(task) {
   const motor = motors.find(m => Number(m.motor_id) === Number(task.assigned_motor_id));
   return motor ? motorLabel(motor) : `Двигатель №${Number(task.assigned_motor_id)}`;
 }
+function windingTypeLabel(task) {
+  return String(task.winding_type || '').toUpperCase() === 'STARTING' ? 'Пусковая' : 'Рабочая';
+}
+function compactMotorLabel(task) {
+  return task.assigned_motor_id ? `Двигатель №${Number(task.assigned_motor_id)}` : 'Не привязано';
+}
 function renderDesktop() {
   const rows = tasks.map(task => {
     const key = taskKey(task);
@@ -144,14 +150,10 @@ function renderMobile() {
   $('items').innerHTML = tasks.map(task => {
     const key = taskKey(task);
     const canSelect = task.status === 'COMPLETED';
-    return `<article class="task">
-<div class="task-head"><input class="task-select" type="checkbox" data-key="${esc(key)}" ${selected.has(key)?'checked':''} ${canSelect?'':'disabled'} aria-label="Выбрать run ${Number(task.run_id)}"><div><div class="program">${esc(task.program)}</div><div>${statusBadge(task)} ${linkageBadge(task)}</div></div><b>#${Number(task.run_id)}</b></div>
-<div class="row"><span class="muted">Session / Run</span><b>${Number(task.session_id)} / ${Number(task.run_id)}</b></div>
-<div class="row"><span class="muted">План повторов</span><b>${plannedRepeats(task)}</b></div>
-<div class="row"><span class="muted">Факт. повторов</span><b>${Number(task.completed_runs || 0)}</b></div>
-<div class="row"><span class="muted">Историч. RUN программы</span><b>${historicalRuns(task)}</b></div>
-<div class="row"><span class="muted">Двигатель</span><b>${esc(assignedMotorText(task))}</b></div>
-<details><summary>Подробности</summary><p class="mini">${esc(detailText(task))}</p><p class="mini">Тип: ${esc(task.winding_type || '—')} · Роль: ${esc(task.assignment_role || '—')}</p></details>
+    return `<article class="task compact-task">
+<div class="compact-main"><input class="task-select" type="checkbox" data-key="${esc(key)}" ${selected.has(key)?'checked':''} ${canSelect?'':'disabled'} aria-label="Выбрать run ${Number(task.run_id)}"><div class="compact-program"><b>${esc(task.program)}</b><span class="mini"> витков</span><div class="compact-meta">${esc(windingTypeLabel(task))} · ${esc(compactMotorLabel(task))}</div></div><b class="compact-run">#${Number(task.run_id)}</b></div>
+<div class="compact-badges">${statusBadge(task)} ${linkageBadge(task)}</div>
+<details><summary>Подробнее</summary><div class="row"><span class="muted">Session / Run</span><b>${Number(task.session_id)} / ${Number(task.run_id)}</b></div><div class="row"><span class="muted">Повторы</span><b>${Number(task.completed_runs || 0)} / ${plannedRepeats(task)}</b></div><div class="row"><span class="muted">Историч. RUN</span><b>${historicalRuns(task)}</b></div><p class="mini">${esc(detailText(task))}</p><p class="mini">Тип: ${esc(task.winding_type || '—')} · Роль: ${esc(task.assignment_role || '—')} · ${esc(assignedMotorText(task))}</p></details>
 </article>`;
   }).join('') || '<div class="note">Записей нет.</div>';
 }

@@ -30,10 +30,19 @@ requireText(backup,
 requireText(backup,
   'BackupBusinessDataIntegrityAudit::check(storage, businessMetrics)',
   'backup manifest must still run authoritative business/pricing validation');
+requireText(backup,
+  '#include "CM_RunWireAccountingIntegrityAudit.h"',
+  'backup snapshot gate must include the authoritative RUN_WIRE accounting audit');
+requireText(backup,
+  'RunWireAccountingIntegrityAudit::check(storage)',
+  'backup snapshot gate must directly validate RUN_WIRE cross-log accounting');
+requireText(backup,
+  'run_wire_accounting_unstable_or_invalid',
+  'RUN_WIRE accounting failure must fail backup stability closed with a distinct reason');
 
 if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
 
-console.log('Material backup scoped audit contracts OK: composite backup avoids transitive workshop/pricing duplication while standalone material integrity remains broad and fail-closed.');
+console.log('Material backup scoped audit contracts OK: composite backup avoids transitive workshop/pricing duplication, directly validates RUN_WIRE cross-log accounting, and standalone material integrity remains broad and fail-closed.');

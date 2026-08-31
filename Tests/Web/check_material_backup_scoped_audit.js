@@ -8,6 +8,9 @@ const failures = [];
 function requireText(haystack, text, message) {
   if (!haystack.includes(text)) failures.push(message);
 }
+function forbidText(haystack, text, message) {
+  if (haystack.includes(text)) failures.push(message);
+}
 
 requireText(header,
   'static bool checkMaterialDomain(fs::FS& storage,',
@@ -16,11 +19,35 @@ requireText(source,
   'bool MaterialPersistenceIntegrityAudit::checkMaterialDomain(',
   'scoped material-domain implementation missing');
 requireText(source,
-  'if (!checkMaterialDomain(storage, ignoredMetrics)) return false;',
+  '!checkMaterialDomain(storage, ignoredMetrics)',
   'standalone audit no longer delegates through the scoped material domain');
 requireText(source,
-  'return WorkshopPersistenceIntegrityAudit::check(storage) &&\n           RepairPricingIntegrityAudit::check(storage);',
-  'standalone material audit must retain broad workshop/pricing integrity checks');
+  'workshopDirectoryShapeValid(storage)',
+  'standalone audit must retain fail-closed /data/workshop directory-shape validation');
+requireText(source,
+  'BackupBusinessDataIntegrityAudit::check(storage)',
+  'standalone audit must use authoritative workshop/pricing validation');
+requireText(source,
+  'WarehousePersistenceIntegrityAudit::check(storage)',
+  'standalone audit must retain broad warehouse validation');
+requireText(source,
+  'PersistentIdIntegrityAudit::check(storage)',
+  'standalone audit must retain allocator integrity validation');
+requireText(source,
+  'WindingSessionPersistenceIntegrityAudit::check(storage)',
+  'standalone audit must retain winding-session persistence validation');
+requireText(source,
+  'RunWireAccountingIntegrityAudit::check(storage)',
+  'standalone audit must retain exact RUN_WIRE cross-log accounting validation');
+requireText(source,
+  'WindingPersistenceIntegrityAudit::check(storage)',
+  'standalone audit must retain winding journal validation');
+forbidText(source,
+  'WorkshopPersistenceIntegrityAudit',
+  'standalone material audit must not depend on the retired workshop wrapper');
+forbidText(source,
+  'RepairPricingIntegrityAudit',
+  'standalone material audit must not depend on the duplicate pricing audit owner');
 requireText(source,
   'return checkMaterialDomain(storage, metrics);',
   'metrics overload must remain scoped for composite backup audit');
@@ -45,4 +72,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Material backup scoped audit contracts OK: composite backup avoids transitive workshop/pricing duplication, directly validates RUN_WIRE cross-log accounting, and standalone material integrity remains broad and fail-closed.');
+console.log('Material backup scoped audit contracts OK: composite backup stays scoped and directly validates RUN_WIRE, while standalone material integrity uses authoritative direct domain owners without legacy wrapper/pricing duplicates.');

@@ -54,8 +54,10 @@ requireContract(
 );
 
 requireContract(
-  source.includes('validatePricing(storage, metrics.pricingRecordCount)'),
-  'Pricing validation must remain part of the authoritative business-data backup audit.'
+  source.includes('uint32_t pricingRecordCount = 0UL;') &&
+  source.includes('!validatePricing(storage, pricingRecordCount)') &&
+  source.includes('metrics.pricingRecordCount = pricingRecordCount;'),
+  'Pricing validation and record-count propagation must remain part of the authoritative business-data backup audit.'
 );
 
-console.log('Repair pricing reference batching contracts OK: authoritative BackupBusinessDataIntegrityAudit owns bounded pricing validation and exact repair references.');
+console.log('Repair pricing reference batching contracts OK: authoritative BackupBusinessDataIntegrityAudit owns bounded pricing validation, exact repair references, and metrics propagation.');

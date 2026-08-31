@@ -26,6 +26,7 @@ mustNot(motorWeb, '/ssr', 'motor editor must not control SSR');
 for (const surface of ['desktop', 'mobile']) {
   const editor = read(`firmware/esp32/web/${surface}/motor-edit.html`);
   const details = read(`firmware/esp32/web/${surface}/motor-details.html`);
+  const catalog = read(`firmware/esp32/web/${surface}/motors.html`);
   must(editor, '/api/motors/by-id?motor_id=', `${surface} editor exact load`);
   must(editor, '/api/motors/update', `${surface} editor save`);
   if (!editor.includes("body.set('motor_id',motorId)") &&
@@ -33,6 +34,8 @@ for (const surface of ['desktop', 'mobile']) {
     failures.push(`${surface} editor: fixed motor id missing`);
   }
   must(details, `${surface}/motor-edit.html?motor_id=`.replace(`${surface}/`, `/${surface}/`), `${surface} detail edit link`);
+  must(catalog, `${surface}/motor-edit.html?motor_id=`.replace(`${surface}/`, `/${surface}/`), `${surface} catalog edit link`);
+  must(catalog, '>Редактировать</a>', `${surface} catalog edit label`);
 }
 
 const desktopDetails = read('firmware/esp32/web/desktop/motor-details.html');
@@ -47,4 +50,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Motor edit contracts OK: fixed motor_id revisions, exact reads, catalog overlay, desktop/mobile editors and Russian winding labels are present.');
+console.log('Motor edit contracts OK: fixed motor_id revisions, exact reads, catalog/detail edit links, desktop/mobile editors and Russian winding labels are present.');

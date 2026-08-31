@@ -98,5 +98,6 @@ for (const path of [
 }
 
 require('./check_web_recovery_ftp_contracts.js');
+require('./check_remote_backup_ui_parity.js');
 
-console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, and FTP recovery contracts are audited.');
+console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, FTP recovery contracts are audited, and remote backup UI/backend parity is locked.');

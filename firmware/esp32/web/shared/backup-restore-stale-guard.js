@@ -7,6 +7,7 @@
   ];
   const safeMessage='После перезапуска найдены следы предыдущего применения backup. Автопродолжение запрещено. Runtime-счётчики применения после reboot сброшены и не доказывают, были ли рабочие данные заменены. Сначала вручную проверьте clients, motors, repairs, warehouse и winding; временные/страховочные файлы удаляйте только после подтверждения состояния.';
   let stale=false;
+  let started=false;
 
   function hasRestoreUi(){
     return unsafeControlIds.some(id=>document.getElementById(id))||
@@ -49,12 +50,27 @@
     setTimeout(checkApplyEvidence,800);
   }
 
-  // The read-only desktop/mobile backup pages also load this shared guard so a
-  // future restore UI cannot accidentally omit it. They contain no restore/apply
-  // controls, however, so polling apply-status there would be pure server load.
-  if(!hasRestoreUi())return;
+  function startGuard(){
+    if(started)return;
+    started=true;
+    const observer=new MutationObserver(()=>enforceStaleUi());
+    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','class']});
+    checkApplyEvidence();
+  }
 
-  const observer=new MutationObserver(()=>enforceStaleUi());
-  observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','class']});
-  checkApplyEvidence();
+  // Static backup files are usable offline and intentionally do not start any
+  // apply-status traffic on their own. On the live ESP32, StaticSiteServer adds
+  // backup-remote-upload.js after the page body has already executed this guard.
+  // Wait for those runtime controls without polling the backend; only then arm
+  // the fail-closed STALE evidence check.
+  if(hasRestoreUi()){
+    startGuard();
+    return;
+  }
+  const presenceObserver=new MutationObserver(()=>{
+    if(!hasRestoreUi())return;
+    presenceObserver.disconnect();
+    startGuard();
+  });
+  presenceObserver.observe(document.body,{childList:true,subtree:true});
 })();

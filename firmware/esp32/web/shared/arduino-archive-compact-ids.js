@@ -30,7 +30,7 @@ function compactDesktop() {
   const table = host.querySelector('table');
   if (!table) return false;
   const heading = table.querySelector('thead th:nth-child(2)');
-  if (heading) {
+  if (heading && heading.textContent !== '№') {
     heading.textContent = '№';
     heading.title = 'Порядковый номер в текущем списке. Exact Session / Run находится в Info.';
   }
@@ -82,15 +82,26 @@ function apply() {
 }
 
 let queued = false;
+let observer = null;
+const observe = () => observer.observe(host, {childList:true, subtree:true});
+function applyWithoutObserverFeedback() {
+  observer.disconnect();
+  try {
+    apply();
+  } finally {
+    observe();
+  }
+}
 function schedule() {
   if (queued) return;
   queued = true;
   Promise.resolve().then(() => {
     queued = false;
-    apply();
+    applyWithoutObserverFeedback();
   });
 }
 
-new MutationObserver(schedule).observe(host, {childList:true, subtree:true});
+observer = new MutationObserver(schedule);
+observe();
 schedule();
 })();

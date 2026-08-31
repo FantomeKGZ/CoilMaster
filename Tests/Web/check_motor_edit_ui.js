@@ -11,6 +11,7 @@ const registryUpdate = read('firmware/esp32/src/CM_RepairRegistryMotorUpdate.cpp
 const registryLookup = read('firmware/esp32/src/CM_RepairRegistryLookup.cpp');
 const registryPage = read('firmware/esp32/src/CM_RepairRegistryPage.cpp');
 const motorWeb = read('firmware/esp32/src/CM_MotorSimilarityWeb.cpp');
+const windingStore = read('firmware/esp32/src/CM_MotorWindingVersionStore.cpp');
 
 must(registryHeader, 'bool updateMotor(uint32_t motorId, const NewMotor& motor);', 'registry update API');
 must(registryHeader, 'motor-revisions.ndjson', 'append-only motor revision journal');
@@ -21,6 +22,16 @@ must(registryLookup, 'latestMotorRevisionLine(motorId', 'exact card latest revis
 must(registryPage, 'latestMotorRevisionLine(motorId', 'catalog latest revision read');
 must(motorWeb, '"/api/motors/update"', 'motor update endpoint');
 must(motorWeb, 'm_registry.updateMotor(motorId, motor)', 'motor update persistence call');
+must(motorWeb, '"/api/motors/winding/role"', 'winding role edit endpoint');
+must(motorWeb, 'expected_winding_version_id', 'optimistic winding version token');
+must(motorWeb, 'winding_version_conflict', 'stale winding version conflict');
+must(motorWeb, 'm_server.send(409', 'winding conflict HTTP status');
+must(motorWeb, 'next.previousVersionId = latestFound ? latestVersionId : 0UL;', 'append predecessor linkage');
+must(motorWeb, 'next.versionKind = "MANUAL_ROLE_EDIT";', 'manual edit provenance');
+must(motorWeb, 'if (roleName == "WORKING") next.working = replacement;', 'working-only replacement');
+must(motorWeb, 'else next.starting = replacement;', 'starting-only replacement');
+must(motorWeb, 'working_winding_version_required', 'starting cannot create orphan first version');
+must(windingStore, 'FILE_APPEND', 'winding history remains append only');
 mustNot(motorWeb, '/ssr', 'motor editor must not control SSR');
 
 for (const surface of ['desktop', 'mobile']) {
@@ -28,7 +39,16 @@ for (const surface of ['desktop', 'mobile']) {
   const details = read(`firmware/esp32/web/${surface}/motor-details.html`);
   const catalog = read(`firmware/esp32/web/${surface}/motors.html`);
   must(editor, '/api/motors/by-id?motor_id=', `${surface} editor exact load`);
-  must(editor, '/api/motors/update', `${surface} editor save`);
+  must(editor, '/api/motors/update', `${surface} editor motor save`);
+  must(editor, '/api/motors/winding/latest?motor_id=', `${surface} winding latest load`);
+  must(editor, '/api/motors/winding/role', `${surface} winding role save`);
+  must(editor, "b.set('expected_winding_version_id',String(currentWindingVersionId))", `${surface} expected winding version submit`);
+  must(editor, "saveRole('WORKING')", `${surface} working edit action`);
+  must(editor, "saveRole('STARTING')", `${surface} starting edit action`);
+  must(editor, 'r.status===409', `${surface} conflict handling`);
+  must(editor, 'await loadWinding()', `${surface} conflict/latest refresh`);
+  must(editor, 'Рабочая обмотка', `${surface} Russian working label`);
+  must(editor, 'Пусковая обмотка', `${surface} Russian starting label`);
   if (!editor.includes("body.set('motor_id',motorId)") &&
       !editor.includes("b.set('motor_id',motorId)")) {
     failures.push(`${surface} editor: fixed motor id missing`);
@@ -50,4 +70,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Motor edit contracts OK: fixed motor_id revisions, exact reads, catalog/detail edit links, desktop/mobile editors and Russian winding labels are present.');
+console.log('Motor edit contracts OK: fixed motor_id revisions, append-only WORKING/STARTING winding edits, conflict refresh, catalog/detail edit links and Russian role labels are present.');

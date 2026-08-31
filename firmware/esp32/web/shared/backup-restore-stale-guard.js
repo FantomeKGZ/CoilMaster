@@ -8,6 +8,13 @@
   const safeMessage='После перезапуска найдены следы предыдущего применения backup. Автопродолжение запрещено. Runtime-счётчики применения после reboot сброшены и не доказывают, были ли рабочие данные заменены. Сначала вручную проверьте clients, motors, repairs, warehouse и winding; временные/страховочные файлы удаляйте только после подтверждения состояния.';
   let stale=false;
 
+  function hasRestoreUi(){
+    return unsafeControlIds.some(id=>document.getElementById(id))||
+      document.querySelector('[data-remote-backup]')!==null||
+      document.getElementById('remoteBackupStageDiscard')!==null||
+      document.getElementById('remoteBackupState')!==null;
+  }
+
   function enforceStaleUi(){
     if(!stale)return;
     unsafeControlIds.forEach(id=>{
@@ -41,6 +48,11 @@
     }
     setTimeout(checkApplyEvidence,800);
   }
+
+  // The read-only desktop/mobile backup pages also load this shared guard so a
+  // future restore UI cannot accidentally omit it. They contain no restore/apply
+  // controls, however, so polling apply-status there would be pure server load.
+  if(!hasRestoreUi())return;
 
   const observer=new MutationObserver(()=>enforceStaleUi());
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['disabled','class']});

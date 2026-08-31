@@ -13,11 +13,14 @@ const state = document.createElement('div');
 state.id = 'roleSendState';
 state.className = 'muted';
 state.style.marginTop = '10px';
-state.textContent = 'Для отправки на станок будет выбран только однозначный открытый ремонт этого двигателя.';
+state.textContent = 'Прямая отправка создаёт сервисное задание без ремонта. Физический START остаётся обязательным.';
 roles.insertAdjacentElement('afterend', state);
 
 const buttons = new Map();
 let busy = false;
+
+const canonical = value => /^[1-9][0-9]*$/.test(String(value));
+const validRepeat = value => canonical(value) && Number(value) <= 65535;
 
 function setState(text, kind) {
   state.className = kind || 'muted';
@@ -38,7 +41,7 @@ function addButton(card, role) {
   button.className = 'primary';
   button.textContent = 'Отправить на станок';
   button.dataset.windingRole = role;
-  button.addEventListener('click', () => { void openRole(role); });
+  button.addEventListener('click', () => { void sendRole(role); });
   actions.appendChild(button);
   card.appendChild(actions);
   buttons.set(role, button);
@@ -47,79 +50,83 @@ function addButton(card, role) {
 addButton(roleCards[0], 'working');
 addButton(roleCards[1], 'starting');
 
-async function jsonFetch(url) {
-  const response = await fetch(url, {cache:'no-store'});
+async function jsonFetch(url, options) {
+  const response = await fetch(url, options || {cache:'no-store'});
   let body = {};
   try { body = await response.json(); } catch (_) {}
   if (!response.ok) throw new Error(body.error || `HTTP_${response.status}`);
   return body;
 }
 
-async function roleAvailable(role) {
+async function authoritativeRole(role) {
   const body = await jsonFetch('/api/motors/winding/latest?motor_id=' + encodeURIComponent(motorId));
-  if (role === 'starting') {
-    return body.versioned === true && body.item && body.item.starting_present === true &&
-           String(body.item.starting_program || '').trim().length > 0;
-  }
   if (body.versioned === true && body.item) {
-    return String(body.item.working_program || '').trim().length > 0;
-  }
-  const program = document.getElementById('workingProgram');
-  return program && program.textContent.trim() !== '' && program.textContent.trim() !== '—';
-}
-
-async function openRepairs() {
-  const result = [];
-  let cursor = 0;
-  for (let page = 0; page < 100; ++page) {
-    const query = new URLSearchParams({motor_id:motorId, limit:'20'});
-    if (cursor) query.set('cursor', String(cursor));
-    const body = await jsonFetch('/api/motors/repairs?' + query);
-    for (const repair of body.items || []) {
-      const status = repair.current_status || repair.status || 'OPEN';
-      if (status !== 'CLOSED') result.push(repair);
+    if (role === 'starting') {
+      if (body.item.starting_present !== true) return null;
+      const program = String(body.item.starting_program || '').trim();
+      const repeat = body.item.starting_repeat_target;
+      return program && validRepeat(repeat) ? {program, repeat:Number(repeat)} : null;
     }
-    if (body.has_more !== true) return result;
-    const next = Number(body.next_cursor);
-    if (!Number.isInteger(next) || next <= cursor) throw new Error('invalid_repair_cursor');
-    cursor = next;
+    const program = String(body.item.working_program || '').trim();
+    const repeat = body.item.working_repeat_target;
+    return program && validRepeat(repeat) ? {program, repeat:Number(repeat)} : null;
   }
-  throw new Error('repair_page_limit');
+
+  if (role === 'starting') return null;
+  const motorBody = await jsonFetch('/api/motors/by-id?motor_id=' + encodeURIComponent(motorId));
+  const motor = motorBody.item;
+  if (!motor) return null;
+  const program = String(motor.coil_program || '').trim();
+  const repeat = validRepeat(motor.repeat_target) ? Number(motor.repeat_target) : 1;
+  return program ? {program, repeat} : null;
 }
 
-function windingJobUrl(repairId, role) {
-  const mobile = location.pathname.startsWith('/mobile/');
-  const root = mobile ? '/mobile/' : '/desktop/';
-  return root + 'winding-job.html?repair_id=' + encodeURIComponent(repairId) + '&role=' + encodeURIComponent(role);
+async function serviceReady() {
+  const status = await jsonFetch('/api/status');
+  if (status.job_creation_ready === true) return true;
+  if (status.autonomous_run_active === true) throw new Error('arduino_local_winding_active');
+  if (status.manual_review_required === true) throw new Error('manual_review_required');
+  if (status.new_job_allowed !== true) throw new Error('current_job_not_complete');
+  throw new Error('job_creation_not_ready');
 }
 
-async function openRole(role) {
+function responseMatches(body, expectedRepeat) {
+  return body && body.accepted === true && body.linked === false &&
+         body.repair_id === null && body.motor_id === null && body.spool_id === null &&
+         body.spool_selection_saved === false && body.automatic_wire_writeoff_allowed === false &&
+         canonical(body.job_id) && canonical(body.session_id) &&
+         Number(body.repeat_target) === Number(expectedRepeat);
+}
+
+async function sendRole(role) {
   if (busy) return;
   setBusy(true);
-  setState('Проверка роли обмотки и открытого ремонта…', 'muted');
+  setState('Проверка актуальной обмотки и готовности станка…', 'muted');
   try {
-    if (!await roleAvailable(role)) {
+    const selected = await authoritativeRole(role);
+    if (!selected) {
       setState(role === 'starting'
-        ? 'Пусковая обмотка не зарегистрирована. Отправка на станок заблокирована.'
-        : 'Рабочая обмотка недоступна. Отправка на станок заблокирована.', 'warn');
+        ? 'Пусковая обмотка не зарегистрирована. Отправка заблокирована.'
+        : 'Рабочая обмотка недоступна. Отправка заблокирована.', 'warn');
       return;
     }
 
-    const repairs = await openRepairs();
-    if (repairs.length === 0) {
-      setState('У двигателя нет открытого ремонта. Сначала создайте или откройте ремонт, затем отправьте обмотку на станок.', 'warn');
-      return;
-    }
-    if (repairs.length > 1) {
-      setState('У двигателя несколько открытых ремонтов. Автоматический выбор запрещён — выберите нужный ремонт в списке ниже.', 'warn');
-      const repairList = document.getElementById('repairs');
-      if (repairList) repairList.scrollIntoView({block:'start'});
+    await serviceReady();
+    const form = new FormData();
+    form.set('type', role);
+    form.set('turns', selected.program);
+    form.set('repeat_target', String(selected.repeat));
+
+    setState('Отправка сохранённой ' + (role === 'starting' ? 'пусковой' : 'рабочей') + ' обмотки на Arduino…', 'muted');
+    const body = await jsonFetch('/api/jobs', {method:'POST', body:form});
+    if (!responseMatches(body, selected.repeat)) {
+      setState('ESP32 приняла запрос, но ответ не подтвердил безопасное сервисное задание. Не запускайте намотку до проверки состояния.', 'warn');
       return;
     }
 
-    location.href = windingJobUrl(repairs[0].repair_id, role);
+    setState('Задание №' + body.job_id + ' передано без ремонта. Программа: ' + selected.program + ' × ' + selected.repeat + '. Запуск — только физической кнопкой START.', 'ok');
   } catch (error) {
-    setState('Не удалось подготовить отправку: ' + (error.message || 'unknown'), 'warn');
+    setState('Не удалось отправить на станок: ' + (error.message || 'unknown'), 'warn');
   } finally {
     setBusy(false);
   }

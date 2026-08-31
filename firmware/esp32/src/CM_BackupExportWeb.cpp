@@ -7,6 +7,7 @@
 #include "CM_CrmPersistenceIntegrityAudit.h"
 #include "CM_RepairDeliveryIntegrityAudit.h"
 #include "CM_CashPaymentIntegrityAudit.h"
+#include "CM_RunWireAccountingIntegrityAudit.h"
 #include "CM_WindingPersistenceIntegrityAudit.h"
 #include "CM_WindingSessionPersistenceIntegrityAudit.h"
 #include "CM_PersistentIdIntegrityAudit.h"
@@ -363,6 +364,9 @@ const char* snapshotStabilityReason(fs::FS& storage,
     uint32_t cashPaymentRecordCount = 0UL;
     if (!CashPaymentIntegrityAudit::check(storage, cashPaymentRecordCount))
         return "cash_payment_unstable_or_invalid";
+
+    if (!RunWireAccountingIntegrityAudit::check(storage))
+        return "run_wire_accounting_unstable_or_invalid";
 
     AutonomousWindingIntegrityMetrics autonomousMetrics;
     startedAtMs = millis();
@@ -1117,7 +1121,6 @@ void BackupExportWeb::handleSessionFile()
                       "{\"error\":\"backup_kind_and_session_id_required\"}");
         return;
     }
-
     const String kind = m_server.arg("kind");
     if (kind != "snapshot" && kind != "spool-selection" && kind != "state")
     {

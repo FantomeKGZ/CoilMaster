@@ -1,6 +1,6 @@
 # CoilMaster — current project entrypoint
 
-Дата обновления: **2026-08-30**  
+Дата обновления: **2026-08-31**  
 Repo: `FantomeKGZ/CoilMaster`  
 Production/source-of-truth: **`cmp-protocol-v1`**. `main` для исходников не использовать.  
 Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**.
@@ -19,6 +19,36 @@ cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
 По прямому запросу пользователя идёт полный аудит ранее обсуждавшихся обновлений/добавлений функций. Цель: проверить реальную реализацию, закончить proven incomplete items и только после этого переходить к следующему этапу.
 
 Previous checkpoints 159–167 остаются закрытыми, если нет concrete regression. Speculative repeated-scan/performance work не переоткрывать.
+
+## Current feature block — motor WORKING / STARTING edit
+
+В `arduino-ru-lcd-experiment` добавлено редактирование канонических ролей обмотки непосредственно в desktop/mobile `motor-edit.html`.
+
+Ключевой контракт:
+
+```text
+GET  /api/motors/winding/latest?motor_id=...
+POST /api/motors/winding/role
+optimistic token = expected_winding_version_id
+stale token      = HTTP 409 winding_version_conflict
+storage          = append-only motor-winding-versions.ndjson
+version kind     = MANUAL_ROLE_EDIT
+```
+
+Редактирование одной роли сохраняет вторую роль из latest без изменений. Первая versioned запись создаётся через `WORKING`; `STARTING` без существующей `WORKING` fail-closed. При `409` UI перечитывает latest и не выполняет автоматический повтор mutation.
+
+Detailed record:
+```text
+docs/PROJECT_HANDOFF/17_CHECKPOINT_WORKING_STARTING_EDIT_2026-08-31.md
+```
+
+Intermediate exact CI evidence:
+```text
+43d405c40b5cc042a4bc78e92340a8546d031c73
+CMP Protocol Tests #4651 run 33355313297 / SUCCESS
+```
+
+Этот результат относится только к указанному exact HEAD. Более новые docs commits нельзя называть GREEN без собственного exact SUCCESS.
 
 ## First closed feature gap — calculator source strand counts
 
@@ -40,7 +70,7 @@ da6b5423d782b73ed4ebacb9aaf5fa164d5ac552  mobile parity
 Exact build/CI evidence:
 ```text
 ESP32 #1780 run 33313307362 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
-Arduino RU LCD #209 run 33313307363 / SUCCESS head 4c6554a07b5e4ff8104ef0b9d8fc0914677ff9d5
+Arduino RU LCD #209 run 33313307363 / SUCCESS head 4c6554a07b5e4ff8104ebacb9aaf5fa164d5ac552
 ESP32 #1781 run 33313331248 / SUCCESS head da6b5423d782b73ed4ebacb9aaf5fa164d5ac552
 Arduino RU LCD #210 run 33313331284 / SUCCESS head da6b5423d782b73ed4ebacb9aaf5fa164d5ac552
 CMP #4527 run 33313347671 / SUCCESS head 1b7f8504184b681d5f7e0da7710c4a50601a346a
@@ -71,15 +101,16 @@ New docs commits after #4578 require their own exact run before being called GRE
 ## Feature-completeness audit order
 
 Continue systematically with:
-1. clients/motors/repairs bounded pagination;
-2. motor import workflow;
-3. shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts;
-4. FTP/Web recovery;
-5. Wi-Fi profiles/static IP/`coil.local`;
-6. backup/settings;
-7. desktop/mobile feature parity;
-8. stale/empty pages and links;
-9. any other previously promised feature found incomplete.
+1. current user-selected motor winding edit block / its exact CI closure;
+2. clients/motors/repairs bounded pagination;
+3. motor import workflow;
+4. shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts;
+5. FTP/Web recovery;
+6. Wi-Fi profiles/static IP/`coil.local`;
+7. backup/settings;
+8. desktop/mobile feature parity;
+9. stale/empty pages and links;
+10. any other previously promised feature found incomplete.
 
 For every proven gap: fetch exact current file + blob SHA, implement minimal fix, add/update regression coverage, verify applicable CI, then update HANDOFF meaningfully.
 
@@ -111,9 +142,10 @@ docs/PROJECT_HANDOFF/12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
 docs/PROJECT_HANDOFF/13_HALL_RU_LCD_ACCEPTANCE.md
 docs/PROJECT_HANDOFF/15_NEXT_CHAT_TRANSFER_2026-08-30.md
 docs/PROJECT_HANDOFF/16_CMP_4160_4162_GREEN_2026-08-30.md
+docs/PROJECT_HANDOFF/17_CHECKPOINT_WORKING_STARTING_EDIT_2026-08-31.md
 docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 ```
 
 ## Immediate NEXT
 
-Continue the feature-completeness audit from fresh branch HEAD, beginning with clients/motors/repairs pagination unless the user selects another concrete feature. Do not return to documentation-only CI recursion as the main activity. Production `cmp-protocol-v1` remains untouched.
+First close exact CI for the WORKING/STARTING edit checkpoint and fix any concrete regression if found. After that continue the feature-completeness audit unless the user selects another concrete feature. Production `cmp-protocol-v1` remains untouched.

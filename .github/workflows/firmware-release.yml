@@ -1,0 +1,190 @@
+name: Publish Firmware Release
+
+on:
+  push:
+    branches:
+      - cmp-protocol-v1
+    paths:
+      - .github/release/firmware-release-request.json
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: firmware-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout release request
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Load release request
+        id: request
+        shell: bash
+        run: |
+          set -euo pipefail
+          request=.github/release/firmware-release-request.json
+          source_sha="$(jq -r '.source_sha' "$request")"
+          cmp_run_id="$(jq -r '.cmp_run_id' "$request")"
+          esp32_run_id="$(jq -r '.esp32_run_id' "$request")"
+          arduino_run_id="$(jq -r '.arduino_run_id' "$request")"
+          release_tag="$(jq -r '.release_tag' "$request")"
+          release_title="$(jq -r '.release_title' "$request")"
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'invalid source_sha' >&2; exit 1; }
+          for value in "$cmp_run_id" "$esp32_run_id" "$arduino_run_id"; do
+            [[ "$value" =~ ^[0-9]+$ ]] || { echo 'run IDs must be numeric' >&2; exit 1; }
+          done
+          [[ "$release_tag" =~ ^[A-Za-z0-9._-]+$ ]] || { echo 'invalid release_tag' >&2; exit 1; }
+          [[ -n "$release_title" && ! "$release_title" =~ [[:cntrl:]] ]] || { echo 'invalid release_title' >&2; exit 1; }
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "cmp_run_id=$cmp_run_id" >> "$GITHUB_OUTPUT"
+          echo "esp32_run_id=$esp32_run_id" >> "$GITHUB_OUTPUT"
+          echo "arduino_run_id=$arduino_run_id" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+          echo "release_title=$release_title" >> "$GITHUB_OUTPUT"
+
+      - name: Validate exact GREEN release gates
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+          CMP_RUN_ID: ${{ steps.request.outputs.cmp_run_id }}
+          ESP32_RUN_ID: ${{ steps.request.outputs.esp32_run_id }}
+          ARDUINO_RUN_ID: ${{ steps.request.outputs.arduino_run_id }}
+        run: |
+          set -euo pipefail
+          validate_run() {
+            local run_id="$1"
+            local expected_path="$2"
+            local run_json status conclusion workflow_path head_sha head_repository
+            run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")"
+            status="$(jq -r '.status' <<<"$run_json")"
+            conclusion="$(jq -r '.conclusion' <<<"$run_json")"
+            workflow_path="$(jq -r '.path' <<<"$run_json")"
+            head_sha="$(jq -r '.head_sha' <<<"$run_json")"
+            head_repository="$(jq -r '.head_repository.full_name' <<<"$run_json")"
+            [[ "$status" == completed && "$conclusion" == success ]] || {
+              echo "run $run_id is not completed GREEN" >&2; exit 1;
+            }
+            [[ "$workflow_path" == "$expected_path" ]] || {
+              echo "run $run_id workflow mismatch: $workflow_path" >&2; exit 1;
+            }
+            [[ "$head_sha" == "$SOURCE_SHA" ]] || {
+              echo "run $run_id SHA mismatch: $head_sha" >&2; exit 1;
+            }
+            [[ "$head_repository" == "$GITHUB_REPOSITORY" ]] || {
+              echo "run $run_id repository mismatch" >&2; exit 1;
+            }
+          }
+          validate_run "$CMP_RUN_ID" .github/workflows/cmp-protocol-tests.yml
+          validate_run "$ESP32_RUN_ID" .github/workflows/esp32-build.yml
+          validate_run "$ARDUINO_RUN_ID" .github/workflows/arduino-ru-lcd-build.yml
+          git cat-file -e "$SOURCE_SHA^{commit}" 2>/dev/null || gh api "repos/$GITHUB_REPOSITORY/commits/$SOURCE_SHA" >/dev/null
+          echo "All firmware release gates validated at $SOURCE_SHA"
+
+      - name: Download exact combined firmware artifact
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+          ARDUINO_RUN_ID: ${{ steps.request.outputs.arduino_run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firmware"
+          gh run download "$ARDUINO_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "arduino-ru-lcd-firmware-$SOURCE_SHA" \
+            --dir "$RUNNER_TEMP/firmware"
+          test -f "$RUNNER_TEMP/firmware/.pio/build/uno/firmware.hex"
+          test -f "$RUNNER_TEMP/firmware/.pio/build/uno_ru/firmware.hex"
+          test -f "$RUNNER_TEMP/firmware/.pio/build/esp32/firmware.bin"
+          test -f "$RUNNER_TEMP/firmware/.pio/build/esp32/bootloader.bin"
+          test -f "$RUNNER_TEMP/firmware/.pio/build/esp32/partitions.bin"
+
+      - name: Package release assets
+        id: package
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/coilmaster-v1.0.0"
+          mkdir -p "$root/arduino-uno" "$root/arduino-uno-ru-en" "$root/esp32" "$root/logs"
+          cp "$RUNNER_TEMP/firmware/.pio/build/uno/firmware.hex" "$root/arduino-uno/firmware.hex"
+          cp "$RUNNER_TEMP/firmware/.pio/build/uno/firmware.elf" "$root/arduino-uno/firmware.elf"
+          cp "$RUNNER_TEMP/firmware/.pio/build/uno_ru/firmware.hex" "$root/arduino-uno-ru-en/firmware.hex"
+          cp "$RUNNER_TEMP/firmware/.pio/build/uno_ru/firmware.elf" "$root/arduino-uno-ru-en/firmware.elf"
+          cp "$RUNNER_TEMP/firmware/.pio/build/esp32/bootloader.bin" "$root/esp32/bootloader.bin"
+          cp "$RUNNER_TEMP/firmware/.pio/build/esp32/partitions.bin" "$root/esp32/partitions.bin"
+          cp "$RUNNER_TEMP/firmware/.pio/build/esp32/firmware.bin" "$root/esp32/firmware.bin"
+          cp "$RUNNER_TEMP/firmware/.pio/build/esp32/firmware.elf" "$root/esp32/firmware.elf"
+          cp "$RUNNER_TEMP/firmware/uno-build.log" "$root/logs/"
+          cp "$RUNNER_TEMP/firmware/uno-ru-build.log" "$root/logs/"
+          cp "$RUNNER_TEMP/firmware/esp32-build.log" "$root/logs/"
+          printf 'CoilMaster firmware v1.0.0\nSource SHA: %s\nCMP run: %s\nESP32 run: %s\nArduino RU LCD run: %s\n' \
+            "$SOURCE_SHA" \
+            '${{ steps.request.outputs.cmp_run_id }}' \
+            '${{ steps.request.outputs.esp32_run_id }}' \
+            '${{ steps.request.outputs.arduino_run_id }}' > "$root/RELEASE.txt"
+          archive="$RUNNER_TEMP/coilmaster-firmware-v1.0.0-$SOURCE_SHA.zip"
+          (cd "$RUNNER_TEMP" && zip -q -r -9 "$archive" coilmaster-v1.0.0)
+          sha256sum "$archive" > "$archive.sha256"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "checksum=$archive.sha256" >> "$GITHUB_OUTPUT"
+          echo "archive_sha=$(cut -d' ' -f1 "$archive.sha256")" >> "$GITHUB_OUTPUT"
+
+      - name: Write release notes
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+          ARCHIVE_SHA: ${{ steps.package.outputs.archive_sha }}
+        run: |
+          cat > "$RUNNER_TEMP/release-notes.md" <<EOF
+          # CoilMaster firmware v1.0.0
+
+          First production firmware release.
+
+          Source commit: \`$SOURCE_SHA\`
+
+          Exact release gates:
+          - CMP Protocol Tests #4681 — run ${{ steps.request.outputs.cmp_run_id }} — SUCCESS
+          - ESP32 Build #1831 — run ${{ steps.request.outputs.esp32_run_id }} — SUCCESS
+          - Arduino RU LCD Build #263 — run ${{ steps.request.outputs.arduino_run_id }} — SUCCESS
+
+          Package contents:
+          - Arduino Uno normal firmware (HEX + ELF)
+          - Arduino Uno RU/EN LCD firmware (HEX + ELF)
+          - ESP32 bootloader, partition table and firmware (BIN + ELF)
+          - exact build logs
+
+          Release ZIP SHA-256: \`$ARCHIVE_SHA\`
+
+          Safety invariants are unchanged: physical START is mandatory, Web/ESP32 never directly controls SSR, reboot does not auto-resume, and RUN_COMPLETED does not automatically deduct wire.
+          EOF
+
+      - name: Publish immutable GitHub Release
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ steps.request.outputs.release_tag }}
+          RELEASE_TITLE: ${{ steps.request.outputs.release_title }}
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          CHECKSUM: ${{ steps.package.outputs.checksum }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release tag already exists; refusing overwrite: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            "$ARCHIVE" "$CHECKSUM" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "$RELEASE_TITLE" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"

@@ -75,6 +75,20 @@ Keypad result:
 Unexpected motor/SSR activity: YES/NO
 ```
 
+#### Observed physical result — 2026-08-31
+
+User-confirmed cold-boot evidence:
+
+```text
+BOOT: PASS for confirmed items
+Keypad result: PASS / works
+Unexpected motor/SSR activity: NO
+Web ESP32: PASS / works
+LCD text: not recorded yet
+```
+
+This confirms the three reported physical safety/usability checks. It does **not** mark the full E2E acceptance complete; exact LCD text and all later sections remain pending.
+
 ### 2. ESP32 job transfer to Arduino
 
 From the normal CoilMaster Web flow, prepare one controlled winding job with known motor/repair context and an exact selected spool.

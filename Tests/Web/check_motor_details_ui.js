@@ -28,7 +28,8 @@ for (const relative of detailsPages) {
   if (!source.includes('costing.html?repair_id=')) failures.push(`${relative}: repair costing link missing`);
   if (!source.includes('has_more') || !source.includes('next_cursor')) failures.push(`${relative}: bounded repair history paging missing`);
   if (!source.includes('versionNextCursor') || !source.includes("limit:'12'")) failures.push(`${relative}: winding-version history is not bounded/paged`);
-  if (!source.includes("limit:'24'") || !source.includes('invalid_paging_cursor')) failures.push(`${relative}: repair-version comparison must use bounded cursor paging`);
+  const boundedRepairVersionPage = source.includes("limit:'24'") || source.includes('limit:"24"');
+  if (!boundedRepairVersionPage || !source.includes('invalid_paging_cursor')) failures.push(`${relative}: repair-version comparison must use bounded cursor paging`);
   if (source.includes("fetch('/api/jobs'")) failures.push(`${relative}: direct POST must stay isolated in shared helper`);
 }
 
@@ -38,9 +39,7 @@ for (const [relative, source, prefix] of [
   ['desktop/motor-details.html', desktopDetails, '/desktop/'],
   ['mobile/motor-details.html', mobileDetails, '/mobile/']
 ]) {
-  for (const token of [
-    `winding-job.html?repair_id=`, '&role=working', '&role=starting'
-  ]) {
+  for (const token of ['winding-job.html?repair_id=', '&role=working', '&role=starting']) {
     if (!source.includes(token)) failures.push(`${relative}: missing repair-linked role navigation ${token}`);
   }
   if (!source.includes(prefix + 'motor-edit.html?motor_id=')) failures.push(`${relative}: motor edit navigation missing`);

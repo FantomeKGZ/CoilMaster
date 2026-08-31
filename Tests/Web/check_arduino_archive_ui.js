@@ -55,6 +55,9 @@ requireText(archiveWeb, 'replace_existing_required', 'backend explicit replaceme
 requireText(archiveWeb, 'invalid_replace_existing', 'backend replacement flag validation');
 
 for (const needle of ['dataset.exactSessionId','dataset.exactRunId','Session / Run:','№${ordinal}','MutationObserver','Exact Session / Run:']) requireText(compactIds, needle, 'compact operator id layer');
+requireText(compactIds, 'observer.disconnect()', 'compact operator id observer feedback guard');
+requireText(compactIds, 'applyWithoutObserverFeedback()', 'compact operator id guarded apply');
+requireText(compactIds, "heading.textContent !== '№'", 'compact operator id idempotent heading');
 if (compactIds.includes('fetch(') || compactIds.includes("method:'POST'") || compactIds.includes('/api/')) throw new Error('compact operator id layer must stay display-only');
 
 for (const needle of ["body.job_status !== 'PROGRAM_COMPLETED'",'current_job_cleared_after_completion:true','last_completed_run_id:body.last_run_id',"job_status:'IDLE'",'job_id:0','run_active:false']) requireText(displayReset, needle, 'completed job display reset');
@@ -97,4 +100,4 @@ for (const forbidden of ['completedTaskExists(', 'bool assignMotor(']) {
   requireText(privateApi, forbidden, 'internal autonomous assignment helper');
 }
 
-console.log('Arduino archive UI contracts OK; static and runtime role selectors are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');
+console.log('Arduino archive UI contracts OK; compact Session/Run rendering is observer-feedback-safe, static and runtime role selectors are WORKING/STARTING only, occupied-role replacement is opt-in and never auto-retried, completed ESP32 jobs reuse one bounded validated runtime-state snapshot in read-only paging while mutation-time rereads remain intact, physical RUN evidence is not copied, and exact Session/Run provenance is preserved.');

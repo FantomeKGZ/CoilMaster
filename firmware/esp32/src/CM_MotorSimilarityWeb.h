@@ -2,6 +2,7 @@
 #define CM_MOTOR_SIMILARITY_WEB_H
 
 #include <WebServer.h>
+#include "CM_MotorWindingVersionStore.h"
 #include "CM_RepairRegistry.h"
 
 namespace CM
@@ -15,9 +16,12 @@ public:
 private:
     void handleLookup();
     void handleUpdate();
+    void handleWindingRoleUpdate();
 
     WebServer& m_server;
     RepairRegistry& m_registry;
+    MotorWindingVersionStore m_windingVersions;
+    bool m_windingVersionsReady;
 };
 }
 

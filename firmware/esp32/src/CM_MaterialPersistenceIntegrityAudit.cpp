@@ -1,7 +1,11 @@
 #include "CM_MaterialPersistenceIntegrityAudit.h"
 #include "CM_FlatJsonObjectValidator.h"
-#include "CM_WorkshopPersistenceIntegrityAudit.h"
-#include "CM_RepairPricingIntegrityAudit.h"
+#include "CM_BackupBusinessDataIntegrityAudit.h"
+#include "CM_WarehousePersistenceIntegrityAudit.h"
+#include "CM_PersistentIdIntegrityAudit.h"
+#include "CM_WindingSessionPersistenceIntegrityAudit.h"
+#include "CM_RunWireAccountingIntegrityAudit.h"
+#include "CM_WindingPersistenceIntegrityAudit.h"
 #include "CM_MaterialUsageCorrectionIntegrityAudit.h"
 #include <Arduino.h>
 
@@ -100,6 +104,16 @@ bool validMaterialUnit(const String& unit)
 {
     return unit == "PIECE" || unit == "GRAM" || unit == "MILLILITRE" ||
            unit == "METRE" || unit == "SQUARE_METRE";
+}
+
+bool workshopDirectoryShapeValid(fs::FS& storage)
+{
+    if (!storage.exists("/data/workshop")) return true;
+    File directory = storage.open("/data/workshop", FILE_READ);
+    if (!directory) return false;
+    const bool valid = directory.isDirectory();
+    directory.close();
+    return valid;
 }
 
 bool resolveExactReferences(fs::FS& storage,
@@ -390,11 +404,20 @@ bool checkAdjustments(fs::FS& storage, uint32_t& recordCount)
 bool MaterialPersistenceIntegrityAudit::check(fs::FS& storage)
 {
     MaterialPersistenceAuditMetrics ignoredMetrics;
-    if (!checkMaterialDomain(storage, ignoredMetrics)) return false;
+    if (!checkMaterialDomain(storage, ignoredMetrics) ||
+        !workshopDirectoryShapeValid(storage))
+    {
+        return false;
+    }
 
-    // Standalone callers retain the original broad integrity contract.
-    return WorkshopPersistenceIntegrityAudit::check(storage) &&
-           RepairPricingIntegrityAudit::check(storage);
+    // Standalone callers retain the original broad integrity contract, but
+    // use the same authoritative domain owners as the composite backup path.
+    return BackupBusinessDataIntegrityAudit::check(storage) &&
+           WarehousePersistenceIntegrityAudit::check(storage) &&
+           PersistentIdIntegrityAudit::check(storage) &&
+           WindingSessionPersistenceIntegrityAudit::check(storage) &&
+           RunWireAccountingIntegrityAudit::check(storage) &&
+           WindingPersistenceIntegrityAudit::check(storage);
 }
 
 bool MaterialPersistenceIntegrityAudit::checkMaterialDomain(

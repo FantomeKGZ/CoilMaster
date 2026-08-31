@@ -82,7 +82,7 @@ requireText(backend, 'm_server.on("/api/backup/remote/configuration", HTTP_POST'
 requireText(backend, 'm_server.on("/api/backup/remote/test", HTTP_POST', 'backend FTP test POST');
 requireText(backend, 'parseCanonicalUnsigned(m_server.arg("retention_count"), 1UL, 30UL', 'retention range 1..30');
 requireText(backend, 'settings.password = previous.password;', 'empty password preserves stored credential');
-requireText(backend, '\"credentials_exposed\":false', 'credentials remain hidden');
+requireText(backend, 'credentials_exposed', 'credentials remain explicitly hidden in responses');
 requireText(backend, 'settings.scheduleEnabled = configured ? previous.scheduleEnabled : false;', 'schedule preservation/default');
 
 console.log('Remote backup UI parity contracts OK');

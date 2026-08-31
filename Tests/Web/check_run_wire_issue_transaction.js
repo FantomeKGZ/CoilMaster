@@ -31,7 +31,8 @@ const directWriteoffStore = read('firmware/esp32/src/CM_WarehouseWriteOff.cpp');
 const directWriteoffRecovery = read('firmware/esp32/src/CM_WarehouseWriteOffRecovery.cpp');
 const warehouseHeader = read('firmware/esp32/src/CM_WarehouseStore.h');
 const accountingAudit = read('firmware/esp32/src/CM_RunWireAccountingIntegrityAudit.cpp');
-const workshopAudit = read('firmware/esp32/src/CM_WorkshopPersistenceIntegrityAudit.cpp');
+const materialAudit = read('firmware/esp32/src/CM_MaterialPersistenceIntegrityAudit.cpp');
+const backupAudit = read('firmware/esp32/src/CM_BackupExportWeb.cpp');
 const movementHeader = read('firmware/esp32/src/CM_MaterialRequestMovementStore.h');
 const movementStore = read('firmware/esp32/src/CM_MaterialRequestMovementStore.cpp');
 
@@ -166,8 +167,6 @@ if (directWriteoffWeb.includes('handleConfirmWriteOff')) {
   throw new Error('legacy writeoff mutating handler must not remain reachable or defined');
 }
 
-// Atomic RUN_WIRE owns current exact-run safety. Obsolete direct Store mutation
-// entrypoints are gone; only append helpers remain for historical PENDING recovery.
 for (const text of [
   'confirmedWriteOffForSourceRun',
   'alreadyConfirmed',
@@ -241,7 +240,10 @@ requireText(accountingAudit, 'RWI_TX=', 'cross-log transaction marker');
 requireText(accountingAudit, 'matches > 1U', 'exact bridge duplicate rejection');
 requireText(accountingAudit, 'ledgerMatches > 1U', 'duplicate ledger evidence rejection');
 requireText(accountingAudit, 'warehouseMatches > 1U', 'duplicate warehouse evidence rejection');
-requireText(workshopAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'workshop cross-log audit include');
-requireText(workshopAudit, '!RunWireAccountingIntegrityAudit::check(storage)', 'workshop cross-log fail-closed gate');
+requireText(materialAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'standalone cross-log audit include');
+requireText(materialAudit, 'RunWireAccountingIntegrityAudit::check(storage)', 'standalone cross-log fail-closed gate');
+requireText(backupAudit, '#include "CM_RunWireAccountingIntegrityAudit.h"', 'backup cross-log audit include');
+requireText(backupAudit, 'RunWireAccountingIntegrityAudit::check(storage)', 'backup cross-log fail-closed gate');
+requireText(backupAudit, 'run_wire_accounting_unstable_or_invalid', 'distinct backup RUN_WIRE failure reason');
 
-console.log('RUN_WIRE ISSUE transaction contracts: OK; atomic exact-run safety remains authoritative, generic material idempotency stays isolated, dead direct Store mutation entrypoints stay removed, historical PENDING recovery remains deterministic, and direct spool provenance stays bounded.');
+console.log('RUN_WIRE ISSUE transaction contracts: OK; atomic exact-run safety remains authoritative, generic material idempotency stays isolated, dead direct Store mutation entrypoints stay removed, historical PENDING recovery remains deterministic, direct spool provenance stays bounded, and RUN_WIRE cross-log integrity is directly owned by standalone and backup audits.');

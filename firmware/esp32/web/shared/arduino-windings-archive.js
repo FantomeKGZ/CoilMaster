@@ -8,6 +8,8 @@ const view = document.body.dataset.view === 'mobile' ? 'mobile' : 'desktop';
 localStorage.setItem('cm-ui-version', view);
 
 let motors = [];
+let motorsLoaded = false;
+let motorsLoading = false;
 let tasks = [];
 let nextCursor = null;
 let hasMore = false;
@@ -49,24 +51,45 @@ async function fetchPage(cursor, program, tolerance, limit) {
   return jsonFetch('/api/autonomous-windings?' + queryFor(cursor, program, tolerance, limit), {cache:'no-store'});
 }
 async function loadMotors() {
-  const items = [];
-  let cursor = 0;
-  for (;;) {
-    const q = new URLSearchParams({limit:'32'});
-    if (cursor) q.set('cursor', String(cursor));
-    const page = await jsonFetch('/api/motors?' + q, {cache:'no-store'});
-    items.push(...(page.items || []));
-    if (page.has_more !== true) break;
-    const next = Number(page.next_cursor);
-    if (!Number.isInteger(next) || next <= cursor) throw new Error('invalid_motor_cursor');
-    cursor = next;
-  }
-  motors = items;
-  renderMotorOptions();
-}
-function renderMotorOptions() {
+  if (motorsLoaded || motorsLoading) return;
+  motorsLoading = true;
   const select = $('motorSelect');
-  const current = select.value;
+  const previous = select.value;
+  select.disabled = true;
+  select.innerHTML = '<option value="">Загрузка двигателей…</option>';
+  try {
+    const items = [];
+    let cursor = 0;
+    for (;;) {
+      const q = new URLSearchParams({limit:'32'});
+      if (cursor) q.set('cursor', String(cursor));
+      const page = await jsonFetch('/api/motors?' + q, {cache:'no-store'});
+      items.push(...(page.items || []));
+      if (page.has_more !== true) break;
+      const next = Number(page.next_cursor);
+      if (!Number.isInteger(next) || next <= cursor) throw new Error('invalid_motor_cursor');
+      cursor = next;
+    }
+    motors = items;
+    motorsLoaded = true;
+    renderMotorOptions(previous);
+    renderTasks();
+  } catch (error) {
+    select.innerHTML = '<option value="">Не удалось загрузить двигатели</option>';
+    setBulkState('Ошибка загрузки двигателей: ' + error.message, 'note warn');
+  } finally {
+    motorsLoading = false;
+    select.disabled = false;
+    updateBulkControls();
+  }
+}
+function renderMotorOptions(previous) {
+  const select = $('motorSelect');
+  const current = previous ?? select.value;
+  if (!motorsLoaded) {
+    select.innerHTML = '<option value="">Выберите для загрузки двигателей…</option>';
+    return;
+  }
   select.innerHTML = '<option value="">Выберите двигатель…</option>' + motors.map(m =>
     `<option value="${Number(m.motor_id)}">${esc(motorLabel(m))}</option>`).join('');
   if ([...select.options].some(o => o.value === current)) select.value = current;
@@ -94,11 +117,15 @@ function detailText(task) {
   if (task.start_observed === false) return 'RUN_COMPLETED восстановлен из Arduino EEPROM после потери связи. ESP32 не наблюдала RUN_STARTED, но completion evidence сохранено.';
   return 'RUN_STARTED и RUN_COMPLETED наблюдались для exact session_id + run_id.';
 }
+function assignedMotorText(task) {
+  if (!task.assigned_motor_id) return '—';
+  const motor = motors.find(m => Number(m.motor_id) === Number(task.assigned_motor_id));
+  return motor ? motorLabel(motor) : `Двигатель №${Number(task.assigned_motor_id)}`;
+}
 function renderDesktop() {
   const rows = tasks.map(task => {
     const key = taskKey(task);
     const canSelect = task.status === 'COMPLETED';
-    const motor = task.assigned_motor_id ? motors.find(m => Number(m.motor_id) === Number(task.assigned_motor_id)) : null;
     return `<tr>
 <td><input class="task-select" type="checkbox" data-key="${esc(key)}" ${selected.has(key)?'checked':''} ${canSelect?'':'disabled'} aria-label="Выбрать run ${Number(task.run_id)}"></td>
 <td class="count"><b>${Number(task.session_id)}</b> / ${Number(task.run_id)}</td>
@@ -107,7 +134,7 @@ function renderDesktop() {
 <td class="count">${Number(task.completed_runs || 0)}</td>
 <td class="count">${historicalRuns(task)}</td>
 <td>${statusBadge(task)} ${linkageBadge(task)}</td>
-<td>${motor ? esc(motorLabel(motor)) : '—'}</td>
+<td>${esc(assignedMotorText(task))}</td>
 <td><span class="tip" tabindex="0" aria-label="Подробности">i<span class="tip-box">${esc(detailText(task))}<br>Тип: ${esc(task.winding_type || '—')}<br>Роль: ${esc(task.assignment_role || '—')}</span></span></td>
 </tr>`;
   }).join('');
@@ -117,14 +144,13 @@ function renderMobile() {
   $('items').innerHTML = tasks.map(task => {
     const key = taskKey(task);
     const canSelect = task.status === 'COMPLETED';
-    const motor = task.assigned_motor_id ? motors.find(m => Number(m.motor_id) === Number(task.assigned_motor_id)) : null;
     return `<article class="task">
 <div class="task-head"><input class="task-select" type="checkbox" data-key="${esc(key)}" ${selected.has(key)?'checked':''} ${canSelect?'':'disabled'} aria-label="Выбрать run ${Number(task.run_id)}"><div><div class="program">${esc(task.program)}</div><div>${statusBadge(task)} ${linkageBadge(task)}</div></div><b>#${Number(task.run_id)}</b></div>
 <div class="row"><span class="muted">Session / Run</span><b>${Number(task.session_id)} / ${Number(task.run_id)}</b></div>
 <div class="row"><span class="muted">План повторов</span><b>${plannedRepeats(task)}</b></div>
 <div class="row"><span class="muted">Факт. повторов</span><b>${Number(task.completed_runs || 0)}</b></div>
 <div class="row"><span class="muted">Историч. RUN программы</span><b>${historicalRuns(task)}</b></div>
-<div class="row"><span class="muted">Двигатель</span><b>${motor ? esc(motorLabel(motor)) : '—'}</b></div>
+<div class="row"><span class="muted">Двигатель</span><b>${esc(assignedMotorText(task))}</b></div>
 <details><summary>Подробности</summary><p class="mini">${esc(detailText(task))}</p><p class="mini">Тип: ${esc(task.winding_type || '—')} · Роль: ${esc(task.assignment_role || '—')}</p></details>
 </article>`;
   }).join('') || '<div class="note">Записей нет.</div>';
@@ -226,6 +252,9 @@ async function createAndLink(allowMixed) {
     if (!motorId) throw new Error('motor_id_missing');
     for (const task of chosen) await assignOne(task, motorId, $('role').value);
     selected.clear();
+    motorsLoaded = false;
+    motors = [];
+    renderMotorOptions();
     await load(true);
     setBulkState(`${programs.length > 1 ? 'Объединено программ' : 'Создан двигатель'}: motor #${motorId}; linked RUN: ${chosen.length}.`, 'note ok');
   } catch (error) {
@@ -248,7 +277,6 @@ async function load(reset) {
       nextCursor = null;
       hasMore = false;
       $('items').innerHTML = '<div class="note">Загрузка…</div>';
-      await loadMotors();
     }
     $('state').className = 'note';
     $('state').textContent = 'Загрузка bounded страницы архива…';
@@ -307,6 +335,7 @@ async function scanHistory() {
 $('search').addEventListener('click', () => load(true));
 $('all').addEventListener('click', () => { $('program').value=''; load(true); });
 $('more').addEventListener('click', () => load(false));
+$('motorSelect').addEventListener('focus', () => { void loadMotors(); });
 $('motorSelect').addEventListener('change', updateBulkControls);
 $('bulkAssign').addEventListener('click', bulkAssign);
 $('createSelected').addEventListener('click', () => createAndLink(false));
@@ -318,5 +347,6 @@ $('selectCompleted').addEventListener('click', () => {
 $('clearSelection').addEventListener('click', () => { selected.clear(); renderTasks(); });
 $('historyScan').addEventListener('click', scanHistory);
 
+renderMotorOptions();
 load(true);
 })();

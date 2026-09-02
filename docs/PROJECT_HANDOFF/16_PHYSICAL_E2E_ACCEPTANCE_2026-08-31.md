@@ -115,6 +115,26 @@ spool_id:
 command/ack result:
 ```
 
+#### Physical UI defect found — 2026-09-02
+
+During the real Arduino-side acceptance check, the operator confirmed that cancelling an ESP32 remote job actually requires physical key `B`, while the READY-screen hint still exposed `C` as the secondary action. Source inspection confirmed that the safety behavior is correct: `B` is `ReturnHome` / explicit remote-job operator abort and `C` is manual mode.
+
+Fix committed on development branch only:
+
+```text
+f20625ce05b4e34f3bbf5fd8f4630fcb130d165c
+fix(arduino): show B cancel for remote ready job
+```
+
+For `JobSource::Esp32Web` in READY state the LCD now shows:
+
+```text
+RU: A=СТАРТ B=ОТМЕНА
+EN: A=START B=CANCEL
+```
+
+For local keypad jobs the existing `C=manual` hint remains unchanged. No SSR/start ownership or remote-cancel behavior was changed. This commit is **not** called GREEN until exact CI success is verified.
+
 ### 3. Physical START ownership
 
 Start the prepared winding only with the physical Arduino-side START action.

@@ -375,11 +375,22 @@ void Lcd1602View::buildLines(const UiModel& model,
             appendFlash(line1, p1, F("GOTOV "));
 #endif
             appendNumberPair(line1, p1, model.coilNumber, model.coilCount);
+            if (model.jobSource == JobSource::Esp32Web)
+            {
 #if CM_LCD_RU_EN
-            appendFlash(line2, p2, F("A=CTAPT C=P" "\x02" "\x03"));
+                appendFlash(line2, p2, F("A=CTAPT B=OTMEHA"));
 #else
-            appendFlash(line2, p2, F("A=START C=RUCH"));
+                appendFlash(line2, p2, F("A=START B=CANCEL"));
 #endif
+            }
+            else
+            {
+#if CM_LCD_RU_EN
+                appendFlash(line2, p2, F("A=CTAPT C=P" "\x02" "\x03"));
+#else
+                appendFlash(line2, p2, F("A=START C=RUCH"));
+#endif
+            }
             break;
 
         case UiScreen::Winding:

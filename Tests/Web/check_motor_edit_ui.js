@@ -98,6 +98,12 @@ for (const surface of ['desktop', 'mobile']) {
   must(catalog, '>Редактировать</a>', `${surface} catalog edit label`);
 }
 
+const desktopCatalog = read('firmware/esp32/web/desktop/motors.html');
+must(desktopCatalog, "values.push('Рабочая: '+esc(version.working_conductors))", 'desktop catalog working conductor escaping');
+must(desktopCatalog, "values.push('Пусковая: '+esc(version.starting_conductors))", 'desktop catalog starting conductor escaping');
+const mobileCatalog = read('firmware/esp32/web/mobile/motors.html');
+must(mobileCatalog, "esc(conductors)", 'mobile catalog conductor escaping');
+
 const desktopDetails = read('firmware/esp32/web/desktop/motor-details.html');
 mustNot(desktopDetails, '<h3>WORKING</h3>', 'desktop visible WORKING label');
 mustNot(desktopDetails, '<h3>STARTING</h3>', 'desktop visible STARTING label');
@@ -108,4 +114,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Motor winding UI contracts OK: append-only WORKING/STARTING edits plus new-motor copper/aluminum and 1-5 wire capture are present on desktop/mobile.');
+console.log('Motor winding UI contracts OK: append-only WORKING/STARTING edits, new-motor copper/aluminum and 1-5 wire capture, and catalog conductor escaping are present on desktop/mobile.');

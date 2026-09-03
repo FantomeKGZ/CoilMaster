@@ -39,13 +39,20 @@ for (const [label, source] of [['desktop settings', desktop], ['mobile settings'
     "saved_profiles_supported",
     "ftp_supported",
     "allow_mixed_diameters",
-    "max_target_strands"
+    "max_target_strands",
+    "esc=v=>String(v??'').replace(/[&<>\"']/g",
+    'esc(j.mode)',
+    'esc(j.ap_ssid)',
+    'esc(j.ap_ip)',
+    'esc(j.sta_ssid)',
+    'esc(j.sta_ip)'
   ]) must(source, token, label);
 
   must(source, "method:'POST'", `${label} explicit settings mutation`);
   must(source, "cache:'no-store'", `${label} fresh settings status`);
 }
 
+must(desktop, 'esc(j.sta_rssi)', 'desktop settings STA RSSI escaping');
 must(desktop, "localStorage.setItem('cm-ui-version','mobile')", 'desktop mobile switch');
 must(mobile, "localStorage.setItem('cm-ui-version','desktop')", 'mobile desktop switch');
 
@@ -54,4 +61,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Settings hub parity contract OK: desktop/mobile expose the same system/data destinations, network capability status, warehouse price and calculator settings controls.');
+console.log('Settings hub parity contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network strings are HTML-escaped before networkSummary innerHTML rendering.');

@@ -91,4 +91,19 @@ for(const contract of [
   }
 }
 
+for(const [mode,target] of [
+  ['desktop','/sites/reference/desktop/'],
+  ['mobile','/sites/reference/mobile/']
+]){
+  const file=`firmware/esp32/web/${mode}/winding-reference.html`;
+  const alias=fs.readFileSync(file,'utf8');
+  if(!alias.includes(`<main>`)||!alias.includes(`location.replace('${target}')`)||
+     !alias.includes(`url=${target}`)){
+    throw new Error(`${file}: legacy winding-reference route must redirect to the current SD reference bundle`);
+  }
+  if(alias.includes('/reference/motor-reference.json')){
+    throw new Error(`${file}: empty legacy motor-reference JSON must not return as a user-facing data source`);
+  }
+}
+
 console.log('Reference catalog search contracts: OK');

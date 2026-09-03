@@ -30,7 +30,7 @@ struct MotorWindingRoleSpec
     String coilProgram;
     uint16_t repeatTarget;
     uint16_t coilPitch;
-    static constexpr uint8_t MaxConductors = 4U;
+    static constexpr uint8_t MaxConductors = 5U;
     WindingConductorSpec conductors[MaxConductors];
     uint8_t conductorCount;
 

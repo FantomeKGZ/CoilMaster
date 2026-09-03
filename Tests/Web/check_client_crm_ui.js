@@ -47,35 +47,36 @@ for (const [label, source] of [['desktop client create', clientNew], ['mobile cl
 must(clientNew, "$('save').disabled=true", 'desktop client create pending button lock');
 must(mobileClientNew, "$('save').disabled=true", 'mobile client create pending button lock');
 
-for (const token of [
-  '/api/clients/by-id?client_id=',
-  '/api/payments/balance?client_id=',
-  "fetch('/api/payments?'+q",
-  "fetch('/api/repairs?'+q",
-  '/api/repairs/delivery?repair_id=',
-  '/api/motors/by-id?motor_id=',
-  'charged_minor',
-  'paid_minor',
-  'debt_minor',
-  'prepayment_minor',
-  "limit:'12'",
-  "limit:'20'",
-  'invalid_repair_cursor',
-  'invalid_payment_cursor'
-]) must(details, token, 'client details');
-
-// Client detail is now the authoritative CRM edit/prepayment surface. The
-// catalog remains read-only; writes are explicit, append-only and scoped here.
-for (const [label, source] of [['desktop client details', details], ['mobile client details', mobileDetails]]) {
+for (const [label, source, surface] of [
+  ['desktop client details', details, 'desktop'],
+  ['mobile client details', mobileDetails, 'mobile']
+]) {
+  must(source, '/api/clients/by-id?client_id=', `${label} client lookup`);
+  must(source, '/api/payments/balance?client_id=', `${label} balance lookup`);
+  must(source, "fetch('/api/payments?'+q", `${label} bounded payment history`);
+  must(source, "fetch('/api/repairs?'+q", `${label} bounded repair history`);
+  must(source, "new URLSearchParams({client_id:String(", `${label} client-scoped paging`);
+  must(source, "limit:'12'", `${label} repair page bound`);
+  must(source, "limit:'20'", `${label} payment page bound`);
+  must(source, 'invalid_repair_cursor', `${label} repair cursor guard`);
+  must(source, 'invalid_payment_cursor', `${label} payment cursor guard`);
+  mustNot(source, "status:'ALL'", `${label} unsupported ALL repair status`);
+  must(source, '/api/motors/by-id?motor_id=', `${label} repair motor lookup`);
+  must(source, `/${surface}/motor-details.html?motor_id=`, `${label} motor navigation`);
+  must(source, `/${surface}/winding-history.html?repair_id=`, `${label} winding history navigation`);
+  must(source, `/${surface}/costing.html?repair_id=`, `${label} costing navigation`);
   must(source, '/api/clients/update', `${label} edit endpoint`);
   must(source, "kind:'PREPAYMENT'", `${label} prepayment kind`);
   must(source, "confirmed:'true'", `${label} explicit prepayment confirmation`);
   must(source, 'Зачислить предоплату', `${label} prepayment action`);
   must(source, 'автоматически не засчитывается', `${label} no automatic repair offset wording`);
+  must(source, 'prepayment_minor', `${label} separate prepayment balance`);
+  must(source, 'paid_minor', `${label} paid balance`);
+  must(source, 'debt_minor', `${label} debt balance`);
 }
 
+must(details, '/api/repairs/delivery?repair_id=', 'desktop delivery state');
 must(details, 'Баланс ремонтов рассчитывается из authoritative стоимости', 'repair costing remains independent from prepayment');
-must(details, 'Предоплата', 'separate prepayment balance label');
 must(details, 'const item=j.item||j.delivery||j', 'delivery state remains independent and explicit');
 
 must(repairs, '/desktop/client-new.html', 'repair client-create navigation');
@@ -86,4 +87,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Client CRM UI contracts OK: catalog-only browsing, desktop/mobile single-flight dedicated creation, append-only client editing, bounded repair/payment history, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');
+console.log('Client CRM UI contracts OK: catalog-only browsing, desktop/mobile dedicated creation/editing, valid bounded repair/payment history, repair navigation parity, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');

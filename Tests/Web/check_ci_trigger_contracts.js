@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 const arduino = fs.readFileSync('.github/workflows/arduino-uno-build.yml', 'utf8');
 const esp32 = fs.readFileSync('.github/workflows/esp32-build.yml', 'utf8');
@@ -84,7 +85,7 @@ requireText(manifestBuilder, '"coilmaster_commit": args.coilmaster_commit',
 requireText(manifestBuilder, '"legacy_commit": args.legacy_commit',
   'Manifest builder must persist exact legacy-source provenance');
 
-for (const path of [
+for (const triggerPath of [
   '- "Tests/Protocol/**"',
   '- "Tests/Web/**"',
   '- "Arduino/**"',
@@ -93,11 +94,46 @@ for (const path of [
   '- "firmware/esp32/src/**"',
   '- "firmware/esp32/web/**"',
 ]) {
-  requireText(protocol, path,
-    `CMP Protocol Tests pull-request trigger missing ${path}`);
+  requireText(protocol, triggerPath,
+    `CMP Protocol Tests pull-request trigger missing ${triggerPath}`);
+}
+
+// Every check_*.js regression must be reachable from a workflow node command or
+// transitively required by another reachable Web regression. This prevents a
+// useful contract from silently becoming an orphan after refactors.
+const webTestsDir = path.join('Tests', 'Web');
+const allWebChecks = fs.readdirSync(webTestsDir)
+  .filter(name => /^check_.*\.js$/.test(name))
+  .sort();
+const reachableWebChecks = new Set();
+const pending = [];
+for (const match of protocol.matchAll(/node\s+Tests\/Web\/(check_[A-Za-z0-9_.-]+\.js)/g)) {
+  if (!reachableWebChecks.has(match[1])) {
+    reachableWebChecks.add(match[1]);
+    pending.push(match[1]);
+  }
+}
+while (pending.length) {
+  const name = pending.pop();
+  const full = path.join(webTestsDir, name);
+  if (!fs.existsSync(full)) {
+    throw new Error(`CMP Protocol Tests references missing Web regression ${name}`);
+  }
+  const source = fs.readFileSync(full, 'utf8');
+  for (const match of source.matchAll(/require\(['"]\.\/(check_[A-Za-z0-9_.-]+\.js)['"]\)/g)) {
+    const dependency = match[1];
+    if (!reachableWebChecks.has(dependency)) {
+      reachableWebChecks.add(dependency);
+      pending.push(dependency);
+    }
+  }
+}
+const orphanedWebChecks = allWebChecks.filter(name => !reachableWebChecks.has(name));
+if (orphanedWebChecks.length) {
+  throw new Error('Orphaned Web regression contracts: ' + orphanedWebChecks.join(', '));
 }
 
 require('./check_web_recovery_ftp_contracts.js');
 require('./check_remote_backup_ui_parity.js');
 
-console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, FTP recovery contracts are audited, and remote backup UI/backend parity is locked.');
+console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, all Web regression contracts are reachable, FTP recovery contracts are audited, and remote backup UI/backend parity is locked.');

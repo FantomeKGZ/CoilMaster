@@ -2,6 +2,7 @@ require('./check_client_new_ui.js');
 require('./check_web_recovery_ftp_contracts.js');
 require('./check_remote_backup_ui_parity.js');
 require('./check_repair_material_card_ui.js');
+require('./check_crud_page_separation.js');
 
 const fs = require('fs');
 const path = require('path');

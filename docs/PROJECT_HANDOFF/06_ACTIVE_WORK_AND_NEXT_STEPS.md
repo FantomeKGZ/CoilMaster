@@ -47,7 +47,9 @@ main            = stable/ready; обновлять только отдельны
 - desktop/mobile repair creation legacy handoff by exact `client_id` / `motor_id`;
 - settings network/time/Hall/FTP runtime HTML escaping;
 - pricing-audit runtime HTML escaping;
-- desktop motor catalog versioned conductor HTML escaping.
+- desktop motor catalog versioned conductor HTML escaping;
+- dashboard linked repair/motor context HTML/URL escaping;
+- Hall current calibration result runtime DOM rendering.
 
 ## Latest exact verified checkpoints
 
@@ -138,26 +140,42 @@ The final acceptance audit found several real presentation-layer gaps where serv
 
 Checkpoint 29 closed the main settings network summary. Checkpoint 30 extended the same boundary to time/RTC, Hall and FTP/Web-recovery runtime status. Checkpoint 31 closed the pricing-audit status/timestamp path. Checkpoint 32 closed raw versioned `working_conductors` / `starting_conductors` in desktop `motors.html`; mobile catalog already escaped conductor text.
 
-Exact verified chain:
+Checkpoint 33 then closed linked dashboard context: desktop raw `repair_id`, mobile raw `repair_id`/`motor_id`, and repair history URL encoding. Checkpoint 34 removed runtime `innerHTML` entirely from the current Hall calibration result and now renders validity plus measurement fields through DOM/text nodes.
+
+Exact verified chain for the latest two checkpoints:
 
 ```text
-CMP #4864  run 33734195479 / SUCCESS
+CMP #4887      run 33737012053 / SUCCESS
+Reference #131 run 33737012006 / SUCCESS
+ESP32 #1895    run 33737012189 / SUCCESS
+CMP #4888      run 33737038921 / SUCCESS
+CMP #4889      run 33737220258 / SUCCESS
+CMP #4890      run 33737705118 / SUCCESS
+Reference #132 run 33737704899 / SUCCESS
+ESP32 #1896    run 33737704907 / SUCCESS
+CMP #4891      run 33737723762 / SUCCESS
+```
+
+Earlier exact DOM verification chain remains:
+
+```text
+CMP #4864      run 33734195479 / SUCCESS
 ESP32 #1884 run 33734113844 / SUCCESS
 ESP32 #1885 run 33734170099 / SUCCESS
-CMP #4865  run 33734386839 / SUCCESS
-CMP #4868  run 33734667118 / SUCCESS
-CMP #4871  run 33734862776 / SUCCESS
-CMP #4872  run 33734956028 / SUCCESS
+CMP #4865      run 33734386839 / SUCCESS
+CMP #4868      run 33734667118 / SUCCESS
+CMP #4871      run 33734862776 / SUCCESS
+CMP #4872      run 33734956028 / SUCCESS
 Reference #126 run 33734956275 / SUCCESS
 ESP32 #1890 run 33734955992 / SUCCESS
-CMP #4873  run 33734985565 / SUCCESS
-CMP #4874  run 33735201736 / SUCCESS
-CMP #4877  run 33735336317 / SUCCESS
-CMP #4878  run 33735432605 / SUCCESS
-CMP #4881  run 33736069877 / SUCCESS
+CMP #4873      run 33734985565 / SUCCESS
+CMP #4874      run 33735201736 / SUCCESS
+CMP #4877      run 33735336317 / SUCCESS
+CMP #4878      run 33735432605 / SUCCESS
+CMP #4881      run 33736069877 / SUCCESS
 Reference #129 run 33736069966 / SUCCESS
-ESP32 #1893 run 33736069916 / SUCCESS
-CMP #4882  run 33736114112 / SUCCESS
+ESP32 #1893    run 33736069916 / SUCCESS
+CMP #4882      run 33736114112 / SUCCESS
 ```
 
 Detailed records:
@@ -167,9 +185,11 @@ docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/32_CHECKPOINT_MOTOR_CATALOG_CONDUCTOR_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/33_CHECKPOINT_DASHBOARD_LINKED_CONTEXT_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/34_CHECKPOINT_HALL_RESULT_TEXT_DOM_2026-09-03.md
 ```
 
-Regression coverage protects the affected DOM boundaries through the existing Web contract graph, including `check_settings_hub_parity.js` and `check_motor_edit_ui.js`.
+Regression coverage protects the affected DOM boundaries through the existing Web contract graph, including `check_settings_hub_parity.js`, `check_motor_edit_ui.js`, `check_dashboard_job_history.js` and `check_hall_history_ui.js`.
 
 ### Branch-policy documentation sync
 
@@ -191,19 +211,27 @@ Additional current inspection shows:
 - historical `statistics.html` is absent;
 - search hits for HTML `placeholder=` are normal form hints, not unfinished pages;
 - no current `TODO` / `FIXME` / `not implemented` / `готовится` / `заглушка` user-facing hit was found by repository search;
-- desktop/mobile `motor-new` both save canonical WORKING + optional STARTING and finish at the exact new motor card — **NO-CHANGE**;
+- desktop/mobile `motor-new` save canonical WORKING + optional STARTING; similarity/result/link rendering is safe — **NO-CHANGE**;
+- desktop/mobile `motor-import` safely render untrusted imported fields/errors and preserve canonical first WORKING creation — **NO-CHANGE**;
 - mobile `client-new` opens the new client card, whose `+ Новый ремонт` action preserves exact `client_id` — **NO-CHANGE**;
+- desktop/mobile client catalog/details safely render identity/comment/repair/payment fields — **NO-CHANGE**;
+- desktop/mobile repair catalog safely renders complaint/IDs/delivery and preserves exact legacy handoff — **NO-CHANGE**;
 - desktop/mobile motor cards preserve exact `motor_id` when entering repair creation — **NO-CHANGE**;
 - desktop/mobile closed-repair reports use the same bounded CLOSED query, registry lookups and authoritative costing source — **NO-CHANGE**;
 - desktop/mobile `winding-history.html` escape event/session/run/job/motor values; `shared/winding-history-spools.js` escapes spool/session/wire values — **NO-CHANGE**;
-- `service-job.html` desktop/mobile uses `textContent` for runtime state and retains strict cancel/dismiss restrictions — **NO-CHANGE**;
-- shared Wi-Fi settings already escape SSID/IP/runtime strings — **NO-CHANGE**;
-- desktop/mobile backup export already protect dynamic file/session/error rendering — **NO-CHANGE**;
-- desktop/mobile material catalog already escape names/units/currency/comments/timestamps and encode IDs in links — **NO-CHANGE**;
-- Arduino winding archive shared UI already escapes dynamic archive/motor/program text and normalizes numeric IDs — **NO-CHANGE**;
-- desktop/mobile Cash UI escapes client/motor/payment/comment/runtime values and remains append-only — **NO-CHANGE**;
+- desktop/mobile `service-job.html` uses `textContent` for runtime state and retains strict cancel/dismiss restrictions — **NO-CHANGE**;
+- desktop/mobile linked `winding-job.html` render IDs/program/spool/status via `textContent`/`.value`, create spool options with DOM API and preserve local physical START — **NO-CHANGE**;
+- `shared/completed-job-display-reset.js` normalizes IDs and uses `textContent`/`replaceChildren` — **NO-CHANGE**;
+- `shared/completed-web-job-archive-bridge.js` uses runtime-safe DOM; its only `innerHTML` is static checkbox markup — **NO-CHANGE**;
+- shared Wi-Fi/settings remote backup code protects runtime strings and does not render stored passwords — **NO-CHANGE**;
+- desktop/mobile backup export and remote-upload render status/file names through text DOM and retain operator-controlled restore — **NO-CHANGE**;
+- desktop/mobile material catalog escape names/units/currency/comments/timestamps and encode IDs in links — **NO-CHANGE**;
+- Arduino winding archive shared UI escapes dynamic archive/motor/program text and normalizes numeric IDs — **NO-CHANGE**;
+- `shared/arduino-archive-compact-ids.js` only inserts a locally computed numeric ordinal through `innerHTML`; exact IDs use text/dataset/title — **NO-CHANGE**;
+- desktop/mobile Cash UI escape client/motor/payment/comment/runtime values and remain append-only — **NO-CHANGE**;
 - desktop `motor-details.html` uses `textContent` or escaped `formatConductors()` output for winding fields/history — **NO-CHANGE**;
 - `shared/writeoff-spool-suggestion.js` preserves exact RUN/session/spool/material-request identity and safely renders runtime strings — **NO-CHANGE**;
+- repository search found no `insertAdjacentHTML`, `outerHTML` or `document.write` sink;
 - cash/payment remains a separate append-only journal and must not be silently introduced as a second costing/report source of truth.
 
 Do not change a page merely because its filename/content looks old or because desktop/mobile UX differs cosmetically. Require concrete broken/incomplete behavior or an explicit requested feature.
@@ -235,7 +263,7 @@ Continue the current `cmp-protocol-v1` final feature/runtime acceptance audit. C
 3. a previously promised feature that repository inspection proves is still missing;
 4. an explicit new user request.
 
-For Web rendering, continue the explicit rule: every server/runtime string interpolated into `innerHTML` must be escaped; prefer `textContent` when markup is not required.
+For Web rendering, continue the explicit rule: every server/runtime string interpolated into `innerHTML` must be escaped; prefer `textContent`/DOM nodes when markup is not required. Also verify runtime IDs before building dynamic URL attributes and use `URLSearchParams`/`encodeURIComponent` where appropriate.
 
 If inspection finds no defect in an area, record **NO-CHANGE** rather than inventing work.
 
@@ -248,6 +276,8 @@ Do not resume speculative Uno parser/compiler micro-optimization unless measured
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/34_CHECKPOINT_HALL_RESULT_TEXT_DOM_2026-09-03.md
+docs/PROJECT_HANDOFF/33_CHECKPOINT_DASHBOARD_LINKED_CONTEXT_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/32_CHECKPOINT_MOTOR_CATALOG_CONDUCTOR_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md

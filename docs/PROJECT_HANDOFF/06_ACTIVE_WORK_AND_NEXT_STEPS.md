@@ -1,340 +1,167 @@
 # Активная работа и следующие шаги
 
-Дата обновления: **2026-08-30**  
-Production/source-of-truth: **`cmp-protocol-v1`**  
-Текущая рабочая ветка: **`arduino-ru-lcd-experiment`**
+Дата обновления: **2026-09-03**  
+Рабочая/source-of-truth ветка: **`cmp-protocol-v1`**  
+Stable/ready ветка: **`main`**
 
 ## Branch policy
 
-Production не изменён:
+Текущая обязательная схема:
 
 ```text
-cmp-protocol-v1 = 28c7917a906bc9b15736369e8986d0e0c354ab8c
+cmp-protocol-v1 = единственная development/source ветка
+main            = stable/ready; обновлять только отдельным подтверждённым promotion
 ```
 
-Все новые изменения выполнять только в `arduino-ru-lcd-experiment`. Не переносить experiment обратно в production без отдельного прямого запроса пользователя. `main` не использовать как source.
+`arduino-ru-lcd-experiment` retired и больше не использовать как source.
 
-## Active state
+Перед каждым изменением существующего файла:
 
-Experiment-side repo-reviewable software work закрыт through checkpoint **167**.
+1. fetch exact current content из `cmp-protocol-v1`;
+2. получить current blob SHA;
+3. изменять только относительно этого SHA.
 
-Ключевые detailed records:
+Для нового файла сначала проверить отсутствие пути. Новый HEAD нельзя называть GREEN без exact `completed/success` применимого CI.
+
+## Current active stream
+
+Текущая работа — feature-completeness / runtime audit. Исправлять только подтверждённые пробелы. Не переоткрывать закрытые блоки по предположению.
+
+Закрыты и не являются текущей очередью:
+
+- repair/material/RUN_WIRE safety/accounting foundation;
+- repeated-scan optimization checkpoints и их NO-CHANGE closeout;
+- autonomous winding → canonical motor history;
+- RU Hall LCD/local-control flow;
+- WORKING/STARTING canonical role cleanup;
+- calculator source strand counts;
+- motor import;
+- motor WORKING/STARTING edit;
+- new-motor questionnaire with canonical WORKING + optional STARTING;
+- client creation questionnaire;
+- bounded clients/motors/repairs pagination;
+- stale Statistics placeholders;
+- Cash UI regression reachability;
+- orphaned Web regression audit.
+
+## Latest exact verified checkpoints
+
+### Uno resource/headroom checkpoint
+
+Latest measured production Uno code checkpoint:
 
 ```text
-07_REPAIR_MATERIAL_WRITEOFF_PLAN.md
-10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md
-11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md
-12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md
-13_HALL_RU_LCD_ACCEPTANCE.md
-14_NEXT_CHAT_TRANSFER_2026-08-30.md
+Flash: 31114 / 32256; free 1142 bytes
+RAM:   1227 / 2048;   free 821 bytes
 ```
 
-`01_CURRENT_STATE.md` остаётся общей полной сводкой состояния и firmware/runtime CI evidence; `00_READ_FIRST.md` и `14_NEXT_CHAT_TRANSFER_2026-08-30.md` содержат свежую handoff CI chain.
+The CI guard remains `MIN_HEADROOM_BYTES = 512` for both Flash and RAM. Do not lower the guard to hide growth.
 
-## Закрытые software-блоки
-
-### Repair materials / accounting / integrity — GREEN
-
-Authoritative plan: `07_REPAIR_MATERIAL_WRITEOFF_PLAN.md`.
-
-Сохраняются:
-
-- generic repair-material usage только explicit/manual;
-- bounded catalogue/search/history;
-- operation-id idempotency;
-- authoritative stock/price preview + final mutation-time TOCTOU/WAL;
-- persisted price snapshot;
-- append-only corrections with exact source usage provenance;
-- cumulative over-correction guard;
-- net RepairCosting;
-- correction integrity + backup coverage;
-- RUN_WIRE как отдельный exact-safe Warehouse path;
-- desktop/mobile parity.
-
-### Checkpoints 152–158 — GREEN
+Relevant verified chain:
 
 ```text
-152 RUN_WIRE Material Request status batching
-153 unified autonomous/Web completed-job archive lifecycle
-154 RUN_WIRE exact immutable-spool lookup
-155 Material Request create repair scan reuse
-156 Material Request Warehouse known-request status reuse
-157 client balance repair-journal validation reuse
-158 RepairCostingWeb exact repair proof reuse
+CMP #4820  run 33727723542 / SUCCESS
+Uno #256   run 33727723569 / SUCCESS
+CMP #4821  run 33727817692 / SUCCESS
+Uno #257   run 33727817804 / SUCCESS
+CMP #4822  run 33728065920 / SUCCESS
 ```
 
-Safety behavior этих блоков не менять. Generic callers остаются self-validating; mutation-time authoritative rereads не удалять.
+### Web regression reachability checkpoint
 
-### Checkpoint 159 — autonomous winding → canonical motor history — GREEN
+Closed findings:
 
-- autonomous/completed assignment projects into append-only `MotorWindingVersionStore`;
-- canonical roles only `WORKING` and `STARTING`;
-- exact retry identity `session_id + run_id + role`;
-- historical assignment-only rows backfill on retry;
-- canonical-first partial failure is retry-safe;
-- untargeted role is fully preserved;
-- `STARTING` requires existing `WORKING`;
-- occupied role never silently overwrites;
-- replacement requires explicit `replace_existing=true` and appends a new version;
-- UI defaults replacement to false and does not auto-retry 409;
-- no physical RUN evidence is fabricated/copied.
+- active `check_cash_ui.js` was orphaned and is now reachable through `check_web_assets.js`;
+- CI now fails if any `Tests/Web/check_*.js` is unreachable;
+- this guard exposed `check_ru_hall_calibration_experiment.js`;
+- inspection confirmed it still protects active RU Hall/local START/SSR/Web safety behavior, so it was retained and made reachable;
+- old desktop/mobile `statistics.html` placeholders remain absent.
 
-Verified block evidence:
+Exact verification:
 
 ```text
-9e7b1390d7394ccbaddf0942b00085d859f8a0be
-CMP Protocol Tests #3957 / SUCCESS
-ESP32 Build #1751        / SUCCESS
-
-8955f506f793b8a732a89726f38708ba2520945d
-CMP Protocol Tests #3959 run 33254003888 / SUCCESS
+CMP #4823  run 33728359779 / SUCCESS
+CMP #4824  run 33728459826 / FAILURE
+  expected audit discovery: check_ru_hall_calibration_experiment.js orphan
+CMP #4825  run 33728574447 / SUCCESS
+CMP #4826  run 33728672746 / SUCCESS
 ```
 
-### Checkpoints 160–161 — Warehouse growing-journal optimizations — GREEN
-
-Checkpoint 160 removed a confirmed exact lookup duplicate scan.
-
-Checkpoint 161 changed Warehouse CONFIRMED provenance uniqueness validation so each fixed batch compares against the later suffix only; already-proven prefix is not reread. Fixed RAM bounds and full transaction/schema/order validation remain.
+Detailed record:
 
 ```text
-dc9415c531d8c9685bc6202941df042ec299af0c
-CMP Protocol Tests #3965  run 33257271690 / SUCCESS
-ESP32 Build #1754         run 33257271722 / SUCCESS
-Arduino RU LCD #178       run 33257271706 / SUCCESS
-
-875c6a069b3680569dc35576d82861d737444144
-CMP Protocol Tests #3966  run 33257294547 / SUCCESS
+docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md
 ```
 
-Detailed record: `10_CHECKPOINT_161_WAREHOUSE_PROVENANCE_SUFFIX_SCAN.md`.
+### Branch-policy documentation sync
 
-### Checkpoint 162 — repair finalization known-repair proof reuse — GREEN
+`00_READ_FIRST.md` was updated on current development branch to remove the retired `arduino-ru-lcd-experiment` policy and to make `cmp-protocol-v1` the only development/source branch.
 
-Both RepairRegistryWeb finalization flows already prove exact repair/open state and now pass that proof into `RepairFinalizationGuard::checkKnownRepair()` / `RepairCosting::loadKnownRepair()` instead of immediately rescanning `repairs.ndjson`.
-
-Generic finalization remains self-validating. `handleCloseRepair()` still executes mutation-time `m_registry.closeRepair(...)`, preserving the TOCTOU boundary.
+Commit:
 
 ```text
-ESP32 Build #1757         run 33257746469 / SUCCESS
-Arduino RU LCD #181       run 33257746498 / SUCCESS
-CMP Protocol Tests #3971  run 33257805004 / SUCCESS
+49442512b8c7f927a295daa5401b941f5e7ee4f9
+docs: align current branch policy
 ```
 
-Detailed record: `11_CHECKPOINT_162_REPAIR_FINALIZATION_KNOWN_REPAIR.md`.
+Its exact CMP run must be checked before using that commit itself as GREEN evidence.
 
-### Checkpoint 163 — Repair Delivery single-pass preflight — GREEN
+## Current audit findings
 
-Repair Delivery append obtains both existing-repair linkage/conflict state and next `delivery_id` from one authoritative validated delivery-journal pass via:
+User-facing static route validation is already enforced by `check_web_assets.js`.
 
-```cpp
-prepareAppend(repairId, deliveryId, alreadyExists)
-```
+Additional stale/placeholder sweep currently shows no new proven user-facing placeholder requiring production code change:
 
-Exact repair identity is reused for the status-only open-state lookup. Mutation/recovery/TOCTOU semantics remain authoritative.
+- historical `statistics.html` is absent;
+- search hits for HTML `placeholder=` are normal form hints, not unfinished pages;
+- Hall `Подготовка локального запуска` is an active runtime state, not a placeholder;
+- no current `готовится` user-facing stub was found in the repository search.
 
-Final verified evidence:
+Do not change a page merely because its filename/content looks old. Require concrete broken/incomplete behavior or an explicit requested feature.
 
-```text
-ESP32 Build #1774         run 33265057626 / SUCCESS
-Arduino RU LCD #198       run 33265057605 / SUCCESS
-CMP Protocol Tests #4009  run 33265221419 / SUCCESS
-CMP Protocol Tests #4010  run 33265276200 / SUCCESS
-checkpoint docs HEAD      eb22812e4cec4954a1ca2aedf730128cbb4b6742
-```
+## Safety invariants — immutable unless explicitly redesigned
 
-The earlier `#4005–#4008`, `#1773`, `#197` were intermediate failures and are not GREEN evidence.
+Never weaken:
 
-### Checkpoint 164 — spool/material bridge suffix uniqueness audit — GREEN
-
-`SpoolMaterialBridgeStore::validateAll()` now:
-
-- streams the outer bridge journal once in fixed `BridgeAuditBatchSize = 24` batches;
-- validates strict `bridge_id` growth;
-- rejects duplicate `spool_id` inside the current batch in bounded RAM;
-- records `outer.position()` after the batch;
-- compares that batch only with the still-unseen suffix;
-- no longer rereads the already-proven prefix for every batch.
-
-Commits:
-
-```text
-d8862aef7ae3b3c4a6e3e7dbbe49c92d19babb77  implementation
-63c70e59fee99f77c20135606c8d9911f8bfbd4e  scoped contract
-8f37cb5268ee461e9b41a2307981d3fd45b9a565  stale contract correction
-fb7aaa368ae21fe5041395f0df5eef959233920d  final namespace-close fix
-```
-
-Intermediate failures are intentional history, not hidden:
-
-```text
-CMP #4011   run 33266038272 / FAILURE  stale full-rescan source-text assertion
-ESP32 #1776 run 33266038221 / FAILURE  missing final namespace CM brace
-```
-
-Final exact-head evidence:
-
-```text
-fb7aaa368ae21fe5041395f0df5eef959233920d
-CMP Protocol Tests #4014  run 33266181118 / SUCCESS
-ESP32 Build #1777         run 33266181104 / SUCCESS
-```
-
-### Checkpoint 165 — residual repeated-scan audit — NO-CHANGE
-
-The remaining strongest candidates were reviewed and must stay unchanged:
-
-- `SpoolMaterialBridgeIntegrityAudit`: bridge batches can reference arbitrary rows anywhere in `spools.ndjson` and `materials.ndjson`; suffix-only reference lookup would miss valid prefix references. A safe removal would require a new persistent index/cache or whole-file state, which is intentionally rejected.
-- `MaterialUsageCorrectionIntegrityAudit`: every fixed batch must see previous corrections to prove cumulative over-correction limits, operation uniqueness and source provenance.
-- CashPayment correction/read preflight vs `append()`/`analyzeAppendState()`: separate read and mutation phases; mutation-time authoritative scan remains mandatory.
-- Repair Intake/recovery: rereads around durable pending/append/recovery are intentional TOCTOU/recovery boundaries.
-
-Result: checkpoint 165 is **NO-CHANGE**. Do not continue speculative repeated-scan refactors solely to reduce file opens.
-
-Detailed closeout: `12_CHECKPOINT_163_165_REPEATED_SCAN_CLOSEOUT.md`.
-
-### Checkpoint 166 — reachable Hall RU LCD localization — GREEN
-
-The remaining reachable Hall screens in the RU LCD experiment are now Russian while Hall control semantics stay unchanged:
-
-- armed: `ДАТЧИК ХОЛЛА` / `A ИЛИ START`;
-- running: `ТЕСТ ХОЛЛА` / `ОСТ. <n> СЕК`;
-- apply confirmation: `СОХР. НАСТР.?` / `#=ДА B=НЕТ`;
-- dedicated Hall CGRAM uses only four existing glyphs (`Д`, `Ч`, `И`, `Л`);
-- normal screen-specific RU CGRAM is restored after Hall exits;
-- unreachable `WaitingLocalConfirm` LCD branch remains forbidden;
-- A/physical START remains operator-local; ESP32/Web never receives START or SSR control;
-- Hall timing, ADC sampling, UART telemetry and persisted calibration flow remain unchanged.
-
-Final source-head evidence:
-
-```text
-3624e18a4c1a51fe1b914b5aa7fc3ece6245197c
-CMP Protocol Tests #4028  run 33268897356 / SUCCESS
-Arduino RU LCD #206       run 33268897370 / SUCCESS
-```
-
-Uno resource evidence from #206:
-
-```text
-uno_ru_lcd: RAM 1614 / 2048 (78.8%); Flash 31448 / 32256 (97.5%); only 808 bytes Flash remain
-uno:        RAM 1605 / 2048 (78.4%); Flash 31066 / 32256 (96.3%); 1190 bytes Flash remain
-```
-
-`Arduino RU LCD #205` (`33268835043`) is recorded as an intermediate stale-contract failure: it still expected English `HALL TEST READY` and failed before PlatformIO compile. The final aligned contract is GREEN at #206.
-
-### Checkpoint 167 — static canonical winding-role selector cleanup — GREEN
-
-The autonomous/archive assignment backend and runtime safety layer already permitted only canonical `WORKING` / `STARTING`, but both static operator HTML pages still contained an obsolete `AUXILIARY` option that JavaScript removed only after load. This residual mismatch is now closed.
-
-- desktop `arduino-windings.html` contains only `WORKING` and `STARTING`;
-- mobile `arduino-windings.html` contains only `WORKING` and `STARTING`;
-- runtime filtering remains as defense-in-depth for stale/cached pages;
-- backend rejection of unsupported roles remains unchanged;
-- explicit occupied-role replacement remains opt-in and never auto-retried;
-- no firmware, RUN evidence, motor history or safety-control semantics changed.
-
-Commits / exact verification:
-
-```text
-9e538828ed179700d362286a3af72de6a6ce0b6f  desktop static role cleanup
-CMP Protocol Tests #4068  run 33290408963 / SUCCESS
-ESP32 Build #1778         run 33290408891 / SUCCESS
-Arduino RU LCD #207       run 33290408886 / SUCCESS
-
-47903b0f2e2ddc8ac90abf1e26db7e678a570363  mobile static role cleanup
-CMP Protocol Tests #4069  run 33290422893 / SUCCESS
-ESP32 Build #1779         run 33290422888 / SUCCESS
-Arduino RU LCD #208       run 33290422860 / SUCCESS
-
-0eb32376de3a4c50c765dcbe6b946524d075f69b  regression contract
-CMP Protocol Tests #4070  run 33290440543 / SUCCESS
-```
-
-## Latest verified handoff CI chain
-
-These runs were independently verified against GitHub metadata on `arduino-ru-lcd-experiment`:
-
-```text
-CMP Protocol Tests #4033  run 33288156234 / SUCCESS  head 51d1de7839d4f0b7b7be3031546cc896e4bdb212
-CMP Protocol Tests #4034  run 33288559791 / SUCCESS  head 54ba0370894f4d42617fca36a4fe10611082ec7e
-CMP Protocol Tests #4035  run 33288575129 / SUCCESS  head c2d76a1e159733e9972a6e396537710682a84740
-CMP Protocol Tests #4036  run 33288687699 / SUCCESS  head 6e109d0c261fcd638c3bdf6922494b298f30d196
-CMP Protocol Tests #4037  run 33288701498 / SUCCESS  head 6ff5bbc578a06ef15935085a4048ee487ffaa2f9
-CMP Protocol Tests #4038  run 33288723882 / SUCCESS  head 89aa0d98d2811b32107b9f3f1ab043517fafe9f6
-CMP Protocol Tests #4039  run 33289007119 / SUCCESS  head ec28cebb49ea68f2c0222e47b0e9971f8ee40077
-CMP Protocol Tests #4040  run 33289028681 / SUCCESS  head 62274a0fd7e0f40aa2da7768a8f52f46bbb4d891
-CMP Protocol Tests #4041  run 33289102116 / SUCCESS  head 04763307d222c9a9696a4fd396453882744e5a
-CMP Protocol Tests #4042  run 33289117627 / SUCCESS  head fb34936f1e00816000bc5570a0060af0b8ebcca9
-CMP Protocol Tests #4043  run 33289176000 / SUCCESS  head e72df70cb90a8bcb6bc28d7590c6b91eca09a063
-CMP Protocol Tests #4044  run 33289192924 / SUCCESS  head 944c7c29461f16bb191a2183d913e6db427f0118
-CMP Protocol Tests #4045  run 33289269685 / SUCCESS  head 1bb563db927ad363474f6471252e97c77119ee48
-CMP Protocol Tests #4046  run 33289289249 / SUCCESS  head a50bf196d1e8c88c5a1c578204cb6bebb9e0d5e5
-CMP Protocol Tests #4047  run 33289383083 / SUCCESS  head 1891dd264653dd4724441f4de15a4683c030f528
-CMP Protocol Tests #4048  run 33289410136 / SUCCESS  head b8f67b5d81611ab5c96110b90adab9461bb4a37b
-CMP Protocol Tests #4049  run 33289445045 / SUCCESS  head 026d0e13f535257d85f542795c00e9471483001d
-CMP Protocol Tests #4050  run 33289542271 / SUCCESS  head fd3eb34a15ccdc334202f38d165934ae0bb1f2ce
-CMP Protocol Tests #4051  run 33289561938 / SUCCESS  head 248e6a1861ef310aba38910043124f4777833943
-CMP Protocol Tests #4052  run 33289583224 / SUCCESS  head 8d64b08eb05959eb0aa1112c936176e3bab36969
-CMP Protocol Tests #4053  run 33289676773 / SUCCESS  head 60da9ea34c0fb2998aded8ff6dd35b28c0273b29
-CMP Protocol Tests #4054  run 33289697240 / SUCCESS  head a4ac7b02bb68dec2f8cc1887f9206188fb7b105e
-CMP Protocol Tests #4055  run 33289767490 / SUCCESS  head 78901d2f730e431411582c2e46e796560908b6c6
-CMP Protocol Tests #4056  run 33289786730 / SUCCESS  head 8177d383c8b0aa5b94658d3bb59fd86ff066a62e
-CMP Protocol Tests #4057  run 33289866054 / SUCCESS  head 1579b6a2c202457e501dc7a8aa3480ae0ce0702e
-CMP Protocol Tests #4058  run 33289891342 / SUCCESS  head 46cede22a06fdf7dc68dfce545c618ced9063876
-CMP Protocol Tests #4059  run 33289916765 / SUCCESS  head 70e4db3aad53458bef5778b7c8cd5c7a08ec2840
-CMP Protocol Tests #4060  run 33289985842 / SUCCESS  head f04ee9e8f36b29cde590c0a364a6a95442bc56b3
-CMP Protocol Tests #4061  run 33290011908 / SUCCESS  head 08d79f3a06ea473fff0644efe4540c5251942c39
-CMP Protocol Tests #4063  run 33290149645 / SUCCESS  head b189d7d3575663fa2f11b376352dca1cda301377
-CMP Protocol Tests #4064  run 33290236422 / SUCCESS  head 05b5fd3a2acb2f8cb5d7f167848561bc353864fe
-CMP Protocol Tests #4065  run 33290257905 / SUCCESS  head 8fd0a99e5240bdd30bf590d7ffe9e1ccf361712d
-CMP Protocol Tests #4066  run 33290353792 / SUCCESS  head 8baf7119dd2f962032ed655ac39a1ffbb85abe6b
-CMP Protocol Tests #4067  run 33290379205 / SUCCESS  head 52c2ed9015df7591fc730a9614b4e8c85d2bb3bb
-CMP Protocol Tests #4068  run 33290408963 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
-CMP Protocol Tests #4069  run 33290422893 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
-CMP Protocol Tests #4070  run 33290440543 / SUCCESS  head 0eb32376de3a4c50c765dcbe6b946524d075f69b
-CMP Protocol Tests #4071  run 33290487906 / SUCCESS  head 5ed169dc7ef0ac16768810d44bda732da2233b4f
-CMP Protocol Tests #4072  run 33290608524 / SUCCESS  head fcbcc2b1dba77f2962e9e733d6f78ed931aa6c52
-CMP Protocol Tests #4073  run 33290636544 / SUCCESS  head 578e4f786ab67bb701b1c796bd3e137492e46e6e
-CMP Protocol Tests #4074  run 33290727723 / SUCCESS  head 37ffd3d41ca7602c9e8ff60086c124d9692f3ff8
-CMP Protocol Tests #4075  run 33290759157 / SUCCESS  head 76feab5c37973a5ad4afc63ef515d5b6f7f4fdc3
-CMP Protocol Tests #4076  run 33290785679 / SUCCESS  head e1fa715c8049e765b0c5bc010a95a5fafadac614
-ESP32 Build #1778         run 33290408891 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
-ESP32 Build #1779         run 33290422888 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
-Arduino RU LCD #207       run 33290408886 / SUCCESS  head 9e538828ed179700d362286a3af72de6a6ce0b6f
-Arduino RU LCD #208       run 33290422860 / SUCCESS  head 47903b0f2e2ddc8ac90abf1e26db7e678a570363
-```
-
-`#4036–#4076` were rechecked against GitHub metadata. `#4066–#4067` and `#4071–#4076` are documentation-only confirmations. `#4068/#1778/#207` and `#4069/#1779/#208` are exact checkpoint-167 code/build evidence, while `#4070` is the exact source-text regression-contract confirmation.
-
-These later checkpoint-167 runs do not replace the exact checkpoint 166 Hall firmware evidence (`CMP #4028` + Arduino RU LCD `#206`).
-
-## Current execution order
-
-1. Continue only in `arduino-ru-lcd-experiment`; production stays at `28c7917...`.
-2. Treat checkpoints 159–167 as closed unless a concrete regression is observed.
-3. Repeated-scan optimization is exhausted for now; resume it only for a concrete measured bottleneck or defect.
-4. Continue only concrete experiment/Hall/RU-LCD defects. With just 808 bytes of RU flash headroom, avoid broad Uno-side feature growth.
-5. Prefer moving processing/expanded presentation to ESP32 where architecture permits while Arduino remains independently safe/operable.
-6. Keep `MaterialUsageCorrectionIntegrityAudit` batch rereads **NO-CHANGE**.
-7. Keep CashPayment mutation-time authoritative reread **NO-CHANGE** unless a proof-preserving mutation primitive is explicitly introduced.
-8. Never remove recovery or mutation-time TOCTOU rereads solely for performance.
-9. Preserve separate integrity domains; do not fuse unrelated ledgers only to reduce I/O.
-10. Keep fixed RAM bounds: no whole-file buffering, unbounded vectors or caches on ESP32.
-11. No automatic production rotation/deletion/truncation and no premature DB/index migration.
-12. Full Arduino+ESP32 hardware E2E remains the final release acceptance gate.
-13. Do not copy experiment commits into `cmp-protocol-v1` until separately requested.
-
-## Safety invariants
-
-- no automatic physical START/repeat START;
+- physical START only;
+- no automatic repeat START;
+- Arduino is sole SSR owner;
+- ESP32/Web never directly controls SSR;
 - no auto-resume after reboot;
-- Arduino is the only SSR owner;
-- ESP32/Web never controls SSR directly;
-- `RUN_COMPLETED` is evidence only;
-- RUN_WIRE writeoff remains explicit/manual;
-- exact `spool_id + source_session_id + source_run_id` mandatory;
-- restore/recovery remain fail-closed/operator-controlled;
-- MaterialLedger keeps authoritative reread and mutation-time TOCTOU protection;
-- generic material idempotency never replaces RUN_WIRE exact-run protection;
-- confirmed append-only history is never silently edited/deleted;
-- no unbounded growing-NDJSON buffering/automatic truncation/early DB migration.
+- `RUN_COMPLETED` does not auto-writeoff;
+- manual RUN_WIRE requires exact `spool_id + source_session_id + source_run_id`;
+- exact spool provenance whenever a spool is used;
+- append-only historical evidence;
+- mutation-time authoritative TOCTOU rereads where required;
+- operator/fail-closed restore;
+- no automatic production data deletion/rotation;
+- no speculative DB/index migration.
+
+## Current NEXT
+
+Continue the current `cmp-protocol-v1` full feature/runtime audit. Choose the next change only from:
+
+1. a concrete current failure;
+2. a proven user-facing/runtime incomplete behavior;
+3. a previously promised feature that repository inspection proves is still missing;
+4. an explicit new user request.
+
+If inspection finds no defect in an area, record NO-CHANGE rather than inventing work.
+
+Do not resume speculative Uno parser/compiler micro-optimization unless measured Flash/RAM pressure again justifies it.
+
+## Read order for a new chat
+
+```text
+/AGENTS.md
+docs/PROJECT_HANDOFF/00_READ_FIRST.md
+docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
+docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md
+docs/PROJECT_HANDOFF/20_CHECKPOINT_BRANCH_POLICY_AND_UNO_HEADROOM_2026-09-03.md
+docs/PROJECT_HANDOFF/18_CHECKPOINT_MOTOR_NEW_WINDING_CAPTURE_2026-09-03.md
+docs/PROJECT_HANDOFF/17_CHECKPOINT_WORKING_STARTING_EDIT_2026-08-31.md
+docs/PROJECT_HANDOFF/07_REPAIR_MATERIAL_WRITEOFF_PLAN.md
+docs/PROJECT_HANDOFF/13_HALL_RU_LCD_ACCEPTANCE.md
+docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
+```

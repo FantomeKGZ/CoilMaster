@@ -21,6 +21,7 @@ require('./check_motor_edit_ui.js');
 require('./check_motor_details_ui.js');
 require('./check_network_json_escaping.js');
 require('./check_crm_backup_integrity.js');
+require('./check_settings_hub_parity.js');
 
 const fs = require('fs');
 const path = require('path');

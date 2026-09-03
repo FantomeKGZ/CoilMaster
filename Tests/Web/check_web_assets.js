@@ -9,6 +9,7 @@ require('./check_autonomous_winding_motor_projection.js');
 require('./check_arduino_archive_ui.js');
 require('./check_calculator_source_wire_input.js');
 require('./check_linked_job_winding_role.js');
+require('./check_run_wire_issue_transaction.js');
 
 const fs = require('fs');
 const path = require('path');

@@ -12,6 +12,7 @@ require('./check_linked_job_winding_role.js');
 require('./check_run_wire_issue_transaction.js');
 require('./check_spool_material_bridge_web.js');
 require('./check_spool_material_bridge_store.js');
+require('./check_reports_ui.js');
 
 const fs = require('fs');
 const path = require('path');

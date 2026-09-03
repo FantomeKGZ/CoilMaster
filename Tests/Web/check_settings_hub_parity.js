@@ -7,6 +7,8 @@ const desktop = read('firmware/esp32/web/desktop/settings.html');
 const mobile = read('firmware/esp32/web/mobile/settings.html');
 const desktopTime = read('firmware/esp32/web/desktop/settings-time.html');
 const mobileTime = read('firmware/esp32/web/mobile/settings-time.html');
+const desktopHall = read('firmware/esp32/web/desktop/settings-hall.html');
+const mobileHall = read('firmware/esp32/web/mobile/settings-hall.html');
 const failures = [];
 
 const must = (source, token, label) => {
@@ -64,6 +66,15 @@ for (const [label, source] of [['desktop time settings', desktopTime], ['mobile 
   ]) must(source, token, label);
 }
 
+for (const [label, source] of [['desktop Hall settings', desktopHall], ['mobile Hall settings', mobileHall]]) {
+  for (const token of [
+    '/api/hardware/hall',
+    "esc=v=>String(v??'').replace(/[&<>\"']/g",
+    "esc(j.source||'—')",
+    "esc(j.last_reply||'NONE')"
+  ]) must(source, token, label);
+}
+
 must(desktop, 'esc(j.sta_rssi)', 'desktop settings STA RSSI escaping');
 must(desktop, "localStorage.setItem('cm-ui-version','mobile')", 'desktop mobile switch');
 must(mobile, "localStorage.setItem('cm-ui-version','desktop')", 'mobile desktop switch');
@@ -73,4 +84,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Settings hub parity contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network/time strings are HTML-escaped before innerHTML rendering.');
+console.log('Settings hub parity contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network/time/Hall strings are HTML-escaped before innerHTML rendering.');

@@ -1,4 +1,4 @@
-# Checkpoint 20 — client creation + shared shell + FTP/Web recovery + Wi-Fi audit
+# Checkpoint 20 — client creation + shared shell + FTP/Web recovery + Wi-Fi + backup/settings audit
 
 Date: 2026-09-03
 Branch: `arduino-ru-lcd-experiment`
@@ -90,13 +90,36 @@ Tests/Web/check_network_json_escaping.js
 
 Both are executed by CMP and passed on exact checkpoint #4783. No network runtime modification is justified.
 
+## Backup / settings — CLOSED
+
+Local desktop/mobile backup pages remain read-only export surfaces and preserve fail-closed activity/integrity gates. Remote backup/restore is injected only on the live backup page and retains staged inspection/restore-plan/rollback/preflight/apply flow with explicit `APPLY` confirmation.
+
+Remote backup settings support:
+
+- router FTP host/port/directory/username/password;
+- retention count `1..30`;
+- scheduled backup settings;
+- hidden stored credentials in responses;
+- atomic/recoverable settings-file replacement;
+- desktop/mobile parity through the shared controller.
+
+A second CI coverage gap was found: `Tests/Web/check_remote_backup_ui_parity.js` already existed but was not executed by CMP. It is now required from `Tests/Web/check_web_assets.js`.
+
+Exact GREEN:
+
+```text
+6b7d61f90248d0b479904ab56e2c8152db5c2ff7
+CMP Protocol Tests #4785 run 33718820733 / SUCCESS
+```
+
+Historical concern “more backup copies than configured” was re-audited against the current backend algorithm. Retention first cleans incomplete managed batches, then counts complete batch manifests. If the count exceeds `retention_count`, it selects the minimum managed batch id (oldest batch), deletes that batch, and repeats retention until the complete-manifest count is within the configured limit. Current backend therefore enforces the configured retained-copy limit rather than merely storing/displaying it.
+
 ## Immediate NEXT
 
 Continue feature-completeness audit with:
 
-1. backup/settings;
-2. desktop/mobile feature parity;
-3. stale/empty pages and links;
-4. any other previously promised feature found incomplete.
+1. desktop/mobile feature parity;
+2. stale/empty pages and links;
+3. any other previously promised feature found incomplete.
 
 For every proven gap: fetch exact current branch file + blob SHA, make the minimum compatible change, add/extend regression coverage, verify exact CI, and then update HANDOFF. Production remains untouched.

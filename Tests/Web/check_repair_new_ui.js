@@ -42,4 +42,22 @@ for (const [variant, path, returnPath] of variants) {
     `${variant} repair-new must not reintroduce a legacy create endpoint`);
 }
 
-console.log('Repair creation UI contracts OK: desktop/mobile use canonical transactional POST /api/repairs with exact client/motor lookup and duplicate-submit guard.');
+for (const variant of ['desktop', 'mobile']) {
+  const path = `firmware/esp32/web/${variant}/repairs.html`;
+  const source = fs.readFileSync(path, 'utf8');
+  const prefix = `/${variant}/repair-new.html`;
+  for (const token of [
+    "params.get('client_id')",
+    "params.get('motor_id')",
+    `new URL('${prefix}',location.origin)`,
+    "target.searchParams.set('client_id'",
+    "target.searchParams.set('motor_id'",
+    'location.replace(target.pathname+target.search)',
+  ]) requireText(source, token, `${variant} repairs legacy creation handoff missing: ${token}`);
+}
+
+const mobileRepairs = fs.readFileSync('firmware/esp32/web/mobile/repairs.html', 'utf8');
+forbidText(mobileRepairs, "q.set('client_id',params.get('client_id'))",
+  'mobile repairs must not reinterpret the legacy client_id creation handoff as a hidden catalog filter');
+
+console.log('Repair creation UI contracts OK: desktop/mobile use canonical transactional POST /api/repairs with exact client/motor lookup, duplicate-submit guard, and matching legacy client/motor handoff into repair-new.');

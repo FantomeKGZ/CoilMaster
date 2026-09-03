@@ -165,15 +165,22 @@
       }
       const valid=!!lastResult.valid&&Number(lastResult.measurement_id)>0;
       resultBox.className=valid?'note ok':'note warn';
-      resultBox.innerHTML='Результат: <b>'+(valid?'VALID':'INVALID')+'</b>'+
-        ' · baseline '+lastResult.baseline+
-        ' · min '+lastResult.min+
-        ' · max '+lastResult.max+
-        ' · threshold '+lastResult.recommended_threshold+
-        ' · hysteresis '+lastResult.recommended_hysteresis+
-        ' · '+lastResult.direction+
-        ' · samples '+lastResult.samples+
-        ' · '+lastResult.duration_ms+' мс';
+      resultBox.textContent='Результат: ';
+      const validity=document.createElement('b');
+      validity.textContent=valid?'VALID':'INVALID';
+      resultBox.append(
+        validity,
+        document.createTextNode(
+          ' · baseline '+String(lastResult.baseline??'—')+
+          ' · min '+String(lastResult.min??'—')+
+          ' · max '+String(lastResult.max??'—')+
+          ' · threshold '+String(lastResult.recommended_threshold??'—')+
+          ' · hysteresis '+String(lastResult.recommended_hysteresis??'—')+
+          ' · '+String(lastResult.direction??'—')+
+          ' · samples '+String(lastResult.samples??'—')+
+          ' · '+String(lastResult.duration_ms??'—')+' мс'
+        )
+      );
       applyBtn.disabled=!valid;
     }
 

@@ -21,6 +21,7 @@
 <script>
 localStorage.setItem('cm-ui-version','mobile');
 const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let serviceReady=false,sending=false;
 function updateServiceButton(){ $('serviceSend').disabled=sending||!serviceReady }
 function persistentHealthy(s){return s.storage_ready===true&&s.autonomous_winding_archive_ready===true&&s.id_allocator_ready===true&&s.job_snapshot_store_ready===true&&s.job_state_store_ready===true}
@@ -68,8 +69,9 @@ async function refresh(){
       context.className='context unlinked';
       context.innerHTML='Автономная задача Arduino<br><a href="/mobile/arduino-windings.html">Открыть Arduino-архив</a>';
     }else if(s.job_id&&s.linked){
+      const repairId=String(s.repair_id??''),motorId=String(s.motor_id??'');
       context.className='context';
-      context.innerHTML='Ремонт №'+s.repair_id+' · Двигатель №'+s.motor_id+'<br><a href="/mobile/winding-history.html?repair_id='+s.repair_id+'">История намотки ремонта</a>';
+      context.innerHTML='Ремонт №'+esc(repairId)+' · Двигатель №'+esc(motorId)+'<br><a href="/mobile/winding-history.html?repair_id='+encodeURIComponent(repairId)+'">История намотки ремонта</a>';
     }else if(s.job_id){
       context.className='context unlinked';
       context.textContent='Сервисное задание · без привязки к ремонту';

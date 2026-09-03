@@ -19,9 +19,9 @@ main            = stable/ready checkpoint branch
 
 ## Current phase
 
-Проект находится в feature-completeness / runtime-audit фазе после большого блока реализации и оптимизации.
+Проект находится в final feature-completeness / runtime-acceptance audit после большого блока реализации и оптимизации.
 
-Главное правило текущей фазы: исправлять только подтверждённые дефекты или реально отсутствующие обещанные функции. Если область уже работает и защищена regression tests, фиксировать NO-CHANGE, а не создавать новую переработку.
+Главное правило текущей фазы: исправлять только подтверждённые дефекты или реально отсутствующие обещанные функции. Если область уже работает и защищена regression tests, фиксировать **NO-CHANGE**, а не создавать новую переработку.
 
 ## Current production flow
 
@@ -40,9 +40,12 @@ client
 → costing
 → finalization preflight
 → CLOSED
+→ optional delivery evidence
 → reports
 → backup
 ```
+
+`CLOSED` и физическая выдача клиенту остаются раздельными состояниями. Delivery evidence append-only/readable из CRM history; баланс/касса не блокирует выдачу автоматически.
 
 ## Safety ownership
 
@@ -117,6 +120,7 @@ ESP32 остаётся data/network/UI controller, а не safety controller.
 
 - clients / motors / repairs CRM;
 - dedicated create/edit/details pages;
+- exact client/motor handoff into repair creation;
 - bounded cursor pagination;
 - motor import;
 - canonical append-only motor winding versions;
@@ -128,13 +132,52 @@ ESP32 остаётся data/network/UI controller, а не safety controller.
 - warehouse/spools/materials;
 - manual exact RUN_WIRE writeoff;
 - costing and finalization;
+- CLOSED vs DELIVERED separation and delivery history visibility;
 - cash/payment append-only journal;
-- reports;
+- reports based on authoritative costing, not a second cash-derived costing source;
 - Wi-Fi profiles/static IP/fallback AP/`coil.local`;
 - FTP `/web` recovery;
 - backup/restore;
 - diagnostics;
 - reference SD bundle/search.
+
+## Recent CRM / Web acceptance checkpoints
+
+### Delivery history
+
+Client/motor history now exposes closed-repair delivery status read-only while delivery mutation remains in the repair workflow.
+
+Exact verification chain:
+
+```text
+CMP #4853      run 33732645388 / SUCCESS
+Reference #118 run 33732645370 / SUCCESS
+ESP32 #1882    run 33732645361 / SUCCESS
+CMP #4854      run 33732693018 / SUCCESS
+```
+
+### Repair creation handoff parity
+
+Legacy repair links carrying `client_id` and/or `motor_id` now enter the dedicated matching `repair-new.html` page on desktop/mobile without reinterpreting `client_id` as a hidden mobile catalog filter.
+
+Exact verification:
+
+```text
+CMP #4856      run 33733146747 / SUCCESS
+Reference #119 run 33733146680 / SUCCESS
+ESP32 #1883    run 33733146716 / SUCCESS
+CMP #4857      run 33733174978 / FAILURE
+  intermediate regression test was implementation-specific, runtime handoff remained valid
+CMP #4858      run 33733234029 / SUCCESS
+CMP #4859      run 33733410301 / SUCCESS
+```
+
+Detailed current records:
+
+```text
+docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
+docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
+```
 
 ## Web regression reachability
 
@@ -193,7 +236,21 @@ Client questionnaire complete at repo/CI level:
 - phone required and normalized/validated;
 - comment optional;
 - creation does not automatically create repair/motor relation;
-- desktop/mobile parity and handoff to repair flow covered by regression tests.
+- desktop/mobile handoff to repair flow is complete;
+- mobile may open the client card first; that card exposes `+ Новый ремонт` with exact `client_id`.
+
+## Latest NO-CHANGE acceptance checks
+
+Current `cmp-protocol-v1` inspection found no code change required in these areas:
+
+- desktop/mobile `motor-new` post-create flow;
+- mobile client-new → client card → exact client-scoped repair creation;
+- desktop/mobile motor card → exact motor-scoped repair creation;
+- desktop/mobile reports semantics and pagination;
+- report financial aggregation remains intentionally based on authoritative repair costing;
+- no current repository-search hit for user-facing `TODO`, `FIXME`, `not implemented`, `готовится` or `заглушка`.
+
+Cosmetic desktop/mobile differences alone are not treated as defects.
 
 ## Growing NDJSON / performance state
 
@@ -208,7 +265,7 @@ Do not restart generic repeated-scan cleanup solely because a file is opened mor
 
 ## Current documentation state
 
-Entry documents are being synchronized to the new branch policy:
+Current entry documents:
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
@@ -220,7 +277,7 @@ Historical checkpoint files may still mention the old experiment branch because 
 
 ## Current NEXT
 
-Continue current `cmp-protocol-v1` audit and only change code for a proven defect/incomplete behavior.
+Continue current `cmp-protocol-v1` final acceptance audit and only change code for a proven defect/incomplete behavior.
 
 Priority order:
 
@@ -229,15 +286,17 @@ Priority order:
 3. previously promised feature that is genuinely absent;
 4. explicit new user request.
 
-Current stale/empty Web sweep found no new proven user-facing placeholder after removal of Statistics and regression-reachability cleanup. Normal HTML input `placeholder=` attributes are not unfinished pages.
+If no defect is found in a reviewed area, record **NO-CHANGE** and move on. Deferred backlog is not an automatic task queue.
 
-If no defect is found in a reviewed area, record NO-CHANGE and move on.
+External two-board/hardware smoke remains a separate physical verification gate and can never be inferred from GitHub CI.
 
 ## Key handoff records
 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
+docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
 docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md
 docs/PROJECT_HANDOFF/20_CHECKPOINT_BRANCH_POLICY_AND_UNO_HEADROOM_2026-09-03.md
 docs/PROJECT_HANDOFF/18_CHECKPOINT_MOTOR_NEW_WINDING_CAPTURE_2026-09-03.md

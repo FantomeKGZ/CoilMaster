@@ -1,4 +1,5 @@
 require('./check_client_new_ui.js');
+require('./check_web_recovery_ftp_contracts.js');
 
 const fs = require('fs');
 const path = require('path');

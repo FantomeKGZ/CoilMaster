@@ -6,6 +6,7 @@ require('./check_crud_page_separation.js');
 require('./check_dashboard_job_history.js');
 require('./check_client_crm_ui.js');
 require('./check_cash_payment_single_pass.js');
+require('./check_cash_ui.js');
 require('./check_autonomous_winding_motor_projection.js');
 require('./check_arduino_archive_ui.js');
 require('./check_calculator_source_wire_input.js');

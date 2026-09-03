@@ -7,6 +7,8 @@ const materialSummaryPath = 'firmware/esp32/src/CM_WarehouseMaterialSummary.cpp'
 const webPath = 'firmware/esp32/src/CM_WarehouseSpoolWeb.cpp';
 const warehouseWebPath = 'firmware/esp32/src/CM_WarehouseWeb.cpp';
 const mainPath = 'firmware/esp32/src/main.cpp';
+const desktopWarehousePath = 'firmware/esp32/web/desktop/warehouse.html';
+const mobileWarehousePath = 'firmware/esp32/web/mobile/warehouse.html';
 
 const failures = [];
 
@@ -20,6 +22,8 @@ const materialSummary = fs.readFileSync(materialSummaryPath, 'utf8');
 const web = fs.readFileSync(webPath, 'utf8');
 const warehouseWeb = fs.readFileSync(warehouseWebPath, 'utf8');
 const main = fs.readFileSync(mainPath, 'utf8');
+const desktopWarehouse = fs.readFileSync(desktopWarehousePath, 'utf8');
+const mobileWarehouse = fs.readFileSync(mobileWarehousePath, 'utf8');
 
 if (header.includes('appendActiveSpoolsJson(')) {
   failures.push(`${headerPath}: obsolete appendActiveSpoolsJson API declaration must remain removed`);
@@ -73,6 +77,28 @@ for (const required of [
   if (!web.includes(required)) failures.push(`${webPath}: spool endpoint must remain on paginated backend: ${required}`);
 }
 
+for (const [label, source] of [
+  ['desktop warehouse', desktopWarehouse],
+  ['mobile warehouse', mobileWarehouse],
+]) {
+  for (const required of [
+    "'&':'&amp;'",
+    "'<':'&lt;'",
+    "'>':'&gt;'",
+    "'\"':'&quot;'",
+    '"\'":"&#39;"',
+    "new URLSearchParams({material,limit:'20'})",
+    "fetch('/api/warehouse/spools?'+q",
+    "fetch('/api/warehouse/spools/material',{method:'POST'",
+    'invalid_paging_cursor',
+  ]) {
+    if (!source.includes(required)) failures.push(`${label}: missing safe paginated spool UI contract: ${required}`);
+  }
+  if (source.includes("'\"':'&quot'")) {
+    failures.push(`${label}: quote escaping must use complete &quot; HTML entity`);
+  }
+}
+
 // beginSpoolList() is intentionally a narrow route owner. Common warehouse,
 // write-off, conductor and material services are registered by begin() instead.
 // Reintroducing them here would register production HTTP routes more than once
@@ -116,4 +142,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Warehouse spool list cleanup contract OK: paginated routes stay narrow, common services remain single-owned, and legacy material lookups stop at the sorted target after the authoritative spool pass.');
+console.log('Warehouse spool list cleanup contract OK: paginated routes stay narrow, desktop/mobile rendering escapes spool metadata safely, common services remain single-owned, and legacy material lookups stop at the sorted target after the authoritative spool pass.');

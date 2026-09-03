@@ -6,6 +6,9 @@ const read = rel => fs.readFileSync(path.join(root, rel), 'utf8');
 const mustContain = (text, needle, label) => {
   if (!text.includes(needle)) throw new Error(`${label}: missing ${needle}`);
 };
+const mustNotContain = (text, needle, label) => {
+  if (text.includes(needle)) throw new Error(`${label}: forbidden ${needle}`);
+};
 
 const hallWeb = read('firmware/esp32/src/CM_HardwareControlWeb.cpp');
 const historyStore = read('firmware/esp32/src/CM_HallCalibrationHistoryStore.h');
@@ -22,8 +25,12 @@ mustContain(hallUi, "const HISTORY_URL=CAL_URL+'/history'", 'Hall history UI');
 mustContain(hallUi, 'Последние калибровки', 'Hall history UI');
 mustContain(hallUi, 'Рекомендация ESP32', 'Hall history UI');
 mustContain(hallUi, 'Сохранено Arduino EEPROM', 'Hall history UI');
+mustContain(hallUi, "resultBox.textContent='Результат: ';", 'Hall current result text boundary');
+mustContain(hallUi, "const validity=document.createElement('b');", 'Hall current result validity node');
+mustContain(hallUi, 'document.createTextNode(', 'Hall current result runtime text node');
+mustNotContain(hallUi, 'resultBox.innerHTML=', 'Hall current result runtime HTML');
 mustContain(desktopHome, 'href="/sites/reference/desktop/"', 'desktop SD reference navigation');
 mustContain(mobileMore, 'href="/sites/reference/mobile/"', 'mobile SD reference navigation');
 mustContain(appShell, '`/sites/reference/${uiMode}/`', 'shared SD reference navigation');
 
-console.log('Hall history and SD reference navigation contracts: OK');
+console.log('Hall history/current-result DOM safety and SD reference navigation contracts: OK');

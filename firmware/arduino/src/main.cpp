@@ -109,7 +109,7 @@ CM::Lcd1602View lcdView(lcd);
 CM::DebouncedButton startButton(CM::Pins::StartButton,
                                 true,
                                 CM::Defaults::StartDebounceMs);
-CM::BuzzerService buzzer(CM::Pins::Buzzer, false);
+CM::BuzzerService buzzer(CM::Pins::Buzzer, true);
 CM::SsrController ssr(CM::Pins::Ssr, true);
 CM::HallTurnSource hall(CM::Pins::Hall,
                         CM::Defaults::HallThreshold,

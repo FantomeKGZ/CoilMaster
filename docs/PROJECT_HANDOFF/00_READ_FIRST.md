@@ -91,6 +91,29 @@ Backend `RepairRegistryWeb`:
 
 Result: the previously requested large-list pagination for clients, motors and repairs is already implemented in the current branch. No code change is justified for this item.
 
+## Web completeness / parity audit — current GREEN checkpoint
+
+The feature-completeness pass has now made the existing regression contracts mandatory in the main Web audit instead of leaving them orphaned.
+
+Covered by `Tests/Web/check_web_assets.js`:
+
+- client creation required/optional fields and desktop/mobile parity;
+- FTP `/web` recovery/safe-idle/local-subnet/atomic upload contracts;
+- remote backup/restore and retention UI parity;
+- repair material/writeoff/correction/exact RUN_WIRE parity;
+- CRUD page separation and internal route validity;
+- dashboard Arduino job history remains read-only and does not gain SSR/automatic START coupling;
+- client CRM/cash/prepayment/history desktop/mobile contracts.
+
+Exact GREEN sequence:
+```text
+c4f6ad4cbeea54ce688f8457837c9862185179ee  CMP #4787 run 33719040613 / SUCCESS
+1d48c89f350e8ca6d7ef07af4af03840ed6d6f9a  CMP #4788 run 33719230929 / SUCCESS
+b1f550a480fe8629d5b7721f0ed23e78731b7267  CMP #4789 run 33719373002 / SUCCESS
+```
+
+`#4789` confirms the newly mandatory dashboard/history and CRM/cash audits on their exact HEAD. No production branch change was made.
+
 ## Previous feature block — motor WORKING / STARTING edit
 
 В `arduino-ru-lcd-experiment` добавлено редактирование канонических ролей обмотки непосредственно в desktop/mobile `motor-edit.html`.
@@ -150,14 +173,12 @@ Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 
+Closed in the current pass: shared Web shell/navigation, FTP/Web recovery, Wi-Fi profiles/static IP/`coil.local`, backup/settings, core desktop/mobile parity, CRUD separation, dashboard/history and client CRM/cash regression coverage.
+
 Continue systematically with:
-1. shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts;
-2. FTP/Web recovery;
-3. Wi-Fi profiles/static IP/`coil.local`;
-4. backup/settings;
-5. desktop/mobile feature parity;
-6. stale/empty pages and links;
-7. any other previously promised feature found incomplete.
+1. stale/empty pages and links beyond the already-checked static route targets;
+2. remaining orphaned functional Web regression contracts not yet invoked by CMP;
+3. any other previously promised feature found incomplete.
 
 Motor import, new-motor canonical WORKING/STARTING capture and bounded clients/motors/repairs pagination are closed unless a concrete regression is found.
 
@@ -198,4 +219,4 @@ docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 
 ## Immediate NEXT
 
-Audit shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts against the current branch and change only proven gaps. Production `cmp-protocol-v1` remains untouched.
+Audit remaining orphaned functional Web regression contracts and stale/empty user-facing pages against the current branch. Change only proven gaps. Production `cmp-protocol-v1` remains untouched.

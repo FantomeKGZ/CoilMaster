@@ -189,7 +189,8 @@ Closed areas:
 - time / RTC status;
 - Hall source/reply status;
 - FTP / Web-recovery runtime addresses/result;
-- pricing-audit status and raw timestamp fallback.
+- pricing-audit status and raw timestamp fallback;
+- desktop motor catalog versioned `working_conductors` / `starting_conductors`.
 
 Current rule:
 
@@ -217,6 +218,10 @@ CMP #4873      run 33734985565 / SUCCESS
 CMP #4874      run 33735201736 / SUCCESS
 CMP #4877      run 33735336317 / SUCCESS
 CMP #4878      run 33735432605 / SUCCESS
+CMP #4881      run 33736069877 / SUCCESS
+Reference #129 run 33736069966 / SUCCESS
+ESP32 #1893    run 33736069916 / SUCCESS
+CMP #4882      run 33736114112 / SUCCESS
 ```
 
 Detailed records:
@@ -225,6 +230,7 @@ Detailed records:
 docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/32_CHECKPOINT_MOTOR_CATALOG_CONDUCTOR_ESCAPING_2026-09-03.md
 ```
 
 ## Web regression reachability
@@ -296,11 +302,16 @@ Current `cmp-protocol-v1` inspection found no code change required in these area
 - desktop/mobile motor card → exact motor-scoped repair creation;
 - desktop/mobile reports semantics and pagination;
 - report financial aggregation remains intentionally based on authoritative repair costing;
+- desktop/mobile `winding-history.html` and shared spool-history renderer;
 - desktop/mobile `service-job.html` runtime rendering and cancel/dismiss restrictions;
 - shared Wi-Fi settings runtime rendering;
 - desktop/mobile backup export rendering and safety gating;
 - desktop/mobile material catalog dynamic rendering;
 - Arduino winding archive dynamic rendering and exact run provenance;
+- desktop/mobile Cash UI runtime rendering and append-only semantics;
+- desktop `motor-details.html` conductor/history rendering;
+- shared RUN_WIRE spool/material-request suggestion renderer and exact provenance checks;
+- desktop `client-details.html` identity/repair/payment rendering;
 - no current repository-search hit for user-facing `TODO`, `FIXME`, `not implemented`, `готовится` or `заглушка`.
 
 Cosmetic desktop/mobile differences alone are not treated as defects.
@@ -350,6 +361,7 @@ External two-board/hardware smoke remains a separate physical verification gate 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/32_CHECKPOINT_MOTOR_CATALOG_CONDUCTOR_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md

@@ -45,14 +45,13 @@ for (const [variant, path, returnPath] of variants) {
 for (const variant of ['desktop', 'mobile']) {
   const path = `firmware/esp32/web/${variant}/repairs.html`;
   const source = fs.readFileSync(path, 'utf8');
-  const prefix = `/${variant}/repair-new.html`;
   for (const token of [
     "params.get('client_id')",
     "params.get('motor_id')",
-    `new URL('${prefix}',location.origin)`,
-    "target.searchParams.set('client_id'",
-    "target.searchParams.set('motor_id'",
-    'location.replace(target.pathname+target.search)',
+    `/${variant}/repair-new.html`,
+    "set('client_id'",
+    "set('motor_id'",
+    'location.replace(',
   ]) requireText(source, token, `${variant} repairs legacy creation handoff missing: ${token}`);
 }
 

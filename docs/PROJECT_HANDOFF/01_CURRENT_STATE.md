@@ -179,6 +179,54 @@ docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
 docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
 ```
 
+## Runtime HTML/DOM boundary state
+
+Final acceptance audit found and closed real presentation-layer gaps where runtime/server strings were placed into `innerHTML` without browser-side escaping.
+
+Closed areas:
+
+- main settings network summary;
+- time / RTC status;
+- Hall source/reply status;
+- FTP / Web-recovery runtime addresses/result;
+- pricing-audit status and raw timestamp fallback.
+
+Current rule:
+
+```text
+server/runtime string + innerHTML => HTML escape first
+plain text rendering             => prefer textContent
+form value                       => assign through .value
+```
+
+Backend JSON escaping protects JSON transport and does not replace DOM escaping.
+
+Exact verification chain:
+
+```text
+CMP #4864      run 33734195479 / SUCCESS
+ESP32 #1884    run 33734113844 / SUCCESS
+ESP32 #1885    run 33734170099 / SUCCESS
+CMP #4865      run 33734386839 / SUCCESS
+CMP #4868      run 33734667118 / SUCCESS
+CMP #4871      run 33734862776 / SUCCESS
+CMP #4872      run 33734956028 / SUCCESS
+Reference #126 run 33734956275 / SUCCESS
+ESP32 #1890    run 33734955992 / SUCCESS
+CMP #4873      run 33734985565 / SUCCESS
+CMP #4874      run 33735201736 / SUCCESS
+CMP #4877      run 33735336317 / SUCCESS
+CMP #4878      run 33735432605 / SUCCESS
+```
+
+Detailed records:
+
+```text
+docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
+```
+
 ## Web regression reachability
 
 Checkpoint 21 closed the remaining orphan regression issue:
@@ -248,6 +296,11 @@ Current `cmp-protocol-v1` inspection found no code change required in these area
 - desktop/mobile motor card → exact motor-scoped repair creation;
 - desktop/mobile reports semantics and pagination;
 - report financial aggregation remains intentionally based on authoritative repair costing;
+- desktop/mobile `service-job.html` runtime rendering and cancel/dismiss restrictions;
+- shared Wi-Fi settings runtime rendering;
+- desktop/mobile backup export rendering and safety gating;
+- desktop/mobile material catalog dynamic rendering;
+- Arduino winding archive dynamic rendering and exact run provenance;
 - no current repository-search hit for user-facing `TODO`, `FIXME`, `not implemented`, `готовится` or `заглушка`.
 
 Cosmetic desktop/mobile differences alone are not treated as defects.
@@ -286,6 +339,8 @@ Priority order:
 3. previously promised feature that is genuinely absent;
 4. explicit new user request.
 
+For Web UI, continue auditing dynamic `innerHTML` paths and require escaping for server/runtime strings. Prefer `textContent` when markup is unnecessary.
+
 If no defect is found in a reviewed area, record **NO-CHANGE** and move on. Deferred backlog is not an automatic task queue.
 
 External two-board/hardware smoke remains a separate physical verification gate and can never be inferred from GitHub CI.
@@ -295,6 +350,9 @@ External two-board/hardware smoke remains a separate physical verification gate 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
 docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
 docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md

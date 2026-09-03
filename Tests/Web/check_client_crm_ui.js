@@ -73,11 +73,15 @@ for (const [label, source, surface] of [
   must(source, 'prepayment_minor', `${label} separate prepayment balance`);
   must(source, 'paid_minor', `${label} paid balance`);
   must(source, 'debt_minor', `${label} debt balance`);
+  must(source, '/api/repairs/delivery?repair_id=', `${label} delivery state`);
+  must(source, 'Закрыт, не выдан', `${label} explicit not-delivered state`);
+  must(source, 'Выдан ', `${label} delivered timestamp state`);
+  must(source, 'const item=j.item||j.delivery||j', `${label} independent delivery payload`);
 }
 
-must(details, '/api/repairs/delivery?repair_id=', 'desktop delivery state');
 must(details, 'Баланс ремонтов рассчитывается из authoritative стоимости', 'repair costing remains independent from prepayment');
-must(details, 'const item=j.item||j.delivery||j', 'delivery state remains independent and explicit');
+must(mobileDetails, "delivery=closed?await deliveryLabel(x.repair_id):''", 'mobile CLOSED-only delivery lookup');
+must(mobileDetails, "closed?' · '+esc(delivery):''", 'mobile repair delivery rendering');
 
 must(repairs, '/desktop/client-new.html', 'repair client-create navigation');
 mustNot(repairs, 'clientForm', 'repair page duplicate client form');
@@ -87,4 +91,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Client CRM UI contracts OK: catalog-only browsing, desktop/mobile dedicated creation/editing, valid bounded repair/payment history, repair navigation parity, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');
+console.log('Client CRM UI contracts OK: catalog-only browsing, desktop/mobile dedicated creation/editing, valid bounded repair/payment history, repair navigation and delivery-history parity, separate explicit PREPAYMENT, historical motor linkage, and independent repair costing/delivery state.');

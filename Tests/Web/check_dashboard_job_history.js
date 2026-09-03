@@ -30,6 +30,19 @@ for (const [name, source] of [['desktop/index.html', desktop], ['mobile/index.ht
   if (!source.includes("fetch('/api/status'")) {
     failures.push(`${name}: dashboard status feed missing`);
   }
+  if (!source.includes("const esc=s=>String(s??'').replace")) {
+    failures.push(`${name}: dashboard HTML escape helper missing`);
+  }
+  if (!source.includes('encodeURIComponent(repairId)')) {
+    failures.push(`${name}: linked repair history URL is not encoded`);
+  }
+}
+
+if (!desktop.includes("№'+esc(repairId)+' · история")) {
+  failures.push('desktop/index.html: linked repair id is not escaped before innerHTML');
+}
+if (!mobile.includes("'Ремонт №'+esc(repairId)+' · Двигатель №'+esc(motorId)")) {
+  failures.push('mobile/index.html: linked repair/motor ids are not escaped before innerHTML');
 }
 
 for (const forbidden of ['/api/ssr', 'automatic START', "fetch('/api/autonomous-windings'"]) {
@@ -41,4 +54,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Dashboard Arduino job history contract OK: last sent/current status and browser-local last completed display remain read-only and physical START/authoritative RUN evidence are unchanged.');
+console.log('Dashboard Arduino job history contract OK: linked context is escaped/encoded, last sent/current status and browser-local last completed display remain read-only, and physical START/authoritative RUN evidence are unchanged.');

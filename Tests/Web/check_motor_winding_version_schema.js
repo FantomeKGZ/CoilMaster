@@ -12,7 +12,7 @@ function requireText(text, needle, label) {
 }
 
 requireText(header, 'motor-winding-versions.ndjson', 'append-only store path');
-requireText(header, 'MaxConductors = 4U', 'bounded conductor count');
+requireText(header, 'MaxConductors = 5U', 'bounded conductor count');
 requireText(header, 'MotorWindingRoleSpec working;', 'working role');
 requireText(header, 'MotorWindingRoleSpec starting;', 'starting role');
 requireText(header, 'previousVersionId', 'predecessor linkage');

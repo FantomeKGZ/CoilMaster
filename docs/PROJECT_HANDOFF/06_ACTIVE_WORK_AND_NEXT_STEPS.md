@@ -25,7 +25,7 @@ main            = stable/ready; обновлять только отдельны
 
 ## Current active stream
 
-Текущая работа — feature-completeness / runtime audit. Исправлять только подтверждённые пробелы. Не переоткрывать закрытые блоки по предположению.
+Текущая работа — final feature-completeness / runtime acceptance audit. Исправлять только подтверждённые пробелы. Не переоткрывать закрытые блоки по предположению.
 
 Закрыты и не являются текущей очередью:
 
@@ -44,7 +44,9 @@ main            = stable/ready; обновлять только отдельны
 - Cash UI regression reachability;
 - orphaned Web regression audit;
 - CLOSED/DELIVERED history visibility in client and motor history;
-- desktop/mobile repair creation legacy handoff by exact `client_id` / `motor_id`.
+- desktop/mobile repair creation legacy handoff by exact `client_id` / `motor_id`;
+- settings network/time/Hall/FTP runtime HTML escaping;
+- pricing-audit runtime HTML escaping.
 
 ## Latest exact verified checkpoints
 
@@ -129,6 +131,40 @@ docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
 
 `#4857` is not a runtime regression: the over-specific intermediate test was corrected to verify the actual handoff semantics, and final `#4858` is exact GREEN for that regression HEAD.
 
+### Settings/runtime DOM-boundary checkpoints
+
+The final acceptance audit found several real presentation-layer gaps where server/runtime strings were inserted into `innerHTML` without browser-side HTML escaping. Backend JSON escaping remains transport protection and is not a substitute for DOM escaping.
+
+Checkpoint 29 closed the main settings network summary. Checkpoint 30 extended the same boundary to time/RTC, Hall and FTP/Web-recovery runtime status. Checkpoint 31 closed the pricing-audit status/timestamp path.
+
+Exact verified chain:
+
+```text
+CMP #4864  run 33734195479 / SUCCESS
+ESP32 #1884 run 33734113844 / SUCCESS
+ESP32 #1885 run 33734170099 / SUCCESS
+CMP #4865  run 33734386839 / SUCCESS
+CMP #4868  run 33734667118 / SUCCESS
+CMP #4871  run 33734862776 / SUCCESS
+CMP #4872  run 33734956028 / SUCCESS
+Reference #126 run 33734956275 / SUCCESS
+ESP32 #1890 run 33734955992 / SUCCESS
+CMP #4873  run 33734985565 / SUCCESS
+CMP #4874  run 33735201736 / SUCCESS
+CMP #4877  run 33735336317 / SUCCESS
+CMP #4878  run 33735432605 / SUCCESS
+```
+
+Detailed records:
+
+```text
+docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
+```
+
+Regression coverage in `Tests/Web/check_settings_hub_parity.js` now protects network/time/Hall/FTP/pricing-audit runtime strings before `innerHTML` rendering.
+
 ### Branch-policy documentation sync
 
 `00_READ_FIRST.md` was updated on current development branch to remove the retired `arduino-ru-lcd-experiment` policy and to make `cmp-protocol-v1` the only development/source branch.
@@ -153,6 +189,11 @@ Additional current inspection shows:
 - mobile `client-new` opens the new client card, whose `+ Новый ремонт` action preserves exact `client_id` — **NO-CHANGE**;
 - desktop/mobile motor cards preserve exact `motor_id` when entering repair creation — **NO-CHANGE**;
 - desktop/mobile closed-repair reports use the same bounded CLOSED query, registry lookups and authoritative costing source — **NO-CHANGE**;
+- `service-job.html` uses `textContent` for runtime state and retains strict cancel/dismiss restrictions — **NO-CHANGE**;
+- shared Wi-Fi settings already escape SSID/IP/runtime strings — **NO-CHANGE**;
+- desktop/mobile backup export already protect dynamic file/session/error rendering — **NO-CHANGE**;
+- desktop/mobile material catalog already escape names/units/currency/comments/timestamps and encode IDs in links — **NO-CHANGE**;
+- Arduino winding archive shared UI already escapes dynamic archive/motor/program text and normalizes numeric IDs — **NO-CHANGE**;
 - cash/payment remains a separate append-only journal and must not be silently introduced as a second costing/report source of truth.
 
 Do not change a page merely because its filename/content looks old or because desktop/mobile UX differs cosmetically. Require concrete broken/incomplete behavior or an explicit requested feature.
@@ -184,6 +225,8 @@ Continue the current `cmp-protocol-v1` final feature/runtime acceptance audit. C
 3. a previously promised feature that repository inspection proves is still missing;
 4. an explicit new user request.
 
+For Web rendering, continue the explicit rule: every server/runtime string interpolated into `innerHTML` must be escaped; prefer `textContent` when markup is not required.
+
 If inspection finds no defect in an area, record **NO-CHANGE** rather than inventing work.
 
 Do not resume speculative Uno parser/compiler micro-optimization unless measured Flash/RAM pressure again justifies it. Do not promote deferred backlog items without a new explicit request or concrete current evidence.
@@ -195,6 +238,9 @@ Do not resume speculative Uno parser/compiler micro-optimization unless measured
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
 docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
 docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md

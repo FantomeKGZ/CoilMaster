@@ -30,6 +30,32 @@ for (const file of files) {
   if (!text.includes('Можно закупить')) fail('non-stock standard option label is missing');
 }
 
+const compatibilityAliases = [
+  ['firmware/esp32/web/desktop/conductor-converter.html', '/desktop/calculator.html'],
+  ['firmware/esp32/web/mobile/conductor-converter.html', '/mobile/calculator.html'],
+];
+for (const [file, target] of compatibilityAliases) {
+  const text = fs.readFileSync(file, 'utf8');
+  if (!text.includes(`location.replace('${target}')`) ||
+      !text.includes(`url=${target}`) ||
+      !text.includes(`href="${target}"`)) {
+    console.error(`${file}: stale conductor converter must remain a compatibility redirect to ${target}`);
+    process.exitCode = 1;
+  }
+  for (const stale of [
+    'allowed_deviation_permille',
+    'max_target_strands',
+    "source_parallel_strands:$('n').value",
+    'o.diameter_hundredths_mm',
+    'o.available_g',
+  ]) {
+    if (text.includes(stale)) {
+      console.error(`${file}: stale pre-authoritative calculator UI returned: ${stale}`);
+      process.exitCode = 1;
+    }
+  }
+}
+
 const staticSitePath = 'firmware/esp32/src/CM_StaticSiteServer.cpp';
 const staticSite = fs.readFileSync(staticSitePath, 'utf8');
 const legacyHelperPath = 'firmware/esp32/web/shared/calculator-multisource.js';
@@ -88,5 +114,5 @@ for (const forbidden of ['SD.', 'FILE_WRITE', 'FILE_APPEND', 'addSpool(', 'setWa
 }
 
 if (!process.exitCode) {
-  console.log('Calculator contracts OK: source diameter x strand-count input, API propagation, warehouse recommendations, and read-only IEC standard alternatives');
+  console.log('Calculator contracts OK: source diameter x strand-count input, authoritative settings, compatibility redirects, warehouse recommendations, and read-only IEC standard alternatives');
 }

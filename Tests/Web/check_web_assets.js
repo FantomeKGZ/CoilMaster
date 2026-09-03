@@ -15,6 +15,12 @@ require('./check_material_usage_correction_contracts.js');
 require('./check_spool_material_bridge_web.js');
 require('./check_spool_material_bridge_store.js');
 require('./check_reports_ui.js');
+require('./check_repeat_target_ui.js');
+require('./check_motor_schema_ui.js');
+require('./check_motor_edit_ui.js');
+require('./check_motor_details_ui.js');
+require('./check_network_json_escaping.js');
+require('./check_crm_backup_integrity.js');
 
 const fs = require('fs');
 const path = require('path');

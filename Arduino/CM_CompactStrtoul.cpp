@@ -20,17 +20,18 @@ extern "C" unsigned long cm_strtoul(const char* text, char** end, int base)
     if (end != nullptr) *end = const_cast<char*>(text);
     if (text == nullptr || base != 16) return 0UL;
 
-    unsigned long value = 0UL;
-    const char* cursor = text;
-    for (;;)
+    uint16_t value = 0U;
+    for (uint8_t index = 0U; index < 4U; ++index)
     {
-        const uint8_t digit = hexDigit(*cursor);
-        if (digit > 0x0FU) break;
-        value = (value << 4U) | digit;
-        ++cursor;
+        const uint8_t digit = hexDigit(text[index]);
+        if (digit > 0x0FU)
+        {
+            if (end != nullptr) *end = const_cast<char*>(text + index);
+            return value;
+        }
+        value = static_cast<uint16_t>((value << 4U) | digit);
     }
 
-    if (cursor == text) return 0UL;
-    if (end != nullptr) *end = const_cast<char*>(cursor);
+    if (end != nullptr) *end = const_cast<char*>(text + 4U);
     return value;
 }

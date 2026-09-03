@@ -135,5 +135,6 @@ if (orphanedWebChecks.length) {
 
 require('./check_web_recovery_ftp_contracts.js');
 require('./check_remote_backup_ui_parity.js');
+require('./check_ru_hall_calibration_experiment.js');
 
-console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, all Web regression contracts are reachable, FTP recovery contracts are audited, and remote backup UI/backend parity is locked.');
+console.log('CI trigger contracts OK: shared code and production sources reach their required build/test gates, Uno resource headroom is protected, main is not a build push source, all Web regression contracts are reachable, FTP recovery contracts are audited, remote backup UI/backend parity is locked, and RU Hall local-control safety remains covered.');

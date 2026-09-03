@@ -181,7 +181,7 @@ docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
 
 ## Runtime HTML/DOM boundary state
 
-Final acceptance audit found and closed real presentation-layer gaps where runtime/server strings were placed into `innerHTML` without browser-side escaping.
+Final acceptance audit found and closed real presentation-layer gaps where runtime/server strings were placed into `innerHTML` without browser-side protection.
 
 Closed areas:
 
@@ -190,39 +190,43 @@ Closed areas:
 - Hall source/reply status;
 - FTP / Web-recovery runtime addresses/result;
 - pricing-audit status and raw timestamp fallback;
-- desktop motor catalog versioned `working_conductors` / `starting_conductors`.
+- desktop motor catalog versioned `working_conductors` / `starting_conductors`;
+- desktop/mobile dashboard linked repair/motor context and repair-history URL;
+- current Hall calibration result runtime fields.
 
 Current rule:
 
 ```text
 server/runtime string + innerHTML => HTML escape first
-plain text rendering             => prefer textContent
+plain text rendering             => prefer textContent / DOM text nodes
 form value                       => assign through .value
+runtime ID in URL                => URLSearchParams / encodeURIComponent
 ```
 
 Backend JSON escaping protects JSON transport and does not replace DOM escaping.
 
-Exact verification chain:
+Latest exact verification chain:
 
 ```text
-CMP #4864      run 33734195479 / SUCCESS
-ESP32 #1884    run 33734113844 / SUCCESS
-ESP32 #1885    run 33734170099 / SUCCESS
-CMP #4865      run 33734386839 / SUCCESS
-CMP #4868      run 33734667118 / SUCCESS
-CMP #4871      run 33734862776 / SUCCESS
-CMP #4872      run 33734956028 / SUCCESS
-Reference #126 run 33734956275 / SUCCESS
-ESP32 #1890    run 33734955992 / SUCCESS
-CMP #4873      run 33734985565 / SUCCESS
-CMP #4874      run 33735201736 / SUCCESS
-CMP #4877      run 33735336317 / SUCCESS
-CMP #4878      run 33735432605 / SUCCESS
 CMP #4881      run 33736069877 / SUCCESS
 Reference #129 run 33736069966 / SUCCESS
 ESP32 #1893    run 33736069916 / SUCCESS
 CMP #4882      run 33736114112 / SUCCESS
+CMP #4883      run 33736283488 / SUCCESS
+CMP #4884      run 33736367758 / SUCCESS
+CMP #4885      run 33736524921 / SUCCESS
+CMP #4887      run 33737012053 / SUCCESS
+Reference #131 run 33737012006 / SUCCESS
+ESP32 #1895    run 33737012189 / SUCCESS
+CMP #4888      run 33737038921 / SUCCESS
+CMP #4889      run 33737220258 / SUCCESS
+CMP #4890      run 33737705118 / SUCCESS
+Reference #132 run 33737704899 / SUCCESS
+ESP32 #1896    run 33737704907 / SUCCESS
+CMP #4891      run 33737723762 / SUCCESS
 ```
+
+Earlier settings/runtime verification remains documented in checkpoints 29–31.
 
 Detailed records:
 
@@ -231,6 +235,8 @@ docs/PROJECT_HANDOFF/29_CHECKPOINT_SETTINGS_NETWORK_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/32_CHECKPOINT_MOTOR_CATALOG_CONDUCTOR_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/33_CHECKPOINT_DASHBOARD_LINKED_CONTEXT_ESCAPING_2026-09-03.md
+docs/PROJECT_HANDOFF/34_CHECKPOINT_HALL_RESULT_TEXT_DOM_2026-09-03.md
 ```
 
 ## Web regression reachability
@@ -297,21 +303,29 @@ Client questionnaire complete at repo/CI level:
 
 Current `cmp-protocol-v1` inspection found no code change required in these areas:
 
-- desktop/mobile `motor-new` post-create flow;
+- desktop/mobile `motor-new` post-create/similarity/result flow;
+- desktop/mobile `motor-import` untrusted JSON preview/result rendering;
 - mobile client-new → client card → exact client-scoped repair creation;
+- desktop/mobile client catalog/details identity/comment/repair/payment rendering;
+- desktop/mobile repair catalog complaint/IDs/delivery rendering and legacy handoff;
 - desktop/mobile motor card → exact motor-scoped repair creation;
 - desktop/mobile reports semantics and pagination;
 - report financial aggregation remains intentionally based on authoritative repair costing;
 - desktop/mobile `winding-history.html` and shared spool-history renderer;
 - desktop/mobile `service-job.html` runtime rendering and cancel/dismiss restrictions;
+- desktop/mobile `winding-job.html` linked identity/spool rendering and local START boundary;
+- `shared/completed-job-display-reset.js` text-only completed-job rendering;
+- `shared/completed-web-job-archive-bridge.js` exact-run bridge and static-only `innerHTML`;
 - shared Wi-Fi settings runtime rendering;
-- desktop/mobile backup export rendering and safety gating;
+- shared remote-backup settings runtime rendering/credential privacy;
+- desktop/mobile backup export plus shared remote-upload status rendering and restore gating;
 - desktop/mobile material catalog dynamic rendering;
 - Arduino winding archive dynamic rendering and exact run provenance;
+- `shared/arduino-archive-compact-ids.js` exact ID handling;
 - desktop/mobile Cash UI runtime rendering and append-only semantics;
 - desktop `motor-details.html` conductor/history rendering;
 - shared RUN_WIRE spool/material-request suggestion renderer and exact provenance checks;
-- desktop `client-details.html` identity/repair/payment rendering;
+- no `insertAdjacentHTML`, `outerHTML` or `document.write` sink found by repository search;
 - no current repository-search hit for user-facing `TODO`, `FIXME`, `not implemented`, `готовится` or `заглушка`.
 
 Cosmetic desktop/mobile differences alone are not treated as defects.
@@ -350,7 +364,7 @@ Priority order:
 3. previously promised feature that is genuinely absent;
 4. explicit new user request.
 
-For Web UI, continue auditing dynamic `innerHTML` paths and require escaping for server/runtime strings. Prefer `textContent` when markup is unnecessary.
+For Web UI, continue auditing runtime DOM and URL construction. Require escaping for server/runtime strings inserted into HTML, prefer `textContent`/DOM nodes, and encode runtime IDs used in URLs.
 
 If no defect is found in a reviewed area, record **NO-CHANGE** and move on. Deferred backlog is not an automatic task queue.
 
@@ -361,6 +375,8 @@ External two-board/hardware smoke remains a separate physical verification gate 
 ```text
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/34_CHECKPOINT_HALL_RESULT_TEXT_DOM_2026-09-03.md
+docs/PROJECT_HANDOFF/33_CHECKPOINT_DASHBOARD_LINKED_CONTEXT_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/32_CHECKPOINT_MOTOR_CATALOG_CONDUCTOR_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/31_CHECKPOINT_PRICING_AUDIT_HTML_ESCAPING_2026-09-03.md
 docs/PROJECT_HANDOFF/30_CHECKPOINT_SETTINGS_RUNTIME_HTML_ESCAPING_2026-09-03.md

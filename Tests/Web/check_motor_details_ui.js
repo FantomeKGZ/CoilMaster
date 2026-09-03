@@ -21,6 +21,7 @@ for (const relative of detailsPages) {
     'source_repair_id', 'При поступлении / после ремонта', 'snapshot_present',
     'findVersionForRepair', 'Legacy-ремонт: immutable AS_RECEIVED snapshot отсутствует',
     'Текущая карточка выше не подменяет исторический результат ремонта',
+    '/api/repairs/delivery?repair_id=', 'deliveryLabel', 'закрыт, не выдан', 'выдан:',
     '/shared/motor-role-send.js'
   ]) {
     if (!source.includes(token)) failures.push(`${relative}: missing parity contract ${token}`);
@@ -33,6 +34,8 @@ for (const relative of detailsPages) {
   if (!source.includes('versionNextCursor') || !source.includes("limit:'12'")) failures.push(`${relative}: winding-version history is not bounded/paged`);
   const boundedRepairVersionPage = source.includes("limit:'24'") || source.includes('limit:"24"');
   if (!boundedRepairVersionPage || !source.includes('invalid_paging_cursor')) failures.push(`${relative}: repair-version comparison must use bounded cursor paging`);
+  if (!source.includes('await appendRepairs')) failures.push(`${relative}: delivery lookup must complete before repair history rendering`);
+  if (source.includes("fetch('/api/repairs/delivery',{method:'POST'")) failures.push(`${relative}: motor details must keep delivery read-only`);
   if (source.includes("fetch('/api/jobs'")) failures.push(`${relative}: direct POST must stay isolated in shared helper`);
 }
 
@@ -95,4 +98,4 @@ if (failures.length) {
   console.error(failures.join('\n'));
   process.exit(1);
 }
-console.log('Motor desktop/mobile parity OK: versioned WORKING/STARTING cards, direct service-send helper, bounded winding/repair history, AS_RECEIVED comparison, edit workflow and catalogue role views are present while physical START/SSR/writeoff safety semantics remain preserved.');
+console.log('Motor desktop/mobile parity OK: versioned WORKING/STARTING cards, read-only CLOSED/delivery history, direct service-send helper, bounded winding/repair history, AS_RECEIVED comparison, edit workflow and catalogue role views are present while physical START/SSR/writeoff safety semantics remain preserved.');

@@ -55,13 +55,41 @@ Detailed record:
 docs/PROJECT_HANDOFF/18_CHECKPOINT_MOTOR_NEW_WINDING_CAPTURE_2026-09-03.md
 ```
 
-Exact implementation GREEN before documentation refresh:
+Exact implementation GREEN:
 ```text
 bb6af586d51ace86a584ec3f24e5a96b7d4e9e0d
 CMP Protocol Tests #4770 run 33708384422 / SUCCESS
 ```
 
-Более новые docs commits нельзя называть GREEN без собственного exact SUCCESS.
+Exact entrypoint/docs GREEN before this pagination audit note:
+```text
+1f25432cba64f604e000a722a6818c07948c7e38
+CMP Protocol Tests #4772 run 33708550520 / SUCCESS
+```
+
+Более новые commits нельзя называть GREEN без собственного exact SUCCESS.
+
+## Bounded clients / motors / repairs pagination audit — NO-CHANGE
+
+Current desktop/mobile catalog pages already use bounded cursor pagination consistently:
+
+```text
+clients.html  -> GET /api/clients?limit=20&cursor=...
+motors.html   -> GET /api/motors?limit=20&cursor=...
+repairs.html  -> GET /api/repairs?limit=20&cursor=...
+```
+
+All six desktop/mobile pages maintain previous-cursor history, consume `has_more` / `next_cursor`, reset paging when the search/filter changes, and reject non-monotonic returned cursors.
+
+Backend `RepairRegistryWeb`:
+
+- defaults to page size 20;
+- rejects invalid cursor/limit;
+- caps `limit` with `RepairRegistry::MaxListPageSize = 32`;
+- delegates to bounded `appendClientsPageJson`, `appendMotorsPageJson`, `appendRepairsPageJson`;
+- returns `count`, `limit`, `cursor`, `has_more`, `next_cursor`, `max_page_size`.
+
+Result: the previously requested large-list pagination for clients, motors and repairs is already implemented in the current branch. No code change is justified for this item.
 
 ## Previous feature block — motor WORKING / STARTING edit
 
@@ -118,23 +146,20 @@ CMP #4577 run 33315776327 / SUCCESS head 5b6b3eebd4e133e893227a48eefdf8036cba255
 CMP #4578 run 33315795903 / SUCCESS head df4b1251b1d38b90ed0f5ef6ce26b92d794fd0bd
 ```
 
-#4575 verifies transfer through #4572. #4576/#4577/#4578 independently verify snapshot/entrypoint/transfer HANDOFF through #4574. Thus all HANDOFF documentation through `df4b1251b1d38b90ed0f5ef6ce26b92d794fd0bd` is independently CMP-GREEN.
-
 Documentation-only CI recursion must not become the main activity.
 
 ## Feature-completeness audit order
 
 Continue systematically with:
-1. clients/motors/repairs bounded pagination;
-2. shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts;
-3. FTP/Web recovery;
-4. Wi-Fi profiles/static IP/`coil.local`;
-5. backup/settings;
-6. desktop/mobile feature parity;
-7. stale/empty pages and links;
-8. any other previously promised feature found incomplete.
+1. shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts;
+2. FTP/Web recovery;
+3. Wi-Fi profiles/static IP/`coil.local`;
+4. backup/settings;
+5. desktop/mobile feature parity;
+6. stale/empty pages and links;
+7. any other previously promised feature found incomplete.
 
-Motor import and new-motor canonical WORKING/STARTING capture are closed unless a concrete regression is found.
+Motor import, new-motor canonical WORKING/STARTING capture and bounded clients/motors/repairs pagination are closed unless a concrete regression is found.
 
 For every proven gap: fetch exact current file + blob SHA, implement minimal fix, add/update regression coverage, verify applicable CI, then update HANDOFF meaningfully.
 
@@ -173,4 +198,4 @@ docs/71_PRICING_HISTORY_CURRENT_INVARIANTS.md
 
 ## Immediate NEXT
 
-First verify exact CI for this documentation HEAD. After that continue the feature-completeness audit from bounded clients/motors/repairs pagination unless the user selects another concrete feature. Production `cmp-protocol-v1` remains untouched.
+Audit shared Web shell/navigation/global search/recent/breadcrumbs/time/version/toasts against the current branch and change only proven gaps. Production `cmp-protocol-v1` remains untouched.

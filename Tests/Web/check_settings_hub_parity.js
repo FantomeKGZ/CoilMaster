@@ -10,6 +10,8 @@ const mobileTime = read('firmware/esp32/web/mobile/settings-time.html');
 const desktopHall = read('firmware/esp32/web/desktop/settings-hall.html');
 const mobileHall = read('firmware/esp32/web/mobile/settings-hall.html');
 const remoteBackup = read('firmware/esp32/web/shared/settings-remote-backup.js');
+const desktopPricingAudit = read('firmware/esp32/web/desktop/pricing-audit.html');
+const mobilePricingAudit = read('firmware/esp32/web/mobile/pricing-audit.html');
 const failures = [];
 
 const must = (source, token, label) => {
@@ -83,6 +85,15 @@ for (const token of [
   'esc(ftpResultText(f.last_result))'
 ]) must(remoteBackup, token, 'shared FTP settings runtime escaping');
 
+for (const [label, source] of [['desktop pricing audit', desktopPricingAudit], ['mobile pricing audit', mobilePricingAudit]]) {
+  for (const token of [
+    '/api/repairs/pricing-history?repair_id=',
+    "esc=v=>String(v??'').replace(/[&<>\"']/g",
+    "esc(c.pricing_status||'—')",
+    'esc(dateLabel(c.pricing_updated_at))'
+  ]) must(source, token, label);
+}
+
 must(desktop, 'esc(j.sta_rssi)', 'desktop settings STA RSSI escaping');
 must(desktop, "localStorage.setItem('cm-ui-version','mobile')", 'desktop mobile switch');
 must(mobile, "localStorage.setItem('cm-ui-version','desktop')", 'mobile desktop switch');
@@ -92,4 +103,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Settings hub parity contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network/time/Hall/FTP strings are HTML-escaped before innerHTML rendering.');
+console.log('Settings/completeness contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network/time/Hall/FTP/pricing-audit strings are HTML-escaped before innerHTML rendering.');

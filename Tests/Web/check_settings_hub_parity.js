@@ -5,6 +5,8 @@ const root = path.resolve(__dirname, '../..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 const desktop = read('firmware/esp32/web/desktop/settings.html');
 const mobile = read('firmware/esp32/web/mobile/settings.html');
+const desktopTime = read('firmware/esp32/web/desktop/settings-time.html');
+const mobileTime = read('firmware/esp32/web/mobile/settings-time.html');
 const failures = [];
 
 const must = (source, token, label) => {
@@ -52,6 +54,16 @@ for (const [label, source] of [['desktop settings', desktop], ['mobile settings'
   must(source, "cache:'no-store'", `${label} fresh settings status`);
 }
 
+for (const [label, source] of [['desktop time settings', desktopTime], ['mobile time settings', mobileTime]]) {
+  for (const token of [
+    '/api/system/time',
+    "esc=v=>String(v??'').replace(/[&<>\"']/g",
+    "esc(j.local_time||'не задано')",
+    "esc(j.timezone||'Asia/Bishkek')",
+    'esc(ntpText(j.ntp_status))'
+  ]) must(source, token, label);
+}
+
 must(desktop, 'esc(j.sta_rssi)', 'desktop settings STA RSSI escaping');
 must(desktop, "localStorage.setItem('cm-ui-version','mobile')", 'desktop mobile switch');
 must(mobile, "localStorage.setItem('cm-ui-version','desktop')", 'mobile desktop switch');
@@ -61,4 +73,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Settings hub parity contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network strings are HTML-escaped before networkSummary innerHTML rendering.');
+console.log('Settings hub parity contract OK: desktop/mobile expose the same settings destinations and controls, and runtime network/time strings are HTML-escaped before innerHTML rendering.');

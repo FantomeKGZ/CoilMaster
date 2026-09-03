@@ -86,7 +86,7 @@ for (const [label, source] of [
     "'<':'&lt;'",
     "'>':'&gt;'",
     "'\"':'&quot;'",
-    '"\'":"&#39;"',
+    '"\'":\'&#39;\'',
     "new URLSearchParams({material,limit:'20'})",
     "fetch('/api/warehouse/spools?'+q",
     "fetch('/api/warehouse/spools/material',{method:'POST'",

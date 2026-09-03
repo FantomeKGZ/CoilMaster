@@ -3,6 +3,8 @@ require('./check_web_recovery_ftp_contracts.js');
 require('./check_remote_backup_ui_parity.js');
 require('./check_repair_material_card_ui.js');
 require('./check_crud_page_separation.js');
+require('./check_dashboard_job_history.js');
+require('./check_client_crm_ui.js');
 
 const fs = require('fs');
 const path = require('path');

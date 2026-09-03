@@ -1,6 +1,7 @@
 window.CMRemoteBackupPage=(()=>{
     const $=id=>document.getElementById(id);
     const pad=value=>String(Number(value)||0).padStart(2,'0');
+    const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function show(text,ok){
         $('result').className='note '+(ok?'ok':'bad');
         $('result').textContent=text;
@@ -109,7 +110,7 @@ window.CMRemoteBackupPage=(()=>{
             show(c.configured?'Настройки загружены. Пароль скрыт.':'Укажите FTP-сервер роутера.',true);
             scheduleText(c);
             if(fr.ok){
-                const addresses=[f.ap_address||f.address];if(f.sta_available&&f.sta_address)addresses.push(f.sta_address);$('device').innerHTML='<div class="row"><span>Сервер /web</span><b>'+(f.enabled?'включён':'выключен')+'</b></div><div class="row"><span>Адреса</span><b>'+addresses.map(a=>a+':'+f.port).join(' · ')+'</b></div><div class="row"><span>/web готов</span><b>'+(f.web_root_usable?'да':'нет')+'</b></div><div class="row"><span>Клиент</span><b>'+(f.client_connected?'подключён':'нет')+'</b></div><div class="row"><span>Режим</span><b>'+(f.automatic_recovery?'аварийный автозапуск':'ручной')+'</b></div><div class="row"><span>Последний результат</span><b>'+ftpResultText(f.last_result)+'</b></div>';
+                const addresses=[f.ap_address||f.address];if(f.sta_available&&f.sta_address)addresses.push(f.sta_address);$('device').innerHTML='<div class="row"><span>Сервер /web</span><b>'+(f.enabled?'включён':'выключен')+'</b></div><div class="row"><span>Адреса</span><b>'+addresses.map(a=>esc(a)+':'+esc(f.port)).join(' · ')+'</b></div><div class="row"><span>/web готов</span><b>'+(f.web_root_usable?'да':'нет')+'</b></div><div class="row"><span>Клиент</span><b>'+(f.client_connected?'подключён':'нет')+'</b></div><div class="row"><span>Режим</span><b>'+(f.automatic_recovery?'аварийный автозапуск':'ручной')+'</b></div><div class="row"><span>Последний результат</span><b>'+esc(ftpResultText(f.last_result))+'</b></div>';
             }else if(nr.ok)$('device').textContent='Статус FTP-сервера недоступен.';
         }catch(error){
             show('Ошибка загрузки: '+error.message,false);

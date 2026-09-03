@@ -42,7 +42,9 @@ main            = stable/ready; обновлять только отдельны
 - bounded clients/motors/repairs pagination;
 - stale Statistics placeholders;
 - Cash UI regression reachability;
-- orphaned Web regression audit.
+- orphaned Web regression audit;
+- CLOSED/DELIVERED history visibility in client and motor history;
+- desktop/mobile repair creation legacy handoff by exact `client_id` / `motor_id`.
 
 ## Latest exact verified checkpoints
 
@@ -93,6 +95,40 @@ Detailed record:
 docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md
 ```
 
+### Delivery-history and repair-handoff checkpoints
+
+Recent user-facing parity work is closed and exact-verified:
+
+```text
+CMP #4853  run 33732645388 / SUCCESS
+Reference #118 run 33732645370 / SUCCESS
+ESP32 #1882 run 33732645361 / SUCCESS
+CMP #4854  run 33732693018 / SUCCESS
+```
+
+This protects CLOSED repair delivery visibility from client/motor history without adding delivery mutation outside the repair workflow.
+
+Repair creation handoff was then aligned so legacy `repairs.html?client_id=...` / `?motor_id=...` links preserve the exact identifiers and enter the matching dedicated `repair-new.html` form on desktop/mobile.
+
+```text
+CMP #4856  run 33733146747 / SUCCESS
+Reference #119 run 33733146680 / SUCCESS
+ESP32 #1883 run 33733146716 / SUCCESS
+CMP #4857  run 33733174978 / FAILURE
+  expected regression-test defect: test required one specific desktop redirect implementation
+CMP #4858  run 33733234029 / SUCCESS
+CMP #4859  run 33733410301 / SUCCESS
+```
+
+Detailed records:
+
+```text
+docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
+docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
+```
+
+`#4857` is not a runtime regression: the over-specific intermediate test was corrected to verify the actual handoff semantics, and final `#4858` is exact GREEN for that regression HEAD.
+
 ### Branch-policy documentation sync
 
 `00_READ_FIRST.md` was updated on current development branch to remove the retired `arduino-ru-lcd-experiment` policy and to make `cmp-protocol-v1` the only development/source branch.
@@ -104,20 +140,22 @@ Commit:
 docs: align current branch policy
 ```
 
-Its exact CMP run must be checked before using that commit itself as GREEN evidence.
-
 ## Current audit findings
 
 User-facing static route validation is already enforced by `check_web_assets.js`.
 
-Additional stale/placeholder sweep currently shows no new proven user-facing placeholder requiring production code change:
+Additional current inspection shows:
 
 - historical `statistics.html` is absent;
 - search hits for HTML `placeholder=` are normal form hints, not unfinished pages;
-- Hall `Подготовка локального запуска` is an active runtime state, not a placeholder;
-- no current `готовится` user-facing stub was found in the repository search.
+- no current `TODO` / `FIXME` / `not implemented` / `готовится` / `заглушка` user-facing hit was found by repository search;
+- desktop/mobile `motor-new` both save canonical WORKING + optional STARTING and finish at the exact new motor card — **NO-CHANGE**;
+- mobile `client-new` opens the new client card, whose `+ Новый ремонт` action preserves exact `client_id` — **NO-CHANGE**;
+- desktop/mobile motor cards preserve exact `motor_id` when entering repair creation — **NO-CHANGE**;
+- desktop/mobile closed-repair reports use the same bounded CLOSED query, registry lookups and authoritative costing source — **NO-CHANGE**;
+- cash/payment remains a separate append-only journal and must not be silently introduced as a second costing/report source of truth.
 
-Do not change a page merely because its filename/content looks old. Require concrete broken/incomplete behavior or an explicit requested feature.
+Do not change a page merely because its filename/content looks old or because desktop/mobile UX differs cosmetically. Require concrete broken/incomplete behavior or an explicit requested feature.
 
 ## Safety invariants — immutable unless explicitly redesigned
 
@@ -139,16 +177,16 @@ Never weaken:
 
 ## Current NEXT
 
-Continue the current `cmp-protocol-v1` full feature/runtime audit. Choose the next change only from:
+Continue the current `cmp-protocol-v1` final feature/runtime acceptance audit. Choose the next code change only from:
 
 1. a concrete current failure;
 2. a proven user-facing/runtime incomplete behavior;
 3. a previously promised feature that repository inspection proves is still missing;
 4. an explicit new user request.
 
-If inspection finds no defect in an area, record NO-CHANGE rather than inventing work.
+If inspection finds no defect in an area, record **NO-CHANGE** rather than inventing work.
 
-Do not resume speculative Uno parser/compiler micro-optimization unless measured Flash/RAM pressure again justifies it.
+Do not resume speculative Uno parser/compiler micro-optimization unless measured Flash/RAM pressure again justifies it. Do not promote deferred backlog items without a new explicit request or concrete current evidence.
 
 ## Read order for a new chat
 
@@ -157,6 +195,8 @@ Do not resume speculative Uno parser/compiler micro-optimization unless measured
 docs/PROJECT_HANDOFF/00_READ_FIRST.md
 docs/PROJECT_HANDOFF/01_CURRENT_STATE.md
 docs/PROJECT_HANDOFF/06_ACTIVE_WORK_AND_NEXT_STEPS.md
+docs/PROJECT_HANDOFF/28_CHECKPOINT_REPAIR_CREATION_HANDOFF_PARITY_2026-09-03.md
+docs/PROJECT_HANDOFF/27_CHECKPOINT_MOTOR_DELIVERY_HISTORY_2026-09-03.md
 docs/PROJECT_HANDOFF/21_CHECKPOINT_WEB_REGRESSION_REACHABILITY_2026-09-03.md
 docs/PROJECT_HANDOFF/20_CHECKPOINT_BRANCH_POLICY_AND_UNO_HEADROOM_2026-09-03.md
 docs/PROJECT_HANDOFF/18_CHECKPOINT_MOTOR_NEW_WINDING_CAPTURE_2026-09-03.md

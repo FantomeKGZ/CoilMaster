@@ -140,6 +140,11 @@ uint32_t lastHallTelemetrySendMs = 0UL;
 uint8_t emergencyClearSequenceIndex = 0U;
 uint32_t emergencyClearLastKeyMs = 0UL;
 
+constexpr uint32_t OperatorExitConfirmDurationMs = 5000UL;
+bool operatorExitConfirmActive = false;
+uint32_t operatorExitConfirmStartedMs = 0UL;
+uint8_t operatorExitDisplayedSeconds = 0xFFU;
+
 #if CM_FEATURE_DIAGNOSTICS || CM_FEATURE_BOOT_DIAGNOSTICS
 int freeSramBytes()
 {
@@ -403,6 +408,81 @@ bool processRemoteOperatorExitKey(char key)
     return true;
 }
 
+void clearOperatorExitConfirmation()
+{
+    operatorExitConfirmActive = false;
+    operatorExitConfirmStartedMs = 0UL;
+    operatorExitDisplayedSeconds = 0xFFU;
+#if CM_FEATURE_LCD1602
+    lcdView.invalidate();
+#endif
+}
+
+uint8_t operatorExitSecondsRemaining(uint32_t nowMs)
+{
+    if (!operatorExitConfirmActive) return 0U;
+    const uint32_t elapsed = static_cast<uint32_t>(nowMs - operatorExitConfirmStartedMs);
+    if (elapsed >= OperatorExitConfirmDurationMs) return 0U;
+    return static_cast<uint8_t>(
+        (OperatorExitConfirmDurationMs - elapsed + 999UL) / 1000UL);
+}
+
+void processOperatorExitConfirmationTimeout(uint32_t nowMs)
+{
+    if (!operatorExitConfirmActive) return;
+    if (static_cast<uint32_t>(nowMs - operatorExitConfirmStartedMs) <
+        OperatorExitConfirmDurationMs)
+    {
+        return;
+    }
+
+    clearOperatorExitConfirmation();
+    Serial.println(F("CM_JOB B_CONFIRM result=TIMEOUT_CONTINUE"));
+}
+
+bool processOperatorExitConfirmationKey(char key, uint32_t nowMs)
+{
+    if (!operatorExitConfirmActive)
+    {
+        if (key != 'B' || machine.state() != CM::MachineState::Winding)
+            return false;
+
+        operatorExitConfirmActive = true;
+        operatorExitConfirmStartedMs = nowMs;
+        operatorExitDisplayedSeconds = 0xFFU;
+#if CM_FEATURE_LCD1602
+        lcdView.invalidate();
+#endif
+        Serial.println(F("CM_JOB B_CONFIRM result=ARMED"));
+        return true;
+    }
+
+    if (key == 'A')
+    {
+        clearOperatorExitConfirmation();
+        Serial.println(F("CM_JOB B_CONFIRM result=CONTINUE"));
+        return true;
+    }
+
+    if (key == 'B')
+    {
+        clearOperatorExitConfirmation();
+        if (processRemoteOperatorExitKey('B')) return true;
+
+        ssr.forceOff();
+        const bool handled = input.handleKey('B');
+#if CM_FEATURE_BUZZER
+        buzzer.stop();
+#endif
+        Serial.println(handled
+                           ? F("CM_JOB B_CONFIRM result=RETURN_HOME")
+                           : F("CM_JOB B_CONFIRM result=RETURN_HOME_REJECTED"));
+        return true;
+    }
+
+    return true;
+}
+
 bool startHallCalibrationFromLocalControl(uint32_t nowMs)
 {
     if (!hallCalibration.baselineReady()) return false;
@@ -419,8 +499,17 @@ bool startHallCalibrationFromLocalControl(uint32_t nowMs)
 void processKeypad()
 {
 #if CM_FEATURE_KEYPAD_4X4
+    const uint32_t nowMs = millis();
+    processOperatorExitConfirmationTimeout(nowMs);
+
     const char key = keypad.getKey();
     if (key == NO_KEY) return;
+
+    if (operatorExitConfirmActive)
+    {
+        (void)processOperatorExitConfirmationKey(key, nowMs);
+        return;
+    }
 
     if (hallCalibration.state() == CM::HallCalibrationState::WaitingLocalConfirm ||
         hallCalibration.state() == CM::HallCalibrationState::ArmedWaitingPhysicalStart)
@@ -490,6 +579,7 @@ void processKeypad()
         return;
     }
     if (processEmergencyJobClearKey(key)) return;
+    if (processOperatorExitConfirmationKey(key, nowMs)) return;
     if (processRemoteOperatorExitKey(key)) return;
 
     bool handled = false;
@@ -1054,6 +1144,22 @@ void updateOutputs()
 #endif
 
 #if CM_FEATURE_LCD1602
+    if (operatorExitConfirmActive)
+    {
+        const uint8_t seconds = operatorExitSecondsRemaining(millis());
+        if (seconds != operatorExitDisplayedSeconds)
+        {
+            lcd.setCursor(0U, 0U);
+            lcd.print(F("A=PRODOLZH "));
+            lcd.print(seconds);
+            lcd.print(F("    "));
+            lcd.setCursor(0U, 1U);
+            lcd.print(F("B=V MENU        "));
+            operatorExitDisplayedSeconds = seconds;
+        }
+        return;
+    }
+
     CM::UiModel model = CM::UiModelBuilder::build(machine, input);
     model.pendingSyncCount = persistence.pendingCount();
 

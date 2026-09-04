@@ -45,33 +45,81 @@ void testRemoteReadyCannotBeSilentlyCleared()
           "remote READY identity remains intact");
 }
 
-void testActiveRunCannotBeSilentlyCleared()
+void testRemoteActiveRunCannotBeSilentlyCleared()
 {
     CM::StateMachine machine;
-    check(machine.setCoilCount(2U), "local coil count accepted");
-    check(machine.setCoilTurns(0U, 2U), "first local target accepted");
-    check(machine.setCoilTurns(1U, 2U), "second local target accepted");
-    check(machine.startOrResume(), "local run starts");
+    const CM::WindingJob remote = makeRemote(11UL, 21UL, 5U);
+    check(machine.loadRemoteJob(remote), "remote active job accepted");
+    check(machine.startOrResume(), "remote active job starts");
 
     CM::WindingEvent event;
-    check(machine.takeEvent(event), "RUN_STARTED consumed");
-    check(!machine.returnHome(), "WINDING rejects ordinary return-home");
+    check(machine.takeEvent(event), "remote RUN_STARTED consumed");
+    check(!machine.returnHome(), "remote WINDING rejects ordinary return-home");
     check(machine.state() == CM::MachineState::Winding,
-          "WINDING state survives rejected return-home");
+          "remote WINDING state remains intact");
+    check(machine.job().jobId == 11UL && machine.job().sessionId == 21UL,
+          "remote active identity remains intact");
+}
 
-    check(machine.pause(), "run pauses");
-    check(!machine.returnHome(), "PAUSED rejects ordinary return-home");
-    check(machine.state() == CM::MachineState::Paused,
-          "PAUSED state survives rejected return-home");
+void testLocalAbsoluteReturnHome()
+{
+    {
+        CM::StateMachine machine;
+        check(machine.setCoilCount(1U), "local winding coil count accepted");
+        check(machine.setCoilTurns(0U, 260U), "local winding target accepted");
+        check(machine.startOrResume(), "local winding starts");
+        CM::WindingEvent event;
+        check(machine.takeEvent(event), "local winding RUN_STARTED consumed");
+        for (uint8_t turn = 0U; turn < 40U; ++turn)
+            check(machine.registerTurn(), "local partial turn accepted");
+        check(machine.state() == CM::MachineState::Winding,
+              "local partial run remains WINDING");
+        check(machine.job().currentTurns == 40U,
+              "local partial run reaches 40 turns");
+        check(machine.returnHome(), "B abandons active local WINDING");
+        check(machine.state() == CM::MachineState::EnterCoilCount,
+              "active local WINDING returns home");
+        check(!machine.job().isValid(), "active local job is cleared on B");
+    }
 
-    check(machine.startOrResume(), "paused run resumes");
-    check(machine.registerTurn(), "first turn accepted");
-    check(machine.registerTurn(), "second turn reaches coil boundary");
-    check(machine.state() == CM::MachineState::CoilComplete,
-          "run reaches coil-complete boundary");
-    check(!machine.returnHome(), "COIL_COMPLETE rejects ordinary return-home");
-    check(machine.state() == CM::MachineState::CoilComplete,
-          "COIL_COMPLETE state survives rejected return-home");
+    {
+        CM::StateMachine machine;
+        check(machine.setCoilCount(1U), "local paused coil count accepted");
+        check(machine.setCoilTurns(0U, 10U), "local paused target accepted");
+        check(machine.startOrResume(), "local paused run starts");
+        CM::WindingEvent event;
+        check(machine.takeEvent(event), "local paused RUN_STARTED consumed");
+        check(machine.pause(), "local run pauses");
+        check(machine.returnHome(), "B abandons local PAUSED run");
+        check(machine.state() == CM::MachineState::EnterCoilCount,
+              "local PAUSED returns home");
+    }
+
+    {
+        CM::StateMachine machine;
+        check(machine.setCoilCount(2U), "local boundary coil count accepted");
+        check(machine.setCoilTurns(0U, 1U), "local boundary first target accepted");
+        check(machine.setCoilTurns(1U, 1U), "local boundary second target accepted");
+        check(machine.startOrResume(), "local boundary run starts");
+        CM::WindingEvent event;
+        check(machine.takeEvent(event), "local boundary RUN_STARTED consumed");
+        check(machine.registerTurn(), "local first coil completes");
+        check(machine.state() == CM::MachineState::CoilComplete,
+              "local run reaches COIL_COMPLETE");
+        check(machine.returnHome(), "B abandons local COIL_COMPLETE run");
+        check(machine.state() == CM::MachineState::EnterCoilCount,
+              "local COIL_COMPLETE returns home");
+    }
+
+    {
+        CM::StateMachine machine;
+        check(machine.toggleManual(), "local manual mode entered");
+        check(machine.state() == CM::MachineState::ManualRun,
+              "local manual mode is active");
+        check(machine.returnHome(), "B exits local MANUAL mode");
+        check(machine.state() == CM::MachineState::EnterCoilCount,
+              "local MANUAL mode returns home");
+    }
 }
 
 void testRemoteCompletionWaitsForExactAck()
@@ -156,7 +204,8 @@ void testSafeLocalMenuTransitionsRemainAvailable()
 int main()
 {
     testRemoteReadyCannotBeSilentlyCleared();
-    testActiveRunCannotBeSilentlyCleared();
+    testRemoteActiveRunCannotBeSilentlyCleared();
+    testLocalAbsoluteReturnHome();
     testRemoteCompletionWaitsForExactAck();
     testCompletedStateCannotFallIntoManualMode();
     testSafeLocalMenuTransitionsRemainAvailable();
